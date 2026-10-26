@@ -47,12 +47,12 @@ pub(crate) fn folder(folder: &Path, error: &io::Error) -> UserMessage {
     )
 }
 
-/// The message when the async runtime cannot start, which leaves nothing the
-/// person typed to blame.
-pub(crate) fn runtime() -> UserMessage {
+/// The message when the database work cannot start for a reason inside
+/// Khalid or the computer, which leaves nothing the person typed to blame.
+pub(crate) fn internal() -> UserMessage {
     UserMessage::new(
-        "Khalid could not start its background workers.",
-        "The computer refused the threads or files Khalid needs to run.",
-        "Close other programs and run the command again.",
+        "Khalid could not start the database work.",
+        "The cause is inside Khalid or the computer, not in your site.",
+        "Run the command again, and report it with the output of `khalid --version` if it fails again.",
     )
 }
