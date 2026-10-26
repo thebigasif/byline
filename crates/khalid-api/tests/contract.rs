@@ -26,8 +26,10 @@ const KEY: &str =
 const ADMIN: &str =
     "ki_1111222233334444_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
 
-/// The resources `docs/standards/api.md` names.
-const RESOURCES: [&str; 17] = [
+/// The resources `docs/standards/api.md` names, and `navigation` from plan
+/// section 5.
+const RESOURCES: [&str; 18] = [
+    "navigation",
     "posts",
     "pages",
     "authors",

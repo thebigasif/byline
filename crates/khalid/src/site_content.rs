@@ -7,7 +7,7 @@ use std::sync::{Arc, PoisonError, RwLock};
 
 use chrono::{DateTime, NaiveTime, Utc};
 use khalid_api::content_store::{
-    BoxFuture, ContentStore, ContentStoreError, Listed, MemoryContentStore, PostKey,
+    BoxFuture, ContentStore, ContentStoreError, Listed, MemoryContentStore, PostKey, SiteResources,
 };
 use khalid_api::query::ListQuery;
 use khalid_api::resources::{Bodies, Collection, Post};
@@ -56,6 +56,11 @@ impl ContentStore for LiveContent {
     ) -> BoxFuture<'a, Result<Option<Post>, ContentStoreError>> {
         let current = self.current();
         Box::pin(async move { current.find(collection, key).await })
+    }
+
+    fn site(&self) -> BoxFuture<'_, Result<SiteResources, ContentStoreError>> {
+        let current = self.current();
+        Box::pin(async move { current.site().await })
     }
 }
 
