@@ -43,6 +43,12 @@ pub trait SiteView {
     fn host(&self) -> Option<&str> {
         None
     }
+
+    /// The host names of the other sites this Khalid process serves, such as
+    /// `shop.example.org`. Empty for a single site.
+    fn sibling_hosts(&self) -> &[String] {
+        &[]
+    }
 }
 
 /// A site's posts, pages and glossary, held in memory.
@@ -64,6 +70,8 @@ pub struct LintSite {
     pub slugs: Option<SlugMode>,
     /// The site's own host name, such as `example.com`, when known.
     pub host: Option<String>,
+    /// The host names of the other sites in the same process.
+    pub sibling_hosts: Vec<String>,
 }
 
 impl SiteView for LintSite {
@@ -93,6 +101,10 @@ impl SiteView for LintSite {
 
     fn host(&self) -> Option<&str> {
         self.host.as_deref()
+    }
+
+    fn sibling_hosts(&self) -> &[String] {
+        &self.sibling_hosts
     }
 }
 

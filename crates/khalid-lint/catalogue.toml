@@ -219,3 +219,21 @@ what = "This post holds more links than your site's limit."
 why = "Google shares a page's value across its links, so each one counts for less, and readers skim past them."
 fix = "Cut the links that do not help the reader, or split the post into two."
 guide = "internal-links"
+
+[redirecting-link]
+what = "A link in this post opens an old address that now sends readers on to another page."
+why = "Each detour slows readers down, and Google trusts a direct link to the current address more."
+fix = "Change the link to the post's current address."
+guide = "redirects"
+
+[cross-site-link]
+what = "This post links to a sister site that runs on the same Khalid server."
+why = "Google may read sister sites that link to each other as a link scheme and trust both less."
+fix = "Remove the link, or keep it only where readers need it and mark it `nofollow`."
+guide = "sister-sites"
+
+[form-without-destination]
+what = "A form in this post sends its answers nowhere."
+why = "Readers who fill it in never hear back, so the visits search brings you are lost."
+fix = "Give this form an email address or a service such as Zapier to send its answers to."
+guide = "forms"

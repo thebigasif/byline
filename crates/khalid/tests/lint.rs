@@ -180,6 +180,46 @@ fn lint_warns_about_a_link_to_the_own_site_over_http() {
     );
 }
 
+/// A good post that moved: its old path redirects to it.
+const MOVED: &str = "---
+title: Choosing link text
+date: 2026-09-10
+author: asif
+description: Good link text names the page it opens, so readers know where they go.
+aliases:
+  - /blog/link-text-tips/
+---
+
+Good link text names the page it opens, like [why links matter](/blog/why-internal-links-matter/).
+";
+
+/// A good post that still links to the moved post's old path.
+const OLD_LINK: &str = "---
+title: Why internal links matter
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+---
+
+An internal link points to [how to pick link text](/blog/link-text-tips/).
+";
+
+#[test]
+fn lint_warns_about_a_link_to_an_old_address_of_a_moved_post() {
+    let site = site(&[
+        ("2026-09-10-choosing-link-text.md", MOVED),
+        ("2026-09-14-why-internal-links-matter.md", OLD_LINK),
+    ]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let found = findings.iter().find(|f| f["rule"] == "redirecting-link");
+    let found = found.unwrap_or_else(|| panic!("no redirecting-link in {json}"));
+    assert_eq!(found["slug"], "why-internal-links-matter");
+    assert_eq!(found["subject"], "/blog/link-text-tips/");
+}
+
 #[test]
 fn lint_names_a_post_it_cannot_find() {
     let site = site(&[("choosing-link-text.md", UNDATED)]);

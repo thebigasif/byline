@@ -90,6 +90,7 @@ pub(crate) fn lint_parts(parts: &PostParts<'_>, config: &Config) -> Option<LintP
         .as_ref()
         .map(|author| author.as_str().to_owned());
     post.translation.clone_from(&front.translation);
+    post.aliases.clone_from(&front.aliases);
     post.headings = rendered
         .headings
         .iter()
