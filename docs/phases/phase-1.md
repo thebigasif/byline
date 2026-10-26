@@ -12,14 +12,14 @@
 
 ### 1.1 Settings from `site.toml`
 
-- Status: `todo`
+- Status: `doing`. Three parts: settings from `site.toml` with located errors, then the environment override with its one `#[expect]`, then the binary edge with `--site` and the what, why and fix message.
 - `Config` reads `site.toml`, the environment and command-line flags once at start, in that order of precedence, into typed fields: address (`AbsoluteUrl`), mount path, languages (`Locale`), default language, mode (server or static), slug mode (ascii or unicode). The config module carries the one `#[expect(clippy::disallowed_methods)]` for reading the environment, which closes task 0.4's config part.
 - Rules: BL-RUN-2, BL-FS-3, BL-ERR-4, BL-TYP-3.
 - Done when: `fixtures/demo-site/site.toml` loads, and a file with a wrong field produces a message that names the file, the line and the field, in what, why and fix.
 
 ### 1.2 `Locale`, `AbsoluteUrl` and `SitePath`
 
-- Status: `done` after this landing. Built before 1.1, because settings need these types. Part 1 (#21): `Locale` and `AbsoluteUrl`. Part 2: `SitePath`.
+- Status: `done` (#21, #22). Built before 1.1, because settings need these types.
 - The remaining identifier newtypes from `docs/standards/rust.md`, each with a fallible constructor. `SitePath::within(root, untrusted)` cannot escape the site folder and carries the one `Path::join` `#[expect]`.
 - Rules: BL-TYP-3, BL-SEC-4.
 - Done when: property tests show no input escapes the root (including `..`, absolute paths, symlinks and encoded separators), and the suppression gate in `just check` still passes.

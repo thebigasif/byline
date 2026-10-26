@@ -65,6 +65,13 @@ impl FromStr for AbsoluteUrl {
     }
 }
 
+impl<'de> serde::Deserialize<'de> for AbsoluteUrl {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        Self::parse(&text).map_err(serde::de::Error::custom)
+    }
+}
+
 impl fmt::Display for AbsoluteUrl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
