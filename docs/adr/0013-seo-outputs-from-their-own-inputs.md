@@ -1,4 +1,4 @@
-# 0009. SEO outputs are built from their own input types
+# 0013. SEO outputs are built from their own input types
 
 **Status:** Accepted, 2026-10-26. Phase 1 tasks 1.13 and 1.14.
 
