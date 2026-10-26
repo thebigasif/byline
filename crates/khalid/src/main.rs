@@ -57,7 +57,7 @@ fn run(cli: &Cli) -> Exit {
     match (&cli.command, &cli.site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some(site)) => db::run(site, *command, cli.output),
-        (Some(Command::Lint { path: None }), Some(site)) => lint::run(site, cli.output),
+        (Some(Command::Lint { path }), Some(site)) => lint::run(site, path.as_deref(), cli.output),
         (Some(command @ (Command::Db { .. } | Command::Lint { .. })), None) => {
             report::failure(cli.output, &needs_site(command), Exit::Usage)
         }

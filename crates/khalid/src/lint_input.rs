@@ -1,27 +1,52 @@
 //! Turns the content files into the linter's own model (ADR 0011).
 //!
 //! The lint crate never reads files, so this binary maps parsed posts and
-//! their rendered output to `LintPost` and `LintSite`. Pages, glossary terms
-//! and languages come in the next part; wikilinks (task 1.8), post paths
-//! (task 1.9) and the home page's links later. Until then the rules that
-//! need them use their fallbacks or skip.
+//! their rendered output to `LintPost` and `LintSite`. Wikilinks (task 1.8),
+//! post paths (task 1.9) and the home page's links are not known yet, so the
+//! rules that need them use their fallbacks or skip.
 
 use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::{Document, PostFront, SiteContent, render};
 use khalid_core::{Config, Locale, Slug};
-use khalid_lint::{Heading, HeadingLevel, Image, LinkKind, LintLink, LintPost, LintSite};
+use khalid_lint::{
+    GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintLink, LintPost, LintSite, PageRef,
+};
 
-/// The site's posts in the lint model, in content order.
-pub(crate) fn lint_site(content: &SiteContent, config: &Config) -> LintSite {
+/// The site's posts, pages and glossary in the lint model, and the file each
+/// post came from, in the same order.
+pub(crate) fn lint_site<'c>(
+    content: &'c SiteContent,
+    config: &Config,
+) -> (LintSite, Vec<&'c Path>) {
     let mut site = LintSite::default();
-    let posts = content
-        .posts
-        .iter()
-        .filter_map(|document| lint_post(document, config));
-    site.posts.extend(posts);
-    site
+    let mut files = Vec::new();
+    for document in &content.posts {
+        if let Some(post) = lint_post(document, config) {
+            site.posts.push(post);
+            files.push(document.path.as_path());
+        }
+    }
+    for page in &content.pages {
+        if let Some(slug) = slug_of(page.front.slug.as_ref(), &page.path, &page.locale, config) {
+            site.pages.push(PageRef::new(page.locale.clone(), slug));
+        }
+    }
+    for entry in &content.glossary {
+        let slug = slug_of(
+            entry.front.slug.as_ref(),
+            &entry.path,
+            &entry.locale,
+            config,
+        );
+        if let (Some(term), Some(slug)) = (&entry.front.term, slug) {
+            site.glossary
+                .push(GlossaryTerm::new(entry.locale.clone(), term, slug));
+        }
+    }
+    site.locales = config.languages().to_vec();
+    (site, files)
 }
 
 /// One post in the lint model, or `None` when no slug can be made for it.

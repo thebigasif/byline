@@ -18,7 +18,7 @@ description: Internal links help readers and search engines find the rest of you
 An internal link points to [how to pick link text](/blog/choosing-link-text/).
 ";
 
-/// A post with no date, which blocks publishing.
+/// The same post with no date, which blocks publishing.
 const UNDATED: &str = "---
 title: Choosing link text
 author: asif
@@ -104,6 +104,60 @@ fn lint_json_prints_the_report_and_still_exits_1() {
     assert_eq!(first["rule"], "no-date");
     assert_eq!(first["slug"], "choosing-link-text");
     assert_eq!(first["guide"], "post-dates");
+}
+
+#[test]
+fn lint_checks_only_the_post_it_is_given() {
+    let site = site(&[
+        ("2026-09-14-why-internal-links-matter.md", GOOD),
+        ("choosing-link-text.md", UNDATED),
+    ]);
+    let good = "content/en/posts/2026-09-14-why-internal-links-matter.md";
+    let output = khalid(site.path(), &["lint", good, "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    assert!(
+        findings
+            .iter()
+            .all(|f| f["slug"] == "why-internal-links-matter")
+    );
+}
+
+#[test]
+fn lint_names_a_post_it_cannot_find() {
+    let site = site(&[("choosing-link-text.md", UNDATED)]);
+    let output = khalid(site.path(), &["lint", "content/en/posts/missing.md"]);
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains("content/en/posts/missing.md"), "{said}");
+}
+
+#[test]
+fn a_mistake_in_lint_toml_names_its_line() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", GOOD)]);
+    fs::write(
+        within(site.path(), "lint.toml"),
+        "[rules]\nno-dates = \"off\"\n",
+    )
+    .unwrap();
+    let output = khalid(site.path(), &["lint"]);
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains("line 2"), "{said}");
+    assert!(said.contains("no-dates"), "{said}");
+}
+
+#[test]
+fn lint_toml_turns_a_block_into_a_warning() {
+    let site = site(&[("choosing-link-text.md", UNDATED)]);
+    fs::write(
+        within(site.path(), "lint.toml"),
+        "[rules]\nno-date = \"warn\"\n",
+    )
+    .unwrap();
+    let output = khalid(site.path(), &["lint"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
 }
 
 #[test]
