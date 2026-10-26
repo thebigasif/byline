@@ -8,7 +8,7 @@
 
 ### 0.1 Name checks (founder decides, agent prepares)
 
-- Status: `todo`
+- Status: `blocked` on the founder's pick. The table is in `docs/decisions/name.md`. Trademark searches are only partly done, because the USPTO and TMview sites do not answer scripts; the page lists the links to finish them by hand.
 - For each name on the shortlist in `docs/plan.md` D-1 (Byline, Masthead, Dateline, Gazette, Typeset), check and record: GitHub organisation and repository name free, crates.io name free, npm name free, `.dev` and `.com` domains, a USPTO and EUIPO trademark search for classes 9 and 42, and whether any CMS, editor or publishing tool already uses the name.
 - Write the results as a table in `docs/decisions/name.md` with links. Make no recommendation beyond the plan's. The founder picks.
 - Done when: the table has every check for every name and the founder has replied.
@@ -52,7 +52,7 @@
 
 ## Questions for the founder
 
-None open.
+- **The name (0.1).** Which name from `docs/decisions/name.md`? One finding to know first: an open-source "Byline CMS" already exists and is active.
 
 ## Order
 
