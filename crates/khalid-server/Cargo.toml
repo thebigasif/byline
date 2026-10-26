@@ -1,0 +1,23 @@
+[package]
+name = "khalid-server"
+version = "0.0.0"
+description = "The web server: rendered pages from memory at clean addresses, and a graceful stop."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+bytes = "1"
+percent-encoding = "2"
+thiserror.workspace = true
+tower = { version = "0.5", default-features = false, features = ["util"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+tokio.workspace = true
+
+[lints]
+workspace = true

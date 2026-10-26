@@ -1,0 +1,1 @@
+This site breaks one rule on purpose: an HTML block shown to a group Khalid does not have, in `content/en/posts/why-links-matter.md`. The exact message `khalid --site` prints for it is in `expected.txt`.

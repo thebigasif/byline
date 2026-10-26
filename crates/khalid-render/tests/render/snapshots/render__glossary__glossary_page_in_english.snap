@@ -1,0 +1,27 @@
+---
+source: crates/khalid-render/tests/render/glossary.rs
+expression: main_of(&page)
+---
+ id="main" tabindex="-1">
+
+<h1>Glossary</h1>
+<nav class="letters" aria-label="Jump to a letter">
+<ul>
+<li><a href="#letter-c">C</a></li>
+<li><a href="#letter-t">T</a></li>
+</ul>
+</nav>
+<section aria-labelledby="letter-c">
+<h2 id="letter-c">C</h2>
+<dl>
+<dt><a href="/blog/glossary/canonical/">Canonical</a></dt>
+<dd>The one address a page should be indexed under.</dd>
+</dl>
+</section>
+<section aria-labelledby="letter-t">
+<h2 id="letter-t">T</h2>
+<dl>
+<dt><a href="/blog/glossary/topical-authority/">Topical authority</a></dt>
+<dd>How much a search engine trusts a site on one subject.</dd>
+</dl>
+</section>

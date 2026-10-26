@@ -1,13 +1,45 @@
 //! Reading directive blocks, `::name{...}` and `:::name{...}` (ADR 0012).
 
+use std::time::Duration;
+
 use khalid_core::AbsoluteUrl;
 
-use crate::{BlockError, BlockKind, CalloutKind};
+use crate::{
+    BlockError, BlockKind, CalloutKind, GalleryImage, ProductBlock, REVIEW_TYPES, ReviewBlock,
+    VideoBlock,
+};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 7] = [
-    "bookmark", "button", "callout", "embed", "figure", "toc", "toggle",
+pub(crate) const BLOCKS: [&str; 22] = [
+    "audio",
+    "bookmark",
+    "business",
+    "button",
+    "callout",
+    "embed",
+    "faq",
+    "figure",
+    "file",
+    "form",
+    "gallery",
+    "gated",
+    "header",
+    "howto",
+    "html",
+    "newsletter",
+    "product",
+    "recipe",
+    "review",
+    "toc",
+    "toggle",
+    "video",
 ];
+
+mod cards;
+mod forms;
+mod nested;
+
+pub(crate) use forms::TRAP;
 
 /// What to say after "there is no block called `name`": the nearest block
 /// name when one is a typing slip away, or where the names come from.
@@ -47,7 +79,17 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// Blocks with no body, written on one line as `::name{...}`. Every other
 /// block opens with `:::name{...}` and closes with `:::`.
-const LEAVES: [&str; 4] = ["bookmark", "button", "embed", "toc"];
+const LEAVES: [&str; 9] = [
+    "audio",
+    "bookmark",
+    "business",
+    "button",
+    "embed",
+    "file",
+    "newsletter",
+    "toc",
+    "video",
+];
 
 /// How a block was written.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -66,20 +108,16 @@ pub(crate) fn opening(line: &str) -> Option<(&str, &str)> {
         .then_some((fence, rest.trim_end()))
 }
 
-/// Reads a directive's name and attributes, written in `form` on body `line`,
-/// into its kind.
-pub(crate) fn directive(line: usize, rest: &str, form: Form) -> Result<BlockKind, BlockError> {
-    let (name, braces) = rest
-        .split_once('{')
-        .map_or((rest, ""), |(name, braces)| (name, braces));
-    let name = name.trim();
+/// Reads a directive's name and attributes, written in `form` on body `line`
+/// with the lines of its `body`, into its kind.
+pub(crate) fn directive(
+    line: usize,
+    rest: &str,
+    form: Form,
+    body: &[&str],
+) -> Result<BlockKind, BlockError> {
+    let (name, attributes) = read(line, rest)?;
     check_form(line, name, form)?;
-    let list = match braces.strip_suffix('}') {
-        Some(inside) => parse_attributes(inside).ok_or(BlockError::Attributes { line })?,
-        None if braces.is_empty() => Vec::new(),
-        None => return Err(BlockError::Attributes { line }),
-    };
-    let attributes = Attributes { line, list };
     match name {
         "callout" => callout(&attributes),
         "figure" => figure(&attributes),
@@ -90,11 +128,40 @@ pub(crate) fn directive(line: usize, rest: &str, form: Form) -> Result<BlockKind
         "button" => button(&attributes),
         "bookmark" => bookmark(&attributes),
         "embed" => embed(&attributes),
+        "video" => video(&attributes),
+        "audio" | "file" => sound_or_file(name, &attributes),
+        "gallery" => attributes
+            .only("gallery", &[], "nothing")
+            .and_then(|()| gallery(line, body)),
+        "faq" => nested::faq(&attributes, body),
+        "howto" => nested::how_to(&attributes, body),
+        "recipe" => nested::recipe(&attributes, body),
+        "review" => review(&attributes, body),
+        "product" => product(&attributes, body),
+        "business" => cards::business(&attributes),
+        "header" => cards::header(&attributes),
+        "html" => cards::html(&attributes),
+        "form" => forms::form(&attributes, body),
+        "newsletter" | "gated" => forms::subscribe(name, &attributes),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
         }),
     }
+}
+
+/// Splits a directive's `rest`, written on body `line`, into its name and
+/// attributes.
+fn read(line: usize, rest: &str) -> Result<(&str, Attributes), BlockError> {
+    let (name, braces) = rest
+        .split_once('{')
+        .map_or((rest, ""), |(name, braces)| (name, braces));
+    let list = match braces.strip_suffix('}') {
+        Some(inside) => parse_attributes(inside).ok_or(BlockError::Attributes { line })?,
+        None if braces.is_empty() => Vec::new(),
+        None => return Err(BlockError::Attributes { line }),
+    };
+    Ok((name.trim(), Attributes { line, list }))
 }
 
 /// Refuses a known block written in the other form, naming the right one.
@@ -196,6 +263,214 @@ fn embed(attributes: &Attributes) -> Result<BlockKind, BlockError> {
     })
 }
 
+fn video(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only(
+        "video",
+        &["src", "title", "poster", "description", "duration"],
+        "src, title, poster, description and duration",
+    )?;
+    let src = attributes.need("src", "a video needs src, the video file")?;
+    let title = attributes.need("title", "a video needs title, the video's name")?;
+    let poster = attributes.need(
+        "poster",
+        "a video needs poster, the still picture shown before it plays",
+    )?;
+    let duration = attributes
+        .get("duration")
+        .map(|text| {
+            clock(&text).ok_or(BlockError::Value {
+                line: attributes.line,
+                problem: "a video's duration is written as minutes:seconds, such as 2:05, or hours:minutes:seconds",
+            })
+        })
+        .transpose()?;
+    Ok(BlockKind::Video(VideoBlock {
+        src: attributes.media("video", "src", src)?,
+        title,
+        poster: attributes.media("video", "poster", poster)?,
+        description: attributes.get("description"),
+        duration,
+    }))
+}
+
+/// Reads `audio` or `file`, which both take a file and a title.
+fn sound_or_file(name: &str, attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    let (block, needs_src, needs_title) = if name == "audio" {
+        (
+            "audio",
+            "an audio block needs src, the sound file",
+            "an audio block needs title, the words shown above the player",
+        )
+    } else {
+        (
+            "file",
+            "a file block needs src, the file to download",
+            "a file block needs title, the words of the download link",
+        )
+    };
+    attributes.only(block, &["src", "title"], "src and title")?;
+    let src = attributes.media(block, "src", attributes.need("src", needs_src)?)?;
+    let title = attributes.need("title", needs_title)?;
+    Ok(if block == "audio" {
+        BlockKind::Audio { src, title }
+    } else {
+        BlockKind::File { src, title }
+    })
+}
+
+/// Reads a gallery's body, one `![alt](src)` image per line, from the
+/// `body` of the block opened on `line`.
+fn gallery(line: usize, body: &[&str]) -> Result<BlockKind, BlockError> {
+    let mut images = Vec::new();
+    for (number, text) in (line.saturating_add(1)..).zip(body) {
+        if text.trim().is_empty() {
+            continue;
+        }
+        let image = text
+            .trim()
+            .strip_prefix("![")
+            .and_then(|rest| rest.strip_suffix(')'))
+            .and_then(|rest| rest.split_once("]("))
+            .filter(|(alt, src)| !alt.trim().is_empty() && !src.trim().is_empty());
+        let Some((alt, src)) = image else {
+            return Err(BlockError::Value {
+                line: number,
+                problem: "each line of a gallery is an image with alt text, such as ![The editor](/media/editor.png)",
+            });
+        };
+        images.push(GalleryImage {
+            src: src.trim().to_owned(),
+            alt: alt.trim().to_owned(),
+        });
+    }
+    Ok(BlockKind::Gallery { images })
+}
+
+fn review(attributes: &Attributes, body: &[&str]) -> Result<BlockKind, BlockError> {
+    attributes.only(
+        "review",
+        &["item", "type", "rating", "best", "author"],
+        "item, type, rating, best and author",
+    )?;
+    let item = attributes.need("item", "a review needs item, the thing it reviews")?;
+    let item_type = attributes.need(
+        "type",
+        "a review needs type, such as Product, Book or SoftwareApplication",
+    )?;
+    if !REVIEW_TYPES.contains(&item_type.as_str()) {
+        return Err(BlockError::Value {
+            line: attributes.line,
+            problem: "a review's type is one search engines show, such as Product, Book, Course, SoftwareApplication or LocalBusiness",
+        });
+    }
+    let rating = attributes.need("rating", "a review needs rating, its score")?;
+    let best = attributes.get("best").unwrap_or_else(|| "5".to_owned());
+    match (score(&rating), score(&best)) {
+        (Some(value), Some(top)) if top > 0.0 && value <= top => {}
+        _ => {
+            return Err(BlockError::Value {
+                line: attributes.line,
+                problem: "a review's rating is a number from 0 to its best score, such as 4.5 out of 5",
+            });
+        }
+    }
+    Ok(BlockKind::Review(ReviewBlock {
+        item,
+        item_type,
+        rating,
+        best,
+        author: attributes.get("author"),
+        body: body.join("\n"),
+    }))
+}
+
+fn product(attributes: &Attributes, body: &[&str]) -> Result<BlockKind, BlockError> {
+    attributes.only(
+        "product",
+        &PRODUCT_ATTRIBUTES,
+        "name, image, price, currency, rating, best, href and button",
+    )?;
+    let name = attributes.need("name", "a product needs name, what it is called")?;
+    let (price, currency) = (attributes.get("price"), attributes.get("currency"));
+    let money = match (&price, &currency) {
+        (Some(price), Some(code)) => {
+            let (units, cents) = price.split_once('.').unwrap_or((price, "00"));
+            units.parse::<u64>().is_ok()
+                && cents.len() == 2
+                && cents.parse::<u8>().is_ok()
+                && code.len() == 3
+                && code.bytes().all(|b| b.is_ascii_uppercase())
+        }
+        (None, None) => true,
+        _ => false,
+    };
+    let best = attributes.get("best").unwrap_or_else(|| "5".to_owned());
+    let rating = attributes.get("rating");
+    let rated = rating.as_deref().is_none_or(|rating| {
+        matches!((score(rating), score(&best)), (Some(value), Some(top)) if top > 0.0 && value <= top)
+    });
+    let problem = if !money {
+        "a product's price is a number such as 49.00 with a three-letter currency such as USD"
+    } else if !rated {
+        "a product's rating is a number from 0 to its best score, such as 4.5 out of 5"
+    } else if attributes.get("href").is_some() != attributes.get("button").is_some() {
+        "a product with href needs button, the words on its button"
+    } else {
+        ""
+    };
+    if !problem.is_empty() {
+        return Err(BlockError::Value {
+            line: attributes.line,
+            problem,
+        });
+    }
+    let address = |key: &'static str| {
+        attributes
+            .get(key)
+            .map(|text| attributes.media("product", key, text))
+            .transpose()
+    };
+    Ok(BlockKind::Product(ProductBlock {
+        name,
+        image: address("image")?,
+        price,
+        currency,
+        rating,
+        best,
+        href: address("href")?,
+        button: attributes.get("button"),
+        description: body.join("\n"),
+    }))
+}
+
+const PRODUCT_ATTRIBUTES: [&str; 8] = [
+    "name", "image", "price", "currency", "rating", "best", "href", "button",
+];
+
+/// Reads a score written with digits and at most one point, such as `4.5`.
+fn score(text: &str) -> Option<f64> {
+    let digits = text.bytes().all(|b| b.is_ascii_digit() || b == b'.');
+    digits.then(|| text.parse().ok()).flatten()
+}
+
+/// Reads `m:ss` or `h:mm:ss` as a duration.
+fn clock(text: &str) -> Option<Duration> {
+    let parts = text
+        .split(':')
+        .map(|part| part.parse::<u64>().ok())
+        .collect::<Option<Vec<u64>>>()?;
+    let (hours, minutes, seconds) = match parts.as_slice() {
+        [minutes, seconds] => (0, *minutes, *seconds),
+        [hours, minutes, seconds] if *minutes < 60 => (*hours, *minutes, *seconds),
+        _ => return None,
+    };
+    let total = hours
+        .checked_mul(3600)?
+        .checked_add(minutes.checked_mul(60)?)?
+        .checked_add(seconds)?;
+    (seconds < 60).then(|| Duration::from_secs(total))
+}
+
 /// A directive's attributes, with the line they are on for messages.
 struct Attributes {
     line: usize,
@@ -245,6 +520,38 @@ impl Attributes {
             attribute,
             source,
         })
+    }
+
+    /// `text`, the value of `attribute`, as a path on this site or a full
+    /// web address.
+    fn media(
+        &self,
+        block: &'static str,
+        attribute: &'static str,
+        text: String,
+    ) -> Result<String, BlockError> {
+        if text.contains(':') {
+            self.address(block, attribute, &text)?;
+        }
+        Ok(text)
+    }
+
+    /// The value of `key` read with `read`, or `problem` as the error when
+    /// `read` cannot read it.
+    fn parsed<T>(
+        &self,
+        key: &str,
+        read: impl Fn(&str) -> Option<T>,
+        problem: &'static str,
+    ) -> Result<Option<T>, BlockError> {
+        self.get(key)
+            .map(|text| {
+                read(&text).ok_or(BlockError::Value {
+                    line: self.line,
+                    problem,
+                })
+            })
+            .transpose()
     }
 
     /// The value of `key`, or `problem` as the error when it is missing.

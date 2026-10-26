@@ -151,6 +151,7 @@
 
 ### 1.17 The Content API
 
+- Status: `doing`. Part 1 (#84): `crates/khalid-api` with the `filter` parser for one condition. Part 2 (#86): every operator, `+`, `,` and brackets, with limits on length, depth and size. Part 3 (#92): printing filters so they parse back, and matching them against a resource. Part 4 (#95): `filter`, `formats`, `limit` and `page` read into one `ListQuery`. Part 5 (#97): `include`, `fields` and `order`. Part 6 (#101): RFC 9457 problem details with `fix` and `rule`. Part 7 (#103): `meta.pagination`. Part 8 (#107): the `Post` resource in API shape, with its filter fields. Part 9 (#113): the `ContentStore` trait and an in-memory store. Part 10 (#118): `GET /posts/` and `/api/openapi.json`, generated with utoipa-axum. Part 11 (#119): reading one post by id or slug. Part 12 (#126): the key format, the `KeyStore` trait and content key checks (ADR 0011). Part 13 (#130): every Content API route needs a content key, in the `Authorization` header or `?key=`. Part 14 (#133): ETags with 304s, cache headers, `Accept-Version` and `Content-Version`. Part 15 (#139): the content store keeps entries per collection: posts, pages, glossary, case studies and changelog. Part 16 (#140): the three routes for each of them. Part 17 (this landing): the contract test that fails when routes and the `OpenAPI` document disagree. Next: authors, tags and categories, then settings, navigation and collections.
 - Status: `doing`. Part 1 (#84): `crates/khalid-api` with the `filter` parser for one condition. Part 2 (#86): every operator, `+`, `,` and brackets, with limits on length, depth and size. Part 3 (this landing): printing filters so they parse back, and matching them against a resource. Next: the other list parameters, problem details and the envelope, posts behind a `ContentStore` trait with the OpenAPI document, content keys, the other resources with ETags and `Accept-Version`, and the contract test.
 - Status: `doing`. Part 1 (#84): `crates/khalid-api` with the `filter` parser for one condition. Part 2 (this landing): every operator, `+`, `,` and brackets, with limits on length, depth and size. Next: printing and matching filters, the other list parameters, problem details and the envelope, posts behind a `ContentStore` trait with the OpenAPI document, content keys, the other resources with ETags and `Accept-Version`, and the contract test.
 - Status: `doing`. Part 1 (this landing): `crates/khalid-api` with the `filter` parser for one condition. Next: `+`, `,` and brackets, printing and matching filters, the other list parameters, problem details and the envelope, posts behind a `ContentStore` trait with the OpenAPI document, content keys, the other resources with ETags and `Accept-Version`, and the contract test.
@@ -160,7 +161,7 @@
 
 ### 1.18 Keys and the Admin API
 
-- Status: `todo`
+- Status: `doing`. Part 1 (#147): integration keys and staff tokens as key kinds, with scopes and roles. Part 2 (#148): stored as Argon2id, checked off the async runtime, and `authenticate` returns what the key may do (ADR 0011). Part 3 (#153): one router and one `OpenAPI` document that every API joins. Part 4 (#155): `AdminPost`, a post in any status, and the `PostStore` trait. Part 5 (#156): the Admin API under `/api/admin/v1/`, its key layer, scope checks with a 403, and reading one post. Part 6 (#160): editing a post, with a 409 naming who changed it and when on a stale `updated_at`. Part 7 (this landing): creating a draft from markdown, once per `Idempotency-Key`. Next: `source=html`.
 - Integration keys and staff tokens with scopes, 256 random bits, stored hashed, compared in constant time. `khalid keys create` and `revoke`, showing a key once through hidden output. `/api/admin/v1/` creates and edits posts from markdown or HTML, with idempotency keys and a 409 on a stale `updated_at`. Writes are atomic.
 - Rules: BL-SEC-3, BL-API-7, BL-RUN-5, BL-RUN-9, BL-CLI-4.
 - Done when: HTTP tests cover success, validation failure, auth failure and a stale edit for each endpoint, and no key appears in any log or test output.
@@ -215,7 +216,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 ### 2.2 The five blocking rules
 
 - Status: `done` after this landing. Fixtures are `post.toml` files in the lint input model, because the crate reads no markdown; `tests/fixtures.rs` fails if a catalogue rule has no fixture.
-- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`. The three related posts the plan suggests with "no internal link" come in 2.5, with the rules that compare posts.
+- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`. The three related posts the plan suggests with "no internal link" came in 2.5, part 5.
 - Status: `todo`
 - No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`.
 - Rules: BL-TST-4. KH-LNT-1.
@@ -223,28 +224,28 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.3 The link text rules
 
-- Status: `todo`
+- Status: `done` after this landing. Link words compare without case, spacing or a final full stop, and targets without a `#section` or trailing slash. "Too often" means more than three links site-wide, tunable as `same-link-text-max` in `lint.toml` since 2.4. Vague words are listed for English and German.
 - Link text reused for a different page, the same link text to the same page too often, vague link text, the same target twice in one post, a link with no text.
 - Rules: BL-TST-4. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings.
 
 ### 2.4 The structure rules
 
-- Status: `todo`
+- Status: `done` after this landing. Part 1 (#129): the `[thresholds]` table in `lint.toml`, starting with the link limit from 2.3. Part 2 (#131, with `thin-post-words`): heading order, missing image descriptions, thin post, no outbound link. Part 3 (#134): a missing description, title and description length and duplicates in the same language. Part 4 (this landing): keyword stuffing for phrases of two or three words, slug length, filler words and years, broken wikilinks. The warning for a Unicode slug on an ASCII site (CTO answers, section 2) needs the site's slug mode, so it comes with the wiring in 1.15.
 - Heading order, title and description length and duplicates, missing alt text, thin post, keyword stuffing, slug hygiene, no outbound link, broken wikilink.
 - Rules: BL-TST-4. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings.
 
 ### 2.5 The site rules
 
-- Status: `todo`
+- Status: `done` after this landing. Part 1 (#143): the `SiteRule` trait, which checks the whole site in one pass; `Linter::site_health` for the dashboard; the link graph; orphan post. A post may carry its `path`, so links find it by path. The publish check, `lint_post`, never runs site rules, because a new post has no inbound links yet. Part 2 (#145): one inbound link, and too deep, counted in clicks from the home page's links (`max-clicks`, default 3). Part 3 (#149): stale post, measured from today's date read once through `Clock` when the linter starts (`stale-months`, default 12), and missing translation across the languages the site declares. Fixtures may carry a `lint.toml`. Part 4 (#151): near-duplicates by five-word shingles (`near-duplicate-percent`, default 50), glossary term not linked, cluster without its pillar. These are post rules, because a writer can fix each one before publishing. Part 5 (this landing): the three suggested posts for "no internal link", ranked by the topic words they share with the post, carried on the finding as `suggestions`.
 - Orphan post, one inbound link, missing translation, near-duplicate posts by shingles, glossary term not linked, stale post, cluster without its pillar, too deep.
 - Rules: BL-TST-4, BL-RUN-1, BL-TST-2. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings, and the stale rule reads time through `Clock`.
 
 ### 2.6 `khalid lint` and the publish gate
 
-- Status: `todo`
+- Status: `doing`. Part 1 (#158, with the grammar fix in #164): `Linter::gate`, the publish gate the server calls, returning a `Verdict` of publish or refuse with every finding; findings and reports serialise to the JSON the CLI, the API and the admin share. Part 2 (#166): `khalid --site <folder> lint` and `--json` in the binary, over every post, with exit code 1 on a block. The binary maps parsed posts and their rendered output to the lint model. On the demo site it reports 0 blocks. Part 3 (this landing): one post by its path (post rules only, as at publish), the site's `lint.toml` with mistakes named by line, pages, glossary terms and languages in the model, and the subject and suggestions of each finding in the sentences. Part 4: `--fix` for the safe repairs.
 - `khalid lint [path] --json --fix` in the binary, exit code 1 on a block, and the publish gate function the server calls.
 - Rules: BL-CLI-1, BL-CLI-2, BL-CLI-3. KH-LNT-3.
 - Done when: CLI tests cover human output, `--json`, `--fix` and each exit code on the fixtures.
@@ -255,7 +256,7 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 
 ### 3.1 Fetch the site
 
-- Status: `doing`. Part 1 (this landing): `crates/khalid-theme`, and the stylesheets a page uses, in page order, same site only (ADR 0015). Part 2: fetching them through `Outbound` within the caps.
+- Status: `done` after this landing. Part 1 (#170): `crates/khalid-theme`, and the stylesheets a page uses, in page order, same site only (ADR 0015). Part 2 (this landing): fetching them through `Outbound` within the caps.
 - Read the home page and its same-site stylesheets through `Outbound`, with a cap on the page, on the CSS in all and on the number of stylesheets. Keep the raw CSS. A stylesheet that fails is listed with the reason; only the home page can stop a sync.
 - Rules: BL-RUN-8, BL-TST-3.
 - Done when: `wiremock` tests cover each cap, a link to another site that is never fetched, a failing stylesheet, a private address and an unreachable name.
@@ -309,6 +310,7 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 
 - **AI crawlers in a new site's robots.txt (task 1.13).** Context: AI companies send crawlers that copy blog posts to train their models (GPTBot, CCBot and others), and separate crawlers that fetch posts to quote and link them in AI answers (OAI-SearchBot, Claude-SearchBot, PerplexityBot). Khalid can block or allow each one by name. Today a new site allows all of them. Consequence: blocking the training crawlers keeps posts out of future models and costs no search traffic; blocking the answer crawlers also removes the blog from AI answers. Question: should a new site block the training crawlers by default, and keep the answer crawlers allowed?
 - **AVIF images need three exceptions in `deny.toml` (task 1.12, for the CTO session).** Every pure-Rust AVIF encoder is built on `rav1e`, which pulls in `libfuzzer-sys` (licence `(MIT OR Apache-2.0) AND NCSA`, not on our list), `av1-grain`, which uses `anyhow` (banned outside the binary), and `paste` (RUSTSEC-2024-0436, unmaintained). Why it matters: AVIF images are about half the size of JPEG, which helps the LCP budget, but the policy refuses these crates today. The choice: allow NCSA, add `av1-grain` as an `anyhow` wrapper and accept the `paste` advisory with a review date; or ship WebP with JPEG and PNG fallbacks only, which is what `khalid-media` does now. WebP alone already meets the budgets on the demo site. Adding AVIF later is one small pull request, because `Format` is non-exhaustive and the render side already accepts AVIF sources.
+- **Members-only HTML is hidden from everyone for now (task 1.7e1).** The HTML block takes `show="everyone"`, `"visitors"` or `"members"`. Readers cannot sign in until the server and accounts exist, so Khalid leaves members-only HTML out of every page and always shows visitors' HTML. Why it matters: nothing private can leak before sign-in exists. The choice: keep this, or refuse `show="members"` until accounts ship. Either is one line to change.
 
 ## Order
 

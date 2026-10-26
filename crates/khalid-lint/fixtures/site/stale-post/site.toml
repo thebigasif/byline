@@ -1,0 +1,23 @@
+# Today is 2026-10-26 and the limit is twelve months. One post was
+# published in 2024 and never updated. One is from 2023 but was updated
+# this year. One is exactly a year old. One has no dates at all, which
+# "no date" reports instead.
+[[posts]]
+locale = "en"
+slug = "pruning-old-posts"
+date = "2024-03-14"
+
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+date = "2023-01-09"
+updated = "2026-06-02"
+
+[[posts]]
+locale = "en"
+slug = "anchor-text-basics"
+date = "2025-10-26"
+
+[[posts]]
+locale = "en"
+slug = "why-internal-links-matter"

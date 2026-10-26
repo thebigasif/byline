@@ -1,0 +1,8 @@
+---
+source: crates/khalid-content/tests/blocks_html.rs
+assertion_line: 29
+expression: "html(\"\\\n:::html\n<table><tr><td>Plan</td><td onclick=\\\"steal()\\\">Price</td></tr></table>\n<script>alert(1)</script>\n<a href=\\\"javascript:alert(1)\\\">Click</a> <a href=\\\"https://example.com/\\\">Example</a>\n<iframe src=\\\"https://evil.example/\\\"></iframe>\n:::\n\")"
+---
+<table><tbody><tr><td>Plan</td><td>Price</td></tr></tbody></table>
+
+<a rel="noopener noreferrer">Click</a> <a href="https://example.com/" rel="noopener noreferrer">Example</a>

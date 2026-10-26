@@ -1,0 +1,33 @@
+# The site declares English, German and French. One post has all three
+# versions. One has only English and German. One has no translation key,
+# so no other language has a version of it.
+locales = ["en", "de", "fr"]
+
+[[posts]]
+locale = "en"
+slug = "why-internal-links-matter"
+translation = "internal-links"
+
+[[posts]]
+locale = "de"
+slug = "warum-interne-links-zaehlen"
+translation = "internal-links"
+
+[[posts]]
+locale = "fr"
+slug = "liens-internes"
+translation = "internal-links"
+
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+translation = "link-text"
+
+[[posts]]
+locale = "de"
+slug = "linktexte-waehlen"
+translation = "link-text"
+
+[[posts]]
+locale = "en"
+slug = "pruning-old-posts"
