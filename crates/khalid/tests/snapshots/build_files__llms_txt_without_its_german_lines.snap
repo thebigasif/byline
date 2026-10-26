@@ -1,0 +1,21 @@
+---
+source: crates/khalid/tests/build_files.rs
+expression: "english.join(\"\\n\")"
+---
+# Field Notes on SEO
+
+## Posts
+
+- [Planning a topic cluster in an afternoon](https://www.example.com/blog/planning-a-topic-cluster/): A topic cluster is one main post and several shorter posts that link to it. How to plan one with a sheet of paper.
+- [Fixing slow pages, starting with the biggest win](https://www.example.com/blog/fixing-slow-pages/): Slow pages lose readers before they read a word. Where the time usually goes, and what to fix first.
+- [What a sitemap does, and what it does not](https://www.example.com/blog/what-a-sitemap-does/): A sitemap lists the pages you want search engines to know about. It helps them find pages, but it does not make a page rank.
+- [How to write a title tag](https://www.example.com/blog/how-to-write-a-title-tag/): The title tag is the blue link people click in search results. Five rules for writing one that earns the click.
+- [Why internal links matter](https://www.example.com/blog/why-internal-links-matter/): Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.
+
+## Pages
+
+- [About Field Notes](https://www.example.com/blog/about/): Who writes Field Notes on SEO, and why.
+
+## Optional
+
+- [Asif](https://www.example.com/blog/authors/asif/)

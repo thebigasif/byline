@@ -27,6 +27,7 @@ fn page_meta_reaches_templates_as_plain_text() {
             label: "Deutsch".to_owned(),
         }],
         x_default: None,
+        seo_head: None,
     };
     let seen = serde_json::to_value(&meta).unwrap();
     assert_eq!(
