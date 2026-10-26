@@ -2,7 +2,7 @@
 
 use khalid_core::{AbsoluteUrl, Locale};
 
-use crate::{IndexPolicy, MetaTemplates, SeoError, UrlPath};
+use crate::{IndexPolicy, MetaTemplates, SeoError, ShareImage, TwitterHandle, UrlPath};
 
 /// The site-wide settings every SEO output reads.
 ///
@@ -29,6 +29,10 @@ pub struct SeoSite {
     pub default_language: Locale,
     /// Every language the site publishes in, default first.
     pub languages: Vec<Locale>,
+    /// The share image for pages that have none of their own.
+    pub share_image: Option<ShareImage>,
+    /// The site's Twitter or X account, the `twitter:site` tag.
+    pub twitter_site: Option<TwitterHandle>,
 }
 
 impl SeoSite {
@@ -45,6 +49,8 @@ impl SeoSite {
             mount: UrlPath::root(),
             languages: vec![default_language.clone()],
             default_language,
+            share_image: None,
+            twitter_site: None,
         }
     }
 

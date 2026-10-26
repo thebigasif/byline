@@ -3,6 +3,7 @@
 use khalid_core::AbsoluteUrl;
 
 use crate::escape::escape_markup;
+use crate::social::push_social_tags;
 use crate::{SeoError, SeoPage, SeoSite};
 
 /// One tag in a page's `<head>`.
@@ -15,6 +16,13 @@ pub enum HeadTag {
     Meta {
         /// The `name` attribute.
         name: &'static str,
+        /// The `content` attribute.
+        content: String,
+    },
+    /// `<meta property="..." content="...">`, for Open Graph.
+    Property {
+        /// The `property` attribute, such as `og:title`.
+        property: &'static str,
         /// The `content` attribute.
         content: String,
     },
@@ -38,6 +46,13 @@ impl HeadTag {
             Self::Meta { name, content } => {
                 out.push_str("<meta name=\"");
                 escape_markup(name, out);
+                out.push_str("\" content=\"");
+                escape_markup(content, out);
+                out.push_str("\">");
+            }
+            Self::Property { property, content } => {
+                out.push_str("<meta property=\"");
+                escape_markup(property, out);
                 out.push_str("\" content=\"");
                 escape_markup(content, out);
                 out.push_str("\">");
@@ -74,7 +89,8 @@ impl HeadTags {
     }
 }
 
-/// The SEO tags for `page` on `site`: title, description, robots and canonical.
+/// The SEO tags for `page` on `site`: title, description, robots, canonical,
+/// then Open Graph and the Twitter card.
 ///
 /// A page's own title, description, robots directives and canonical address
 /// win over the site's templates and index policy.
@@ -95,7 +111,7 @@ pub fn head_tags(site: &SeoSite, page: &SeoPage) -> Result<HeadTags, SeoError> {
     if !description.is_empty() {
         tags.push(HeadTag::Meta {
             name: "description",
-            content: description,
+            content: description.clone(),
         });
     }
     tags.push(HeadTag::Meta {
@@ -104,7 +120,8 @@ pub fn head_tags(site: &SeoSite, page: &SeoPage) -> Result<HeadTags, SeoError> {
     });
     tags.push(HeadTag::Link {
         rel: "canonical",
-        href: canonical,
+        href: canonical.clone(),
     });
+    push_social_tags(site, page, &canonical, &description, &mut tags);
     Ok(HeadTags(tags))
 }
