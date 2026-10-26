@@ -1,0 +1,13 @@
+---
+source: crates/khalid-seo/tests/head.rs
+expression: tags.to_html()
+---
+<title>Crawl budget | Field Notes on SEO</title>
+<meta name="robots" content="noindex, follow">
+<link rel="canonical" href="https://www.example.com/blog/tag/crawl-budget/">
+<meta property="og:site_name" content="Field Notes on SEO">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Crawl budget">
+<meta property="og:url" content="https://www.example.com/blog/tag/crawl-budget/">
+<meta property="og:locale" content="en">
+<meta name="twitter:card" content="summary">
