@@ -46,7 +46,7 @@
 
 ### 0.7 CHANGELOG and release workflow
 
-- Status: `todo`
+- Status: `doing`. Waiting for the founder's yes to push a test tag, which the done line needs.
 - `CHANGELOG.md` with an Unreleased section. `.github/workflows/release.yml` that builds the binary for Linux x86_64 and aarch64, macOS and Windows on a `v*` tag, strips it, attaches it to a GitHub release with checksums, and refuses to run when `just check` fails.
 - Done when: a `v0.0.1` tag on a test branch produces a draft release with four binaries.
 

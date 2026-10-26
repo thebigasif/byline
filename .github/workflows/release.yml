@@ -1,0 +1,97 @@
+name: Release
+
+# A version tag such as v0.1.0 builds the binary for four platforms and
+# attaches it, with checksums, to a draft GitHub release. The founder reads
+# the draft and publishes it. Nothing builds unless `just check` passes on the
+# tagged commit first. Releases are built here, never by hand (docs/standards/git.md).
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: just check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Toolchain from rust-toolchain.toml
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          components: clippy, rustfmt, llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - name: Tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-nextest,cargo-deny,cargo-machete,typos
+      - name: Everything CI checks
+        run: just check
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: linux-x86_64, os: ubuntu-latest, target: x86_64-unknown-linux-gnu, exe: "" }
+          - { name: linux-aarch64, os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, exe: "" }
+          - { name: macos-aarch64, os: macos-latest, target: aarch64-apple-darwin, exe: "" }
+          - { name: windows-x86_64, os: windows-latest, target: x86_64-pc-windows-msvc, exe: ".exe" }
+    steps:
+      - uses: actions/checkout@v5
+      - name: Toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      # The release profile in Cargo.toml strips symbols, so the binary
+      # comes out of cargo already stripped.
+      - name: Build
+        run: cargo build --release --locked -p byline --target ${{ matrix.target }}
+      - name: Name the file for the release
+        shell: bash
+        run: |
+          mkdir dist
+          cp "target/${{ matrix.target }}/release/byline${{ matrix.exe }}" \
+             "dist/byline-${{ github.ref_name }}-${{ matrix.name }}${{ matrix.exe }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: byline-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Draft release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum byline-* > SHA256SUMS && cat SHA256SUMS
+      - name: Draft the release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: dist/*
+          fail_on_unmatched_files: true
+          body: |
+            Binaries for Linux (x86_64 and ARM), macOS (Apple silicon) and Windows. Check a download against `SHA256SUMS`.
+            What changed is in CHANGELOG.md.
