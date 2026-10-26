@@ -16,7 +16,7 @@ fn heading(level: HeadingLevel, id: &str, text: &str) -> ContentsHeading {
 }
 
 /// The demo sitemap post with three sections and two parts.
-fn long_post() -> RenderPost {
+pub(crate) fn long_post() -> RenderPost {
     let mut post = sitemap_post();
     post.body = BodyHtml::from_sanitised(
         "<p>A sitemap lists the pages you want found.</p>\n\

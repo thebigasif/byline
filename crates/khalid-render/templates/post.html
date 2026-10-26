@@ -31,7 +31,7 @@
 {{ contents_list(page.contents) }}
 </nav>
 {% endif %}<div class="post-body">
-{{ page.body }}
+{% if "heading_links" in site.features %}{{ page.body | heading_links(t.heading_link) }}{% else %}{{ page.body }}{% endif %}
 </div>
 {% if page.tags %}<footer class="post-footer">
 <h2>{{ t.tags }}</h2>

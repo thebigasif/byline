@@ -115,6 +115,10 @@ nav a { min-inline-size: 44px; }
 .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .tags a { padding-inline: 0.75rem; background: var(--color-surface); border-radius: var(--radius); text-decoration: none; }
 
+/* The # link on each heading: always shown and muted, so it never needs hover. */
+.heading-link { display: inline-flex; align-items: center; justify-content: center; min-inline-size: 44px; min-block-size: 44px; margin-block: -0.5rem; color: var(--color-muted); font-weight: 400; text-decoration: none; }
+h2[id], h3[id] { scroll-margin-block-start: 1rem; }
+
 /* Table of contents: a details block on phones, a sticky column when there is room. */
 .toc-inline { margin-block-end: 2rem; padding-inline: 1rem; background: var(--color-surface); border-radius: var(--radius); }
 .toc-inline summary { display: flex; align-items: center; min-block-size: 44px; font-weight: 700; cursor: pointer; }

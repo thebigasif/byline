@@ -21,6 +21,8 @@ in_category = "Filed under"
 tags = "Tags"
 # The heading of a post's table of contents.
 contents = "Contents"
+# Names the # link beside each heading for screen readers.
+heading_link = "Link to this section"
 no_posts = "There are no posts here yet."
 pagination = "Pages"
 # {current} and {total} are filled in.

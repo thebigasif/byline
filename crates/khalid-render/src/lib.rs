@@ -18,6 +18,7 @@ mod direction;
 mod escape;
 mod features;
 mod glossary;
+mod heading_links;
 mod image;
 mod listing;
 mod page_body;

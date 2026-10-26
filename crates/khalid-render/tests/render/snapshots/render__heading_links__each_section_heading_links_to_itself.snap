@@ -1,0 +1,17 @@
+---
+source: crates/khalid-render/tests/render/heading_links.rs
+expression: "part(&page, \"<div class=\\\"post-body\\\">\", \"</div>\")"
+---
+<div class="post-body">
+<p>A sitemap lists the pages you want found.</p>
+<h2 id="what-it-does">What it does <a class="heading-link" href="#what-it-does" aria-label="Link to this section">#</a></h2>
+<p>It helps new pages get found.</p>
+<h3 id="new-pages">New pages <a class="heading-link" href="#new-pages" aria-label="Link to this section">#</a></h3>
+<p>They show up sooner.</p>
+<h2 id="what-it-does-not">What it does not <a class="heading-link" href="#what-it-does-not" aria-label="Link to this section">#</a></h2>
+<p>It does not lift rankings.</p>
+<h2 id="how-to-make-one">How to make one <a class="heading-link" href="#how-to-make-one" aria-label="Link to this section">#</a></h2>
+<p>Khalid writes it for you.</p>
+<h3 id="by-hand">By hand <a class="heading-link" href="#by-hand" aria-label="Link to this section">#</a></h3>
+<p>List each address.</p>
+</div>
