@@ -7,6 +7,7 @@
 
 mod cli;
 mod config_message;
+mod content_message;
 mod exit;
 mod report;
 
@@ -15,6 +16,7 @@ use std::process::ExitCode;
 
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
+use khalid_content::{ContentTree, read_posts};
 use khalid_core::{Config, Environment, UserMessage};
 
 use crate::cli::{Cli, Command, Output};
@@ -33,12 +35,19 @@ fn main() -> ExitCode {
 }
 
 /// Runs the command the person asked for, after checking the site's settings
-/// when `--site` names a folder.
+/// and reading its content when `--site` names a folder.
 fn run(cli: &Cli) -> Exit {
-    if let Some(site) = &cli.site
-        && let Err(error) = Config::load(site, &Environment::from_process())
-    {
-        return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
+    if let Some(site) = &cli.site {
+        if let Err(error) = Config::load(site, &Environment::from_process()) {
+            return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
+        }
+        if let Err(error) = ContentTree::walk(site).and_then(|tree| read_posts(&tree)) {
+            return report::failure(
+                cli.output,
+                &content_message::of(site, &error),
+                Exit::Failure,
+            );
+        }
     }
     match &cli.command {
         None => report::text(&Cli::command().render_help().to_string(), Exit::Success),

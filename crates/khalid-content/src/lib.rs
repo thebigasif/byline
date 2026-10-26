@@ -14,5 +14,5 @@ mod tree;
 
 pub use content_error::ContentError;
 pub use content_hash::ContentHash;
-pub use post::{Post, PostFront, parse_post};
+pub use post::{Post, PostFront, parse_post, read_posts};
 pub use tree::{Collection, ContentTree, Entry, Language};

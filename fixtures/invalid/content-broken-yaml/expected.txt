@@ -1,0 +1,3 @@
+fixtures/invalid/content-broken-yaml/content/en/posts/why-links-matter.md, line 4, `author`: the line has a second colon; put the value in quotes if it needs one.
+Khalid reads every post before it runs, so nothing is built from a file it cannot read.
+Correct `author` on line 4, then run the command again.

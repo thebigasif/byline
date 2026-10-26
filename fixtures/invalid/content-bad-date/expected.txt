@@ -1,0 +1,3 @@
+fixtures/invalid/content-bad-date/content/en/posts/why-links-matter.md, line 3, `date`: the date must be a real day written as YYYY-MM-DD, such as 2026-09-14.
+Khalid reads every post before it runs, so nothing is built from a file it cannot read.
+Correct `date` on line 3, then run the command again.

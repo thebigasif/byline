@@ -19,13 +19,19 @@ pub(crate) fn of(error: &ConfigError) -> UserMessage {
             field,
             source,
             ..
-        } => located(&path.display().to_string(), *line, field, source.message()),
+        } => located(
+            &path.display().to_string(),
+            *line,
+            field,
+            source.message(),
+            WHY,
+        ),
         ConfigError::Field {
             path,
             line,
             field,
             problem,
-        } => located(&path.display().to_string(), *line, field, problem),
+        } => located(&path.display().to_string(), *line, field, problem, WHY),
         ConfigError::Environment { variable, .. } => UserMessage::new(
             format!("The environment variable {variable} is not a full web address."),
             "It replaces the address in site.toml, so a wrong value would break every link.",
@@ -39,31 +45,40 @@ pub(crate) fn of(error: &ConfigError) -> UserMessage {
     }
 }
 
-/// A message for a mistake on one line. `detail` keeps its first clause, and a
-/// short list of allowed values, such as `server` or `static`, moves to the fix.
-fn located(path: &str, line: usize, field: &str, detail: &str) -> UserMessage {
+/// A message for a mistake on one line of a settings or content file. `detail`
+/// keeps its first clause, and what is allowed instead, such as `server` or
+/// `static`, or the fields a file may have, moves to the fix.
+pub(crate) fn located(
+    path: &str,
+    line: usize,
+    field: &str,
+    detail: &str,
+    why: &'static str,
+) -> UserMessage {
     let (detail, allowed) = match detail.split_once(", expected ") {
-        Some((detail, allowed)) if !allowed.starts_with("one of") => (detail, Some(allowed)),
-        Some((detail, _)) => (detail, None),
+        Some((detail, allowed)) => (detail, Some(allowed)),
         None => (detail, None),
     };
     let detail = detail.trim_end_matches('.');
     if field.is_empty() {
         return UserMessage::new(
-            format!("Line {line} of {path} cannot be read: {detail}."),
-            WHY,
+            format!("{path}, line {line}: {detail}."),
+            why,
             format!("Correct line {line}, then run the command again."),
         );
     }
     let fix = match allowed {
+        Some(fields) if fields.starts_with("one of ") => {
+            format!("Remove `{field}` on line {line}, or use {fields}.")
+        }
         Some(allowed) => {
             format!("Set `{field}` on line {line} to {allowed}, then run the command again.")
         }
         None => format!("Correct `{field}` on line {line}, then run the command again."),
     };
     UserMessage::new(
-        format!("Line {line} of {path} has a mistake in `{field}`: {detail}."),
-        WHY,
+        format!("{path}, line {line}, `{field}`: {detail}."),
+        why,
         fix,
     )
 }

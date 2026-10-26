@@ -1,3 +1,3 @@
-Line 6 of fixtures/invalid/settings-unknown-mode/site.toml has a mistake in `mode`: unknown variant `hybrid`.
+fixtures/invalid/settings-unknown-mode/site.toml, line 6, `mode`: unknown variant `hybrid`.
 Khalid checks every setting before it starts, so nothing runs with a wrong one.
 Set `mode` on line 6 to `server` or `static`, then run the command again.

@@ -1,0 +1,3 @@
+fixtures/invalid/content-no-front-matter/content/en/posts/why-links-matter.md does not start with front matter.
+Front matter between two --- lines holds the title, date and author that readers and search engines need.
+Add a --- line, the post's fields and another --- line at the top of fixtures/invalid/content-no-front-matter/content/en/posts/why-links-matter.md.

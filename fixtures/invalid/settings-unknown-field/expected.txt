@@ -1,3 +1,3 @@
-Line 7 of fixtures/invalid/settings-unknown-field/site.toml has a mistake in `colour`: unknown field `colour`.
+fixtures/invalid/settings-unknown-field/site.toml, line 7, `colour`: unknown field `colour`.
 Khalid checks every setting before it starts, so nothing runs with a wrong one.
-Correct `colour` on line 7, then run the command again.
+Remove `colour` on line 7, or use one of `name`, `address`, `mount`, `mode`, `slugs`, `default_language`, `languages`.
