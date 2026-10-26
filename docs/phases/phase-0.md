@@ -8,7 +8,7 @@
 
 ### 0.1 Name checks (founder decides, agent prepares)
 
-- Status: `todo`
+- Status: `done` (#10, #18). Wellranked is the working name, pending a trademark lawyer and the founder's veto. `docs/decisions/name.md` covers the first shortlist, the Lede and Stylebook fallbacks, and Wellranked with its five runners-up. The rename is the first Phase 1 pull request.
 - For each name on the shortlist in `docs/plan.md` D-1 (Byline, Masthead, Dateline, Gazette, Typeset), check and record: GitHub organisation and repository name free, crates.io name free, npm name free, `.dev` and `.com` domains, a USPTO and EUIPO trademark search for classes 9 and 42, and whether any CMS, editor or publishing tool already uses the name.
 - Write the results as a table in `docs/decisions/name.md` with links. Make no recommendation beyond the plan's. The founder picks.
 - Done when: the table has every check for every name and the founder has replied.
@@ -34,7 +34,7 @@
 
 ### 0.5 The demo fixture site
 
-- Status: `todo`
+- Status: `doing`. The folder is ready; the parse test arrives with Phase 1, as the done line says.
 - `fixtures/demo-site/` with `site.toml`, five real posts about SEO in plain English (no lorem ipsum), two authors, three categories, one glossary term, in English and German. This is the fixture every benchmark, snapshot and end-to-end test uses from Phase 1.
 - Done when: the folder exists, the posts read like real posts, and a test asserts the fixture parses once Phase 1 lands.
 
@@ -46,12 +46,13 @@
 
 ### 0.7 CHANGELOG and release workflow
 
-- Status: `todo`
+- Status: `doing`. Waiting for the founder's yes to push a test tag, which the done line needs.
 - `CHANGELOG.md` with an Unreleased section. `.github/workflows/release.yml` that builds the binary for Linux x86_64 and aarch64, macOS and Windows on a `v*` tag, strips it, attaches it to a GitHub release with checksums, and refuses to run when `just check` fails.
 - Done when: a `v0.0.1` tag on a test branch produces a draft release with four binaries.
 
 ## Questions for the founder
 
+- **The name (0.1): answered** in `docs/decisions/2026-10-26-cto-answers.md`. Wellranked, pending a trademark lawyer and the founder's veto.
 - **Accented slugs (0.2): answered** in `docs/decisions/2026-10-26-cto-answers.md`, section 2. Slugs stay ASCII by default with per-language transliteration (in German, `über` becomes `ueber` and `Straße` becomes `strasse`), and a site can opt in to Unicode slugs with `slugs = "unicode"` in `site.toml`. The 200-byte limit stays. Phase 1 builds it; `Slug::try_new` stays the strict ASCII constructor.
 
 ## Order

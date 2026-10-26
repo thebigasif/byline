@@ -13,4 +13,6 @@ hreflang = "hreflang"
 minijinja = "minijinja"
 
 [files]
-extend-exclude = ["target/", "node_modules/", "*.lock", ".claude/skills/rust-best-practices/references/"]
+# typos knows English only. German content is checked by its writer, not by
+# an English dictionary that reads "Sie" and "ein" as typos.
+extend-exclude = ["target/", "node_modules/", "*.lock", ".claude/skills/rust-best-practices/references/", "**/content/de/"]
