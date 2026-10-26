@@ -39,7 +39,7 @@ CREATE TABLE users (
     site_id INTEGER NOT NULL REFERENCES sites (id) ON DELETE CASCADE,
     email TEXT NOT NULL,
     name TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'editor', 'author', 'contributor')),
+    role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'editor', 'writer', 'contributor')),
     password_hash TEXT,
     created_at TEXT NOT NULL CHECK (julianday(created_at) IS NOT NULL),
     UNIQUE (site_id, email)
