@@ -104,6 +104,12 @@ pub enum SeoError {
         /// The destination, as given.
         template: String,
     },
+    /// A domain in the link policy is not a plain domain name.
+    #[error("{domain:?} is not a plain domain name such as example.com")]
+    Domain {
+        /// The domain, as given.
+        domain: String,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {
