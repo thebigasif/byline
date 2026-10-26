@@ -1415,6 +1415,7 @@ dependencies = [
  "comrak",
  "insta",
  "khalid-core",
+ "proptest",
  "serde",
  "serde-saphyr",
  "sha2 0.11.1",
