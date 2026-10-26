@@ -68,4 +68,5 @@ fn each_media_type_names_its_charset() {
         "text/plain; charset=utf-8"
     );
     assert_eq!(MediaType::Json.as_header(), "application/json");
+    assert_eq!(MediaType::Css.as_header(), "text/css; charset=utf-8");
 }

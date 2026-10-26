@@ -6,6 +6,7 @@ use std::path::Path;
 use khalid_content::BlockError;
 use khalid_core::UserMessage;
 use khalid_render::RenderError;
+use khalid_seo::SeoError;
 
 /// The message when the output folder is inside `content/`.
 pub(crate) fn into_content(out: &Path) -> UserMessage {
@@ -43,6 +44,15 @@ pub(crate) fn address(address: &str) -> UserMessage {
         format!("Khalid could not make a valid web address from {address}."),
         "Every page needs its full address for search engines and shared links.",
         "Check address and mount in site.toml, then build again.",
+    )
+}
+
+/// The message when a page's search tags cannot be written.
+pub(crate) fn seo(error: &SeoError) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid could not write the search tags of a page: {error}."),
+        "Search engines and link previews read these tags, so a page without them is not built.",
+        "Correct the slug or translation key named, or address and mount in site.toml, then build again.",
     )
 }
 
