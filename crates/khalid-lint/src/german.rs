@@ -5,9 +5,16 @@
 
 /// Small words that carry no topic.
 pub(crate) const STOPWORDS: &[&str] = &[
-    "am", "auf", "aus", "das", "dem", "den", "der", "die", "ein", "eine", "einen", "für", "im",
-    "in", "ist", "mit", "oder", "und", "von", "zu", "zum", "zur",
+    "als", "am", "auch", "auf", "aus", "bei", "das", "dass", "dem", "den", "der", "des", "die",
+    "ein", "eine", "einen", "einer", "eines", "es", "für", "hat", "ihr", "im", "in", "ist", "kann",
+    "man", "mit", "nach", "nicht", "noch", "nur", "oder", "sich", "sie", "sind", "so", "um", "und",
+    "von", "was", "wenn", "wie", "wir", "wird", "zu", "zum", "zur",
 ];
+
+/// German sentences whose only repeated phrase is grammar, for the tests.
+#[cfg(test)]
+pub(crate) const GRAMMAR_ONLY: &str =
+    "Nutzen Sie Links. Nutzen Sie Titel. Nutzen Sie Bilder. Fertig.";
 
 /// Link words that say nothing about the page they open.
 pub(crate) const VAGUE_LINK_TEXT: &[&str] = &[
