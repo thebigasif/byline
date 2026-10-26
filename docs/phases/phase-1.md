@@ -93,7 +93,7 @@
 
 ### 1.12 CSS and images
 
-- Status: `doing`. Part 1 (this landing): built assets with content-hashed names and gzip and Brotli copies made once, one code path for `serve` and `build`. Next: the stylesheet from the tokens, then `crates/khalid-media`.
+- Status: `doing`. Part 1 (this landing): built assets with content-hashed names and gzip and Brotli copies made once, one code path for `serve` and `build` (#75). Part 2 (this landing): the one stylesheet from the tokens, 1.8 KB with Brotli, with a size test; ADR 0010 on not inlining CSS. Next: `crates/khalid-media`.
 - One public stylesheet under 20 KB compressed, critical CSS inline, tokens from `theme/tokens.toml`. Images resized and converted to WebP and AVIF at publish, never at request, with `width`, `height`, `srcset` and `sizes`.
 - Rules: BL-WEB-5, BL-WEB-7, BL-PERF-5, BL-RUN-7.
 - Done when: the CSS budget is measured in `scripts/perf.sh` and holds, and every rendered image has its four attributes.
