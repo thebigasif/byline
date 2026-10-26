@@ -1,5 +1,7 @@
 //! The WCAG contrast pass over the theme tokens.
 
+use std::fmt;
+
 use crate::color::Hsl;
 use crate::{Colors, Rgb, ThemeTokens};
 
@@ -54,6 +56,16 @@ impl ColorToken {
         }
     }
 
+    /// What the token colours, in words a person reads.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Text => "body text",
+            Self::Muted => "quiet text such as dates",
+            Self::Link => "links",
+            Self::Accent => "buttons and highlights",
+        }
+    }
+
     fn slot(self, colors: &mut Colors) -> &mut Rgb {
         match self {
             Self::Text => &mut colors.text,
@@ -64,7 +76,8 @@ impl ColorToken {
     }
 }
 
-/// One colour the contrast pass changed.
+/// One colour the contrast pass changed. Its [`Display`](fmt::Display)
+/// tells the person running the sync what changed and why.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ContrastFix {
     token: ColorToken,
@@ -108,6 +121,42 @@ impl ContrastFix {
     }
 }
 
+impl fmt::Display for ContrastFix {
+    /// The fix in plain words: what was wrong, the standard, what changed
+    /// and what the person can do.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let token = self.token;
+        write!(
+            f,
+            "The colour of {}, {}, was too faint for many readers: its contrast \
+             with the page was {} to 1. WCAG AA, the web's standard for readable \
+             pages, asks for {} to 1. ",
+            token.label(),
+            self.before.to_hex(),
+            ratio(self.before_ratio),
+            ratio(token.target()),
+        )?;
+        if self.meets_target() {
+            write!(
+                f,
+                "It is now {}, the closest shade that meets it. To choose another \
+                 colour, edit {} in theme/tokens.toml.",
+                self.after.to_hex(),
+                token.name(),
+            )
+        } else {
+            write!(
+                f,
+                "No shade of it meets that on both the background and the surface. \
+                 It is now {}, the shade with the most contrast, at {} to 1. To fix \
+                 this, change colors.background or colors.surface in theme/tokens.toml.",
+                self.after.to_hex(),
+                ratio(self.after_ratio),
+            )
+        }
+    }
+}
+
 impl ThemeTokens {
     /// Checks the text, quiet text, link and accent colours against both
     /// the background and the surface, and gives each that fails the
@@ -118,7 +167,7 @@ impl ThemeTokens {
     /// Text needs [`TEXT_CONTRAST`]; the accent, which marks buttons and
     /// highlights, needs [`MARK_CONTRAST`]. A colour no shade of which can
     /// pass on both grounds gets the shade with the most contrast, and its
-    /// fix's [`ContrastFix::meets_target`] is `false`.
+    /// fix says so.
     #[must_use = "each fix must be told to the person running the sync"]
     pub fn fix_contrast(&mut self) -> Vec<ContrastFix> {
         let grounds = [self.colors.background, self.colors.surface];
@@ -178,6 +227,12 @@ fn nearest_passing(color: Rgb, grounds: &[Rgb], target: f64) -> Rgb {
         })
 }
 
+/// A contrast ratio to one decimal, rounded down, so a failing 4.47 never
+/// reads as a passing 4.5.
+fn ratio(value: f64) -> String {
+    format!("{:.1}", (value * 10.0).floor() / 10.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -215,5 +270,12 @@ mod tests {
                 found.to_hex()
             );
         }
+    }
+
+    #[test]
+    fn ratios_round_down() {
+        assert_eq!(ratio(4.47), "4.4");
+        assert_eq!(ratio(4.5), "4.5");
+        assert_eq!(ratio(3.0), "3.0");
     }
 }

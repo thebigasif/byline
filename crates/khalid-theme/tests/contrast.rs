@@ -1,7 +1,18 @@
 //! The WCAG contrast pass: a failing colour gets the nearest shade that
-//! passes.
+//! passes, and the user is told in plain words.
 
+mod common;
+
+use common::sync;
 use khalid_theme::{ColorToken, ContrastFix, Rgb, ThemeTokens};
+
+/// Every fixture site, with the address its page links its stylesheet at.
+const SITES: [(&str, &str); 4] = [
+    ("bakery", "/wp-content/themes/northwind/style.css"),
+    ("saas", "/_next/static/css/4f1c2a9e.css"),
+    ("agency", "/assets/css/main.min.css"),
+    ("portfolio", "/css/site.css"),
+];
 
 #[cfg(test)]
 fn hex(text: &str) -> Rgb {
@@ -109,7 +120,29 @@ fn a_second_pass_changes_nothing() {
 }
 
 #[test]
-fn when_no_shade_can_pass_it_gets_the_one_with_the_most_contrast() {
+fn each_fix_is_told_in_plain_words() {
+    let mut tokens = ThemeTokens::default();
+    tokens.colors.muted = hex("#a0a0a0");
+
+    let fixes = tokens.fix_contrast();
+    let told = fixes[0].to_string();
+
+    let after = tokens.colors.muted.to_hex();
+    assert_eq!(
+        told,
+        format!(
+            "The colour of quiet text such as dates, #a0a0a0, was too faint for \
+             many readers: its contrast with the page was 2.4 to 1. WCAG AA, the \
+             web's standard for readable pages, asks for 4.5 to 1. It is now \
+             {after}, the closest shade that meets it. To choose another colour, \
+             edit colors.muted in theme/tokens.toml."
+        )
+    );
+    assert!(!told.contains('\u{2014}'), "no em dash");
+}
+
+#[test]
+fn when_no_shade_can_pass_it_gets_the_closest_and_says_what_to_change() {
     let mut tokens = ThemeTokens::default();
     tokens.colors.surface = hex("#222222");
     tokens.colors.text = hex("#777777");
@@ -126,4 +159,36 @@ fn when_no_shade_can_pass_it_gets_the_one_with_the_most_contrast() {
         fix.after_ratio() > 3.9,
         "the best is about 4 to 1, level with white and #222222: {fix:?}"
     );
+    let told = fix.to_string();
+    assert!(
+        told.contains("No shade of it meets that on both the background and the surface"),
+        "{told}"
+    );
+    assert!(
+        told.ends_with("change colors.background or colors.surface in theme/tokens.toml."),
+        "{told}"
+    );
+}
+
+#[tokio::test]
+async fn every_failing_pair_in_the_fixture_sites_passes_after_the_pass() {
+    for (site, stylesheet) in SITES {
+        let (theme, _) = sync(site, stylesheet).await;
+        let mut tokens = ThemeTokens::from_theme(&theme);
+
+        let fixes = tokens.fix_contrast();
+
+        assert_all_pass(&tokens, site);
+        assert!(fixes.iter().all(ContrastFix::meets_target), "{site}");
+        assert!(
+            fixes
+                .iter()
+                .all(|fix| fix.after_ratio() < fix.token().target() + 0.2),
+            "{site}: the smallest change of shade, {fixes:?}"
+        );
+        if site == "portfolio" {
+            let changed: Vec<ColorToken> = fixes.iter().map(ContrastFix::token).collect();
+            assert_eq!(changed, ColorToken::ALL, "every colour on this site fails");
+        }
+    }
 }

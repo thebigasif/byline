@@ -1,0 +1,6 @@
+/* Shaped like a hand-written portfolio theme: faint grey text and a pale
+   amber link and accent, all of which fail WCAG AA on the off-white page. */
+:root{--bg:#fafaf9;--text:#8a8a8a;--link:#f59e0b;--accent:#fcd34d}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Work Sans",sans-serif}
+a{color:var(--link)}
+.button{background:var(--accent);color:#1c1917}
