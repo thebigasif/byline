@@ -36,8 +36,8 @@ mkdir -p "$TARGET"
 export CARGO_TERM_COLOR=never
 export CLIPPY_CONF_DIR="$ROOT"
 # Replaces any -D warnings from the caller: this script judges every diagnostic itself.
-export RUSTFLAGS="--cfg byline_lint_check"
-export RUSTDOCFLAGS="--cfg byline_lint_check"
+export RUSTFLAGS="--cfg khalid_lint_check"
+export RUSTDOCFLAGS="--cfg khalid_lint_check"
 
 set +e
 cargo clippy --manifest-path "$WORKSPACE" -p lint-check --target-dir "$TARGET" \
@@ -135,7 +135,7 @@ for name, level, _ in table:
 # Every disallowed method and type in clippy.toml needs a violation, written
 # with its full path. A crate the workspace does not use yet cannot be proven,
 # so it is named here with the reason, and the script says so on every run.
-NOT_YET = {"reqwest::Client": "reqwest arrives with byline-outbound, which brings its violation"}
+NOT_YET = {"reqwest::Client": "reqwest arrives with khalid-outbound, which brings its violation"}
 clippy_conf = tomllib.loads((Path(table_path).parents[1] / "clippy.toml").read_text())
 src_text = "\n".join(src_lines)
 for key in ("disallowed-methods", "disallowed-types"):

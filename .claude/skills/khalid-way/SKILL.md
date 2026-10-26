@@ -1,7 +1,7 @@
 ---
-name: byline-way
+name: khalid-way
 description: >-
-  The Byline repository's own rules on top of rust-best-practices: the founder's
+  The Khalid repository's own rules on top of rust-best-practices: the founder's
   decisions, the rule catalogue IDs, the shared patterns (Clock, Config, UserMessage,
   SitePath, Outbound, Secret), the performance budgets and the definition of done.
   Load this whenever you write, change, review or plan code, docs, templates, CI or
@@ -9,7 +9,7 @@ description: >-
   skill disagree, this skill wins.
 ---
 
-# The Byline way
+# The Khalid way
 
 Read `CLAUDE.md` once per session. This skill is the short form you keep in mind while coding.
 
@@ -44,7 +44,7 @@ Read `CLAUDE.md` once per session. This skill is the short form you keep in mind
 
 ## Before you hand back
 
-Run `just check`. Then load `byline-review` and score the rubric honestly. Then write the pull request with the template. Then stop.
+Run `just check`. Then load `khalid-review` and score the rubric honestly. Then write the pull request with the template. Then stop.
 
 ## Budgets you must not break
 

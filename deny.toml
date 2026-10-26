@@ -39,7 +39,7 @@ highlight = "all"
 deny = [
   { crate = "openssl", reason = "rustls everywhere; one TLS stack, no system library" },
   { crate = "openssl-sys", reason = "rustls everywhere; one TLS stack, no system library" },
-  { crate = "anyhow", wrappers = ["byline"], reason = "libraries use thiserror enums (BL-ERR-1); only the binary may wrap" },
+  { crate = "anyhow", wrappers = ["khalid"], reason = "libraries use thiserror enums (BL-ERR-1); only the binary may wrap" },
 ]
 
 [sources]

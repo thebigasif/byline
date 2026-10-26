@@ -16,7 +16,7 @@ use serde::Serialize;
 /// # Examples
 ///
 /// ```
-/// use byline_core::UserMessage;
+/// use khalid_core::UserMessage;
 ///
 /// let message = UserMessage::new(
 ///     "This post has no date.",

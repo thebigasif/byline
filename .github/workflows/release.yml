@@ -59,16 +59,16 @@ jobs:
       # The release profile in Cargo.toml strips symbols, so the binary
       # comes out of cargo already stripped.
       - name: Build
-        run: cargo build --release --locked -p byline --target ${{ matrix.target }}
+        run: cargo build --release --locked -p khalid --target ${{ matrix.target }}
       - name: Name the file for the release
         shell: bash
         run: |
           mkdir dist
-          cp "target/${{ matrix.target }}/release/byline${{ matrix.exe }}" \
-             "dist/byline-${{ github.ref_name }}-${{ matrix.name }}${{ matrix.exe }}"
+          cp "target/${{ matrix.target }}/release/khalid${{ matrix.exe }}" \
+             "dist/khalid-${{ github.ref_name }}-${{ matrix.name }}${{ matrix.exe }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: byline-${{ matrix.name }}
+          name: khalid-${{ matrix.name }}
           path: dist/*
           if-no-files-found: error
 
@@ -85,7 +85,7 @@ jobs:
           merge-multiple: true
       - name: Checksums
         working-directory: dist
-        run: sha256sum byline-* > SHA256SUMS && cat SHA256SUMS
+        run: sha256sum khalid-* > SHA256SUMS && cat SHA256SUMS
       - name: Draft the release
         uses: softprops/action-gh-release@v2
         with:

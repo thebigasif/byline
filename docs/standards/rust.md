@@ -1,6 +1,6 @@
 # Rust in this repository
 
-The `rust-best-practices` skill holds the general rules. This file holds the Byline-specific shape: how the workspace is laid out, which crates we use, and the handful of patterns every crate shares. Rule IDs refer to `RULES.md`.
+The `rust-best-practices` skill holds the general rules. This file holds the Khalid-specific shape: how the workspace is laid out, which crates we use, and the handful of patterns every crate shares. Rule IDs refer to `RULES.md`.
 
 ## Workspace
 
@@ -8,23 +8,23 @@ One Cargo workspace at the repository root, flat `crates/` folder, one purpose p
 
 | Crate | Owns | Must not know about |
 |---|---|---|
-| `byline` | The binary: `clap` commands, the user-message edge, wiring | Business rules |
-| `byline-core` | Shared newtypes (`Slug`, `SiteId`, `Locale`, `AbsoluteUrl`, `SitePath`), `Clock`, `Config`, `UserMessage`, `Secret` | HTTP, SQL, files |
-| `byline-content` | Front matter, markdown, directives, wikilinks, the content tree, file watching | Templates, HTTP |
-| `byline-render` | MiniJinja templates, the asset pipeline, the page cache | SQL, HTTP clients |
-| `byline-seo` | Meta tags, schema graphs, sitemaps, feeds, robots, hreflang, redirects | Templates |
-| `byline-lint` | The rule engine, every rule, every message. Public, reused by SerpDad | Files on disk, HTTP |
-| `byline-audit` | The self-crawl and the health score | Rendering |
-| `byline-theme` | Token extraction, contrast fixes, proxy rule generation | Content |
-| `byline-db` | SQLite, migrations, typed queries | Rendering |
-| `byline-media` | Image processing, storage backends | HTTP routes |
-| `byline-outbound` | The one HTTP client with the private-network guard (BL-RUN-8) | Everything else |
-| `byline-server` | Axum routes, the Content and Admin APIs, auth, webhooks, the embedded admin | Markdown parsing |
-| `byline-import` | One module per source: WordPress, Ghost, Medium, Substack, markdown folders | Rendering |
-| `byline-mcp` | The MCP server, a client of the same functions the API calls | SQL |
+| `khalid` | The binary: `clap` commands, the user-message edge, wiring | Business rules |
+| `khalid-core` | Shared newtypes (`Slug`, `SiteId`, `Locale`, `AbsoluteUrl`, `SitePath`), `Clock`, `Config`, `UserMessage`, `Secret` | HTTP, SQL, files |
+| `khalid-content` | Front matter, markdown, directives, wikilinks, the content tree, file watching | Templates, HTTP |
+| `khalid-render` | MiniJinja templates, the asset pipeline, the page cache | SQL, HTTP clients |
+| `khalid-seo` | Meta tags, schema graphs, sitemaps, feeds, robots, hreflang, redirects | Templates |
+| `khalid-lint` | The rule engine, every rule, every message. Public, reused by SerpDad | Files on disk, HTTP |
+| `khalid-audit` | The self-crawl and the health score | Rendering |
+| `khalid-theme` | Token extraction, contrast fixes, proxy rule generation | Content |
+| `khalid-db` | SQLite, migrations, typed queries | Rendering |
+| `khalid-media` | Image processing, storage backends | HTTP routes |
+| `khalid-outbound` | The one HTTP client with the private-network guard (BL-RUN-8) | Everything else |
+| `khalid-server` | Axum routes, the Content and Admin APIs, auth, webhooks, the embedded admin | Markdown parsing |
+| `khalid-import` | One module per source: WordPress, Ghost, Medium, Substack, markdown folders | Rendering |
+| `khalid-mcp` | The MCP server, a client of the same functions the API calls | SQL |
 | `lint-check` | One deliberate violation per lint, proving the lint table fires (BL-LNT-3) | The product |
 
-Dependencies point downwards in this table. `byline-core` depends on nothing of ours.
+Dependencies point downwards in this table. `khalid-core` depends on nothing of ours.
 
 ## Crates we use
 
@@ -38,10 +38,10 @@ Choose from this list first. Adding another needs the sentence BL-DEP-1 asks for
 | Markdown | `comrak` for parsing with footnotes, tables and task lists; our own directive layer on top |
 | HTML | `lol_html` for streaming rewrites, `scraper` for theme sync, `ammonia` for sanitising |
 | Serialisation | `serde`, `serde_json`, `toml` |
-| Errors | `thiserror` in libraries. `anyhow` only in `crates/byline` and only to wrap at the very top |
+| Errors | `thiserror` in libraries. `anyhow` only in `crates/khalid` and only to wrap at the very top |
 | CLI | `clap` with derive |
 | Logging | `tracing`, `tracing-subscriber` |
-| HTTP client | `reqwest` with `rustls-tls`, wrapped once in `byline-outbound` |
+| HTTP client | `reqwest` with `rustls-tls`, wrapped once in `khalid-outbound` |
 | Images | `image`, `ravif`, `webp`, `fast_image_resize` |
 | Syntax colours | `syntect` |
 | Maths | `latex2mathml` |
@@ -60,9 +60,9 @@ Choose from this list first. Adding another needs the sentence BL-DEP-1 asks for
 
 ## Shared patterns
 
-**Clock (BL-RUN-1).** `byline_core::Clock` is a trait with `now()`. The real clock is one struct. Tests pass a `FixedClock`. `clippy.toml` disallows the direct `now` methods everywhere else.
+**Clock (BL-RUN-1).** `khalid_core::Clock` is a trait with `now()`. The real clock is one struct. Tests pass a `FixedClock`. `clippy.toml` disallows the direct `now` methods everywhere else.
 
-**Config (BL-RUN-2).** `byline_core::Config` is read once from `site.toml`, environment and flags, validated, then passed by reference or `Arc`. No module reads the environment on its own.
+**Config (BL-RUN-2).** `khalid_core::Config` is read once from `site.toml`, environment and flags, validated, then passed by reference or `Arc`. No module reads the environment on its own.
 
 **UserMessage (BL-ERR-4).** Three fields, `what`, `why`, `fix`, each one plain sentence. Library errors implement a `ToUserMessage` trait in the binary crate, never inside the library. The same struct serialises into the API's problem details and the CLI's `--json` output.
 
@@ -106,6 +106,6 @@ A product that is fast to build ships faster.
 
 ## Adding a crate
 
-1. `cargo new --lib crates/byline-<name>` with `[lints] workspace = true`.
+1. `cargo new --lib crates/khalid-<name>` with `[lints] workspace = true`.
 2. Write the `//!` crate docs first: what it owns, what it must not know about (BL-DOC-2).
 3. Add it to the table above in the same pull request.

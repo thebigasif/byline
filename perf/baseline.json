@@ -3,8 +3,8 @@
   "fixture": "none",
   "measures": {
     "binary_size_bytes": { "value": 31457280, "drift": 0.02, "better": "lower", "what": "Release binary, stripped" },
-    "cold_start_help_ms": { "value": 100, "drift": 0.10, "better": "lower", "what": "Cold start of byline --help, median of 20 runs" },
-    "cold_start_first_byte_ms": { "value": 100, "drift": 0.10, "better": "lower", "what": "Cold start of byline serve to the first byte, 1,000-post fixture" },
+    "cold_start_help_ms": { "value": 100, "drift": 0.10, "better": "lower", "what": "Cold start of khalid --help, median of 20 runs" },
+    "cold_start_first_byte_ms": { "value": 100, "drift": 0.10, "better": "lower", "what": "Cold start of khalid serve to the first byte, 1,000-post fixture" },
     "idle_memory_mb": { "value": 50, "drift": 0.10, "better": "lower", "what": "Idle memory, one site, 1,000 posts" },
     "post_render_p50_ms": { "value": 1, "drift": 0.10, "better": "lower", "what": "Post page render in process, p50" },
     "post_render_p99_ms": { "value": 5, "drift": 0.10, "better": "lower", "what": "Post page render in process, p99" },

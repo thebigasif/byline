@@ -1,6 +1,6 @@
 # Security
 
-Byline is a public-facing server. We treat security reports as the highest priority work in the repository.
+Khalid is a public-facing server. We treat security reports as the highest priority work in the repository.
 
 ## Reporting
 

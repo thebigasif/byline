@@ -1,4 +1,4 @@
-//! The `byline` command.
+//! The `khalid` command.
 //!
 //! This crate owns the edge: it parses the command line, runs a command, and
 //! turns every outcome into an exit code and a message a person or an agent can
@@ -12,9 +12,9 @@ mod report;
 use std::ffi::OsString;
 use std::process::ExitCode;
 
-use byline_core::UserMessage;
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
+use khalid_core::UserMessage;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
@@ -42,9 +42,9 @@ fn run(cli: &Cli) -> Exit {
 /// The message for a command that a later phase builds.
 fn not_built(command: &Command) -> UserMessage {
     UserMessage::new(
-        format!("The command `byline {}` is not built yet.", command.name()),
-        "Byline is in its first phase, and this command arrives in a later one.",
-        "Run `byline --help` to see every command, and check the next release.",
+        format!("The command `khalid {}` is not built yet.", command.name()),
+        "Khalid is in its first phase, and this command arrives in a later one.",
+        "Run `khalid --help` to see every command, and check the next release.",
     )
 }
 
@@ -70,11 +70,11 @@ fn usage_message(error: &clap::Error) -> UserMessage {
     let detail = detail.strip_prefix("error: ").unwrap_or(&detail);
     UserMessage::new(
         format!(
-            "Byline could not read the command line: {}.",
+            "Khalid could not read the command line: {}.",
             detail.trim_end_matches('.')
         ),
-        "Byline stopped before doing anything, so nothing has changed.",
-        "Run `byline --help` to see the commands and their options.",
+        "Khalid stopped before doing anything, so nothing has changed.",
+        "Run `khalid --help` to see the commands and their options.",
     )
 }
 

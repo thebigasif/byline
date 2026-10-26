@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for looking. Byline is in the planning stage, and most code is written by coding agents against `CLAUDE.md`. People are welcome too, and the same rules apply to everyone.
+Thank you for looking. Khalid is in the planning stage, and most code is written by coding agents against `CLAUDE.md`. People are welcome too, and the same rules apply to everyone.
 
 ## Before you start
 
@@ -22,7 +22,7 @@ Your first pull request will ask you to sign `CLA.md` through a bot. It takes on
 
 ## Reporting a bug
 
-Use the bug template. Say what you did, what you expected, what happened, and the version from `byline --version`. Never paste a key, token or password.
+Use the bug template. Say what you did, what you expected, what happened, and the version from `khalid --version`. Never paste a key, token or password.
 
 ## Proposing a rule
 

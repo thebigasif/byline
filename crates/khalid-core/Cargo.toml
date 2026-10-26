@@ -1,7 +1,7 @@
 [package]
-name = "byline-core"
+name = "khalid-core"
 version = "0.0.0"
-description = "Shared building blocks for every Byline crate: messages, identifiers, time and settings."
+description = "Shared building blocks for every Khalid crate: messages, identifiers, time and settings."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -18,7 +18,7 @@ serde.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-byline-core = { path = ".", version = "0.0.0", features = ["test-util"] }
+khalid-core = { path = ".", version = "0.0.0", features = ["test-util"] }
 proptest = "1"
 serde_json.workspace = true
 

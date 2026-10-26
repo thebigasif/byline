@@ -360,12 +360,12 @@ pub fn local_time() -> chrono::DateTime<chrono::Local> {
 
 /// Reads the environment directly instead of through `Config`.
 pub fn site_from_env() -> Option<String> {
-    std::env::var("BYLINE_SITE").ok() // expect: clippy::disallowed_methods
+    std::env::var("KHALID_SITE").ok() // expect: clippy::disallowed_methods
 }
 
 /// Reads the environment as an `OsString` instead of through `Config`.
 pub fn site_from_env_os() -> Option<std::ffi::OsString> {
-    std::env::var_os("BYLINE_SITE") // expect: clippy::disallowed_methods
+    std::env::var_os("KHALID_SITE") // expect: clippy::disallowed_methods
 }
 
 /// Joins an untrusted segment onto a path instead of through `SitePath`.

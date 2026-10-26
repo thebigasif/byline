@@ -8,7 +8,7 @@ extend-ignore-re = [
 [default.extend-words]
 # Project words typos would otherwise flag.
 serpdad = "serpdad"
-byline = "byline"
+khalid = "khalid"
 hreflang = "hreflang"
 minijinja = "minijinja"
 

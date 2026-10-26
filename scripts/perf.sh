@@ -4,14 +4,14 @@
 # scripts/perf-gate.py. See docs/standards/performance.md.
 #
 # Measured today: the release binary's size and the cold start of
-# `byline --help`. Later phases add the rest of the budgets here.
+# `khalid --help`. Later phases add the rest of the budgets here.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-cargo build --release -p byline
-bin="${CARGO_TARGET_DIR:-$root/target}/release/byline"
+cargo build --release -p khalid
+bin="${CARGO_TARGET_DIR:-$root/target}/release/khalid"
 
 python3 - "$bin" perf/current.json <<'PY'
 import json

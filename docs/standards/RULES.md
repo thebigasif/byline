@@ -13,7 +13,7 @@ One file is the standard. The skills point to it, reviewers cite its IDs, and ev
 | CL | clippy documentation |
 | OWASP | OWASP ASVS and cheat sheets |
 | PLAN | a founder decision in `docs/plan.md` |
-| BL | a Byline engineering decision, recorded in `docs/adr/` |
+| BL | a Khalid engineering decision, recorded in `docs/adr/` |
 
 **Enforcement**
 
@@ -23,13 +23,13 @@ One file is the standard. The skills point to it, reviewers cite its IDs, and ev
 | C | `clippy.toml` `disallowed-methods` or `disallowed-types` |
 | S | a CI script or gate |
 | T | a required test, checked in review |
-| R | review only, with the `byline-review` skill |
+| R | review only, with the `khalid-review` skill |
 
 ## Errors
 
 | ID | Rule | Source | Enforced |
 |---|---|---|---|
-| BL-ERR-1 | Each library crate has its own error enum built with `thiserror`. No `Result<_, String>`, no `Box<dyn Error>`, no `anyhow` in a library crate | ER, API, BR | L (`result_large_err`), S (search for `anyhow` outside `crates/byline`) |
+| BL-ERR-1 | Each library crate has its own error enum built with `thiserror`. No `Result<_, String>`, no `Box<dyn Error>`, no `anyhow` in a library crate | ER, API, BR | L (`result_large_err`), S (search for `anyhow` outside `crates/khalid`) |
 | BL-ERR-2 | Keep the cause: `#[from]` or `#[source]`, never `e.to_string()` into a variant | ER | R |
 | BL-ERR-3 | No panics outside tests: no `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!`, `unreachable!`, slice indexing or integer `as` casts | BR, CL | L (`unwrap_used`, `expect_used`, `panic`, `todo`, `unimplemented`, `unreachable`, `indexing_slicing`, `as_conversions`) |
 | BL-ERR-4 | Every error that reaches a person becomes a `UserMessage` with three fields: what happened, why it matters, what to do. Produced at the edge in the binary and the API, never inside a library | PLAN, BL | T, R |

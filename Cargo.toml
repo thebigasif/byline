@@ -1,16 +1,16 @@
-# Byline workspace. Crates live in crates/. Lints and dependency versions are
+# Khalid workspace. Crates live in crates/. Lints and dependency versions are
 # shared from here. Each crate sets `[lints] workspace = true`.
 [workspace]
 resolver = "3"
 # lints/check proves the lint table fires. Its violations compile only when
-# scripts/check-lints.sh sets the byline_lint_check cfg.
+# scripts/check-lints.sh sets the khalid_lint_check cfg.
 members = ["crates/*", "lints/check"]
 
 [workspace.package]
 edition = "2024"
 rust-version = "1.99"
 license = "AGPL-3.0-only"
-repository = "https://github.com/thebigasif/byline"
+repository = "https://github.com/thebigasif/khalid"
 publish = false
 
 [workspace.dependencies]

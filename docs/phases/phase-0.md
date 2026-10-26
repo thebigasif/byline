@@ -9,16 +9,16 @@
 ### 0.1 Name checks (founder decides, agent prepares)
 
 - Status: `todo`
-- For each name on the shortlist in `docs/plan.md` D-1 (Byline, Masthead, Dateline, Gazette, Typeset), check and record: GitHub organisation and repository name free, crates.io name free, npm name free, `.dev` and `.com` domains, a USPTO and EUIPO trademark search for classes 9 and 42, and whether any CMS, editor or publishing tool already uses the name.
+- For each name on the shortlist in `docs/plan.md` D-1 (Khalid, Masthead, Dateline, Gazette, Typeset), check and record: GitHub organisation and repository name free, crates.io name free, npm name free, `.dev` and `.com` domains, a USPTO and EUIPO trademark search for classes 9 and 42, and whether any CMS, editor or publishing tool already uses the name.
 - Write the results as a table in `docs/decisions/name.md` with links. Make no recommendation beyond the plan's. The founder picks.
 - Done when: the table has every check for every name and the founder has replied.
 
-### 0.2 The first crate: `byline` prints help
+### 0.2 The first crate: `khalid` prints help
 
 - Status: `doing` (#17, #6, #7, #8, #9). Split into stacked pull requests to stay under 400 lines each: the core crate and a binary that prints help, then `Slug`, then the commands, then `--json`, then `Clock`, `Config` and `Secret`.
-- `crates/byline` with `clap`, the commands from plan section 4.1 as subcommands that print "not built yet" with exit code 3, `--version`, `--json` on every command, the `UserMessage` edge, and `mimalloc`.
-- `crates/byline-core` with `Clock`, `FixedClock`, `Config` (empty for now), `UserMessage`, `Secret<T>`, and the `Slug` newtype with its tests. Crate docs that say what each owns.
-- Done when: `cargo run -p byline -- --help` prints the commands, `just check` is green, CI is green, the binary is under 5 MB.
+- `crates/khalid` with `clap`, the commands from plan section 4.1 as subcommands that print "not built yet" with exit code 3, `--version`, `--json` on every command, the `UserMessage` edge, and `mimalloc`.
+- `crates/khalid-core` with `Clock`, `FixedClock`, `Config` (empty for now), `UserMessage`, `Secret<T>`, and the `Slug` newtype with its tests. Crate docs that say what each owns.
+- Done when: `cargo run -p khalid -- --help` prints the commands, `just check` is green, CI is green, the binary is under 5 MB.
 
 ### 0.3 The lint proof crate
 
@@ -28,7 +28,7 @@
 
 ### 0.4 Disallowed methods and types carry their reasons
 
-- Status: `doing`. Done now: the clock's one `#[expect]` (with 0.2), a violation in `lints/check` for every disallowed entry in `clippy.toml` except `reqwest::Client`, and a `just check` gate that allows the suppression only in the clock, config, outbound and path modules, once each. Waiting: the config module's `#[expect]` arrives with its first setting read from the environment, and the outbound module's with `byline-outbound`, both Phase 1.
+- Status: `doing`. Done now: the clock's one `#[expect]` (with 0.2), a violation in `lints/check` for every disallowed entry in `clippy.toml` except `reqwest::Client`, and a `just check` gate that allows the suppression only in the clock, config, outbound and path modules, once each. Waiting: the config module's `#[expect]` arrives with its first setting read from the environment, and the outbound module's with `khalid-outbound`, both Phase 1.
 - The clock module, the config module and the outbound module each carry one `#[expect(clippy::disallowed_methods, reason = "...")]` or `disallowed_types` on the one line that is allowed to break the rule. A test in `lints/check` proves the disallowed methods fire elsewhere.
 - Done when: `cargo clippy` is clean and the expects are the only ones in the workspace.
 
@@ -41,7 +41,7 @@
 ### 0.6 Performance gate skeleton
 
 - Status: `doing`
-- `perf/baseline.json` with the budgets from `docs/standards/performance.md` as the first baseline, `scripts/perf.sh` measuring binary size and cold start of `byline --help`, and `scripts/perf-gate.py` comparing with the allowed drift.
+- `perf/baseline.json` with the budgets from `docs/standards/performance.md` as the first baseline, `scripts/perf.sh` measuring binary size and cold start of `khalid --help`, and `scripts/perf-gate.py` comparing with the allowed drift.
 - Done when: the perf job in CI runs the two measures and fails when the binary is made artificially large in a test branch.
 
 ### 0.7 CHANGELOG and release workflow

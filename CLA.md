@@ -1,6 +1,6 @@
 # Contributor Licence Agreement
 
-Thank you for contributing to Byline, a project of SerpDad ("we", "us").
+Thank you for contributing to Khalid, a project of SerpDad ("we", "us").
 
 By submitting a contribution, you agree to the following. You sign once, through the bot on your first pull request, and it covers all your later contributions.
 
@@ -11,4 +11,4 @@ By submitting a contribution, you agree to the following. You sign once, through
 5. **No warranty.** You provide the contribution as is, without warranty, except that you believe it is your own work.
 6. **Tell us if something changes.** If you learn that any of this is not true for a contribution, tell us.
 
-Why we ask: Byline is AGPL-3.0, and SerpDad uses parts of it, such as the lint rules, inside its own hosted products. Without this agreement, each outside contribution would be off limits there, and the project would lose the funding that keeps it maintained.
+Why we ask: Khalid is AGPL-3.0, and SerpDad uses parts of it, such as the lint rules, inside its own hosted products. Without this agreement, each outside contribution would be off limits there, and the project would lose the funding that keeps it maintained.

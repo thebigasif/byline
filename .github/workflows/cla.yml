@@ -28,11 +28,11 @@ jobs:
           PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_SIGNATURES_TOKEN }}
         with:
           path-to-signatures: 'signatures/version1/cla.json'
-          path-to-document: 'https://github.com/thebigasif/byline/blob/main/CLA.md'
+          path-to-document: 'https://github.com/thebigasif/khalid/blob/main/CLA.md'
           branch: 'main'
           allowlist: 'thebigasif,dependabot[bot]'
           remote-organization-name: 'thebigasif'
-          remote-repository-name: 'byline-cla-signatures'
+          remote-repository-name: 'khalid-cla-signatures'
           create-file-commit-message: 'chore(cla): create the signatures file'
           signed-commit-message: 'chore(cla): $contributorName has signed the CLA'
           custom-notsigned-prcomment: 'Thank you for the pull request. Please read CLA.md and sign it with the comment below. You sign once.'
