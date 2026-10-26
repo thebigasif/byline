@@ -1778,6 +1778,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-server"
+version = "0.0.0"
+dependencies = [
+ "bytes",
+ "thiserror",
+]
+
+[[package]]
 name = "khalid-share-image"
 version = "0.0.0"
 dependencies = [

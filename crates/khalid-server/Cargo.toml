@@ -1,0 +1,16 @@
+[package]
+name = "khalid-server"
+version = "0.0.0"
+description = "The web server: rendered pages from memory at clean addresses, and a graceful stop."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+bytes = "1"
+thiserror.workspace = true
+
+[lints]
+workspace = true
