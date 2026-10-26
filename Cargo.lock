@@ -1223,6 +1223,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-seo"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "thiserror",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
