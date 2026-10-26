@@ -166,3 +166,106 @@ async fn a_private_address_is_refused_before_anything_is_sent() {
     let what = json(&output)["error"]["what"].as_str().unwrap().to_owned();
     assert!(what.contains("private address"), "{what}");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_site_that_cannot_be_reached_is_named_with_a_fix() {
+    let site = site();
+
+    let args = ["theme", "sync", "http://nowhere.test/"];
+    let output = khalid(site.path(), &args, Names::StandIn).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(
+        said.contains("could not reach http://nowhere.test/"),
+        "{said}"
+    );
+    assert!(
+        said.contains("khalid theme sync http://nowhere.test/"),
+        "{said}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_error_status_and_a_page_too_large_stop_the_sync() {
+    let site = site();
+    let (server, _) = stand_in(HOME, None).await;
+    let missing = format!("http://{HOST}:{}/gone", server.address().port());
+    let (_big, huge) = stand_in(&"x".repeat(2 * 1024 * 1024 + 1), None).await;
+
+    for (address, said) in [(missing, "status 404"), (huge, "larger than the 2 MiB")] {
+        let args = ["--json", "theme", "sync", address.as_str()];
+        let output = khalid(site.path(), &args, Names::StandIn).await;
+        assert_eq!(output.status.code(), Some(1), "{address}");
+        let what = json(&output)["error"]["what"].as_str().unwrap().to_owned();
+        assert!(what.contains(said), "{what}");
+    }
+    assert!(!within(site.path(), "theme/tokens.toml").exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_page_with_no_stylesheet_writes_nothing() {
+    let site = site();
+    let bare = r#"<!doctype html><html><head><title>Plain</title>
+<link rel="stylesheet" href="https://fonts.example.net/sans.css"></head><body>Hi</body></html>"#;
+    let (_server, home) = stand_in(bare, None).await;
+
+    let output = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains("found no stylesheet"), "{said}");
+    assert!(said.contains("on another site"), "{said}");
+    assert!(!within(site.path(), "theme/tokens.toml").exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_file_in_the_way_of_the_theme_folder_is_named() {
+    let site = site();
+    fs::write(within(site.path(), "theme"), "not a folder").unwrap();
+    let (_server, home) = stand_in(HOME, Some(STYLE)).await;
+
+    let output = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains("could not save the theme"), "{said}");
+    assert!(said.contains("keeps its old colours"), "{said}");
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread")]
+async fn a_theme_link_that_leads_outside_the_site_writes_nothing_there() {
+    let site = site();
+    let outside = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(outside.path(), within(site.path(), "theme")).unwrap();
+    let (_server, home) = stand_in(HOME, Some(STYLE)).await;
+
+    let output = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains("a link to a place outside"), "{said}");
+    assert!(!within(outside.path(), "tokens.toml").exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn sync_needs_a_site_folder_and_a_web_address() {
+    let site = site();
+
+    let args = ["theme", "sync", "ftp://bakery.test/"];
+    let output = khalid(site.path(), &args, Names::Real).await;
+    assert_eq!(output.status.code(), Some(2), "{}", text(&output.stderr));
+
+    let output = tokio::task::spawn_blocking(|| {
+        Command::new(env!("CARGO_BIN_EXE_khalid"))
+            .args(["--json", "theme", "sync", "https://www.example.com/"])
+            .output()
+            .unwrap()
+    })
+    .await
+    .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    let what = json(&output)["error"]["what"].as_str().unwrap().to_owned();
+    assert!(what.contains("needs a site folder"), "{what}");
+}

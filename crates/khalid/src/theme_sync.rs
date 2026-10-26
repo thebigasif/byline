@@ -56,6 +56,10 @@ pub(crate) fn run(site: &Path, url: &AbsoluteUrl, cli: &Cli) -> Exit {
         Ok(source) => source,
         Err((message, exit)) => return report::failure(output, &message, exit),
     };
+    if source.stylesheets().is_empty() {
+        let message = theme_message::no_stylesheet(url, source.skipped().len());
+        return report::failure(output, &message, Exit::Failure);
+    }
     let mut tokens = ThemeTokens::from_theme(&SiteTheme::from_source(&source));
     let fixes = tokens.fix_contrast();
     match tokens.write(site) {
