@@ -23,3 +23,8 @@ text = "How many links to add"
 kind = "internal"
 target = "/blog/choosing-link-text/"
 text = "how to choose link text"
+
+[[links]]
+kind = "external"
+target = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+text = "Google's guide to links"

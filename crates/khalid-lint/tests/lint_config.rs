@@ -71,6 +71,8 @@ fn lint_toml_tunes_a_threshold() {
     let config = LintConfig::parse("[thresholds]\nsame-link-text-max = 5\n").unwrap();
     assert_eq!(config.thresholds().same_link_text_max, 5);
     assert_eq!(LintConfig::default().thresholds(), Thresholds::default());
+    let config = LintConfig::parse("[thresholds]\nthin-post-words = 500\n").unwrap();
+    assert_eq!(config.thresholds().thin_post_words, 500);
 }
 
 #[test]

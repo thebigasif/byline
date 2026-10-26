@@ -99,6 +99,20 @@ pub enum HeadingLevel {
     H6,
 }
 
+impl HeadingLevel {
+    /// The level as a number from 1 to 6, as in `h1` to `h6`.
+    pub const fn number(self) -> u8 {
+        match self {
+            Self::H1 => 1,
+            Self::H2 => 2,
+            Self::H3 => 3,
+            Self::H4 => 4,
+            Self::H5 => 5,
+            Self::H6 => 6,
+        }
+    }
+}
+
 /// Whether a link stays on this site, written `internal` or `external` in
 /// JSON or TOML.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]

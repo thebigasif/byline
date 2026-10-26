@@ -63,3 +63,27 @@ what = "This link has no words a reader can see or hear."
 why = "People using screen readers and Google cannot tell where it goes."
 fix = "Add words to the link, or describe the image inside it."
 guide = "link-text"
+
+[heading-order]
+what = "This heading skips a level, such as a `####` right after a `##`."
+why = "Screen readers and Google follow headings like a table of contents."
+fix = "Change this heading to one level below the heading before it."
+guide = "headings"
+
+[missing-alt]
+what = "This image has no description."
+why = "People who cannot see the image, and Google, rely on the description to know what it shows."
+fix = "Add a short description of what the image shows."
+guide = "image-descriptions"
+
+[thin-post]
+what = "This post is shorter than the minimum this site sets."
+why = "Short posts rarely answer a question fully, so Google seldom shows them."
+fix = "Add the details, examples or steps a reader needs to act on the topic."
+guide = "post-length"
+
+[no-outbound-link]
+what = "This post links to no other website."
+why = "Links to good sources show readers and Google where your facts come from."
+fix = "Add a link to a trusted source that backs up a claim in the post."
+guide = "citing-sources"

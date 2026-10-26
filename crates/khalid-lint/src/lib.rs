@@ -24,6 +24,7 @@ mod lint_site;
 mod linter;
 mod rule;
 mod severity;
+mod structure;
 mod thresholds;
 
 pub use catalogue::{Catalogue, Message};
