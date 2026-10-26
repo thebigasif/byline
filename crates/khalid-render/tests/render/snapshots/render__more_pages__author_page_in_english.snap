@@ -1,0 +1,38 @@
+---
+source: crates/khalid-render/tests/render/more_pages.rs
+expression: main_of(&page)
+---
+ id="main" tabindex="-1">
+
+
+<article class="author">
+<header class="author-header">
+<h1>Lena Vogt</h1>
+<p class="author-role">Technical SEO editor</p>
+</header>
+<div class="author-bio">
+<p>Lena looks after the technical side: sitemaps, page speed and everything a crawler sees.</p>
+</div>
+<ul class="author-profiles">
+<li><a href="https://mastodon.example/@lena" rel="me">Mastodon</a></li>
+</ul>
+</article>
+<section aria-labelledby="author-posts">
+<h2 id="author-posts">Posts by Lena Vogt</h2>
+<ul class="cards" role="list">
+<li>
+<article class="card">
+<h3><a href="/blog/what-a-sitemap-does/">What a sitemap does, and what it does not</a></h3>
+<p><time datetime="2026-09-28">28 September 2026</time></p>
+<p>A sitemap lists the pages you want search engines to know about.</p>
+</article>
+</li>
+<li>
+<article class="card">
+<h3><a href="/blog/how-to-write-a-title-tag/">How to write a title tag</a></h3>
+<p><time datetime="2026-09-21">21 September 2026</time></p>
+<p>The title tag is the blue link in search results.</p>
+</article>
+</li>
+</ul>
+</section>
