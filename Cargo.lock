@@ -1390,6 +1390,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-seo"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "thiserror",
+]
+
+[[package]]
 name = "khalid-webhooks"
 version = "0.0.0"
 dependencies = [
