@@ -1,0 +1,6 @@
+redir /blog /blog/ 301
+handle /blog/* {
+    reverse_proxy https://blog-origin.example.com {
+        header_up Host {upstream_hostport}
+    }
+}

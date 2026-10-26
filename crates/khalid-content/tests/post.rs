@@ -69,7 +69,7 @@ fn allows_the_fields_the_linter_checks_to_be_missing() {
 fn refuses_an_unknown_field() {
     assert_eq!(
         message("---\ntitle: A\ncolour: blue\n---\n"),
-        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation"
+        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation, aliases, featured"
     );
 }
 
@@ -118,5 +118,34 @@ fn refuses_front_matter_that_is_never_closed() {
     assert_eq!(
         message("---\ntitle: A\n\nText.\n"),
         "posts/a.md opens its front matter with --- but never closes it"
+    );
+}
+
+#[test]
+fn reads_aliases_and_featured() {
+    let text =
+        "---\ntitle: A\naliases:\n  - /2019/05/old-title/\n  - /blog/?p=12\nfeatured: true\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), text).unwrap();
+    assert_eq!(post.front.aliases, ["/2019/05/old-title/", "/blog/?p=12"]);
+    assert!(post.front.featured);
+    let plain = parse_post(Path::new("posts/a.md"), "---\ntitle: A\n---\n").unwrap();
+    assert!(plain.front.aliases.is_empty() && !plain.front.featured);
+}
+
+#[test]
+fn refuses_an_alias_that_is_not_a_path() {
+    assert_eq!(
+        message("---\naliases:\n  - old-title\n---\n"),
+        "posts/a.md, line 3, field \"aliases\": \"old-title\" is not a path; an alias is an old address on this site starting with /, such as /2019/05/old-title/"
+    );
+}
+
+#[test]
+fn refuses_a_broken_block_with_the_line_in_the_file() {
+    assert_eq!(
+        message(
+            "---\ntitle: A\n---\n\nIntro.\n\n:::figur{src=\"a.jpg\" alt=\"A\"}\nCaption.\n:::\n"
+        ),
+        "posts/a.md, line 7: there is no block called figur; the closest name is figure"
     );
 }
