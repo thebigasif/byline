@@ -1,4 +1,4 @@
-//! Turns the content files into the linter's own model (ADR 0011).
+//! Turns the content files into the linter's own model (ADR 0019).
 //!
 //! The lint crate never reads files, so this binary maps parsed posts and
 //! their rendered output to `LintPost` and `LintSite`. Wikilinks (task 1.8),
@@ -47,6 +47,8 @@ pub(crate) fn lint_site<'c>(
     }
     site.locales = config.languages().to_vec();
     site.slugs = Some(config.slugs());
+    let host = config.address().host();
+    site.host = (!host.is_empty()).then(|| host.to_owned());
     (site, documents)
 }
 
@@ -88,6 +90,7 @@ pub(crate) fn lint_parts(parts: &PostParts<'_>, config: &Config) -> Option<LintP
         .as_ref()
         .map(|author| author.as_str().to_owned());
     post.translation.clone_from(&front.translation);
+    post.aliases.clone_from(&front.aliases);
     post.headings = rendered
         .headings
         .iter()
@@ -151,17 +154,57 @@ fn level(number: u8) -> Option<HeadingLevel> {
     }
 }
 
+/// The elements whose end also ends a line of text, such as a heading or a
+/// list item written without a full stop.
+const BLOCKS: &[&str] = &[
+    "p",
+    "li",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "td",
+    "th",
+    "dt",
+    "dd",
+    "blockquote",
+    "figcaption",
+    "pre",
+];
+
+/// Whether the tag written `tag`, without its `<` and `>`, ends a line:
+/// the end of a block, or a `br`.
+fn ends_line(tag: &str) -> bool {
+    let (closing, rest) = match tag.strip_prefix('/') {
+        Some(rest) => (true, rest),
+        None => (false, tag),
+    };
+    let name = rest.split([' ', '/']).next().unwrap_or_default();
+    name.eq_ignore_ascii_case("br") || (closing && BLOCKS.contains(&name))
+}
+
 /// The words of rendered HTML with every tag and every entity, such as
-/// `&quot;`, replaced by a space, so neither is read as a word.
+/// `&quot;`, replaced by a space, so neither is read as a word. The end of
+/// a block becomes a line break, so a heading never runs into the next
+/// sentence.
 fn plain_text(html: &str) -> String {
     let mut text = String::with_capacity(html.len());
+    let mut tag = String::new();
     let mut skip_until = None;
     for c in html.chars() {
         match (skip_until, c) {
             (Some(end), _) if c == end => {
                 skip_until = None;
-                text.push(' ');
+                text.push(if end == '>' && ends_line(&tag) {
+                    '\n'
+                } else {
+                    ' '
+                });
+                tag.clear();
             }
+            (Some('>'), _) => tag.push(c),
             (Some(_), _) => {}
             (None, '<') => skip_until = Some('>'),
             (None, '&') => skip_until = Some(';'),
@@ -181,5 +224,16 @@ mod tests {
         let text = plain_text(html);
         let words: Vec<&str> = text.split_whitespace().collect();
         assert_eq!(words, ["Write", "a", "title", "tag", "test", "it."]);
+    }
+
+    #[test]
+    fn plain_text_ends_a_line_at_each_block_only() {
+        let html = "<h2 id=\"why\">Why links</h2><ul><li>One <a href=\"/a/\">link</a></li><li>Two<br/>three</li></ul>";
+        let lines: Vec<String> = plain_text(html)
+            .lines()
+            .map(|line| line.split_whitespace().collect::<Vec<_>>().join(" "))
+            .filter(|line| !line.is_empty())
+            .collect();
+        assert_eq!(lines, ["Why links", "One link", "Two", "three"]);
     }
 }

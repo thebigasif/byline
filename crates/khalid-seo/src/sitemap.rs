@@ -1,13 +1,11 @@
 //! The XML sitemap: every published, indexable page, with its alternates.
 
 use chrono::{DateTime, Utc};
-use khalid_core::AbsoluteUrl;
+use khalid_core::{AbsoluteUrl, Indexing};
 
 use crate::escape::escape_markup;
 use crate::social::rfc3339;
-use crate::{
-    Alternate, Indexing, PageKind, PublishState, SeoError, SeoPage, SeoSite, SitemapListing, Video,
-};
+use crate::{Alternate, PageKind, PublishState, SeoError, SeoPage, SeoSite, SitemapListing, Video};
 
 /// Google reads at most this many images per page in a sitemap.
 const MAX_IMAGES_PER_URL: usize = 1000;

@@ -1,0 +1,9 @@
+# Three sentences of more than thirty words each, most of them long: a
+# reading index far above 60. The clean post's short body is under 100
+# words, so it is never measured.
+extends = "clean"
+body_text = """
+Organizations implementing comprehensive internationalization strategies frequently underestimate the considerable administrative complexity introduced whenever multilingual documentation requires synchronized maintenance across numerous independently managed publication environments, particularly where contributors collaborate asynchronously without standardized terminology or centralized editorial supervision.
+Consequently, editorial departments responsible for authoritative reference material increasingly demand sophisticated verification procedures, systematic translation memories, comprehensive revision histories, and meticulously documented approval workflows before anything reaches publicly accessible destinations or downstream syndication partners.
+Unfortunately, organizations attempting simultaneous modernization of infrastructure, governance, localization, accessibility, and performance commonly discover that interdependent requirements multiply exponentially, transforming seemingly straightforward improvements into lengthy, expensive, politically complicated undertakings that exhaust available engineering capacity and postpone measurable benefits indefinitely.
+"""

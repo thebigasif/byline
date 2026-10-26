@@ -1,6 +1,4 @@
-# Maths is drawn with math-core, not latex2mathml
-
-**Number:** next free.
+# 0027. Maths is drawn with math-core, not latex2mathml
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.8.
 

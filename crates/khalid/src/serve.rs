@@ -12,6 +12,7 @@ use khalid_api::api;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, SiteId};
+use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
 use tokio::net::TcpListener;
@@ -39,9 +40,9 @@ struct ServeBody<'a> {
     address: &'a str,
 }
 
-/// Serves the `site` folder, whose `config` and content were checked, on
-/// `listen`. The database opens first and closes last, after every request
-/// and the watch have stopped.
+/// Serves the `site` folder, whose `config`, `routes` and content were
+/// checked, on `listen`. The database opens first and closes last, after
+/// every request and the watch have stopped.
 ///
 /// `start` holds the checked content and a look at the folder taken before
 /// it was read. The first pages are rendered from that content, which is
@@ -49,7 +50,7 @@ struct ServeBody<'a> {
 /// the look on is always seen as an edit.
 pub(crate) fn run(
     site: &Path,
-    config: &Config,
+    (config, routes): (&Config, &Routes),
     start: (SiteContent, FolderLook),
     listen: SocketAddr,
     output: Output,
@@ -65,7 +66,7 @@ pub(crate) fn run(
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
     let served = serve_with(
-        (site, config),
+        (site, config, routes),
         start,
         (listen, output),
         &runtime,
@@ -79,9 +80,10 @@ pub(crate) fn run(
     }
 }
 
-/// Renders the site, then answers on `listen` until told to stop.
+/// Renders the site with its checked settings and routes, then answers on
+/// `listen` until told to stop.
 fn serve_with(
-    (site, config): (&Path, &Config),
+    (site, config, routes): (&Path, &Config, &Routes),
     (checked, look): (SiteContent, FolderLook),
     (listen, output): (SocketAddr, Output),
     runtime: &Runtime,
@@ -96,7 +98,7 @@ fn serve_with(
         live: content.clone(),
     };
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
-    let (source, pages) = SitePages::new(site, config.clone(), Some(feed))
+    let (source, pages) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
         .and_then(|source| {
             let (pages, not_found) = source.render_content(&checked)?;
             drop(checked);

@@ -1,0 +1,29 @@
+# A link to the site's own host over `http://` is flagged, with or without
+# `www.`, whether the caller marked it internal or not. `https://` to the
+# site, and `http://` to another site, are not this rule's concern.
+extends = "clean"
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+
+[[links]]
+kind = "internal"
+target = "http://example.com/blog/pruning-old-posts/"
+text = "when to prune old posts"
+
+[[links]]
+kind = "external"
+target = "HTTP://www.Example.com/blog/link-audits/"
+text = "a link audit in an afternoon"
+
+[[links]]
+kind = "external"
+target = "https://example.com/blog/site-structure/"
+text = "how to plan a site structure"
+
+[[links]]
+kind = "external"
+target = "http://info.cern.ch/hypertext/WWW/TheProject.html"
+text = "the first website"

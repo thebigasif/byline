@@ -1,6 +1,4 @@
-# The SEO head reaches templates as trusted HTML
-
-Number: next free
+# 0029. The SEO head reaches templates as trusted HTML
 
 **Status:** Accepted, 2026-10-26. Phase 1 tasks 1.13, 1.14 and 1.16.
 

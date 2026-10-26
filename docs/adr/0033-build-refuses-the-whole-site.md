@@ -1,6 +1,4 @@
-# `khalid build` writes nothing when the publish gate refuses a post
-
-**Number:** next free.
+# 0033. `khalid build` writes nothing when the publish gate refuses a post
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 2.6.
 

@@ -1,4 +1,6 @@
-# 0013. Theme sync writes tokens by the renderer's rules, without depending on it
+# 0020. Theme sync writes tokens by the renderer's rules, without depending on it
+
+Renumbered from 0013, which ADR 0013 on SEO outputs holds.
 
 **Status:** Accepted, 2026-10-26. Phase 3 work pulled forward, part 3.3.
 

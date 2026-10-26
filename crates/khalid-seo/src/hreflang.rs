@@ -2,9 +2,9 @@
 
 use std::collections::BTreeMap;
 
-use khalid_core::{AbsoluteUrl, Locale};
+use khalid_core::{AbsoluteUrl, Indexing, Locale};
 
-use crate::{Indexing, SeoError, SeoPage, SeoSite};
+use crate::{SeoError, SeoPage, SeoSite};
 
 /// The name a post's language versions share, from the `translation` key in
 /// their front matter, such as `internal-links`.

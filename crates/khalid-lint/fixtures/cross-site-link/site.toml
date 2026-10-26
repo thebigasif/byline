@@ -1,0 +1,3 @@
+# Another site served by the same Khalid process.
+host = "example.com"
+sibling_hosts = ["shop.example.org"]
