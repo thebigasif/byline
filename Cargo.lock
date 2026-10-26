@@ -1867,16 +1867,22 @@ dependencies = [
  "axum",
  "brotli",
  "bytes",
+ "chrono",
  "divan",
  "getrandom 0.4.3",
  "http-body-util",
+ "khalid-core",
+ "khalid-outbound",
+ "khalid-webhooks",
  "percent-encoding",
+ "serde_json",
  "sha2 0.11.1",
  "tempfile",
  "thiserror",
  "tokio",
  "tower",
  "tracing",
+ "wiremock",
 ]
 
 [[package]]

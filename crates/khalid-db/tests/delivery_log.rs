@@ -126,3 +126,36 @@ async fn due_deliveries_come_oldest_first_and_only_for_their_site() {
         "{error:?}"
     );
 }
+
+#[tokio::test]
+async fn finding_due_deliveries_reads_an_index_and_never_sorts() {
+    let (dir, db, _log) = opened().await;
+    db.close().await;
+    let mut path = PathBuf::from(dir.path());
+    path.push("site.db");
+    let mut connection = SqliteConnectOptions::new()
+        .filename(&path)
+        .connect()
+        .await
+        .unwrap();
+    // The same file the query macro compiles, so the plan is the real one.
+    // Each row is (id, parent, notused, detail).
+    let plan: Vec<(i64, i64, i64, String)> = sqlx::query_as(concat!(
+        "EXPLAIN QUERY PLAN ",
+        include_str!("../queries/deliveries_due.sql")
+    ))
+    .fetch_all(&mut connection)
+    .await
+    .unwrap();
+    let steps: Vec<&str> = plan.iter().map(|row| row.3.as_str()).collect();
+    for step in &steps {
+        assert!(step.starts_with("SEARCH"), "a step scans: {steps:?}");
+        assert!(!step.contains("TEMP B-TREE"), "a step sorts: {steps:?}");
+    }
+    assert!(
+        steps
+            .iter()
+            .any(|step| step.contains("webhook_deliveries_due")),
+        "{steps:?}"
+    );
+}

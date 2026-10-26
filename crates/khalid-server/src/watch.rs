@@ -8,10 +8,9 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
 use tokio::time::MissedTickBehavior;
 
-use crate::{LivePages, Render};
+use crate::{Background, LivePages, Render};
 
 /// The folders at the top of a site that Khalid writes itself: the
 /// database and caches, and the static export. A change there is never an
@@ -21,22 +20,6 @@ const OWN_FOLDERS: [&str; 2] = ["data", "public"];
 /// Every file under the site folder, with its size and when it last
 /// changed.
 type Snapshot = BTreeMap<PathBuf, (u64, Option<SystemTime>)>;
-
-/// A running watch. Dropping it stops the watch too; [`Watching::stop`]
-/// also waits until it has stopped.
-#[derive(Debug)]
-pub struct Watching {
-    stop: oneshot::Sender<()>,
-    task: JoinHandle<()>,
-}
-
-impl Watching {
-    /// Stops watching, and waits for a refresh in progress to finish.
-    pub async fn stop(self) {
-        let _ = self.stop.send(());
-        let _ = self.task.await;
-    }
-}
 
 /// Looks at every file under `site` each `every`, and when one is added,
 /// removed or changed, renders the pages again with `renderer` and serves
@@ -55,16 +38,9 @@ pub fn watch<R: Render + Clone>(
     renderer: &R,
     live: &LivePages,
     every: Duration,
-) -> Watching {
-    let (stop, stopped) = oneshot::channel();
-    let task = tokio::spawn(watch_until_stopped(
-        Arc::from(site),
-        renderer.clone(),
-        live.clone(),
-        every,
-        stopped,
-    ));
-    Watching { stop, task }
+) -> Background {
+    let (site, renderer, live) = (Arc::from(site), renderer.clone(), live.clone());
+    Background::spawn(move |stopped| watch_until_stopped(site, renderer, live, every, stopped))
 }
 
 async fn watch_until_stopped<R: Render + Clone>(
