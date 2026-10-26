@@ -59,8 +59,8 @@ pub use robots_txt::{
 pub use schema::{
     AggregateRating, AuthorProfile, Entity, EntityRole, FaqItem, HowTo, HowToStep, LocalBusiness,
     Money, OpeningHours, PostalAddress, Publisher, PublisherKind, Rating, Recipe, Review,
-    SchemaBlock, SchemaGraph, SchemaNode, SchemaValue, SiteSearch, breadcrumb_list, page_graph,
-    site_graph,
+    SchemaBlock, SchemaGraph, SchemaNode, SchemaTemplate, SchemaType, SchemaValue, SiteSearch,
+    TemplateScope, breadcrumb_list, page_graph, site_graph,
 };
 pub use seo_error::SeoError;
 pub use site::SeoSite;

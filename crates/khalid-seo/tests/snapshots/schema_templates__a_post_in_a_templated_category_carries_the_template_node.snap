@@ -1,0 +1,20 @@
+---
+source: crates/khalid-seo/tests/schema_templates.rs
+assertion_line: 41
+expression: "SchemaGraph::new(vec![node]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Course",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#template-course",
+      "mainEntityOfPage": {
+        "@id": "https://www.example.com/blog/why-internal-links-matter/#webpage"
+      },
+      "name": "Why internal links matter",
+      "description": "Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.",
+      "provider": "Field Notes on SEO"
+    }
+  ]
+}
