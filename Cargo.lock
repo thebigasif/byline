@@ -1223,6 +1223,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-webhooks"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
