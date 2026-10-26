@@ -1883,6 +1883,7 @@ dependencies = [
  "khalid-server",
  "khalid-theme",
  "mimalloc",
+ "scraper",
  "serde",
  "serde_json",
  "tempfile",
