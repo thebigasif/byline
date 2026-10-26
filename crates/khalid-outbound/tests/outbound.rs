@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use khalid_core::AbsoluteUrl;
 use khalid_outbound::{Limits, Outbound, OutboundError, Reach, Resolver};
-use wiremock::matchers::path;
+use wiremock::matchers::{body_string, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[cfg(test)]
@@ -165,4 +165,88 @@ async fn a_redirect_to_a_name_that_resolves_inward_is_refused() {
         matches!(&error, OutboundError::Blocked { host, .. } if host == "router.example"),
         "{error:?}"
     );
+}
+
+#[tokio::test]
+async fn posts_a_body_with_its_headers() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/hooks"))
+        .and(header("content-type", "application/json"))
+        .and(header("khalid-event", "post.published"))
+        .and(body_string(r#"{"event":"post.published"}"#))
+        .respond_with(ResponseTemplate::new(202).set_body_string("queued"))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let outbound = client(Limits::default(), &[], Reach::PublicAndLoopback);
+    let headers = [
+        ("content-type", "application/json"),
+        ("khalid-event", "post.published"),
+    ];
+    let body = br#"{"event":"post.published"}"#.to_vec();
+    let sent = outbound
+        .post(&url(&format!("{}/hooks", server.uri())), &headers, body)
+        .await
+        .unwrap();
+    assert_eq!((sent.status(), sent.body()), (202, &b"queued"[..]));
+}
+
+#[tokio::test]
+async fn a_post_to_a_literal_inward_address_is_refused() {
+    let outbound = client(Limits::default(), &[], Reach::Public);
+    let error = outbound
+        .post(&url("http://10.0.0.1/hooks"), &[], Vec::new())
+        .await
+        .unwrap_err();
+    assert!(matches!(error, OutboundError::Blocked { .. }), "{error:?}");
+}
+
+#[tokio::test]
+async fn a_post_to_a_name_that_resolves_inward_is_refused() {
+    let outbound = client(
+        Limits::default(),
+        &[("hooks.example", "192.168.1.20")],
+        Reach::Public,
+    );
+    let error = outbound
+        .post(&url("http://hooks.example/"), &[], Vec::new())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&error, OutboundError::Blocked { host, .. } if host == "hooks.example"),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_post_with_an_invalid_header_is_refused_before_sending() {
+    let outbound = client(Limits::default(), &[], Reach::PublicAndLoopback);
+    let error = outbound
+        .post(
+            &url("http://127.0.0.1:9/"),
+            &[("bad header", "x")],
+            Vec::new(),
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&error, OutboundError::Header { name } if name == "bad header"),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_slow_post_times_out() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(5)))
+        .mount(&server)
+        .await;
+    let limits = Limits::default().with_timeout(Duration::from_millis(200));
+    let error = client(limits, &[], Reach::PublicAndLoopback)
+        .post(&url(&server.uri()), &[], Vec::new())
+        .await
+        .unwrap_err();
+    assert!(matches!(error, OutboundError::TimedOut), "{error:?}");
 }
