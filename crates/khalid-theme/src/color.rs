@@ -120,16 +120,8 @@ impl Rgb {
     /// saturation of at least 35% and lightness between 15% and 85%. Greys,
     /// near-whites and near-blacks are not.
     pub(crate) fn is_vivid(self) -> bool {
-        let [red, green, blue] = self.channels().map(|channel| f64::from(channel) / 255.0);
-        let (high, low) = (red.max(green).max(blue), red.min(green).min(blue));
-        let lightness = f64::midpoint(high, low);
-        let spread = high - low;
-        let saturation = if spread == 0.0 {
-            0.0
-        } else {
-            spread / (1.0 - (2.0 * lightness - 1.0).abs())
-        };
-        saturation >= 0.35 && (0.15..=0.85).contains(&lightness)
+        let hsl = Hsl::from(self);
+        hsl.saturation >= 0.35 && (0.15..=0.85).contains(&hsl.lightness)
     }
 
     /// The WCAG contrast ratio between this colour and `other`, from 1 to 21.
@@ -185,25 +177,72 @@ fn from_hsl(parts: &[&str]) -> Option<Rgb> {
         _ => return None,
     };
     opaque(alpha)?;
-    let hue = number(hue.trim_end_matches("deg"))?.0.rem_euclid(360.0) / 60.0;
-    let saturation = (number(saturation)?.0 / 100.0).clamp(0.0, 1.0);
-    let lightness = (number(lightness)?.0 / 100.0).clamp(0.0, 1.0);
-    let chroma = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
-    let second = chroma * (1.0 - (hue.rem_euclid(2.0) - 1.0).abs());
-    let (r, g, b) = match hue {
-        h if h < 1.0 => (chroma, second, 0.0),
-        h if h < 2.0 => (second, chroma, 0.0),
-        h if h < 3.0 => (0.0, chroma, second),
-        h if h < 4.0 => (0.0, second, chroma),
-        h if h < 5.0 => (second, 0.0, chroma),
-        _ => (chroma, 0.0, second),
-    };
-    let light = lightness - chroma / 2.0;
-    Some(Rgb::new(
-        channel((r + light) * 255.0),
-        channel((g + light) * 255.0),
-        channel((b + light) * 255.0),
-    ))
+    Some(Rgb::from(Hsl {
+        hue: number(hue.trim_end_matches("deg"))?.0,
+        saturation: number(saturation)?.0 / 100.0,
+        lightness: number(lightness)?.0 / 100.0,
+    }))
+}
+
+/// A colour as hue in degrees, and saturation and lightness from 0 to 1.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Hsl {
+    pub(crate) hue: f64,
+    pub(crate) saturation: f64,
+    pub(crate) lightness: f64,
+}
+
+impl From<Hsl> for Rgb {
+    fn from(hsl: Hsl) -> Self {
+        let hue = hsl.hue.rem_euclid(360.0) / 60.0;
+        let saturation = hsl.saturation.clamp(0.0, 1.0);
+        let lightness = hsl.lightness.clamp(0.0, 1.0);
+        let chroma = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
+        let second = chroma * (1.0 - (hue.rem_euclid(2.0) - 1.0).abs());
+        let (r, g, b) = match hue {
+            h if h < 1.0 => (chroma, second, 0.0),
+            h if h < 2.0 => (second, chroma, 0.0),
+            h if h < 3.0 => (0.0, chroma, second),
+            h if h < 4.0 => (0.0, second, chroma),
+            h if h < 5.0 => (second, 0.0, chroma),
+            _ => (chroma, 0.0, second),
+        };
+        let light = lightness - chroma / 2.0;
+        Self::new(
+            channel((r + light) * 255.0),
+            channel((g + light) * 255.0),
+            channel((b + light) * 255.0),
+        )
+    }
+}
+
+impl From<Rgb> for Hsl {
+    fn from(color: Rgb) -> Self {
+        let [red, green, blue] = color.channels().map(|channel| f64::from(channel) / 255.0);
+        let (high, low) = (red.max(green).max(blue), red.min(green).min(blue));
+        let lightness = f64::midpoint(high, low);
+        let spread = high - low;
+        if spread == 0.0 {
+            return Self {
+                hue: 0.0,
+                saturation: 0.0,
+                lightness,
+            };
+        }
+        let saturation = spread / (1.0 - (2.0 * lightness - 1.0).abs());
+        let sector = if (high - red).abs() < f64::EPSILON {
+            ((green - blue) / spread).rem_euclid(6.0)
+        } else if (high - green).abs() < f64::EPSILON {
+            (blue - red) / spread + 2.0
+        } else {
+            (red - green) / spread + 4.0
+        };
+        Self {
+            hue: sector * 60.0,
+            saturation,
+            lightness,
+        }
+    }
 }
 
 /// `Some` when an optional alpha part is at least [`MIN_ALPHA`].
