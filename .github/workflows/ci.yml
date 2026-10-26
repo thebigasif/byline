@@ -62,14 +62,24 @@ jobs:
       - name: Tests, network disabled (BL-TST-3)
         if: steps.crates.outputs.present == 'true'
         run: |
-          # A user namespace with no network interfaces, no root needed. Falls back
-          # to a plain run where namespaces are off, and says so.
-          if unshare -rn true 2>/dev/null; then
-            unshare -rn cargo nextest run --workspace --all-features
-          else
-            echo "user namespaces unavailable; running tests with the network on"
-            cargo nextest run --workspace --all-features
-          fi
+          # Tests run in a network namespace where only loopback is up, so a
+          # local stand-in server works and the internet does not. Ubuntu
+          # runners block unprivileged user namespaces through AppArmor, so
+          # that block is lifted first. If the namespace cannot be made, the
+          # step fails: a guard that cannot be set up must not be skipped.
+          fail() { echo "BL-TST-3 could not be enforced: $1. Tests did not run."; exit 1; }
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 \
+            || fail "the AppArmor user-namespace restriction could not be lifted"
+          unshare -rn true || fail "unshare could not create a network namespace"
+          # Build first, with the network, so nothing needs it inside.
+          cargo nextest run --workspace --all-features --no-run
+          unshare -rn sh -c '
+            ip link set lo up || { echo "BL-TST-3 could not be enforced: loopback did not come up. Tests did not run."; exit 1; }
+            if curl -sS --max-time 5 -o /dev/null https://github.com 2>/dev/null; then
+              echo "BL-TST-3 could not be enforced: the internet is reachable inside the namespace. Tests did not run."; exit 1
+            fi
+            exec cargo nextest run --workspace --all-features
+          '
           cargo test --workspace --doc
       - name: Docs
         if: steps.crates.outputs.present == 'true'
