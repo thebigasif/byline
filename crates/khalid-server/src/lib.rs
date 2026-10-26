@@ -25,6 +25,7 @@ mod respond;
 mod security;
 mod serve;
 mod server_error;
+mod watch;
 
 pub use live_pages::LivePages;
 pub use media_type::MediaType;
@@ -36,3 +37,4 @@ pub use respond::router;
 pub use security::SecurityHeaders;
 pub use serve::{Stopped, serve};
 pub use server_error::ServerError;
+pub use watch::{Watching, watch};
