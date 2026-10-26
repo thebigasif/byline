@@ -1480,6 +1480,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-routes"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
 name = "khalid-seo"
 version = "0.0.0"
 dependencies = [
