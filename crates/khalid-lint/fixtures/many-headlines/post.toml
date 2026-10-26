@@ -1,0 +1,25 @@
+# The title is the main headline, and the body adds two more with `#`.
+locale = "en"
+slug = "why-internal-links-matter"
+title = "Why internal links matter"
+date = "2026-10-01"
+author = "Amira Haddad"
+word_count = 640
+body_text = "Internal links help readers find the next useful post on your site."
+
+[[headings]]
+level = "h1"
+text = "What an internal link is"
+
+[[headings]]
+level = "h2"
+text = "Links in the menu"
+
+[[headings]]
+level = "h1"
+text = "How many links to add"
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
