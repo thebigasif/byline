@@ -19,6 +19,8 @@ mod index;
 mod init;
 mod init_message;
 mod init_prompt;
+mod keys;
+mod keys_message;
 mod lint;
 mod lint_fix;
 mod lint_input;
@@ -97,6 +99,9 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Build { out }), Some((folder, config, content))) => {
             build::run(folder, config, content, out.as_deref(), cli.output)
         }
+        (Some(Command::Keys { command }), Some((folder, ..))) => {
+            keys::run(folder, command, cli.output)
+        }
         (Some(Command::Serve { listen }), Some((folder, config, _))) => {
             serve::run(folder, config, *listen, cli.output)
         }
@@ -104,6 +109,7 @@ fn run(cli: &Cli) -> Exit {
             Some(
                 command @ (Command::Db { .. }
                 | Command::Serve { .. }
+                | Command::Keys { .. }
                 | Command::Lint { .. }
                 | Command::New { .. }
                 | Command::Build { .. }),
