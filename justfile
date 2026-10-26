@@ -44,6 +44,14 @@ bench:
 coverage:
     cargo llvm-cov nextest --workspace --all-features --summary-only
 
+# Refresh .sqlx/, the checked query shapes CI compiles against, after changing
+# a query or adding a migration. Needs sqlx-cli with the sqlite feature.
+db-prepare:
+    rm -f target/sqlx-prepare.db
+    DATABASE_URL=sqlite:target/sqlx-prepare.db sqlx database create
+    DATABASE_URL=sqlite:target/sqlx-prepare.db sqlx migrate run --source crates/khalid-db/migrations
+    DATABASE_URL=sqlite:target/sqlx-prepare.db cargo sqlx prepare --workspace -- --all-targets --all-features
+
 # Run the binary in a scratch site with a demo fixture.
 dev:
     cargo run -p khalid -- serve --site fixtures/demo-site

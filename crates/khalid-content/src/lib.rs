@@ -6,8 +6,11 @@
 //! render, serve and index it, and never writes derived data under
 //! `content/` (BL-FS-2).
 
+mod block;
 mod content_error;
 mod content_hash;
+mod directive;
+mod embed;
 mod front_matter;
 mod post;
 mod render;
@@ -15,8 +18,10 @@ mod schemas;
 mod site_content;
 mod tree;
 
+pub use block::{Block, BlockError, BlockKind, CalloutKind, parse_blocks, print_blocks};
 pub use content_error::ContentError;
 pub use content_hash::ContentHash;
+pub use embed::{EMBED_PROVIDERS, EmbedProvider};
 pub use post::{Post, PostFront, parse_post};
 pub use render::{Heading, Image, Link, Rendered, render};
 pub use schemas::{

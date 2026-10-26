@@ -1,0 +1,9 @@
+---
+source: crates/khalid-seo/tests/verification.rs
+expression: "verification.join(\"\\n\")"
+---
+<meta name="google-site-verification" content="dBw5CvburAxi537Rp9qi5uG2174Vb6JwHwIRwPSLIK8">
+<meta name="msvalidate.01" content="1234ABCD5678EF90AB12CD34EF56AB78">
+<meta name="yandex-verification" content="4a1b2c3d4e5f6a7b">
+<meta name="baidu-site-verification" content="codeva-Xy7Q2wE9rT">
+<meta name="p:domain_verify" content="a1b2c3d4e5f60718293a4b5c6d7e8f90">

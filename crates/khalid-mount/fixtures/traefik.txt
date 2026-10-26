@@ -1,0 +1,12 @@
+http:
+  routers:
+    khalid-blog:
+      rule: "Path(`/blog`) || PathPrefix(`/blog/`)"
+      service: khalid-blog
+      priority: 1000
+  services:
+    khalid-blog:
+      loadBalancer:
+        passHostHeader: false
+        servers:
+          - url: "https://blog-origin.example.com"
