@@ -1,15 +1,16 @@
 //! The outbound HTTP client.
 
 use std::error::Error;
+use std::fmt;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
 use khalid_core::AbsoluteUrl;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
-use reqwest::redirect::Policy;
+use reqwest::redirect::{Action, Attempt, Policy};
 
-use crate::{ResolveError, Resolver};
+use crate::{Reach, ResolveError, Resolver};
 
 #[expect(
     clippy::disallowed_types,
@@ -23,15 +24,18 @@ pub struct Limits {
     timeout: Duration,
     connect_timeout: Duration,
     max_body_bytes: usize,
+    max_redirects: usize,
 }
 
 impl Default for Limits {
-    /// Ten seconds in all, five of them to connect, and 10 MiB of body.
+    /// Ten seconds in all, five of them to connect, 10 MiB of body and five
+    /// redirects.
     fn default() -> Self {
         Self {
             timeout: Duration::from_secs(10),
             connect_timeout: Duration::from_secs(5),
             max_body_bytes: 10 * 1024 * 1024,
+            max_redirects: 5,
         }
     }
 }
@@ -49,10 +53,10 @@ impl Limits {
     }
 }
 
-/// The one HTTP client (RULES.md BL-RUN-8): timeouts, a body size cap, and a
-/// [`Resolver`] that checks every address a host name resolves to. Redirects
-/// are not followed yet, so a redirect comes back as the response and cannot
-/// slip past the guard.
+/// The one HTTP client (RULES.md BL-RUN-8): timeouts, a body size cap, a
+/// [`Resolver`] that checks every address a host name resolves to, and
+/// redirects followed within a cap, each through the same guard: a literal
+/// address is checked before the hop, and a host name when it resolves.
 ///
 /// Every crate that talks to another server takes an `&Outbound`. It is cheap
 /// to clone.
@@ -81,10 +85,13 @@ impl Outbound {
     pub fn with_resolver(limits: Limits, resolver: Resolver) -> Result<Self, OutboundError> {
         // Installing fails when a provider is already in place, which is fine.
         drop(rustls::crypto::ring::default_provider().install_default());
+        let max = limits.max_redirects;
+        let reach = resolver.reach();
+        let redirects = Policy::custom(move |attempt| follow(attempt, max, reach));
         let client = RawClient::builder()
             .timeout(limits.timeout)
             .connect_timeout(limits.connect_timeout)
-            .redirect(Policy::none())
+            .redirect(redirects)
             .dns_resolver(Arc::new(Guarded(resolver.clone())))
             .no_proxy()
             .build()
@@ -100,9 +107,10 @@ impl Outbound {
     ///
     /// # Errors
     ///
-    /// Returns [`OutboundError::Blocked`] when the host or an address it
-    /// resolves to points inward, [`OutboundError::TimedOut`] or
-    /// [`OutboundError::TooLarge`] when a limit is passed, and
+    /// Returns [`OutboundError::Blocked`] when the host, an address it
+    /// resolves to or a redirect points inward; [`OutboundError::TimedOut`],
+    /// [`OutboundError::TooLarge`] or [`OutboundError::TooManyRedirects`] when
+    /// a limit is passed; and
     /// [`OutboundError::Http`] for anything else.
     pub async fn get(&self, url: &AbsoluteUrl) -> Result<Fetched, OutboundError> {
         let host = url.host().trim_matches(['[', ']']);
@@ -152,6 +160,38 @@ impl Fetched {
     }
 }
 
+/// Follows a redirect only within the cap and only to a literal address the
+/// guard allows. A host name is checked when it resolves.
+fn follow(attempt: Attempt<'_>, max: usize, reach: Reach) -> Action {
+    if attempt.previous().len() > max {
+        return attempt.error(TooManyRedirects(max));
+    }
+    let host = attempt
+        .url()
+        .host_str()
+        .unwrap_or_default()
+        .trim_matches(['[', ']'])
+        .to_owned();
+    match host.parse::<IpAddr>() {
+        Ok(address) if !reach.allows(address) => {
+            attempt.error(ResolveError::Blocked { host, address })
+        }
+        _ => attempt.follow(),
+    }
+}
+
+/// The redirect cap, carried inside a `reqwest` error.
+#[derive(Debug)]
+struct TooManyRedirects(usize);
+
+impl fmt::Display for TooManyRedirects {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "more than {} redirects", self.0)
+    }
+}
+
+impl Error for TooManyRedirects {}
+
 /// The resolver as `reqwest` calls it. Its refusal travels inside the
 /// `reqwest` error and [`classify`] finds it again.
 struct Guarded(Resolver);
@@ -175,7 +215,7 @@ impl Resolve for Guarded {
     }
 }
 
-/// Finds the guard's refusal inside a `reqwest` error.
+/// Finds the guard's refusals inside a `reqwest` error.
 fn classify(error: reqwest::Error) -> OutboundError {
     if error.is_timeout() {
         return OutboundError::TimedOut;
@@ -189,6 +229,9 @@ fn classify(error: reqwest::Error) -> OutboundError {
                 address: *address,
             };
         }
+        if let Some(cap) = inner.downcast_ref::<TooManyRedirects>() {
+            return OutboundError::TooManyRedirects { limit: cap.0 };
+        }
         cause = inner.source();
     }
     OutboundError::Http { source: error }
@@ -198,7 +241,7 @@ fn classify(error: reqwest::Error) -> OutboundError {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum OutboundError {
-    /// The host or an address it resolves to points inward.
+    /// The host, an address it resolves to, or a redirect points inward.
     #[error("{host} resolves to {address}, which is not a public address")]
     Blocked {
         /// The host name or literal address asked for.
@@ -213,6 +256,12 @@ pub enum OutboundError {
     #[error("the response is larger than {limit} bytes")]
     TooLarge {
         /// The limit, in bytes.
+        limit: usize,
+    },
+    /// The request was redirected more times than allowed.
+    #[error("the request was redirected more than {limit} times")]
+    TooManyRedirects {
+        /// The redirect cap.
         limit: usize,
     },
     /// Any other failure while sending or reading, such as a name that

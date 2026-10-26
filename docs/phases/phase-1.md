@@ -33,7 +33,7 @@
 
 ### 1.4 The outbound client
 
-- Status: `doing`. Part 1 (#28): the address guard. Part 2 (#29): the guarded resolver. Part 3: the `Outbound` client with timeouts and the body cap, and the `reqwest::Client` violation that closes 0.4. Part 4: redirects, followed within a cap and through the guard.
+- Status: `done` (#28, #29, #30 and this landing): the address guard, the guarded resolver, the client, and redirects through the guard.
 - `crates/khalid-outbound`: the one HTTP client, with timeouts, a response size cap, a redirect cap, and a guard that refuses private, loopback and link-local addresses after DNS resolution. Its module carries the one `disallowed_types` `#[expect]` for `reqwest::Client`, and `lints/check` gains the `reqwest::Client` violation, which closes task 0.4.
 - Rules: BL-RUN-8, BL-TST-3.
 - Done when: `wiremock` tests cover each cap and each refused address range, and `scripts/check-lints.sh` no longer prints "Not proven yet".
