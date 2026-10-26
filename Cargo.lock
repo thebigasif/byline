@@ -1364,6 +1364,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-media"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "khalid-outbound"
 version = "0.0.0"
 dependencies = [
