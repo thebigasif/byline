@@ -1,5 +1,6 @@
 //! The engine that runs every rule on every post.
 
+use crate::blocking;
 use crate::{
     Catalogue, Finding, LintConfig, LintError, LintPost, Location, Message, Rule, Severity,
     SiteView,
@@ -20,6 +21,16 @@ struct Configured {
 }
 
 impl Linter {
+    /// A linter running every built-in rule with the severities in `config`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LintError::Catalogue`] or [`LintError::MissingMessage`] if
+    /// the built-in catalogue is broken, which the crate's tests rule out.
+    pub fn new(config: &LintConfig) -> Result<Self, LintError> {
+        Self::with_rules(config, builtin_rules())
+    }
+
     /// A linter running `rules` with the severities in `config`.
     ///
     /// # Errors
@@ -79,6 +90,17 @@ impl Linter {
             .collect();
         Report { findings }
     }
+}
+
+/// Every rule this crate ships, in the order their findings are listed.
+fn builtin_rules() -> Vec<Box<dyn Rule>> {
+    vec![
+        Box::new(blocking::NoTitle),
+        Box::new(blocking::ManyHeadlines),
+        Box::new(blocking::NoDate),
+        Box::new(blocking::NoAuthor),
+        Box::new(blocking::NoInternalLink),
+    ]
 }
 
 /// The findings of one run, in the order the linter found them.

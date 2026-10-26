@@ -76,17 +76,11 @@ pub fn page_styles(html: &str, home: &AbsoluteUrl) -> Vec<PageStyle> {
     let Ok(home) = Url::parse(home.as_str()) else {
         return Vec::new();
     };
-    let (Ok(styles), Ok(base_href)) = (
-        Selector::parse("link[rel][href], style"),
-        Selector::parse("base[href]"),
-    ) else {
+    let Ok(styles) = Selector::parse("link[rel][href], style") else {
         return Vec::new();
     };
     let document = Html::parse_document(html);
-    let base = document
-        .select(&base_href)
-        .find_map(|element| home.join(element.attr("href")?).ok())
-        .unwrap_or_else(|| home.clone());
+    let base = base_address(&document, &home);
     document
         .select(&styles)
         .filter_map(|element| {
@@ -95,14 +89,11 @@ pub fn page_styles(html: &str, home: &AbsoluteUrl) -> Vec<PageStyle> {
             }
             let rel = element.attr("rel")?;
             let href = element.attr("href")?;
-            let has = |name: &str| {
-                rel.split_ascii_whitespace()
-                    .any(|token| token.eq_ignore_ascii_case(name))
-            };
-            if !has("stylesheet") {
+            if !has_rel(rel, &["stylesheet"]) {
                 return None;
             }
-            let shown = !has("alternate") && element.attr("media").is_none_or(light_screen);
+            let shown =
+                !has_rel(rel, &["alternate"]) && element.attr("media").is_none_or(light_screen);
             Some(match link(&home, &base, href) {
                 PageStyle::Linked(url) if !shown => {
                     PageStyle::Skipped(Skipped::new(url.as_str(), SkipReason::NotForScreen))
@@ -111,6 +102,25 @@ pub fn page_styles(html: &str, home: &AbsoluteUrl) -> Vec<PageStyle> {
             })
         })
         .collect()
+}
+
+/// The address relative links in `document` resolve against: its
+/// `<base href>`, or `home` when it has none.
+pub(crate) fn base_address(document: &Html, home: &Url) -> Url {
+    Selector::parse("base[href]")
+        .ok()
+        .and_then(|base| {
+            document
+                .select(&base)
+                .find_map(|element| home.join(element.attr("href")?).ok())
+        })
+        .unwrap_or_else(|| home.clone())
+}
+
+/// Whether a `rel` attribute holds one of `wanted`, in any case.
+pub(crate) fn has_rel(rel: &str, wanted: &[&str]) -> bool {
+    rel.split_ascii_whitespace()
+        .any(|token| wanted.iter().any(|w| token.eq_ignore_ascii_case(w)))
 }
 
 /// Whether a `media` list matches a light screen: one of its queries is not
