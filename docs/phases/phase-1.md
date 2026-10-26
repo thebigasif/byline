@@ -253,7 +253,7 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 
 ### 3.2 Extract the tokens
 
-- Status: `todo`, after 3.1.
+- Status: `doing`. Part 1 (this landing): CSS colour values and their WCAG contrast. Next: the CSS reader and custom properties; the colours by frequency and contrast; fonts, logo and icons; all of it from one site.
 - CSS custom properties, `@font-face` rules and Google Fonts links; the background, text, link and accent colours by frequency and contrast; the logo from `og:image` and the header image; the icon links.
 - Done when: fixtures of saved real-world CSS each give the expected tokens.
 
