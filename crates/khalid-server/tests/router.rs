@@ -3,7 +3,7 @@
 use axum::body::Body;
 use axum::http::{Method, Request, Response, StatusCode, header};
 use http_body_util::BodyExt;
-use khalid_server::{MediaType, Page, PagePath, Pages, router};
+use khalid_server::{MediaType, Page, PagePath, Pages, SecurityHeaders, router};
 use tower::ServiceExt;
 
 #[cfg(test)]
@@ -37,7 +37,10 @@ async fn send(method: Method, uri: &str) -> Response<Body> {
         .uri(uri)
         .body(Body::empty())
         .unwrap();
-    router(demo()).oneshot(request).await.unwrap()
+    router(demo(), SecurityHeaders::default())
+        .oneshot(request)
+        .await
+        .unwrap()
 }
 
 #[cfg(test)]

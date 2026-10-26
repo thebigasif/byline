@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE webhook_deliveries SET state = ?1, state_at = ?2 WHERE id = ?3 AND site_id = ?4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "b0aeecd40f77301c04d4ee6cc8d02e8298258da34a1aace5804b3ab6c0acf006"
+}

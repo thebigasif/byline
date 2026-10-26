@@ -14,6 +14,11 @@ impl WebhookId {
     pub fn new(id: i64) -> Self {
         Self(id)
     }
+
+    /// The number, for the store to write.
+    pub fn get(self) -> i64 {
+        self.0
+    }
 }
 
 /// Identifies one delivery in the log.
