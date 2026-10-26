@@ -201,3 +201,57 @@ what = "This post belongs to a topic group but does not link to the group's main
 why = "Links to the main post show Google which page covers the topic best."
 fix = "Add a link to the main post of this topic group."
 guide = "topic-clusters"
+
+[nofollow-internal-link]
+what = "A link to another page of your own site tells Google not to follow it."
+why = "Links between your pages help Google find them and judge their value, and this link passes nothing."
+fix = "Remove `nofollow` from the link's `rel` attribute."
+guide = "internal-links"
+
+[insecure-internal-link]
+what = "A link to your own site uses an address that starts with `http://`."
+why = "Google prefers secure pages, and each click takes a slower detour before the secure page opens."
+fix = "Change the address to start with `https://`, or use the path alone, such as `/blog/my-post/`."
+guide = "secure-links"
+
+[too-many-links]
+what = "This post holds more links than your site's limit."
+why = "Google shares a page's value across its links, so each one counts for less, and readers skim past them."
+fix = "Cut the links that do not help the reader, or split the post into two."
+guide = "internal-links"
+
+[redirecting-link]
+what = "A link in this post opens an old address that now sends readers on to another page."
+why = "Each detour slows readers down, and Google trusts a direct link to the current address more."
+fix = "Change the link to the post's current address."
+guide = "redirects"
+
+[cross-site-link]
+what = "This post links to a sister site that runs on the same Khalid server."
+why = "Google may read sister sites that link to each other as a link scheme and trust both less."
+fix = "Remove the link, or keep it only where readers need it and mark it `nofollow`."
+guide = "sister-sites"
+
+[form-without-destination]
+what = "A form in this post sends its answers nowhere."
+why = "Readers who fill it in never hear back, so the visits search brings you are lost."
+fix = "Give this form an email address or a service such as Zapier to send its answers to."
+guide = "forms"
+
+[hard-to-read]
+what = "This post is hard to read, because its sentences are long and many of its words are long."
+why = "Readers who struggle leave early, and Google favours pages that answer people quickly."
+fix = "Split long sentences, and use shorter everyday words where you can."
+guide = "readability"
+
+[focus-topic-missing]
+what = "Your focus topic is missing from one of the places readers and Google look at first."
+why = "The title, address, opening, description and headings tell Google what the post is about."
+fix = "Add the words of `focus:` to the place this message names."
+guide = "focus-topic"
+
+[overlapping-collections]
+what = "Two collections, the folders that group your posts, could give two posts the same address."
+why = "Only one post can live at an address, so the other could vanish from your site and from Google."
+fix = "Change the `permalink` of one collection in `routes.toml` so their addresses differ."
+guide = "collections"

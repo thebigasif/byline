@@ -1,4 +1,6 @@
-# 0011. The lint engine reads its own input model and one message catalogue
+# 0019. The lint engine reads its own input model and one message catalogue
+
+Renumbered from 0011, which ADR 0011 on API keys holds.
 
 **Status:** Accepted, 2026-10-26. Phase 2 work pulled forward, task 2.1.
 

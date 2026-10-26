@@ -1,6 +1,4 @@
-# Large sites are generated, and the measures live in their own crate
-
-Number: next free
+# 0026. Large sites are generated, and the measures live in their own crate
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.21.
 

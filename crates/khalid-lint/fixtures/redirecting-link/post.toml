@@ -1,0 +1,18 @@
+# A link to the old path, with or without its section and final slash, is
+# flagged and suggests the current path. A link to the current path is fine.
+extends = "clean"
+
+[[links]]
+kind = "internal"
+target = "/blog/link-text-tips#examples"
+text = "examples of good link text"
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+
+[[links]]
+kind = "external"
+target = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+text = "Google's guide to links"
