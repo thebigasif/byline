@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{build_message, build_pages, report};
+use crate::{build_message, build_pages, build_seo, report};
 
 /// The output folder inside a site when `--out` is not given.
 const PUBLIC: &str = "public";
@@ -42,10 +42,17 @@ pub(crate) fn run(
             return report::failure(output, &build_message::render(&error), Exit::Failure);
         }
     };
-    let languages = match build_pages::pages(config, content) {
+    let mut languages = match build_pages::pages(config, content) {
         Ok(languages) => languages,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
+    let seo_site = match build_seo::site(config) {
+        Ok(site) => site,
+        Err(message) => return report::failure(output, &message, Exit::Failure),
+    };
+    if let Err(message) = build_seo::heads(&seo_site, &mut languages) {
+        return report::failure(output, &message, Exit::Failure);
+    }
     let mut written = 0;
     for language in &languages {
         for page in &language.pages {
