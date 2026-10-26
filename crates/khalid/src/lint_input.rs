@@ -46,6 +46,7 @@ pub(crate) fn lint_site<'c>(
         }
     }
     site.locales = config.languages().to_vec();
+    site.slugs = Some(config.slugs());
     (site, documents)
 }
 

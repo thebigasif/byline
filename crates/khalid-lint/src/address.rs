@@ -1,5 +1,7 @@
 //! Rules about a post's web address and the `[[slug]]` links it holds.
 
+use khalid_core::{Slug, SlugMode};
+
 use crate::words::is_stopword;
 use crate::{Hit, LintPost, Rule, RuleId, Severity, SiteView};
 
@@ -77,6 +79,33 @@ impl Rule for SlugDate {
     }
 }
 
+/// A letter outside a to z in the web address of a site that keeps ASCII
+/// addresses. The finding names the transliterated form, the one
+/// `khalid new` would have made (CTO answers, section 2).
+#[derive(Debug)]
+pub(crate) struct UnicodeSlug;
+
+impl Rule for UnicodeSlug {
+    fn id(&self) -> RuleId {
+        RuleId::new("unicode-slug")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, site: &dyn SiteView) -> Vec<Hit> {
+        let slug = post.slug.as_str();
+        if site.slug_mode() != Some(SlugMode::Ascii) || slug.is_ascii() {
+            return Vec::new();
+        }
+        match Slug::from_title(slug, &post.locale, SlugMode::Ascii) {
+            Ok(plain) if plain.as_str().is_ascii() => vec![Hit::about(plain.as_str())],
+            _ => vec![Hit::post()],
+        }
+    }
+}
+
 /// Whether `part` of a slug is a year from 1900 to 2099.
 fn is_year(part: &str) -> bool {
     part.len() == 4
@@ -127,5 +156,48 @@ impl Rule for BrokenWikilink {
             .filter(|target| !exists(target.trim()))
             .map(|target| Hit::about(target.trim()))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use khalid_core::Locale;
+
+    use super::*;
+    use crate::LintSite;
+
+    fn unicode_hits(slug: &str, language: &str, mode: Option<SlugMode>) -> Vec<Hit> {
+        let locale = Locale::try_new(language).unwrap();
+        let post = LintPost::new(locale, Slug::try_new_unicode(slug).unwrap());
+        let site = LintSite {
+            slugs: mode,
+            ..LintSite::default()
+        };
+        UnicodeSlug.check(&post, &site)
+    }
+
+    fn subjects(hits: &[Hit]) -> Vec<Option<&str>> {
+        hits.iter().map(Hit::subject).collect()
+    }
+
+    #[test]
+    fn a_german_slug_on_an_ascii_site_names_its_plain_form() {
+        let hits = unicode_hits("über-größe", "de", Some(SlugMode::Ascii));
+        assert_eq!(subjects(&hits), [Some("ueber-groesse")]);
+    }
+
+    #[test]
+    fn a_unicode_site_or_an_unknown_mode_never_warns() {
+        for mode in [Some(SlugMode::Unicode), None] {
+            let hits = unicode_hits("café-menus", "en", mode);
+            let none: [Option<&str>; 0] = [];
+            assert_eq!(subjects(&hits), none, "{mode:?}");
+        }
+    }
+
+    #[test]
+    fn a_slug_with_no_plain_form_warns_without_a_suggestion() {
+        let hits = unicode_hits("مرحبا", "ar", Some(SlugMode::Ascii));
+        assert_eq!(subjects(&hits), [None]);
     }
 }

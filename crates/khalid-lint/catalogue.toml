@@ -142,6 +142,12 @@ why = "A year in the address makes the post look old once that year has passed."
 fix = "Remove the year from `slug:` before you publish."
 guide = "web-addresses"
 
+[unicode-slug]
+what = "This post's web address holds letters outside a to z, but the site keeps plain addresses."
+why = "Accented letters turn into codes such as %C3%A9 when the address is copied into an email or a chat."
+fix = "Change `slug:` to letters a to z, digits and hyphens, or allow accents with `slugs = \"unicode\"` in `site.toml`."
+guide = "web-addresses"
+
 [broken-wikilink]
 what = "This `[[link]]` matches no post, page or glossary term in this language."
 why = "Readers who follow it land on a page that does not exist."
