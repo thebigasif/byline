@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::toml_location::{field_of, line_of, line_of_key};
-use crate::{AbsoluteUrl, Locale, ParseUrlError};
+use crate::{AbsoluteUrl, Locale, ParseUrlError, Reader};
 
 /// Every setting Khalid reads, checked once at start and then passed by
 /// reference (RULES.md BL-RUN-2).
@@ -25,6 +25,7 @@ pub struct Config {
     slugs: SlugMode,
     default_language: Locale,
     languages: Vec<Locale>,
+    reader: Reader,
 }
 
 /// Whether Khalid runs a server or writes plain HTML.
@@ -63,6 +64,8 @@ struct SiteFile {
     slugs: SlugMode,
     default_language: Locale,
     languages: Vec<Locale>,
+    #[serde(default)]
+    reader: Reader,
 }
 
 fn root_mount() -> String {
@@ -141,6 +144,7 @@ impl Config {
             slugs: file.slugs,
             default_language: file.default_language,
             languages: file.languages,
+            reader: file.reader,
         })
     }
 
@@ -177,6 +181,11 @@ impl Config {
     /// Every language the site publishes in, in the order written.
     pub fn languages(&self) -> &[Locale] {
         &self.languages
+    }
+
+    /// Which reader features the default templates show, from `[reader]`.
+    pub fn reader(&self) -> &Reader {
+        &self.reader
     }
 }
 
