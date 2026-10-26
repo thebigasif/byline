@@ -1,4 +1,4 @@
-# 0009. Webhook event names and signatures
+# 0010. Webhook event names and signatures
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.19.
 
