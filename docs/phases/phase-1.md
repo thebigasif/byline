@@ -215,7 +215,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 ### 2.2 The five blocking rules
 
 - Status: `done` after this landing. Fixtures are `post.toml` files in the lint input model, because the crate reads no markdown; `tests/fixtures.rs` fails if a catalogue rule has no fixture.
-- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`. The three related posts the plan suggests with "no internal link" come in 2.5, with the rules that compare posts.
+- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`. The three related posts the plan suggests with "no internal link" came in 2.5, part 5.
 - Status: `todo`
 - No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`.
 - Rules: BL-TST-4. KH-LNT-1.
@@ -223,28 +223,28 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.3 The link text rules
 
-- Status: `todo`
+- Status: `done` after this landing. Link words compare without case, spacing or a final full stop, and targets without a `#section` or trailing slash. "Too often" means more than three links site-wide, tunable as `same-link-text-max` in `lint.toml` since 2.4. Vague words are listed for English and German.
 - Link text reused for a different page, the same link text to the same page too often, vague link text, the same target twice in one post, a link with no text.
 - Rules: BL-TST-4. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings.
 
 ### 2.4 The structure rules
 
-- Status: `todo`
+- Status: `done` after this landing. Part 1 (#129): the `[thresholds]` table in `lint.toml`, starting with the link limit from 2.3. Part 2 (#131, with `thin-post-words`): heading order, missing image descriptions, thin post, no outbound link. Part 3 (#134): a missing description, title and description length and duplicates in the same language. Part 4 (this landing): keyword stuffing for phrases of two or three words, slug length, filler words and years, broken wikilinks. The warning for a Unicode slug on an ASCII site (CTO answers, section 2) needs the site's slug mode, so it comes with the wiring in 1.15.
 - Heading order, title and description length and duplicates, missing alt text, thin post, keyword stuffing, slug hygiene, no outbound link, broken wikilink.
 - Rules: BL-TST-4. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings.
 
 ### 2.5 The site rules
 
-- Status: `todo`
+- Status: `done` after this landing. Part 1 (#143): the `SiteRule` trait, which checks the whole site in one pass; `Linter::site_health` for the dashboard; the link graph; orphan post. A post may carry its `path`, so links find it by path. The publish check, `lint_post`, never runs site rules, because a new post has no inbound links yet. Part 2 (#145): one inbound link, and too deep, counted in clicks from the home page's links (`max-clicks`, default 3). Part 3 (#149): stale post, measured from today's date read once through `Clock` when the linter starts (`stale-months`, default 12), and missing translation across the languages the site declares. Fixtures may carry a `lint.toml`. Part 4 (#151): near-duplicates by five-word shingles (`near-duplicate-percent`, default 50), glossary term not linked, cluster without its pillar. These are post rules, because a writer can fix each one before publishing. Part 5 (this landing): the three suggested posts for "no internal link", ranked by the topic words they share with the post, carried on the finding as `suggestions`.
 - Orphan post, one inbound link, missing translation, near-duplicate posts by shingles, glossary term not linked, stale post, cluster without its pillar, too deep.
 - Rules: BL-TST-4, BL-RUN-1, BL-TST-2. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings, and the stale rule reads time through `Clock`.
 
 ### 2.6 `khalid lint` and the publish gate
 
-- Status: `todo`
+- Status: `doing`. Part 1 (#158, with the grammar fix in #164): `Linter::gate`, the publish gate the server calls, returning a `Verdict` of publish or refuse with every finding; findings and reports serialise to the JSON the CLI, the API and the admin share. Part 2 (#166): `khalid --site <folder> lint` and `--json` in the binary, over every post, with exit code 1 on a block. The binary maps parsed posts and their rendered output to the lint model. On the demo site it reports 0 blocks. Part 3 (this landing): one post by its path (post rules only, as at publish), the site's `lint.toml` with mistakes named by line, pages, glossary terms and languages in the model, and the subject and suggestions of each finding in the sentences. Part 4: `--fix` for the safe repairs.
 - `khalid lint [path] --json --fix` in the binary, exit code 1 on a block, and the publish gate function the server calls.
 - Rules: BL-CLI-1, BL-CLI-2, BL-CLI-3. KH-LNT-3.
 - Done when: CLI tests cover human output, `--json`, `--fix` and each exit code on the fixtures.

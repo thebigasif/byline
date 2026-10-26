@@ -19,6 +19,18 @@ pub trait SiteView {
 
     /// Every term the glossary defines, in every language.
     fn glossary(&self) -> &[GlossaryTerm];
+
+    /// The links on the home pages, such as the menu and the latest posts,
+    /// as site paths. Empty when unknown, and the rules that need them skip.
+    fn home_links(&self) -> &[String] {
+        &[]
+    }
+
+    /// The languages the site declares. Empty when unknown, and the rules
+    /// that need them skip.
+    fn locales(&self) -> &[Locale] {
+        &[]
+    }
 }
 
 /// A site's posts, pages and glossary, held in memory.
@@ -32,6 +44,10 @@ pub struct LintSite {
     pub pages: Vec<PageRef>,
     /// Every glossary term.
     pub glossary: Vec<GlossaryTerm>,
+    /// The links on the home pages, as site paths.
+    pub home_links: Vec<String>,
+    /// The languages the site declares.
+    pub locales: Vec<Locale>,
 }
 
 impl SiteView for LintSite {
@@ -45,6 +61,14 @@ impl SiteView for LintSite {
 
     fn glossary(&self) -> &[GlossaryTerm] {
         &self.glossary
+    }
+
+    fn home_links(&self) -> &[String] {
+        &self.home_links
+    }
+
+    fn locales(&self) -> &[Locale] {
+        &self.locales
     }
 }
 

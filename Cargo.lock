@@ -1720,10 +1720,12 @@ dependencies = [
 name = "khalid"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "clap",
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-lint",
  "khalid-routes",
  "mimalloc",
  "serde",
@@ -1791,6 +1793,7 @@ dependencies = [
  "chrono",
  "khalid-core",
  "serde",
+ "serde_json",
  "thiserror",
  "toml",
 ]

@@ -1,0 +1,9 @@
+[[posts]]
+locale = "en"
+slug = "a-month-of-search-console"
+title = "A month of Search Console"
+
+[[posts.links]]
+kind = "internal"
+target = "/blog/anchor-text-basics/"
+text = "How to choose link text"
