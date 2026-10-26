@@ -139,7 +139,7 @@
 
 ### 1.18 Keys and the Admin API
 
-- Status: `doing`. Part 1 (#147): integration keys and staff tokens as key kinds, with scopes and roles. Part 2 (#148): stored as Argon2id, checked off the async runtime, and `authenticate` returns what the key may do (ADR 0011). Part 3 (#153): one router and one `OpenAPI` document that every API joins. Part 4 (#155): `AdminPost`, a post in any status, and the `PostStore` trait. Part 5 (#156): the Admin API under `/api/admin/v1/`, its key layer, scope checks with a 403, and reading one post. Part 6 (#160): editing a post, with a 409 naming who changed it and when on a stale `updated_at`. Part 7 (this landing): creating a draft from markdown, once per `Idempotency-Key`. Next: `source=html`.
+- Status: `doing`. Part 1 (#147): integration keys and staff tokens as key kinds, with scopes and roles. Part 2 (#148): stored as Argon2id, checked off the async runtime, and `authenticate` returns what the key may do (ADR 0011). Part 3 (#153): one router and one `OpenAPI` document that every API joins. Part 4 (#155): `AdminPost`, a post in any status, and the `PostStore` trait. Part 5 (#156): the Admin API under `/api/admin/v1/`, its key layer, scope checks with a 403, and reading one post. Part 6 (#160): editing a post, with a 409 naming who changed it and when on a stale `updated_at`. Part 7 (#162): creating a draft from markdown, once per `Idempotency-Key`. Part 8 (this landing): `source=html`, made safe and turned into markdown; see the first question below. Still to do: `khalid keys create` and `revoke` in the binary, the Admin API for the other resources, and the SQLite stores in task 1.15.
 - Integration keys and staff tokens with scopes, 256 random bits, stored hashed, compared in constant time. `khalid keys create` and `revoke`, showing a key once through hidden output. `/api/admin/v1/` creates and edits posts from markdown or HTML, with idempotency keys and a 409 on a stale `updated_at`. Writes are atomic.
 - Rules: BL-SEC-3, BL-API-7, BL-RUN-5, BL-RUN-9, BL-CLI-4.
 - Done when: HTTP tests cover success, validation failure, auth failure and a stale edit for each endpoint, and no key appears in any log or test output.
@@ -176,7 +176,7 @@
 
 ## Questions for the founder
 
-None open.
+1. **May `ammonia` 4 come in with two MPL-2.0 exceptions?** (Task 1.18, from the API track.) RULES.md BL-SEC-1 names `ammonia` for sanitising HTML that people send. Version 3 has open security advisories, and version 4 needs `cssparser` and `dtoa-short`, which are MPL-2.0. BL-DEP-2 allows MPL-2.0 only by a named exception in `deny.toml`, and the API track may not change CI or dependency policy. Until then, `source=html` drops scripts, frames, forms and unsafe link addresses itself while converting to markdown, and rendering escapes raw HTML again. If yes, add the two exceptions and `ammonia::clean` goes in front of the converter in one line.
 
 ## Order
 
