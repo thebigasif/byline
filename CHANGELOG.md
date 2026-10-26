@@ -11,6 +11,7 @@ What changed for people who use Khalid, one line per change, newest first. Group
 - `--json` on every command prints the same message as JSON, for scripts and agents.
 - A mistyped command gets a plain explanation and exit code 2, instead of a wall of usage text.
 - `khalid --site <folder>` checks the site's settings and reads every content file: posts, pages, authors, glossary terms, case studies, changelog entries and snippets, as plain files or as folders with their images. A mistake is explained by file, line and field (KH-CON-1, KH-CON-2, KH-CON-3, KH-CON-4).
+- Recipe blocks write their own schema, with ingredients, steps, times, servings and calories (KH-SEO-3).
 - Video embeds and review blocks write their own schema, with the video's own details and the reviewer's and readers' ratings (KH-SEO-3).
 - How-to blocks write their own schema, with steps, tools, supplies, time and cost (KH-SEO-3).
 - FAQ blocks write their own schema, so the questions can show in search results (KH-SEO-3).
