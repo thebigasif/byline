@@ -44,7 +44,7 @@ pub(crate) fn of(site: &Path) -> Result<ContentIndex, UserMessage> {
 
 /// The entry's path with `/` between folders, the form the index stores on
 /// every system, or `None` when a name is not valid UTF-8.
-fn slashed(path: &Path) -> Option<String> {
+pub(crate) fn slashed(path: &Path) -> Option<String> {
     let parts: Option<Vec<&str>> = path
         .components()
         .map(|part| match part {

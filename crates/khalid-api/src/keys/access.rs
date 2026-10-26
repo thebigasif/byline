@@ -81,6 +81,26 @@ pub enum Role {
 }
 
 impl Role {
+    /// Every role, from the most to the least it may do.
+    pub const ALL: [Self; 5] = [
+        Self::Owner,
+        Self::Admin,
+        Self::Editor,
+        Self::Writer,
+        Self::Contributor,
+    ];
+
+    /// The name, such as `editor`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Owner => "owner",
+            Self::Admin => "admin",
+            Self::Editor => "editor",
+            Self::Writer => "writer",
+            Self::Contributor => "contributor",
+        }
+    }
+
     fn allows(self, scope: Scope) -> bool {
         match self {
             Self::Owner | Self::Admin => true,
@@ -92,6 +112,22 @@ impl Role {
         }
     }
 }
+
+impl FromStr for Role {
+    type Err = ParseRoleError;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|role| role.as_str() == name)
+            .ok_or_else(|| ParseRoleError(name.to_owned()))
+    }
+}
+
+/// A name that is not a role.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0} is not a staff role")]
+pub struct ParseRoleError(String);
 
 /// What a stored key may do.
 #[derive(Debug, Clone, PartialEq, Eq)]
