@@ -1,15 +1,24 @@
-//! `khalid serve`: the demo site served over HTTP with its Content Security
-//! Policy, a graceful stop, and an address it cannot listen on
-//! (RULES.md BL-SEC-2, BL-RUN-10, BL-CLI-3).
+//! `khalid serve`: the demo site served over HTTP, every page type with its
+//! Content Security Policy, an edited post shown without a restart, a
+//! graceful stop, and an address it cannot listen on (RULES.md BL-SEC-2,
+//! BL-RUN-10, BL-CLI-3). The first test is task 1.15's done line.
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::thread;
+use std::time::Duration;
 
 use serde_json::Value;
 use tempfile::TempDir;
+
+/// The pause between looks for an edit.
+const PAUSE: Duration = Duration::from_millis(100);
+
+/// How many looks, 20 seconds in all, before the test fails.
+const TRIES: u32 = 200;
 
 /// A running `khalid serve`, stopped when dropped.
 struct Server {
@@ -96,6 +105,55 @@ fn get(server: &Server, path: &str) -> Answer {
         policy: policy.to_owned(),
         body: body.to_owned(),
     }
+}
+
+#[test]
+fn serve_answers_every_page_type_with_a_csp_and_shows_an_edit_without_a_restart() {
+    let site = demo_copy();
+    let server = start(site.path());
+    let pages = [
+        ("/blog/", 200, "Field Notes on SEO"),
+        ("/blog/what-a-sitemap-does/", 200, "What a sitemap does"),
+        ("/blog/about/", 200, "About Field Notes</h1>"),
+        ("/blog/authors/lena-vogt/", 200, "Lena Vogt</h1>"),
+        ("/blog/de/", 200, "lang=\"de\""),
+        (
+            "/blog/de/warum-interne-links-wichtig-sind/",
+            200,
+            "lang=\"de\"",
+        ),
+        ("/blog/no-such-post/", 404, "<h1"),
+        ("/blog/about", 308, ""),
+    ];
+    let mut policies = Vec::new();
+    for (path, status, text) in pages {
+        let answer = get(&server, path);
+        assert_eq!(answer.status, status, "{path}");
+        assert!(answer.body.contains(text), "{path}:\n{}", answer.body);
+        let policy = answer.policy;
+        assert!(policy.contains("'nonce-"), "{path}: {policy}");
+        assert!(policy.contains("frame-src https://"), "{path}: {policy}");
+        policies.push(policy);
+    }
+    policies.sort();
+    policies.dedup();
+    assert_eq!(policies.len(), pages.len(), "a fresh nonce every time");
+
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-09-28-what-a-sitemap-does.md");
+    let post = fs::read_to_string(&file).unwrap();
+    let edited = post.replace(
+        "A sitemap is a file,",
+        "A sitemap, saved while serving, is a file,",
+    );
+    fs::write(&file, edited).unwrap();
+    let shown = (0..TRIES).any(|_| {
+        thread::sleep(PAUSE);
+        get(&server, "/blog/what-a-sitemap-does/")
+            .body
+            .contains("saved while serving")
+    });
+    assert!(shown, "the edit never showed");
 }
 
 #[test]

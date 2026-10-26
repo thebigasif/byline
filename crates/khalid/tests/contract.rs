@@ -133,11 +133,8 @@ fn json_output_is_one_value_on_stdout_with_an_error_only_on_failure() {
 }
 
 /// The last check of task 1.16's done line: `init`, then `new`, then `build`
-/// give a site that `serve` serves. It waits for task 1.15, which builds
-/// `khalid serve`; when that lands, match the start-up line and the flags
-/// below to what it prints and takes, and remove the `ignore`.
+/// give a site that `serve` serves.
 #[test]
-#[ignore = "waits for task 1.15: khalid serve is not built yet"]
 fn init_new_build_then_serve_serves_the_post() {
     let (_temp, site, _) = folders();
     let new = khalid(&[
@@ -159,11 +156,12 @@ fn init_new_build_then_serve_serves_the_post() {
     BufReader::new(server.stdout.take().unwrap())
         .read_line(&mut first)
         .unwrap();
-    let listening = first
+    // "Serving <name> at http://127.0.0.1:<port>/. Press Ctrl+C to stop."
+    let address = first
         .split_whitespace()
-        .last()
-        .unwrap()
-        .trim_start_matches("http://");
+        .find_map(|word| word.strip_prefix("http://"))
+        .unwrap();
+    let listening = address.split('/').next().unwrap();
     let mut stream = TcpStream::connect(listening).unwrap();
     write!(
         stream,
