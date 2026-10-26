@@ -6,6 +6,8 @@ use std::fmt::Write as _;
 use minijinja::value::Value;
 use minijinja::{Error, ErrorKind};
 
+use crate::escape;
+
 /// The headings that get a link: how each opens, up to its `id`, and how it
 /// closes.
 const HEADINGS: [(&str, &str); 2] = [("<h2 id=\"", "</h2>"), ("<h3 id=\"", "</h3>")];
@@ -27,7 +29,7 @@ pub(crate) fn heading_links(body: &Value, label: &str) -> Result<Value, Error> {
             "heading_links needs the body's HTML",
         )
     })?;
-    let label = escape(label);
+    let label = escape::attribute(label);
     let mut out = String::with_capacity(html.len().saturating_add(html.len() / 8));
     let mut rest = html;
     while let Some((at, (open, close))) = HEADINGS
@@ -52,14 +54,6 @@ pub(crate) fn heading_links(body: &Value, label: &str) -> Result<Value, Error> {
     }
     out.push_str(rest);
     Ok(Value::from_safe_string(out))
-}
-
-/// `text` safe inside a double-quoted attribute.
-fn escape(text: &str) -> String {
-    text.replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
 }
 
 #[cfg(test)]

@@ -15,6 +15,7 @@ mod author;
 mod contents;
 mod dates;
 mod direction;
+mod enlarge;
 mod escape;
 mod features;
 mod glossary;

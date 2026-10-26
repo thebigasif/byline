@@ -469,6 +469,7 @@ impl Demo {
             tags: Vec::new(),
             image: None,
             contents: None,
+            originals: BTreeMap::new(),
             body,
         };
         let (title, key) = (record.title.clone(), post.field("translation"));

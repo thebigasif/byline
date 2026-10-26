@@ -2,6 +2,7 @@
 //! records of `khalid-render` (ADR 0009), one language at a time.
 
 use std::cmp::Reverse;
+use std::collections::BTreeMap;
 
 use khalid_content::{Document, PostFront, SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
@@ -141,6 +142,7 @@ fn post_pages<'a>(
             tags: Vec::new(),
             image: None,
             contents: None,
+            originals: BTreeMap::new(),
             body: html,
         };
         seo.author = post.authors.first().map(|author| author.name.clone());

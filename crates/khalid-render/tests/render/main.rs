@@ -8,6 +8,8 @@ mod common;
 #[cfg(test)]
 mod contents;
 #[cfg(test)]
+mod enlarge;
+#[cfg(test)]
 mod glossary;
 #[cfg(test)]
 mod heading_links;

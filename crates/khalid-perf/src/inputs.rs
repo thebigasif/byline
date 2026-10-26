@@ -4,6 +4,7 @@
 //! small stand-in for it: enough of each record that rendering and linting
 //! do their full work, built before any clock starts.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use khalid_content::{
@@ -95,6 +96,7 @@ impl Prepared {
             tags: Vec::new(),
             image: None,
             contents: None,
+            originals: BTreeMap::new(),
             body,
         };
         let meta = PageMeta {

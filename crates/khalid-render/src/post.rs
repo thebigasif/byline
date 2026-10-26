@@ -1,5 +1,7 @@
 //! One post, as its page shows it.
 
+use std::collections::BTreeMap;
+
 use chrono::NaiveDate;
 use minijinja::Value;
 use serde::Serialize;
@@ -35,6 +37,10 @@ pub struct RenderPost {
     pub image: Option<RenderImage>,
     /// The table of contents, from [`Contents::of`] the body's headings.
     pub contents: Option<Contents>,
+    /// For each body image drawn smaller than its original, its address as
+    /// the body writes it and the address of its largest version, which
+    /// the image links to.
+    pub originals: BTreeMap<String, String>,
     /// The post's HTML, already sanitised.
     pub body: BodyHtml,
 }

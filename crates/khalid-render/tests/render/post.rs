@@ -1,6 +1,8 @@
 //! The post page: heading, byline, dates in the page's language, category,
 //! tags and the sanitised body.
 
+use std::collections::BTreeMap;
+
 use chrono::NaiveDate;
 use khalid_render::{
     BodyHtml, Feature, Features, Link, PageBody, PageKind, Person, ReadingTime, RenderPost,
@@ -51,6 +53,7 @@ pub(crate) fn sitemap_post() -> RenderPost {
         tags: vec![link("Sitemaps", "/blog/tag/sitemaps/")],
         image: None,
         contents: None,
+        originals: BTreeMap::new(),
         body,
     }
 }

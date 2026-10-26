@@ -137,6 +137,7 @@ h2[id], h3[id] { scroll-margin-block-start: 1rem; }
 /* Images keep their space: width and height are in the HTML. */
 .image { margin-inline: 0; }
 .image img { inline-size: 100%; border-radius: var(--radius); }
+.enlarge { display: block; cursor: zoom-in; }
 figcaption { margin-block-start: 0.5rem; color: var(--color-muted); font-size: 0.9375rem; }
 
 /* Lists of posts. Cards change shape by their own width, wherever they sit. */
