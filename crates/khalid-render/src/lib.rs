@@ -37,7 +37,7 @@ pub use glossary::{GlossaryGroup, GlossaryTerm, RenderGlossary, RenderSearch, Se
 pub use image::{ImageCandidate, ImageSet, Loading, RenderImage};
 pub use listing::{Pagination, PostCard, RenderListing};
 pub use page_body::PageBody;
-pub use page_meta::{Alternate, PageKind, PageMeta, Robots, ShareImage};
+pub use page_meta::{Alternate, HeadHtml, PageKind, PageMeta, Robots, ShareImage};
 pub use post::{BodyHtml, Link, RenderPost};
 pub use render_error::RenderError;
 pub use renderer::Renderer;

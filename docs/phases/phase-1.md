@@ -112,6 +112,14 @@
 - Rules: plan section 5.9.
 - Done when: each graph has a snapshot and passes a JSON-LD structure test against the types Google's Rich Results Test accepts.
 
+### 1.23 Reader features
+
+- Status: `todo`
+- Every item in plan section 4.12 on the default templates in `crates/khalid-render`: byline with avatar and role, `reviewed_by` with `reviewedBy` in the JSON-LD, reading time, the automatic table of contents with its sticky column, heading anchors, click to enlarge, the author box, related posts, richer cards, home page sections, topic links, `/authors/`, `/archive/` and the search shortcut. The front matter fields go in `khalid-content`, the related-posts choice at build time, the `reviewedBy` node in `khalid-seo`.
+- Land it in parts after 1.11 and 1.14, one part per feature. Plain HTML first; any script is one small deferred file allowed by the CSP nonce, and every page still reads completely with it blocked.
+- Rules: BL-WEB-1 to BL-WEB-6, BL-PERF-5, BL-TXT-3, `FRONTEND.md`.
+- Done when: each feature has an `insta` snapshot on the demo site, passes the HTML validator, works with scripts off, and the stylesheet stays under its 20 KB budget.
+
 ## Serving
 
 ### 1.15 The server and `khalid serve`
@@ -289,4 +297,4 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 
 ## Order
 
-1.1 to 1.4 first, since everything else depends on them. Then 1.5 to 1.10 for content, 1.11 to 1.14 for output, 1.15 and 1.16 for serving, 1.17 to 1.20 for the API, and 1.21 and 1.22 to prove it. 1.4 can move later if a content task is blocked, because only webhooks need it before 1.21.
+1.1 to 1.4 first, since everything else depends on them. Then 1.5 to 1.10 for content, 1.11 to 1.14 for output, then 1.23 on top of them, 1.15 and 1.16 for serving, 1.17 to 1.20 for the API, and 1.21 and 1.22 to prove it. 1.4 can move later if a content task is blocked, because only webhooks need it before 1.21.

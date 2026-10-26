@@ -15,6 +15,7 @@ khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 khalid-db = { path = "../khalid-db", version = "0.0.0" }
 khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
+khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4", features = ["derive"] }
@@ -26,6 +27,7 @@ tokio = { workspace = true, features = ["rt", "net"] }
 tracing.workspace = true
 
 [dev-dependencies]
+insta = "1"
 serde_json.workspace = true
 
 [lints]
