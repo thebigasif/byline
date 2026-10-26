@@ -379,15 +379,7 @@ impl Renderer<'_> {
         if text.trim().is_empty() {
             return;
         }
-        let mut options = Options::default();
-        options.extension.table = true;
-        options.extension.footnotes = true;
-        options.extension.tasklist = true;
-        options.extension.strikethrough = true;
-        options.extension.autolink = true;
-        options.extension.wikilinks_title_after_pipe = true;
-        options.extension.wikilinks_ignore_embeds = true;
-        options.render.escape = true;
+        let options = options();
         let arena = Arena::new();
         let root = parse_document(&arena, text, &options);
         wikilink::resolve(root, self.wikilinks);
@@ -406,6 +398,21 @@ impl Renderer<'_> {
             }
         }
     }
+}
+
+/// How Khalid reads markdown: tables, footnotes, task lists, strikethrough,
+/// bare links and wikilinks on, and raw HTML escaped.
+pub(crate) fn options() -> Options<'static> {
+    let mut options = Options::default();
+    options.extension.table = true;
+    options.extension.footnotes = true;
+    options.extension.tasklist = true;
+    options.extension.strikethrough = true;
+    options.extension.autolink = true;
+    options.extension.wikilinks_title_after_pipe = true;
+    options.extension.wikilinks_ignore_embeds = true;
+    options.render.escape = true;
+    options
 }
 
 /// Where `::toc` goes until the headings are known. Raw HTML in markdown is

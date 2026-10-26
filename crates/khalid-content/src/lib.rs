@@ -39,4 +39,4 @@ pub use structured::{
     Step, StructuredBlock, VideoBlock,
 };
 pub use tree::{Collection, ContentTree, Entry, Language};
-pub use wikilink::{WikiTarget, Wikilinks};
+pub use wikilink::{WikiTarget, Wikilinks, check_wikilinks};

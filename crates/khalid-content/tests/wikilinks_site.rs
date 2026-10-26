@@ -3,7 +3,9 @@
 
 use std::path::Path;
 
-use khalid_content::{ContentTree, SiteContent, Wikilinks, read_content, render_linked};
+use khalid_content::{
+    ContentTree, SiteContent, Wikilinks, check_wikilinks, read_content, render_linked,
+};
 use khalid_core::{Config, Environment, Locale};
 use khalid_routes::Routes;
 
@@ -56,6 +58,12 @@ fn the_demo_glossary_links_resolve_in_german() {
         assert!(html.contains(link), "{key}: {html}");
     }
     assert_eq!(links.get("topical-authority"), None, "no English targets");
+}
+
+#[test]
+fn every_demo_wikilink_reaches_a_page() {
+    let (config, content) = demo();
+    check_wikilinks(&content, &config, &Routes::default()).unwrap();
 }
 
 #[test]

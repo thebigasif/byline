@@ -30,6 +30,21 @@ pub(crate) fn of(site: &Path, error: &ContentError) -> UserMessage {
         ContentError::Block { path, line, source } => {
             located(&at(path), *line, "", &source.problem(), BLOCK_WHY)
         }
+        ContentError::Wikilink {
+            path,
+            line,
+            target,
+            language,
+        } => UserMessage::new(
+            format!(
+                "{}, line {line}: [[{target}]] matches no post, page or glossary term in {language}.",
+                at(path)
+            ),
+            "A wikilink names a page by its slug, the last part of its address, in the post's own language.",
+            format!(
+                "Change [[{target}]] on line {line} to the slug of a post, page or glossary term in {language}, or remove the brackets."
+            ),
+        ),
         ContentError::NoFrontMatter { path } => UserMessage::new(
             format!("{} does not start with front matter.", at(path)),
             "Front matter between two --- lines holds the title, date and author that readers and search engines need.",

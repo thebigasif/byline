@@ -27,6 +27,9 @@ pub struct Document<F> {
     pub front: F,
     /// The markdown after the front matter, exactly as written.
     pub body: String,
+    /// The file's line the body starts on, counting from 1, so a message
+    /// about a body line names the file's line.
+    pub body_line: usize,
 }
 
 /// A site's content, by type, each list in the tree's path order.
@@ -88,8 +91,16 @@ fn read<F: DeserializeOwned + Default>(
     collection: &str,
     entry: &Entry,
 ) -> Result<Document<F>, ContentError> {
-    let (front, body) = parse_front(entry.path(), entry.text())?;
+    let text = entry.text();
+    let (front, body) = parse_front(entry.path(), text)?;
+    // The body is the end of the file; count the lines before it.
+    let before = text
+        .get(..text.len().saturating_sub(body.len()))
+        .unwrap_or_default()
+        .matches('\n')
+        .count();
     Ok(Document {
+        body_line: before.saturating_add(1),
         locale: locale.clone(),
         collection: collection.to_owned(),
         path: entry.path().to_path_buf(),

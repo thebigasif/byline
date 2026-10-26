@@ -3,7 +3,7 @@
 use std::io;
 use std::path::PathBuf;
 
-use khalid_core::ParseLocaleError;
+use khalid_core::{Locale, ParseLocaleError};
 
 use crate::BlockError;
 
@@ -72,5 +72,20 @@ pub enum ContentError {
         /// What the block reader found.
         #[source]
         source: BlockError,
+    },
+    /// A `[[slug]]` matches no post, page or glossary term in its language.
+    #[error(
+        "{}, line {line}: [[{target}]] matches no post, page or glossary term in {language}",
+        path.display()
+    )]
+    Wikilink {
+        /// The file.
+        path: PathBuf,
+        /// The 1-based line in the file.
+        line: usize,
+        /// The slug as written between the brackets.
+        target: String,
+        /// The file's language, where the target was looked for.
+        language: Locale,
     },
 }
