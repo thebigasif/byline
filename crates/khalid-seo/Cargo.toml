@@ -1,0 +1,20 @@
+[package]
+name = "khalid-seo"
+version = "0.0.0"
+description = "SEO outputs for a Khalid site: head tags, hreflang, sitemaps, feeds, robots.txt, redirects and schema graphs."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+thiserror.workspace = true
+
+[dev-dependencies]
+insta = "1"
+
+[lints]
+workspace = true

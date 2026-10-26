@@ -66,7 +66,7 @@ fn help_lists_every_command() {
     let help = text(&output.stdout);
     for command in [
         "init", "serve", "new", "lint", "publish", "theme", "import", "export", "mcp", "doctor",
-        "backup", "audit", "update", "pull", "keys",
+        "backup", "audit", "update", "pull", "keys", "db",
     ] {
         assert!(
             help.contains(&format!("  {command} ")),

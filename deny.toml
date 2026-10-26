@@ -32,6 +32,17 @@ allow = [
   "Zlib",
   "0BSD",
 ]
+# Named MPL-2.0 exceptions. MPL is file-level: SerpDad may link these
+# unmodified in a closed build, and only changes to their own files would
+# have to be shared.
+exceptions = [
+  # Servo's CSS and selector parsers, reached through scraper, which
+  # docs/standards/rust.md names for reading a site's HTML in theme sync.
+  { crate = "cssparser", allow = ["MPL-2.0"] },
+  { crate = "cssparser-macros", allow = ["MPL-2.0"] },
+  { crate = "dtoa-short", allow = ["MPL-2.0"] },
+  { crate = "selectors", allow = ["MPL-2.0"] },
+]
 confidence-threshold = 0.9
 unused-allowed-license = "allow"
 
