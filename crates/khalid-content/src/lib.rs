@@ -7,8 +7,12 @@
 //! `content/` (BL-FS-2).
 
 mod content_error;
+mod content_hash;
 mod front_matter;
 mod post;
+mod tree;
 
 pub use content_error::ContentError;
+pub use content_hash::ContentHash;
 pub use post::{Post, PostFront, parse_post};
+pub use tree::{Collection, ContentTree, Entry, Language};
