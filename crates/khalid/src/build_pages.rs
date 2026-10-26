@@ -35,15 +35,17 @@ pub(crate) struct Page {
 
 /// Every page of the site, per language in the order of `site.toml`: each
 /// dated post, each plain page, each author with their posts, the home page
-/// with the posts newest first, and the 404 page.
+/// with the posts newest first, and the 404 page. Every page links the
+/// stylesheet at `stylesheet`.
 pub(crate) fn pages(
     config: &Config,
     content: &SiteContent,
+    stylesheet: &str,
 ) -> Result<Vec<LanguagePages>, UserMessage> {
     config
         .languages()
         .iter()
-        .map(|locale| language_pages(config, content, locale))
+        .map(|locale| language_pages(config, content, locale, stylesheet))
         .collect()
 }
 
@@ -51,6 +53,7 @@ fn language_pages(
     config: &Config,
     content: &SiteContent,
     locale: &Locale,
+    stylesheet: &str,
 ) -> Result<LanguagePages, UserMessage> {
     let people = build_reader::people(config, content, locale)?;
     let (mut pages, cards) = post_pages(config, content, locale, &people)?;
@@ -94,7 +97,7 @@ fn language_pages(
         seo: missing_seo,
     });
     Ok(LanguagePages {
-        site: render_site(config, locale),
+        site: render_site(config, locale, stylesheet),
         pages,
     })
 }
@@ -416,13 +419,13 @@ fn page(
     }
 }
 
-/// The site as pages in `locale` show it. The stylesheet arrives with task 1.12.
-fn render_site(config: &Config, locale: &Locale) -> RenderSite {
+/// The site as pages in `locale` show it, linking the stylesheet at `stylesheet`.
+fn render_site(config: &Config, locale: &Locale, stylesheet: &str) -> RenderSite {
     RenderSite {
         name: config.name().to_owned(),
         locale: locale.clone(),
         home: path_of(config, locale, ""),
-        stylesheet: format!("{}assets/site.css", config.mount()),
+        stylesheet: stylesheet.to_owned(),
         nav: Nav::default(),
         main_site: None,
         share_image: None,
