@@ -2,11 +2,12 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Mutex, OnceLock, PoisonError};
 
 use comrak::adapters::{HeadingAdapter, HeadingMeta};
 use comrak::nodes::{AstNode, NodeValue, Sourcepos};
 use comrak::options::Plugins;
+use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
 use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{Locale, Slug, SlugMode};
 
@@ -67,7 +68,9 @@ pub struct Image {
 ///
 /// Tables, footnotes, task lists, strikethrough and bare links are on. Raw
 /// HTML in the markdown is escaped and shows as text, so a post cannot carry
-/// a script (RULES.md BL-SEC-1). Each heading gets an `id` made with the same
+/// a script (RULES.md BL-SEC-1). Fenced code with a language is coloured with
+/// CSS classes prefixed `hl-`, such as `hl-keyword`, so the stylesheet owns
+/// the colours. Each heading gets an `id` made with the same
 /// rules as slugs, with `-2`, `-3` added to repeats, and `section` when the
 /// text has no letters or digits.
 pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Rendered {
@@ -93,6 +96,7 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Rendered {
     };
     let mut plugins = Plugins::default();
     plugins.render.heading_adapter = Some(&ids);
+    plugins.render.codefence_syntax_highlighter = Some(highlighter());
     let mut html = String::new();
     // Writing into a String cannot fail; an empty body is the safe fallback.
     if format_html_with_plugins(root, &options, &mut html, &plugins).is_err() {
@@ -109,6 +113,20 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Rendered {
         images: facts.images,
         words: facts.words,
     }
+}
+
+/// The code highlighter, built once: loading its grammars takes milliseconds
+/// that a render must not pay each time (RULES.md BL-PERF-2).
+// If bincode or yaml-rust under syntect gets a real vulnerability (deny.toml),
+// swap to plain code blocks coloured at build time by a tree-sitter
+// highlighter such as arborium.
+fn highlighter() -> &'static SyntectAdapter {
+    static HIGHLIGHTER: OnceLock<SyntectAdapter> = OnceLock::new();
+    HIGHLIGHTER.get_or_init(|| {
+        SyntectAdapterBuilder::new()
+            .css_with_class_prefix("hl-")
+            .build()
+    })
 }
 
 /// What a walk over the parsed body collects.
