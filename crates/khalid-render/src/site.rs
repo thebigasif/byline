@@ -3,6 +3,7 @@
 use khalid_core::Locale;
 use serde::Serialize;
 
+use crate::Features;
 use crate::page_meta::ShareImage;
 
 /// The site in one language, the same for every page in that language.
@@ -27,6 +28,8 @@ pub struct RenderSite {
     pub main_site: Option<NavLink>,
     /// The share image for pages that have none of their own.
     pub share_image: Option<ShareImage>,
+    /// The reader features that are on, from `[reader]` in `site.toml`.
+    pub features: Features,
 }
 
 /// The site's menus. An empty menu renders nothing.

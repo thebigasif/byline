@@ -74,13 +74,13 @@ main:focus { outline: none; }
 .site-name { color: var(--color-text); font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; text-decoration: none; }
 
 /* Menus: plain lists of links, each a 44 px touch target. */
-nav ul, .tags, .cards, .author-profiles, .letters ul {
+nav ul, .tags, .cards, .author-profiles, .letters ul, .people {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
-nav a, .tags a, .author-profiles a, .site-name, .skip-link {
+nav a, .tags a, .author-profiles a, .person a, .site-name, .skip-link {
   display: inline-flex;
   align-items: center;
   min-block-size: 44px;
@@ -104,6 +104,11 @@ nav a { min-inline-size: 44px; }
 .post-header .image { margin-block: 1.5rem 0; }
 .post-meta { color: var(--color-muted); font-size: 0.9375rem; }
 .post-meta p, .post-meta address { margin-block: 0 0.25rem; font-style: normal; }
+.people { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-block-end: 0.5rem; }
+.person { display: flex; align-items: center; gap: 0.625rem; }
+.person-role { display: block; margin-block-start: -0.5rem; }
+.reviewed-by a { font-weight: 600; }
+.avatar { inline-size: 2.75rem; block-size: 2.75rem; border-radius: 50%; object-fit: cover; }
 .post-body > :first-child, .page-body > :first-child { margin-block-start: 0; }
 .post-footer { margin-block-start: 2.5rem; }
 .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }

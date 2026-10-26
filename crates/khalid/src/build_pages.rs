@@ -6,8 +6,8 @@ use std::cmp::Reverse;
 use khalid_content::{Document, PostFront, SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, PostCard, RenderAuthor, RenderListing,
-    RenderPage, RenderPost, RenderSite, Robots,
+    BodyHtml, Features, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, RenderAuthor,
+    RenderListing, RenderPage, RenderPost, RenderSite, Robots,
 };
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
@@ -135,6 +135,7 @@ fn post_pages<'a>(
             date,
             updated: None,
             authors: authors(config, content, doc),
+            reviewers: Vec::new(),
             category: None,
             tags: Vec::new(),
             image: None,
@@ -253,21 +254,25 @@ fn body_html<F>(config: &Config, doc: &Document<F>) -> Result<BodyHtml, UserMess
 }
 
 /// The post's author, named as their file in the same language names them,
-/// linked to their author page.
-fn authors(config: &Config, content: &SiteContent, doc: &Document<PostFront>) -> Vec<Link> {
+/// with their role, linked to their author page.
+fn authors(config: &Config, content: &SiteContent, doc: &Document<PostFront>) -> Vec<Person> {
     let Some(author) = &doc.front.author else {
         return Vec::new();
     };
-    let name = content
+    let file = content
         .authors
         .iter()
         .filter(|person| person.locale == doc.locale)
-        .find(|person| person.front.slug.as_ref() == Some(author))
-        .and_then(|person| person.front.name.clone())
-        .unwrap_or_else(|| author.to_string());
-    vec![Link {
-        name,
+        .find(|person| person.front.slug.as_ref() == Some(author));
+    vec![Person {
+        name: file
+            .and_then(|person| person.front.name.clone())
+            .unwrap_or_else(|| author.to_string()),
         href: path_of(config, &doc.locale, &format!("authors/{author}/")),
+        role: file.and_then(|person| person.front.role.clone()),
+        image: None,
+        bio: None,
+        profiles: Vec::new(),
     }]
 }
 
@@ -322,6 +327,7 @@ fn render_site(config: &Config, locale: &Locale) -> RenderSite {
         nav: Nav::default(),
         main_site: None,
         share_image: None,
+        features: Features::all(),
     }
 }
 

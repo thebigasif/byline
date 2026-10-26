@@ -9,6 +9,10 @@ not_found_title = "This page does not exist"
 not_found_text = "The address may be mistyped, or the page may have moved."
 not_found_home = "Go to the blog's front page"
 by = "By"
+# Names the list of a post's authors for screen readers.
+written_by = "Written by"
+# Comes before the names of the people who checked a post.
+reviewed_by = "Reviewed by"
 published = "Published"
 updated = "Updated"
 in_category = "Filed under"

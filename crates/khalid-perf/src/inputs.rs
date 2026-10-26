@@ -12,7 +12,7 @@ use khalid_content::{
 use khalid_core::{AbsoluteUrl, Config, Environment};
 use khalid_lint::{Heading, HeadingLevel, LinkKind, LintLink, LintPost, LintSite};
 use khalid_render::{
-    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, RenderPost, RenderSite, Robots,
+    BodyHtml, Features, Nav, PageBody, PageKind, PageMeta, Person, RenderPost, RenderSite, Robots,
 };
 
 use crate::PrepareError;
@@ -56,6 +56,7 @@ impl Prepared {
             nav: Nav::default(),
             main_site: None,
             share_image: None,
+            features: Features::all(),
         };
         let mut prepared = Self {
             site,
@@ -87,11 +88,16 @@ impl Prepared {
             updated: None,
             authors: author
                 .iter()
-                .map(|name| Link {
+                .map(|name| Person {
                     name: name.clone(),
                     href: format!("{}authors/{name}/", config.mount()),
+                    role: None,
+                    image: None,
+                    bio: None,
+                    profiles: Vec::new(),
                 })
                 .collect(),
+            reviewers: Vec::new(),
             category: None,
             tags: Vec::new(),
             image: None,

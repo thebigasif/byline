@@ -38,6 +38,21 @@ pub(crate) fn sitemap_image(loading: Loading) -> RenderImage {
     }
 }
 
+/// Lena Vogt's photo, square and small, as a byline shows it.
+pub(crate) fn avatar_image() -> RenderImage {
+    RenderImage {
+        alt: String::new(),
+        caption: None,
+        width: 1600,
+        height: 1600,
+        sizes: "2.75rem".to_owned(),
+        avif: Some(set("lena-vogt", "avif")),
+        webp: None,
+        fallback: set("lena-vogt", "jpg"),
+        loading: Loading::Lazy,
+    }
+}
+
 fn render_post_with(image: RenderImage) -> String {
     let mut post = sitemap_post();
     post.image = Some(image);

@@ -1,12 +1,18 @@
 {% extends "base.html" %}
 {% block main %}
-{% from "image.html" import picture -%}
+{% from "image.html" import picture, avatar -%}
 <article class="post">
 <header class="post-header">
 <h1>{{ page.title }}</h1>
 <div class="post-meta">
-<address>{{ t.by }} {% for author in page.authors %}<a rel="author" href="{{ author.href }}">{{ author.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</address>
-<p>{{ t.published }} <time datetime="{{ page.date }}">{{ page.date | date }}</time>{% if page.updated %}. {{ t.updated }} <time datetime="{{ page.updated }}">{{ page.updated | date }}</time>{% endif %}</p>
+{% if "byline" in site.features %}<address>
+<ul class="people" role="list" aria-label="{{ t.written_by }}">
+{% for author in page.authors %}<li class="person">{% if author.image %}{{ avatar(author.image) }}{% endif %}<span><a rel="author" href="{{ author.href }}">{{ author.name }}</a>{% if author.role %}<span class="person-role">{{ author.role }}</span>{% endif %}</span></li>
+{% endfor %}</ul>
+</address>
+{% else %}<address>{{ t.by }} {% for author in page.authors %}<a rel="author" href="{{ author.href }}">{{ author.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</address>
+{% endif %}{% if page.reviewers and "reviewed_by" in site.features %}<p class="reviewed-by">{{ t.reviewed_by }} {% for reviewer in page.reviewers %}<a href="{{ reviewer.href }}">{{ reviewer.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% endif %}<p>{{ t.published }} <time datetime="{{ page.date }}">{{ page.date | date }}</time>{% if page.updated %}. {{ t.updated }} <time datetime="{{ page.updated }}">{{ page.updated | date }}</time>{% endif %}</p>
 {% if page.category %}<p>{{ t.in_category }} <a href="{{ page.category.href }}">{{ page.category.name }}</a></p>
 {% endif %}</div>
 {% if page.image %}{{ picture(page.image) }}

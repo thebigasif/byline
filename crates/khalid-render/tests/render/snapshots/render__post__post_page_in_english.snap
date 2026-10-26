@@ -44,7 +44,11 @@ expression: page
 <header class="post-header">
 <h1>What a sitemap does, and what it does not</h1>
 <div class="post-meta">
-<address>By <a rel="author" href="/blog/authors/lena-vogt/">Lena Vogt</a></address>
+<address>
+<ul class="people" role="list" aria-label="Written by">
+<li class="person"><span><a rel="author" href="/blog/authors/lena-vogt/">Lena Vogt</a><span class="person-role">Technical SEO editor</span></span></li>
+</ul>
+</address>
 <p>Published <time datetime="2026-09-28">28 September 2026</time></p>
 <p>Filed under <a href="/blog/category/technical-seo/">Technical SEO</a></p>
 </div>

@@ -19,9 +19,9 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use khalid_core::{AbsoluteUrl, Locale};
 use khalid_render::{
-    Alternate, BodyHtml, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink, PageBody, PageKind,
-    PageMeta, PostCard, RenderAuthor, RenderGlossary, RenderListing, RenderPage, RenderPost,
-    RenderSearch, RenderSite, Renderer, Robots, Tokens, stylesheet,
+    Alternate, BodyHtml, Features, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink, PageBody,
+    PageKind, PageMeta, Person, PostCard, RenderAuthor, RenderGlossary, RenderListing, RenderPage,
+    RenderPost, RenderSearch, RenderSite, Renderer, Robots, Tokens, stylesheet,
 };
 
 type Fallible<T> = Result<T, Box<dyn Error>>;
@@ -216,6 +216,7 @@ impl Demo {
             },
             main_site: Some(link("example.com", format!("{ADDRESS}/"))),
             share_image: None,
+            features: Features::all(),
         })
     }
 
@@ -444,19 +445,21 @@ impl Demo {
     fn post(&mut self, lang: &Lang, post: &Doc, authors: &[Doc]) -> Fallible<PostCard> {
         let path = format!("{}{}/", lang.prefix, post.field("slug"));
         let author = post.field("author");
-        let name = authors
-            .iter()
-            .find(|a| a.field("slug") == author)
-            .map_or(author.clone(), |a| a.field("name"));
+        let file = authors.iter().find(|a| a.field("slug") == author);
         let date = NaiveDate::parse_from_str(&post.field("date"), "%Y-%m-%d")?;
         let record = RenderPost {
             title: post.field("title"),
             date,
             updated: None,
-            authors: vec![Link {
-                name,
+            authors: vec![Person {
+                name: file.map_or(author.clone(), |a| a.field("name")),
                 href: format!("{}authors/{author}/", lang.prefix),
+                role: file.map(|a| a.field("role")),
+                image: None,
+                bio: None,
+                profiles: Vec::new(),
             }],
+            reviewers: Vec::new(),
             category: Some(Link {
                 name: self.category_name(lang, &post.field("category")),
                 href: format!("{}category/{}/", lang.prefix, post.field("category")),

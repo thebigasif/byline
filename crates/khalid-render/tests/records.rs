@@ -2,7 +2,9 @@
 //! as lowercase words, absent values as nothing.
 
 use khalid_core::{AbsoluteUrl, Locale};
-use khalid_render::{Alternate, Nav, NavLink, PageKind, PageMeta, RenderSite, Robots, ShareImage};
+use khalid_render::{
+    Alternate, Features, Nav, NavLink, PageKind, PageMeta, RenderSite, Robots, ShareImage,
+};
 use serde_json::json;
 
 #[test]
@@ -61,6 +63,7 @@ fn the_site_hides_its_locale_from_templates() {
         },
         main_site: None,
         share_image: None,
+        features: Features::all(),
     };
     let seen = serde_json::to_value(&site).unwrap();
     assert!(

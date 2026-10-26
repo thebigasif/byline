@@ -2,15 +2,29 @@
 //! tags and the sanitised body.
 
 use chrono::NaiveDate;
-use khalid_render::{BodyHtml, Link, PageBody, PageKind, RenderPost, Renderer};
+use khalid_render::{
+    BodyHtml, Feature, Features, Link, PageBody, PageKind, Person, RenderPost, RenderSite, Renderer,
+};
 
 use crate::common::{demo_site, meta};
 use crate::html_check::assert_valid_page;
 
-fn link(name: &str, href: &str) -> Link {
+pub(crate) fn link(name: &str, href: &str) -> Link {
     Link {
         name: name.to_owned(),
         href: href.to_owned(),
+    }
+}
+
+/// An author with a role and nothing else.
+pub(crate) fn person(name: &str, slug: &str, role: Option<&str>) -> Person {
+    Person {
+        name: name.to_owned(),
+        href: format!("/blog/authors/{slug}/"),
+        role: role.map(str::to_owned),
+        image: None,
+        bio: None,
+        profiles: Vec::new(),
     }
 }
 
@@ -20,7 +34,12 @@ pub(crate) fn sitemap_post() -> RenderPost {
         title: "What a sitemap does, and what it does not".to_owned(),
         date: NaiveDate::from_ymd_opt(2026, 9, 28).unwrap(),
         updated: None,
-        authors: vec![link("Lena Vogt", "/blog/authors/lena-vogt/")],
+        authors: vec![person(
+            "Lena Vogt",
+            "lena-vogt",
+            Some("Technical SEO editor"),
+        )],
+        reviewers: Vec::new(),
         category: Some(link("Technical SEO", "/blog/category/technical-seo/")),
         tags: vec![link("Sitemaps", "/blog/tag/sitemaps/")],
         image: None,
@@ -32,12 +51,31 @@ pub(crate) fn sitemap_post() -> RenderPost {
     }
 }
 
-fn render(tag: &str, post: RenderPost) -> String {
+pub(crate) fn render(tag: &str, post: RenderPost) -> String {
+    render_on(&demo_site(tag), post)
+}
+
+pub(crate) fn render_on(site: &RenderSite, post: RenderPost) -> String {
     let meta = meta(&post.title, "/blog/what-a-sitemap-does/", PageKind::Article);
     Renderer::new()
         .unwrap()
-        .render(&demo_site(tag), &meta, &PageBody::Post(Box::new(post)))
+        .render(site, &meta, &PageBody::Post(Box::new(post)))
         .unwrap()
+}
+
+/// The part of `page` from the first `from` to the first `to` after it,
+/// both included, for the snapshot of one feature.
+pub(crate) fn part(page: &str, from: &str, to: &str) -> String {
+    let (_, rest) = page.split_once(from).unwrap();
+    let (inside, _) = rest.split_once(to).unwrap();
+    format!("{from}{inside}{to}")
+}
+
+/// The English demo site with `feature` switched off.
+pub(crate) fn site_without(feature: Feature) -> RenderSite {
+    let mut site = demo_site("en");
+    site.features = Features::all().without(feature);
+    site
 }
 
 #[test]
@@ -52,7 +90,7 @@ fn post_page_in_german_writes_the_date_the_german_way() {
     let page = render("de", sitemap_post());
     assert_valid_page(&page);
     assert!(page.contains(r#"<time datetime="2026-09-28">28. September 2026</time>"#));
-    assert!(page.contains("<address>Von <a rel=\"author\""));
+    assert!(page.contains(r#"<ul class="people" role="list" aria-label="Geschrieben von">"#));
 }
 
 #[test]
@@ -70,16 +108,6 @@ fn the_body_is_printed_as_sanitised_and_the_title_is_escaped() {
     let page = render("en", post);
     assert!(page.contains("<h2>What it does</h2>"));
     assert!(page.contains("<h1>Sitemaps &lt;b&gt;and&lt;/b&gt; you</h1>"));
-}
-
-#[test]
-fn several_authors_are_listed_in_order() {
-    let mut post = sitemap_post();
-    post.authors.push(link("Asif", "/blog/authors/asif/"));
-    let page = render("en", post);
-    assert!(page.contains(
-        r#"By <a rel="author" href="/blog/authors/lena-vogt/">Lena Vogt</a>, <a rel="author" href="/blog/authors/asif/">Asif</a>"#
-    ));
 }
 
 #[test]

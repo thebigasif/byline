@@ -4,8 +4,8 @@ use chrono::NaiveDate;
 use minijinja::Value;
 use serde::Serialize;
 
-use crate::RenderImage;
 use crate::serde_display::{display, display_option};
+use crate::{Person, RenderImage};
 
 /// One post: its heading, dates, people, topics and body.
 ///
@@ -21,7 +21,10 @@ pub struct RenderPost {
     #[serde(serialize_with = "display_option")]
     pub updated: Option<NaiveDate>,
     /// Who wrote it, first author first.
-    pub authors: Vec<Link>,
+    pub authors: Vec<Person>,
+    /// Who checked it, from `reviewed_by` in its front matter, linked to
+    /// their author pages.
+    pub reviewers: Vec<Link>,
     /// The one category it belongs to, if any.
     pub category: Option<Link>,
     /// Its tags, in the order the writer gave them.

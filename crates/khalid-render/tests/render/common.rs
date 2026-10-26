@@ -1,7 +1,9 @@
 //! The demo site as render input.
 
 use khalid_core::{AbsoluteUrl, Locale};
-use khalid_render::{Alternate, Nav, NavLink, PageKind, PageMeta, RenderSite, Robots, ShareImage};
+use khalid_render::{
+    Alternate, Features, Nav, NavLink, PageKind, PageMeta, RenderSite, Robots, ShareImage,
+};
 
 pub(crate) fn url(text: &str) -> AbsoluteUrl {
     AbsoluteUrl::parse(text).unwrap()
@@ -34,6 +36,7 @@ pub(crate) fn demo_site(tag: &str) -> RenderSite {
             footer: vec![link("About", &format!("{prefix}about/"))],
         },
         main_site: Some(link("Back to example.com", "https://www.example.com/")),
+        features: Features::all(),
         share_image: Some(ShareImage {
             url: url("https://www.example.com/blog/assets/share.png"),
             alt: "Field Notes on SEO, a blog about search".to_owned(),
