@@ -8,8 +8,12 @@
 mod cli;
 mod config_message;
 mod content_message;
+mod db;
+mod db_message;
 mod exit;
+mod index;
 mod report;
+mod routes_message;
 
 use std::ffi::OsString;
 use std::process::ExitCode;
@@ -18,6 +22,7 @@ use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, Environment, UserMessage};
+use khalid_routes::Routes;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
@@ -41,6 +46,9 @@ fn run(cli: &Cli) -> Exit {
         if let Err(error) = Config::load(site, &Environment::from_process()) {
             return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
         }
+        if let Err(error) = Routes::load(site) {
+            return report::failure(cli.output, &routes_message::of(&error), Exit::Failure);
+        }
         if let Err(error) = ContentTree::walk(site).and_then(|tree| read_content(&tree)) {
             return report::failure(
                 cli.output,
@@ -49,10 +57,29 @@ fn run(cli: &Cli) -> Exit {
             );
         }
     }
-    match &cli.command {
-        None => report::text(&Cli::command().render_help().to_string(), Exit::Success),
-        Some(command) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    match (&cli.command, &cli.site) {
+        (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
+        (Some(Command::Db { command }), Some(site)) => db::run(site, *command, cli.output),
+        (Some(command @ Command::Db { .. }), None) => {
+            report::failure(cli.output, &needs_site(command), Exit::Usage)
+        }
+        (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
+}
+
+/// The message for a command that works on one site folder when none was given.
+fn needs_site(command: &Command) -> UserMessage {
+    UserMessage::new(
+        format!(
+            "The command `khalid {}` needs a site folder.",
+            command.name()
+        ),
+        "It works on the database inside one site, so Khalid has to know which one.",
+        format!(
+            "Run `khalid --site <folder> {}` with the folder that holds site.toml.",
+            command.name()
+        ),
+    )
 }
 
 /// The message for a command that a later phase builds.

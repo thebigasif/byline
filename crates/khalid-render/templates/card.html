@@ -1,0 +1,25 @@
+{#- cards(posts, level): a list of post cards, each titled with a heading
+    of that level, used by every list and the author page. -#}
+{% from "image.html" import picture %}
+{% macro cards(posts, level=2) -%}
+<ul class="cards" role="list">
+{% for post in posts %}<li>
+<article class="card">
+{% if post.image %}{{ picture(post.image) }}
+{% endif %}<h{{ level }}><a href="{{ post.href }}">{{ post.title }}</a></h{{ level }}>
+<p><time datetime="{{ post.date }}">{{ post.date | date }}</time></p>
+<p>{{ post.excerpt }}</p>
+</article>
+</li>
+{% endfor %}</ul>
+{%- endmacro %}
+{#- pages(pagination): links to the newer and older pages of a list. -#}
+{% macro pages(pagination) -%}
+<nav class="pagination" aria-label="{{ t.pagination }}">
+<p>{{ t.page_of | replace("{current}", pagination.current | string) | replace("{total}", pagination.total | string) }}</p>
+<ul>
+{% if pagination.previous %}<li><a href="{{ pagination.previous }}" rel="prev">{{ t.newer_posts }}</a></li>
+{% endif %}{% if pagination.next %}<li><a href="{{ pagination.next }}" rel="next">{{ t.older_posts }}</a></li>
+{% endif %}</ul>
+</nav>
+{%- endmacro %}

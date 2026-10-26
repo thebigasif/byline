@@ -189,3 +189,11 @@ Founder decisions: `docs/plan.md` sections 1 and 12. CTO decisions: `docs/decisi
 | AGPL scares companies | README FAQ; unmodified use owes nothing |
 | The name | Khalid, chosen by the founder; a trademark lawyer checks before launch |
 | One builder, one laptop | A second machine runs parallel tracks when available; CI is the referee |
+
+## 10. How the work is run
+
+This document says what must be true. `docs/plan.md` says how it is built, phase by phase. `docs/phases/` holds the live task list with statuses. `CLAUDE.md` is the contract for the coding agents. Several agents build in parallel, one track each (content, database, templates, SEO, API, linter, theme sync), each owning its own crates and defining its own input types so none waits on another; wiring happens in task 1.15. A reviewing session merges every pull request after a review and answers every question, recording answers in `docs/decisions/`. Product and brand decisions stay with the founder and are listed in `docs/plan.md`; everything else is decided and written down by the reviewer.
+
+## 11. Requirement status
+
+The status of every requirement is the status of the tasks that build it, in `docs/phases/`. A requirement is met when its acceptance line holds on `main` and the changelog line of the landing commit names its ID. At the time of writing, Phase 0 is complete and about half of Phase 1 is on `main`.

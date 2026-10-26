@@ -43,6 +43,11 @@ pub(crate) fn version(output: Output) -> Exit {
     finish(written, Exit::Success)
 }
 
+/// Prints a command's result as one line of JSON and ends with `exit`.
+pub(crate) fn json(body: &impl Serialize, exit: Exit) -> Exit {
+    finish(json_line(body), exit)
+}
+
 /// Prints `message` where the output mode says, and ends with `exit`.
 pub(crate) fn failure(output: Output, message: &UserMessage, exit: Exit) -> Exit {
     let written = match output {
