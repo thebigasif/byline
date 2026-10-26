@@ -1,7 +1,7 @@
 [package]
 name = "khalid-theme"
 version = "0.0.0"
-description = "Theme sync: read a main site's colours, fonts and logo into theme tokens, fix contrast, and print proxy rules."
+description = "Theme sync: read a main site's colours, fonts and logo into theme tokens, and fix contrast."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
