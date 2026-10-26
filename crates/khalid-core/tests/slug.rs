@@ -97,3 +97,15 @@ proptest! {
         prop_assert!(Slug::try_new(&text).is_ok() == well_formed, "text {:?}", text);
     }
 }
+
+#[test]
+fn reads_from_text_in_both_forms_and_refuses_a_bad_one() {
+    let ascii: Slug = serde_json::from_str("\"why-links-matter\"").unwrap();
+    assert_eq!(ascii.as_str(), "why-links-matter");
+    let unicode: Slug = serde_json::from_str("\"über-größe\"").unwrap();
+    assert_eq!(unicode.as_str(), "über-größe");
+    let error = serde_json::from_str::<Slug>("\"Why Links\"")
+        .unwrap_err()
+        .to_string();
+    assert!(error.starts_with("the slug has 'W' at byte 0"), "{error}");
+}
