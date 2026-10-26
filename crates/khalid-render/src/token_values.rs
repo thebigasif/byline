@@ -97,6 +97,11 @@ impl TryFrom<String> for Color {
 }
 
 impl FontStack {
+    /// A list this crate wrote itself, for the defaults.
+    pub(crate) fn trusted(text: &str) -> Self {
+        Self(text.to_owned())
+    }
+
     /// The list as written.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -119,6 +124,11 @@ impl TryFrom<String> for FontStack {
 }
 
 impl Length {
+    /// A length this crate wrote itself, for the defaults.
+    pub(crate) fn trusted(text: &str) -> Self {
+        Self(text.to_owned())
+    }
+
     /// The length as written.
     pub fn as_str(&self) -> &str {
         &self.0
