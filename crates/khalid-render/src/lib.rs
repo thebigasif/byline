@@ -10,6 +10,7 @@
 //! code turns content into these records; the server decides when to render
 //! and caches the result.
 
+mod asset;
 mod author;
 mod dates;
 mod direction;
@@ -29,6 +30,7 @@ mod templates;
 mod token_values;
 mod tokens;
 
+pub use asset::Asset;
 pub use author::{RenderAuthor, RenderPage};
 pub use glossary::{GlossaryGroup, GlossaryTerm, RenderGlossary, RenderSearch, SearchResult};
 pub use image::{ImageCandidate, ImageSet, Loading, RenderImage};

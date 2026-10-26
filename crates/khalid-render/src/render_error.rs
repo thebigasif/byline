@@ -70,6 +70,13 @@ pub enum RenderError {
         #[source]
         source: toml::de::Error,
     },
+    /// A built asset could not be compressed.
+    #[error("an asset could not be compressed")]
+    Compress {
+        /// What the compressor reported.
+        #[source]
+        source: io::Error,
+    },
     /// `theme/tokens.toml` exists but could not be read.
     #[error("could not read {}", path.display())]
     ReadTokens {
