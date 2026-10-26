@@ -15,15 +15,9 @@ mod index;
 mod init;
 mod init_message;
 mod lint;
+mod lint_fix;
 mod lint_input;
 mod lint_message;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "`khalid lint --fix` calls it in the next part of task 2.6"
-    )
-)]
 mod repair;
 mod report;
 mod routes_message;
@@ -40,6 +34,7 @@ use khalid_routes::Routes;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
+use crate::lint::Mode;
 
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -82,7 +77,10 @@ fn run(cli: &Cli) -> Exit {
     match (&cli.command, &cli.site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some(site)) => db::run(site, *command, cli.output),
-        (Some(Command::Lint { path }), Some(site)) => lint::run(site, path.as_deref(), cli.output),
+        (Some(Command::Lint { path, fix }), Some(site)) => {
+            let mode = if *fix { Mode::Fix } else { Mode::Check };
+            lint::run(site, path.as_deref(), mode, cli.output)
+        }
         (Some(command @ (Command::Db { .. } | Command::Lint { .. })), None) => {
             report::failure(cli.output, &needs_site(command), Exit::Usage)
         }

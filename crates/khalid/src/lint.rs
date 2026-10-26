@@ -8,51 +8,93 @@ use std::path::Path;
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, Environment, SitePath, SystemClock, UserMessage};
 use khalid_lint::{Finding, LintConfig, Linter, Report, Severity};
+use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{config_message, content_message, lint_input, lint_message, report};
+use crate::lint_fix::Repair;
+use crate::{config_message, content_message, lint_fix, lint_input, lint_message, report};
+
+/// Whether `khalid lint` only reports, or makes the safe repairs first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Mode {
+    /// Report the findings and change no file.
+    Check,
+    /// Make the safe repairs in the files, then report what is left.
+    Fix,
+}
+
+/// A run's report, with the repairs `--fix` made. In JSON it is the report
+/// with a `fixed` list beside `blocks` and `findings`.
+#[derive(Serialize)]
+struct Outcome {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fixed: Option<Vec<Repair>>,
+    #[serde(flatten)]
+    report: Report,
+}
 
 /// Lints the site in `site`, or only the post file `post` inside it, and
-/// exits with 1 when any finding blocks publishing.
-pub(crate) fn run(site: &Path, post: Option<&Path>, output: Output) -> Exit {
-    let config = match Config::load(site, &Environment::from_process()) {
-        Ok(config) => config,
-        Err(error) => return report::failure(output, &config_message::of(&error), Exit::Failure),
+/// exits with 1 when any finding blocks publishing. With [`Mode::Fix`] the
+/// exit code is for what is left after the repairs.
+pub(crate) fn run(site: &Path, post: Option<&Path>, mode: Mode, output: Output) -> Exit {
+    let outcome = match check(site, post, mode) {
+        Ok(outcome) => outcome,
+        Err((message, exit)) => return report::failure(output, &message, exit),
     };
-    let content = match ContentTree::walk(site).and_then(|tree| read_content(&tree)) {
-        Ok(content) => content,
-        Err(error) => {
-            return report::failure(output, &content_message::of(site, &error), Exit::Failure);
-        }
-    };
-    let linter = match lint_settings(site).map(|settings| Linter::new(&settings, &SystemClock)) {
-        Ok(Ok(linter)) => linter,
-        Ok(Err(error)) => {
-            return report::failure(output, &lint_message::of(&error), Exit::Internal);
-        }
-        Err(message) => return report::failure(output, &message, Exit::Failure),
-    };
-    let (lint_site, files) = lint_input::lint_site(&content, &config);
-    let report = match post {
-        None => linter.lint_site(&lint_site),
-        Some(wanted) => {
-            let index = files.iter().position(|file| file.ends_with(wanted));
-            match index.and_then(|i| lint_site.posts.get(i)) {
-                Some(found) => linter.lint_post(found, &lint_site),
-                None => return report::failure(output, &no_such_post(wanted), Exit::Failure),
-            }
-        }
-    };
-    let exit = if report.blocks() {
+    let exit = if outcome.report.blocks() {
         Exit::Failure
     } else {
         Exit::Success
     };
     match output {
-        Output::Json => report::json(&report, exit),
-        Output::Human => report::text(&sentences(&report), exit),
+        Output::Json => report::json(&outcome, exit),
+        Output::Human => {
+            let text = sentences(&outcome.report, outcome.fixed.as_deref());
+            report::text(&text, exit)
+        }
     }
+}
+
+/// Reads the site and lints it, and with [`Mode::Fix`] repairs what it can
+/// and lints it again.
+fn check(site: &Path, post: Option<&Path>, mode: Mode) -> Result<Outcome, (UserMessage, Exit)> {
+    let config = Config::load(site, &Environment::from_process())
+        .map_err(|error| (config_message::of(&error), Exit::Failure))?;
+    let content = ContentTree::walk(site)
+        .and_then(|tree| read_content(&tree))
+        .map_err(|error| (content_message::of(site, &error), Exit::Failure))?;
+    let settings = lint_settings(site).map_err(|message| (message, Exit::Failure))?;
+    let linter = Linter::new(&settings, &SystemClock)
+        .map_err(|error| (lint_message::of(&error), Exit::Internal))?;
+    let (lint_site, documents) = lint_input::lint_site(&content, &config);
+    let report = match post {
+        None => linter.lint_site(&lint_site),
+        Some(wanted) => {
+            let index = documents.iter().position(|d| d.path.ends_with(wanted));
+            match index.and_then(|i| lint_site.posts.get(i)) {
+                Some(found) => linter.lint_post(found, &lint_site),
+                None => return Err((no_such_post(wanted), Exit::Failure)),
+            }
+        }
+    };
+    if mode == Mode::Check {
+        return Ok(Outcome {
+            fixed: None,
+            report,
+        });
+    }
+    let fixed = lint_fix::repair(site, &lint_site.posts, &documents, report.findings())
+        .map_err(|message| (message, Exit::Failure))?;
+    let report = if fixed.is_empty() {
+        report
+    } else {
+        check(site, post, Mode::Check)?.report
+    };
+    Ok(Outcome {
+        fixed: Some(fixed),
+        report,
+    })
 }
 
 /// The settings in the site's `lint.toml`, or the defaults when it has none.
@@ -74,9 +116,22 @@ fn no_such_post(wanted: &Path) -> UserMessage {
     )
 }
 
-/// Every finding as sentences, then a count of blocks and warnings.
-fn sentences(report: &Report) -> String {
+/// The repairs by file, every finding as sentences, then a count of blocks
+/// and warnings, and of repairs when `--fix` ran.
+fn sentences(report: &Report, fixed: Option<&[Repair]>) -> String {
     let mut text = String::new();
+    let mut file = None;
+    for repair in fixed.unwrap_or_default() {
+        if file != Some(&repair.path) {
+            let gap = if file.is_some() { "\n" } else { "" };
+            let _ = writeln!(text, "{gap}Fixed {}", repair.path);
+            file = Some(&repair.path);
+        }
+        let _ = writeln!(text, "  {}", repair.change);
+    }
+    if file.is_some() {
+        text.push('\n');
+    }
     for finding in report.findings() {
         write_finding(&mut text, finding);
     }
@@ -92,6 +147,13 @@ fn sentences(report: &Report) -> String {
         count(blocks, "block"),
         count(warnings, "warning")
     );
+    match fixed {
+        Some([]) => text.push_str("Nothing needed a safe fix.\n"),
+        Some(repairs) => {
+            let _ = writeln!(text, "Fixed {}.", count(repairs.len(), "problem"));
+        }
+        None => {}
+    }
     text
 }
 
