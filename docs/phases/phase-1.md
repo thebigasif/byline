@@ -132,7 +132,7 @@
 
 ### 1.17 The Content API
 
-- Status: `doing`. Part 1 (this landing): `crates/khalid-api` with the `filter` parser for one condition. Next: `+`, `,` and brackets, printing and matching filters, the other list parameters, problem details and the envelope, posts behind a `ContentStore` trait with the OpenAPI document, content keys, the other resources with ETags and `Accept-Version`, and the contract test.
+- Status: `doing`. Part 1 (#84): `crates/khalid-api` with the `filter` parser for one condition. Part 2 (this landing): every operator, `+`, `,` and brackets, with limits on length, depth and size. Next: printing and matching filters, the other list parameters, problem details and the envelope, posts behind a `ContentStore` trait with the OpenAPI document, content keys, the other resources with ETags and `Accept-Version`, and the contract test.
 - `/api/content/v1/` for posts, pages, authors, tags, categories, collections, glossary, case studies, changelog, settings and navigation, with the shared query grammar (`filter`, `include`, `fields`, `formats`, `limit`, `page`, `order`) parsed by one module, content keys, ETags, `Accept-Version`, and the OpenAPI document at `/api/openapi.json` generated with `utoipa`.
 - Rules: BL-API-4, BL-API-5, BL-ERR-5. `docs/standards/api.md`.
 - Done when: a contract test fails when routes and the OpenAPI document disagree, the filter grammar has property tests, and the demo posts come back through the API.
