@@ -1,7 +1,9 @@
-//! The command line contract: help, version, exit codes and messages
-//! (RULES.md BL-CLI-2 and BL-CLI-3).
+//! The command line contract: help, version, exit codes and messages, in both
+//! human and `--json` output (RULES.md BL-CLI-1 to BL-CLI-3).
 
 use std::process::{Command, Output};
+
+use serde_json::Value;
 
 /// Every command in docs/plan.md section 4.1, with the arguments it needs.
 const COMMANDS: &[&[&str]] = &[
@@ -71,6 +73,10 @@ fn help_lists_every_command() {
             "help does not list {command}:\n{help}"
         );
     }
+    assert!(
+        help.contains("--json"),
+        "help does not mention --json:\n{help}"
+    );
 }
 
 #[test]
@@ -98,6 +104,17 @@ fn version_prints_the_crate_version() {
 }
 
 #[test]
+fn version_with_json_prints_json() {
+    let output = byline(&["--version", "--json"]);
+    assert_eq!(output.status.code(), Some(0));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        json,
+        serde_json::json!({ "name": "byline", "version": env!("CARGO_PKG_VERSION") })
+    );
+}
+
+#[test]
 fn every_command_says_it_is_not_built_yet_and_exits_3() {
     for args in COMMANDS {
         let context = args.join(" ");
@@ -119,6 +136,66 @@ fn every_command_says_it_is_not_built_yet_and_exits_3() {
             assert_plain_sentence(line, &context);
         }
     }
+}
+
+#[test]
+fn every_command_accepts_json_and_prints_the_message_as_json() {
+    for args in COMMANDS {
+        let context = args.join(" ");
+        let mut with_json = args.to_vec();
+        with_json.push("--json");
+        let output = byline(&with_json);
+        assert_eq!(output.status.code(), Some(3), "byline {context} --json");
+        assert!(
+            output.stderr.is_empty(),
+            "byline {context} --json wrote to stderr"
+        );
+        let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+        for part in ["what", "why", "fix"] {
+            let sentence = json["error"][part].as_str().unwrap();
+            assert_plain_sentence(sentence, &format!("{context} --json, {part}"));
+        }
+    }
+}
+
+#[test]
+fn json_works_before_the_command_too() {
+    let output = byline(&["--json", "lint"]);
+    assert_eq!(output.status.code(), Some(3));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        json["error"]["what"]
+            .as_str()
+            .unwrap()
+            .contains("byline lint")
+    );
+}
+
+#[test]
+fn an_unknown_command_is_a_usage_error() {
+    let output = byline(&["launch"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = text(&output.stderr);
+    let lines: Vec<&str> = stderr.lines().collect();
+    assert_eq!(lines.len(), 3, "{stderr}");
+    assert!(lines[0].contains("launch"), "{stderr}");
+    for line in lines {
+        assert_plain_sentence(line, "launch");
+    }
+}
+
+#[test]
+fn a_usage_error_with_json_prints_json() {
+    let output = byline(&["launch", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(json["error"]["what"].as_str().unwrap().contains("launch"));
+    assert!(
+        json["error"]["fix"]
+            .as_str()
+            .unwrap()
+            .contains("byline --help")
+    );
 }
 
 #[test]

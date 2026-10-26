@@ -9,3 +9,4 @@ One file per decision the plan does not already make. Numbered, never edited aft
 | 0003 | The API is the only door | Accepted |
 | 0004 | Errors reach people as what, why, fix | Accepted |
 | 0005 | Permissive dependencies only, so SerpDad can reuse the crates | Accepted |
+| 0006 | Where the command line writes, and the shape of its JSON | Accepted |
