@@ -94,7 +94,7 @@
 
 ### 1.12 CSS and images
 
-- Status: `doing`. Media part 1 (this landing): `crates/khalid-media` with the content key, the widths an image is offered in, and the cache under `data/media/` with atomic writes. The stylesheet parts are stacked on the templates track (#75, #78).
+- Status: `doing`. Media part 1 (this landing): `crates/khalid-media` with the content key, the widths an image is offered in, and the cache under `data/media/` with atomic writes (#93). Media part 2 (this landing): decoding by content, Lanczos3 resizing, and WebP, JPEG and PNG encoding. AVIF waits on the dependency question below. The stylesheet parts are stacked on the templates track (#75, #78).
 - One public stylesheet under 20 KB compressed, critical CSS inline, tokens from `theme/tokens.toml`. Images resized and converted to WebP and AVIF at publish, never at request, with `width`, `height`, `srcset` and `sizes`.
 - Rules: BL-WEB-5, BL-WEB-7, BL-PERF-5, BL-RUN-7.
 - Done when: the CSS budget is measured in `scripts/perf.sh` and holds, and every rendered image has its four attributes.
@@ -177,7 +177,7 @@
 
 ## Questions for the founder
 
-None open.
+- **AVIF images need three exceptions in `deny.toml` (task 1.12, for the CTO session).** Every pure-Rust AVIF encoder is built on `rav1e`, which pulls in `libfuzzer-sys` (licence `(MIT OR Apache-2.0) AND NCSA`, not on our list), `av1-grain`, which uses `anyhow` (banned outside the binary), and `paste` (RUSTSEC-2024-0436, unmaintained). Why it matters: AVIF images are about half the size of JPEG, which helps the LCP budget, but the policy refuses these crates today. The choice: allow NCSA, add `av1-grain` as an `anyhow` wrapper and accept the `paste` advisory with a review date; or ship WebP with JPEG and PNG fallbacks only, which is what `khalid-media` does now. WebP alone already meets the budgets on the demo site. Adding AVIF later is one small pull request, because `Format` is non-exhaustive and the render side already accepts AVIF sources.
 
 ## Order
 
