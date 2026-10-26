@@ -188,8 +188,8 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.2 The five blocking rules
 
-- Status: `todo`
-- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`.
+- Status: `done` after this landing. Fixtures are `post.toml` files in the lint input model, because the crate reads no markdown; `tests/fixtures.rs` fails if a catalogue rule has no fixture.
+- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`. The three related posts the plan suggests with "no internal link" come in 2.5, with the rules that compare posts.
 - Rules: BL-TST-4. KH-LNT-1.
 - Done when: each fixture produces exactly its expected findings, and a clean post produces none.
 

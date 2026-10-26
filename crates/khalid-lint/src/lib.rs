@@ -12,6 +12,7 @@
 //! crates. It depends on `khalid-core` only, for shared identifiers. The
 //! content track builds the input model from its own types (ADR 0011).
 
+mod blocking;
 mod catalogue;
 mod finding;
 mod lint_config;

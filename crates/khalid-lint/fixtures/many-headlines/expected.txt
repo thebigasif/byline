@@ -1,0 +1,2 @@
+block many-headlines: What an internal link is
+block many-headlines: How many links to add
