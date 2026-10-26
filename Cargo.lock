@@ -1203,6 +1203,7 @@ dependencies = [
 name = "khalid-db"
 version = "0.0.0"
 dependencies = [
+ "khalid-core",
  "sqlx",
  "tempfile",
  "thiserror",
