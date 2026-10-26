@@ -9,10 +9,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use khalid_api::api;
-use khalid_content::EMBED_PROVIDERS;
+use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, SiteId};
-use khalid_server::{LivePages, Pages, SecurityHeaders, router, watch};
+use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
@@ -38,10 +38,21 @@ struct ServeBody<'a> {
     address: &'a str,
 }
 
-/// Serves the `site` folder, whose `config` was checked, on `listen`. The
-/// database opens first and closes last, after every request and the
-/// watch have stopped.
-pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Output) -> Exit {
+/// Serves the `site` folder, whose `config` and content were checked, on
+/// `listen`. The database opens first and closes last, after every request
+/// and the watch have stopped.
+///
+/// `start` holds the checked content and a look at the folder taken before
+/// it was read. The first pages are rendered from that content, which is
+/// then dropped, so the folder is read once at start and a file saved from
+/// the look on is always seen as an edit.
+pub(crate) fn run(
+    site: &Path,
+    config: &Config,
+    start: (SiteContent, FolderLook),
+    listen: SocketAddr,
+    output: Output,
+) -> Exit {
     let Ok(runtime) = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -52,7 +63,13 @@ pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Outp
         Ok(opened) => opened,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
-    let served = serve_with(site, config, listen, output, &runtime, (&database, id));
+    let served = serve_with(
+        (site, config),
+        start,
+        (listen, output),
+        &runtime,
+        (&database, id),
+    );
     runtime.block_on(database.close());
     match served {
         Ok(()) if output == Output::Human => report::text("Stopped.\n", Exit::Success),
@@ -63,10 +80,9 @@ pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Outp
 
 /// Renders the site, then answers on `listen` until told to stop.
 fn serve_with(
-    site: &Path,
-    config: &Config,
-    listen: SocketAddr,
-    output: Output,
+    (site, config): (&Path, &Config),
+    (checked, look): (SiteContent, FolderLook),
+    (listen, output): (SocketAddr, Output),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -79,8 +95,11 @@ fn serve_with(
     };
     let (source, pages) = SitePages::new(site, config.clone(), Some(feed))
         .and_then(|source| {
-            let (pages, not_found) = source.render_all()?;
-            let pages = Pages::new(pages, not_found).map_err(|_| serve_message::internal())?;
+            let (pages, not_found) = source.render_content(&checked)?;
+            drop(checked);
+            // Brotli copies are added once the server listens, so the first
+            // reader does not wait for them (docs/standards/performance.md).
+            let pages = Pages::plain(pages, not_found).map_err(|_| serve_message::internal())?;
             Ok((source, pages))
         })
         .map_err(|message| (message, Exit::Failure))?;
@@ -97,7 +116,16 @@ fn serve_with(
             .map_err(|_| (serve_message::internal(), Exit::Internal))?;
         announce(output, config, &format!("http://{local}{}", config.mount()));
         let live = LivePages::new(pages);
-        let watching = watch(site, &source, &live, WATCH_EVERY);
+        let compressing = live.clone();
+        tokio::spawn(async move {
+            if let Err(error) = compressing.compress().await {
+                tracing::warn!(
+                    ?error,
+                    "pages could not be compressed, so they are sent plain"
+                );
+            }
+        });
+        let watching = watch(site, &source, &live, look, WATCH_EVERY);
         let posts = SitePosts::new(site, config.clone(), SystemClock);
         let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
         let app = api.merge(router(live, security));

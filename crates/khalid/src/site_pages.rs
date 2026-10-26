@@ -6,7 +6,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use khalid_content::{ContentTree, read_content};
+use khalid_content::{ContentTree, SiteContent, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
@@ -71,6 +71,21 @@ impl SitePages {
     /// the not-found page of the default language. Reads files and renders,
     /// so it runs off the async runtime (RULES.md BL-RUN-7).
     pub(crate) fn render_all(&self) -> Result<(Vec<Page>, String), UserMessage> {
+        let folder = &self.0.folder;
+        let content = ContentTree::walk(folder)
+            .and_then(|tree| read_content(&tree))
+            .map_err(|error| content_message::of(folder, &error))?;
+        self.render_content(&content)
+    }
+
+    /// Every page made from `content`, already read from the site folder,
+    /// and the not-found page, refreshing the feed first when there is one.
+    /// At start, `khalid serve` passes the content it checked, so the folder
+    /// is read once, not twice.
+    pub(crate) fn render_content(
+        &self,
+        content: &SiteContent,
+    ) -> Result<(Vec<Page>, String), UserMessage> {
         let Site {
             folder,
             config,
@@ -78,14 +93,11 @@ impl SitePages {
             stylesheet,
             feed,
         } = &*self.0;
-        let content = ContentTree::walk(folder)
-            .and_then(|tree| read_content(&tree))
-            .map_err(|error| content_message::of(folder, &error))?;
         if let Some(feed) = feed {
-            let fed = published(&feed.db, feed.site, folder, config, &content);
+            let fed = published(&feed.db, feed.site, folder, config, content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
-        let languages = build_pages::pages(config, &content, stylesheet.path().as_str())?;
+        let languages = build_pages::pages(config, content, stylesheet.path().as_str())?;
         let mut pages = vec![stylesheet.clone()];
         let mut not_found = String::new();
         for language in &languages {
@@ -128,3 +140,24 @@ impl fmt::Display for Unrendered {
 }
 
 impl Error for Unrendered {}
+
+#[cfg(test)]
+mod tests {
+    use khalid_core::Environment;
+
+    use super::*;
+
+    #[test]
+    fn the_checked_content_renders_the_same_pages_as_the_folder() {
+        let mut demo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        demo.push("../../fixtures/demo-site");
+        let config = Config::load(&demo, &Environment::default()).unwrap();
+        let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
+        let source = SitePages::new(&demo, config, None).unwrap();
+        let (given, given_missing) = source.render_content(&content).unwrap();
+        let (read, read_missing) = source.render_all().unwrap();
+        assert!(given.len() > 10, "{} pages", given.len());
+        assert_eq!(given, read);
+        assert_eq!(given_missing, read_missing);
+    }
+}

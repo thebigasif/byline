@@ -60,6 +60,7 @@ use clap::{CommandFactory, Parser};
 use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
 use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
+use khalid_server::FolderLook;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
@@ -89,12 +90,27 @@ fn run(cli: &Cli) -> Exit {
             .unwrap_or(Path::new("."));
         return init::run(folder, args, cli.output);
     }
+    // The server's watch starts from a look taken before the content is
+    // read, so a post saved while the server starts still shows.
+    let look = match (&cli.command, cli.site.as_deref()) {
+        (Some(Command::Serve { .. }), Some(folder)) => Some(FolderLook::take(folder)),
+        _ => None,
+    };
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder) {
             Ok((config, content)) => Some((folder, config, content)),
             Err(message) => return report::failure(cli.output, &message, Exit::Failure),
         },
         None => None,
+    };
+    // The server renders its first pages from the checked content, then
+    // drops it, so it takes the content rather than borrowing it.
+    let site = match (&cli.command, site) {
+        (Some(Command::Serve { listen }), Some((folder, config, content))) => {
+            let look = look.unwrap_or_else(|| FolderLook::take(folder));
+            return serve::run(folder, &config, (content, look), *listen, cli.output);
+        }
+        (_, site) => site,
     };
     match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
@@ -122,9 +138,6 @@ fn run(cli: &Cli) -> Exit {
         ),
         (Some(Command::Keys { command }), Some((folder, ..))) => {
             keys::run(folder, command, cli.output)
-        }
-        (Some(Command::Serve { listen }), Some((folder, config, _))) => {
-            serve::run(folder, config, *listen, cli.output)
         }
         (
             Some(

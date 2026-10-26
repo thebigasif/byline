@@ -4,6 +4,7 @@
 //! ```text
 //! khalid-perf fixture 1000 target/perf/site-1k
 //! khalid-perf render target/perf/site-1k target/perf/render.json
+//! khalid-perf serve target/release/khalid 1000 target/perf/site-1k target/perf/serve-1k.json
 //! ```
 
 use std::fs;
@@ -11,15 +12,19 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use khalid_core::SystemClock;
-use khalid_perf::{Fixture, FixtureError, Prepared, RenderTimes};
+use khalid_perf::{Fixture, FixtureError, Prepared, RenderTimes, ServeTimes};
 use khalid_render::Renderer;
 
 const USAGE: &str = "Usage: khalid-perf fixture POSTS FOLDER\n       \
-                     khalid-perf render SITE OUT.json";
+                     khalid-perf render SITE OUT.json\n       \
+                     khalid-perf serve KHALID POSTS SITE OUT.json";
 
 /// Rounds over every page: one to warm up, then enough samples that the
 /// 99th percentile of a 1,000-post site rests on 40 renders.
 const ROUNDS: usize = 5;
+
+/// Starts of `khalid serve`, and edits to one post, behind each median.
+const SERVE_ROUNDS: usize = 5;
 
 #[expect(
     clippy::print_stderr,
@@ -31,6 +36,9 @@ fn main() -> ExitCode {
     let result = match *args.as_slice() {
         ["fixture", posts, folder] => fixture(posts, Path::new(folder)),
         ["render", site, out] => render(Path::new(site), Path::new(out)),
+        ["serve", khalid, posts, site, out] => {
+            serve(Path::new(khalid), posts, Path::new(site), Path::new(out))
+        }
         _ => Err(USAGE.to_owned()),
     };
     match result {
@@ -68,6 +76,23 @@ fn render(site: &Path, out: &Path) -> Result<(), String> {
         Renderer::new().map_err(|error| explain(format!("The templates failed: {error}.")))?;
     let times = RenderTimes::measure(&prepared, &renderer, ROUNDS, &SystemClock)
         .map_err(|error| explain(format!("A page failed to render: {error}.")))?;
+    fs::write(out, times.to_json())
+        .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
+}
+
+fn serve(khalid: &Path, posts: &str, site: &Path, out: &Path) -> Result<(), String> {
+    let explain = |what: String| {
+        format!(
+            "{what}\nWithout it, the server's budgets cannot be measured.\n\
+             Build khalid with `cargo build --release -p khalid`, write the site \
+             again with `khalid-perf fixture`, and run this once more."
+        )
+    };
+    let fixture = posts.parse().ok().and_then(Fixture::new).ok_or_else(|| {
+        format!("{USAGE}\nPOSTS is the number of posts the site was written with.")
+    })?;
+    let times = ServeTimes::measure(khalid, (site, fixture), SERVE_ROUNDS, &SystemClock)
+        .map_err(|error| explain(format!("Serving {} failed: {error}.", site.display())))?;
     fs::write(out, times.to_json())
         .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
 }
