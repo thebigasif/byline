@@ -11,3 +11,4 @@ One file per decision the plan does not already make. Numbered, never edited aft
 | 0005 | Permissive dependencies only, so SerpDad can reuse the crates | Accepted |
 | 0006 | Where the command line writes, and the shape of its JSON | Accepted |
 | 0007 | TLS through rustls with the ring provider | Accepted |
+| 0008 | YAML front matter, read with serde-saphyr | Accepted |
