@@ -1,0 +1,21 @@
+---
+source: crates/khalid-render/tests/render/glossary.rs
+expression: main_of(&page)
+---
+ id="main" tabindex="-1">
+
+<h1>Search</h1>
+<form class="search" role="search" action="/blog/search/" method="get">
+<label for="search-query">Search this blog</label>
+<input id="search-query" type="search" name="q" value="sitemap" autocomplete="off">
+<button type="submit">Search</button>
+</form>
+<section aria-labelledby="search-results">
+<h2 id="search-results">Results for “sitemap”</h2>
+<ol class="results">
+<li>
+<h3><a href="/blog/what-a-sitemap-does/">What a sitemap does, and what it does not</a></h3>
+<p>A sitemap lists the pages you want search engines to know about.</p>
+</li>
+</ol>
+</section>
