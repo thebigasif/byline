@@ -1,0 +1,46 @@
+---
+source: crates/khalid-content/tests/render.rs
+expression: "render(markdown, &en(), SlugMode::Ascii).html"
+---
+<h2 id="why-internal-links-matter">Why internal links matter</h2>
+<p>A paragraph with <strong>bold</strong>, <em>emphasis</em>, <code>code</code>, <del>old</del> and a <a href="/blog/title-tags/">link</a>.</p>
+<blockquote>
+<p>A quote from a reader.</p>
+</blockquote>
+<ul>
+<li>one</li>
+<li>two</li>
+</ul>
+<ol>
+<li>first</li>
+<li>second</li>
+</ol>
+<ul>
+<li><input type="checkbox" checked="" disabled="" /> done</li>
+<li><input type="checkbox" disabled="" /> to do</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Links in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Home</td>
+<td>12</td>
+</tr>
+</tbody>
+</table>
+<pre class="syntax-highlighting"><code class="language-rust"><span class="hl-source hl-rust"><span class="hl-storage hl-type hl-rust">let</span> links <span class="hl-keyword hl-operator hl-rust">=</span> <span class="hl-constant hl-numeric hl-integer hl-decimal hl-rust">3</span><span class="hl-punctuation hl-terminator hl-rust">;</span>
+</span></code></pre>
+<hr />
+<p>A claim that needs a source.<sup class="footnote-ref"><a href="#fn-1" id="fnref-1" data-footnote-ref>1</a></sup></p>
+<section class="footnotes" data-footnotes>
+<ol>
+<li id="fn-1">
+<p>The source. <a href="#fnref-1" class="footnote-backref" data-footnote-backref data-footnote-backref-idx="1" aria-label="Back to reference 1">↩</a></p>
+</li>
+</ol>
+</section>
