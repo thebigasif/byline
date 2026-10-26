@@ -9,6 +9,8 @@ use std::time::Duration;
 pub enum StructuredBlock {
     /// A video block, which becomes a `VideoObject`.
     Video(VideoBlock),
+    /// An FAQ block, which becomes an `FAQPage`. Answers are plain text.
+    Faq(Vec<Question>),
 }
 
 /// A video file played on the page, from `::video{...}`.
@@ -24,4 +26,13 @@ pub struct VideoBlock {
     pub description: Option<String>,
     /// How long it runs.
     pub duration: Option<Duration>,
+}
+
+/// One question of an FAQ and its answer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Question {
+    /// The question.
+    pub text: String,
+    /// The answer: markdown in a block, plain text in structured data.
+    pub answer: String,
 }

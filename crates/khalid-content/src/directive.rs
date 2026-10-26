@@ -1,16 +1,18 @@
 //! Reading directive blocks, `::name{...}` and `:::name{...}` (ADR 0012).
 
-use khalid_core::AbsoluteUrl;
-
 use std::time::Duration;
+
+use khalid_core::AbsoluteUrl;
 
 use crate::{BlockError, BlockKind, CalloutKind, GalleryImage, VideoBlock};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 11] = [
-    "audio", "bookmark", "button", "callout", "embed", "figure", "file", "gallery", "toc",
+pub(crate) const BLOCKS: [&str; 12] = [
+    "audio", "bookmark", "button", "callout", "embed", "faq", "figure", "file", "gallery", "toc",
     "toggle", "video",
 ];
+
+mod nested;
 
 /// What to say after "there is no block called `name`": the nearest block
 /// name when one is a typing slip away, or where the names come from.
@@ -79,17 +81,8 @@ pub(crate) fn directive(
     form: Form,
     body: &[&str],
 ) -> Result<BlockKind, BlockError> {
-    let (name, braces) = rest
-        .split_once('{')
-        .map_or((rest, ""), |(name, braces)| (name, braces));
-    let name = name.trim();
+    let (name, attributes) = read(line, rest)?;
     check_form(line, name, form)?;
-    let list = match braces.strip_suffix('}') {
-        Some(inside) => parse_attributes(inside).ok_or(BlockError::Attributes { line })?,
-        None if braces.is_empty() => Vec::new(),
-        None => return Err(BlockError::Attributes { line }),
-    };
-    let attributes = Attributes { line, list };
     match name {
         "callout" => callout(&attributes),
         "figure" => figure(&attributes),
@@ -105,11 +98,26 @@ pub(crate) fn directive(
         "gallery" => attributes
             .only("gallery", &[], "nothing")
             .and_then(|()| gallery(line, body)),
+        "faq" => nested::faq(&attributes, body),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
         }),
     }
+}
+
+/// Splits a directive's `rest`, written on body `line`, into its name and
+/// attributes.
+fn read(line: usize, rest: &str) -> Result<(&str, Attributes), BlockError> {
+    let (name, braces) = rest
+        .split_once('{')
+        .map_or((rest, ""), |(name, braces)| (name, braces));
+    let list = match braces.strip_suffix('}') {
+        Some(inside) => parse_attributes(inside).ok_or(BlockError::Attributes { line })?,
+        None if braces.is_empty() => Vec::new(),
+        None => return Err(BlockError::Attributes { line }),
+    };
+    Ok((name.trim(), Attributes { line, list }))
 }
 
 /// Refuses a known block written in the other form, naming the right one.

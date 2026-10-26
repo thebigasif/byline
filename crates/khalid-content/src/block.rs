@@ -4,7 +4,7 @@ use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 use khalid_core::{AbsoluteUrl, ParseUrlError};
 
-use crate::VideoBlock;
+use crate::{Question, VideoBlock};
 
 use crate::directive::{Form, directive, opening, unknown_hint};
 
@@ -114,6 +114,12 @@ pub enum BlockKind {
         src: String,
         /// The link's words.
         title: String,
+    },
+    /// `::::faq` holding one `:::question{text="..."}` per question, its
+    /// answer as the body. Readers open each answer with scripts off.
+    Faq {
+        /// The questions, in order, with their answers in markdown.
+        questions: Vec<Question>,
     },
     /// `:::gallery` with one `![alt](src)` image per line: a grid of
     /// pictures.

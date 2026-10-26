@@ -31,5 +31,5 @@ pub use schemas::{
     AuthorFront, CaseStudyFront, ChangelogFront, GlossaryFront, IndexFront, PageFront, SnippetFront,
 };
 pub use site_content::{Document, SiteContent, read_content};
-pub use structured::{StructuredBlock, VideoBlock};
+pub use structured::{Question, StructuredBlock, VideoBlock};
 pub use tree::{Collection, ContentTree, Entry, Language};

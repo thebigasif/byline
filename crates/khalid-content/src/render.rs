@@ -14,6 +14,7 @@ use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 use crate::{Block, BlockError, BlockKind, CalloutKind, StructuredBlock, embed, parse_blocks};
 
 mod media;
+mod steps;
 
 /// A body rendered to HTML.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -218,6 +219,7 @@ impl Renderer {
             BlockKind::Audio { src, title } => self.audio(src, title),
             BlockKind::File { src, title } => self.file(src, title),
             BlockKind::Gallery { images } => self.gallery(images),
+            BlockKind::Faq { questions } => self.faq(questions),
             _ => {}
         }
     }
