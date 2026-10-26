@@ -25,7 +25,10 @@ pub use clock::FixedClock;
 pub use clock::{Clock, SystemClock};
 pub use config::{Config, ConfigError, Environment, Mode, SlugMode};
 pub use locale::{Locale, ParseLocaleError};
-pub use robots::{Following, ImagePreview, Indexing, PreviewLimit, Restriction, RobotsDirectives};
+pub use robots::{
+    Following, ImagePreview, Indexing, ParseRobotsError, PreviewLimit, Restriction,
+    RobotsDirectives,
+};
 pub use secret::Secret;
 pub use site_path::{SitePath, SitePathError};
 pub use slug::{ParseSlugError, Slug};
