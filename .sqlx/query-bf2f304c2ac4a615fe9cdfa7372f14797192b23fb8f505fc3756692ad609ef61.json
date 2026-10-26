@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM translations WHERE site_id = ?1 AND path = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "bf2f304c2ac4a615fe9cdfa7372f14797192b23fb8f505fc3756692ad609ef61"
+}
