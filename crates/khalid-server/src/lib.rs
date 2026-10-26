@@ -30,6 +30,7 @@ mod security;
 mod serve;
 mod server_error;
 mod watch;
+mod watch_events;
 
 pub use background::Background;
 pub use live_pages::LivePages;
@@ -43,4 +44,4 @@ pub use retry::retry_deliveries;
 pub use security::SecurityHeaders;
 pub use serve::{Stopped, serve};
 pub use server_error::ServerError;
-pub use watch::{FolderLook, watch};
+pub use watch::{FolderLook, poll, watch};
