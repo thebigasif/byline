@@ -14,13 +14,17 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use khalid_api::api;
-use khalid_api::keys::{KeyToken, MemoryKeyStore, StoredKey};
+use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
+use khalid_api::post_store::MemoryPostStore;
 use serde_json::Value;
 use tower::ServiceExt;
 
-/// A content key made up for these tests. It opens nothing real.
+/// Keys made up for these tests: a content key, and an integration key
+/// with every scope. They open nothing real.
 const KEY: &str =
     "kc_0123456789abcdef_00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+const ADMIN: &str =
+    "ki_1111222233334444_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
 
 /// The resources `docs/standards/api.md` names.
 const RESOURCES: [&str; 17] = [
@@ -49,9 +53,24 @@ const METHODS: [&str; 5] = ["get", "post", "put", "patch", "delete"];
 #[cfg(test)]
 fn api() -> (Router, Value) {
     let token: KeyToken = KEY.parse().unwrap();
-    let keys = MemoryKeyStore::new(vec![StoredKey::for_token(&token)]);
-    let (router, document) = api::router(Arc::new(common::store()), Arc::new(keys));
+    let admin: KeyToken = ADMIN.parse().unwrap();
+    let hashing = KeyHashing::fast_for_tests();
+    let all = StoredKey::for_integration(&admin, vec![Scope::AdminAll], &hashing).unwrap();
+    let keys = MemoryKeyStore::new(vec![StoredKey::for_token(&token), all]);
+    let posts = Arc::new(MemoryPostStore::default());
+    let (router, document) = api::router(Arc::new(common::store()), posts, Arc::new(keys));
     (router, serde_json::to_value(document).unwrap())
+}
+
+/// A valid key for the API `path` belongs to, so a key layer never answers
+/// in a handler's place.
+#[cfg(test)]
+fn authorization(path: &str) -> String {
+    if path.starts_with("/api/admin/") {
+        format!("Khalid {ADMIN}")
+    } else {
+        format!("Khalid-Content {KEY}")
+    }
 }
 
 /// Whether a request reached a handler: the router's own refusals carry
@@ -61,7 +80,7 @@ async fn reaches_a_handler(router: &Router, method: &str, path: &str) -> bool {
     let request = Request::builder()
         .method(Method::from_bytes(method.to_uppercase().as_bytes()).unwrap())
         .uri(path)
-        .header("authorization", format!("Khalid-Content {KEY}"))
+        .header("authorization", authorization(path))
         .header("content-type", "application/json")
         .body(Body::from("{}"))
         .unwrap();

@@ -1,4 +1,4 @@
-//! The APIs behind one router, and the one `OpenAPI` document.
+//! Both APIs behind one router, and the one `OpenAPI` document.
 
 use std::sync::Arc;
 
@@ -11,8 +11,9 @@ use utoipa_axum::router::OpenApiRouter;
 
 use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
+use crate::post_store::PostStore;
 use crate::problem::Problem;
-use crate::{api_version, content_api};
+use crate::{admin_api, api_version, content_api};
 
 /// The document's title, the schemas every route shares and the ways a
 /// key may be sent.
@@ -48,6 +49,13 @@ impl Modify for KeySchemes {
                     "The site's content key.",
                 )),
             ),
+            (
+                "admin_key",
+                ApiKey::Header(ApiKeyValue::with_description(
+                    "Authorization",
+                    "An integration key or staff token, as Khalid followed by the key.",
+                )),
+            ),
         ];
         for (name, scheme) in schemes {
             components.add_security_scheme(name, SecurityScheme::ApiKey(scheme));
@@ -55,12 +63,20 @@ impl Modify for KeySchemes {
     }
 }
 
-/// The APIs and `/api/openapi.json`, with the document every route
-/// declares (RULES.md BL-API-4). The document itself needs no key. The
-/// Admin API joins here in the next parts of task 1.18.
-pub fn router(content: Arc<dyn ContentStore>, keys: Arc<dyn KeyStore>) -> (Router, Document) {
+/// The Content API under `/api/content/v1/`, the Admin API under
+/// `/api/admin/v1/`, and `/api/openapi.json`, with the document every
+/// route declares (RULES.md BL-API-4). The document itself needs no key.
+pub fn router(
+    content: Arc<dyn ContentStore>,
+    posts: Arc<dyn PostStore>,
+    keys: Arc<dyn KeyStore>,
+) -> (Router, Document) {
     let api = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest(content_api::BASE, content_api::routes(content, keys));
+        .nest(
+            content_api::BASE,
+            content_api::routes(content, Arc::clone(&keys)),
+        )
+        .nest(admin_api::BASE, admin_api::routes(posts, keys));
     finish(api)
 }
 

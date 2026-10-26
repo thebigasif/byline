@@ -26,6 +26,8 @@ pub enum ProblemType {
     Internal,
     /// The request carried no key the API accepts.
     Unauthorized,
+    /// The key is known but may not do this.
+    Forbidden,
     /// `Accept-Version` is not a version.
     InvalidVersion,
     /// `Accept-Version` asks for a version this server does not serve.
@@ -40,6 +42,7 @@ impl ProblemType {
             Self::LintBlocked => "lint-blocked",
             Self::Internal => "internal",
             Self::Unauthorized => "unauthorized",
+            Self::Forbidden => "forbidden",
             Self::InvalidVersion => "invalid-version",
             Self::VersionNotSupported => "version-not-supported",
         }
@@ -52,6 +55,7 @@ impl ProblemType {
             Self::LintBlocked => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Internal => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Forbidden => StatusCode::FORBIDDEN,
             Self::VersionNotSupported => StatusCode::NOT_ACCEPTABLE,
         }
     }
@@ -63,6 +67,7 @@ impl ProblemType {
             Self::LintBlocked => "The post cannot be published",
             Self::Internal => "The server could not answer",
             Self::Unauthorized => "The key was not accepted",
+            Self::Forbidden => "This key cannot do that",
             Self::InvalidVersion => "The version could not be read",
             Self::VersionNotSupported => "This version is not served here",
         }
