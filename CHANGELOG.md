@@ -6,6 +6,7 @@ What changed for people who use Khalid, one line per change, newest first. Group
 
 ### Added
 
+- Webhooks: 32 named events, each delivery signed with `Khalid-Signature`, retried for up to a day, and kept in a delivery log. They switch on when the server lands (KH-API-3).
 - `khalid --site <folder> db rebuild` fills the site's index from its posts again. Comments, subscribers and other visitor data are kept.
 - `khalid --site <folder> db migrate` makes the site's database at `data/site.db`, or brings it up to date.
 - `khalid --help` lists every planned command: init, serve, new, lint, publish, theme, import, export, mcp, doctor, backup, audit, update, pull and keys.

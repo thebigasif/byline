@@ -1804,6 +1804,7 @@ dependencies = [
  "chrono",
  "hmac",
  "khalid-core",
+ "khalid-outbound",
  "khalid-webhooks",
  "proptest",
  "serde",
@@ -1811,6 +1812,7 @@ dependencies = [
  "sha2 0.11.1",
  "thiserror",
  "tokio",
+ "wiremock",
 ]
 
 [[package]]

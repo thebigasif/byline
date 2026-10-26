@@ -67,6 +67,16 @@ impl Attempt {
     pub fn new(at: DateTime<Utc>, outcome: Outcome) -> Self {
         Self { at, outcome }
     }
+
+    /// When it was made.
+    pub fn at(&self) -> DateTime<Utc> {
+        self.at
+    }
+
+    /// How it ended.
+    pub fn outcome(&self) -> &Outcome {
+        &self.outcome
+    }
 }
 
 /// Where a delivery stands.

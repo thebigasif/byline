@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use crate::{Delivery, NewDelivery, WebhookId};
 
 /// The delivery log's storage. `khalid-db` implements it on SQLite in task
-/// 1.15. [`MemoryDeliveryStore`], from the `test-util` feature, keeps it in
+/// 1.15. `MemoryDeliveryStore`, from the `test-util` feature, keeps it in
 /// memory for tests.
 pub trait DeliveryStore: Send + Sync {
     /// Stores a new delivery and returns it with its identifier.
