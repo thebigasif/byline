@@ -1,8 +1,10 @@
 //! The resources as the API sends them. Other crates fill them from
 //! content files and the database; this crate only shapes them.
 
+mod collection;
 mod post;
 
+pub use collection::Collection;
 pub use post::{Bodies, Post};
 
 use std::fmt::Display;

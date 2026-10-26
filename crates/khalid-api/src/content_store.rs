@@ -7,7 +7,7 @@ use std::pin::Pin;
 use khalid_core::Slug;
 
 use crate::query::ListQuery;
-use crate::resources::Post;
+use crate::resources::{Collection, Post};
 
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
@@ -20,35 +20,39 @@ pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Published content, read by the Content API. Task 1.15 implements it on
 /// the content index in `khalid-db`; `MemoryContentStore`, from the
-/// `test-util` feature, keeps posts in memory for tests.
+/// `test-util` feature, keeps entries in memory for tests.
 ///
 /// A store applies the query's filter, order and page itself, so a
 /// database can do it in SQL. Fields named in the query have already been
 /// checked against [`Post::FILTER_FIELDS`].
 pub trait ContentStore: Send + Sync {
-    /// One page of published posts matching `query`, newest first unless
-    /// `query` orders them, with the number that match in all.
+    /// One page of the published entries of `collection` matching `query`,
+    /// newest first unless `query` orders them, with the number that match
+    /// in all.
     ///
     /// # Errors
     ///
     /// Returns [`ContentStoreError`] when the content cannot be read.
-    fn posts<'a>(
+    fn list<'a>(
         &'a self,
+        collection: Collection,
         query: &'a ListQuery,
     ) -> BoxFuture<'a, Result<Listed<Post>, ContentStoreError>>;
 
-    /// One published post, or `None` when nothing has that key.
+    /// One published entry of `collection`, or `None` when nothing in it
+    /// has that key.
     ///
     /// # Errors
     ///
     /// Returns [`ContentStoreError`] when the content cannot be read.
-    fn post<'a>(
+    fn find<'a>(
         &'a self,
+        collection: Collection,
         key: &'a PostKey,
     ) -> BoxFuture<'a, Result<Option<Post>, ContentStoreError>>;
 }
 
-/// How one post is asked for: `/posts/{id}/` or `/posts/slug/{slug}/`.
+/// How one entry is asked for: `/posts/{id}/` or `/posts/slug/{slug}/`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PostKey {
     /// By identity.

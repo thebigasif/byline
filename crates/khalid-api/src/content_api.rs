@@ -22,7 +22,7 @@ use crate::keys::KeyStore;
 use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
 use crate::query::{ListQuery, RawListQuery};
-use crate::resources::Post;
+use crate::resources::{Collection, Post};
 
 /// Where the Content API lives.
 const BASE: &str = "/api/content/v1";
@@ -114,7 +114,7 @@ async fn browse_posts(
     let query = ListQuery::try_from(&raw)?;
     check_fields(&query)?;
     let listed = store
-        .posts(&query)
+        .list(Collection::Posts, &query)
         .await
         .map_err(|error| Problem::internal(&error))?;
     let meta = Meta::new(query.page(), query.limit(), listed.total());
@@ -168,7 +168,7 @@ async fn read_post_by_slug(
 
 async fn one(store: &Store, key: &PostKey, path: &str) -> Result<Json<Posts>, Problem> {
     let post = store
-        .post(key)
+        .find(Collection::Posts, key)
         .await
         .map_err(|error| Problem::internal(&error))?;
     let post = post.ok_or_else(|| not_found(path))?;

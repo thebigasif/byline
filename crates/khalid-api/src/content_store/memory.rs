@@ -5,25 +5,31 @@ use std::cmp::Ordering;
 use super::{BoxFuture, ContentStore, ContentStoreError, Listed, PostKey};
 use crate::pagination::Meta;
 use crate::query::{Direction, FieldValues, Limit, ListQuery, Literal};
-use crate::resources::Post;
+use crate::resources::{Collection, Post};
 
-/// Posts held in memory, filtered, sorted and paged the way a database
+/// Entries held in memory, filtered, sorted and paged the way a database
 /// store would. For tests only.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryContentStore {
-    posts: Vec<Post>,
+    entries: Vec<(Collection, Post)>,
 }
 
 impl MemoryContentStore {
-    /// A store holding `posts`.
-    pub fn new(posts: Vec<Post>) -> Self {
-        Self { posts }
+    /// A store holding `entries`, each in its collection.
+    pub fn new(entries: Vec<(Collection, Post)>) -> Self {
+        Self { entries }
     }
 
-    fn list(&self, query: &ListQuery) -> Listed<Post> {
-        let mut found: Vec<&Post> = self
-            .posts
+    fn in_collection(&self, collection: Collection) -> impl Iterator<Item = &Post> {
+        self.entries
             .iter()
+            .filter(move |(of, _)| *of == collection)
+            .map(|(_, post)| post)
+    }
+
+    fn select(&self, collection: Collection, query: &ListQuery) -> Listed<Post> {
+        let mut found: Vec<&Post> = self
+            .in_collection(collection)
             .filter(|post| query.filter().is_none_or(|filter| filter.matches(*post)))
             .collect();
         found.sort_by(|a, b| {
@@ -51,9 +57,8 @@ impl MemoryContentStore {
         Listed::new(items, total)
     }
 
-    fn find(&self, key: &PostKey) -> Option<Post> {
-        self.posts
-            .iter()
+    fn lookup(&self, collection: Collection, key: &PostKey) -> Option<Post> {
+        self.in_collection(collection)
             .find(|post| match key {
                 PostKey::Id(id) => post.id() == id,
                 PostKey::Slug(slug) => post.slug() == slug,
@@ -64,18 +69,20 @@ impl MemoryContentStore {
 
 /// Memory answers at once, so each future is ready when returned.
 impl ContentStore for MemoryContentStore {
-    fn posts<'a>(
+    fn list<'a>(
         &'a self,
+        collection: Collection,
         query: &'a ListQuery,
     ) -> BoxFuture<'a, Result<Listed<Post>, ContentStoreError>> {
-        Box::pin(std::future::ready(Ok(self.list(query))))
+        Box::pin(std::future::ready(Ok(self.select(collection, query))))
     }
 
-    fn post<'a>(
+    fn find<'a>(
         &'a self,
+        collection: Collection,
         key: &'a PostKey,
     ) -> BoxFuture<'a, Result<Option<Post>, ContentStoreError>> {
-        Box::pin(std::future::ready(Ok(self.find(key))))
+        Box::pin(std::future::ready(Ok(self.lookup(collection, key))))
     }
 }
 

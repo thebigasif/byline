@@ -6,6 +6,7 @@ mod common;
 use common::store;
 use khalid_api::content_store::{ContentStore, PostKey};
 use khalid_api::query::{ListQuery, RawListQuery};
+use khalid_api::resources::Collection;
 use khalid_core::Slug;
 
 #[cfg(test)]
@@ -21,7 +22,7 @@ async fn slugs(pairs: &[(&str, &str)]) -> (Vec<String>, u64) {
         }
     }
     let query = ListQuery::try_from(&raw).unwrap();
-    let listed = store().posts(&query).await.unwrap();
+    let listed = store().list(Collection::Posts, &query).await.unwrap();
     let slugs = listed
         .items()
         .iter()
@@ -94,10 +95,42 @@ async fn pages_cut_the_list_and_keep_the_total() {
 async fn one_post_by_id_or_slug() {
     let store = store();
     let by_slug = PostKey::Slug(Slug::try_new("fixing-slow-pages").unwrap());
-    let found = store.post(&by_slug).await.unwrap().unwrap();
+    let found = store
+        .find(Collection::Posts, &by_slug)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(found.id(), "fixing-slow-pages-en");
     let by_id = PostKey::Id("what-a-sitemap-does-en".to_owned());
-    assert!(store.post(&by_id).await.unwrap().is_some());
+    assert!(
+        store
+            .find(Collection::Posts, &by_id)
+            .await
+            .unwrap()
+            .is_some()
+    );
     let missing = PostKey::Slug(Slug::try_new("no-such-post").unwrap());
-    assert_eq!(store.post(&missing).await.unwrap(), None);
+    assert_eq!(store.find(Collection::Posts, &missing).await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn each_collection_keeps_its_own_entries() {
+    let store = store();
+    let query = ListQuery::try_from(&RawListQuery::default()).unwrap();
+    let pages = store.list(Collection::Pages, &query).await.unwrap();
+    let slugs: Vec<String> = pages
+        .items()
+        .iter()
+        .map(|page| page.slug().to_string())
+        .collect();
+    assert_eq!((slugs, pages.total()), (vec!["about".to_owned()], 1));
+    let about = PostKey::Slug(Slug::try_new("about").unwrap());
+    assert_eq!(store.find(Collection::Posts, &about).await.unwrap(), None);
+    assert!(
+        store
+            .find(Collection::Pages, &about)
+            .await
+            .unwrap()
+            .is_some()
+    );
 }
