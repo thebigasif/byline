@@ -150,9 +150,9 @@ One file is the standard. The skills point to it, reviewers cite its IDs, and ev
 
 | ID | Rule | Source | Enforced |
 |---|---|---|---|
-| BL-SIZ-1 | Functions under about 80 lines and six parameters. Files under about 600 hand-written lines | BR, CL, BL | L (`too_many_lines` at 80, `too_many_arguments` at 6), S (file size) |
-| BL-SIZ-2 | A crate does one thing and is named for it. Split when it grows a second purpose. Never nest a crate in another crate's `src/` | BR | R |
-| BL-SIZ-3 | Leaf modules are named after their main item. Non-leaf modules hold only `mod` lines and re-exports | BR | R |
+| BL-SIZE-1 | Functions under about 80 lines and six parameters. Files under about 600 hand-written lines | BR, CL, BL | L (`too_many_lines` at 80, `too_many_arguments` at 6), S (file size) |
+| BL-SIZE-2 | A crate does one thing and is named for it. Split when it grows a second purpose. Never nest a crate in another crate's `src/` | BR | R |
+| BL-SIZE-3 | Leaf modules are named after their main item. Non-leaf modules hold only `mod` lines and re-exports | BR | R |
 
 ## Tests
 

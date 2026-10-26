@@ -4,7 +4,7 @@ The `rust-best-practices` skill holds the general rules. This file holds the Byl
 
 ## Workspace
 
-One Cargo workspace at the repository root, flat `crates/` folder, one purpose per crate (BL-SIZ-2). Start with few crates and split when one grows a second purpose. The intended map, as a guide rather than a mandate:
+One Cargo workspace at the repository root, flat `crates/` folder, one purpose per crate (BL-SIZE-2). Start with few crates and split when one grows a second purpose. The intended map, as a guide rather than a mandate:
 
 | Crate | Owns | Must not know about |
 |---|---|---|
