@@ -23,8 +23,9 @@ struct Payload<'a, R> {
 
 /// Announces events: one signed delivery per subscribed webhook, sent
 /// through [`Outbound`] (RULES.md BL-RUN-8) and logged in the
-/// [`DeliveryStore`]. The server runs it on its own task, so a slow
-/// receiver never delays a request.
+/// [`DeliveryStore`]; failures are retried on the [`RetrySchedule`]. The
+/// server runs it on its own task, so a slow receiver never delays a
+/// request.
 #[derive(Debug)]
 pub struct Dispatcher<S> {
     outbound: Outbound,
@@ -90,6 +91,25 @@ impl<S: DeliveryStore> Dispatcher<S> {
             sent.push(self.attempt(webhook, delivery).await?);
         }
         Ok(sent)
+    }
+
+    /// Tries again every delivery that is due, and returns them as logged.
+    /// The server calls this on a timer. A delivery whose webhook is not in
+    /// `webhooks` was removed with it, and is skipped.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DispatchError::Store`] when the log cannot be read or
+    /// written.
+    pub async fn retry_due(&self, webhooks: &[Webhook]) -> Result<Vec<Delivery>, DispatchError> {
+        let mut retried = Vec::new();
+        for delivery in self.store.due(self.clock.now()).await? {
+            let owner = webhooks.iter().find(|hook| hook.id() == delivery.webhook());
+            if let Some(webhook) = owner {
+                retried.push(self.attempt(webhook, delivery).await?);
+            }
+        }
+        Ok(retried)
     }
 
     /// Signs the body afresh, sends it, and records what came back.

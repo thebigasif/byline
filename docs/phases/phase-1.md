@@ -146,7 +146,7 @@
 
 ### 1.19 Webhooks
 
-- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (#56): the verifier for incoming webhooks. Part 5 (#61): the delivery log model and the retry schedule over 24 hours. Part 6 (#70): the `DeliveryStore` trait with an in-memory store. Part 7 (this landing): the `Dispatcher`, which signs, sends through `Outbound` and logs. Part 8: retrying what is due.
+- Status: `done` after this landing. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (#56): the verifier for incoming webhooks. Part 5 (#61): the delivery log model and the retry schedule over 24 hours. Part 6 (#70): the `DeliveryStore` trait with an in-memory store. Part 7 (#74): the `Dispatcher`, which signs, sends through `Outbound` and logs. Part 8 (this landing): retrying what is due. Task 1.15 implements `DeliveryStore` on SQLite and calls `retry_due` on a timer.
 - The events in plan section 5.12, signed with HMAC-SHA256 over timestamp and body, sent through `Outbound`, retried with backoff over 24 hours, with a delivery log in the database.
 - Rules: BL-SEC-7, BL-RUN-8.
 - Done when: `wiremock` tests show each event fires once, is signed correctly, and retries after a failure.

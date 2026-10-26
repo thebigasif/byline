@@ -6,6 +6,7 @@ What changed for people who use Khalid, one line per change, newest first. Group
 
 ### Added
 
+- Webhooks: 32 named events, each delivery signed with `Khalid-Signature`, retried for up to a day, and kept in a delivery log. They switch on when the server lands (KH-API-3).
 - `khalid --help` lists every planned command: init, serve, new, lint, publish, theme, import, export, mcp, doctor, backup, audit, update, pull and keys.
 - Each command explains in three plain sentences that it is not built yet, and exits with code 3.
 - `--json` on every command prints the same message as JSON, for scripts and agents.

@@ -176,3 +176,64 @@ async fn every_event_in_the_catalogue_fires_once() {
     let want: Vec<&str> = Event::ALL.iter().map(|event| event.as_str()).collect();
     assert_eq!(names, want);
 }
+
+#[cfg(test)]
+fn set(clock: &HandClock, unix: i64) {
+    *clock.0.lock().unwrap() = at(unix);
+}
+
+#[tokio::test]
+async fn a_failure_is_retried_when_due_with_a_fresh_signature() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(503))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+    let (dispatcher, clock) = dispatcher(vec![]);
+    let hooks = [webhook(1, &server.uri(), vec![Event::PostPublished])];
+    let sent = dispatcher
+        .publish(&hooks, Event::PostPublished, &post())
+        .await
+        .unwrap();
+    let next = at(START + 60);
+    assert_eq!(sent[0].state(), &DeliveryState::Pending { next_at: next });
+
+    set(&clock, START + 59);
+    assert_eq!(dispatcher.retry_due(&hooks).await.unwrap(), []);
+    set(&clock, START + 60);
+    let retried = dispatcher.retry_due(&hooks).await.unwrap();
+    assert_eq!(retried[0].state(), &DeliveryState::Delivered { at: next });
+    assert_eq!(retried[0].attempts().len(), 2);
+    set(&clock, START + 86_400);
+    assert_eq!(dispatcher.retry_due(&hooks).await.unwrap(), []);
+
+    let received = server.received_requests().await.unwrap();
+    assert_eq!(received.len(), 2);
+    assert_eq!(received[0].body, received[1].body);
+    let signature = |i: usize| received[i].headers.get("khalid-signature").cloned();
+    assert_ne!(signature(0), signature(1));
+}
+
+#[tokio::test]
+async fn a_delivery_for_a_removed_webhook_is_not_retried() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let (dispatcher, clock) = dispatcher(vec![]);
+    let hooks = [webhook(1, &server.uri(), vec![Event::TagAdded])];
+    let tag = json!({"tag": {"slug": "internal-links"}});
+    dispatcher
+        .publish(&hooks, Event::TagAdded, &tag)
+        .await
+        .unwrap();
+    set(&clock, START + 60);
+    assert_eq!(dispatcher.retry_due(&[]).await.unwrap(), []);
+}
