@@ -1,0 +1,25 @@
+# The demo site. Every benchmark, snapshot and end-to-end test uses it from
+# Phase 1 on (docs/phases/phase-0.md, task 0.5). Phase 1 fixes the schema of
+# this file; until then the keys follow docs/plan.md sections 4.3 and 5.4.
+
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+mode = "server"
+default_language = "en"
+languages = ["en", "de"]
+
+[[categories]]
+slug = "on-page-seo"
+en = "On-page SEO"
+de = "Onpage-SEO"
+
+[[categories]]
+slug = "technical-seo"
+en = "Technical SEO"
+de = "Technisches SEO"
+
+[[categories]]
+slug = "content-strategy"
+en = "Content strategy"
+de = "Content-Strategie"
