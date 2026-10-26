@@ -149,6 +149,110 @@ fn lint_warns_about_an_accented_address_on_a_plain_address_site() {
     assert_eq!(found["subject"], "cafe-menus");
 }
 
+/// A good post that links to its own site over `http://`; the demo site's
+/// address is `https://www.example.com`.
+const INSECURE: &str = "---
+title: Why internal links matter
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+---
+
+An internal link points to [how to pick link text](/blog/choosing-link-text/), and
+an old one to [pruning posts](http://example.com/blog/pruning-old-posts/).
+";
+
+#[test]
+fn lint_warns_about_a_link_to_the_own_site_over_http() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", INSECURE)]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let found = findings
+        .iter()
+        .find(|f| f["rule"] == "insecure-internal-link");
+    let found = found.unwrap_or_else(|| panic!("no insecure-internal-link in {json}"));
+    assert_eq!(found["severity"], "warn");
+    assert_eq!(
+        found["subject"],
+        "http://example.com/blog/pruning-old-posts/"
+    );
+}
+
+/// A good post written in three very long sentences of long words, under
+/// a heading with no full stop.
+const DENSE: &str = "---
+title: Why internal links matter
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+---
+
+## Documentation at scale
+
+Organizations implementing comprehensive internationalization strategies frequently underestimate the considerable administrative complexity introduced whenever multilingual documentation requires synchronized maintenance across numerous independently managed publication environments, particularly where contributors collaborate without [standardized terminology](/blog/choosing-link-text/).
+
+Consequently, editorial departments responsible for authoritative reference material increasingly demand sophisticated verification procedures, systematic translation memories, comprehensive revision histories, and meticulously documented approval workflows before anything reaches publicly accessible destinations or downstream syndication partners.
+
+Unfortunately, organizations attempting simultaneous modernization of infrastructure, governance, localization, accessibility, and performance commonly discover that interdependent requirements multiply exponentially, transforming seemingly straightforward improvements into lengthy, expensive, politically complicated undertakings that exhaust available engineering capacity and postpone measurable benefits indefinitely.
+";
+
+#[test]
+fn lint_warns_about_a_post_that_is_hard_to_read() {
+    let dense = site(&[("2026-09-14-why-internal-links-matter.md", DENSE)]);
+    let output = khalid(dense.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let found = findings.iter().find(|f| f["rule"] == "hard-to-read");
+    let found = found.unwrap_or_else(|| panic!("no hard-to-read in {json}"));
+    assert_eq!(found["severity"], "warn");
+    let easy = site(&[("2026-09-14-why-internal-links-matter.md", GOOD)]);
+    let output = khalid(easy.path(), &["lint", "--json"]);
+    assert!(!text(&output.stdout).contains("hard-to-read"));
+}
+
+/// A good post that moved: its old path redirects to it.
+const MOVED: &str = "---
+title: Choosing link text
+date: 2026-09-10
+author: asif
+description: Good link text names the page it opens, so readers know where they go.
+aliases:
+  - /blog/link-text-tips/
+---
+
+Good link text names the page it opens, like [why links matter](/blog/why-internal-links-matter/).
+";
+
+/// A good post that still links to the moved post's old path.
+const OLD_LINK: &str = "---
+title: Why internal links matter
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+---
+
+An internal link points to [how to pick link text](/blog/link-text-tips/).
+";
+
+#[test]
+fn lint_warns_about_a_link_to_an_old_address_of_a_moved_post() {
+    let site = site(&[
+        ("2026-09-10-choosing-link-text.md", MOVED),
+        ("2026-09-14-why-internal-links-matter.md", OLD_LINK),
+    ]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let found = findings.iter().find(|f| f["rule"] == "redirecting-link");
+    let found = found.unwrap_or_else(|| panic!("no redirecting-link in {json}"));
+    assert_eq!(found["slug"], "why-internal-links-matter");
+    assert_eq!(found["subject"], "/blog/link-text-tips/");
+}
+
 #[test]
 fn lint_names_a_post_it_cannot_find() {
     let site = site(&[("choosing-link-text.md", UNDATED)]);

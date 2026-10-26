@@ -1,0 +1,21 @@
+# `guides` writes `/guides/{slug}/` through `{collection}`, the same shape
+# as `howto`. `posts` has one folder fewer, and a year is never `guides`.
+[[collections]]
+name = "posts"
+permalink = "/{slug}/"
+
+[[collections]]
+name = "guides"
+permalink = "/{collection}/{slug}/"
+
+[[collections]]
+name = "howto"
+permalink = "/guides/{slug}/"
+
+[[collections]]
+name = "archive"
+permalink = "/{year}/{slug}/"
+
+[[collections]]
+name = "news"
+permalink = "/news/{year}/{slug}/"

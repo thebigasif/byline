@@ -6,9 +6,10 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use khalid_content::{ContentTree, SiteContent, read_content};
+use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_render::{PageBody, Renderer};
+use khalid_routes::Routes;
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
 
 use crate::content_feed::ContentFeed;
@@ -17,9 +18,9 @@ use crate::{assets, build_message, build_pages, content_message};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
-/// The settings and the theme, with the stylesheet built from it, are read
-/// once, when `khalid serve` starts. The content is read again on each
-/// render, so an edited post shows.
+/// The settings, the routes and the theme, with the stylesheet built from
+/// it, are read once, when `khalid serve` starts. The content is read again
+/// on each render, so an edited post shows.
 #[derive(Debug, Clone)]
 pub(crate) struct SitePages(Arc<Site>);
 
@@ -27,17 +28,20 @@ pub(crate) struct SitePages(Arc<Site>);
 struct Site {
     folder: PathBuf,
     config: Config,
+    routes: Routes,
     renderer: Renderer,
     stylesheet: Page,
     feed: Option<ContentFeed>,
 }
 
 impl SitePages {
-    /// The pages of the site in `folder`, with its checked `config`. With
-    /// a `feed`, each render also hands the Content API what it read.
+    /// The pages of the site in `folder`, with its checked `config` and
+    /// `routes`. With a `feed`, each render also hands the Content API what
+    /// it read.
     pub(crate) fn new(
         folder: &Path,
         config: Config,
+        routes: Routes,
         feed: Option<ContentFeed>,
     ) -> Result<Self, UserMessage> {
         let renderer =
@@ -47,6 +51,7 @@ impl SitePages {
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
+            routes,
             renderer,
             stylesheet,
             feed,
@@ -54,12 +59,21 @@ impl SitePages {
     }
 
     /// Every page of the site at its address, the stylesheet they link, and
-    /// the not-found page of the default language. Reads files and renders,
+    /// the not-found page of the default language. Checks every body again,
+    /// as `khalid --site` does at start, so a saved edit with a broken
+    /// wikilink is refused with its file and line, and the pages already
+    /// served stay. Reads files and renders,
     /// so it runs off the async runtime (RULES.md BL-RUN-7).
     pub(crate) fn render_all(&self) -> Result<(Vec<Page>, String), UserMessage> {
-        let folder = &self.0.folder;
+        let Site {
+            folder,
+            config,
+            routes,
+            ..
+        } = &*self.0;
         let content = ContentTree::walk(folder)
             .and_then(|tree| read_content(&tree))
+            .and_then(|content| check_bodies(&content, config, routes).map(|()| content))
             .map_err(|error| content_message::of(folder, &error))?;
         self.render_content(&content)
     }
@@ -67,7 +81,7 @@ impl SitePages {
     /// Every page made from `content`, already read from the site folder,
     /// and the not-found page, then hands the feed its catalog when there is one.
     /// At start, `khalid serve` passes the content it checked, so the folder
-    /// is read once, not twice.
+    /// is read once, not twice. `content` must have passed `check_bodies`.
     pub(crate) fn render_content(
         &self,
         content: &SiteContent,
@@ -75,6 +89,7 @@ impl SitePages {
         let Site {
             folder,
             config,
+            routes,
             renderer,
             stylesheet,
             feed,
@@ -85,7 +100,7 @@ impl SitePages {
             Some(_) => Some(Catalog::of(folder, config, content)?),
             None => None,
         };
-        let languages = build_pages::pages(config, content, stylesheet.path().as_str())?;
+        let languages = build_pages::pages(config, routes, content, stylesheet.path().as_str())?;
         let mut pages = vec![stylesheet.clone()];
         let mut not_found = String::new();
         for language in &languages {
@@ -134,17 +149,51 @@ impl Error for Unrendered {}
 
 #[cfg(test)]
 mod tests {
-    use khalid_core::Environment;
+    use std::path::{Path, PathBuf};
 
-    use super::*;
+    use khalid_core::{Config, Environment};
+    use khalid_routes::Routes;
+
+    use super::{ContentTree, SitePages, read_content};
+
+    fn fixture(name: &str) -> PathBuf {
+        let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
+        path.push("../../fixtures");
+        path.push(name);
+        path
+    }
+
+    fn pages(site: &Path) -> SitePages {
+        let config = Config::load(site, &Environment::empty()).unwrap();
+        SitePages::new(site, config, Routes::load(site).unwrap(), None).unwrap()
+    }
+
+    #[test]
+    fn a_saved_broken_wikilink_stops_the_render_and_names_its_file_and_line() {
+        let site = fixture("invalid/content-broken-wikilink");
+        let message = pages(&site).render_all().unwrap_err();
+        let what = message.what();
+        assert!(
+            what.ends_with("why-links-matter.md, line 10: [[link-equity]] matches no post, page or glossary term in en."),
+            "{what}"
+        );
+    }
+
+    #[test]
+    fn served_pages_link_each_wikilink() {
+        let (pages, _) = pages(&fixture("demo-site")).render_all().unwrap();
+        let link = "<a href=\"/blog/glossary/topical-authority/\">Topical authority</a>";
+        let linking = pages
+            .iter()
+            .filter(|page| String::from_utf8_lossy(page.body()).contains(link));
+        assert_eq!(linking.count(), 2);
+    }
 
     #[test]
     fn the_checked_content_renders_the_same_pages_as_the_folder() {
-        let mut demo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        demo.push("../../fixtures/demo-site");
-        let config = Config::load(&demo, &Environment::default()).unwrap();
+        let demo = fixture("demo-site");
         let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
-        let source = SitePages::new(&demo, config, None).unwrap();
+        let source = pages(&demo);
         let (given, given_missing) = source.render_content(&content).unwrap();
         let (read, read_missing) = source.render_all().unwrap();
         assert!(given.len() > 10, "{} pages", given.len());

@@ -5,9 +5,9 @@
 mod common;
 
 use common::{demo_site, internal_links_post, internal_links_post_de, locale, path, url};
+use khalid_core::{Indexing, RobotsDirectives};
 use khalid_seo::{
-    Indexing, PageKind, RobotsDirectives, SeoError, SeoPage, SeoSite, TranslationKey, head_tags,
-    link_translations,
+    PageKind, SeoError, SeoPage, SeoSite, TranslationKey, head_tags, link_translations,
 };
 
 fn key(text: &str) -> Option<TranslationKey> {

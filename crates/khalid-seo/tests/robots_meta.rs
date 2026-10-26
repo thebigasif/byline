@@ -1,10 +1,9 @@
 //! Robots directives per page and the index policy per page type (task 1.13, KH-SEO-9).
 
-use khalid_core::Locale;
-use khalid_seo::{
-    Following, ImagePreview, IndexPolicy, Indexing, PageKind, PreviewLimit, Restriction,
-    RobotsDirectives, SeoPage, UrlPath,
+use khalid_core::{
+    Following, ImagePreview, Indexing, Locale, PreviewLimit, Restriction, RobotsDirectives,
 };
+use khalid_seo::{IndexPolicy, PageKind, SeoPage, UrlPath};
 
 #[cfg(test)]
 fn page(kind: PageKind, posts: Option<u32>) -> SeoPage {
