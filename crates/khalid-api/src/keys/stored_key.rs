@@ -112,6 +112,11 @@ impl StoredKey {
         &self.access
     }
 
+    /// The hash of its secret, for a store to write.
+    pub fn hash(&self) -> &KeyHash {
+        &self.hash
+    }
+
     /// Whether `token` is this key: same identity, same kind, same secret.
     pub fn matches(&self, token: &KeyToken) -> bool {
         let secret = token.secret().expose().as_bytes();

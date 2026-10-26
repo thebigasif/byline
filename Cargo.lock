@@ -1950,6 +1950,7 @@ name = "khalid-db"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "khalid-api",
  "khalid-core",
  "khalid-webhooks",
  "sqlx",
