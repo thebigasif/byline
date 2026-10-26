@@ -88,21 +88,24 @@ fn check_value(value: &SchemaValue, issues: &mut Vec<SchemaIssue>) {
     }
 }
 
-fn check_rule(node: &SchemaNode, rule: &Rule, placement: Placement, issues: &mut Vec<SchemaIssue>) {
-    let alone = match placement {
-        Placement::Alone => rule.required_alone,
-        Placement::Nested => &[],
+fn check_rule(node: &SchemaNode, rule: Rule, placement: Placement, issues: &mut Vec<SchemaIssue>) {
+    let alone: Vec<Vec<&str>> = match placement {
+        Placement::Alone => rule.required_alone().collect(),
+        Placement::Nested => Vec::new(),
     };
-    let alone = alone.iter().map(std::slice::from_ref);
-    for choice in rule.required.iter().copied().chain(alone) {
+    for choice in rule.required().chain(alone) {
         if !choice.iter().any(|name| has(node, name)) {
-            issues.push(issue(IssueLevel::Blocks, node.kind(), choice, rule.feature));
+            issues.push(issue(
+                IssueLevel::Blocks,
+                node.kind(),
+                &choice,
+                rule.feature,
+            ));
         }
     }
-    for name in rule.recommended {
+    for name in rule.recommended() {
         if !has(node, name) {
-            let choice = std::slice::from_ref(name);
-            issues.push(issue(IssueLevel::Warns, node.kind(), choice, rule.feature));
+            issues.push(issue(IssueLevel::Warns, node.kind(), &[name], rule.feature));
         }
     }
 }

@@ -2,31 +2,27 @@
 
 #![cfg(test)]
 
-use khalid_seo::{CustomSchema, IssueLevel, SchemaGraph, SchemaIssue, check_graph};
+use khalid_seo::{CustomSchema, IssueLevel, SchemaIssue, check_graph};
 
-fn graph(json: &str) -> SchemaGraph {
-    SchemaGraph::new(CustomSchema::parse(json).unwrap().nodes().to_vec())
+fn check(json: &str) -> Vec<SchemaIssue> {
+    let nodes = CustomSchema::parse(json).unwrap().nodes().to_vec();
+    check_graph(&khalid_seo::SchemaGraph::new(nodes))
 }
 
-fn found(issues: &[SchemaIssue]) -> Vec<(IssueLevel, &str, &str)> {
-    issues
-        .iter()
-        .map(|issue| (issue.level(), issue.kind(), issue.property()))
-        .collect()
+/// The type and property of each issue that blocks.
+fn blocking(issues: &[SchemaIssue]) -> Vec<(&str, &str)> {
+    let blocks = issues.iter().filter(|i| i.level() == IssueLevel::Blocks);
+    blocks.map(|i| (i.kind(), i.property())).collect()
 }
 
 #[test]
 fn an_event_without_a_start_date_blocks_and_names_what_why_and_fix() {
-    let issues = check_graph(&graph(
+    let issues = check(
         r#"{"@type": "Event", "name": "Internal links clinic",
             "location": {"@type": "Place", "address": "2 Mill Lane, Leeds"}}"#,
-    ));
-    let blocking: Vec<_> = issues
-        .iter()
-        .filter(|issue| issue.level() == IssueLevel::Blocks)
-        .collect();
-    assert_eq!(blocking.len(), 1, "{issues:?}");
-    let message = blocking.first().unwrap().message();
+    );
+    assert_eq!(blocking(&issues), vec![("Event", "startDate")]);
+    let message = issues.first().unwrap().message();
     assert_eq!(message.what(), "This Event has no startDate.");
     assert_eq!(
         message.why(),
@@ -37,81 +33,55 @@ fn an_event_without_a_start_date_blocks_and_names_what_why_and_fix() {
 
 #[test]
 fn a_missing_recommended_property_warns() {
-    let issues = check_graph(&graph(
+    let issues = check(
         r#"{"@type": "Recipe", "name": "Office flapjacks",
             "image": "https://www.example.com/blog/media/flapjacks.jpg"}"#,
-    ));
-    assert!(
-        issues
-            .iter()
-            .all(|issue| issue.level() == IssueLevel::Warns)
     );
-    let description = issues
-        .iter()
-        .find(|issue| issue.property() == "description")
-        .unwrap();
+    assert_eq!(blocking(&issues), Vec::new());
+    let description = issues.iter().find(|i| i.property() == "description");
     assert_eq!(
-        description.message().why(),
+        description.unwrap().message().why(),
         "Google can still show a recipe card without it, but shows less."
     );
 }
 
 #[test]
 fn one_of_several_properties_is_enough() {
-    let without = check_graph(&graph(r#"{"@type": "Product", "name": "Link audit"}"#));
-    let blocking = without
-        .iter()
-        .find(|issue| issue.level() == IssueLevel::Blocks)
-        .unwrap();
-    assert_eq!(blocking.property(), "review, aggregateRating or offers");
+    let without = check(r#"{"@type": "Product", "name": "Link audit"}"#);
     assert_eq!(
-        blocking.message().what(),
+        blocking(&without),
+        vec![("Product", "review, aggregateRating or offers")]
+    );
+    assert_eq!(
+        without.first().unwrap().message().what(),
         "This Product has none of review, aggregateRating or offers."
     );
-    let with = check_graph(&graph(
+    let with = check(
         r#"{"@type": "Product", "name": "Link audit",
             "offers": {"@type": "Offer", "price": 49, "priceCurrency": "GBP"}}"#,
-    ));
-    assert!(
-        with.iter().all(|issue| issue.level() == IssueLevel::Warns),
-        "{with:?}"
     );
+    assert_eq!(blocking(&with), Vec::new());
 }
 
 #[test]
-fn nested_nodes_are_checked_and_a_nested_review_needs_no_item_reviewed() {
-    let issues = check_graph(&graph(
+fn nested_nodes_are_checked_and_only_a_review_alone_needs_its_item() {
+    let nested = check(
         r#"{"@type": "Product", "name": "Link audit",
             "review": {"@type": "Review", "author": {"@type": "Person", "name": "Asif"},
                        "reviewRating": {"@type": "Rating"}}}"#,
-    ));
-    assert_eq!(
-        found(&issues)
-            .into_iter()
-            .filter(|(level, _, _)| *level == IssueLevel::Blocks)
-            .collect::<Vec<_>>(),
-        vec![(IssueLevel::Blocks, "Rating", "ratingValue")]
     );
-}
-
-#[test]
-fn a_review_on_its_own_needs_the_item_it_reviews() {
-    let issues = check_graph(&graph(
+    assert_eq!(blocking(&nested), vec![("Rating", "ratingValue")]);
+    let alone = check(
         r#"{"@type": "Review", "author": {"@type": "Person", "name": "Asif"},
             "reviewRating": {"@type": "Rating", "ratingValue": 4}}"#,
-    ));
-    assert!(found(&issues).contains(&(IssueLevel::Blocks, "Review", "itemReviewed")));
+    );
+    assert_eq!(blocking(&alone), vec![("Review", "itemReviewed")]);
 }
 
 #[test]
 fn an_empty_text_counts_as_missing() {
-    let issues = check_graph(&graph(
-        r#"{"@type": "WebSite", "name": "", "url": "https://www.example.com/blog/"}"#,
-    ));
-    assert_eq!(
-        found(&issues),
-        vec![(IssueLevel::Blocks, "WebSite", "name")]
-    );
+    let issues = check(r#"{"@type": "WebSite", "name": " ", "url": "https://www.example.com/"}"#);
+    assert_eq!(blocking(&issues), vec![("WebSite", "name")]);
 }
 
 #[test]
@@ -122,17 +92,17 @@ fn types_google_no_longer_shows_raise_nothing() {
         r#"{"@type": "Course"}"#,
         r#"{"@type": "Book", "name": "The internal links handbook"}"#,
     ] {
-        assert_eq!(check_graph(&graph(json)), Vec::new(), "{json}");
+        assert_eq!(check(json), Vec::new(), "{json}");
     }
 }
 
 #[test]
 fn every_message_is_three_plain_sentences() {
-    let issues = check_graph(&graph(
+    let issues = check(
         r#"{"@graph": [{"@type": "Event"}, {"@type": "VideoObject"},
             {"@type": "SoftwareApplication"}, {"@type": "Dataset"},
             {"@type": "LocalBusiness"}, {"@type": "ProfilePage"}]}"#,
-    ));
+    );
     assert!(issues.len() > 20);
     for issue in &issues {
         let message = issue.message();
