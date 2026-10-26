@@ -1,17 +1,18 @@
 //! `khalid build`: every page of the site rendered as HTML into an output
-//! folder, `public/` in the site folder unless `--out` names another.
+//! folder, `public/` in the site folder unless `--out` names another, with
+//! the stylesheet every page links in `assets/`.
 
 use std::fs;
 use std::path::{self, Path, PathBuf};
 
 use khalid_content::SiteContent;
-use khalid_core::Config;
-use khalid_render::Renderer;
+use khalid_core::{Config, UserMessage};
+use khalid_render::{Asset, Renderer};
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{build_message, build_pages, report};
+use crate::{assets, build_message, build_pages, report};
 
 /// The output folder inside a site when `--out` is not given.
 const PUBLIC: &str = "public";
@@ -42,10 +43,17 @@ pub(crate) fn run(
             return report::failure(output, &build_message::render(&error), Exit::Failure);
         }
     };
-    let languages = match build_pages::pages(config, content) {
+    let css = match assets::site_stylesheet(site) {
+        Ok(css) => css,
+        Err(message) => return report::failure(output, &message, Exit::Failure),
+    };
+    let languages = match build_pages::pages(config, content, &assets::href(config, &css)) {
         Ok(languages) => languages,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
+    if let Err(message) = write_asset(&out, &css) {
+        return report::failure(output, &message, Exit::Failure);
+    }
     let mut written = 0;
     for language in &languages {
         for page in &language.pages {
@@ -70,8 +78,26 @@ pub(crate) fn run(
     success(output, &out, written)
 }
 
+/// Writes `asset` into `out/assets/` with its Brotli and gzip copies beside
+/// it, `.br` and `.gz`, so a web server can send them as they are.
+fn write_asset(out: &Path, asset: &Asset) -> Result<(), UserMessage> {
+    let folder = within(out, assets::FOLDER);
+    let name = asset.name();
+    let copies = [
+        (name.to_owned(), asset.body()),
+        (format!("{name}.br"), asset.brotli()),
+        (format!("{name}.gz"), asset.gzip()),
+    ];
+    fs::create_dir_all(&folder).map_err(|error| build_message::write(&folder, &error))?;
+    for (file, bytes) in copies {
+        let file = within(&folder, &file);
+        fs::write(&file, bytes).map_err(|error| build_message::write(&file, &error))?;
+    }
+    Ok(())
+}
+
 /// `relative` inside `folder`. Every `relative` here is a fixed name, or a
-/// path made from a checked slug and language.
+/// path made from a checked slug and language, or an asset's hashed name.
 fn within(folder: &Path, relative: &str) -> PathBuf {
     let mut path = folder.to_path_buf();
     path.push(relative);

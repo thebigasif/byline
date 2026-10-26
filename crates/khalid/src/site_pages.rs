@@ -11,12 +11,13 @@ use khalid_core::{Config, UserMessage};
 use khalid_render::{PageBody, Renderer};
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
 
-use crate::{build_message, build_pages, content_message};
+use crate::{assets, build_message, build_pages, content_message};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
-/// The settings and the theme are read once, when `khalid serve` starts.
-/// The content is read again on each render, so an edited post shows.
+/// The settings and the theme, with the stylesheet built from it, are read
+/// once, when `khalid serve` starts. The content is read again on each
+/// render, so an edited post shows.
 #[derive(Debug, Clone)]
 pub(crate) struct SitePages(Arc<Site>);
 
@@ -25,6 +26,7 @@ struct Site {
     folder: PathBuf,
     config: Config,
     renderer: Renderer,
+    stylesheet: Page,
 }
 
 impl SitePages {
@@ -32,27 +34,31 @@ impl SitePages {
     pub(crate) fn new(folder: &Path, config: Config) -> Result<Self, UserMessage> {
         let renderer =
             Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
+        let css = assets::site_stylesheet(folder)?;
+        let stylesheet = assets::stylesheet_page(&config, &css)?;
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
             renderer,
+            stylesheet,
         })))
     }
 
-    /// Every page of the site at its address, and the not-found page of the
-    /// default language. Reads files and renders, so it runs off the async
-    /// runtime (RULES.md BL-RUN-7).
+    /// Every page of the site at its address, the stylesheet they link, and
+    /// the not-found page of the default language. Reads files and renders,
+    /// so it runs off the async runtime (RULES.md BL-RUN-7).
     pub(crate) fn render_all(&self) -> Result<(Vec<Page>, String), UserMessage> {
         let Site {
             folder,
             config,
             renderer,
+            stylesheet,
         } = &*self.0;
         let content = ContentTree::walk(folder)
             .and_then(|tree| read_content(&tree))
             .map_err(|error| content_message::of(folder, &error))?;
-        let languages = build_pages::pages(config, &content)?;
-        let mut pages = Vec::new();
+        let languages = build_pages::pages(config, &content, stylesheet.path().as_str())?;
+        let mut pages = vec![stylesheet.clone()];
         let mut not_found = String::new();
         for language in &languages {
             for page in &language.pages {

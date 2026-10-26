@@ -5,6 +5,7 @@
 //! read. It must not know business rules. Those live in the library crates,
 //! which this binary calls the same way the API does.
 
+mod assets;
 mod atomic;
 mod build;
 mod build_message;
