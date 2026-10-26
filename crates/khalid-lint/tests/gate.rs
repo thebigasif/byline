@@ -2,7 +2,9 @@
 
 use chrono::{NaiveDate, TimeZone, Utc};
 use khalid_core::{FixedClock, Locale, Slug};
-use khalid_lint::{LinkKind, LintConfig, LintLink, LintPost, LintSite, Linter, Verdict};
+use khalid_lint::{
+    LinkKind, LintConfig, LintLink, LintPost, LintSite, Linter, PublishGate, Verdict,
+};
 
 #[cfg(test)]
 fn linter(lint_toml: &str) -> Linter {
@@ -62,6 +64,37 @@ fn the_gate_refuses_a_post_with_a_block_and_says_why() {
     assert!(matches!(verdict, Verdict::Refuse { .. }), "{verdict:?}");
     assert!(!verdict.allows_publishing());
     assert!(verdict.report().blocks());
+}
+
+#[test]
+fn callers_that_hold_a_dyn_publish_gate_get_the_linters_verdict() {
+    let site = site_with_post(None);
+    let linter = linter("");
+    let gate: &dyn PublishGate = &linter;
+    let verdict = gate.verdict(&site.posts[0], &site);
+    assert_eq!(verdict, linter.gate(&site.posts[0], &site));
+    assert!(!verdict.allows_publishing());
+}
+
+#[test]
+fn the_quick_answer_always_agrees_with_the_full_verdict() {
+    let settings = [
+        "",
+        "[rules]\nno-date = \"warn\"\n",
+        "[rules]\nno-description = \"block\"\n",
+        "[rules]\nno-description = \"off\"\nno-date = \"off\"\n",
+    ];
+    for lint_toml in settings {
+        let linter = linter(lint_toml);
+        for date in [None, NaiveDate::from_ymd_opt(2026, 10, 1)] {
+            let site = site_with_post(date);
+            let post = &site.posts[0];
+            let full = linter.gate(post, &site).allows_publishing();
+            assert_eq!(linter.refuses(post, &site), !full, "{lint_toml:?} {date:?}");
+            let gate: &dyn PublishGate = &linter;
+            assert_eq!(gate.refuses(post, &site), !full, "{lint_toml:?} {date:?}");
+        }
+    }
 }
 
 #[test]
