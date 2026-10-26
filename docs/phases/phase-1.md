@@ -146,7 +146,7 @@
 
 ### 1.19 Webhooks
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): `Outbound::post`, which deliveries go through. Part 2: the event catalogue and the signature. Part 3: delivery, retries and the delivery log.
 - The events in plan section 5.12, signed with HMAC-SHA256 over timestamp and body, sent through `Outbound`, retried with backoff over 24 hours, with a delivery log in the database.
 - Rules: BL-SEC-7, BL-RUN-8.
 - Done when: `wiremock` tests show each event fires once, is signed correctly, and retries after a failure.
