@@ -81,6 +81,22 @@ fn bad_values_and_unknown_fields_are_refused() {
 }
 
 #[test]
+fn a_locked_list_of_token_names_is_read_and_a_wrong_name_is_refused_with_its_line() {
+    let tokens = Tokens::from_toml(
+        "locked = [\"colors.link\", \"fonts.heading\"]\n\n[colors]\nlink = \"#9c3d1c\"\n",
+    )
+    .unwrap();
+    assert_eq!(tokens.colors.link.as_str(), "#9c3d1c");
+    assert_eq!(tokens.locked.len(), 2);
+
+    let error = Tokens::from_toml("\nlocked = [\"colors.lnk\"]\n").unwrap_err();
+    assert!(
+        matches!(error, RenderError::Tokens { line: Some(2), .. }),
+        "{error:?}"
+    );
+}
+
+#[test]
 fn faint_text_is_reported_with_its_contrast() {
     let tokens = Tokens::from_toml("[colors]\nmuted = \"#aaaaaa\"\nlink = \"#777777\"").unwrap();
     let failures = tokens.contrast_failures();

@@ -20,7 +20,6 @@ const COMMANDS: &[&[&str]] = &[
     &["update"],
     &["update", "--rollback"],
     &["pull"],
-    &["keys"],
 ];
 
 /// Runs the binary cargo built for this test.

@@ -9,6 +9,7 @@ use axum::http::{HeaderMap, HeaderName, StatusCode};
 use axum::{Extension, Json, middleware};
 use chrono::{DateTime, Utc};
 use khalid_core::{Slug, UserMessage};
+use khalid_lint::Report;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
@@ -82,7 +83,8 @@ pub(crate) struct EditPosts {
     posts: Vec<PostEdit>,
 }
 
-/// Edits one post. The edit carries the `updated_at` of the copy it was
+/// Edits one post, and publishes it with `"status": "published"` once
+/// the linter lets it through. The edit carries the `updated_at` of the copy it was
 /// made on; when the post changed since, the answer is a 409 naming who
 /// changed it and when (RULES.md BL-API-7). Needs `posts:write`.
 #[utoipa::path(
@@ -96,7 +98,7 @@ pub(crate) struct EditPosts {
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The post changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
-        (status = 422, description = "The body could not be read", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
     )
 )]
 async fn edit_admin_post(
@@ -117,8 +119,19 @@ async fn edit_admin_post(
             updated_at,
             updated_by,
         }) => Err(stale(updated_at, updated_by.as_deref())),
+        Err(UpdatePostError::Refused(report)) => Err(refused(report)),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
     }
+}
+
+/// The 422 for a post the linter refused to publish, with every finding.
+fn refused(report: Report) -> Problem {
+    let message = UserMessage::new(
+        "The linter found something that stops this post from going live.",
+        "Each finding under lint says what it is and why it matters, and the post stays a draft.",
+        "Fix each finding marked block, then publish again.",
+    );
+    Problem::new(ProblemType::LintBlocked, &message).with_lint(report)
 }
 
 /// A new post, wrapped the way the Admin API wraps posts: exactly one.
@@ -216,6 +229,12 @@ async fn checked(new: NewPost, source: Source) -> Result<PostDraft, Problem> {
         .map(Slug::try_new)
         .transpose()
         .map_err(|_| invalid_body("slug must be lowercase letters, digits and hyphens"))?;
+    let author = new
+        .author
+        .as_deref()
+        .map(Slug::try_new_unicode)
+        .transpose()
+        .map_err(|_| invalid_body("author must be an author's slug, such as asif"))?;
     let markdown = match (source, new.markdown, new.html) {
         (Source::Markdown, Some(markdown), None) => markdown,
         (Source::Html, None, Some(html)) => {
@@ -231,7 +250,7 @@ async fn checked(new: NewPost, source: Source) -> Result<PostDraft, Problem> {
             ));
         }
     };
-    Ok(PostDraft::new(&new.title, slug, &markdown))
+    Ok(PostDraft::new(&new.title, slug, &markdown).with_author(author))
 }
 
 /// The 400 for a `source` that is neither `markdown` nor `html`.

@@ -54,15 +54,32 @@ pub(crate) fn lint_site<'c>(
 /// its body does not render. Reading the site already refuses a broken
 /// block, so a post that got this far renders.
 fn lint_post(document: &Document<PostFront>, config: &Config) -> Option<LintPost> {
-    let front = &document.front;
-    let slug = slug_of(
-        front.slug.as_ref(),
-        &document.path,
-        &document.locale,
-        config,
-    )?;
-    let rendered = render(&document.body, &document.locale, config.slugs()).ok()?;
-    let mut post = LintPost::new(document.locale.clone(), slug);
+    let parts = PostParts {
+        locale: &document.locale,
+        path: &document.path,
+        front: &document.front,
+        body: &document.body,
+    };
+    lint_parts(&parts, config)
+}
+
+/// A post that may not be a file under `content/` yet, such as a draft
+/// about to be published: its language, where it is or will be, its front
+/// matter and its markdown body.
+pub(crate) struct PostParts<'a> {
+    pub(crate) locale: &'a Locale,
+    pub(crate) path: &'a Path,
+    pub(crate) front: &'a PostFront,
+    pub(crate) body: &'a str,
+}
+
+/// The post made of `parts` in the lint model, or `None` as for
+/// [`lint_post`].
+pub(crate) fn lint_parts(parts: &PostParts<'_>, config: &Config) -> Option<LintPost> {
+    let front = parts.front;
+    let slug = slug_of(front.slug.as_ref(), parts.path, parts.locale, config)?;
+    let rendered = render(parts.body, parts.locale, config.slugs()).ok()?;
+    let mut post = LintPost::new(parts.locale.clone(), slug);
     post.title.clone_from(&front.title);
     post.description.clone_from(&front.description);
     post.date = front.date;
