@@ -11,6 +11,7 @@
 //! time (RULES.md BL-PERF-2); a request copies bytes.
 
 mod clean_url;
+mod etag;
 mod media_type;
 mod page;
 mod page_path;

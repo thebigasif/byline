@@ -12,14 +12,20 @@ publish.workspace = true
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 bytes = "1"
 percent-encoding = "2"
+sha2 = "0.11"
 thiserror.workspace = true
 tokio = { workspace = true, features = ["net"] }
 tower = { version = "0.5", default-features = false, features = ["util"] }
 tracing.workspace = true
 
 [dev-dependencies]
+divan = "0.1"
 http-body-util = "0.1"
 tokio = { workspace = true, features = ["io-util"] }
+
+[[bench]]
+name = "request"
+harness = false
 
 [lints]
 workspace = true
