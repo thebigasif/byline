@@ -16,7 +16,7 @@ use std::process::ExitCode;
 
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
-use khalid_content::{ContentTree, read_posts};
+use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, Environment, UserMessage};
 
 use crate::cli::{Cli, Command, Output};
@@ -41,7 +41,7 @@ fn run(cli: &Cli) -> Exit {
         if let Err(error) = Config::load(site, &Environment::from_process()) {
             return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
         }
-        if let Err(error) = ContentTree::walk(site).and_then(|tree| read_posts(&tree)) {
+        if let Err(error) = ContentTree::walk(site).and_then(|tree| read_content(&tree)) {
             return report::failure(
                 cli.output,
                 &content_message::of(site, &error),

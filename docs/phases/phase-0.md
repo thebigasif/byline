@@ -34,7 +34,7 @@
 
 ### 0.5 The demo fixture site
 
-- Status: `todo`
+- Status: `done` (#15, and the parse test in Phase 1 task 1.5).
 - `fixtures/demo-site/` with `site.toml`, five real posts about SEO in plain English (no lorem ipsum), two authors, three categories, one glossary term, in English and German. This is the fixture every benchmark, snapshot and end-to-end test uses from Phase 1.
 - Done when: the folder exists, the posts read like real posts, and a test asserts the fixture parses once Phase 1 lands.
 

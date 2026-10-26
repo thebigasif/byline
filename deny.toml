@@ -6,7 +6,13 @@ all-features = true
 
 [advisories]
 # Every advisory fails the check unless listed here with a reason and a review date.
-ignore = []
+ignore = [
+  # Both arrive through syntect, the code highlighter comrak uses (task 1.6),
+  # and both are flagged unmaintained, not vulnerable. Review again 2027-04-26,
+  # or sooner if syntect moves off them or an actual vulnerability is filed.
+  { id = "RUSTSEC-2025-0141", reason = "bincode 1.x: syntect only decodes its own grammar data, embedded in the binary at build time, never input from a user" },
+  { id = "RUSTSEC-2024-0320", reason = "yaml-rust: only on comrak's wasm32 and iOS build path, which Khalid never builds; no YAML from users goes through it" },
+]
 
 [licenses]
 # Permissive licences only, so SerpDad can reuse every crate in its closed
@@ -20,6 +26,9 @@ allow = [
   "ISC",
   "MIT",
   "Unicode-3.0",
+  # The Unicode data licence before 3.0; permissive, used by finl_unicode, a
+  # dependency of the markdown parser comrak.
+  "Unicode-DFS-2016",
   "Zlib",
   "0BSD",
 ]
