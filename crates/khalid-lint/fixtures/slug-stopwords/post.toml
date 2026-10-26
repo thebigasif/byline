@@ -1,0 +1,3 @@
+# "the" and "of" add nothing to the address.
+extends = "clean"
+slug = "the-value-of-internal-links"

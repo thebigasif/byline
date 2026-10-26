@@ -1,0 +1,6 @@
+# The body uses two glossary terms. "Link equity" is linked with a wikilink;
+# "anchor text" is not. "Context" is not a glossary term, and "text" alone
+# inside another word must not match.
+extends = "clean"
+body_text = "Good Anchor text tells readers where a link goes, and links pass link equity in context."
+wikilinks = ["link-equity"]

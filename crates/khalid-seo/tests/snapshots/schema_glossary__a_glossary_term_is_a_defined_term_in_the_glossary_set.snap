@@ -1,0 +1,19 @@
+---
+source: crates/khalid-seo/tests/schema_glossary.rs
+expression: "SchemaGraph::new(vec![node]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "DefinedTerm",
+      "@id": "https://www.example.com/blog/glossary/anchor-text/#term",
+      "name": "Anchor text",
+      "url": "https://www.example.com/blog/glossary/anchor-text/",
+      "inDefinedTermSet": {
+        "@id": "https://www.example.com/blog/glossary/#termset"
+      },
+      "description": "The words a reader clicks to follow a link."
+    }
+  ]
+}

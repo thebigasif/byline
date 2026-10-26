@@ -19,6 +19,9 @@ mod index;
 mod init;
 mod init_message;
 mod init_prompt;
+mod lint;
+mod lint_input;
+mod lint_message;
 mod new;
 mod new_message;
 mod report;
@@ -71,6 +74,9 @@ fn run(cli: &Cli) -> Exit {
     match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some((folder, _))) => db::run(folder, *command, cli.output),
+        (Some(Command::Lint { path }), Some((folder, _))) => {
+            lint::run(folder, path.as_deref(), cli.output)
+        }
         (Some(Command::New { title, language }), Some((folder, config))) => {
             let post = NewPost {
                 title,
@@ -82,7 +88,12 @@ fn run(cli: &Cli) -> Exit {
             build::run(folder, config, out.as_deref(), cli.output)
         }
         (
-            Some(command @ (Command::Db { .. } | Command::New { .. } | Command::Build { .. })),
+            Some(
+                command @ (Command::Db { .. }
+                | Command::Lint { .. }
+                | Command::New { .. }
+                | Command::Build { .. }),
+            ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
