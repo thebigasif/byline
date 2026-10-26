@@ -18,3 +18,18 @@ use serde::Serializer;
 fn display<T: Display, S: Serializer>(value: &T, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.collect_str(value)
 }
+
+/// Writes an optional value through its `Display`, or `null`.
+#[expect(
+    clippy::ref_option,
+    reason = "serde's serialize_with hands over a reference to the field"
+)]
+fn display_option<T: Display, S: Serializer>(
+    value: &Option<T>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    match value {
+        Some(value) => serializer.collect_str(value),
+        None => serializer.serialize_none(),
+    }
+}

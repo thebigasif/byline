@@ -6,7 +6,9 @@
 
 use std::path::Path;
 
-use khalid_content::{ContentTree, Document, PostFront, read_content, render};
+use khalid_content::{
+    ContentTree, Document, Link as RenderedLink, PostFront, read_content, render,
+};
 use khalid_core::{AbsoluteUrl, Config, Environment};
 use khalid_lint::{Heading, HeadingLevel, LinkKind, LintLink, LintPost, LintSite};
 use khalid_render::{
@@ -104,6 +106,7 @@ impl Prepared {
             robots: Robots::Index,
             image: None,
             x_default: None,
+            seo_head: None,
             alternates: Vec::new(),
         };
         self.pages.push(Page {
@@ -135,19 +138,21 @@ impl Prepared {
         lint.links = rendered
             .links
             .iter()
-            .map(|link| {
-                let kind = if link.internal {
-                    LinkKind::Internal
-                } else {
-                    LinkKind::External
-                };
-                LintLink::new(kind, link.href.clone(), link.text.clone())
-            })
+            .map(|link| LintLink::new(link_kind(link), link.href.clone(), link.text.clone()))
             .collect();
         lint.word_count = rendered.words;
         lint.body_text = plain_text(&rendered.html);
         self.lint.posts.push(lint);
         Ok(())
+    }
+}
+
+/// Whether a rendered link points inside the site, as the linter names it.
+fn link_kind(link: &RenderedLink) -> LinkKind {
+    if link.internal {
+        LinkKind::Internal
+    } else {
+        LinkKind::External
     }
 }
 

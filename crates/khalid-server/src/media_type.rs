@@ -13,6 +13,8 @@ pub enum MediaType {
     PlainText,
     /// A JSON file, such as a JSON feed.
     Json,
+    /// A stylesheet.
+    Css,
 }
 
 impl MediaType {
@@ -23,6 +25,7 @@ impl MediaType {
             Self::Xml => "application/xml; charset=utf-8",
             Self::PlainText => "text/plain; charset=utf-8",
             Self::Json => "application/json",
+            Self::Css => "text/css; charset=utf-8",
         }
     }
 }

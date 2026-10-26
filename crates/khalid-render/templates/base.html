@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>{{ meta.title }}</title>
+{% if meta.seo_head %}{{ meta.seo_head }}<link rel="stylesheet" href="{{ site.stylesheet }}">
+{% else %}<title>{{ meta.title }}</title>
 <meta name="description" content="{{ meta.description }}">
 {% if meta.robots == "noindex" %}<meta name="robots" content="noindex">
 {% endif %}<link rel="canonical" href="{{ meta.canonical }}">
@@ -23,7 +24,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="{{ image.alt }}">
 {% else %}<meta name="twitter:card" content="summary">
-{% endif %}</head>
+{% endif %}{% endif %}</head>
 <body>
 <a class="skip-link" href="#main">{{ t.skip_link }}</a>
 <header class="site-header">

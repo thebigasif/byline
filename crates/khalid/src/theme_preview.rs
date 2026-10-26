@@ -123,6 +123,7 @@ impl Preview {
             image: None,
             alternates: Vec::new(),
             x_default: None,
+            seo_head: None,
         };
         let post = PageBody::Post(Box::new(sample_post(&site.name)));
         let html = renderer

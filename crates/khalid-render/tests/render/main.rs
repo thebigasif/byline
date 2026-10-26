@@ -20,4 +20,6 @@ mod post;
 #[cfg(test)]
 mod sandbox;
 #[cfg(test)]
+mod seo_head;
+#[cfg(test)]
 mod validity;

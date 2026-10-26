@@ -4,6 +4,7 @@ use axum::Json;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use khalid_core::UserMessage;
+use khalid_lint::Report;
 use serde::{Serialize, Serializer};
 use utoipa::ToSchema;
 
@@ -103,10 +104,16 @@ pub struct Problem {
     fix: String,
     /// The lint rule or parameter that produced the problem.
     #[serde(skip_serializing_if = "Option::is_none")]
-    rule: Option<String>,
+    #[schema(value_type = Option<String>)]
+    rule: Option<Box<str>>,
     /// The address the problem is about.
     #[serde(skip_serializing_if = "Option::is_none")]
     instance: Option<String>,
+    /// For a post the linter refused, every finding, as `khalid lint
+    /// --json` prints them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    lint: Option<Box<Report>>,
 }
 
 impl Problem {
@@ -120,6 +127,7 @@ impl Problem {
             fix: message.fix().to_owned(),
             rule: None,
             instance: None,
+            lint: None,
         }
     }
 
@@ -139,7 +147,16 @@ impl Problem {
     #[must_use]
     pub fn with_rule(self, rule: &str) -> Self {
         Self {
-            rule: Some(rule.to_owned()),
+            rule: Some(rule.into()),
+            ..self
+        }
+    }
+
+    /// The same problem, carrying the linter's `report`.
+    #[must_use]
+    pub fn with_lint(self, report: Report) -> Self {
+        Self {
+            lint: Some(Box::new(report)),
             ..self
         }
     }

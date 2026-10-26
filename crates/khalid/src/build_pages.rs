@@ -9,8 +9,9 @@ use khalid_render::{
     BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, PostCard, RenderAuthor, RenderListing,
     RenderPage, RenderPost, RenderSite, Robots,
 };
+use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
-use crate::build_message;
+use crate::{build_message, build_seo};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
@@ -25,6 +26,9 @@ pub(crate) struct Page {
     pub(crate) file: String,
     pub(crate) meta: PageMeta,
     pub(crate) body: PageBody,
+    /// The page as the SEO outputs read it, before its language versions
+    /// are linked by `build_seo::heads`.
+    pub(crate) seo: SeoPage,
 }
 
 /// Every page of the site, per language in the order of `site.toml`: each
@@ -64,11 +68,23 @@ fn language_pages(
     )?;
     let mut missing = home_meta.clone();
     missing.robots = Robots::NoIndex;
-    pages.push(page(locale, config, "", home_meta, PageBody::Home(home)));
+    let mut home_seo = build_seo::page(SeoKind::Home, locale, "", config.name())?;
+    home_seo.translation = build_seo::translation(Some("home"))?;
+    pages.push(page(
+        locale,
+        config,
+        "",
+        home_meta,
+        PageBody::Home(home),
+        home_seo,
+    ));
+    let mut missing_seo = build_seo::page(SeoKind::NotFound, locale, "404.html", config.name())?;
+    missing_seo.seo_title = MetaTemplate::parse("{site}").ok();
     pages.push(Page {
         file: format!("{}404.html", prefix(config, locale)),
         meta: missing,
         body: PageBody::NotFound,
+        seo: missing_seo,
     });
     Ok(LanguagePages {
         site: render_site(config, locale),
@@ -109,6 +125,11 @@ fn post_pages<'a>(
             image: None,
         };
         cards.push((front.author.as_ref(), card));
+        let mut seo = build_seo::page(SeoKind::Post, locale, &rest, &title)?;
+        seo.excerpt.clone_from(&description);
+        seo.published = Some(build_seo::midnight(date));
+        seo.translation = build_seo::translation(front.translation.as_deref())?;
+        html.as_str().clone_into(&mut seo.content_html);
         let post = RenderPost {
             title: title.clone(),
             date,
@@ -119,14 +140,10 @@ fn post_pages<'a>(
             image: None,
             body: html,
         };
+        seo.author = post.authors.first().map(|author| author.name.clone());
         let meta = meta(config, title, description, path, PageKind::Article)?;
-        pages.push(page(
-            locale,
-            config,
-            &rest,
-            meta,
-            PageBody::Post(Box::new(post)),
-        ));
+        let body = PageBody::Post(Box::new(post));
+        pages.push(page(locale, config, &rest, meta, body, seo));
     }
     Ok((pages, cards))
 }
@@ -144,13 +161,16 @@ fn plain_pages(
         let rest = format!("{slug}/");
         let description = front.description.clone().unwrap_or_default();
         let path = path_of(config, locale, &rest);
+        let mut seo = build_seo::page(SeoKind::Page, locale, &rest, &title)?;
+        seo.excerpt.clone_from(&description);
+        seo.translation = build_seo::translation(front.translation.as_deref())?;
         let meta = meta(config, title.clone(), description, path, PageKind::Website)?;
         let body = RenderPage {
             title,
             updated: None,
             body: body_html(config, doc)?,
         };
-        pages.push(page(locale, config, &rest, meta, PageBody::Page(body)));
+        pages.push(page(locale, config, &rest, meta, PageBody::Page(body), seo));
     }
     Ok(pages)
 }
@@ -178,11 +198,20 @@ fn author_pages(
                 href: url.to_string(),
             })
             .collect();
-        let posts = cards
+        let posts: Vec<PostCard> = cards
             .iter()
             .filter(|(author, _)| *author == Some(&slug))
             .map(|(_, card)| card.clone())
             .collect();
+        let mut seo = build_seo::page(SeoKind::Author, locale, &rest, &name)?;
+        seo.author = Some(name.clone());
+        seo.item_count = u32::try_from(posts.len()).ok();
+        // An author is one person in every language, so their pages pair by slug.
+        seo.translation = build_seo::translation(Some(&format!("author {slug}")))?;
+        let mut profile = AuthorProfile::new(&name);
+        profile.job_title.clone_from(&front.role);
+        profile.same_as.clone_from(&front.same_as);
+        seo.author_profile = Some(profile);
         let author = RenderAuthor {
             name,
             role: front.role.clone(),
@@ -192,13 +221,8 @@ fn author_pages(
             posts,
             pagination: None,
         };
-        pages.push(page(
-            locale,
-            config,
-            &rest,
-            meta,
-            PageBody::Author(Box::new(author)),
-        ));
+        let body = PageBody::Author(Box::new(author));
+        pages.push(page(locale, config, &rest, meta, body, seo));
     }
     Ok(pages)
 }
@@ -267,15 +291,24 @@ fn meta(
         image: None,
         alternates: Vec::new(),
         x_default: None,
+        seo_head: None,
     })
 }
 
 /// A page whose path ends in `rest`, written to `rest/index.html`.
-fn page(locale: &Locale, config: &Config, rest: &str, meta: PageMeta, body: PageBody) -> Page {
+fn page(
+    locale: &Locale,
+    config: &Config,
+    rest: &str,
+    meta: PageMeta,
+    body: PageBody,
+    seo: SeoPage,
+) -> Page {
     Page {
         file: format!("{}{rest}index.html", prefix(config, locale)),
         meta,
         body,
+        seo,
     }
 }
 
@@ -295,7 +328,7 @@ fn render_site(config: &Config, locale: &Locale) -> RenderSite {
 /// The path of `rest` in `locale`: the mount, the language prefix for any
 /// language but the default, then `rest`, the rule `khalid_seo::SeoSite::url_for`
 /// follows, so `why-links-matter/` in German is `/blog/de/why-links-matter/`.
-fn path_of(config: &Config, locale: &Locale, rest: &str) -> String {
+pub(crate) fn path_of(config: &Config, locale: &Locale, rest: &str) -> String {
     format!("{}{}{rest}", config.mount(), prefix(config, locale))
 }
 

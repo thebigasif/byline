@@ -9,12 +9,14 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-content = { path = "../khalid-content", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 khalid-db = { path = "../khalid-db", version = "0.0.0" }
 khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
+khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
 khalid-theme = { path = "../khalid-theme", version = "0.0.0" }
 chrono = { version = "0.4", default-features = false }
@@ -27,6 +29,8 @@ tokio = { workspace = true, features = ["rt", "net"] }
 tracing.workspace = true
 
 [dev-dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+insta = "1"
 scraper = "0.29"
 serde_json.workspace = true
 

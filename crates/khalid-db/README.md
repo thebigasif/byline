@@ -27,8 +27,8 @@ A test reads the table below and checks it lists every table in the schema, once
 | `not_found_log` | visitor | Every address that answered 404, with its hit count and when it was first and last seen |
 | `users` | visitor | Staff accounts, with an Argon2id password hash when the account has a password |
 | `sessions` | visitor | Signed-in sessions, stored as a hash of the session token |
-| `api_keys` | visitor | Integration keys and staff tokens, stored as a hash of the key |
-| `api_key_scopes` | visitor | What each key may do |
+| `api_keys` | visitor | Content keys, integration keys and staff tokens: each key's identity, kind, staff role and a hash of its secret, never the secret |
+| `api_key_scopes` | visitor | The scopes of each integration key |
 | `webhooks` | visitor | The addresses that receive each event, with the secret that signs deliveries |
 | `webhook_deliveries` | visitor | Each delivery of an event: the bytes sent, where it stands and when it is due again |
 | `webhook_attempts` | visitor | Every attempt at a delivery, with the status that came back or why there was none |
