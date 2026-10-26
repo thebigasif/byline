@@ -13,12 +13,12 @@ use std::str::FromStr;
 /// # Examples
 ///
 /// ```
-/// use byline_core::Slug;
+/// use khalid_core::Slug;
 ///
 /// let slug = Slug::try_new("why-internal-links-matter")?;
 /// assert_eq!(slug.as_str(), "why-internal-links-matter");
 /// assert!(Slug::try_new("Why Links Matter").is_err());
-/// # Ok::<(), byline_core::ParseSlugError>(())
+/// # Ok::<(), khalid_core::ParseSlugError>(())
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Slug(String);

@@ -1,4 +1,4 @@
-# Byline lints. Based on BeautifulRust's lints.toml (MIT, Morgan Linton), kept in
+# Khalid lints. Based on BeautifulRust's lints.toml (MIT, Morgan Linton), kept in
 # lints/lints.beautifulrust.toml for comparison, with these changes:
 #   - unsafe_code is forbidden, not allowed with a SAFETY comment. No unsafe in a CMS.
 #   - expect_used, panic, unimplemented, unreachable and indexing_slicing warn too.

@@ -42,16 +42,16 @@ if ls crates/*/Cargo.toml >/dev/null 2>&1; then
   ./scripts/check-lints.sh
 
   step "anyhow stays out of library crates (BL-ERR-1)"
-  if git grep -nE 'anyhow' -- 'crates/*/src/**' ':!crates/byline/**' >/dev/null; then
-    git grep -nE 'anyhow' -- 'crates/*/src/**' ':!crates/byline/**'
-    echo "Libraries use their own thiserror enums. Only crates/byline may wrap errors."
+  if git grep -nE 'anyhow' -- 'crates/*/src/**' ':!crates/khalid/**' >/dev/null; then
+    git grep -nE 'anyhow' -- 'crates/*/src/**' ':!crates/khalid/**'
+    echo "Libraries use their own thiserror enums. Only crates/khalid may wrap errors."
     exit 1
   fi
 
   step "Disallowed methods and types are suppressed only where allowed (BL-RUN-1, BL-RUN-2, BL-RUN-8, BL-SEC-4)"
   # The clock, config, outbound and path modules may each suppress the rule
   # once, on the one line that has to break it. Nothing else may.
-  allowed='crates/byline-core/src/clock.rs crates/byline-core/src/config.rs crates/byline-core/src/site_path.rs crates/byline-outbound/src/outbound.rs'
+  allowed='crates/khalid-core/src/clock.rs crates/khalid-core/src/config.rs crates/khalid-core/src/site_path.rs crates/khalid-outbound/src/outbound.rs'
   bad=$(git grep -nE 'clippy::disallowed_(methods|types)' -- 'crates/**/*.rs' | grep -vE "^($(echo "$allowed" | tr ' ' '|')):" || true)
   for file in $allowed; do
     if [ -f "$file" ] && [ "$(grep -cE 'clippy::disallowed_(methods|types)' "$file")" -gt 1 ]; then

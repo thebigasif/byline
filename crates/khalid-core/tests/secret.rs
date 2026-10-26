@@ -1,6 +1,6 @@
 //! A secret never shows itself when formatted, alone or inside other values.
 
-use byline_core::Secret;
+use khalid_core::Secret;
 
 /// A value made for this test. It is not, and never was, a real credential.
 fn generated() -> String {

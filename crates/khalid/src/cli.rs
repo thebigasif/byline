@@ -2,20 +2,20 @@
 
 use std::path::PathBuf;
 
-use byline_core::Slug;
 use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Parser, Subcommand, ValueEnum};
+use khalid_core::Slug;
 
 /// The command line.
 #[derive(Debug, Parser)]
 #[command(
-    name = "byline",
+    name = "khalid",
     version,
     about = "An open-source blog engine with SEO defaults built in, by SerpDad.",
     long_about = None
 )]
 pub(crate) struct Cli {
-    /// The command to run. With none, Byline prints this help.
+    /// The command to run. With none, Khalid prints this help.
     #[command(subcommand)]
     pub(crate) command: Option<Command>,
 
@@ -117,7 +117,7 @@ pub(crate) enum ThemeCommand {
     Check,
 }
 
-/// The platforms `byline import` reads.
+/// The platforms `khalid import` reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub(crate) enum ImportSource {
     #[value(help = "A WordPress export file")]
@@ -132,7 +132,7 @@ pub(crate) enum ImportSource {
     Markdown,
 }
 
-/// Which version `byline update` installs.
+/// Which version `khalid update` installs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UpdateTarget {
     /// The newest release.

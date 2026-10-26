@@ -1,9 +1,9 @@
-//! Shared building blocks for every Byline crate.
+//! Shared building blocks for every Khalid crate.
 //!
 //! This crate owns the types the other crates agree on: the message a person
 //! reads ([`UserMessage`]), validated identifiers such as [`Slug`], the
 //! [`Clock`], the [`Config`] and the [`Secret`] wrapper. It must not know about
-//! HTTP, SQL or files. It depends on no other Byline crate and does no I/O
+//! HTTP, SQL or files. It depends on no other Khalid crate and does no I/O
 //! beyond reading the system clock.
 
 mod clock;

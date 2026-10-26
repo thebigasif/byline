@@ -4,7 +4,7 @@
 
 Written 2026-10-26 by Claude at the founder's request, from the founder's answers of the same day. **This is a plan only.** Nothing is built until the founder says yes to section 12.
 
-The CMS has no name yet. This plan uses `byline` as a working name in commands and folder names. Swap it for the real name in Phase 0. Section 12, D-1 has a shortlist.
+The product is named Khalid, chosen by the founder on 2026-10-26 (see `docs/decisions/name.md`). Earlier drafts used Byline as a working name.
 
 ---
 
@@ -12,7 +12,7 @@ The CMS has no name yet. This plan uses `byline` as a working name in commands a
 
 - **The one-line idea.** "Get an Ahrefs- or Semrush-quality blog in one click." A free, open-source blog engine any business can add to its website, whatever the site is built with.
 - **What makes it different.** It copies the main site's colours, fonts and logo, so the blog looks native. It ships the best SEO defaults built in, with schema markup for every content type and a built-in site audit that passes the Ahrefs and Semrush checks, so there is nothing to install. It refuses to publish a post that breaks basic SEO hygiene, and every refusal teaches why. It is run from the command line, by people or by agents such as Claude Code. There is a web editor for writing, but no drag-and-drop page builder. Every public page is semantic HTML, responsive on every screen, and reads fully with JavaScript blocked.
-- **Why SerpDad builds it.** Four reasons. It is a free tool that brings people to SerpDad. It teaches SEO basics, so users grow into SerpDad customers. It is the publish target at the end of the SerpDad content journey: "Publish with byline by SerpDad". And SerpDad's own blog runs on it.
+- **Why SerpDad builds it.** Four reasons. It is a free tool that brings people to SerpDad. It teaches SEO basics, so users grow into SerpDad customers. It is the publish target at the end of the SerpDad content journey: "Publish with khalid by SerpDad". And SerpDad's own blog runs on it.
 - **Shape.** One Rust program that is the server, the command line, the agent interface and the web admin at once. Every post is a plain text file. One small database per site holds everything derived from those files and everything visitors create. Two modes: server mode has everything; static mode exports plain HTML and shows the server features locked, with a plain explanation. Everything the admin can do, a public API can do too, so any front end can read the posts and any script or agent can write them.
 - **Licence.** AGPL-3.0, so nobody can take it closed. Plus a trademark rule on the name and a short contributor agreement, so SerpDad can keep using every contribution in the paid product.
 - **Size.** Eight phases. About 18 weeks of agent work in sequence, or 12 to 13 weeks with two or three agents running at once. Its own GitHub repository, not this one.
@@ -23,12 +23,12 @@ The CMS has no name yet. This plan uses `byline` as a working name in commands a
 
 | # | Question | Decision | What it means for the build |
 |---|---|---|---|
-| 1 | How does the blog appear on the site? | A proxy rule only when the site needs one. A site that already has a blog at its own address needs none. | The server serves one site at whatever address it is given. `byline init` asks where the blog will live and writes the proxy rule for that stack only when the blog sits under a folder of a site built with something else. |
+| 1 | How does the blog appear on the site? | A proxy rule only when the site needs one. A site that already has a blog at its own address needs none. | The server serves one site at whatever address it is given. `khalid init` asks where the blog will live and writes the proxy rule for that stack only when the blog sits under a folder of a site built with something else. |
 | 2 | Who may use it? | Anyone, free, open source, with a step-by-step guide in the GitHub repo. | Public repo. A README that takes a developer from zero to a first post in ten minutes. A docs folder. Releases with prebuilt binaries. |
 | 3 | Web editor? | Yes. | A writing editor built into the program. It writes the same text files the command line writes. No page builder. |
 | 4 | One site or many? | One process per site. People with many sites ask Claude Code to install it for each. The dashboard has a super-admin panel to add more domains. | The program can serve many sites, but the default install is one. Adding a domain in the super-admin panel adds a site to the same process. See D-2 in section 12. |
 | 5 | Lint: block or warn? | Block when a post has no date, no author or no internal link. Warn when an anchor text used before now points at a different page. Warn for everything else. Each message teaches. | Section 6 lists every rule with its severity and message. Severities live in a `lint.toml` people can tune. |
-| 6 | Migration | One import command per source. | `byline import wordpress`, `byline import ghost`, and so on. Each has a dry run and a report. |
+| 6 | Migration | One import command per source. | `khalid import wordpress`, `khalid import ghost`, and so on. Each has a dry run and a report. |
 | 7 | Server features and static sites | Everything exists. Static users see server features locked, with an explanation. | Section 7 lists what works in each mode and the lock text. |
 | 8 | Name and marketing | A nice name, "by SerpDad". Marketed from the free tools page and inside the SerpDad dashboard. "Publish with <name> by SerpDad" at the end of the content journey. | Section 8. The CMS becomes a fifth draft target next to WordPress, Webflow, Shopify and Google Docs. |
 | 9 | Licence | AGPL-3.0. Free to use, nobody may resell it. | Section 9 explains what AGPL does and does not stop, and adds the two things that close the gap. |
@@ -60,13 +60,13 @@ The CMS has no name yet. This plan uses `byline` as a working name in commands a
 
 ### Four journeys
 
-**A developer adds a blog to a company site.** They run one install line, then `byline init`. It asks four things: the site's address, where the blog should live, the languages, and server or static. It fetches the site, pulls colours, fonts and logo into a theme file, and shows a preview. If the blog sits under a folder of a Next.js or Webflow site, it prints the proxy rule for that stack. Ten minutes later the blog is live and looks like the site.
+**A developer adds a blog to a company site.** They run one install line, then `khalid init`. It asks four things: the site's address, where the blog should live, the languages, and server or static. It fetches the site, pulls colours, fonts and logo into a theme file, and shows a preview. If the blog sits under a folder of a Next.js or Webflow site, it prints the proxy rule for that stack. Ten minutes later the blog is live and looks like the site.
 
 **A developer who wants their own front end.** They keep their site as it is, point the Astro or Next.js starter kit at the Content API, and render the posts inside their own app. Schema, sitemaps, feeds and the linter still come from the CMS. Writers still use the editor, or they write in git and the blog pulls on push.
 
 **A marketer writes a post.** They open the web editor, write, add images, and press Publish. The linter stops them: "This post links to none of your other posts. Internal links are how readers and Google find the rest of your site. Add one link to a related post." It suggests three. They add one and publish. The sitemap, feeds, schema and IndexNow ping all happen without them.
 
-**A SerpDad user finishes the content journey.** The article is approved and written. Next to "Send to WordPress" there is "Publish with byline by SerpDad". They connect their blog once with its address and a token. From then on each finished article lands in the blog as a draft, already linted, ready to publish.
+**A SerpDad user finishes the content journey.** The article is approved and written. Next to "Send to WordPress" there is "Publish with khalid by SerpDad". They connect their blog once with its address and a token. From then on each finished article lands in the blog as a draft, already linted, ready to publish.
 
 ---
 
@@ -75,7 +75,7 @@ The CMS has no name yet. This plan uses `byline` as a working name in commands a
 - **Its own repository.** The SerpDad app is private. AGPL code cannot sit inside it. The CMS gets its own GitHub repository under the SerpDad organisation.
 - **Shared Rust.** The CMS and the SerpDad backend both need an HTML fetcher, a link extractor and text checks. Today those live in private crates: `fetch` has `crawl` and `links`, and `text` has `article_metrics`, `banned_phrases`, `no_dashes` and `score_text`. The plan is to put the lint rules and the text checks in the public CMS repo as a crate, and have the SerpDad backend depend on that crate. Public rules are also a marketing asset: the rules SerpDad uses are the rules anyone can read.
 - **Licensing of shared code.** SerpDad owns the copyright, so it may use its own code under any licence in the paid product. Outside contributions arrive under AGPL. A short contributor licence agreement, signed once by each contributor through a bot on the pull request, lets SerpDad use those too. Without it, every outside fix to the lint rules would be off limits for the SerpDad backend.
-- **A fifth draft target.** SerpDad already stages drafts to WordPress, Webflow, Shopify and Google Docs through one `DraftTarget` contract. It sends title, HTML body, slug, excerpt and draft status. The CMS's Admin API, section 5.12, takes that shape plus markdown, and SerpDad is one client of it. Connecting it works like WordPress: site address plus a token made in the CMS admin. The Rust `integrations` crate gets a `byline` module beside `wordpress` and `webflow`.
+- **A fifth draft target.** SerpDad already stages drafts to WordPress, Webflow, Shopify and Google Docs through one `DraftTarget` contract. It sends title, HTML body, slug, excerpt and draft status. The CMS's Admin API, section 5.12, takes that shape plus markdown, and SerpDad is one client of it. Connecting it works like WordPress: site address plus a token made in the CMS admin. The Rust `integrations` crate gets a `khalid` module beside `wordpress` and `webflow`.
 - **Neutral by default.** The open-source build never calls SerpDad or any AI. "Connect to SerpDad" is a settings page that is off until the user turns it on. This keeps the project trustworthy to people who will never pay, and they are the ones who star repos and write about them.
 - **Customer zero.** serpdad.com gets its blog on the CMS in Phase 7. It is the proof, the demo and the dogfood.
 
@@ -89,22 +89,22 @@ One Rust binary. Run with no arguments it prints help. Its roles:
 
 | Command | What it does |
 |---|---|
-| `byline init` | Set up a site: address, mount, languages, mode. Pull the theme. Write the proxy rule if needed. |
-| `byline serve` | Run the blog and the admin. HTTPS by itself when given a domain. |
-| `byline new "Title"` | Create a post file with correct front matter. |
-| `byline lint [path]` | Check one post or the whole site. Exit code 1 on a block, 0 otherwise. `--json` for agents. |
-| `byline publish <slug>` | Lint, then flip a draft to published. Refuses on a block. |
-| `byline theme sync <url>` | Pull colours, fonts and logo again. Shows a diff. Manual edits win. |
-| `byline import <source>` | Bring in a blog from WordPress, Ghost, Medium, Substack or a folder of markdown. |
-| `byline export` | Static mode: write plain HTML to `public/`. |
-| `byline mcp` | Speak the Model Context Protocol on stdin and stdout, so Claude Code and other agents can do everything above. |
-| `byline doctor` | Check the install: DNS, HTTPS, proxy rule, sitemap reachable, robots, hreflang pairs complete, HTML valid, every page type whole with scripts stripped, viewport and image sizes set. |
-| `byline backup` | One archive of the site folder. |
-| `byline audit` | Crawl the site the way Ahrefs and Semrush do and score it. Section 5.10. |
-| `byline update` | Update the binary, with `--rollback` to the previous version. |
-| `byline theme check` | Validate a template override before it goes live, the way Ghost's gscan does. |
-| `byline pull` | Git mode: fetch the content repository and rebuild. A push webhook runs it too. |
-| `byline keys` | Create and revoke API keys for integrations. |
+| `khalid init` | Set up a site: address, mount, languages, mode. Pull the theme. Write the proxy rule if needed. |
+| `khalid serve` | Run the blog and the admin. HTTPS by itself when given a domain. |
+| `khalid new "Title"` | Create a post file with correct front matter. |
+| `khalid lint [path]` | Check one post or the whole site. Exit code 1 on a block, 0 otherwise. `--json` for agents. |
+| `khalid publish <slug>` | Lint, then flip a draft to published. Refuses on a block. |
+| `khalid theme sync <url>` | Pull colours, fonts and logo again. Shows a diff. Manual edits win. |
+| `khalid import <source>` | Bring in a blog from WordPress, Ghost, Medium, Substack or a folder of markdown. |
+| `khalid export` | Static mode: write plain HTML to `public/`. |
+| `khalid mcp` | Speak the Model Context Protocol on stdin and stdout, so Claude Code and other agents can do everything above. |
+| `khalid doctor` | Check the install: DNS, HTTPS, proxy rule, sitemap reachable, robots, hreflang pairs complete, HTML valid, every page type whole with scripts stripped, viewport and image sizes set. |
+| `khalid backup` | One archive of the site folder. |
+| `khalid audit` | Crawl the site the way Ahrefs and Semrush do and score it. Section 5.10. |
+| `khalid update` | Update the binary, with `--rollback` to the previous version. |
+| `khalid theme check` | Validate a template override before it goes live, the way Ghost's gscan does. |
+| `khalid pull` | Git mode: fetch the content repository and rebuild. A push webhook runs it too. |
+| `khalid keys` | Create and revoke API keys for integrations. |
 
 Every command has `--json`. Every error says what happened, why it matters and what to do.
 
@@ -114,7 +114,7 @@ This is the point the founder asked about. In plain words:
 
 - **Every post is a text file.** Markdown with a short header for title, date, author, language and such. It sits in a folder on disk. You can open it in any editor, search it, diff it, keep it in git, and let Claude Code write it.
 - **The web editor edits those same files.** When a writer saves in the browser, the file on disk changes. Nothing is hidden in a database that only the editor can read.
-- **The database holds what is computed or what visitors create.** The link graph between posts, lint results, the search index, redirects, the 404 log, newsletter subscribers, comments, analytics counts, scheduled jobs and user accounts. It is one SQLite file per site. Delete it and `byline serve` rebuilds everything except visitor data from the files.
+- **The database holds what is computed or what visitors create.** The link graph between posts, lint results, the search index, redirects, the 404 log, newsletter subscribers, comments, analytics counts, scheduled jobs and user accounts. It is one SQLite file per site. Delete it and `khalid serve` rebuilds everything except visitor data from the files.
 
 Why this and not "everything in a database" like WordPress: migration is a folder of files anyone can read, a backup is a copy, history is git, agents work with files natively, and the blog survives the CMS. Why not "only files" like a static site generator: the editor, search, comments, newsletter, scheduled publish and analytics all need somewhere to write.
 
@@ -174,21 +174,21 @@ The program keeps a `sites/` folder. The default install makes one site in it. T
 ### 4.7 Deploy
 
 - A single file. Install with one line, or Homebrew, or a Docker image built from scratch.
-- `byline serve --domain blog.example.com` gets its own HTTPS certificate through Let's Encrypt and renews it. No reverse proxy is needed for the simple case.
+- `khalid serve --domain blog.example.com` gets its own HTTPS certificate through Let's Encrypt and renews it. No reverse proxy is needed for the simple case.
 - Ships a systemd unit, a Docker Compose file and one-click templates for Fly.io, Railway, Coolify and a Hetzner VPS.
 - Idle memory under 50 MB for one site. Binary under 30 MB.
 
 ### 4.8 Mounting under a folder of another site
 
-When the blog must live at `example.com/blog` and `example.com` is built with something else, the main site has to pass `/blog` through. `byline init` detects this case and prints the rule for the stack the user names:
+When the blog must live at `example.com/blog` and `example.com` is built with something else, the main site has to pass `/blog` through. `khalid init` detects this case and prints the rule for the stack the user names:
 
 Nginx, Caddy, Apache, Traefik, Cloudflare Worker, Vercel rewrites, Next.js rewrites, Netlify `_redirects`, Webflow through a Cloudflare reverse proxy, Shopify through a Cloudflare Worker.
 
-The CMS knows its mount path, so every link, feed and sitemap uses the full public address. `byline doctor` fetches the public address and confirms the rule works.
+The CMS knows its mount path, so every link, feed and sitemap uses the full public address. `khalid doctor` fetches the public address and confirms the rule works.
 
 ### 4.9 Theme sync
 
-`byline theme sync https://example.com` does this:
+`khalid theme sync https://example.com` does this:
 
 1. Fetch the home page and its stylesheets.
 2. Read CSS custom properties, `@font-face` rules and Google Fonts links.
@@ -211,7 +211,7 @@ Limits, and what we do about them:
 
 ### 4.10 Front-end defaults
 
-The checklist lives in the repository as `FRONTEND.md`. Every default template follows it, CI checks what a machine can check, and the linter and `byline doctor` warn when a user's override breaks it.
+The checklist lives in the repository as `FRONTEND.md`. Every default template follows it, CI checks what a machine can check, and the linter and `khalid doctor` warn when a user's override breaks it.
 
 **Responsive on every device**
 
@@ -254,7 +254,7 @@ URLs are configured in `routes.toml`, the way Ghost does it in `routes.yaml`. Th
 - **Taxonomy prefixes** rename `/tag/` and `/category/` to whatever the site says, such as `/topic/`.
 - **Aliases** in a post's front matter list old URLs that redirect here. They feed the redirect manager, so a migration keeps rankings with one line per post.
 - Every pattern knows the mount path and the language prefix, so `/de/guides/{slug}/` just works.
-- `byline lint` warns when two collections could claim the same post.
+- `khalid lint` warns when two collections could claim the same post.
 
 ---
 
@@ -300,7 +300,7 @@ See section 6.
 
 - A language folder per language under `content/`. A post names its translation group in its header with `translation_of`.
 - URLs: `/de/slug` by default; a subdomain per language is an option.
-- hreflang on every page, with `x-default`, and sitemap alternates. `byline lint` warns when a translation group is missing a language the site declares.
+- hreflang on every page, with `x-default`, and sitemap alternates. `khalid lint` warns when a translation group is missing a language the site declares.
 - Right-to-left support in the default templates. Dates and numbers in the page language.
 - A language switcher that links to the translated post, not the home page.
 
@@ -376,7 +376,7 @@ Schema comes with the CMS. Nothing to install, nothing to paste. The CMS writes 
 
 Ahrefs and Semrush both crawl a site and grade it. Ahrefs checks about 170 issues, Semrush about 140, and both give a health score out of 100. The default templates pass all of those checks by construction. The audit exists to prove it, to catch what a user's override or content breaks, and to give the dashboard the same score people know from those tools.
 
-- `byline audit` crawls the site the way Ahrefs and Semrush do: from the home page, following links, reading robots.txt, the sitemaps and hreflang. It runs nightly in server mode and in CI.
+- `khalid audit` crawls the site the way Ahrefs and Semrush do: from the home page, following links, reading robots.txt, the sitemaps and hreflang. It runs nightly in server mode and in CI.
 - Checks are grouped the way those tools group them, so an SEO recognises them: Crawlability and architecture, Indexability, Titles and descriptions, Headings, Content and duplicates, Internal links, Outgoing links, Redirects, Images, Resources, HTTPS and security, Localization and hreflang, Social tags, Sitemaps and robots, Structured data, Performance and Core Web Vitals, AI search.
 - Every check Ahrefs or Semrush names has a counterpart. Examples the default templates cannot break but overrides and content can: redirect chains and loops, a canonical pointing to a redirect or a 404, noindex or redirected pages in the sitemap, hreflang without a return tag, pages more than three clicks from home, pages with one inbound link, nofollow internal links, more than a configurable number of links on a page, near-duplicate posts, low text-to-HTML ratio, HTML over a size limit, missing HSTS, links from HTTPS pages to HTTP, outdated posts, low semantic HTML use, llms.txt format.
 - Core Web Vitals come from two places: lab numbers from Lighthouse in CI, and real-user numbers from Google's CrUX API per page, opt-in and free.
@@ -425,7 +425,7 @@ Each collection has typed front matter, validated on save, and a list page with 
 - **Review states.** Draft, in review, ready, published. Roles decide who can move a post between states: a writer submits, an editor approves. The states are also API fields and MCP operations, so SerpDad can stage into "in review".
 - **Comments on drafts.** Threaded, attached to a block, with email notifications and a resolve button.
 - **Calendar.** Drafts, scheduled posts and published posts by day. Drag to reschedule.
-- **Git mode.** Optional. Each draft is a branch named after the post and a pull request. Publishing is the merge. The blog pulls on push through a webhook or `byline pull`. Developers write in their own editor and ship posts like code.
+- **Git mode.** Optional. Each draft is a branch named after the post and a pull request. Publishing is the merge. The blog pulls on push through a webhook or `khalid pull`. Developers write in their own editor and ship posts like code.
 - **Presence and locking.** Who else has this post open, and a lock that releases when they leave.
 - **Audit log** of who changed what and when, across content, settings and users. **Trash** with restore. **Bulk actions** on the posts table.
 
@@ -491,7 +491,7 @@ Severities come from `lint.toml`. The defaults:
 | Form without a destination | A form block that delivers to no email address and no webhook |
 | Overlapping collections | Two collections in `routes.toml` could claim the same post |
 
-`byline lint --fix` repairs the safe ones: alt text from the caption, slug cleanup, heading order. Everything else is for the writer.
+`khalid lint --fix` repairs the safe ones: alt text from the caption, slug cleanup, heading order. Everything else is for the writer.
 
 The rule engine is a crate of its own, with one test per rule and one fixture per message, so SerpDad's backend can run the same rules on its own drafts.
 
@@ -499,14 +499,14 @@ The rule engine is a crate of its own, with one test per rule and one fixture pe
 
 ## 7. Server mode and static mode
 
-Static mode writes plain HTML to `public/` for people who want to serve the blog from their existing host with no process running. The admin still runs on their machine, and `byline export` runs after each change.
+Static mode writes plain HTML to `public/` for people who want to serve the blog from their existing host with no process running. The admin still runs on their machine, and `khalid export` runs after each change.
 
 | Feature | Server | Static |
 |---|---|---|
 | Posts, pages, authors, feeds, sitemaps, schema, hreflang | Yes | Yes |
 | Theme sync, lint, import, CLI, MCP | Yes | Yes |
 | Web editor | Yes | Yes, locally |
-| Scheduled publish | Yes | Locked: "Static sites change only when you export. Run `byline export` on a schedule, or switch to server mode." |
+| Scheduled publish | Yes | Locked: "Static sites change only when you export. Run `khalid export` on a schedule, or switch to server mode." |
 | Search | Yes | Locked, with a client-side option on small sites |
 | Comments | Yes | Locked, Giscus option |
 | Newsletter capture and sends | Yes | Locked, with a form that posts to a provider |
@@ -530,8 +530,8 @@ Every lock is a grey card with the feature's name, one sentence on why it needs 
 
 - **Free tools page.** A page on serpdad.com with the pitch, a one-line install, a demo blog and the GitHub link.
 - **Dashboard.** A tile under integrations: "Your blog, by SerpDad". Connect with the blog's address and a token made in the CMS admin under Settings, SerpDad.
-- **Publish with byline.** In the content journey, next to the existing draft targets. Sends the finished article the same way as WordPress today: title, body, slug, excerpt, as a draft. The CMS runs its linter on arrival and returns the result, so the SerpDad screen can say "Staged, 0 blocks, 2 warnings" and link to the post in the admin.
-- **Backend work in this repo.** A `byline` module in the Rust `integrations` crate and a `DraftTarget` for it, a `CmsConnection` provider, and the connect screen. Follows the WordPress one line for line.
+- **Publish with khalid.** In the content journey, next to the existing draft targets. Sends the finished article the same way as WordPress today: title, body, slug, excerpt, as a draft. The CMS runs its linter on arrival and returns the result, so the SerpDad screen can say "Staged, 0 blocks, 2 warnings" and link to the post in the admin.
+- **Backend work in this repo.** A `khalid` module in the Rust `integrations` crate and a `DraftTarget` for it, a `CmsConnection` provider, and the connect screen. Follows the WordPress one line for line.
 - **Docs.** Guides on serpdad.com for every lint rule, since the rules link there.
 
 ---
@@ -556,10 +556,10 @@ Pick the name. Create the repository, licence, CLA bot, trademark note and code 
 Content model, markdown pipeline with a directive for every block, wikilinks, co-located assets, maths as MathML, semantic, responsive templates that work with scripts off, server, SQLite index, feeds, sitemaps, robots, schema, clean URLs, language folders, `routes.toml` with collections, channels, permalinks and aliases, the glossary, case studies and changelog collections, the Content API and Admin API with keys, webhooks with signing, the OpenAPI spec and the TypeScript SDK. `init`, `new`, `serve`, `build`, `keys`. **Shows:** the SerpDad blog served locally from markdown files, 100 on Lighthouse, and the same posts fetched through the Content API.
 
 ### Phase 2. The linter, schema and SEO defaults (3 weeks)
-Every rule in section 6 with tests and messages. `lint.toml`. The publish gate. The schema engine from section 5.9. Redirects, 404 log, IndexNow, hreflang, `doctor`, and the site audit from section 5.10. **Shows:** `byline lint` blocks a post and explains itself, and `byline audit` scores the demo site 100.
+Every rule in section 6 with tests and messages. `lint.toml`. The publish gate. The schema engine from section 5.9. Redirects, 404 log, IndexNow, hreflang, `doctor`, and the site audit from section 5.10. **Shows:** `khalid lint` blocks a post and explains itself, and `khalid audit` scores the demo site 100.
 
 ### Phase 3. Theme sync and mounting (1 week)
-Token extraction, fonts, logo, preview, re-sync diff. The proxy rule generator for the stacks in 4.8. `byline theme check` for template overrides. **Shows:** run against ten real sites, eight look native without edits.
+Token extraction, fonts, logo, preview, re-sync diff. The proxy rule generator for the stacks in 4.8. `khalid theme check` for template overrides. **Shows:** run against ten real sites, eight look native without edits.
 
 ### Phase 4. Admin and editor (5 weeks)
 Mockups first, the founder's yes, then build. Accounts and passkeys. The editor from section 4.6 with every card, snippets, link search, Unsplash, image editing, autosave, version history, live preview, presence and locking. Review states, draft comments and the calendar. The media library with folders, focal points and S3 storage. The form builder. Navigation, Design and the announcement bar. API keys, audit log, trash, bulk actions. The collections and snippets screens. The logged-in toolbar on the public site. Media, authors, redirects, lint page, settings, super-admin sites panel. **Shows:** a marketer publishes a post with a bookmark card and a form from the browser, hits a lint block, fixes it, and sees the post in the calendar.
@@ -571,7 +571,7 @@ Search, comments, newsletter, analytics, webhooks, scheduled publish, preview li
 WordPress, Ghost, Medium, Substack, markdown folder. **Shows:** a 500-post WordPress blog imported with every slug kept and a complete redirect map.
 
 ### Phase 7. SerpDad integration and launch (1 to 2 weeks)
-The SerpDad draft target as a client of the Admin API, with its token. The `DraftTarget` and connect screen in this repo. The Astro and Next.js starter kits. Free tools page, docs for every rule and every API endpoint, MCP server, `AGENTS.md` and the Claude Code skill. serpdad.com/blog moves onto it. Release 1.0 with binaries for Linux, macOS and Windows. **Shows:** "Publish with byline by SerpDad" works end to end on the live site, and a starter kit renders the same blog headless.
+The SerpDad draft target as a client of the Admin API, with its token. The `DraftTarget` and connect screen in this repo. The Astro and Next.js starter kits. Free tools page, docs for every rule and every API endpoint, MCP server, `AGENTS.md` and the Claude Code skill. serpdad.com/blog moves onto it. Release 1.0 with binaries for Linux, macOS and Windows. **Shows:** "Publish with khalid by SerpDad" works end to end on the live site, and a starter kit renders the same blog headless.
 
 ### Phase 8. After launch
 Header and footer cloning, Webflow and HubSpot imports, auto-posting to Bluesky, Mastodon, LinkedIn and X and then the full social web through ActivityPub, cross-posting to Dev.to and Hashnode with a canonical back, member accounts and paid tiers through Stripe if users ask, Mermaid diagrams, Releases that publish many changes at once, visual editing on the live page, theme packaging and a theme directory, white-label admin and client management for agencies, the admin in other languages, a GraphQL API, client-side search for static sites, a podcast feed, a hosted version if demand shows up, and a public roadmap for everything else.
@@ -613,7 +613,7 @@ Timeline: phases 1 to 3 are one line of work. Phase 4 can start after Phase 1. P
 
 Each one has a recommendation first. "Yes to all" is a valid answer.
 
-- **D-1. Name.** Shortlist to check in Phase 0: Byline, Masthead, Dateline, Gazette, Typeset. Byline fits best: it is the author and date line under a headline, which is exactly what the linter insists on. Each needs the checks in section 9.
+- **D-1. Name.** Decided: Khalid, chosen by the founder on 2026-10-26. The original shortlist was Byline, Masthead, Dateline, Gazette and Typeset; the checks and the path to the decision are in `docs/decisions/`.
 - **D-2. Many sites.** Reading of answer 4: one program can serve many sites, the default install is one, and the super-admin panel adds domains to the same process. Recommend yes. The other reading, one process per site with a panel that talks to other servers, is more work and not needed for v1.
 - **D-3. Two extra blocks.** Block when a post has no title, or more than one H1. Recommend yes. Both make the page wrong, not just weak.
 - **D-4. Comments.** Build our own with moderation, or ship only the Giscus option in v1. Recommend our own, because every WordPress migration brings comments along.
@@ -669,7 +669,7 @@ Checked 2026-10-26 against Rank Math's pricing comparison table, 199 rows; the A
 
 | Rank Math | In the CMS | Where |
 |---|---|---|
-| Setup wizard, optimal settings pre-selected, compatibility check | Yes | `byline init` and `doctor` |
+| Setup wizard, optimal settings pre-selected, compatibility check | Yes | `khalid init` and `doctor` |
 | Titles, descriptions, separator, global meta templates, bulk edit, Google preview | Yes, added | 5.2 |
 | Focus keyword, unlimited keywords, content analysis, SEO score | Yes, added as the focus topic plus a score | 5.1, 6, D-10 |
 | Google keyword suggestion, search intent analysis, Content AI, competitor analysis | No. SerpDad | 8 |
@@ -697,7 +697,7 @@ Checked 2026-10-26 against Rank Math's pricing comparison table, 199 rows; the A
 | Podcast module, Video SEO, News SEO | Schema and sitemaps yes. A podcast feed is Phase 8 | 5.2, 5.9 |
 | WooCommerce, EDD, Elementor, Divi, bbPress, BuddyPress, AMP, Web Stories, custom post types | No. WordPress-only, or out of scope | 13 |
 | Multisite | Yes | 4.4 |
-| Version control, update notice | Yes, `byline update` with rollback | 4.1 |
+| Version control, update notice | Yes, `khalid update` with rollback | 4.1 |
 | Client management, white-label reports, agency features | Phase 8 | 10 |
 
 ### A.2 Ahrefs and Semrush, component by component
@@ -804,7 +804,7 @@ Checked 2026-10-26 against the Ghost developer docs and help centre, including t
 | Bluesky domain verification file served at `/.well-known/atproto-did` | Nobody does this for you | A free "verified" handle for the blog's domain | v1, trivial |
 | oEmbed provider endpoint, so other sites embed your posts as cards | WordPress | Shares look good everywhere | v1, small |
 | Scheduled unpublish, password-protected pages | Wagtail, Quartz | Promotions that end, drafts for a client | v1, small |
-| `byline theme check`: validate a template override before it goes live | Ghost gscan | Overrides stop breaking sites | v1, it is the linter on templates |
+| `khalid theme check`: validate a template override before it goes live | Ghost gscan | Overrides stop breaking sites | v1, it is the linter on templates |
 
 ### B.2 Later, Phase 8
 

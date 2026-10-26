@@ -1,6 +1,6 @@
 //! The `Slug` rules, case by case and as properties.
 
-use byline_core::{ParseSlugError, Slug};
+use khalid_core::{ParseSlugError, Slug};
 use proptest::prelude::{prop_assert, prop_assert_eq, proptest};
 
 #[test]

@@ -1,7 +1,7 @@
 //! The real clock moves forward, and the fixed clock never does.
 
-use byline_core::{Clock, FixedClock, SystemClock};
 use chrono::{TimeZone, Utc};
+use khalid_core::{Clock, FixedClock, SystemClock};
 
 #[test]
 fn the_system_clock_reads_the_present() {

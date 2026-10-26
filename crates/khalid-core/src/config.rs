@@ -1,6 +1,6 @@
-//! Settings, read once when Byline starts.
+//! Settings, read once when Khalid starts.
 
-/// Every setting Byline reads, checked once at start and then passed by
+/// Every setting Khalid reads, checked once at start and then passed by
 /// reference (RULES.md BL-RUN-2).
 ///
 /// It has no fields yet. Phase 1 fills it from `site.toml`, the environment and
@@ -10,7 +10,7 @@
 pub struct Config {}
 
 impl Config {
-    /// The settings Byline uses when nothing is configured.
+    /// The settings Khalid uses when nothing is configured.
     pub fn new() -> Self {
         Self::default()
     }

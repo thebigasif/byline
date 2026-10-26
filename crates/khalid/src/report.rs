@@ -6,7 +6,7 @@
 
 use std::io::{self, Write};
 
-use byline_core::UserMessage;
+use khalid_core::UserMessage;
 use serde::Serialize;
 
 use crate::cli::Output;
@@ -34,9 +34,9 @@ pub(crate) fn text(text: &str, exit: Exit) -> Exit {
 pub(crate) fn version(output: Output) -> Exit {
     let version = env!("CARGO_PKG_VERSION");
     let written = match output {
-        Output::Human => writeln!(io::stdout().lock(), "byline {version}"),
+        Output::Human => writeln!(io::stdout().lock(), "khalid {version}"),
         Output::Json => json_line(&VersionBody {
-            name: "byline",
+            name: "khalid",
             version,
         }),
     };

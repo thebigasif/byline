@@ -7,14 +7,14 @@ Fast is a feature. These numbers are gates, not goals. CI measures them on every
 | Measure | Budget | Drift allowed | How CI measures it |
 |---|---|---|---|
 | Release binary, stripped, Linux x86_64 | under 30 MB | 2% | `ls -l` after `cargo build --release` |
-| Cold start to first byte | under 100 ms | 10% | `hyperfine` on `byline serve` with a 1,000-post fixture, first request |
+| Cold start to first byte | under 100 ms | 10% | `hyperfine` on `khalid serve` with a 1,000-post fixture, first request |
 | Idle memory, one site, 1,000 posts | under 50 MB RSS | 10% | `/usr/bin/time -v` after warm-up |
 | Post page render, in process | p50 under 1 ms, p99 under 5 ms | 10% | `divan` benchmark over the fixture |
 | Cached post page, 2 vCPU | at least 10,000 requests per second | 10% | `oha` for 30 seconds |
-| Full rebuild, 10,000 posts | under 30 s | 10% | timed `byline build` |
+| Full rebuild, 10,000 posts | under 30 s | 10% | timed `khalid build` |
 | Incremental rebuild, one post | under 50 ms | 10% | timed file change to updated page |
 | Lint one post | under 20 ms | 10% | `divan` |
-| Full site audit, 1,000 posts | under 60 s | 10% | timed `byline audit` |
+| Full site audit, 1,000 posts | under 60 s | 10% | timed `khalid audit` |
 | Lighthouse, default post page | 100 in all four categories | none | Lighthouse CI against the demo site |
 | Largest Contentful Paint, demo site on a 5 dollar VPS class runner | under 1 s | none | Lighthouse CI |
 | Cumulative Layout Shift | 0 | none | Lighthouse CI |

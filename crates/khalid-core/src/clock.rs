@@ -1,4 +1,4 @@
-//! The one way Byline reads the time.
+//! The one way Khalid reads the time.
 
 use std::fmt;
 
@@ -35,7 +35,7 @@ impl Clock for SystemClock {
 /// # Examples
 ///
 /// ```
-/// use byline_core::{Clock, FixedClock};
+/// use khalid_core::{Clock, FixedClock};
 /// use chrono::{TimeZone, Utc};
 ///
 /// let launch = Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).single().ok_or("no such time")?;

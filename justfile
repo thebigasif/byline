@@ -46,4 +46,4 @@ coverage:
 
 # Run the binary in a scratch site with a demo fixture.
 dev:
-    cargo run -p byline -- serve --site fixtures/demo-site
+    cargo run -p khalid -- serve --site fixtures/demo-site

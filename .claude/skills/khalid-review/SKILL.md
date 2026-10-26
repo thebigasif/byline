@@ -1,14 +1,14 @@
 ---
-name: byline-review
+name: khalid-review
 description: >-
-  Review a pull request, diff, file or crate in the Byline repository against the
+  Review a pull request, diff, file or crate in the Khalid repository against the
   rule catalogue and the 10-point rubric, and write a review where every finding
   cites a rule ID and shows the fix. Load this whenever asked to review, audit,
   grade, check or approve code in this repository, or before opening a pull request
   for a self-review. Pairs with rust-review, which holds the general Rust checks.
 ---
 
-# Byline review
+# Khalid review
 
 The goal is a review that finds nothing because the author already ran it. Scores are honest. A 10/10 with a hidden shortfall is the one unacceptable outcome.
 
@@ -44,7 +44,7 @@ The goal is a review that finds nothing because the author already ran it. Score
 **Total: 9/10**
 
 ## Must fix
-### 1. <title> (`crates/byline-lint/src/rules/author.rs:42`)
+### 1. <title> (`crates/khalid-lint/src/rules/author.rs:42`)
 **Rule:** BL-ERR-4
 **Problem:** <what is wrong and the consequence, one or two sentences>
 **Fix:**

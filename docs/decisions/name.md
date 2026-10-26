@@ -2,6 +2,8 @@
 
 **Status:** decided. The working name is **Wellranked**, as in "Wellranked by SerpDad", pending a trademark lawyer and the founder's veto. The founder asked for a name that sounds like the answer to the customer's problem, so Dateline was withdrawn; the record is in `docs/decisions/2026-10-26-cto-answers.md`. The first table is the original shortlist plus the Lede and Stylebook fallbacks. The second covers Wellranked and its five runners-up. This page adds facts only. Phase 0, task 0.1.
 
+**Update, 2026-10-26:** the founder chose **Khalid**. It replaced the working names Byline and Wellranked; everything below is kept as the record of how the name was chosen.
+
 These checks were run on 2026-10-26. GitHub was checked with `gh api users/<name>` and `gh search repos <name> --limit 10`. crates.io and npm were checked through their public APIs. Domains were checked through RDAP at rdap.org (200 means registered, 404 means no record found), and each registered domain's homepage was fetched once to see what it serves. Trademarks and existing products were checked through web search only. The USPTO and TMview search sites need a browser, so their checks are only partial. Nothing was registered, submitted or signed in to.
 
 "Free" below means no record was found today. It is not a promise the name can be registered or used.

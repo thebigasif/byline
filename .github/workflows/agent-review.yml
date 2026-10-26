@@ -27,13 +27,13 @@ jobs:
         id: key
         run: |
           if [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
-      - name: Review with the byline-review skill
+      - name: Review with the khalid-review skill
         if: steps.key.outputs.present == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            Load the byline-review and rust-review skills. Review this pull request
+            Load the khalid-review and rust-review skills. Review this pull request
             against docs/standards/review.md and docs/standards/RULES.md. Score the
             ten-point rubric honestly. Post the review as a pull request review with
             line comments on the findings. Request changes on any must fix.

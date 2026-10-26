@@ -6,8 +6,8 @@ The API is the only door (CLAUDE.md). This file fixes the shape so every endpoin
 
 | Surface | Base path | Auth | Purpose |
 |---|---|---|---|
-| Content API | `/api/content/v1/` | Content key in `Authorization: Byline-Content <key>` or `?key=`, safe in browsers | Read public content |
-| Admin API | `/api/admin/v1/` | Integration key or staff token in `Authorization: Byline <token>`, or the admin session cookie plus CSRF | Read and write everything |
+| Content API | `/api/content/v1/` | Content key in `Authorization: Khalid-Content <key>` or `?key=`, safe in browsers | Read public content |
+| Admin API | `/api/admin/v1/` | Integration key or staff token in `Authorization: Khalid <token>`, or the admin session cookie plus CSRF | Read and write everything |
 | oEmbed | `/api/oembed` | None | Embed cards for other sites |
 | Publish target | Part of the Admin API | Integration key with the `posts:write` scope | SerpDad and other tools stage drafts |
 
@@ -19,17 +19,17 @@ The API is the only door (CLAUDE.md). This file fixes the shape so every endpoin
 - `formats` on posts selects `html`, `markdown`, `plaintext`, any combination.
 - Writes accept and return the same shape. A `POST /posts/?source=html` accepts an HTML body and converts it to markdown and blocks.
 - Edits send `updated_at`. A stale value returns 409 with a problem detail that names who changed it and when (BL-API-7).
-- Errors are RFC 9457: `{"type": "https://byline.dev/problems/lint-blocked", "title": "The post cannot be published", "status": 422, "detail": "This post has no author.", "fix": "Add author: to the header.", "rule": "no-author", "instance": "/api/admin/v1/posts/abc"}`.
+- Errors are RFC 9457: `{"type": "https://khalid.dev/problems/lint-blocked", "title": "The post cannot be published", "status": 422, "detail": "This post has no author.", "fix": "Add author: to the header.", "rule": "no-author", "instance": "/api/admin/v1/posts/abc"}`.
 - `Accept-Version: v1.3` sets the minimum version the client expects. The server answers with the version it served.
 - Every endpoint is in the OpenAPI document at `/api/openapi.json`, generated from `utoipa` annotations, and a contract test fails when the document and the routes disagree (BL-API-4).
 
 ## Keys and scopes
 
-Integration keys are created in the admin or with `byline keys create`. Each key has scopes: `content:read`, `posts:write`, `media:write`, `settings:write`, `webhooks:manage`, `subscribers:write`, `admin:all`. Keys are stored hashed and shown once. Staff tokens carry the user's role.
+Integration keys are created in the admin or with `khalid keys create`. Each key has scopes: `content:read`, `posts:write`, `media:write`, `settings:write`, `webhooks:manage`, `subscribers:write`, `admin:all`. Keys are stored hashed and shown once. Staff tokens carry the user's role.
 
 ## Webhooks
 
-Events are `resource.verb`: `post.published`, `post.published.edited`, `post.unpublished`, `post.scheduled`, `post.deleted`, the same for `page` and each collection, `tag.added`, `form.submitted`, `subscriber.added`, `comment.added`, `lint.blocked`, `audit.finished`, `site.changed`. The body is the resource in API shape plus `event`, `occurred_at` and `site`. Deliveries are signed: `Byline-Signature: t=<unix>,v1=<hmac-sha256(secret, t + "." + body)>`. Retries back off over 24 hours. The admin shows a delivery log.
+Events are `resource.verb`: `post.published`, `post.published.edited`, `post.unpublished`, `post.scheduled`, `post.deleted`, the same for `page` and each collection, `tag.added`, `form.submitted`, `subscriber.added`, `comment.added`, `lint.blocked`, `audit.finished`, `site.changed`. The body is the resource in API shape plus `event`, `occurred_at` and `site`. Deliveries are signed: `Khalid-Signature: t=<unix>,v1=<hmac-sha256(secret, t + "." + body)>`. Retries back off over 24 hours. The admin shows a delivery log.
 
 ## Versioning
 

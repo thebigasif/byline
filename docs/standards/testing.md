@@ -11,8 +11,8 @@ Tests are the proof the founder asked for. A feature without a test is not done.
 | Doc tests | rustdoc examples | Every public function with an example, using `?` |
 | Property | `proptest` | Parsers, slug and URL rules, the filter grammar, directive round-trips |
 | Snapshot | `insta` | Rendered HTML per template and per block, schema JSON, sitemaps, feeds |
-| Lint fixtures | `crates/byline-lint/fixtures/` | One fixture per message a rule can emit, and a check that each message has what, why and fix (BL-TST-4) |
-| Round-trip | `crates/byline-content/tests/` | Every block: markdown to blocks to markdown, byte for byte (BL-TST-5) |
+| Lint fixtures | `crates/khalid-lint/fixtures/` | One fixture per message a rule can emit, and a check that each message has what, why and fix (BL-TST-4) |
+| Round-trip | `crates/khalid-content/tests/` | Every block: markdown to blocks to markdown, byte for byte (BL-TST-5) |
 | HTTP | `axum` test client | Every endpoint: success, validation failure, auth failure, stale `updated_at` |
 | CLI | `assert_cmd` | Every command: human output, `--json`, exit code |
 | End to end | Playwright in `e2e/` | Every user journey in `docs/plan.md` section 2, at six widths, with and without scripts |

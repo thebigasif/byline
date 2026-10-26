@@ -1,6 +1,6 @@
 # Front-end checklist
 
-Every default template follows this list. CI checks what a machine can check. The linter and `byline doctor` warn when a user's override breaks it. The list is pinned to named standards and reviewed once per release.
+Every default template follows this list. CI checks what a machine can check. The linter and `khalid doctor` warn when a user's override breaks it. The list is pinned to named standards and reviewed once per release.
 
 ## Semantic HTML
 

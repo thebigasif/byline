@@ -19,7 +19,7 @@ A pull request below 10 can still merge when the author says which point is belo
 
 ## How to run a review
 
-1. Load the `rust-review` skill and the `byline-review` skill.
+1. Load the `rust-review` skill and the `khalid-review` skill.
 2. Run `just check` on the branch. Fold the results in. Never paste raw tool output.
 3. Read the diff and everything it touches. For every finding: `file:line`, the rule ID from RULES.md or the source rule from BeautifulRust, the consequence, the smallest fix as code.
 4. Sort: must fix, should fix, consider. Group repeats.

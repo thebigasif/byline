@@ -1,6 +1,6 @@
 //! The shape of a `UserMessage` on screen and in JSON.
 
-use byline_core::UserMessage;
+use khalid_core::UserMessage;
 
 fn no_author() -> UserMessage {
     UserMessage::new(

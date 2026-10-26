@@ -1,4 +1,4 @@
-# Byline clippy thresholds. Based on BeautifulRust's clippy.toml (MIT), kept in
+# Khalid clippy thresholds. Based on BeautifulRust's clippy.toml (MIT), kept in
 # lints/clippy.beautifulrust.toml, with this repository's additions.
 
 # Any bool parameter is flagged, not just four or more (RULES.md BL-API-1).
@@ -15,22 +15,22 @@ allow-indexing-slicing-in-tests = true
 too-many-lines-threshold = 80
 too-many-arguments-threshold = 6
 
-# Time goes through byline_core::Clock (BL-RUN-1). Settings go through
-# byline_core::Config (BL-RUN-2). Outbound HTTP goes through byline_outbound
+# Time goes through khalid_core::Clock (BL-RUN-1). Settings go through
+# khalid_core::Config (BL-RUN-2). Outbound HTTP goes through khalid_outbound
 # (BL-RUN-8). Paths from requests go through SitePath (BL-SEC-4). The clock,
 # config, outbound and path modules carry one #[expect] each with the reason.
 disallowed-methods = [
-  { path = "std::time::SystemTime::now", reason = "read time through byline_core::Clock (BL-RUN-1)" },
-  { path = "std::time::Instant::now", reason = "read time through byline_core::Clock (BL-RUN-1)" },
-  { path = "chrono::Utc::now", reason = "read time through byline_core::Clock (BL-RUN-1)" },
-  { path = "chrono::Local::now", reason = "read time through byline_core::Clock (BL-RUN-1)" },
-  { path = "std::env::var", reason = "read settings once through byline_core::Config (BL-RUN-2)" },
-  { path = "std::env::var_os", reason = "read settings once through byline_core::Config (BL-RUN-2)" },
-  { path = "std::path::Path::join", reason = "join untrusted segments through byline_core::SitePath (BL-SEC-4)" },
+  { path = "std::time::SystemTime::now", reason = "read time through khalid_core::Clock (BL-RUN-1)" },
+  { path = "std::time::Instant::now", reason = "read time through khalid_core::Clock (BL-RUN-1)" },
+  { path = "chrono::Utc::now", reason = "read time through khalid_core::Clock (BL-RUN-1)" },
+  { path = "chrono::Local::now", reason = "read time through khalid_core::Clock (BL-RUN-1)" },
+  { path = "std::env::var", reason = "read settings once through khalid_core::Config (BL-RUN-2)" },
+  { path = "std::env::var_os", reason = "read settings once through khalid_core::Config (BL-RUN-2)" },
+  { path = "std::path::Path::join", reason = "join untrusted segments through khalid_core::SitePath (BL-SEC-4)" },
   { path = "std::process::exit", reason = "return an error to main, which maps it to an exit code (BL-CLI-2)" },
 ]
 
 disallowed-types = [
-  { path = "reqwest::Client", reason = "use byline_outbound::Outbound, which has timeouts, size caps and the private-network guard (BL-RUN-8)" },
+  { path = "reqwest::Client", reason = "use khalid_outbound::Outbound, which has timeouts, size caps and the private-network guard (BL-RUN-8)" },
   { path = "std::collections::HashMap", reason = "order reaches output; use Vec, BTreeMap or IndexMap (BL-TYP-5). If order truly never leaves this function, #[expect] with that reason" },
 ]

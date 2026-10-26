@@ -11,7 +11,7 @@ Khalid is the product's name, chosen by the founder on 2026-10-26. Older files m
 5. `docs/standards/`: `rust.md`, `api.md`, `typescript.md`, `performance.md`, `testing.md`, `review.md`, `git.md`.
 6. `FRONTEND.md`: the front-end checklist every template follows.
 
-The skills in `.claude/skills/` load on their own. `rust-best-practices` and `rust-review` come from BeautifulRust (MIT, Morgan Linton). `byline-way` and `byline-review` add this repository's rules on top. When they disagree, `byline-way` wins, because it carries the founder's decisions.
+The skills in `.claude/skills/` load on their own. `rust-best-practices` and `rust-review` come from BeautifulRust (MIT, Morgan Linton). `khalid-way` and `khalid-review` add this repository's rules on top. When they disagree, `khalid-way` wins, because it carries the founder's decisions.
 
 ## The founder's rules. Never break these.
 
@@ -29,7 +29,7 @@ The founder wants speed. There are no pull-request round trips. Each finished ta
 
 1. **Pick one task** from the current phase brief. Work on `main` in the repository folder, or on a short-lived local branch you fast-forward into `main` yourself.
 2. **Write the failing test first.** A lint rule starts with its fixture and its message. A block starts with its round-trip test. An endpoint starts with its OpenAPI entry and a request test.
-3. **Write the code** with `rust-best-practices` and `byline-way` loaded. Check `RULES.md` IDs as you go. Make invalid states unrepresentable before you write the first `if`.
+3. **Write the code** with `rust-best-practices` and `khalid-way` loaded. Check `RULES.md` IDs as you go. Make invalid states unrepresentable before you write the first `if`.
 4. **Run `just check`** (or `scripts/check.sh`). Format, clippy with warnings as errors, tests, docs, dependency audit, unused dependencies, typos. Everything green locally before you push. Never push red.
 5. **Self-review** with `rust-review` and the rubric in `docs/standards/review.md`. Fix everything it finds. Put the rubric score and anything below 10 in the commit body.
 6. **Commit and push.** A Conventional Commit whose body says why, how it was tested, the rubric score, and what the founder can look at. Push it to a short-lived branch named `task/<slug>`.

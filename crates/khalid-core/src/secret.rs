@@ -15,7 +15,7 @@ use std::fmt;
 /// # Examples
 ///
 /// ```
-/// use byline_core::Secret;
+/// use khalid_core::Secret;
 ///
 /// let token = Secret::new(String::from("generated-for-this-example"));
 /// assert_eq!(format!("{token:?}"), "[redacted]");

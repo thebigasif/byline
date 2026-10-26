@@ -1,4 +1,4 @@
-//! How `byline` ends: the exit codes from RULES.md BL-CLI-2.
+//! How `khalid` ends: the exit codes from RULES.md BL-CLI-2.
 
 use std::process::ExitCode;
 
@@ -7,9 +7,9 @@ use std::process::ExitCode;
 pub(crate) enum Exit {
     /// 0: the command did what was asked.
     Success,
-    /// 2: the command line did not match what Byline expects.
+    /// 2: the command line did not match what Khalid expects.
     Usage,
-    /// 3: Byline could not do the work. Nothing the person typed was wrong.
+    /// 3: Khalid could not do the work. Nothing the person typed was wrong.
     Internal,
 }
 

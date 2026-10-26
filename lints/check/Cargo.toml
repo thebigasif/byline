@@ -9,7 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 # Only the violations use chrono, to prove the chrono entries in clippy.toml.
-[target.'cfg(byline_lint_check)'.dependencies]
+[target.'cfg(khalid_lint_check)'.dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
 # The table under test is the workspace one, so this crate is linted exactly
