@@ -14,8 +14,10 @@ use utoipa::{Modify, OpenApi, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
+use crate::api_version::{self, negotiate_version};
 use crate::content_key::require_content_key;
 use crate::content_store::{ContentStore, PostKey};
+use crate::etag::tag_and_revalidate;
 use crate::keys::KeyStore;
 use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
@@ -74,10 +76,13 @@ pub fn router(store: Store, keys: Arc<dyn KeyStore>) -> (Router, Document) {
         .routes(routes!(read_post))
         .routes(routes!(read_post_by_slug))
         .route_layer(middleware::from_fn_with_state(keys, require_content_key))
+        .route_layer(middleware::from_fn(tag_and_revalidate))
+        .route_layer(middleware::from_fn(negotiate_version))
         .with_state(store);
-    let (router, document) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+    let (router, mut document) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest(BASE, content)
         .split_for_parts();
+    api_version::document(&mut document);
     let served = Json(document.clone());
     let router = router.route("/api/openapi.json", get(move || async move { served }));
     (router, document)

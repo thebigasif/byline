@@ -214,7 +214,14 @@ async fn the_openapi_document_lists_the_routes() {
         .map(|parameter| parameter["name"].as_str().unwrap())
         .collect();
     let want = [
-        "filter", "include", "fields", "order", "formats", "limit", "page",
+        "filter",
+        "include",
+        "fields",
+        "order",
+        "formats",
+        "limit",
+        "page",
+        "Accept-Version",
     ];
     assert_eq!(names, want);
     assert!(json["components"]["schemas"]["Post"].is_object());
