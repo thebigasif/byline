@@ -133,6 +133,71 @@ fn check_url(
     }
 }
 
+const IMAGE_NS: &str = "http://www.google.com/schemas/sitemap-image/1.1";
+const VIDEO_NS: &str = "http://www.google.com/schemas/sitemap-video/1.1";
+
+fn children<'a, 'i>(node: Node<'a, 'i>, ns: &str) -> Vec<(&'a str, Node<'a, 'i>)> {
+    node.children()
+        .filter(|child| child.is_element() && child.tag_name().namespace() == Some(ns))
+        .map(|child| (child.tag_name().name(), child))
+        .collect()
+}
+
+fn text_of<'a>(found: &[(&str, Node<'a, '_>)], name: &str) -> Option<&'a str> {
+    found
+        .iter()
+        .find(|(n, _)| *n == name)
+        .and_then(|(_, node)| node.text())
+}
+
+/// `sitemap-image` 1.1: `image:image` holds exactly one `image:loc`.
+fn check_image(node: Node<'_, '_>) -> Result<(), String> {
+    let found = children(node, IMAGE_NS);
+    match found.as_slice() {
+        [("loc", loc)] => check_loc(*loc),
+        _ => Err("image:image must hold exactly one image:loc".to_owned()),
+    }
+}
+
+/// `sitemap-video` 1.1: thumbnail, title, description of at most 2048
+/// characters, a content or player address, a duration of 1 to 28,800
+/// seconds, and a W3C publication date.
+fn check_video(node: Node<'_, '_>) -> Result<(), String> {
+    let found = children(node, VIDEO_NS);
+    for required in ["thumbnail_loc", "title", "description"] {
+        if text_of(&found, required).is_none_or(str::is_empty) {
+            return Err(format!("video:video has no {required}"));
+        }
+    }
+    if text_of(&found, "description").is_some_and(|d| d.chars().count() > 2048) {
+        return Err("video:description is over 2048 characters".to_owned());
+    }
+    if text_of(&found, "content_loc").is_none() && text_of(&found, "player_loc").is_none() {
+        return Err("video:video needs content_loc or player_loc".to_owned());
+    }
+    if let Some(duration) = text_of(&found, "duration") {
+        let seconds: u32 = duration
+            .parse()
+            .map_err(|_| "video:duration is not whole seconds")?;
+        if !(1..=28_800).contains(&seconds) {
+            return Err(format!("video:duration {seconds} is outside 1 to 28800"));
+        }
+    }
+    if let Some((_, date)) = found.iter().find(|(n, _)| *n == "publication_date") {
+        check_lastmod(*date)?;
+    }
+    Ok(())
+}
+
+/// The Google image and video extensions, each against its schema.
+pub(crate) fn google_extensions(node: Node<'_, '_>) -> Result<(), String> {
+    match (node.tag_name().namespace(), node.tag_name().name()) {
+        (Some(IMAGE_NS), "image") => check_image(node),
+        (Some(VIDEO_NS), "video") => check_video(node),
+        _ => no_extension(node),
+    }
+}
+
 /// No extension namespaces beyond `xhtml:link` are expected.
 pub(crate) fn no_extension(node: Node<'_, '_>) -> Result<(), String> {
     Err(format!(

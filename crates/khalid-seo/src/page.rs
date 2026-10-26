@@ -3,7 +3,9 @@
 use chrono::{DateTime, Utc};
 use khalid_core::{AbsoluteUrl, Locale};
 
-use crate::{Alternate, MetaTemplate, RobotsDirectives, ShareImage, TranslationKey, UrlPath};
+use crate::{
+    Alternate, MetaTemplate, RobotsDirectives, ShareImage, TranslationKey, UrlPath, Video,
+};
 
 /// The kind of page, which picks its title template and index setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -104,6 +106,10 @@ pub struct SeoPage {
     pub state: PublishState,
     /// Whether the page appears in the XML sitemap.
     pub sitemap: SitemapListing,
+    /// The images in the page's content, for the image sitemap.
+    pub images: Vec<AbsoluteUrl>,
+    /// The videos in the page's content, for the video sitemap.
+    pub videos: Vec<Video>,
 }
 
 impl SeoPage {
@@ -129,6 +135,8 @@ impl SeoPage {
             alternates: Vec::new(),
             state: PublishState::Published,
             sitemap: SitemapListing::Listed,
+            images: Vec::new(),
+            videos: Vec::new(),
         }
     }
 }

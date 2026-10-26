@@ -1,12 +1,19 @@
 //! The XML sitemap: every published, indexable page, with its alternates.
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Utc};
 use khalid_core::AbsoluteUrl;
 
 use crate::escape::escape_markup;
+use crate::social::rfc3339;
 use crate::{
-    Alternate, Indexing, PageKind, PublishState, SeoError, SeoPage, SeoSite, SitemapListing,
+    Alternate, Indexing, PageKind, PublishState, SeoError, SeoPage, SeoSite, SitemapListing, Video,
 };
+
+/// Google reads at most this many images per page in a sitemap.
+const MAX_IMAGES_PER_URL: usize = 1000;
+
+/// The video sitemap schema's limit on a description, in characters.
+const MAX_VIDEO_DESCRIPTION: usize = 2048;
 
 /// One `<url>` in a sitemap.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,6 +25,72 @@ pub struct SitemapEntry {
     pub lastmod: Option<DateTime<Utc>>,
     /// The page's language versions, as `xhtml:link` alternates.
     pub alternates: Vec<Alternate>,
+    /// The images in the page, at most 1,000.
+    pub images: Vec<AbsoluteUrl>,
+    /// The videos in the page.
+    pub videos: Vec<Video>,
+}
+
+fn element(out: &mut String, indent: &str, name: &str, text: &str) {
+    out.push_str(indent);
+    out.push('<');
+    out.push_str(name);
+    out.push('>');
+    escape_markup(text, out);
+    out.push_str("</");
+    out.push_str(name);
+    out.push_str(">\n");
+}
+
+fn write_video(video: &Video, out: &mut String) {
+    let inner = "      ";
+    out.push_str("    <video:video>\n");
+    element(out, inner, "video:thumbnail_loc", video.thumbnail.as_str());
+    element(out, inner, "video:title", &video.title);
+    let description: String = video
+        .description
+        .chars()
+        .take(MAX_VIDEO_DESCRIPTION)
+        .collect();
+    element(out, inner, "video:description", &description);
+    if let Some(file) = video.file() {
+        element(out, inner, "video:content_loc", file.as_str());
+    }
+    if let Some(player) = video.player() {
+        element(out, inner, "video:player_loc", player.as_str());
+    }
+    if let Some(duration) = video.duration {
+        let seconds = duration.as_secs().max(1).to_string();
+        element(out, inner, "video:duration", &seconds);
+    }
+    if let Some(uploaded) = &video.uploaded {
+        element(out, inner, "video:publication_date", &rfc3339(uploaded));
+    }
+    out.push_str("    </video:video>\n");
+}
+
+fn write_entry(entry: &SitemapEntry, out: &mut String) {
+    out.push_str("  <url>\n");
+    element(out, "    ", "loc", entry.loc.as_str());
+    if let Some(lastmod) = &entry.lastmod {
+        element(out, "    ", "lastmod", &rfc3339(lastmod));
+    }
+    for alternate in &entry.alternates {
+        out.push_str("    <xhtml:link rel=\"alternate\" hreflang=\"");
+        escape_markup(alternate.hreflang.as_str(), out);
+        out.push_str("\" href=\"");
+        escape_markup(alternate.url.as_str(), out);
+        out.push_str("\"/>\n");
+    }
+    for image in &entry.images {
+        out.push_str("    <image:image>\n");
+        element(out, "      ", "image:loc", image.as_str());
+        out.push_str("    </image:image>\n");
+    }
+    for video in &entry.videos {
+        write_video(video, out);
+    }
+    out.push_str("  </url>\n");
 }
 
 /// A `urlset` sitemap file, in the order its pages were given.
@@ -56,6 +129,13 @@ impl Sitemap {
                     loc: site.url_for(&page.language, &page.path)?,
                     lastmod: page.modified.or(page.published),
                     alternates: page.alternates.clone(),
+                    images: page
+                        .images
+                        .iter()
+                        .take(MAX_IMAGES_PER_URL)
+                        .cloned()
+                        .collect(),
+                    videos: page.videos.clone(),
                 })
             })
             .collect::<Result<Vec<_>, SeoError>>()?;
@@ -72,25 +152,12 @@ impl Sitemap {
         let mut out = String::from(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
              <urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" \
-             xmlns:xhtml=\"http://www.w3.org/1999/xhtml\">\n",
+             xmlns:xhtml=\"http://www.w3.org/1999/xhtml\" \
+             xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\" \
+             xmlns:video=\"http://www.google.com/schemas/sitemap-video/1.1\">\n",
         );
         for entry in &self.entries {
-            out.push_str("  <url>\n    <loc>");
-            escape_markup(entry.loc.as_str(), &mut out);
-            out.push_str("</loc>\n");
-            if let Some(lastmod) = &entry.lastmod {
-                out.push_str("    <lastmod>");
-                out.push_str(&lastmod.to_rfc3339_opts(SecondsFormat::Secs, true));
-                out.push_str("</lastmod>\n");
-            }
-            for alternate in &entry.alternates {
-                out.push_str("    <xhtml:link rel=\"alternate\" hreflang=\"");
-                escape_markup(alternate.hreflang.as_str(), &mut out);
-                out.push_str("\" href=\"");
-                escape_markup(alternate.url.as_str(), &mut out);
-                out.push_str("\"/>\n");
-            }
-            out.push_str("  </url>\n");
+            write_entry(entry, &mut out);
         }
         out.push_str("</urlset>\n");
         out

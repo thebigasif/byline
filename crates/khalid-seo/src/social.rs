@@ -73,7 +73,8 @@ fn og_locale(language: &Locale) -> String {
     language.as_str().replace('-', "_")
 }
 
-fn rfc3339(time: &DateTime<Utc>) -> String {
+/// A time in the W3C form sitemaps and Open Graph read: `2026-10-02T16:00:00Z`.
+pub(crate) fn rfc3339(time: &DateTime<Utc>) -> String {
     time.to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 

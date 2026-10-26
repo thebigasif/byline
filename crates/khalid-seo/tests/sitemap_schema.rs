@@ -4,7 +4,7 @@
 
 mod sitemap_xsd;
 
-use sitemap_xsd::{SITEMAP_NS, check_urlset, no_extension};
+use sitemap_xsd::{SITEMAP_NS, check_urlset, google_extensions, no_extension};
 
 fn wrap(body: &str) -> String {
     format!(
@@ -38,6 +38,34 @@ fn every_rule_of_the_schema_refuses_its_violation() {
         "<page><loc>https://example.com/</loc></page>",
     ] {
         assert!(check_urlset(&wrap(bad), no_extension).is_err(), "{bad}");
+    }
+}
+
+#[test]
+fn the_image_and_video_rules_refuse_a_broken_extension() {
+    let wrap = |body: &str| {
+        format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"{SITEMAP_NS}\" \
+             xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\" \
+             xmlns:video=\"http://www.google.com/schemas/sitemap-video/1.1\">\
+             <url><loc>https://example.com/</loc>{body}</url></urlset>"
+        )
+    };
+    let video = "<video:thumbnail_loc>https://example.com/t.jpg</video:thumbnail_loc>\
+                 <video:title>Links</video:title><video:description>Links</video:description>";
+    for bad in [
+        "<image:image></image:image>".to_owned(),
+        "<video:video><video:title>Links</video:title></video:video>".to_owned(),
+        format!("<video:video>{video}</video:video>"),
+        format!(
+            "<video:video>{video}<video:player_loc>https://example.com/p</video:player_loc>\
+             <video:duration>0</video:duration></video:video>"
+        ),
+    ] {
+        assert!(
+            check_urlset(&wrap(&bad), google_extensions).is_err(),
+            "{bad}"
+        );
     }
 }
 

@@ -80,7 +80,7 @@ fn the_sitemap_lists_published_indexable_pages_with_alternates() {
 fn the_sitemap_is_valid_against_the_schema() {
     let xml = demo_sitemap().to_xml();
     assert_eq!(
-        sitemap_xsd::check_urlset(&xml, sitemap_xsd::no_extension),
+        sitemap_xsd::check_urlset(&xml, sitemap_xsd::google_extensions),
         Ok(4)
     );
 }
@@ -126,7 +126,7 @@ fn lastmod_is_the_change_time_else_the_publish_time_else_none() {
 fn an_empty_sitemap_is_still_a_valid_document() {
     let sitemap = Sitemap::from_pages(&demo_site(), &[]).unwrap();
     assert_eq!(
-        sitemap_xsd::check_urlset(&sitemap.to_xml(), sitemap_xsd::no_extension),
+        sitemap_xsd::check_urlset(&sitemap.to_xml(), sitemap_xsd::google_extensions),
         Ok(0)
     );
 }

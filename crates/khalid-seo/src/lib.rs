@@ -22,6 +22,7 @@ mod sitemap;
 mod social;
 mod url_path;
 mod verification;
+mod video;
 
 pub use head::{HeadTag, HeadTags, head_tags};
 pub use hreflang::{Alternate, Hreflang, TranslationKey, link_translations};
@@ -37,3 +38,4 @@ pub use sitemap::{Sitemap, SitemapEntry};
 pub use social::{ShareImage, TwitterHandle};
 pub use url_path::UrlPath;
 pub use verification::{RootFile, SiteVerification, VerificationCode};
+pub use video::{Video, VideoSource};
