@@ -4,6 +4,7 @@ mod article;
 mod author;
 mod breadcrumbs;
 mod glossary;
+mod local_business;
 mod page_graph;
 mod publisher;
 mod schema_graph;
@@ -13,6 +14,7 @@ mod site_graph;
 
 pub use author::{AuthorProfile, Entity, EntityRole};
 pub use breadcrumbs::breadcrumb_list;
+pub use local_business::{LocalBusiness, OpeningHours, PostalAddress};
 pub use page_graph::page_graph;
 pub use publisher::{Publisher, PublisherKind};
 pub use schema_graph::SchemaGraph;

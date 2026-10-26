@@ -57,8 +57,9 @@ pub use robots_txt::{
     BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,
 };
 pub use schema::{
-    AuthorProfile, Entity, EntityRole, Publisher, PublisherKind, SchemaGraph, SchemaNode,
-    SchemaValue, SiteSearch, breadcrumb_list, page_graph, site_graph,
+    AuthorProfile, Entity, EntityRole, LocalBusiness, OpeningHours, PostalAddress, Publisher,
+    PublisherKind, SchemaGraph, SchemaNode, SchemaValue, SiteSearch, breadcrumb_list, page_graph,
+    site_graph,
 };
 pub use seo_error::SeoError;
 pub use site::SeoSite;

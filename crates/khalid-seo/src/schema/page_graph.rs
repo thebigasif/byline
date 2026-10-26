@@ -5,6 +5,7 @@ use khalid_core::AbsoluteUrl;
 
 use crate::schema::article::article_nodes;
 use crate::schema::glossary::{term_node, term_set_node};
+use crate::schema::local_business::business_nodes;
 use crate::schema::{image_node, node_id, site_home};
 use crate::{
     PageKind, SchemaGraph, SchemaNode, SchemaValue, SeoError, SeoPage, SeoSite, breadcrumb_list,
@@ -85,8 +86,9 @@ fn page_node(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
 /// `CollectionPage` for archives, `ProfilePage` for an author,
 /// `SearchResultsPage` for search, `WebPage` for the rest. A post adds its
 /// article node, typed by its [`ArticleType`](crate::ArticleType), and the
-/// `Person` who wrote it. A glossary term adds its `DefinedTerm`, and the
-/// glossary's A to Z page its `DefinedTermSet`.
+/// `Person` who wrote it. A glossary term adds its `DefinedTerm`, the
+/// glossary's A to Z page its `DefinedTermSet`, and the home page one node
+/// per location of a local business.
 ///
 /// # Errors
 ///
@@ -99,6 +101,7 @@ pub fn page_graph(site: &SeoSite, page: &SeoPage) -> Result<SchemaGraph, SeoErro
         PageKind::Post => article_nodes(site, page, page_id(site, page)?)?,
         PageKind::GlossaryTerm => vec![term_node(site, page)?],
         PageKind::GlossaryIndex => vec![term_set_node(site, page)?],
+        PageKind::Home => business_nodes(site)?,
         _ => Vec::new(),
     };
     for node in extra {
