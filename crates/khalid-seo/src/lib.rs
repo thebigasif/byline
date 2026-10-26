@@ -47,7 +47,7 @@ pub use llms_txt::{LlmsTxt, llms_txt_url};
 pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use news_sitemap::{NewsEntry, NewsSitemap};
-pub use page::{ArticleType, PageKind, PublishState, SeoPage, SitemapListing};
+pub use page::{ArticleType, Crumb, PageKind, PublishState, SeoPage, SitemapListing};
 pub use redirect_patterns::{PatternRedirect, PatternRule, RedirectPattern};
 pub use redirects::{Destination, Move, Redirect, RedirectRule, RedirectTable, Resolution};
 pub use robots_meta::{
@@ -57,7 +57,8 @@ pub use robots_txt::{
     BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,
 };
 pub use schema::{
-    Publisher, PublisherKind, SchemaGraph, SchemaNode, SchemaValue, SiteSearch, site_graph,
+    Publisher, PublisherKind, SchemaGraph, SchemaNode, SchemaValue, SiteSearch, breadcrumb_list,
+    site_graph,
 };
 pub use seo_error::SeoError;
 pub use site::SeoSite;

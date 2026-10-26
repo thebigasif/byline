@@ -54,6 +54,26 @@ pub enum ArticleType {
     TechArticle,
 }
 
+/// One step in a page's breadcrumb trail, between the home page and the page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Crumb {
+    /// What the step is called, such as the category name.
+    pub name: String,
+    /// Its path, such as `/category/on-page-seo/`.
+    pub path: UrlPath,
+}
+
+impl Crumb {
+    /// A step called `name` at `path`.
+    pub fn new(name: &str, path: UrlPath) -> Self {
+        Self {
+            name: name.to_owned(),
+            path,
+        }
+    }
+}
+
 /// Whether readers can see the page yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[non_exhaustive]
@@ -131,6 +151,8 @@ pub struct SeoPage {
     pub videos: Vec<Video>,
     /// The rendered body as HTML, for full-content feeds.
     pub content_html: String,
+    /// The steps between the home page and this page, such as its category.
+    pub breadcrumbs: Vec<Crumb>,
 }
 
 impl SeoPage {
@@ -160,6 +182,7 @@ impl SeoPage {
             images: Vec::new(),
             videos: Vec::new(),
             content_html: String::new(),
+            breadcrumbs: Vec::new(),
         }
     }
 }
