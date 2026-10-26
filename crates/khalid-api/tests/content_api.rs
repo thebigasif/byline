@@ -194,17 +194,58 @@ async fn a_missing_post_is_a_404_problem() {
 }
 
 #[tokio::test]
+async fn every_collection_has_its_three_routes_under_its_own_key() {
+    let cases = [
+        ("pages", "pages", "about"),
+        ("glossary", "glossary", "anchor-text"),
+        (
+            "case-studies",
+            "case_studies",
+            "a-bakery-doubles-its-traffic",
+        ),
+        ("changelog", "changelog", "2026-10-release"),
+    ];
+    for (path, key, slug) in cases {
+        let (status, _, json) = get(&format!("/api/content/v1/{path}/")).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        assert_eq!(json[key][0]["slug"], slug, "{path}");
+        assert_eq!(json["meta"]["pagination"]["total"], 1, "{path}");
+        let (status, _, json) = get(&format!("/api/content/v1/{path}/slug/{slug}/")).await;
+        assert_eq!(
+            (status, json[key][0]["slug"].clone()),
+            (StatusCode::OK, slug.into()),
+            "{path}"
+        );
+        let (status, _, json) = get(&format!("/api/content/v1/{path}/{slug}-en/")).await;
+        assert_eq!(
+            (status, json[key][0]["slug"].clone()),
+            (StatusCode::OK, slug.into()),
+            "{path}"
+        );
+        let (status, _, _) = get(&format!("/api/content/v1/{path}/slug/fixing-slow-pages/")).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+    }
+}
+
+#[tokio::test]
 async fn the_openapi_document_lists_the_routes() {
     let (status, _, json) = get("/api/openapi.json").await;
     assert_eq!(status, StatusCode::OK);
     let paths = json["paths"].as_object().unwrap();
     let mut listed: Vec<&str> = paths.keys().map(String::as_str).collect();
     listed.sort_unstable();
-    let routes = [
-        "/api/content/v1/posts/",
-        "/api/content/v1/posts/slug/{slug}/",
-        "/api/content/v1/posts/{id}/",
-    ];
+    let mut routes: Vec<String> = ["case-studies", "changelog", "glossary", "pages", "posts"]
+        .iter()
+        .flat_map(|name| {
+            let base = format!("/api/content/v1/{name}");
+            [
+                format!("{base}/"),
+                format!("{base}/slug/{{slug}}/"),
+                format!("{base}/{{id}}/"),
+            ]
+        })
+        .collect();
+    routes.sort_unstable();
     assert_eq!(listed, routes);
     let parameters = json["paths"]["/api/content/v1/posts/"]["get"]["parameters"]
         .as_array()

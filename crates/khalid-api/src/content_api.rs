@@ -75,6 +75,18 @@ pub fn router(store: Store, keys: Arc<dyn KeyStore>) -> (Router, Document) {
         .routes(routes!(browse_posts))
         .routes(routes!(read_post))
         .routes(routes!(read_post_by_slug))
+        .routes(routes!(browse_pages))
+        .routes(routes!(read_page))
+        .routes(routes!(read_page_by_slug))
+        .routes(routes!(browse_glossary))
+        .routes(routes!(read_glossary_term))
+        .routes(routes!(read_glossary_term_by_slug))
+        .routes(routes!(browse_case_studies))
+        .routes(routes!(read_case_study))
+        .routes(routes!(read_case_study_by_slug))
+        .routes(routes!(browse_changelog))
+        .routes(routes!(read_changelog_entry))
+        .routes(routes!(read_changelog_entry_by_slug))
         .route_layer(middleware::from_fn_with_state(keys, require_content_key))
         .route_layer(middleware::from_fn(tag_and_revalidate))
         .route_layer(middleware::from_fn(negotiate_version))
@@ -88,94 +100,166 @@ pub fn router(store: Store, keys: Arc<dyn KeyStore>) -> (Router, Document) {
     (router, document)
 }
 
-/// Posts, as every post response wraps them (`docs/standards/api.md`).
-#[derive(Debug, Serialize, ToSchema)]
-pub struct Posts {
-    /// The posts on this page, or the one post asked for.
-    posts: Vec<Post>,
-    /// Pagination, on lists only.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    meta: Option<Meta>,
+/// Declares one collection's envelope and its three routes: the list, one
+/// entry by identity and one by slug. Each route keeps its own `OpenAPI`
+/// entry and operation id; the work is in [`browse`] and [`one`].
+macro_rules! collection_routes {
+    (
+        $collection:expr, $Envelope:ident, $key:ident, $tag:tt,
+        $browse:ident = $list_path:tt,
+        $read:ident = $id_path:tt,
+        $read_by_slug:ident = $slug_path:tt $(,)?
+    ) => {
+        #[doc = concat!("Entries of `", $tag, "`, as every response wraps them.")]
+        #[derive(Debug, Serialize, ToSchema)]
+        pub struct $Envelope {
+            /// The entries on this page, or the one entry asked for.
+            $key: Vec<Post>,
+            /// Pagination, on lists only.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            meta: Option<Meta>,
+        }
+
+        #[doc = concat!("Lists the published entries of `", $tag, "`.")]
+        #[utoipa::path(
+            get, path = $list_path, tag = $tag, params(RawListQuery),
+            security(("content_key" = []), ("content_key_query" = [])),
+            responses(
+                (status = 200, description = "One page of published entries", body = $Envelope),
+                (status = 400, description = "A list parameter could not be read", body = Problem, content_type = "application/problem+json"),
+                (status = 401, description = "No valid content key", body = Problem, content_type = "application/problem+json"),
+            )
+        )]
+        async fn $browse(
+            State(store): State<Store>,
+            Query(raw): Query<RawListQuery>,
+        ) -> Result<Json<$Envelope>, Problem> {
+            let (entries, meta) = browse(&store, $collection, &raw).await?;
+            Ok(Json($Envelope { $key: entries, meta: Some(meta) }))
+        }
+
+        #[doc = concat!("Reads one published entry of `", $tag, "` by its identity.")]
+        #[utoipa::path(
+            get, path = $id_path, tag = $tag,
+            security(("content_key" = []), ("content_key_query" = [])),
+            params(("id" = String, Path, description = "The entry's identity")),
+            responses(
+                (status = 200, description = "The entry", body = $Envelope),
+                (status = 401, description = "No valid content key", body = Problem, content_type = "application/problem+json"),
+                (status = 404, description = "No published entry has this identity", body = Problem, content_type = "application/problem+json"),
+            )
+        )]
+        async fn $read(
+            State(store): State<Store>,
+            Path(id): Path<String>,
+            OriginalUri(uri): OriginalUri,
+        ) -> Result<Json<$Envelope>, Problem> {
+            let entry = one(&store, $collection, &PostKey::Id(id), uri.path()).await?;
+            Ok(Json($Envelope { $key: vec![entry], meta: None }))
+        }
+
+        #[doc = concat!("Reads one published entry of `", $tag, "` by its slug.")]
+        #[utoipa::path(
+            get, path = $slug_path, tag = $tag,
+            security(("content_key" = []), ("content_key_query" = [])),
+            params(("slug" = String, Path, description = "The entry's slug")),
+            responses(
+                (status = 200, description = "The entry", body = $Envelope),
+                (status = 401, description = "No valid content key", body = Problem, content_type = "application/problem+json"),
+                (status = 404, description = "No published entry has this slug", body = Problem, content_type = "application/problem+json"),
+            )
+        )]
+        async fn $read_by_slug(
+            State(store): State<Store>,
+            Path(slug): Path<String>,
+            OriginalUri(uri): OriginalUri,
+        ) -> Result<Json<$Envelope>, Problem> {
+            let slug = Slug::try_new(&slug).map_err(|_| not_found(uri.path()))?;
+            let entry = one(&store, $collection, &PostKey::Slug(slug), uri.path()).await?;
+            Ok(Json($Envelope { $key: vec![entry], meta: None }))
+        }
+    };
 }
 
-/// Lists published posts.
-#[utoipa::path(
-    get, path = "/posts/", tag = "posts", params(RawListQuery), security(("content_key" = []), ("content_key_query" = [])),
-    responses(
-        (status = 200, description = "One page of published posts", body = Posts),
-        (status = 400, description = "A list parameter could not be read", body = Problem, content_type = "application/problem+json"),
-        (status = 401, description = "No valid content key", body = Problem, content_type = "application/problem+json"),
-    )
-)]
-async fn browse_posts(
-    State(store): State<Store>,
-    Query(raw): Query<RawListQuery>,
-) -> Result<Json<Posts>, Problem> {
-    let query = ListQuery::try_from(&raw)?;
+collection_routes!(
+    Collection::Posts,
+    Posts,
+    posts,
+    "posts",
+    browse_posts = "/posts/",
+    read_post = "/posts/{id}/",
+    read_post_by_slug = "/posts/slug/{slug}/",
+);
+collection_routes!(
+    Collection::Pages,
+    Pages,
+    pages,
+    "pages",
+    browse_pages = "/pages/",
+    read_page = "/pages/{id}/",
+    read_page_by_slug = "/pages/slug/{slug}/",
+);
+collection_routes!(
+    Collection::Glossary,
+    GlossaryTerms,
+    glossary,
+    "glossary",
+    browse_glossary = "/glossary/",
+    read_glossary_term = "/glossary/{id}/",
+    read_glossary_term_by_slug = "/glossary/slug/{slug}/",
+);
+collection_routes!(
+    Collection::CaseStudies,
+    CaseStudies,
+    case_studies,
+    "case-studies",
+    browse_case_studies = "/case-studies/",
+    read_case_study = "/case-studies/{id}/",
+    read_case_study_by_slug = "/case-studies/slug/{slug}/",
+);
+collection_routes!(
+    Collection::Changelog,
+    ChangelogEntries,
+    changelog,
+    "changelog",
+    browse_changelog = "/changelog/",
+    read_changelog_entry = "/changelog/{id}/",
+    read_changelog_entry_by_slug = "/changelog/slug/{slug}/",
+);
+
+/// One page of `collection` for a list request, with its pagination.
+async fn browse(
+    store: &Store,
+    collection: Collection,
+    raw: &RawListQuery,
+) -> Result<(Vec<Post>, Meta), Problem> {
+    let query = ListQuery::try_from(raw)?;
     check_fields(&query)?;
     let listed = store
-        .list(Collection::Posts, &query)
+        .list(collection, &query)
         .await
         .map_err(|error| Problem::internal(&error))?;
     let meta = Meta::new(query.page(), query.limit(), listed.total());
     let formats = query.formats();
-    let posts = listed
+    let entries = listed
         .into_items()
         .into_iter()
-        .map(|post| post.with_formats(formats));
-    Ok(Json(Posts {
-        posts: posts.collect(),
-        meta: Some(meta),
-    }))
+        .map(|entry| entry.with_formats(formats));
+    Ok((entries.collect(), meta))
 }
 
-/// Reads one published post by its identity.
-#[utoipa::path(
-    get, path = "/posts/{id}/", tag = "posts", security(("content_key" = []), ("content_key_query" = [])),
-    params(("id" = String, Path, description = "The post's identity")),
-    responses(
-        (status = 200, description = "The post", body = Posts),
-        (status = 404, description = "No published post has this identity", body = Problem, content_type = "application/problem+json"),
-        (status = 401, description = "No valid content key", body = Problem, content_type = "application/problem+json"),
-    )
-)]
-async fn read_post(
-    State(store): State<Store>,
-    Path(id): Path<String>,
-    OriginalUri(uri): OriginalUri,
-) -> Result<Json<Posts>, Problem> {
-    one(&store, &PostKey::Id(id), uri.path()).await
-}
-
-/// Reads one published post by its slug.
-#[utoipa::path(
-    get, path = "/posts/slug/{slug}/", tag = "posts", security(("content_key" = []), ("content_key_query" = [])),
-    params(("slug" = String, Path, description = "The post's slug")),
-    responses(
-        (status = 200, description = "The post", body = Posts),
-        (status = 404, description = "No published post has this slug", body = Problem, content_type = "application/problem+json"),
-        (status = 401, description = "No valid content key", body = Problem, content_type = "application/problem+json"),
-    )
-)]
-async fn read_post_by_slug(
-    State(store): State<Store>,
-    Path(slug): Path<String>,
-    OriginalUri(uri): OriginalUri,
-) -> Result<Json<Posts>, Problem> {
-    let slug = Slug::try_new(&slug).map_err(|_| not_found(uri.path()))?;
-    one(&store, &PostKey::Slug(slug), uri.path()).await
-}
-
-async fn one(store: &Store, key: &PostKey, path: &str) -> Result<Json<Posts>, Problem> {
-    let post = store
-        .find(Collection::Posts, key)
+/// One entry of `collection`, or a 404 problem about `path`.
+async fn one(
+    store: &Store,
+    collection: Collection,
+    key: &PostKey,
+    path: &str,
+) -> Result<Post, Problem> {
+    let entry = store
+        .find(collection, key)
         .await
         .map_err(|error| Problem::internal(&error))?;
-    let post = post.ok_or_else(|| not_found(path))?;
-    Ok(Json(Posts {
-        posts: vec![post],
-        meta: None,
-    }))
+    entry.ok_or_else(|| not_found(path))
 }
 
 /// Refuses fields a post does not have in `filter` and `order`.
@@ -208,9 +292,9 @@ fn check_fields(query: &ListQuery) -> Result<(), Problem> {
 
 fn not_found(path: &str) -> Problem {
     let message = UserMessage::new(
-        "No published post is at this address.",
+        "Nothing published is at this address.",
         "It may still be a draft, or its slug may have changed.",
-        "Check the address, or list the posts at /api/content/v1/posts/.",
+        "Check the address, or fetch the list it belongs to, such as /api/content/v1/posts/.",
     );
     Problem::new(ProblemType::NotFound, &message).with_instance(path)
 }
