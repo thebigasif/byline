@@ -2,6 +2,7 @@
 //! 4.9). It lives in the binary, which may use both `khalid-theme` and
 //! `khalid-render` (ADR 0013).
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
@@ -9,8 +10,8 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use khalid_core::{AbsoluteUrl, Locale, SitePath, SitePathError, UserMessage};
 use khalid_render::{
-    BodyHtml, Link, Nav, NavLink, PageBody, PageKind, PageMeta, RenderError, RenderPost,
-    RenderSite, Renderer, Robots, Tokens, stylesheet,
+    BodyHtml, Features, Link, Nav, NavLink, PageBody, PageKind, PageMeta, Person, ReadingTime,
+    RenderError, RenderPost, RenderSite, Renderer, Robots, Tokens, stylesheet,
 };
 use khalid_theme::ThemeTokens;
 use tempfile::NamedTempFile;
@@ -125,7 +126,7 @@ impl Preview {
             x_default: None,
             seo_head: None,
         };
-        let post = PageBody::Post(Box::new(sample_post(&site.name)));
+        let post = PageBody::Post(Box::new(sample_post(&site.name, &site.locale)));
         let html = renderer
             .render(&site, &meta, &post)
             .map_err(PreviewError::Render)?;
@@ -192,24 +193,40 @@ fn sample_site(source: Source<'_>) -> RenderSite {
             href: source.url.to_string(),
         }),
         share_image: None,
+        features: Features::all(),
+        search: None,
+        script: None,
     }
 }
 
 /// A post that shows every token, written by the site itself.
-fn sample_post(author: &str) -> RenderPost {
+fn sample_post(author: &str, locale: &Locale) -> RenderPost {
     let link = |name: &str| Link {
         name: name.to_owned(),
         href: PAGE.to_owned(),
     };
+    let body = BodyHtml::from_sanitised(SAMPLE_BODY.to_owned());
     RenderPost {
         title: "How this blog will look".to_owned(),
         date: NaiveDate::from_ymd_opt(2026, 10, 26).unwrap_or_default(),
         updated: None,
-        authors: vec![link(author)],
+        reading_time: ReadingTime::of(&body, locale),
+        authors: vec![Person {
+            name: author.to_owned(),
+            href: PAGE.to_owned(),
+            role: None,
+            image: None,
+            bio: None,
+            profiles: Vec::new(),
+        }],
+        reviewers: Vec::new(),
         category: Some(link("Guides")),
         tags: vec![link("Theme"), link("Colours")],
         image: None,
-        body: BodyHtml::from_sanitised(SAMPLE_BODY.to_owned()),
+        contents: None,
+        originals: BTreeMap::new(),
+        related: Vec::new(),
+        body,
     }
 }
 
