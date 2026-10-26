@@ -8,6 +8,11 @@ use khalid_core::Secret;
 const ID_DIGITS: usize = 16;
 /// Hex digits in a key's secret: 256 bits (RULES.md BL-SEC-3).
 const SECRET_DIGITS: usize = 64;
+/// Random bytes in a new key's identity: two hex digits each.
+const ID_BYTES: usize = 8;
+/// Random bytes a new key is made from: 8 for its identity, then 32 for
+/// its secret.
+pub const RANDOM_BYTES: usize = 40;
 
 /// What a key is for, read from its prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +33,14 @@ impl KeyKind {
             "ki" => Some(Self::Integration),
             "ks" => Some(Self::Staff),
             _ => None,
+        }
+    }
+
+    fn prefix(self) -> &'static str {
+        match self {
+            Self::Content => "kc",
+            Self::Integration => "ki",
+            Self::Staff => "ks",
         }
     }
 }
@@ -64,6 +77,40 @@ pub struct KeyToken {
 }
 
 impl KeyToken {
+    /// A new key of `kind` from 256 random bits and a random identity, read
+    /// from the operating system.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GenerateKeyError`] when the operating system has no
+    /// randomness to give.
+    pub fn generate(kind: KeyKind) -> Result<Self, GenerateKeyError> {
+        let mut bytes = [0; RANDOM_BYTES];
+        getrandom::fill(&mut bytes).map_err(|source| GenerateKeyError { source })?;
+        Ok(Self::from_random(kind, bytes))
+    }
+
+    /// The key of `kind` that `bytes` make: the first 8 are its identity,
+    /// the other 32 its secret. [`KeyToken::generate`] passes random bytes;
+    /// tests pass fixed ones.
+    pub fn from_random(kind: KeyKind, bytes: [u8; RANDOM_BYTES]) -> Self {
+        let (id, secret) = bytes.split_at(ID_BYTES);
+        Self {
+            kind,
+            id: KeyId(hex(id)),
+            secret: Secret::new(hex(secret)),
+        }
+    }
+
+    /// The whole key as text, to show its owner once. It stays wrapped, so
+    /// only an explicit `expose` can print it (RULES.md BL-RUN-5).
+    pub fn reveal(self) -> Secret<String> {
+        let prefix = self.kind.prefix();
+        let id = self.id.0;
+        let secret = self.secret.expose();
+        Secret::new(format!("{prefix}_{id}_{secret}"))
+    }
+
     /// What the key is for.
     pub fn kind(&self) -> KeyKind {
         self.kind
@@ -108,6 +155,23 @@ fn is_hex(text: &str, digits: usize) -> bool {
         && text
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+/// `bytes` as lowercase hex digits.
+fn hex(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .flat_map(|byte| [byte >> 4, byte & 0x0f])
+        .filter_map(|nibble| char::from_digit(u32::from(nibble), 16))
+        .collect()
+}
+
+/// The operating system could not give random bytes for a new key.
+#[derive(Debug, thiserror::Error)]
+#[error("no random bytes for a new key")]
+pub struct GenerateKeyError {
+    #[source]
+    source: getrandom::Error,
 }
 
 /// Text that is not a key. It says nothing about which part was wrong, so
