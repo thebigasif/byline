@@ -1,0 +1,18 @@
+[package]
+name = "khalid-api"
+version = "0.0.0"
+description = "The Content API and the Admin API: routes, the shared query grammar, keys and problem details."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true

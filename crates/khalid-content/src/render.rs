@@ -11,6 +11,8 @@ use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
 use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{Locale, Slug, SlugMode};
 
+use crate::{Block, BlockError, BlockKind, CalloutKind, parse_blocks};
+
 /// A body rendered to HTML.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -72,47 +74,206 @@ pub struct Image {
 /// CSS classes prefixed `hl-`, such as `hl-keyword`, so the stylesheet owns
 /// the colours. Each heading gets an `id` made with the same
 /// rules as slugs, with `-2`, `-3` added to repeats, and `section` when the
-/// text has no letters or digits.
-pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Rendered {
-    let mut options = Options::default();
-    options.extension.table = true;
-    options.extension.footnotes = true;
-    options.extension.tasklist = true;
-    options.extension.strikethrough = true;
-    options.extension.autolink = true;
-    options.render.escape = true;
-
-    let arena = Arena::new();
-    let root = parse_document(&arena, body, &options);
-    let mut facts = Facts::default();
-    for node in root.descendants() {
-        facts.note(node);
-    }
-
-    let ids = HeadingIds {
-        locale: locale.clone(),
-        slugs,
-        state: Mutex::default(),
+/// text has no letters or digits. A callout becomes an `<aside>` and a figure a
+/// `<figure>` with its caption (ADR 0012).
+///
+/// # Errors
+///
+/// Returns a [`BlockError`] when a directive block is wrong, as
+/// [`parse_blocks`](crate::parse_blocks) does.
+pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, BlockError> {
+    let blocks = parse_blocks(body)?;
+    let mut renderer = Renderer {
+        ids: HeadingIds {
+            locale: locale.clone(),
+            slugs,
+            state: Mutex::default(),
+        },
+        facts: Facts::default(),
+        html: String::new(),
     };
-    let mut plugins = Plugins::default();
-    plugins.render.heading_adapter = Some(&ids);
-    plugins.render.codefence_syntax_highlighter = Some(highlighter());
-    let mut html = String::new();
-    // Writing into a String cannot fail; an empty body is the safe fallback.
-    if format_html_with_plugins(root, &options, &mut html, &plugins).is_err() {
-        html.clear();
+    let mut run: Vec<&str> = Vec::new();
+    for block in &blocks {
+        if matches!(
+            block.kind,
+            BlockKind::Callout { .. }
+                | BlockKind::Figure { .. }
+                | BlockKind::Toggle { .. }
+                | BlockKind::Toc
+                | BlockKind::Button { .. }
+        ) {
+            renderer.markdown(&run.join("\n\n"));
+            run.clear();
+            renderer.directive(block);
+        } else {
+            run.push(&block.source);
+        }
     }
-    let state = ids
+    renderer.markdown(&run.join("\n\n"));
+    let state = renderer
+        .ids
         .state
         .into_inner()
         .unwrap_or_else(PoisonError::into_inner);
-    Rendered {
+    let html = if renderer.html.contains(TOC_MARK) {
+        renderer.html.replace(TOC_MARK, &contents(&state.headings))
+    } else {
+        renderer.html
+    };
+    Ok(Rendered {
         html,
         headings: state.headings,
-        links: facts.links,
-        images: facts.images,
-        words: facts.words,
+        links: renderer.facts.links,
+        images: renderer.facts.images,
+        words: renderer.facts.words,
+    })
+}
+
+/// Renders runs of markdown into one page, keeping heading ids unique across
+/// the whole body. Footnotes resolve within the run of markdown they sit in.
+struct Renderer {
+    ids: HeadingIds,
+    facts: Facts,
+    html: String,
+}
+
+impl Renderer {
+    /// Writes one directive block.
+    fn directive(&mut self, block: &Block) {
+        match &block.kind {
+            BlockKind::Callout { kind } => {
+                let kind = match kind {
+                    CalloutKind::Note => "note",
+                    CalloutKind::Tip => "tip",
+                    CalloutKind::Warning => "warning",
+                };
+                self.push(&["<aside class=\"callout callout-", kind, "\">\n"]);
+                self.markdown(&inside(&block.source));
+                self.html.push_str("</aside>\n");
+            }
+            BlockKind::Figure { src, alt } => {
+                self.facts.images.push(Image {
+                    src: src.clone(),
+                    alt: Some(alt.clone()),
+                });
+                self.push(&[
+                    "<figure>\n<img src=\"",
+                    &attribute(src),
+                    "\" alt=\"",
+                    &attribute(alt),
+                    "\" loading=\"lazy\" decoding=\"async\" />\n<figcaption>\n",
+                ]);
+                self.markdown(&inside(&block.source));
+                self.html.push_str("</figcaption>\n</figure>\n");
+            }
+            BlockKind::Toggle { summary } => {
+                self.push(&["<details>\n<summary>", &attribute(summary), "</summary>\n"]);
+                self.markdown(&inside(&block.source));
+                self.html.push_str("</details>\n");
+            }
+            BlockKind::Toc => self.html.push_str(TOC_MARK),
+            BlockKind::Button { href, label } => {
+                self.push(&[
+                    "<p><a class=\"button\" href=\"",
+                    &attribute(href),
+                    "\">",
+                    &attribute(label),
+                    "</a></p>\n",
+                ]);
+                self.facts.links.push(Link {
+                    internal: !href.contains(':'),
+                    href: href.clone(),
+                    text: label.clone(),
+                });
+            }
+            _ => {}
+        }
     }
+
+    /// Appends `parts` to the HTML in order.
+    fn push(&mut self, parts: &[&str]) {
+        for part in parts {
+            self.html.push_str(part);
+        }
+    }
+
+    fn markdown(&mut self, text: &str) {
+        if text.trim().is_empty() {
+            return;
+        }
+        let mut options = Options::default();
+        options.extension.table = true;
+        options.extension.footnotes = true;
+        options.extension.tasklist = true;
+        options.extension.strikethrough = true;
+        options.extension.autolink = true;
+        options.render.escape = true;
+        let arena = Arena::new();
+        let root = parse_document(&arena, text, &options);
+        for node in root.descendants() {
+            self.facts.note(node);
+        }
+        let mut plugins = Plugins::default();
+        plugins.render.heading_adapter = Some(&self.ids);
+        plugins.render.codefence_syntax_highlighter = Some(highlighter());
+        let mut html = String::new();
+        // Writing into a String cannot fail; an empty run is the safe fallback.
+        if format_html_with_plugins(root, &options, &mut html, &plugins).is_ok() {
+            self.html.push_str(&html);
+            if !self.html.ends_with('\n') {
+                self.html.push('\n');
+            }
+        }
+    }
+}
+
+/// Where `::toc` goes until the headings are known. Raw HTML in markdown is
+/// escaped, so no post can write this comment itself.
+const TOC_MARK: &str = "<!--khalid-toc-->\n";
+
+/// The list of `headings`, linked, for `::toc`.
+fn contents(headings: &[Heading]) -> String {
+    let mut html = String::from("<nav class=\"toc\" aria-label=\"Contents\">\n<ol>\n");
+    for heading in headings {
+        for part in [
+            "<li class=\"toc-h",
+            &heading.level.to_string(),
+            "\"><a href=\"#",
+            &attribute(&heading.id),
+            "\">",
+            &attribute(&heading.text),
+            "</a></li>\n",
+        ] {
+            html.push_str(part);
+        }
+    }
+    html.push_str("</ol>\n</nav>\n");
+    html
+}
+
+/// The body of a directive: every line between its opening and closing `:::`.
+fn inside(source: &str) -> String {
+    let lines: Vec<&str> = source.lines().collect();
+    lines
+        .get(1..lines.len().saturating_sub(1))
+        .unwrap_or_default()
+        .join("\n")
+}
+
+/// `text` made safe inside a double-quoted HTML attribute.
+fn attribute(text: &str) -> String {
+    let mut safe = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => safe.push_str("&amp;"),
+            '<' => safe.push_str("&lt;"),
+            '>' => safe.push_str("&gt;"),
+            '"' => safe.push_str("&quot;"),
+            '\'' => safe.push_str("&#39;"),
+            _ => safe.push(c),
+        }
+    }
+    safe
 }
 
 /// The code highlighter, built once: loading its grammars takes milliseconds
