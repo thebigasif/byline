@@ -1249,6 +1249,7 @@ dependencies = [
  "clap",
  "khalid-content",
  "khalid-core",
+ "khalid-routes",
  "mimalloc",
  "serde",
  "serde_json",

@@ -1,0 +1,1 @@
+This site breaks one rule on purpose: the `news` collection's permalink in `routes.toml` uses `{week}`, which is not one of the placeholders Khalid fills in. The exact message `khalid --site` prints for it is in `expected.txt`.

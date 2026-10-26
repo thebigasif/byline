@@ -1,0 +1,6 @@
+# Breaks one rule: a collection has no `layout` field. The exact message
+# khalid --site prints for it is in expected.txt beside this file.
+
+[collections.news]
+permalink = "/news/{slug}/"
+layout = "wide"

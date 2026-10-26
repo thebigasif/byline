@@ -10,6 +10,7 @@ mod config_message;
 mod content_message;
 mod exit;
 mod report;
+mod routes_message;
 
 use std::ffi::OsString;
 use std::process::ExitCode;
@@ -18,6 +19,7 @@ use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, Environment, UserMessage};
+use khalid_routes::Routes;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
@@ -40,6 +42,9 @@ fn run(cli: &Cli) -> Exit {
     if let Some(site) = &cli.site {
         if let Err(error) = Config::load(site, &Environment::from_process()) {
             return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
+        }
+        if let Err(error) = Routes::load(site) {
+            return report::failure(cli.output, &routes_message::of(&error), Exit::Failure);
         }
         if let Err(error) = ContentTree::walk(site).and_then(|tree| read_content(&tree)) {
             return report::failure(
