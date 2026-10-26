@@ -4,7 +4,7 @@ use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 use khalid_core::{AbsoluteUrl, ParseUrlError};
 
-use crate::{Question, VideoBlock};
+use crate::{HowToBlock, Question, VideoBlock};
 
 use crate::directive::{Form, directive, opening, unknown_hint};
 
@@ -121,6 +121,9 @@ pub enum BlockKind {
         /// The questions, in order, with their answers in markdown.
         questions: Vec<Question>,
     },
+    /// `::::howto{name="..." time="..."}` holding one `:::step{name="..."}`
+    /// per step, what to do as the body.
+    HowTo(HowToBlock),
     /// `:::gallery` with one `![alt](src)` image per line: a grid of
     /// pictures.
     Gallery {

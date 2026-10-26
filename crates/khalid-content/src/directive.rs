@@ -7,9 +7,9 @@ use khalid_core::AbsoluteUrl;
 use crate::{BlockError, BlockKind, CalloutKind, GalleryImage, VideoBlock};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 12] = [
-    "audio", "bookmark", "button", "callout", "embed", "faq", "figure", "file", "gallery", "toc",
-    "toggle", "video",
+pub(crate) const BLOCKS: [&str; 13] = [
+    "audio", "bookmark", "button", "callout", "embed", "faq", "figure", "file", "gallery", "howto",
+    "toc", "toggle", "video",
 ];
 
 mod nested;
@@ -99,6 +99,7 @@ pub(crate) fn directive(
             .only("gallery", &[], "nothing")
             .and_then(|()| gallery(line, body)),
         "faq" => nested::faq(&attributes, body),
+        "howto" => nested::how_to(&attributes, body),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),

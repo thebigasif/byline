@@ -220,6 +220,7 @@ impl Renderer {
             BlockKind::File { src, title } => self.file(src, title),
             BlockKind::Gallery { images } => self.gallery(images),
             BlockKind::Faq { questions } => self.faq(questions),
+            BlockKind::HowTo(how_to) => self.how_to(how_to),
             _ => {}
         }
     }

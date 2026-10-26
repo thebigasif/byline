@@ -11,6 +11,37 @@ pub enum StructuredBlock {
     Video(VideoBlock),
     /// An FAQ block, which becomes an `FAQPage`. Answers are plain text.
     Faq(Vec<Question>),
+    /// A how-to block, which becomes a `HowTo`. Steps are plain text.
+    HowTo(HowToBlock),
+}
+
+/// One question of an FAQ and its answer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Question {
+    /// The question.
+    pub text: String,
+    /// The answer: markdown in a block, plain text in structured data.
+    pub answer: String,
+}
+
+/// A how-to: steps that help a reader do one thing, from `::::howto{...}`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HowToBlock {
+    /// What it helps a reader do.
+    pub name: String,
+    /// How long it takes in all.
+    pub time: Option<Duration>,
+    /// The steps, in order.
+    pub steps: Vec<Step>,
+}
+
+/// One step of a how-to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Step {
+    /// A few words for the step.
+    pub name: String,
+    /// What to do: markdown in a block, plain text in structured data.
+    pub text: String,
 }
 
 /// A video file played on the page, from `::video{...}`.
@@ -26,13 +57,4 @@ pub struct VideoBlock {
     pub description: Option<String>,
     /// How long it runs.
     pub duration: Option<Duration>,
-}
-
-/// One question of an FAQ and its answer.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Question {
-    /// The question.
-    pub text: String,
-    /// The answer: markdown in a block, plain text in structured data.
-    pub answer: String,
 }

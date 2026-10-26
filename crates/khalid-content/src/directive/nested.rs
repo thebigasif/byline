@@ -1,8 +1,8 @@
 //! Blocks that hold other blocks, written with more colons on the outer one:
 //! `::::faq` around `:::question{...}` (ADR 0012).
 
-use super::{Attributes, opening, read};
-use crate::{BlockError, BlockKind, Question};
+use super::{Attributes, clock, opening, read};
+use crate::{BlockError, BlockKind, HowToBlock, Question, Step};
 
 /// One inner block: its attributes and its body's markdown.
 struct Child {
@@ -35,8 +35,47 @@ pub(super) fn faq(attributes: &Attributes, body: &[&str]) -> Result<BlockKind, B
     Ok(BlockKind::Faq { questions })
 }
 
+/// Reads a how-to: its name and time, and one `:::step{name="..."}` per
+/// step, what to do as its body.
+pub(super) fn how_to(attributes: &Attributes, body: &[&str]) -> Result<BlockKind, BlockError> {
+    attributes.only("howto", &["name", "time"], "name and time")?;
+    let name = attributes.need("name", "a how-to needs name, what it helps a reader do")?;
+    let time = attributes
+        .get("time")
+        .map(|text| {
+            clock(&text).ok_or(BlockError::Value {
+                line: attributes.line,
+                problem: "a how-to's time is written as minutes:seconds, such as 10:00, or hours:minutes:seconds",
+            })
+        })
+        .transpose()?;
+    let steps = children(attributes.line, body, "step", HOW_TO_SHAPE)?
+        .into_iter()
+        .map(|child| {
+            child.attributes.only("step", &["name"], "name")?;
+            Ok(Step {
+                name: child
+                    .attributes
+                    .need("name", "a step needs name, a few words for it")?,
+                text: child.text,
+            })
+        })
+        .collect::<Result<Vec<_>, BlockError>>()?;
+    if steps.is_empty() {
+        return Err(BlockError::Value {
+            line: attributes.line,
+            problem: HOW_TO_SHAPE_EMPTY,
+        });
+    }
+    Ok(BlockKind::HowTo(HowToBlock { name, time, steps }))
+}
+
 const FAQ_SHAPE: &str =
     "an FAQ holds only questions, each written :::question{text=\"...\"}, its answer, then :::";
+const HOW_TO_SHAPE: &str =
+    "a how-to holds only steps, each written :::step{name=\"...\"}, what to do, then :::";
+const HOW_TO_SHAPE_EMPTY: &str =
+    "a how-to needs at least one step, written :::step{name=\"...\"}, what to do, then :::";
 
 /// Reads the `:::child{...}` blocks in the `body` of a block opened on
 /// `line`. Blank lines between them are fine; any other line is refused with
