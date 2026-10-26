@@ -2,8 +2,10 @@
 //! `filter`, `include`, `fields`, `formats`, `limit`, `page` and `order`,
 //! parsed once, here.
 
+mod field_values;
 mod filter;
 mod filter_parser;
 
+pub use field_values::{FieldValues, UnknownFieldError};
 pub use filter::{Condition, Filter, Literal, Predicate};
 pub use filter_parser::{FilterErrorKind, ParseFilterError};

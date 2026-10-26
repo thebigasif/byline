@@ -1,18 +1,26 @@
 //! `routes.toml`, read once when Khalid starts.
 
 use std::collections::BTreeMap;
+use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
+use khalid_core::Slug;
 use serde::Deserialize;
 use toml::Spanned;
 
-use crate::{Permalink, RoutesError};
+use crate::permalink::{folder_shape, plain};
+use crate::{Channel, ChannelFilter, Permalink, RoutesError};
 
-/// Every route setting of a site. Built from `routes.toml`, or from the
-/// defaults when the site has no such file.
+/// Every route setting of a site: collections, channels and taxonomy
+/// prefixes. Built from `routes.toml`, or from the defaults when the site has
+/// no such file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Routes {
     collections: BTreeMap<String, Collection>,
+    channels: Vec<Channel>,
+    tag_prefix: String,
+    category_prefix: String,
 }
 
 /// A collection: the folder its posts live in, and their address pattern.
@@ -29,10 +37,14 @@ impl Collection {
 }
 
 impl Default for Routes {
-    /// The posts collection at `/{slug}/`.
+    /// The posts collection at `/{slug}/`, no channels, and `tag` and
+    /// `category` as the taxonomy prefixes.
     fn default() -> Self {
         Self {
             collections: BTreeMap::from([("posts".to_owned(), Collection::default())]),
+            channels: Vec::new(),
+            tag_prefix: "tag".to_owned(),
+            category_prefix: "category".to_owned(),
         }
     }
 }
@@ -42,7 +54,18 @@ impl Default for Routes {
 #[serde(deny_unknown_fields)]
 struct RoutesFile {
     #[serde(default)]
+    taxonomies: TaxonomiesFile,
+    #[serde(default)]
     collections: BTreeMap<String, CollectionFile>,
+    #[serde(default)]
+    channels: BTreeMap<String, ChannelFile>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TaxonomiesFile {
+    tag: Option<Spanned<String>>,
+    category: Option<Spanned<String>>,
 }
 
 #[derive(Deserialize)]
@@ -51,9 +74,36 @@ struct CollectionFile {
     permalink: Spanned<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ChannelFile {
+    path: Spanned<String>,
+    filter: Spanned<ChannelFilter>,
+}
+
 impl Routes {
+    /// The routes file's name inside a site folder.
+    pub const FILE_NAME: &str = "routes.toml";
+
+    /// Reads `routes.toml` from the `site` folder, or gives the defaults when
+    /// there is none.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RoutesError::Read`] when the file exists but cannot be read,
+    /// and the errors of [`Routes::from_toml`] when its content is wrong.
+    pub fn load(site: &Path) -> Result<Self, RoutesError> {
+        let mut path = site.to_path_buf();
+        path.push(Self::FILE_NAME);
+        match fs::read_to_string(&path) {
+            Ok(text) => Self::from_toml(&path, &text),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Self::default()),
+            Err(source) => Err(RoutesError::Read { path, source }),
+        }
+    }
+
     /// Checks the text of a routes file, named `path` in messages. A
-    /// collection the file does not name keeps its default.
+    /// collection or prefix the file does not name keeps its default.
     ///
     /// # Errors
     ///
@@ -69,11 +119,33 @@ impl Routes {
         })?;
         let at = Located { path, text };
         let mut routes = Self::default();
+        if let Some(tag) = &file.taxonomies.tag {
+            routes.tag_prefix = at.check("tag", tag, |text| prefix(text))?;
+        }
+        if let Some(category) = &file.taxonomies.category {
+            routes.category_prefix = at.check("category", category, |text| prefix(text))?;
+        }
         for (name, collection) in file.collections {
             let permalink = at.check("permalink", &collection.permalink, |text| {
                 Permalink::parse(text)
             })?;
             routes.collections.insert(name, Collection { permalink });
+        }
+        for (name, channel) in file.channels {
+            let path = at.check("path", &channel.path, |text| {
+                folder_shape(text)
+                    .and_then(|()| plain(text))
+                    .map(|()| text.to_owned())
+            })?;
+            let filter = at.check("filter", &channel.filter, |filter| {
+                if filter.is_empty() {
+                    return Err(
+                        "a channel needs at least one filter, such as author or tag".to_owned()
+                    );
+                }
+                Ok(filter.clone())
+            })?;
+            routes.channels.push(Channel { name, path, filter });
         }
         Ok(routes)
     }
@@ -82,6 +154,28 @@ impl Routes {
     pub fn collection(&self, name: &str) -> Option<&Collection> {
         self.collections.get(name)
     }
+
+    /// Every channel, in name order.
+    pub fn channels(&self) -> &[Channel] {
+        &self.channels
+    }
+
+    /// The folder tag pages sit in, such as `tag` in `/tag/links/`.
+    pub fn tag_prefix(&self) -> &str {
+        &self.tag_prefix
+    }
+
+    /// The folder category pages sit in, such as `category`.
+    pub fn category_prefix(&self) -> &str {
+        &self.category_prefix
+    }
+}
+
+/// Checks a taxonomy prefix: one slug, such as `topic`.
+fn prefix(text: &str) -> Result<String, String> {
+    Slug::try_new(text)
+        .map(|slug| slug.as_str().to_owned())
+        .map_err(|_| "a prefix is one lowercase word or hyphenated words, such as topic".to_owned())
 }
 
 /// The file a value came from, so a rule it breaks can name its line.

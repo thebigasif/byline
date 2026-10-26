@@ -2,6 +2,9 @@
 
 use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
+use khalid_core::{AbsoluteUrl, ParseUrlError};
+
+use crate::directive::{Form, directive, opening, unknown_hint};
 
 /// One top-level block of a body, with its markdown exactly as written.
 ///
@@ -56,6 +59,43 @@ pub enum BlockKind {
         /// The text that describes the image.
         alt: String,
     },
+    /// `:::toggle{summary="..."}`: a body a reader opens by clicking the
+    /// summary. It works with scripts off.
+    Toggle {
+        /// The line a reader clicks.
+        summary: String,
+    },
+    /// `::toc`: a list of the body's headings, linked.
+    Toc,
+    /// `::button{href="..." label="..."}`: a link styled as a button.
+    Button {
+        /// Where it leads.
+        href: String,
+        /// The words on the button.
+        label: String,
+    },
+    /// `::bookmark{href="..."}`: a link to another site's page, drawn as a
+    /// card when the publish step has filled in its title, description and
+    /// image. Rendering never fetches the page.
+    Bookmark {
+        /// The page it links to.
+        href: AbsoluteUrl,
+        /// The page's title.
+        title: Option<String>,
+        /// One line about the page.
+        description: Option<String>,
+        /// The page's preview image.
+        image: Option<AbsoluteUrl>,
+    },
+    /// `::embed{src="..." title="..."}`: a player from one of the
+    /// [`EMBED_PROVIDERS`](crate::EMBED_PROVIDERS) in a frame, or a plain link
+    /// for any other address.
+    Embed {
+        /// The page a writer pasted, such as a video's page.
+        src: AbsoluteUrl,
+        /// The name a screen reader says for the player.
+        title: String,
+    },
 }
 
 /// The kinds of callout.
@@ -74,7 +114,7 @@ pub enum CalloutKind {
 #[non_exhaustive]
 pub enum BlockError {
     /// A directive name Khalid does not know.
-    #[error("line {line}: there is no block called {name}; the blocks are callout and figure")]
+    #[error("line {line}: there is no block called {name}; {}", unknown_hint(name))]
     UnknownBlock {
         /// The line of the opening `:::`.
         line: usize,
@@ -83,7 +123,7 @@ pub enum BlockError {
     },
     /// The braces after the name do not hold `name=value` pairs.
     #[error(
-        "line {line}: the attributes in braces cannot be read; write them as name=value, with the value in double quotes when it has a space"
+        "line {line}: the attributes in braces cannot be read; write each as name=value, in double quotes when the value has a space"
     )]
     Attributes {
         /// The line of the opening `:::`.
@@ -98,7 +138,10 @@ pub enum BlockError {
         problem: &'static str,
     },
     /// An attribute the block does not take.
-    #[error("line {line}: a {block} does not take {attribute}; it takes {takes}")]
+    #[error(
+        "line {line}: {} does not take {attribute}; it takes {takes}",
+        a(block)
+    )]
     UnknownAttribute {
         /// The line of the opening `:::`.
         line: usize,
@@ -117,6 +160,38 @@ pub enum BlockError {
         /// The kind as written.
         kind: String,
     },
+    /// A block written as a container when it is a one-line leaf, or the
+    /// other way round.
+    #[error("line {line}: {problem}")]
+    Form {
+        /// The line of the block.
+        line: usize,
+        /// Which form to use instead, in a sentence.
+        problem: String,
+    },
+    /// A button whose link could run a script or leave the web.
+    #[error(
+        "line {line}: a button links to a page, a #section, https:, http: or mailto:, not {href}"
+    )]
+    Link {
+        /// The line of the block.
+        line: usize,
+        /// The link as written.
+        href: String,
+    },
+    /// An attribute that must be a full web address is not one.
+    #[error("line {line}: {}'s {attribute} is wrong: {source}", a(block))]
+    Address {
+        /// The line of the block.
+        line: usize,
+        /// The block's name.
+        block: &'static str,
+        /// The attribute that holds the address.
+        attribute: &'static str,
+        /// Why the address cannot be used.
+        #[source]
+        source: ParseUrlError,
+    },
     /// An opening `:::` with no closing `:::`.
     #[error("line {line}: the {name} block opened here is never closed with a ::: line")]
     Unclosed {
@@ -125,6 +200,43 @@ pub enum BlockError {
         /// The block's name.
         name: String,
     },
+}
+
+impl BlockError {
+    /// The body line the problem is on, counting from 1.
+    #[must_use]
+    pub fn line(&self) -> usize {
+        match self {
+            Self::UnknownBlock { line, .. }
+            | Self::Attributes { line }
+            | Self::Missing { line, .. }
+            | Self::UnknownAttribute { line, .. }
+            | Self::CalloutKind { line, .. }
+            | Self::Form { line, .. }
+            | Self::Link { line, .. }
+            | Self::Address { line, .. }
+            | Self::Unclosed { line, .. } => *line,
+        }
+    }
+
+    /// What is wrong, in a sentence, without the line.
+    #[must_use]
+    pub fn problem(&self) -> String {
+        let text = self.to_string();
+        let prefix = format!("line {}: ", self.line());
+        text.strip_prefix(&prefix)
+            .map_or_else(|| text.clone(), str::to_owned)
+    }
+}
+
+/// `block` with "a" or "an" before it.
+fn a(block: &str) -> String {
+    let article = if block.starts_with(['a', 'e', 'i', 'o', 'u']) {
+        "an"
+    } else {
+        "a"
+    };
+    format!("{article} {block}")
 }
 
 /// Splits a markdown `body` into its top-level blocks, in order.
@@ -159,6 +271,18 @@ pub fn parse_blocks(body: &str) -> Result<Vec<Block>, BlockError> {
                     .take_while(|&c| c == '`' || c == '~')
                     .collect(),
             );
+        } else if let Some(("::", rest)) = opening(line) {
+            blocks.extend(markdown_blocks(
+                lines.get(run_start..index).unwrap_or_default(),
+            ));
+            let kind = directive(index.saturating_add(1), rest, Form::Leaf)?;
+            blocks.push(Block {
+                kind,
+                source: line.trim_end().to_owned(),
+            });
+            index = index.saturating_add(1);
+            run_start = index;
+            continue;
         } else if let Some((colons, rest)) = opening(line) {
             blocks.extend(markdown_blocks(
                 lines.get(run_start..index).unwrap_or_default(),
@@ -176,7 +300,7 @@ pub fn parse_blocks(body: &str) -> Result<Vec<Block>, BlockError> {
                     name,
                 });
             };
-            let kind = directive(line_number, rest)?;
+            let kind = directive(line_number, rest, Form::Container)?;
             let source = lines.get(index..=close).unwrap_or_default().join("\n");
             blocks.push(Block { kind, source });
             index = close.saturating_add(1);
@@ -199,106 +323,6 @@ pub fn print_blocks(blocks: &[Block]) -> String {
         .join("\n\n");
     text.push('\n');
     text
-}
-
-/// A `:::name{...}` opening line: its run of colons and what follows them.
-fn opening(line: &str) -> Option<(&str, &str)> {
-    let colons = line.len() - line.trim_start_matches(':').len();
-    let (fence, rest) = line.split_at_checked(colons)?;
-    (colons >= 3 && rest.starts_with(|c: char| c.is_ascii_alphabetic()))
-        .then_some((fence, rest.trim_end()))
-}
-
-/// Reads a directive's name and attributes into its kind.
-fn directive(line: usize, rest: &str) -> Result<BlockKind, BlockError> {
-    let (name, braces) = rest
-        .split_once('{')
-        .map_or((rest, ""), |(name, braces)| (name, braces));
-    let attributes = match braces.strip_suffix('}') {
-        Some(inside) => attributes(inside).ok_or(BlockError::Attributes { line })?,
-        None if braces.is_empty() => Vec::new(),
-        None => return Err(BlockError::Attributes { line }),
-    };
-    let take = |block: &'static str, allowed: &[&str], takes: &'static str| match attributes
-        .iter()
-        .find(|(key, _)| !allowed.contains(&key.as_str()))
-    {
-        Some((key, _)) => Err(BlockError::UnknownAttribute {
-            line,
-            block,
-            attribute: key.clone(),
-            takes,
-        }),
-        None => Ok(()),
-    };
-    let value = |key: &str| {
-        attributes
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| v.clone())
-    };
-    match name.trim() {
-        "callout" => {
-            take("callout", &["kind"], "kind")?;
-            let kind = match value("kind").as_deref() {
-                Some("note") | None => CalloutKind::Note,
-                Some("tip") => CalloutKind::Tip,
-                Some("warning") => CalloutKind::Warning,
-                Some(other) => {
-                    return Err(BlockError::CalloutKind {
-                        line,
-                        kind: other.to_owned(),
-                    });
-                }
-            };
-            Ok(BlockKind::Callout { kind })
-        }
-        "figure" => {
-            take("figure", &["src", "alt"], "src and alt")?;
-            let src = value("src").ok_or(BlockError::Missing {
-                line,
-                problem: "a figure needs src, the address of the image",
-            })?;
-            let alt = value("alt").ok_or(BlockError::Missing {
-                line,
-                problem: "a figure needs alt, the text that describes the image to people who cannot see it",
-            })?;
-            Ok(BlockKind::Figure { src, alt })
-        }
-        other => Err(BlockError::UnknownBlock {
-            line,
-            name: other.to_owned(),
-        }),
-    }
-}
-
-/// Reads `name=value name="a value"` pairs, or `None` when they cannot be read.
-fn attributes(text: &str) -> Option<Vec<(String, String)>> {
-    let mut found = Vec::new();
-    let mut rest = text.trim();
-    while !rest.is_empty() {
-        let (key, after) = rest.split_once('=')?;
-        let key = key.trim();
-        if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
-            return None;
-        }
-        let (value, after) = match after.strip_prefix('"') {
-            Some(quoted) => {
-                let (value, after) = quoted.split_once('"')?;
-                if !(after.is_empty() || after.starts_with(' ')) {
-                    return None;
-                }
-                (value, after)
-            }
-            None => after.split_once(' ').unwrap_or((after, "")),
-        };
-        if value.contains(['"', '{', '}']) {
-            return None;
-        }
-        found.push((key.to_owned(), value.to_owned()));
-        rest = after.trim_start();
-    }
-    Some(found)
 }
 
 /// The standard markdown blocks in `lines`, in the order of the file.

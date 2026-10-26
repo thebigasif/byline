@@ -49,7 +49,9 @@ pub(crate) fn lint_site<'c>(
     (site, files)
 }
 
-/// One post in the lint model, or `None` when no slug can be made for it.
+/// One post in the lint model, or `None` when no slug can be made for it or
+/// its body does not render. Reading the site already refuses a broken
+/// block, so a post that got this far renders.
 fn lint_post(document: &Document<PostFront>, config: &Config) -> Option<LintPost> {
     let front = &document.front;
     let slug = slug_of(
@@ -58,7 +60,7 @@ fn lint_post(document: &Document<PostFront>, config: &Config) -> Option<LintPost
         &document.locale,
         config,
     )?;
-    let rendered = render(&document.body, &document.locale, config.slugs());
+    let rendered = render(&document.body, &document.locale, config.slugs()).ok()?;
     let mut post = LintPost::new(document.locale.clone(), slug);
     post.title.clone_from(&front.title);
     post.description.clone_from(&front.description);

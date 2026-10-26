@@ -6,10 +6,12 @@
 //! files, templates or HTTP; callers hand it a post's slug, date and
 //! collection and get an address back.
 
+mod channel;
 mod permalink;
 mod routes;
 mod routes_error;
 
+pub use channel::{Channel, ChannelFilter};
 pub use permalink::Permalink;
 pub use routes::{Collection, Routes};
 pub use routes_error::RoutesError;

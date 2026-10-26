@@ -15,7 +15,7 @@ fn link(name: &str, href: &str) -> Link {
 }
 
 /// "What a sitemap does" from the demo site, with its body already rendered.
-fn sitemap_post() -> RenderPost {
+pub(crate) fn sitemap_post() -> RenderPost {
     RenderPost {
         title: "What a sitemap does, and what it does not".to_owned(),
         date: NaiveDate::from_ymd_opt(2026, 9, 28).unwrap(),
@@ -23,6 +23,7 @@ fn sitemap_post() -> RenderPost {
         authors: vec![link("Lena Vogt", "/blog/authors/lena-vogt/")],
         category: Some(link("Technical SEO", "/blog/category/technical-seo/")),
         tags: vec![link("Sitemaps", "/blog/tag/sitemaps/")],
+        image: None,
         body: BodyHtml::from_sanitised(
             "<p>A sitemap is a file that lists the addresses of the pages on your site.</p>\n\
              <h2>What it does</h2>\n<p>It helps new pages get found sooner.</p>"
