@@ -4,11 +4,12 @@ use khalid_core::AbsoluteUrl;
 
 use std::time::Duration;
 
-use crate::{BlockError, BlockKind, CalloutKind, VideoBlock};
+use crate::{BlockError, BlockKind, CalloutKind, GalleryImage, VideoBlock};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 8] = [
-    "bookmark", "button", "callout", "embed", "figure", "toc", "toggle", "video",
+pub(crate) const BLOCKS: [&str; 11] = [
+    "audio", "bookmark", "button", "callout", "embed", "figure", "file", "gallery", "toc",
+    "toggle", "video",
 ];
 
 /// What to say after "there is no block called `name`": the nearest block
@@ -49,7 +50,9 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// Blocks with no body, written on one line as `::name{...}`. Every other
 /// block opens with `:::name{...}` and closes with `:::`.
-const LEAVES: [&str; 5] = ["bookmark", "button", "embed", "toc", "video"];
+const LEAVES: [&str; 7] = [
+    "audio", "bookmark", "button", "embed", "file", "toc", "video",
+];
 
 /// How a block was written.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -68,9 +71,14 @@ pub(crate) fn opening(line: &str) -> Option<(&str, &str)> {
         .then_some((fence, rest.trim_end()))
 }
 
-/// Reads a directive's name and attributes, written in `form` on body `line`,
-/// into its kind.
-pub(crate) fn directive(line: usize, rest: &str, form: Form) -> Result<BlockKind, BlockError> {
+/// Reads a directive's name and attributes, written in `form` on body `line`
+/// with the lines of its `body`, into its kind.
+pub(crate) fn directive(
+    line: usize,
+    rest: &str,
+    form: Form,
+    body: &[&str],
+) -> Result<BlockKind, BlockError> {
     let (name, braces) = rest
         .split_once('{')
         .map_or((rest, ""), |(name, braces)| (name, braces));
@@ -93,6 +101,10 @@ pub(crate) fn directive(line: usize, rest: &str, form: Form) -> Result<BlockKind
         "bookmark" => bookmark(&attributes),
         "embed" => embed(&attributes),
         "video" => video(&attributes),
+        "audio" | "file" => sound_or_file(name, &attributes),
+        "gallery" => attributes
+            .only("gallery", &[], "nothing")
+            .and_then(|()| gallery(line, body)),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
@@ -227,6 +239,59 @@ fn video(attributes: &Attributes) -> Result<BlockKind, BlockError> {
         description: attributes.get("description"),
         duration,
     }))
+}
+
+/// Reads `audio` or `file`, which both take a file and a title.
+fn sound_or_file(name: &str, attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    let (block, needs_src, needs_title) = if name == "audio" {
+        (
+            "audio",
+            "an audio block needs src, the sound file",
+            "an audio block needs title, the words shown above the player",
+        )
+    } else {
+        (
+            "file",
+            "a file block needs src, the file to download",
+            "a file block needs title, the words of the download link",
+        )
+    };
+    attributes.only(block, &["src", "title"], "src and title")?;
+    let src = attributes.media(block, "src", attributes.need("src", needs_src)?)?;
+    let title = attributes.need("title", needs_title)?;
+    Ok(if block == "audio" {
+        BlockKind::Audio { src, title }
+    } else {
+        BlockKind::File { src, title }
+    })
+}
+
+/// Reads a gallery's body, one `![alt](src)` image per line, from the
+/// `body` of the block opened on `line`.
+fn gallery(line: usize, body: &[&str]) -> Result<BlockKind, BlockError> {
+    let mut images = Vec::new();
+    for (number, text) in (line.saturating_add(1)..).zip(body) {
+        if text.trim().is_empty() {
+            continue;
+        }
+        let image = text
+            .trim()
+            .strip_prefix("![")
+            .and_then(|rest| rest.strip_suffix(')'))
+            .and_then(|rest| rest.split_once("]("))
+            .filter(|(alt, src)| !alt.trim().is_empty() && !src.trim().is_empty());
+        let Some((alt, src)) = image else {
+            return Err(BlockError::Value {
+                line: number,
+                problem: "each line of a gallery is an image with alt text, such as ![The editor](/media/editor.png)",
+            });
+        };
+        images.push(GalleryImage {
+            src: src.trim().to_owned(),
+            alt: alt.trim().to_owned(),
+        });
+    }
+    Ok(BlockKind::Gallery { images })
 }
 
 /// Reads `m:ss` or `h:mm:ss` as a duration.

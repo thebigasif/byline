@@ -215,6 +215,9 @@ impl Renderer {
             ),
             BlockKind::Embed { src, title } => self.embed(src, title),
             BlockKind::Video(video) => self.video(video),
+            BlockKind::Audio { src, title } => self.audio(src, title),
+            BlockKind::File { src, title } => self.file(src, title),
+            BlockKind::Gallery { images } => self.gallery(images),
             _ => {}
         }
     }

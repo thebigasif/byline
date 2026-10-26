@@ -19,7 +19,9 @@ mod site_content;
 mod structured;
 mod tree;
 
-pub use block::{Block, BlockError, BlockKind, CalloutKind, parse_blocks, print_blocks};
+pub use block::{
+    Block, BlockError, BlockKind, CalloutKind, GalleryImage, parse_blocks, print_blocks,
+};
 pub use content_error::ContentError;
 pub use content_hash::ContentHash;
 pub use embed::{EMBED_PROVIDERS, EmbedProvider};

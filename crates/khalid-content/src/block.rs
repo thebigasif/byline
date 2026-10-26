@@ -101,6 +101,35 @@ pub enum BlockKind {
     /// `::video{src="..." title="..." poster="..."}`: a video file with
     /// controls, which search engines read as a `VideoObject`.
     Video(VideoBlock),
+    /// `::audio{src="..." title="..."}`: a sound file with controls.
+    Audio {
+        /// The sound file: a path on this site or a full address.
+        src: String,
+        /// What it is, shown above the player.
+        title: String,
+    },
+    /// `::file{src="..." title="..."}`: a link that downloads a file.
+    File {
+        /// The file: a path on this site or a full address.
+        src: String,
+        /// The link's words.
+        title: String,
+    },
+    /// `:::gallery` with one `![alt](src)` image per line: a grid of
+    /// pictures.
+    Gallery {
+        /// The pictures, in order.
+        images: Vec<GalleryImage>,
+    },
+}
+
+/// One picture in a gallery, written `![alt](src)` on its own line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GalleryImage {
+    /// The image's address.
+    pub src: String,
+    /// The text that describes the image.
+    pub alt: String,
 }
 
 /// The kinds of callout.
@@ -289,7 +318,7 @@ pub fn parse_blocks(body: &str) -> Result<Vec<Block>, BlockError> {
             blocks.extend(markdown_blocks(
                 lines.get(run_start..index).unwrap_or_default(),
             ));
-            let kind = directive(index.saturating_add(1), rest, Form::Leaf)?;
+            let kind = directive(index.saturating_add(1), rest, Form::Leaf, &[])?;
             blocks.push(Block {
                 kind,
                 source: line.trim_end().to_owned(),
@@ -314,7 +343,10 @@ pub fn parse_blocks(body: &str) -> Result<Vec<Block>, BlockError> {
                     name,
                 });
             };
-            let kind = directive(line_number, rest, Form::Container)?;
+            let body = lines
+                .get(index.saturating_add(1)..close)
+                .unwrap_or_default();
+            let kind = directive(line_number, rest, Form::Container, body)?;
             let source = lines.get(index..=close).unwrap_or_default().join("\n");
             blocks.push(Block { kind, source });
             index = close.saturating_add(1);
