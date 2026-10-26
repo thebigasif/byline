@@ -50,9 +50,7 @@ pub use news_sitemap::{NewsEntry, NewsSitemap};
 pub use page::{ArticleType, Crumb, PageKind, PublishState, SeoPage, SitemapListing};
 pub use redirect_patterns::{PatternRedirect, PatternRule, RedirectPattern};
 pub use redirects::{Destination, Move, Redirect, RedirectRule, RedirectTable, Resolution};
-pub use robots_meta::{
-    Following, ImagePreview, IndexPolicy, Indexing, PreviewLimit, Restriction, RobotsDirectives,
-};
+pub use robots_meta::IndexPolicy;
 pub use robots_txt::{
     BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,
 };

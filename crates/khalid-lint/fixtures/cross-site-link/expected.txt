@@ -1,0 +1,2 @@
+warn cross-site-link: https://shop.example.org/boots/
+warn cross-site-link: https://WWW.Shop.Example.org

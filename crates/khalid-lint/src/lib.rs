@@ -10,22 +10,27 @@
 //! The `SerpDad` backend runs the same rules on its own drafts, so this crate must
 //! not know about files on disk, HTTP, SQL, templates or the other Khalid
 //! crates. It depends on `khalid-core` only, for shared identifiers. The
-//! content track builds the input model from its own types (ADR 0011).
+//! content track builds the input model from its own types (ADR 0019).
 
 mod address;
 mod blocking;
 mod builtin;
 mod catalogue;
+mod collections;
 mod finding;
+mod focus;
 mod gate;
 mod german;
 mod link_graph;
+mod link_hygiene;
+mod link_targets;
 mod link_text;
 mod lint_config;
 mod lint_error;
 mod lint_post;
 mod lint_site;
 mod linter;
+mod reading;
 mod rule;
 mod severity;
 mod site_content;
@@ -43,9 +48,10 @@ pub use gate::{PublishGate, Verdict};
 pub use lint_config::LintConfig;
 pub use lint_error::LintError;
 pub use lint_post::{
-    Cluster, ClusterRole, Heading, HeadingLevel, Image, LinkKind, LintLink, LintPost,
+    Cluster, ClusterRole, FormDestination, Heading, HeadingLevel, Image, LinkKind, LintForm,
+    LintLink, LintPost,
 };
-pub use lint_site::{GlossaryTerm, LintSite, PageRef, SiteView};
+pub use lint_site::{GlossaryTerm, LintCollection, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};
 pub use rule::{Hit, Rule, RuleId, SiteRule};
 pub use severity::Severity;

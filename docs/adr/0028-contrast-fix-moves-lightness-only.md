@@ -1,6 +1,4 @@
-# 0000. The contrast fix moves only lightness, against the background and the surface
-
-**Number:** next free.
+# 0028. The contrast fix moves only lightness, against the background and the surface
 
 **Status:** Accepted, 2026-10-26. Phase 3 work pulled forward, part 3.4.
 
