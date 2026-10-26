@@ -16,7 +16,7 @@ use khalid_api::query::ListQuery;
 use khalid_api::resources::{Bodies, Collection, Post};
 use khalid_content::{SiteContent, parse_post, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, SitePath, SlugMode, UserMessage};
-use khalid_db::{ContentIndex, IndexedPost};
+use khalid_db::{ContentIndex, IndexedPost, PostChanges};
 use tokio::sync::watch;
 
 use crate::{build_message, build_pages, index, site_lists};
@@ -81,8 +81,8 @@ impl Default for LiveContent {
 
 impl LiveContent {
     /// Serves `published` until it is replaced.
-    pub(crate) fn replace(&self, published: Published) {
-        self.0.send_replace(State::Ready(Arc::new(published)));
+    pub(crate) fn replace(&self, published: impl Into<Arc<Published>>) {
+        self.0.send_replace(State::Ready(published.into()));
     }
 
     /// Answers waiting requests with an error when no store was ever ready.
@@ -164,10 +164,20 @@ impl std::error::Error for NotLoaded {}
 #[derive(Debug)]
 pub(crate) struct Published {
     store: MemoryContentStore,
-    /// Each post's file and language, by the post's identity.
-    files: BTreeMap<String, (String, Locale)>,
+    /// Each published post, by the path of its file in the index.
+    posts: BTreeMap<String, Listing>,
+    /// The path of each post's file, by the post's identity.
+    files: BTreeMap<String, String>,
     folder: PathBuf,
     slugs: SlugMode,
+}
+
+/// One published post, and the language and day that order it.
+#[derive(Debug, Clone)]
+struct Listing {
+    post: Post,
+    locale: Locale,
+    date: NaiveDate,
 }
 
 impl Published {
@@ -184,47 +194,87 @@ impl Published {
         config: &Config,
         catalog: &Catalog,
     ) -> Result<Self, UserMessage> {
-        let mut entries = Vec::new();
+        let posts = listings(config, catalog, catalog.index.posts.iter())?;
+        Ok(Self::assemble(
+            folder,
+            config,
+            posts.into_iter().collect(),
+            catalog,
+        ))
+    }
+
+    /// This store after a save: the posts `changes` names are made again
+    /// from `catalog` or removed, every other post is kept as it is, and
+    /// the lists come from `catalog`.
+    ///
+    /// # Errors
+    ///
+    /// Returns what, why and fix when an address cannot be made from the
+    /// site's settings.
+    pub(crate) fn changed(
+        &self,
+        config: &Config,
+        catalog: &Catalog,
+        changes: &PostChanges,
+    ) -> Result<Self, UserMessage> {
+        let mut posts = self.posts.clone();
+        for path in changes.written.iter().chain(&changes.removed) {
+            posts.remove(path);
+        }
+        let written = catalog
+            .index
+            .posts
+            .iter()
+            .filter(|row| changes.written.contains(&row.path));
+        posts.extend(listings(config, catalog, written)?);
+        Ok(Self::assemble(&self.folder, config, posts, catalog))
+    }
+
+    /// The store of `posts`, in each language of `config` newest first, and
+    /// posts of one day in slug order, as the index lists them.
+    fn assemble(
+        folder: &Path,
+        config: &Config,
+        posts: BTreeMap<String, Listing>,
+        catalog: &Catalog,
+    ) -> Self {
+        let mut entries = Vec::with_capacity(posts.len());
         let mut files = BTreeMap::new();
         for locale in config.languages() {
-            let mut rows: Vec<(&IndexedPost, NaiveDate)> = catalog
-                .index
-                .posts
+            let mut rows: Vec<(&String, &Listing)> = posts
                 .iter()
-                .filter(|row| &row.locale == locale)
-                .filter_map(|row| Some((row, row.date?)))
+                .filter(|(_, listing)| &listing.locale == locale)
                 .collect();
-            // Newest first, and posts of one day in slug order, as the
-            // index lists them.
-            rows.sort_by(|(a, a_date), (b, b_date)| {
-                b_date
-                    .cmp(a_date)
-                    .then_with(|| a.slug.as_str().cmp(b.slug.as_str()))
+            rows.sort_by(|(_, a), (_, b)| {
+                let (a_slug, b_slug) = (a.post.slug().as_str(), b.post.slug().as_str());
+                b.date.cmp(&a.date).then_with(|| a_slug.cmp(b_slug))
             });
-            for (row, date) in rows {
-                let mut post = post_of(config, row, date)?;
-                if catalog.featured.contains(&row.path) {
-                    post = post.featured();
-                }
-                let file = (row.path.clone(), locale.clone());
-                files.entry(post.id().to_owned()).or_insert(file);
-                entries.push((Collection::Posts, post));
+            for (path, listing) in rows {
+                let id = listing.post.id().to_owned();
+                files.entry(id).or_insert_with(|| path.clone());
+                entries.push((Collection::Posts, listing.post.clone()));
             }
         }
-        Ok(Self {
+        Self {
             store: MemoryContentStore::new(entries).with_site(catalog.lists.clone()),
+            posts,
             files,
             folder: folder.to_path_buf(),
             slugs: config.slugs(),
-        })
+        }
     }
 
     /// The body of the post with identity `id` in every format, read from
     /// its file and rendered now.
     fn bodies(&self, id: &str) -> Result<Bodies, ContentStoreError> {
-        let Some((path, locale)) = self.files.get(id) else {
+        let Some((path, listing)) = self
+            .files
+            .get(id)
+            .and_then(|path| Some((path, self.posts.get(path)?)))
+        else {
             return Ok(Bodies::default());
         };
+        let locale = &listing.locale;
         let file = SitePath::within(&self.folder, path).map_err(ContentStoreError::new)?;
         let text = std::fs::read_to_string(file.as_path()).map_err(ContentStoreError::new)?;
         let body = parse_post(file.relative(), &text)
@@ -257,6 +307,27 @@ async fn with_bodies(
     tokio::task::spawn_blocking(work)
         .await
         .map_err(ContentStoreError::new)?
+}
+
+/// The published posts among `rows` of the index of `catalog`, by path.
+fn listings<'a>(
+    config: &Config,
+    catalog: &Catalog,
+    rows: impl Iterator<Item = &'a IndexedPost>,
+) -> Result<Vec<(String, Listing)>, UserMessage> {
+    let mut found = Vec::new();
+    for row in rows {
+        let Some(date) = row.date else {
+            continue;
+        };
+        let mut post = post_of(config, row, date)?;
+        if catalog.featured.contains(&row.path) {
+            post = post.featured();
+        }
+        let locale = row.locale.clone();
+        found.push((row.path.clone(), Listing { post, locale, date }));
+    }
+    Ok(found)
 }
 
 /// The index `row` of a post published on `date`, in API shape, without
@@ -371,6 +442,41 @@ mod tests {
         let held = serde_json::to_value(held.unwrap().items()).unwrap();
         assert!(held[0].get("html").is_none(), "{held}");
         assert!(held[0].get("markdown").is_none(), "{held}");
+    }
+
+    #[tokio::test]
+    async fn a_change_makes_only_the_posts_it_names_again() {
+        let (folder, config, mut catalog) = demo();
+        let before = Published::of(&folder, &config, &catalog).unwrap();
+        let mut changes = PostChanges::default();
+        for row in &mut catalog.index.posts {
+            row.title = Some(format!("Retitled {}", row.slug));
+        }
+        let edited = "content/en/posts/2026-09-28-what-a-sitemap-does.md";
+        changes.written.insert(edited.to_owned());
+        changes
+            .removed
+            .insert("content/en/posts/2026-10-12-planning-a-topic-cluster.md".to_owned());
+        catalog
+            .index
+            .posts
+            .retain(|row| !row.path.contains("planning"));
+        let after = before.changed(&config, &catalog, &changes).unwrap();
+
+        let listed = after.store.list(Collection::Posts, &english()).await;
+        let titles: Vec<String> = serde_json::to_value(listed.unwrap().items())
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|post| post["title"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(titles.len(), 4, "{titles:?}");
+        let retitled: Vec<&String> = titles
+            .iter()
+            .filter(|t| t.starts_with("Retitled"))
+            .collect();
+        assert_eq!(retitled, ["Retitled what-a-sitemap-does"], "{titles:?}");
     }
 
     #[tokio::test]
