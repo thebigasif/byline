@@ -1,0 +1,20 @@
+---
+source: crates/khalid-seo/tests/llms_txt.rs
+expression: llms.to_string()
+---
+# Field Notes on SEO
+
+> Plain advice on search for small teams
+
+## Posts
+
+- [Why internal links matter](https://www.example.com/blog/why-internal-links-matter/): Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.
+- [Warum interne Links wichtig sind](https://www.example.com/blog/de/warum-interne-links-wichtig-sind/): Interne Links helfen Lesern und Suchmaschinen, den Rest Ihrer Website zu finden.
+
+## Pages
+
+- [About \[us\]](https://www.example.com/blog/about/): Who writes Field Notes, and why.
+
+## Optional
+
+- [Links](https://www.example.com/blog/tag/links/)

@@ -1,0 +1,29 @@
+---
+source: crates/khalid-seo/tests/sitemap_news.rs
+expression: news_at_noon().to_xml()
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+  <url>
+    <loc>https://www.example.com/blog/why-internal-links-matter/</loc>
+    <news:news>
+      <news:publication>
+        <news:name>Field Notes on SEO</news:name>
+        <news:language>en</news:language>
+      </news:publication>
+      <news:publication_date>2026-10-25T07:00:00Z</news:publication_date>
+      <news:title>Why internal links matter</news:title>
+    </news:news>
+  </url>
+  <url>
+    <loc>https://www.example.com/blog/de/warum-interne-links-wichtig-sind/</loc>
+    <news:news>
+      <news:publication>
+        <news:name>Field Notes on SEO</news:name>
+        <news:language>de</news:language>
+      </news:publication>
+      <news:publication_date>2026-10-24T18:00:00Z</news:publication_date>
+      <news:title>Warum interne Links wichtig sind</news:title>
+    </news:news>
+  </url>
+</urlset>

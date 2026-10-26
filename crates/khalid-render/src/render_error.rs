@@ -60,6 +60,32 @@ pub enum RenderError {
         #[source]
         source: toml::de::Error,
     },
+    /// `theme/tokens.toml` has a value that is not a colour, a font list or
+    /// a length, a field no token has, or broken TOML.
+    #[error("theme/tokens.toml has a mistake{}", line.map(|line| format!(" on line {line}")).unwrap_or_default())]
+    Tokens {
+        /// The line of the mistake, when the parser knows it.
+        line: Option<usize>,
+        /// What the TOML parser reported, which names the field.
+        #[source]
+        source: toml::de::Error,
+    },
+    /// A built asset could not be compressed.
+    #[error("an asset could not be compressed")]
+    Compress {
+        /// What the compressor reported.
+        #[source]
+        source: io::Error,
+    },
+    /// `theme/tokens.toml` exists but could not be read.
+    #[error("could not read {}", path.display())]
+    ReadTokens {
+        /// The file that could not be read.
+        path: PathBuf,
+        /// What the file system reported.
+        #[source]
+        source: io::Error,
+    },
 }
 
 impl RenderError {
