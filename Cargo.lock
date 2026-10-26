@@ -1865,6 +1865,7 @@ dependencies = [
  "argon2",
  "axum",
  "chrono",
+ "getrandom 0.4.3",
  "khalid-api",
  "khalid-core",
  "proptest",

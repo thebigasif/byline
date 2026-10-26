@@ -15,7 +15,8 @@ use chrono::{TimeZone, Utc};
 use khalid_api::api;
 use khalid_api::content_store::BoxFuture;
 use khalid_api::keys::{
-    KeyHashing, KeyId, KeyStore, KeyStoreError, KeyToken, MemoryKeyStore, Scope, StoredKey,
+    CreateKeyError, KeyHashing, KeyId, KeyStore, KeyStoreError, KeyToken, MemoryKeyStore, Scope,
+    StoredKey,
 };
 use khalid_api::post_store::MemoryPostStore;
 use khalid_api::resources::AdminPost;
@@ -206,9 +207,24 @@ impl KeyStore for BrokenKeys {
         &'a self,
         _id: &'a KeyId,
     ) -> BoxFuture<'a, Result<Option<StoredKey>, KeyStoreError>> {
-        let error = std::io::Error::other("disk I/O error");
-        Box::pin(std::future::ready(Err(KeyStoreError::new(error))))
+        Box::pin(std::future::ready(Err(disk_gone())))
     }
+
+    fn create(&self, _key: StoredKey) -> BoxFuture<'_, Result<(), CreateKeyError>> {
+        let source = disk_gone();
+        Box::pin(std::future::ready(Err(CreateKeyError::Unavailable {
+            source,
+        })))
+    }
+
+    fn revoke<'a>(&'a self, _id: &'a KeyId) -> BoxFuture<'a, Result<bool, KeyStoreError>> {
+        Box::pin(std::future::ready(Err(disk_gone())))
+    }
+}
+
+#[cfg(test)]
+fn disk_gone() -> KeyStoreError {
+    KeyStoreError::new(std::io::Error::other("disk I/O error"))
 }
 
 /// Writes every event and span field, with each error's whole chain of

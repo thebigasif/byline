@@ -15,6 +15,42 @@ pub trait KeyStore: Send + Sync {
     /// Returns [`KeyStoreError`] when the keys cannot be read.
     fn find<'a>(&'a self, id: &'a KeyId)
     -> BoxFuture<'a, Result<Option<StoredKey>, KeyStoreError>>;
+
+    /// Stores a new key. `khalid keys create` calls it once the key is
+    /// hashed, so the store never sees the secret.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CreateKeyError::IdTaken`] when a key, revoked or not,
+    /// already has its identity, and [`CreateKeyError::Unavailable`] when
+    /// the keys cannot be written.
+    fn create(&self, key: StoredKey) -> BoxFuture<'_, Result<(), CreateKeyError>>;
+
+    /// Revokes the key with identity `id`, so it is never found again.
+    /// Returns whether a key that worked until now was revoked; `false`
+    /// for an unknown or already revoked key.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`KeyStoreError`] when the keys cannot be written.
+    fn revoke<'a>(&'a self, id: &'a KeyId) -> BoxFuture<'a, Result<bool, KeyStoreError>>;
+}
+
+/// A new key could not be stored.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum CreateKeyError {
+    /// Another key has this identity. With 64 random bits this means the
+    /// same key was stored twice.
+    #[error("a key with identity {} is already stored", .0.as_str())]
+    IdTaken(KeyId),
+    /// The keys could not be written.
+    #[error("the key could not be stored")]
+    Unavailable {
+        /// What the store reported.
+        #[source]
+        source: KeyStoreError,
+    },
 }
 
 /// The keys could not be read.
@@ -110,18 +146,39 @@ pub use memory::MemoryKeyStore;
 
 #[cfg(any(test, feature = "test-util"))]
 mod memory {
-    use super::{BoxFuture, KeyId, KeyStore, KeyStoreError, StoredKey};
+    use std::future::ready;
+    use std::sync::{Mutex, MutexGuard, PoisonError};
+
+    use super::{BoxFuture, CreateKeyError, KeyId, KeyStore, KeyStoreError, StoredKey};
 
     /// Keys held in memory, for tests.
-    #[derive(Debug, Clone, Default)]
+    #[derive(Debug, Default)]
     pub struct MemoryKeyStore {
-        keys: Vec<StoredKey>,
+        keys: Mutex<Keys>,
+    }
+
+    /// The keys that work, and the identities of revoked ones, which stay
+    /// taken.
+    #[derive(Debug, Default)]
+    struct Keys {
+        working: Vec<StoredKey>,
+        revoked: Vec<KeyId>,
     }
 
     impl MemoryKeyStore {
         /// A store holding `keys`.
         pub fn new(keys: Vec<StoredKey>) -> Self {
-            Self { keys }
+            let keys = Keys {
+                working: keys,
+                revoked: Vec::new(),
+            };
+            Self {
+                keys: Mutex::new(keys),
+            }
+        }
+
+        fn keys(&self) -> MutexGuard<'_, Keys> {
+            self.keys.lock().unwrap_or_else(PoisonError::into_inner)
         }
     }
 
@@ -131,8 +188,37 @@ mod memory {
             &'a self,
             id: &'a KeyId,
         ) -> BoxFuture<'a, Result<Option<StoredKey>, KeyStoreError>> {
-            let found = self.keys.iter().find(|key| key.id() == id).cloned();
-            Box::pin(std::future::ready(Ok(found)))
+            let found = self
+                .keys()
+                .working
+                .iter()
+                .find(|key| key.id() == id)
+                .cloned();
+            Box::pin(ready(Ok(found)))
+        }
+
+        fn create(&self, key: StoredKey) -> BoxFuture<'_, Result<(), CreateKeyError>> {
+            let mut keys = self.keys();
+            let taken = keys.revoked.contains(key.id())
+                || keys.working.iter().any(|stored| stored.id() == key.id());
+            let created = if taken {
+                Err(CreateKeyError::IdTaken(key.id().clone()))
+            } else {
+                keys.working.push(key);
+                Ok(())
+            };
+            Box::pin(ready(created))
+        }
+
+        fn revoke<'a>(&'a self, id: &'a KeyId) -> BoxFuture<'a, Result<bool, KeyStoreError>> {
+            let mut keys = self.keys();
+            let before = keys.working.len();
+            keys.working.retain(|key| key.id() != id);
+            let revoked = keys.working.len() < before;
+            if revoked {
+                keys.revoked.push(id.clone());
+            }
+            Box::pin(ready(Ok(revoked)))
         }
     }
 }
