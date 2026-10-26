@@ -18,6 +18,24 @@ pub(crate) struct Cli {
     /// The command to run. With none, Byline prints this help.
     #[command(subcommand)]
     pub(crate) command: Option<Command>,
+
+    /// Print machine-readable JSON instead of sentences.
+    #[arg(
+        long = "json",
+        global = true,
+        action = ArgAction::SetTrue,
+        value_parser = BoolValueParser::new().map(|json| if json { Output::Json } else { Output::Human }),
+    )]
+    pub(crate) output: Output,
+}
+
+/// How a command prints its results and messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Output {
+    /// Sentences for a person.
+    Human,
+    /// JSON for scripts and agents, with the same fields the API uses.
+    Json,
 }
 
 /// Every command in `docs/plan.md` section 4.1.

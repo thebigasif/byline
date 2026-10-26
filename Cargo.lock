@@ -114,6 +114,8 @@ dependencies = [
  "byline-core",
  "clap",
  "mimalloc",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
