@@ -18,6 +18,7 @@ mod meta_templates;
 mod news_sitemap;
 mod page;
 mod robots_meta;
+mod robots_txt;
 mod seo_error;
 mod site;
 mod sitemap;
@@ -37,6 +38,9 @@ pub use news_sitemap::{NewsEntry, NewsSitemap};
 pub use page::{ArticleType, PageKind, PublishState, SeoPage, SitemapListing};
 pub use robots_meta::{
     Following, ImagePreview, IndexPolicy, Indexing, PreviewLimit, Restriction, RobotsDirectives,
+};
+pub use robots_txt::{
+    BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,
 };
 pub use seo_error::SeoError;
 pub use site::SeoSite;

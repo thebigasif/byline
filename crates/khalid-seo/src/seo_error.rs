@@ -65,6 +65,18 @@ pub enum SeoError {
         /// The language both pages are in.
         language: String,
     },
+    /// A crawler name in the robots policy holds a character robots.txt refuses.
+    #[error("the crawler name {agent:?} may hold only letters, digits, - and _")]
+    UserAgent {
+        /// The name, as given.
+        agent: String,
+    },
+    /// A robots.txt path rule does not start with `/` or holds a space.
+    #[error("the robots.txt rule {path:?} must start with / and hold no spaces")]
+    RobotsPath {
+        /// The rule, as given.
+        path: String,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {

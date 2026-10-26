@@ -100,7 +100,7 @@
 
 ### 1.13 SEO outputs
 
-- Status: `doing`. Parts 1 to 4: the `khalid-seo` crate and its own input types (ADR 0009), page addresses, title and description templates, robots directives, head tags. Part 5: Open Graph and Twitter cards with a default share image and a per-page override. Part 6: verification tags for Google, Bing, Yandex, Baidu and Pinterest, and verification files at the root. Part 7: hreflang with `x-default` from translation groups, the same complete set on every version. Part 8a: test checks for the rules of the sitemap schema. Part 8b: the XML sitemap of exactly the published, indexable pages, with language alternates. Part 9a: images and videos in the sitemap. Part 9b: the news sitemap. Part 10a: the sitemap index at `sitemap.xml`, checked against the index schema's rules. Part 10b: one sitemap file per section and language, split at 50,000 addresses or 50 MiB. Part 10c (this landing): the HTML sitemap model per language. Next: the split, the index and the HTML sitemap; robots.txt and `llms.txt`; feeds; redirects; the link policy.
+- Status: `doing`. Parts 1 to 4: the `khalid-seo` crate and its own input types (ADR 0009), page addresses, title and description templates, robots directives, head tags. Part 5: Open Graph and Twitter cards with a default share image and a per-page override. Part 6: verification tags for Google, Bing, Yandex, Baidu and Pinterest, and verification files at the root. Part 7: hreflang with `x-default` from translation groups, the same complete set on every version. Part 8a: test checks for the rules of the sitemap schema. Part 8b: the XML sitemap of exactly the published, indexable pages, with language alternates. Part 9a: images and videos in the sitemap. Part 9b: the news sitemap. Part 10a: the sitemap index at `sitemap.xml`, checked against the index schema's rules. Part 10b: one sitemap file per section and language, split at 50,000 addresses or 50 MiB. Part 10c: the HTML sitemap model per language. Part 11a (this landing): `robots.txt` with per-bot allow and block, checked with Google's parser. Next: `llms.txt`; the split, the index and the HTML sitemap; robots.txt and `llms.txt`; feeds; redirects; the link policy.
 - `crates/khalid-seo`: title and description tags, canonical, hreflang pairs from the `translation` key, Open Graph, sitemaps per language with `lastmod`, RSS, Atom and JSON feeds per collection and channel, and `robots.txt`.
 - Rules: BL-TYP-5, BL-PERF-2. Plan section 5.2.
 - Done when: snapshots cover each output for the demo site, every hreflang pair is complete, and a sitemap lists exactly the published, indexable pages.
@@ -176,7 +176,7 @@
 
 ## Questions for the founder
 
-None open.
+1. **AI crawlers in a new site's robots.txt (task 1.13).** Context: AI companies send crawlers that copy blog posts to train their models (GPTBot, CCBot and others), and separate crawlers that fetch posts to quote and link them in AI answers (OAI-SearchBot, Claude-SearchBot, PerplexityBot). Khalid can block or allow each one by name. Today a new site allows all of them. Consequence: blocking the training crawlers keeps posts out of future models and costs no search traffic; blocking the answer crawlers also removes the blog from AI answers. Question: should a new site block the training crawlers by default, and keep the answer crawlers allowed?
 
 ## Order
 
