@@ -1,0 +1,23 @@
+---
+source: crates/khalid-seo/tests/social.rs
+expression: tags.to_html()
+---
+<title>Why internal links matter | Field Notes on SEO</title>
+<meta name="description" content="Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+<link rel="canonical" href="https://www.example.com/blog/why-internal-links-matter/">
+<meta property="og:site_name" content="Field Notes on SEO">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Why internal links matter">
+<meta property="og:description" content="Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.">
+<meta property="og:url" content="https://www.example.com/blog/why-internal-links-matter/">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="https://www.example.com/blog/media/share-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Field Notes on SEO, plain advice on search">
+<meta property="article:published_time" content="2026-09-14T08:00:00Z">
+<meta property="article:modified_time" content="2026-10-02T16:00:00Z">
+<meta property="article:section" content="On-page SEO">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@serpdad">

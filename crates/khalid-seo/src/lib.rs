@@ -9,10 +9,25 @@
 //! It must not know about templates, files, HTTP or the database. The crates
 //! that read content and render pages build its inputs and place its output.
 
+mod escape;
+mod head;
+mod meta_template;
+mod meta_templates;
+mod page;
+mod robots_meta;
 mod seo_error;
 mod site;
+mod social;
 mod url_path;
 
+pub use head::{HeadTag, HeadTags, head_tags};
+pub use meta_template::MetaTemplate;
+pub use meta_templates::{MetaTemplates, TemplatePair};
+pub use page::{PageKind, SeoPage};
+pub use robots_meta::{
+    Following, ImagePreview, IndexPolicy, Indexing, PreviewLimit, Restriction, RobotsDirectives,
+};
 pub use seo_error::SeoError;
 pub use site::SeoSite;
+pub use social::{ShareImage, TwitterHandle};
 pub use url_path::UrlPath;

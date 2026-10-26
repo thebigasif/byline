@@ -1,0 +1,11 @@
+---
+source: crates/khalid-render/tests/render/image.rs
+expression: "page.split(\"<figure\").nth(1).unwrap().split(\"</figure>\").next().unwrap()"
+---
+ class="image">
+<picture>
+<source type="image/avif" srcset="/blog/media/3f2a9c1e-800.avif 800w, /blog/media/3f2a9c1e-1600.avif 1600w" sizes="(min-width: 48rem) 48rem, 100vw">
+<source type="image/webp" srcset="/blog/media/3f2a9c1e-800.webp 800w, /blog/media/3f2a9c1e-1600.webp 1600w" sizes="(min-width: 48rem) 48rem, 100vw">
+<img src="/blog/media/3f2a9c1e-1600.jpg" srcset="/blog/media/3f2a9c1e-800.jpg 800w, /blog/media/3f2a9c1e-1600.jpg 1600w" sizes="(min-width: 48rem) 48rem, 100vw" width="1600" height="900" alt="A sitemap drawn as a tree of pages" fetchpriority="high" decoding="async">
+</picture>
+<figcaption>Every page you want found, in one list.</figcaption>
