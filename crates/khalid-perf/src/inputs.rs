@@ -9,10 +9,11 @@ use std::path::Path;
 use khalid_content::{
     ContentTree, Document, Link as RenderedLink, PostFront, read_content, render,
 };
-use khalid_core::{AbsoluteUrl, Config, Environment};
+use khalid_core::{AbsoluteUrl, Config, Environment, Slug};
 use khalid_lint::{Heading, HeadingLevel, LinkKind, LintLink, LintPost, LintSite};
 use khalid_render::{
-    BodyHtml, Features, Nav, PageBody, PageKind, PageMeta, Person, RenderPost, RenderSite, Robots,
+    BodyHtml, Features, Nav, PageBody, PageKind, PageMeta, Person, ReadingTime, RenderPost,
+    RenderSite, Robots,
 };
 
 use crate::PrepareError;
@@ -78,30 +79,22 @@ impl Prepared {
         let rendered = render(&post.body, &post.locale, config.slugs())?;
         let path = format!("{}{slug}/", config.mount());
         let title = front.title.clone().unwrap_or_default();
-        let author = front
-            .author
-            .as_ref()
-            .map(|author| author.as_str().to_owned());
+        let body = BodyHtml::from_sanitised(rendered.html.clone());
         let record = RenderPost {
             title: title.clone(),
             date,
             updated: None,
-            authors: author
+            reading_time: ReadingTime::of(&body, &post.locale),
+            authors: front
+                .author
                 .iter()
-                .map(|name| Person {
-                    name: name.clone(),
-                    href: format!("{}authors/{name}/", config.mount()),
-                    role: None,
-                    image: None,
-                    bio: None,
-                    profiles: Vec::new(),
-                })
+                .map(|slug| author(slug, config))
                 .collect(),
             reviewers: Vec::new(),
             category: None,
             tags: Vec::new(),
             image: None,
-            body: BodyHtml::from_sanitised(rendered.html.clone()),
+            body,
         };
         let meta = PageMeta {
             title: title.clone(),
@@ -124,7 +117,7 @@ impl Prepared {
         lint.title = Some(title);
         lint.description.clone_from(&front.description);
         lint.date = Some(date);
-        lint.author = author;
+        lint.author = front.author.as_ref().map(Slug::to_string);
         lint.headings = rendered
             .headings
             .iter()
@@ -150,6 +143,18 @@ impl Prepared {
         lint.body_text = plain_text(&rendered.html);
         self.lint.posts.push(lint);
         Ok(())
+    }
+}
+
+/// The author with `slug`, named by it, linked to their author page.
+fn author(slug: &Slug, config: &Config) -> Person {
+    Person {
+        name: slug.to_string(),
+        href: format!("{}authors/{slug}/", config.mount()),
+        role: None,
+        image: None,
+        bio: None,
+        profiles: Vec::new(),
     }
 }
 

@@ -20,8 +20,8 @@ use chrono::NaiveDate;
 use khalid_core::{AbsoluteUrl, Locale};
 use khalid_render::{
     Alternate, BodyHtml, Features, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink, PageBody,
-    PageKind, PageMeta, Person, PostCard, RenderAuthor, RenderGlossary, RenderListing, RenderPage,
-    RenderPost, RenderSearch, RenderSite, Renderer, Robots, Tokens, stylesheet,
+    PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor, RenderGlossary, RenderListing,
+    RenderPage, RenderPost, RenderSearch, RenderSite, Renderer, Robots, Tokens, stylesheet,
 };
 
 type Fallible<T> = Result<T, Box<dyn Error>>;
@@ -447,10 +447,12 @@ impl Demo {
         let author = post.field("author");
         let file = authors.iter().find(|a| a.field("slug") == author);
         let date = NaiveDate::parse_from_str(&post.field("date"), "%Y-%m-%d")?;
+        let body = markdown(&post.body, &format!("{}glossary/", lang.prefix));
         let record = RenderPost {
             title: post.field("title"),
             date,
             updated: None,
+            reading_time: ReadingTime::of(&body, &Locale::try_new(lang.tag)?),
             authors: vec![Person {
                 name: file.map_or(author.clone(), |a| a.field("name")),
                 href: format!("{}authors/{author}/", lang.prefix),
@@ -466,7 +468,7 @@ impl Demo {
             }),
             tags: Vec::new(),
             image: None,
-            body: markdown(&post.body, &format!("{}glossary/", lang.prefix)),
+            body,
         };
         let (title, key) = (record.title.clone(), post.field("translation"));
         let body = PageBody::Post(Box::new(record));

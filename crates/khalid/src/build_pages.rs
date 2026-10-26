@@ -6,8 +6,8 @@ use std::cmp::Reverse;
 use khalid_content::{Document, PostFront, SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Features, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, RenderAuthor,
-    RenderListing, RenderPage, RenderPost, RenderSite, Robots,
+    BodyHtml, Features, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime,
+    RenderAuthor, RenderListing, RenderPage, RenderPost, RenderSite, Robots,
 };
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
@@ -134,6 +134,7 @@ fn post_pages<'a>(
             title: title.clone(),
             date,
             updated: None,
+            reading_time: ReadingTime::of(&html, locale),
             authors: authors(config, content, doc),
             reviewers: Vec::new(),
             category: None,

@@ -5,7 +5,7 @@ use minijinja::Value;
 use serde::Serialize;
 
 use crate::serde_display::{display, display_option};
-use crate::{Person, RenderImage};
+use crate::{Person, ReadingTime, RenderImage};
 
 /// One post: its heading, dates, people, topics and body.
 ///
@@ -20,6 +20,8 @@ pub struct RenderPost {
     /// The day it last changed in a way readers should know about.
     #[serde(serialize_with = "display_option")]
     pub updated: Option<NaiveDate>,
+    /// How long it takes to read, from [`ReadingTime::of`] its body.
+    pub reading_time: ReadingTime,
     /// Who wrote it, first author first.
     pub authors: Vec<Person>,
     /// Who checked it, from `reviewed_by` in its front matter, linked to

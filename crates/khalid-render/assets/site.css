@@ -108,6 +108,7 @@ nav a { min-inline-size: 44px; }
 .person { display: flex; align-items: center; gap: 0.625rem; }
 .person-role { display: block; margin-block-start: -0.5rem; }
 .reviewed-by a { font-weight: 600; }
+.reading-time time { white-space: nowrap; }
 .avatar { inline-size: 2.75rem; block-size: 2.75rem; border-radius: 50%; object-fit: cover; }
 .post-body > :first-child, .page-body > :first-child { margin-block-start: 0; }
 .post-footer { margin-block-start: 2.5rem; }

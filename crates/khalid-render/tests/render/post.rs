@@ -3,10 +3,11 @@
 
 use chrono::NaiveDate;
 use khalid_render::{
-    BodyHtml, Feature, Features, Link, PageBody, PageKind, Person, RenderPost, RenderSite, Renderer,
+    BodyHtml, Feature, Features, Link, PageBody, PageKind, Person, ReadingTime, RenderPost,
+    RenderSite, Renderer,
 };
 
-use crate::common::{demo_site, meta};
+use crate::common::{demo_site, locale, meta};
 use crate::html_check::assert_valid_page;
 
 pub(crate) fn link(name: &str, href: &str) -> Link {
@@ -30,10 +31,16 @@ pub(crate) fn person(name: &str, slug: &str, role: Option<&str>) -> Person {
 
 /// "What a sitemap does" from the demo site, with its body already rendered.
 pub(crate) fn sitemap_post() -> RenderPost {
+    let body = BodyHtml::from_sanitised(
+        "<p>A sitemap is a file that lists the addresses of the pages on your site.</p>\n\
+         <h2>What it does</h2>\n<p>It helps new pages get found sooner.</p>"
+            .to_owned(),
+    );
     RenderPost {
         title: "What a sitemap does, and what it does not".to_owned(),
         date: NaiveDate::from_ymd_opt(2026, 9, 28).unwrap(),
         updated: None,
+        reading_time: ReadingTime::of(&body, &locale("en")),
         authors: vec![person(
             "Lena Vogt",
             "lena-vogt",
@@ -43,11 +50,7 @@ pub(crate) fn sitemap_post() -> RenderPost {
         category: Some(link("Technical SEO", "/blog/category/technical-seo/")),
         tags: vec![link("Sitemaps", "/blog/tag/sitemaps/")],
         image: None,
-        body: BodyHtml::from_sanitised(
-            "<p>A sitemap is a file that lists the addresses of the pages on your site.</p>\n\
-             <h2>What it does</h2>\n<p>It helps new pages get found sooner.</p>"
-                .to_owned(),
-        ),
+        body,
     }
 }
 

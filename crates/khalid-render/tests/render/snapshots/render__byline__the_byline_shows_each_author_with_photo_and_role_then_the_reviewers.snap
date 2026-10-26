@@ -14,5 +14,6 @@ expression: "part(&page, \"<div class=\\\"post-meta\\\">\", \"</div>\")"
 </address>
 <p class="reviewed-by">Reviewed by <a href="/blog/authors/mara-lind/">Mara Lind</a></p>
 <p>Published <time datetime="2026-09-28">28 September 2026</time></p>
+<p class="reading-time"><time datetime="PT1M">1 min read</time></p>
 <p>Filed under <a href="/blog/category/technical-seo/">Technical SEO</a></p>
 </div>

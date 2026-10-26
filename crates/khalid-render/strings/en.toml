@@ -15,6 +15,8 @@ written_by = "Written by"
 reviewed_by = "Reviewed by"
 published = "Published"
 updated = "Updated"
+# How long a post takes to read. {minutes} is filled in.
+reading_time = "{minutes} min read"
 in_category = "Filed under"
 tags = "Tags"
 no_posts = "There are no posts here yet."

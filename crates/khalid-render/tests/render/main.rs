@@ -20,6 +20,8 @@ mod pages;
 #[cfg(test)]
 mod post;
 #[cfg(test)]
+mod reading_time;
+#[cfg(test)]
 mod sandbox;
 #[cfg(test)]
 mod seo_head;
