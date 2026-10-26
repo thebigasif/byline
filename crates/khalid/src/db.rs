@@ -20,7 +20,7 @@ const FILE: &str = "site.db";
 
 /// The handle of the one site a site folder holds. Multi-site, in a later
 /// phase, gives each site in a process its own.
-const MAIN: &str = "main";
+pub(crate) const MAIN: &str = "main";
 
 /// The JSON shape of a database command's result. `posts` is there after a
 /// rebuild.
@@ -59,7 +59,7 @@ pub(crate) fn run(site: &Path, command: DbCommand, output: Output) -> Exit {
 }
 
 /// `data/site.db` in the site folder, after making `data/` when it is missing.
-fn data_file(site: &Path) -> Result<PathBuf, UserMessage> {
+pub(crate) fn data_file(site: &Path) -> Result<PathBuf, UserMessage> {
     let mut folder = site.to_path_buf();
     folder.push(DATA);
     fs::create_dir_all(&folder).map_err(|error| db_message::folder(&folder, &error))?;

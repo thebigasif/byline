@@ -1,6 +1,7 @@
 # The blog's colours, fonts and shape, read by the templates as CSS
 # variables. `khalid theme sync` writes this file from the main site.
-# Every value may be edited by hand.
+# Every value may be edited by hand. To keep an edit when the site is
+# synced again, name it in a list at the top: locked = ["colors.link"]
 
 [colors]
 background = "#ffffff"

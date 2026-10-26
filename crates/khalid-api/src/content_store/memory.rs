@@ -1,4 +1,5 @@
-//! Published content in memory, for tests.
+//! Published content in memory: what `khalid serve` reads from the index
+//! after each change, and what tests fill by hand.
 
 use std::cmp::Ordering;
 
@@ -8,7 +9,7 @@ use crate::query::{Direction, FieldValues, Limit, ListQuery, Literal};
 use crate::resources::{Collection, Post};
 
 /// Entries held in memory, filtered, sorted and paged the way a database
-/// store would. For tests only.
+/// store would.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryContentStore {
     entries: Vec<(Collection, Post)>,

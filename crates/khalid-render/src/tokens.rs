@@ -23,12 +23,58 @@ const MINIMUM_CONTRAST: f64 = 4.5;
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Tokens {
+    /// The tokens a person set by hand, which `khalid theme sync` keeps
+    /// when it reads the main site again. The renderer only checks the
+    /// names.
+    pub locked: Vec<TokenName>,
     /// The colours.
     pub colors: Colors,
     /// The font stacks.
     pub fonts: Fonts,
     /// Corners and line length.
     pub shape: Shape,
+}
+
+/// The name of one token, as `table.field`, such as `colors.link`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[non_exhaustive]
+pub enum TokenName {
+    /// `colors.background`.
+    #[serde(rename = "colors.background")]
+    Background,
+    /// `colors.surface`.
+    #[serde(rename = "colors.surface")]
+    Surface,
+    /// `colors.text`.
+    #[serde(rename = "colors.text")]
+    Text,
+    /// `colors.muted`.
+    #[serde(rename = "colors.muted")]
+    Muted,
+    /// `colors.link`.
+    #[serde(rename = "colors.link")]
+    Link,
+    /// `colors.accent`.
+    #[serde(rename = "colors.accent")]
+    Accent,
+    /// `colors.border`.
+    #[serde(rename = "colors.border")]
+    Border,
+    /// `fonts.body`.
+    #[serde(rename = "fonts.body")]
+    Body,
+    /// `fonts.heading`.
+    #[serde(rename = "fonts.heading")]
+    Heading,
+    /// `fonts.mono`.
+    #[serde(rename = "fonts.mono")]
+    Mono,
+    /// `shape.radius`.
+    #[serde(rename = "shape.radius")]
+    Radius,
+    /// `shape.measure`.
+    #[serde(rename = "shape.measure")]
+    Measure,
 }
 
 /// The colours, each a `#rrggbb` or `#rgb` value.
