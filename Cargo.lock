@@ -1259,6 +1259,7 @@ name = "khalid-api"
 version = "0.0.0"
 dependencies = [
  "proptest",
+ "thiserror",
 ]
 
 [[package]]
