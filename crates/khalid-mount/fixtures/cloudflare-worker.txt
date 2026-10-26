@@ -1,0 +1,11 @@
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname !== "/blog" && !url.pathname.startsWith("/blog/")) {
+      return fetch(request);
+    }
+    const forwarded = new Request(`https://blog-origin.example.com${url.pathname}${url.search}`, request);
+    forwarded.headers.set("X-Forwarded-Host", url.host);
+    return fetch(forwarded);
+  },
+};

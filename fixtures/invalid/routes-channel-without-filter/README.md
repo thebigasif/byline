@@ -1,0 +1,1 @@
+This site breaks one rule on purpose: the `everything` channel in `routes.toml` has an empty filter, so it would list every post, which the collection's own page already does. The exact message `khalid --site` prints for it is in `expected.txt`.
