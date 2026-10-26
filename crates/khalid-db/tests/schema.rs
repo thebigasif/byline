@@ -90,6 +90,37 @@ async fn every_table_has_a_site_id_that_points_at_sites() {
 }
 
 #[tokio::test]
+async fn no_visitor_table_points_at_a_derived_table() {
+    let (_dir, mut connection) = migrated().await;
+    let listed = readme_tables();
+    let derived: BTreeSet<&str> = listed
+        .iter()
+        .filter(|(_, kind)| kind == "derived")
+        .map(|(name, _)| name.as_str())
+        .collect();
+    let mut visitors = 0;
+    for (table, _) in listed.iter().filter(|(_, kind)| kind == "visitor") {
+        let targets: Vec<String> =
+            sqlx::query_scalar("SELECT \"table\" FROM pragma_foreign_key_list(?)")
+                .bind(table)
+                .fetch_all(&mut connection)
+                .await
+                .unwrap();
+        for target in targets {
+            assert!(
+                !derived.contains(target.as_str()),
+                "{table} points at the derived table {target}, so a rebuild would delete its rows"
+            );
+        }
+        visitors += 1;
+    }
+    assert!(
+        visitors >= 10,
+        "only {visitors} visitor tables were checked"
+    );
+}
+
+#[tokio::test]
 async fn a_row_for_a_site_that_does_not_exist_is_refused() {
     let (_dir, mut connection) = migrated().await;
     let orphan = sqlx::query(
@@ -127,4 +158,42 @@ async fn a_value_of_the_wrong_kind_is_refused() {
         bad_date.is_err(),
         "a post was stored with a day that does not exist"
     );
+}
+
+#[tokio::test]
+async fn visitor_rows_that_make_no_sense_are_refused() {
+    let (_dir, mut connection) = migrated().await;
+    sqlx::raw_sql(
+        "INSERT INTO sites (id, handle) VALUES (1, 'main'); \
+         INSERT INTO users (id, site_id, email, name, role, created_at) \
+         VALUES (1, 1, 'editor@example.com', 'Ada Editor', 'editor', '2026-10-26T09:00:00Z')",
+    )
+    .execute(&mut connection)
+    .await
+    .unwrap();
+    let refused = [
+        // A 410 says the page is gone, so it cannot send people anywhere.
+        "INSERT INTO redirects (site_id, from_path, to_url, status, origin, created_at) \
+         VALUES (1, '/old/', '/new/', 410, 'manual', '2026-10-26T09:00:00Z')",
+        // A 301 with nowhere to go.
+        "INSERT INTO redirects (site_id, from_path, status, origin, created_at) \
+         VALUES (1, '/old/', 301, 'manual', '2026-10-26T09:00:00Z')",
+        "INSERT INTO sessions (site_id, user_id, token_hash, created_at, expires_at) \
+         VALUES (1, 1, zeroblob(32), '2026-10-26T09:00:00Z', '2026-10-25T09:00:00Z')",
+        "INSERT INTO subscribers (site_id, email, status, created_at) \
+         VALUES (1, 'reader@example.com', 'maybe', '2026-10-26T09:00:00Z')",
+        "INSERT INTO form_submissions (site_id, form, fields, status, created_at) \
+         VALUES (1, 'contact', 'not json', 'received', '2026-10-26T09:00:00Z')",
+    ];
+    for sql in refused {
+        let result = sqlx::query(sql).execute(&mut connection).await;
+        assert!(result.is_err(), "accepted: {sql}");
+    }
+    sqlx::query(
+        "INSERT INTO redirects (site_id, from_path, to_url, status, origin, created_at) \
+         VALUES (1, '/old/', '/new/', 301, 'manual', '2026-10-26T09:00:00Z')",
+    )
+    .execute(&mut connection)
+    .await
+    .unwrap();
 }
