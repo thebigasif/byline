@@ -9,9 +9,9 @@ use comrak::nodes::{AstNode, NodeValue, Sourcepos};
 use comrak::options::Plugins;
 use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
 use comrak::{Arena, Options, format_html_with_plugins, parse_document};
-use khalid_core::{Locale, Slug, SlugMode};
+use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
-use crate::{Block, BlockError, BlockKind, CalloutKind, parse_blocks};
+use crate::{Block, BlockError, BlockKind, CalloutKind, embed, parse_blocks};
 
 /// A body rendered to HTML.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,15 +94,12 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
     };
     let mut run: Vec<&str> = Vec::new();
     for block in &blocks {
-        if matches!(
-            block.kind,
-            BlockKind::Callout { .. } | BlockKind::Figure { .. }
-        ) {
+        if is_markdown(&block.kind) {
+            run.push(&block.source);
+        } else {
             renderer.markdown(&run.join("\n\n"));
             run.clear();
             renderer.directive(block);
-        } else {
-            run.push(&block.source);
         }
     }
     renderer.markdown(&run.join("\n\n"));
@@ -111,13 +108,35 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
         .state
         .into_inner()
         .unwrap_or_else(PoisonError::into_inner);
+    let html = if renderer.html.contains(TOC_MARK) {
+        renderer.html.replace(TOC_MARK, &contents(&state.headings))
+    } else {
+        renderer.html
+    };
     Ok(Rendered {
-        html: renderer.html,
+        html,
         headings: state.headings,
         links: renderer.facts.links,
         images: renderer.facts.images,
         words: renderer.facts.words,
     })
+}
+
+/// Whether `kind` is standard markdown, which renders in runs, rather than a
+/// directive, which renders on its own.
+fn is_markdown(kind: &BlockKind) -> bool {
+    matches!(
+        kind,
+        BlockKind::Heading { .. }
+            | BlockKind::Paragraph
+            | BlockKind::Quote
+            | BlockKind::List
+            | BlockKind::Code { .. }
+            | BlockKind::Divider
+            | BlockKind::Table
+            | BlockKind::Footnote
+            | BlockKind::Html
+    )
 }
 
 /// Renders runs of markdown into one page, keeping heading ids unique across
@@ -157,8 +176,134 @@ impl Renderer {
                 self.markdown(&inside(&block.source));
                 self.html.push_str("</figcaption>\n</figure>\n");
             }
+            BlockKind::Toggle { summary } => {
+                self.push(&["<details>\n<summary>", &attribute(summary), "</summary>\n"]);
+                self.markdown(&inside(&block.source));
+                self.html.push_str("</details>\n");
+            }
+            BlockKind::Toc => self.html.push_str(TOC_MARK),
+            BlockKind::Button { href, label } => {
+                self.push(&[
+                    "<p><a class=\"button\" href=\"",
+                    &attribute(href),
+                    "\">",
+                    &attribute(label),
+                    "</a></p>\n",
+                ]);
+                self.facts.links.push(Link {
+                    internal: !href.contains(':'),
+                    href: href.clone(),
+                    text: label.clone(),
+                });
+            }
+            BlockKind::Bookmark {
+                href,
+                title,
+                description,
+                image,
+            } => self.bookmark(
+                href,
+                title.as_deref(),
+                description.as_deref(),
+                image.as_ref(),
+            ),
+            BlockKind::Embed { src, title } => self.embed(src, title),
             _ => {}
         }
+    }
+
+    /// Writes a bookmark: a plain link, or a card when the publish step has
+    /// filled in the page's title.
+    fn bookmark(
+        &mut self,
+        href: &AbsoluteUrl,
+        title: Option<&str>,
+        description: Option<&str>,
+        image: Option<&AbsoluteUrl>,
+    ) {
+        let text = title.unwrap_or(href.as_str());
+        self.link_out(href, text);
+        self.push(&[
+            "<p class=\"bookmark\"><a href=\"",
+            &attribute(href.as_str()),
+            "\">",
+        ]);
+        if let Some(image) = image {
+            self.push(&[
+                "<img src=\"",
+                &attribute(image.as_str()),
+                "\" alt=\"\" width=\"160\" height=\"90\" loading=\"lazy\" decoding=\"async\" />",
+            ]);
+        }
+        if title.is_some() {
+            self.push(&[
+                "<span class=\"bookmark-title\">",
+                &attribute(text),
+                "</span>",
+            ]);
+        } else {
+            self.html.push_str(&attribute(text));
+        }
+        if let Some(description) = description {
+            self.push(&[
+                "<span class=\"bookmark-description\">",
+                &attribute(description),
+                "</span>",
+            ]);
+        }
+        if title.is_some() {
+            self.push(&[
+                "<span class=\"bookmark-host\">",
+                &attribute(href.host()),
+                "</span>",
+            ]);
+        }
+        self.html.push_str("</a></p>\n");
+    }
+
+    /// Writes an embed: an allowed provider's player in a lazy, sandboxed
+    /// frame of fixed size with the page's link under it, or the link alone.
+    fn embed(&mut self, src: &AbsoluteUrl, title: &str) {
+        self.link_out(src, title);
+        let link = [
+            "<a href=\"",
+            &attribute(src.as_str()),
+            "\">",
+            &attribute(title),
+            "</a>",
+        ]
+        .concat();
+        let Some((provider, player)) = embed::player(src) else {
+            self.push(&["<p class=\"bookmark\">", &link, "</p>\n"]);
+            return;
+        };
+        let (shape, height) = if provider.is_audio() {
+            ("audio", "152")
+        } else {
+            ("wide", "315")
+        };
+        self.push(&[
+            "<figure class=\"embed embed-",
+            shape,
+            "\">\n<iframe src=\"",
+            &attribute(&player),
+            "\" title=\"",
+            &attribute(title),
+            "\" width=\"560\" height=\"",
+            height,
+            "\" loading=\"lazy\" referrerpolicy=\"strict-origin-when-cross-origin\" sandbox=\"allow-scripts allow-same-origin allow-popups allow-presentation\" allow=\"encrypted-media; fullscreen; picture-in-picture\"></iframe>\n<figcaption>",
+            &link,
+            "</figcaption>\n</figure>\n",
+        ]);
+    }
+
+    /// Records a link to another site.
+    fn link_out(&mut self, href: &AbsoluteUrl, text: &str) {
+        self.facts.links.push(Link {
+            href: href.as_str().to_owned(),
+            text: text.to_owned(),
+            internal: false,
+        });
     }
 
     /// Appends `parts` to the HTML in order.
@@ -196,6 +341,30 @@ impl Renderer {
             }
         }
     }
+}
+
+/// Where `::toc` goes until the headings are known. Raw HTML in markdown is
+/// escaped, so no post can write this comment itself.
+const TOC_MARK: &str = "<!--khalid-toc-->\n";
+
+/// The list of `headings`, linked, for `::toc`.
+fn contents(headings: &[Heading]) -> String {
+    let mut html = String::from("<nav class=\"toc\" aria-label=\"Contents\">\n<ol>\n");
+    for heading in headings {
+        for part in [
+            "<li class=\"toc-h",
+            &heading.level.to_string(),
+            "\"><a href=\"#",
+            &attribute(&heading.id),
+            "\">",
+            &attribute(&heading.text),
+            "</a></li>\n",
+        ] {
+            html.push_str(part);
+        }
+    }
+    html.push_str("</ol>\n</nav>\n");
+    html
 }
 
 /// The body of a directive: every line between its opening and closing `:::`.

@@ -1,0 +1,33 @@
+---
+source: crates/khalid-content/tests/blocks_embed.rs
+expression: "html(\"\\\n::embed{src=\\\"https://www.youtube.com/watch?v=dQw4w9WgXcQ\\\" title=\\\"How search works\\\"}\n\n::embed{src=\\\"https://youtu.be/dQw4w9WgXcQ\\\" title=\\\"How search works\\\"}\n\n::embed{src=\\\"https://vimeo.com/76979871\\\" title=\\\"A short film\\\"}\n\n::embed{src=\\\"https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk\\\" title=\\\"An SEO podcast\\\"}\n\n::embed{src=\\\"https://soundcloud.com/forss/flickermood\\\" title=\\\"Flickermood\\\"}\n\n::embed{src=\\\"https://codepen.io/chriscoyier/pen/gfdDu\\\" title=\\\"A layout demo\\\"}\n\n::embed{src=\\\"https://www.loom.com/share/0281766fa2d04bb788eaf19e65135184\\\" title=\\\"A site tour\\\"}\n\n::embed{src=\\\"https://example.com/talk\\\" title=\\\"A talk elsewhere\\\"}\n\")"
+---
+<figure class="embed embed-wide">
+<iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="How search works" width="560" height="315" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="encrypted-media; fullscreen; picture-in-picture"></iframe>
+<figcaption><a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">How search works</a></figcaption>
+</figure>
+<figure class="embed embed-wide">
+<iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="How search works" width="560" height="315" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="encrypted-media; fullscreen; picture-in-picture"></iframe>
+<figcaption><a href="https://youtu.be/dQw4w9WgXcQ">How search works</a></figcaption>
+</figure>
+<figure class="embed embed-wide">
+<iframe src="https://player.vimeo.com/video/76979871" title="A short film" width="560" height="315" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="encrypted-media; fullscreen; picture-in-picture"></iframe>
+<figcaption><a href="https://vimeo.com/76979871">A short film</a></figcaption>
+</figure>
+<figure class="embed embed-audio">
+<iframe src="https://open.spotify.com/embed/episode/4rOoJ6Egrf8K2IrywzwOMk" title="An SEO podcast" width="560" height="152" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="encrypted-media; fullscreen; picture-in-picture"></iframe>
+<figcaption><a href="https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk">An SEO podcast</a></figcaption>
+</figure>
+<figure class="embed embed-audio">
+<iframe src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fsoundcloud.com%2Fforss%2Fflickermood" title="Flickermood" width="560" height="152" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="encrypted-media; fullscreen; picture-in-picture"></iframe>
+<figcaption><a href="https://soundcloud.com/forss/flickermood">Flickermood</a></figcaption>
+</figure>
+<figure class="embed embed-wide">
+<iframe src="https://codepen.io/chriscoyier/embed/gfdDu?default-tab=result" title="A layout demo" width="560" height="315" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="encrypted-media; fullscreen; picture-in-picture"></iframe>
+<figcaption><a href="https://codepen.io/chriscoyier/pen/gfdDu">A layout demo</a></figcaption>
+</figure>
+<figure class="embed embed-wide">
+<iframe src="https://www.loom.com/embed/0281766fa2d04bb788eaf19e65135184" title="A site tour" width="560" height="315" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="encrypted-media; fullscreen; picture-in-picture"></iframe>
+<figcaption><a href="https://www.loom.com/share/0281766fa2d04bb788eaf19e65135184">A site tour</a></figcaption>
+</figure>
+<p class="bookmark"><a href="https://example.com/talk">A talk elsewhere</a></p>

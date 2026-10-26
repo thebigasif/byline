@@ -57,7 +57,9 @@
 
 ### 1.7 The remaining blocks
 
-- Status: `todo`
+- Status: `doing`. 1.7a1 (#175): the one-line leaf form (ADR 0018), toggle, table of contents and button. Checks (this landing): `khalid --site` reads every block in every body and refuses a broken one with the file and line, with a `fixtures/invalid/block-*` folder per refusal (#178). 1.7a2: bookmark, drawn as a card when publish fills its title. 1.7a3 (this landing): embed, a player in a frame for the six providers in `EMBED_PROVIDERS`, or a plain link for any other address. 1.7b media, 1.7c faq, how-to and review, 1.7d recipe, product, business card and header, 1.7e html, form, newsletter and gated content.
+- Status: `doing`. 1.7a1 (#175): the one-line leaf form (ADR 0018), toggle, table of contents and button. Checks (this landing): `khalid --site` reads every block in every body and refuses a broken one with the file and line, with a `fixtures/invalid/block-*` folder per refusal. 1.7a2: bookmark and embed with the provider allowlist. 1.7b media, 1.7c faq, how-to and review, 1.7d recipe, product, business card and header, 1.7e html, form, newsletter and gated content.
+- Status: `doing`. 1.7a1 (this landing): the one-line leaf form (ADR 0018), toggle, table of contents and button. 1.7a2: bookmark and embed with the provider allowlist. 1.7b media, 1.7c faq, how-to and review, 1.7d recipe, product, business card and header, 1.7e html, form, newsletter and gated content.
 - The rest of plan section 4.6's block list, in parts of about five blocks each: gallery, video, audio, file download, bookmark card, product card, toggle, button, header, embed, HTML with visibility rules, FAQ, how-to, review, recipe, business card, form, newsletter signup, gated content, table of contents. Blocks that need a server feature (form, newsletter, gated content) render their plain HTML form and lock card for now.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
 - Done when: every block in section 4.6 has a directive, a round-trip test and a snapshot.
@@ -166,6 +168,7 @@
 
 ### 1.19 Webhooks
 
+- Status: `done` after this landing. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (#56): the verifier for incoming webhooks. Part 5 (#61): the delivery log model and the retry schedule over 24 hours. Part 6 (#70): the `DeliveryStore` trait with an in-memory store. Part 7 (#74): the `Dispatcher`, which signs, sends through `Outbound` and logs. Part 8 (this landing): retrying what is due. Task 1.15 implements `DeliveryStore` on SQLite and calls `retry_due` on a timer.
 - Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (#56): the verifier for incoming webhooks. Part 5 (#61): the delivery log model and the retry schedule over 24 hours. Part 6 (this landing): the `DeliveryStore` trait with an in-memory store. Part 7: sending deliveries through `Outbound`.
 - Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (#56): the verifier for incoming webhooks. Part 5 (this landing): the delivery log model and the retry schedule over 24 hours. Part 6: the `DeliveryStore` trait with an in-memory store. Part 7: sending deliveries through `Outbound`.
 - Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (this landing): the verifier for incoming webhooks. Part 5: delivery, retries and the delivery log.

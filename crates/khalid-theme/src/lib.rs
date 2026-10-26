@@ -8,17 +8,17 @@
 //! BL-RUN-8). The crate must not know about content, posts, templates or
 //! the database.
 
-mod fetch;
-mod fetch_error;
 mod brand;
 mod color;
+mod fetch;
+mod fetch_error;
 mod links;
 mod split;
 
+pub use brand::Brand;
+pub use color::Rgb;
 pub use fetch::{
     MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_STYLESHEETS, Origin, SiteSource, Stylesheet, fetch_site,
 };
 pub use fetch_error::FetchError;
-pub use brand::Brand;
-pub use color::Rgb;
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
