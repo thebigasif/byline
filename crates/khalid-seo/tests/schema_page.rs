@@ -35,7 +35,13 @@ fn every_page_graph_holds_publisher_site_breadcrumbs_and_page() {
     let graph = page_graph(&demo_site(), &internal_links_post_de()).unwrap();
     assert_eq!(
         kinds(&graph),
-        ["Organization", "WebSite", "BreadcrumbList", "WebPage"]
+        [
+            "Organization",
+            "WebSite",
+            "BreadcrumbList",
+            "WebPage",
+            "BlogPosting"
+        ]
     );
     let page = &graph.nodes()[3];
     assert_eq!(

@@ -11,6 +11,7 @@ What changed for people who use Khalid, one line per change, newest first. Group
 - `--json` on every command prints the same message as JSON, for scripts and agents.
 - A mistyped command gets a plain explanation and exit code 2, instead of a wall of usage text.
 - `khalid --site <folder>` checks the site's settings and reads every content file: posts, pages, authors, glossary terms, case studies, changelog entries and snippets, as plain files or as folders with their images. A mistake is explained by file, line and field (KH-CON-1, KH-CON-2, KH-CON-3, KH-CON-4).
+- Every post's schema is an article of the right type, with its headline, images, dates, word count, section and author (KH-SEO-3).
 - Every page's schema names the page itself: a web page, a collection, a profile or search results, with its main image and the parts a voice assistant may read aloud (KH-SEO-3).
 - Every page carries its breadcrumb trail in schema markup, from the home page of its language (KH-SEO-3).
 - Every page names its publisher (a company or a person, with logo and profiles) and the site with its search box in schema markup (KH-SEO-3).

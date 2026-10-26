@@ -156,6 +156,8 @@ pub struct SeoPage {
     /// CSS selectors of the parts a voice assistant may read aloud, such as
     /// the summary, for schema.org `speakable`.
     pub speakable: Vec<String>,
+    /// How many words the post has.
+    pub word_count: Option<u32>,
 }
 
 impl SeoPage {
@@ -187,6 +189,7 @@ impl SeoPage {
             content_html: String::new(),
             breadcrumbs: Vec::new(),
             speakable: Vec::new(),
+            word_count: None,
         }
     }
 }
