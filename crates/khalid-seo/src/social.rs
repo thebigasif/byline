@@ -3,7 +3,7 @@
 use chrono::{DateTime, SecondsFormat, Utc};
 use khalid_core::{AbsoluteUrl, Locale};
 
-use crate::{HeadTag, PageKind, SeoError, SeoPage, SeoSite};
+use crate::{HeadTag, Hreflang, PageKind, SeoError, SeoPage, SeoSite};
 
 /// The longest Twitter handle, without its `@`.
 const TWITTER_HANDLE_MAX: usize = 15;
@@ -108,6 +108,13 @@ pub(crate) fn push_social_tags(
     }
     property(out, "og:url", canonical.as_str().to_owned());
     property(out, "og:locale", og_locale(&page.language));
+    for alternate in &page.alternates {
+        if let Hreflang::Language(language) = &alternate.hreflang
+            && language != &page.language
+        {
+            property(out, "og:locale:alternate", og_locale(language));
+        }
+    }
     let image = page.share_image.as_ref().or(site.share_image.as_ref());
     if let Some(image) = image {
         property(out, "og:image", image.url.as_str().to_owned());
