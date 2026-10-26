@@ -36,6 +36,7 @@ mod thresholds;
 mod topics;
 mod words;
 
+pub use address::flags_slug_part;
 pub use catalogue::{Catalogue, Message};
 pub use finding::{Finding, Location};
 pub use gate::Verdict;

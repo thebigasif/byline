@@ -84,8 +84,7 @@ fn check(site: &Path, post: Option<&Path>, mode: Mode) -> Result<Outcome, (UserM
             report,
         });
     }
-    let findings = report.findings();
-    let fixed = lint_fix::repair(site, &lint_site.posts, &documents, findings, config.slugs())
+    let fixed = lint_fix::repair(site, &lint_site, &documents, report.findings(), &config)
         .map_err(|message| (message, Exit::Failure))?;
     let report = if fixed.is_empty() {
         report

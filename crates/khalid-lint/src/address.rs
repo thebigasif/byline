@@ -68,17 +68,32 @@ impl Rule for SlugDate {
     }
 
     fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
-        let is_year = |part: &&str| {
-            part.len() == 4
-                && part.bytes().all(|b| b.is_ascii_digit())
-                && (part.starts_with("19") || part.starts_with("20"))
-        };
         post.slug
             .as_str()
             .split('-')
-            .filter(is_year)
+            .filter(|part| is_year(part))
             .map(Hit::about)
             .collect()
+    }
+}
+
+/// Whether `part` of a slug is a year from 1900 to 2099.
+fn is_year(part: &str) -> bool {
+    part.len() == 4
+        && part.bytes().all(|b| b.is_ascii_digit())
+        && (part.starts_with("19") || part.starts_with("20"))
+}
+
+/// Whether the slug rule `rule` flags `part`, one hyphen-separated piece of
+/// a slug in `language`: a filler word for `slug-stopwords`, a year for
+/// `slug-date`. Every other rule flags no part. `khalid lint --fix` removes
+/// the flagged parts, so the repair and the rules agree.
+#[must_use]
+pub fn flags_slug_part(rule: RuleId, language: &str, part: &str) -> bool {
+    match rule.as_str() {
+        "slug-stopwords" => is_stopword(language, part),
+        "slug-date" => is_year(part),
+        _ => false,
     }
 }
 

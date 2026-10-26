@@ -230,10 +230,10 @@ A *blue* door in Lisbon at noon.
 
 #[test]
 fn lint_fix_describes_an_image_with_its_caption() {
-    let site = site(&[("a-door.md", BARE_FIGURE)]);
+    let site = site(&[("lisbon-door.md", BARE_FIGURE)]);
     let output = khalid(site.path(), &["lint", "--fix", "--json"]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
-    let file = within(site.path(), "content/en/posts/a-door.md");
+    let file = within(site.path(), "content/en/posts/lisbon-door.md");
     let described = BARE_FIGURE.replace("alt=\"\"}", "alt=\"A blue door in Lisbon at noon.\"}");
     assert_eq!(fs::read_to_string(file).unwrap(), described);
     let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
@@ -244,6 +244,72 @@ fn lint_fix_describes_an_image_with_its_caption() {
         findings.iter().all(|f| f["rule"] != "missing-alt"),
         "{json}"
     );
+}
+
+/// A post with no `slug:`, so its address comes from a file name full of
+/// filler words and a year.
+const WORDY: &str = "---
+title: Start a blog
+date: 2026-09-14
+author: asif
+---
+
+Read [why links matter](/blog/why-internal-links-matter/) first.
+";
+
+#[test]
+fn lint_fix_cleans_the_address_and_keeps_the_old_one_working() {
+    let site = site(&[("start-a-blog-in-2026.md", WORDY)]);
+    let output = khalid(site.path(), &["lint", "--fix", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let file = within(site.path(), "content/en/posts/start-a-blog-in-2026.md");
+    let cleaned = WORDY.replace(
+        "author: asif\n",
+        "author: asif\nslug: start-blog\naliases:\n  - /blog/start-a-blog-in-2026/\n",
+    );
+    assert_eq!(fs::read_to_string(file).unwrap(), cleaned);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let rules: Vec<&Value> = json["fixed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| &f["rule"])
+        .collect();
+    assert_eq!(rules, ["slug-stopwords", "slug-date"], "{json}");
+    let findings = json["findings"].as_array().unwrap();
+    assert!(findings.iter().all(|f| f["slug"] == "start-blog"), "{json}");
+}
+
+#[test]
+fn lint_fix_adds_to_aliases_and_replaces_the_slug_as_written() {
+    let post = WORDY.replace(
+        "author: asif\n",
+        "author: asif\nslug: the-guide-2026\naliases:\n- /blog/old-guide/\n",
+    );
+    let site = site(&[("guide.md", &post)]);
+    let output = khalid(site.path(), &["lint", "--fix"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let file = within(site.path(), "content/en/posts/guide.md");
+    let cleaned = WORDY.replace(
+        "author: asif\n",
+        "author: asif\nslug: guide\naliases:\n- /blog/the-guide-2026/\n- /blog/old-guide/\n",
+    );
+    assert_eq!(fs::read_to_string(file).unwrap(), cleaned);
+    let said = text(&output.stdout);
+    assert!(
+        said.contains("/blog/the-guide-2026/ now redirects"),
+        "{said}"
+    );
+}
+
+#[test]
+fn lint_fix_leaves_an_address_another_post_already_has() {
+    let site = site(&[("start-a-blog-in-2026.md", WORDY), ("start-blog.md", WORDY)]);
+    let output = khalid(site.path(), &["lint", "--fix", "--json"]);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    assert_eq!(json["fixed"], Value::Array(Vec::new()), "{json}");
+    let file = within(site.path(), "content/en/posts/start-a-blog-in-2026.md");
+    assert_eq!(fs::read_to_string(file).unwrap(), WORDY);
 }
 
 #[test]

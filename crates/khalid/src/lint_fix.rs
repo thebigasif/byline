@@ -9,11 +9,13 @@ use std::io::{self, Write as _};
 use std::path::{Component, Path};
 
 use khalid_content::{Document, PostFront};
-use khalid_core::{SitePath, SlugMode, UserMessage};
-use khalid_lint::{Finding, LintPost};
+use khalid_core::{Config, SitePath, UserMessage};
+use khalid_lint::{Finding, LintSite};
+use khalid_routes::Routes;
 use serde::Serialize;
 
-use crate::repair::{RULES, repaired_body};
+use crate::repair::{Change, RULES, repaired_body};
+use crate::slug_repair::{Move, SLUG_RULES, moved_header};
 
 /// One repair made in one post file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -29,54 +31,91 @@ pub(crate) struct Repair {
 }
 
 /// Makes the safe repairs for `findings` in the files of `documents`, which
-/// sit in the same order as `posts`, and returns what it changed. `slugs` is
-/// the site's slug mode, which captions render with.
+/// sit in the same order as the posts of `lint_site`, and returns what it
+/// changed. `config` gives the slug mode and, with the site's routes, the
+/// address a cleaned slug moves away from.
 ///
 /// # Errors
 ///
 /// Returns a message when a changed file cannot be written.
 pub(crate) fn repair(
     site: &Path,
-    posts: &[LintPost],
+    lint_site: &LintSite,
     documents: &[&Document<PostFront>],
     findings: &[Finding],
-    slugs: SlugMode,
+    config: &Config,
 ) -> Result<Vec<Repair>, UserMessage> {
+    let routes = Routes::load(site).ok();
     let mut repairs = Vec::new();
-    for (post, document) in posts.iter().zip(documents) {
-        let reported = |rule: &&str| {
+    for (post, document) in lint_site.posts.iter().zip(documents) {
+        let reported = |rule: &&'static str| {
             findings.iter().any(|finding| {
                 let at = finding.location();
                 finding.rule().as_str() == *rule && at.locale == post.locale && at.slug == post.slug
             })
         };
-        let rules: Vec<&str> = RULES.into_iter().filter(reported).collect();
-        if rules.is_empty() {
-            continue;
-        }
-        let Some(path) = slashed(&document.path) else {
-            continue;
-        };
-        let Some((body, changes)) = repaired_body(&document.body, &rules, &post.locale, slugs)
-        else {
+        let rules: Vec<&'static str> = RULES.into_iter().filter(reported).collect();
+        let slug_rules: Vec<&'static str> = SLUG_RULES.into_iter().filter(reported).collect();
+        let (Some(path), false) = (
+            slashed(&document.path),
+            rules.is_empty() && slug_rules.is_empty(),
+        ) else {
             continue;
         };
-        if write_body(site, &path, &document.body, &body)? {
-            repairs.extend(changes.into_iter().map(|change| Repair {
-                path: path.clone(),
-                rule: change.rule,
-                subject: change.subject,
-                change: change.sentence,
-            }));
-        }
+        let edit = |header: &str| {
+            let body = &document.body;
+            let mut changes = Vec::new();
+            let repaired = repaired_body(body, &rules, &post.locale, config.slugs());
+            let body = repaired.map_or_else(
+                || body.clone(),
+                |(fixed, made)| {
+                    changes.extend(made);
+                    fixed
+                },
+            );
+            let moved = routes
+                .as_ref()
+                .zip(collection(&document.path))
+                .filter(|_| !slug_rules.is_empty())
+                .and_then(|(routes, collection)| {
+                    let moving = Move {
+                        rules: &slug_rules,
+                        post,
+                        collection,
+                        site: lint_site,
+                    };
+                    moved_header(header, &body, &moving, config, routes)
+                });
+            let header = moved.map_or_else(
+                || header.to_owned(),
+                |(fixed, made)| {
+                    changes.extend(made);
+                    fixed
+                },
+            );
+            (!changes.is_empty()).then(|| (format!("{header}{body}"), changes))
+        };
+        let changes = rewrite(site, &path, &document.body, edit)?;
+        repairs.extend(changes.into_iter().map(|change| Repair {
+            path: path.clone(),
+            rule: change.rule,
+            subject: change.subject,
+            change: change.sentence,
+        }));
     }
     Ok(repairs)
 }
 
-/// Replaces `old` with `new` at the end of the file `path`, through a file
-/// beside it that is synced and renamed over it (BL-RUN-9). Returns `false`,
-/// and writes nothing, when the file no longer ends with `old`.
-fn write_body(site: &Path, path: &str, old: &str, new: &str) -> Result<bool, UserMessage> {
+/// Rewrites the post file `path` with what `edit` makes of its header, the
+/// text before `body`, through a file beside it that is synced and renamed
+/// over it (BL-RUN-9). Writes nothing when `edit` changes nothing or the
+/// file no longer ends with `body`.
+fn rewrite(
+    site: &Path,
+    path: &str,
+    body: &str,
+    edit: impl FnOnce(&str) -> Option<(String, Vec<Change>)>,
+) -> Result<Vec<Change>, UserMessage> {
     let failed = |_: io::Error| unwritable(path);
     let file = SitePath::within(site, path).map_err(|_| unwritable(path))?;
     let spare = SitePath::within(site, &format!("{path}.khalid-fix"));
@@ -84,18 +123,24 @@ fn write_body(site: &Path, path: &str, old: &str, new: &str) -> Result<bool, Use
     let file = file.resolve().map_err(|_| unwritable(path))?;
     let spare = spare.resolve().map_err(|_| unwritable(path))?;
     let text = fs::read_to_string(&file).map_err(failed)?;
-    let Some(header) = text.strip_suffix(old) else {
-        return Ok(false);
+    let Some((new, changes)) = text.strip_suffix(body).and_then(edit) else {
+        return Ok(Vec::new());
     };
     let written = File::create(&spare).and_then(|mut out| {
-        out.write_all(format!("{header}{new}").as_bytes())?;
+        out.write_all(new.as_bytes())?;
         out.sync_all()
     });
     if let Err(error) = written.and_then(|()| fs::rename(&spare, &file)) {
         let _ = fs::remove_file(&spare);
         return Err(failed(error));
     }
-    Ok(true)
+    Ok(changes)
+}
+
+/// The collection a post file sits in: `posts` for
+/// `content/en/posts/my-post.md`.
+fn collection(path: &Path) -> Option<&str> {
+    path.components().nth(2)?.as_os_str().to_str()
 }
 
 /// `path` with `/` between its folders, or `None` when a part is not text.

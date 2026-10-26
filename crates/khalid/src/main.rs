@@ -21,6 +21,7 @@ mod lint_message;
 mod repair;
 mod report;
 mod routes_message;
+mod slug_repair;
 
 use std::ffi::OsString;
 use std::path::Path;
