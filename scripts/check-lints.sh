@@ -28,10 +28,11 @@ for tool in cargo python3; do
 done
 
 # A target directory of its own, so the cfg below never invalidates the normal
-# build cache. It is emptied each run so cached diagnostics cannot hide a change.
+# build cache. lint-check's own output is cleared each run so its diagnostics
+# are always fresh; its dependencies stay built.
 TARGET="${CARGO_TARGET_DIR:-$ROOT/target}/lint-check"
-rm -rf "$TARGET"
 mkdir -p "$TARGET"
+cargo clean --manifest-path "$ROOT/Cargo.toml" --target-dir "$TARGET" -p lint-check >/dev/null 2>&1 || true
 
 export CARGO_TERM_COLOR=never
 export CLIPPY_CONF_DIR="$ROOT"
@@ -135,7 +136,7 @@ for name, level, _ in table:
 # Every disallowed method and type in clippy.toml needs a violation, written
 # with its full path. A crate the workspace does not use yet cannot be proven,
 # so it is named here with the reason, and the script says so on every run.
-NOT_YET = {"reqwest::Client": "reqwest arrives with khalid-outbound, which brings its violation"}
+NOT_YET: dict[str, str] = {}
 clippy_conf = tomllib.loads((Path(table_path).parents[1] / "clippy.toml").read_text())
 src_text = "\n".join(src_lines)
 for key in ("disallowed-methods", "disallowed-types"):

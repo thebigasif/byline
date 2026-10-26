@@ -378,6 +378,12 @@ pub fn quit() -> ! {
     std::process::exit(1) // expect: clippy::disallowed_methods
 }
 
+/// Names the raw HTTP client instead of `Outbound`.
+// expect: clippy::disallowed_types
+pub fn raw_client() -> Option<reqwest::Client> {
+    None
+}
+
 /// Keeps counts in a map whose order is random.
 #[derive(Debug)]
 pub struct WordCounts {
