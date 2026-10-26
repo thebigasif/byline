@@ -49,7 +49,7 @@
 
 ### 1.6 Markdown and the directive layer
 
-- Status: `doing`. Part (a) (this landing): `render()` with comrak, escaped raw HTML, heading ids, links, images and word count. (b) syntax colours with syntect. (c) the Block model with parse, print and the round-trip harness. (d) directives, callout and figure, ADR 0009.
+- Status: `doing`. (a) #50: `render()` with comrak, escaped raw HTML, heading ids, links, images and word count. (b) this landing: syntax colours with syntect, as `hl-` CSS classes. (c) the Block model with parse, print and the round-trip harness. (d) directives, callout and figure, ADR 0009.
 - `comrak` with footnotes, tables and task lists, plus the directive syntax every editor block uses. The round-trip harness: markdown to blocks to markdown, byte for byte. First blocks: heading, paragraph, image with required alt and caption, quote, code with syntax colours, divider, table, footnote, callout.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
 - Done when: every listed block has a directive, a round-trip test and an HTML snapshot, and raw HTML in markdown is escaped.
@@ -77,7 +77,7 @@
 
 ### 1.10 The database
 
-- Status: `doing`. Part 1 (this landing): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2: the derived tables of the content index. Part 3: the visitor tables. Part 4: the rebuild and the list queries with their query plans. Part 5: `khalid db migrate` and `khalid db rebuild`.
+- Status: `doing`. Part 1 (#39): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2 (this landing): the derived tables of the content index, ADR 0010, and a test that the crate README lists every table as derived or visitor. Part 3: the visitor tables. Part 4: the rebuild and the list queries with their query plans. Part 5: `khalid db migrate` and `khalid db rebuild`.
 - `crates/khalid-db`: SQLite in WAL mode with foreign keys, a busy timeout, one writer and a read pool; forward-only migrations; the index rebuilt from content files on demand. Nothing derived is written under `content/`.
 - Rules: BL-DB-1 to BL-DB-3, BL-FS-1, BL-FS-2, BL-RUN-3.
 - Done when: deleting `data/site.db` and starting again rebuilds the same index, checked by a test.
@@ -86,7 +86,7 @@
 
 ### 1.11 Templates
 
-- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (#45): strings per language, text direction, HTML escaping. Part 3 (#46): the renderer, the base layout with the head and share card, and the 404 page. Part 4 (this landing): the snapshot and HTML validity checker every page type passes. Next: the strings, the renderer and its sandbox, theme replacements, then each page type.
+- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (#45): strings per language, text direction, HTML escaping. Part 3 (#73): the renderer, the base layout with the head and share card, and the 404 page. Part 4 (this landing): the snapshot and HTML validity checker every page type passes. Next: theme replacements, then each page type.
 - `crates/khalid-render`: sandboxed MiniJinja with autoescape, default templates for home, post, page, author, tag, category, collection index, glossary A to Z and 404, semantic HTML with one `h1`, `lang` and `dir`, strings in one file per language, template overrides from `theme/templates/`.
 - Rules: BL-WEB-1 to BL-WEB-6, BL-SEC-10, BL-TXT-3, BL-TST-7. `FRONTEND.md`.
 - Done when: every page type of the demo site has an `insta` snapshot, passes the HTML validator, and reads completely with scripts off.
@@ -100,7 +100,7 @@
 
 ### 1.13 SEO outputs
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): the `khalid-seo` crate, its own input types (ADR 0009), clean page paths and page addresses for the mount path and language. Next: title and description templates; robots directives; head tags; Open Graph, Twitter cards, verification and hreflang; sitemaps; robots.txt, `llms.txt` and redirects; feeds; the link policy.
 - `crates/khalid-seo`: title and description tags, canonical, hreflang pairs from the `translation` key, Open Graph, sitemaps per language with `lastmod`, RSS, Atom and JSON feeds per collection and channel, and `robots.txt`.
 - Rules: BL-TYP-5, BL-PERF-2. Plan section 5.2.
 - Done when: snapshots cover each output for the demo site, every hreflang pair is complete, and a sitemap lists exactly the published, indexable pages.
@@ -146,7 +146,7 @@
 
 ### 1.19 Webhooks
 
-- Status: `doing`. Part 1 (this landing): `Outbound::post`, which deliveries go through. Part 2: the event catalogue and the signature. Part 3: delivery, retries and the delivery log.
+- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (this landing): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3: signing. Part 4: the verifier for incoming webhooks. Part 5: delivery, retries and the delivery log.
 - The events in plan section 5.12, signed with HMAC-SHA256 over timestamp and body, sent through `Outbound`, retried with backoff over 24 hours, with a delivery log in the database.
 - Rules: BL-SEC-7, BL-RUN-8.
 - Done when: `wiremock` tests show each event fires once, is signed correctly, and retries after a failure.
