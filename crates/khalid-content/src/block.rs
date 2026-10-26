@@ -163,6 +163,25 @@ pub enum BlockKind {
         /// Its fields, in order.
         fields: Vec<FormField>,
     },
+    /// `::newsletter{label="..." button="..."}`: an email field that posts
+    /// to `/subscribe`.
+    Newsletter {
+        /// The words beside the email field.
+        label: String,
+        /// The words on the button.
+        button: String,
+    },
+    /// `:::gated{note="..." label="..." button="..."}`: a body only
+    /// subscribers read. The page shows the note and a subscribe form, never
+    /// the body.
+    Gated {
+        /// The line that tells readers how to read the rest.
+        note: String,
+        /// The words beside the email field.
+        label: String,
+        /// The words on the button.
+        button: String,
+    },
     /// `:::gallery` with one `![alt](src)` image per line: a grid of
     /// pictures.
     Gallery {

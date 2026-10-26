@@ -52,6 +52,40 @@ impl Renderer {
         ]);
     }
 
+    /// Writes an email field that posts to `/subscribe`, numbered so two
+    /// on one page keep their own ids.
+    pub(super) fn subscribe(&mut self, label: &str, button: &str) {
+        self.subscribe_forms = self.subscribe_forms.saturating_add(1);
+        let id = format!("subscribe-{}", self.subscribe_forms);
+        self.push(&[
+            "<form class=\"subscribe\" method=\"post\" action=\"/subscribe\">\n<p><label for=\"",
+            &id,
+            "-email\">",
+            &attribute(label),
+            "</label>\n<input id=\"",
+            &id,
+            "-email\" name=\"email\" type=\"email\" autocomplete=\"email\" required /></p>\n",
+        ]);
+        self.trap(&id);
+        self.push(&[
+            "<p><button type=\"submit\">",
+            &attribute(button),
+            "</button></p>\n</form>\n",
+        ]);
+    }
+
+    /// Writes gated content's lock card: its note and a subscribe form. The
+    /// body is never written, so the page cannot leak it.
+    pub(super) fn gated(&mut self, note: &str, label: &str, button: &str) {
+        self.push(&[
+            "<section class=\"gated\">\n<p class=\"gated-note\">",
+            &attribute(note),
+            "</p>\n",
+        ]);
+        self.subscribe(label, button);
+        self.html.push_str("</section>\n");
+    }
+
     /// Writes the spam trap: a field hidden from people and screen readers
     /// that only robots fill in, so the server can drop what they send.
     fn trap(&mut self, form: &str) {

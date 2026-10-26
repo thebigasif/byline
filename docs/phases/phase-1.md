@@ -309,6 +309,7 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 ## Questions for the founder
 
 - **AVIF images need three exceptions in `deny.toml` (task 1.12, for the CTO session).** Every pure-Rust AVIF encoder is built on `rav1e`, which pulls in `libfuzzer-sys` (licence `(MIT OR Apache-2.0) AND NCSA`, not on our list), `av1-grain`, which uses `anyhow` (banned outside the binary), and `paste` (RUSTSEC-2024-0436, unmaintained). Why it matters: AVIF images are about half the size of JPEG, which helps the LCP budget, but the policy refuses these crates today. The choice: allow NCSA, add `av1-grain` as an `anyhow` wrapper and accept the `paste` advisory with a review date; or ship WebP with JPEG and PNG fallbacks only, which is what `khalid-media` does now. WebP alone already meets the budgets on the demo site. Adding AVIF later is one small pull request, because `Format` is non-exhaustive and the render side already accepts AVIF sources.
+- **Members-only HTML is hidden from everyone for now (task 1.7e1).** The HTML block takes `show="everyone"`, `"visitors"` or `"members"`. Readers cannot sign in until the server and accounts exist, so Khalid leaves members-only HTML out of every page and always shows visitors' HTML. Why it matters: nothing private can leak before sign-in exists. The choice: keep this, or refuse `show="members"` until accounts ship. Either is one line to change.
 
 ## Order
 

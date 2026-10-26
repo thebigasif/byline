@@ -100,6 +100,7 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
         },
         facts: Facts::default(),
         html: String::new(),
+        subscribe_forms: 0,
     };
     let mut run: Vec<&str> = Vec::new();
     for block in &blocks {
@@ -155,6 +156,8 @@ struct Renderer {
     ids: HeadingIds,
     facts: Facts,
     html: String,
+    /// How many subscribe forms are written so far, for unique ids.
+    subscribe_forms: usize,
 }
 
 impl Renderer {
@@ -192,20 +195,7 @@ impl Renderer {
                 self.html.push_str("</details>\n");
             }
             BlockKind::Toc => self.html.push_str(TOC_MARK),
-            BlockKind::Button { href, label } => {
-                self.push(&[
-                    "<p><a class=\"button\" href=\"",
-                    &attribute(href),
-                    "\">",
-                    &attribute(label),
-                    "</a></p>\n",
-                ]);
-                self.facts.links.push(Link {
-                    internal: !href.contains(':'),
-                    href: href.clone(),
-                    text: label.clone(),
-                });
-            }
+            BlockKind::Button { href, label } => self.button(href, label),
             BlockKind::Bookmark {
                 href,
                 title,
@@ -230,11 +220,33 @@ impl Renderer {
             BlockKind::Business(card) => self.business(card),
             BlockKind::SafeHtml { show } => self.safe_html(block, *show),
             BlockKind::Form { id, button, fields } => self.form(id, button, fields),
+            BlockKind::Newsletter { label, button } => self.subscribe(label, button),
+            BlockKind::Gated {
+                note,
+                label,
+                button,
+            } => self.gated(note, label, button),
             BlockKind::Header { image, alt } => {
                 self.header(block, image.as_deref(), alt.as_deref());
             }
             _ => {}
         }
+    }
+
+    /// Writes a link styled as a button.
+    fn button(&mut self, href: &str, label: &str) {
+        self.push(&[
+            "<p><a class=\"button\" href=\"",
+            &attribute(href),
+            "\">",
+            &attribute(label),
+            "</a></p>\n",
+        ]);
+        self.facts.links.push(Link {
+            internal: !href.contains(':'),
+            href: href.to_owned(),
+            text: label.to_owned(),
+        });
     }
 
     /// Writes a bookmark: a plain link, or a card when the publish step has

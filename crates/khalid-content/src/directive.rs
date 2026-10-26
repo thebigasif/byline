@@ -10,9 +10,29 @@ use crate::{
 };
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 20] = [
-    "audio", "bookmark", "business", "button", "callout", "embed", "faq", "figure", "file", "form",
-    "gallery", "header", "howto", "html", "product", "recipe", "review", "toc", "toggle", "video",
+pub(crate) const BLOCKS: [&str; 22] = [
+    "audio",
+    "bookmark",
+    "business",
+    "button",
+    "callout",
+    "embed",
+    "faq",
+    "figure",
+    "file",
+    "form",
+    "gallery",
+    "gated",
+    "header",
+    "howto",
+    "html",
+    "newsletter",
+    "product",
+    "recipe",
+    "review",
+    "toc",
+    "toggle",
+    "video",
 ];
 
 mod cards;
@@ -59,8 +79,16 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// Blocks with no body, written on one line as `::name{...}`. Every other
 /// block opens with `:::name{...}` and closes with `:::`.
-const LEAVES: [&str; 8] = [
-    "audio", "bookmark", "business", "button", "embed", "file", "toc", "video",
+const LEAVES: [&str; 9] = [
+    "audio",
+    "bookmark",
+    "business",
+    "button",
+    "embed",
+    "file",
+    "newsletter",
+    "toc",
+    "video",
 ];
 
 /// How a block was written.
@@ -114,6 +142,7 @@ pub(crate) fn directive(
         "header" => cards::header(&attributes),
         "html" => cards::html(&attributes),
         "form" => forms::form(&attributes, body),
+        "newsletter" | "gated" => forms::subscribe(name, &attributes),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),

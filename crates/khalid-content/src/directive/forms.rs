@@ -1,4 +1,5 @@
-//! Blocks that post to the server: forms.
+//! Blocks that post to the server: forms, newsletter sign-ups and gated
+//! content.
 
 use super::Attributes;
 use crate::{BlockError, BlockKind, FieldKind, FormField};
@@ -66,5 +67,41 @@ fn field(text: &str) -> Option<FormField> {
         name: name.to_owned(),
         label: label.to_owned(),
         required,
+    })
+}
+
+/// Reads a newsletter sign-up, or gated content with its `note`.
+pub(super) fn subscribe(name: &str, attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    if name == "gated" {
+        attributes.only(
+            "gated",
+            &["note", "label", "button"],
+            "note, label and button",
+        )?;
+        return Ok(BlockKind::Gated {
+            note: attributes.need(
+                "note",
+                "gated content needs note, the line that tells readers how to read the rest",
+            )?,
+            label: attributes.need(
+                "label",
+                "gated content needs label, the words beside the email field",
+            )?,
+            button: attributes.need(
+                "button",
+                "gated content needs button, the words on its button",
+            )?,
+        });
+    }
+    attributes.only("newsletter", &["label", "button"], "label and button")?;
+    Ok(BlockKind::Newsletter {
+        label: attributes.need(
+            "label",
+            "a newsletter needs label, the words beside the email field",
+        )?,
+        button: attributes.need(
+            "button",
+            "a newsletter needs button, the words on its button",
+        )?,
     })
 }
