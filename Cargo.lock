@@ -1897,8 +1897,12 @@ name = "khalid-theme"
 version = "0.0.0"
 dependencies = [
  "khalid-core",
+ "khalid-outbound",
  "scraper",
+ "thiserror",
+ "tokio",
  "url",
+ "wiremock",
 ]
 
 [[package]]
