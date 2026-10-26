@@ -27,6 +27,7 @@ mod page_meta;
 mod person;
 mod post;
 mod reading_time;
+mod related;
 mod render_error;
 mod renderer;
 mod serde_display;
@@ -49,6 +50,7 @@ pub use page_meta::{Alternate, HeadHtml, PageKind, PageMeta, Robots, ShareImage}
 pub use person::Person;
 pub use post::{BodyHtml, Link, RenderPost};
 pub use reading_time::ReadingTime;
+pub use related::{PostTopics, related};
 pub use render_error::RenderError;
 pub use renderer::Renderer;
 pub use site::{Nav, NavLink, RenderSite};

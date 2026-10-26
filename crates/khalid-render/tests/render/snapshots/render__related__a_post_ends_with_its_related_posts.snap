@@ -1,0 +1,30 @@
+---
+source: crates/khalid-render/tests/render/related.rs
+expression: "part(&page, \"<section class=\\\"related\\\">\", \"</section>\")"
+---
+<section class="related">
+<h2>Related posts</h2>
+<ul class="cards" role="list">
+<li>
+<article class="card">
+<h3><a href="/blog/robots-txt/">What robots.txt can and cannot block</a></h3>
+<p><time datetime="2026-09-10">10 September 2026</time></p>
+<p>A robots file asks crawlers to stay out. It does not hide a page.</p>
+</article>
+</li>
+<li>
+<article class="card">
+<h3><a href="/blog/crawl-budget/">How crawl budget works on small sites</a></h3>
+<p><time datetime="2026-09-20">20 September 2026</time></p>
+<p>Most small sites never run out of crawl budget.</p>
+</article>
+</li>
+<li>
+<article class="card">
+<h3><a href="/blog/internal-links/">Why internal links matter</a></h3>
+<p><time datetime="2026-09-14">14 September 2026</time></p>
+<p>Internal links help readers and search engines find the rest of your site.</p>
+</article>
+</li>
+</ul>
+</section>

@@ -3,6 +3,7 @@
 {% from "image.html" import picture, avatar -%}
 {% from "contents.html" import contents_list -%}
 {% from "author_box.html" import author_box -%}
+{% from "card.html" import cards -%}
 {% set toc = page.contents and "table_of_contents" in site.features -%}
 {% if toc %}<article class="post post-with-toc">{% else %}<article class="post">{% endif %}
 <header class="post-header">
@@ -42,4 +43,8 @@
 </footer>
 {% endif %}{% if "author_box" in site.features and page.authors %}{{ author_box(page.authors, page.reviewers if "reviewed_by" in site.features else []) }}
 {% endif %}</article>
-{% endblock %}
+{% if "related_posts" in site.features and page.related %}<section class="related">
+<h2>{{ t.related_posts }}</h2>
+{{ cards(page.related, 3) }}
+</section>
+{% endif %}{% endblock %}

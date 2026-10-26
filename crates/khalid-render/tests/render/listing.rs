@@ -10,7 +10,7 @@ use crate::common::{demo_site, meta};
 use crate::html_check::assert_valid_page;
 use crate::image::sitemap_image;
 
-fn card(title: &str, slug: &str, day: u32, excerpt: &str) -> PostCard {
+pub(crate) fn card(title: &str, slug: &str, day: u32, excerpt: &str) -> PostCard {
     PostCard {
         title: title.to_owned(),
         href: format!("/blog/{slug}/"),

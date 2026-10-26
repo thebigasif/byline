@@ -30,6 +30,8 @@ mod post;
 #[cfg(test)]
 mod reading_time;
 #[cfg(test)]
+mod related;
+#[cfg(test)]
 mod sandbox;
 #[cfg(test)]
 mod seo_head;

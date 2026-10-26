@@ -7,7 +7,7 @@ use minijinja::Value;
 use serde::Serialize;
 
 use crate::serde_display::{display, display_option};
-use crate::{Contents, Person, ReadingTime, RenderImage};
+use crate::{Contents, Person, PostCard, ReadingTime, RenderImage};
 
 /// One post: its heading, dates, people, topics and body.
 ///
@@ -41,6 +41,8 @@ pub struct RenderPost {
     /// the body writes it and the address of its largest version, which
     /// the image links to.
     pub originals: BTreeMap<String, String>,
+    /// The posts shown under this one, from [`related`](crate::related).
+    pub related: Vec<PostCard>,
     /// The post's HTML, already sanitised.
     pub body: BodyHtml,
 }

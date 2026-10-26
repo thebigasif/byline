@@ -115,6 +115,9 @@ nav a { min-inline-size: 44px; }
 .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .tags a { padding-inline: 0.75rem; background: var(--color-surface); border-radius: var(--radius); text-decoration: none; }
 
+/* The related posts under a post. */
+.related { margin-block-start: 1rem; }
+
 /* The author box at the end of a post. */
 .author-box { margin-block-start: 2.5rem; padding: 1.25rem; background: var(--color-surface); border-radius: var(--radius); }
 .author-box h2 { margin-block-start: 0; font-size: 1.25rem; }

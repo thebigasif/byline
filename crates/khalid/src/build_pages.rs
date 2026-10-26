@@ -143,6 +143,7 @@ fn post_pages<'a>(
             image: None,
             contents: None,
             originals: BTreeMap::new(),
+            related: Vec::new(),
             body: html,
         };
         seo.author = post.authors.first().map(|author| author.name.clone());
