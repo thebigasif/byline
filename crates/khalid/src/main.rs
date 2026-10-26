@@ -5,6 +5,7 @@
 //! read. It must not know business rules. Those live in the library crates,
 //! which this binary calls the same way the API does.
 
+mod atomic;
 mod cli;
 mod config_message;
 mod content_message;
@@ -15,6 +16,8 @@ mod index;
 mod init;
 mod init_message;
 mod init_prompt;
+mod new;
+mod new_message;
 mod report;
 mod routes_message;
 
@@ -25,7 +28,7 @@ use std::process::ExitCode;
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
 use khalid_content::{ContentTree, read_content};
-use khalid_core::{Config, Environment, UserMessage};
+use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 
 use crate::cli::{Cli, Command, Output};
@@ -54,29 +57,36 @@ fn run(cli: &Cli) -> Exit {
             .unwrap_or(Path::new("."));
         return init::run(folder, args, cli.output);
     }
-    if let Some(site) = &cli.site {
-        if let Err(error) = Config::load(site, &Environment::from_process()) {
-            return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
-        }
-        if let Err(error) = Routes::load(site) {
-            return report::failure(cli.output, &routes_message::of(&error), Exit::Failure);
-        }
-        if let Err(error) = ContentTree::walk(site).and_then(|tree| read_content(&tree)) {
-            return report::failure(
-                cli.output,
-                &content_message::of(site, &error),
-                Exit::Failure,
-            );
-        }
-    }
-    match (&cli.command, &cli.site) {
+    let site = match cli.site.as_deref() {
+        Some(folder) => match check(folder) {
+            Ok(config) => Some((folder, config)),
+            Err(message) => return report::failure(cli.output, &message, Exit::Failure),
+        },
+        None => None,
+    };
+    match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
-        (Some(Command::Db { command }), Some(site)) => db::run(site, *command, cli.output),
-        (Some(command @ Command::Db { .. }), None) => {
+        (Some(Command::Db { command }), Some((folder, _))) => db::run(folder, *command, cli.output),
+        (Some(Command::New { title }), Some((folder, config))) => {
+            new::run(folder, config, title, &SystemClock, cli.output)
+        }
+        (Some(command @ (Command::Db { .. } | Command::New { .. })), None) => {
             report::failure(cli.output, &needs_site(command), Exit::Usage)
         }
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
+}
+
+/// Checks the settings, the routes and the content of the `site` folder, and
+/// returns the settings.
+fn check(site: &Path) -> Result<Config, UserMessage> {
+    let config =
+        Config::load(site, &Environment::from_process()).map_err(|e| config_message::of(&e))?;
+    Routes::load(site).map_err(|error| routes_message::of(&error))?;
+    ContentTree::walk(site)
+        .and_then(|tree| read_content(&tree))
+        .map_err(|error| content_message::of(site, &error))?;
+    Ok(config)
 }
 
 /// The message for a command that works on one site folder when none was given.
@@ -86,7 +96,7 @@ fn needs_site(command: &Command) -> UserMessage {
             "The command `khalid {}` needs a site folder.",
             command.name()
         ),
-        "It works on the database inside one site, so Khalid has to know which one.",
+        "It works on the files inside one site, so Khalid has to know which one.",
         format!(
             "Run `khalid --site <folder> {}` with the folder that holds site.toml.",
             command.name()

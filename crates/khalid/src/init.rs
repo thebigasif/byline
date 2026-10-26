@@ -125,8 +125,8 @@ pub(crate) fn mount_path(text: &str) -> String {
 }
 
 /// `text` as a TOML basic string, with quotes, backslashes and control
-/// characters escaped.
-fn quoted(text: &str) -> String {
+/// characters escaped. The same text is a YAML double-quoted string.
+pub(crate) fn quoted(text: &str) -> String {
     let escaped: String = text
         .chars()
         .map(|c| match c {
