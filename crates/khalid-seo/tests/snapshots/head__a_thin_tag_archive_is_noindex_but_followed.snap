@@ -1,0 +1,8 @@
+---
+source: crates/khalid-seo/tests/head.rs
+assertion_line: 46
+expression: tags.to_html()
+---
+<title>Crawl budget | Field Notes on SEO</title>
+<meta name="robots" content="noindex, follow">
+<link rel="canonical" href="https://www.example.com/blog/tag/crawl-budget/">

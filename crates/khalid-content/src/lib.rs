@@ -6,6 +6,7 @@
 //! render, serve and index it, and never writes derived data under
 //! `content/` (BL-FS-2).
 
+mod block;
 mod content_error;
 mod content_hash;
 mod front_matter;
@@ -15,6 +16,7 @@ mod schemas;
 mod site_content;
 mod tree;
 
+pub use block::{Block, BlockError, BlockKind, CalloutKind, parse_blocks, print_blocks};
 pub use content_error::ContentError;
 pub use content_hash::ContentHash;
 pub use post::{Post, PostFront, parse_post};
