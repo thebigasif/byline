@@ -15,13 +15,13 @@ use utoipa_axum::routes;
 use crate::api::{ApiDoc, finish};
 use crate::api_version::negotiate_version;
 use crate::content_key::require_content_key;
-use crate::content_store::{ContentStore, PostKey};
+use crate::content_store::{ContentStore, PostKey, SiteResources, select};
 use crate::etag::tag_and_revalidate;
 use crate::keys::KeyStore;
 use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
 use crate::query::{ListQuery, RawListQuery};
-use crate::resources::{Collection, Post};
+use crate::resources::{Author, Collection, ContentCollection, Listable, Menu, Post, Term};
 
 /// Where the Content API lives.
 pub(crate) const BASE: &str = "/api/content/v1";
@@ -57,18 +57,35 @@ pub(crate) fn routes(store: Store, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
         .routes(routes!(browse_changelog))
         .routes(routes!(read_changelog_entry))
         .routes(routes!(read_changelog_entry_by_slug))
+        .routes(routes!(browse_authors))
+        .routes(routes!(read_author))
+        .routes(routes!(read_author_by_slug))
+        .routes(routes!(browse_tags))
+        .routes(routes!(read_tag))
+        .routes(routes!(read_tag_by_slug))
+        .routes(routes!(browse_categories))
+        .routes(routes!(read_category))
+        .routes(routes!(read_category_by_slug))
+        .routes(routes!(browse_collections))
+        .routes(routes!(read_collection))
+        .routes(routes!(read_collection_by_slug))
+        .routes(routes!(browse_navigation))
+        .routes(routes!(read_menu))
+        .routes(routes!(read_menu_by_slug))
         .route_layer(middleware::from_fn_with_state(keys, require_content_key))
         .route_layer(middleware::from_fn(tag_and_revalidate))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(store)
 }
 
-/// Declares one collection's envelope and its three routes: the list, one
+/// Declares one resource's envelope and its three routes: the list, one
 /// entry by identity and one by slug. Each route keeps its own `OpenAPI`
-/// entry and operation id; the work is in [`browse`] and [`one`].
+/// entry and operation id; the work is in `$list` and `$one`, which read
+/// `$source`: [`browse`] and [`one`] for a collection, [`browse_site`] and
+/// [`one_in_site`] for a list in [`SiteResources`].
 macro_rules! collection_routes {
     (
-        $collection:expr, $Envelope:ident, $key:ident, $tag:tt,
+        $Item:ty, $source:expr, $list:ident, $one:ident, $Envelope:ident, $key:ident, $tag:tt,
         $browse:ident = $list_path:tt,
         $read:ident = $id_path:tt,
         $read_by_slug:ident = $slug_path:tt $(,)?
@@ -77,7 +94,7 @@ macro_rules! collection_routes {
         #[derive(Debug, Serialize, ToSchema)]
         pub struct $Envelope {
             /// The entries on this page, or the one entry asked for.
-            $key: Vec<Post>,
+            $key: Vec<$Item>,
             /// Pagination, on lists only.
             #[serde(skip_serializing_if = "Option::is_none")]
             meta: Option<Meta>,
@@ -97,7 +114,7 @@ macro_rules! collection_routes {
             State(store): State<Store>,
             Query(raw): Query<RawListQuery>,
         ) -> Result<Json<$Envelope>, Problem> {
-            let (entries, meta) = browse(&store, $collection, &raw).await?;
+            let (entries, meta) = $list(&store, $source, &raw).await?;
             Ok(Json($Envelope { $key: entries, meta: Some(meta) }))
         }
 
@@ -117,7 +134,7 @@ macro_rules! collection_routes {
             Path(id): Path<String>,
             OriginalUri(uri): OriginalUri,
         ) -> Result<Json<$Envelope>, Problem> {
-            let entry = one(&store, $collection, &PostKey::Id(id), uri.path()).await?;
+            let entry = $one(&store, $source, &PostKey::Id(id), uri.path()).await?;
             Ok(Json($Envelope { $key: vec![entry], meta: None }))
         }
 
@@ -138,14 +155,17 @@ macro_rules! collection_routes {
             OriginalUri(uri): OriginalUri,
         ) -> Result<Json<$Envelope>, Problem> {
             let slug = Slug::try_new(&slug).map_err(|_| not_found(uri.path()))?;
-            let entry = one(&store, $collection, &PostKey::Slug(slug), uri.path()).await?;
+            let entry = $one(&store, $source, &PostKey::Slug(slug), uri.path()).await?;
             Ok(Json($Envelope { $key: vec![entry], meta: None }))
         }
     };
 }
 
 collection_routes!(
+    Post,
     Collection::Posts,
+    browse,
+    one,
     Posts,
     posts,
     "posts",
@@ -154,7 +174,10 @@ collection_routes!(
     read_post_by_slug = "/posts/slug/{slug}/",
 );
 collection_routes!(
+    Post,
     Collection::Pages,
+    browse,
+    one,
     Pages,
     pages,
     "pages",
@@ -163,7 +186,10 @@ collection_routes!(
     read_page_by_slug = "/pages/slug/{slug}/",
 );
 collection_routes!(
+    Post,
     Collection::Glossary,
+    browse,
+    one,
     GlossaryTerms,
     glossary,
     "glossary",
@@ -172,7 +198,10 @@ collection_routes!(
     read_glossary_term_by_slug = "/glossary/slug/{slug}/",
 );
 collection_routes!(
+    Post,
     Collection::CaseStudies,
+    browse,
+    one,
     CaseStudies,
     case_studies,
     "case-studies",
@@ -181,13 +210,76 @@ collection_routes!(
     read_case_study_by_slug = "/case-studies/slug/{slug}/",
 );
 collection_routes!(
+    Post,
     Collection::Changelog,
+    browse,
+    one,
     ChangelogEntries,
     changelog,
     "changelog",
     browse_changelog = "/changelog/",
     read_changelog_entry = "/changelog/{id}/",
     read_changelog_entry_by_slug = "/changelog/slug/{slug}/",
+);
+collection_routes!(
+    Author,
+    SiteResources::authors,
+    browse_site,
+    one_in_site,
+    Authors,
+    authors,
+    "authors",
+    browse_authors = "/authors/",
+    read_author = "/authors/{id}/",
+    read_author_by_slug = "/authors/slug/{slug}/",
+);
+collection_routes!(
+    Term,
+    SiteResources::tags,
+    browse_site,
+    one_in_site,
+    Tags,
+    tags,
+    "tags",
+    browse_tags = "/tags/",
+    read_tag = "/tags/{id}/",
+    read_tag_by_slug = "/tags/slug/{slug}/",
+);
+collection_routes!(
+    Term,
+    SiteResources::categories,
+    browse_site,
+    one_in_site,
+    Categories,
+    categories,
+    "categories",
+    browse_categories = "/categories/",
+    read_category = "/categories/{id}/",
+    read_category_by_slug = "/categories/slug/{slug}/",
+);
+collection_routes!(
+    ContentCollection,
+    SiteResources::collections,
+    browse_site,
+    one_in_site,
+    Collections,
+    collections,
+    "collections",
+    browse_collections = "/collections/",
+    read_collection = "/collections/{id}/",
+    read_collection_by_slug = "/collections/slug/{slug}/",
+);
+collection_routes!(
+    Menu,
+    SiteResources::menus,
+    browse_site,
+    one_in_site,
+    Navigation,
+    navigation,
+    "navigation",
+    browse_navigation = "/navigation/",
+    read_menu = "/navigation/{id}/",
+    read_menu_by_slug = "/navigation/slug/{slug}/",
 );
 
 /// One page of `collection` for a list request, with its pagination.
@@ -197,7 +289,7 @@ async fn browse(
     raw: &RawListQuery,
 ) -> Result<(Vec<Post>, Meta), Problem> {
     let query = ListQuery::try_from(raw)?;
-    check_fields(&query)?;
+    check_fields(&query, Post::FIELDS)?;
     let listed = store
         .list(collection, &query)
         .await
@@ -225,28 +317,60 @@ async fn one(
     entry.ok_or_else(|| not_found(path))
 }
 
-/// Refuses fields a post does not have in `filter` and `order`.
-fn check_fields(query: &ListQuery) -> Result<(), Problem> {
+/// One page of a site list, `pick`ed from the store's [`SiteResources`].
+async fn browse_site<T: Listable>(
+    store: &Store,
+    pick: fn(&SiteResources) -> &[T],
+    raw: &RawListQuery,
+) -> Result<(Vec<T>, Meta), Problem> {
+    let query = ListQuery::try_from(raw)?;
+    check_fields(&query, T::FIELDS)?;
+    let site = store
+        .site()
+        .await
+        .map_err(|error| Problem::internal(&error))?;
+    let listed = select(pick(&site).iter(), &query);
+    let meta = Meta::new(query.page(), query.limit(), listed.total());
+    Ok((listed.into_items(), meta))
+}
+
+/// One entry of a site list, or a 404 problem about `path`.
+async fn one_in_site<T: Listable>(
+    store: &Store,
+    pick: fn(&SiteResources) -> &[T],
+    key: &PostKey,
+    path: &str,
+) -> Result<T, Problem> {
+    let site = store
+        .site()
+        .await
+        .map_err(|error| Problem::internal(&error))?;
+    let found = pick(&site).iter().find(|entry| match key {
+        PostKey::Id(id) => entry.id() == id,
+        PostKey::Slug(slug) => entry.slug() == slug,
+    });
+    found.cloned().ok_or_else(|| not_found(path))
+}
+
+/// Refuses fields the resource does not have in `filter` and `order`.
+fn check_fields(query: &ListQuery, fields: &[&str]) -> Result<(), Problem> {
     let unknown = |parameter: &str, field: &str| {
         let message = UserMessage::new(
             format!("The {parameter} uses {field}, which is not a field here."),
             "The list cannot be sent until it is fixed.",
-            format!(
-                "Use one of these fields: {}.",
-                Post::FILTER_FIELDS.join(", ")
-            ),
+            format!("Use one of these fields: {}.", fields.join(", ")),
         );
         Problem::new(ProblemType::InvalidQuery, &message).with_rule(parameter)
     };
     if let Some(filter) = query.filter() {
         filter
-            .check_fields(&Post::FILTER_FIELDS)
+            .check_fields(fields)
             .map_err(|error| unknown("filter", error.field()))?;
     }
     match query
         .order()
         .iter()
-        .find(|key| !Post::FILTER_FIELDS.contains(&key.field()))
+        .find(|key| !fields.contains(&key.field()))
     {
         Some(key) => Err(unknown("order", key.field())),
         None => Ok(()),
