@@ -116,6 +116,14 @@ pub enum SeoError {
         /// The code, as given.
         currency: String,
     },
+    /// A rating is below zero, above its best score, or its best is not above zero.
+    #[error("a rating of {value} out of {best} is not between 0 and its best score")]
+    Rating {
+        /// The score, as given.
+        value: f64,
+        /// The best possible score, as given.
+        best: f64,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {

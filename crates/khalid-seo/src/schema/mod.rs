@@ -15,6 +15,7 @@ mod schema_graph;
 mod schema_node;
 mod schema_value;
 mod site_graph;
+mod video_review;
 
 pub use author::{AuthorProfile, Entity, EntityRole};
 pub use blocks::SchemaBlock;
@@ -30,3 +31,4 @@ pub use schema_node::SchemaNode;
 pub use schema_value::SchemaValue;
 pub use site_graph::{SiteSearch, site_graph};
 pub(crate) use site_graph::{image_node, node_id, publisher_id, site_home};
+pub use video_review::{AggregateRating, Rating, Review};
