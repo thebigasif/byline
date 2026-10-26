@@ -34,6 +34,13 @@ pub struct PostFront {
     pub description: Option<String>,
     /// The key shared by the versions of this post in other languages.
     pub translation: Option<String>,
+    /// Old paths that redirect here, such as `/2019/05/old-title/`, so a
+    /// moved post keeps its links and rankings.
+    #[serde(default, deserialize_with = "aliases")]
+    pub aliases: Vec<String>,
+    /// Whether the post is featured, for the featured channel and lists.
+    #[serde(default)]
+    pub featured: bool,
 }
 
 /// A post as read from its file.
@@ -86,11 +93,24 @@ fn located(path: &Path, yaml: &str, source: serde_saphyr::Error) -> ContentError
         .location()
         .and_then(|location| usize::try_from(location.line()).ok())
         .unwrap_or(1);
-    let field = yaml
-        .lines()
-        .nth(yaml_line.saturating_sub(1))
+    // The key on the error's line, or, for an item of a list such as
+    // `  - old-title`, the nearest key above it that starts a line.
+    let lines: Vec<&str> = yaml.lines().take(yaml_line).collect();
+    let own = lines
+        .last()
         .and_then(|line| line.split_once(':'))
-        .map_or_else(String::new, |(key, _)| key.trim().to_owned());
+        .map(|(key, _)| key);
+    let field = own
+        .filter(|key| !key.trim_start().starts_with('-'))
+        .or_else(|| {
+            lines
+                .iter()
+                .rev()
+                .find(|line| !line.starts_with([' ', '-']) && line.contains(':'))
+                .and_then(|line| line.split_once(':'))
+                .map(|(key, _)| key)
+        })
+        .map_or_else(String::new, |key| key.trim().to_owned());
     let rendered = source.to_string();
     let first = rendered.lines().next().unwrap_or_default();
     // The reader writes "error: line 2 column 7: <problem>"; keep the problem.
@@ -132,4 +152,19 @@ pub(crate) fn date<'de, D: Deserializer<'de>>(
                 "the date must be a real day written as YYYY-MM-DD, such as 2026-09-14",
             )
         })
+}
+
+/// Reads old paths, each starting with `/`, with a message a writer
+/// understands.
+fn aliases<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<String>, D::Error> {
+    let paths = Vec::<String>::deserialize(deserializer)?;
+    match paths
+        .iter()
+        .find(|path| !path.starts_with('/') || path.contains(char::is_whitespace))
+    {
+        Some(bad) => Err(serde::de::Error::custom(format!(
+            "{bad:?} is not a path; an alias is an old address on this site starting with /, such as /2019/05/old-title/"
+        ))),
+        None => Ok(paths),
+    }
 }

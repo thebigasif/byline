@@ -1,0 +1,26 @@
+[package]
+name = "khalid-render"
+version = "0.0.0"
+description = "The public site's templates: sandboxed MiniJinja pages, theme tokens and strings per language."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+minijinja = { version = "3", default-features = false, features = ["builtins", "macros", "multi_template", "fuel", "serde"] }
+rust-embed = { version = "8", features = ["debug-embed"] }
+serde.workspace = true
+thiserror.workspace = true
+toml = "0.9"
+
+[dev-dependencies]
+insta = "1"
+scraper = "0.29"
+serde_json.workspace = true
+tempfile = "3"
+
+[lints]
+workspace = true

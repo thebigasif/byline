@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
+use crate::toml_location::{field_of, line_of, line_of_key};
 use crate::{AbsoluteUrl, Locale, ParseUrlError};
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -99,7 +100,7 @@ impl Config {
     pub fn from_toml(path: &Path, text: &str, env: &Environment) -> Result<Self, ConfigError> {
         let file: SiteFile = toml::from_str(text).map_err(|source| ConfigError::Parse {
             path: path.to_path_buf(),
-            line: line_of_span(text, source.span()),
+            line: line_of(text, source.span().map_or(0, |span| span.start)),
             field: field_of(text, &source),
             source: Box::new(source),
         })?;
@@ -177,42 +178,6 @@ impl Config {
     pub fn languages(&self) -> &[Locale] {
         &self.languages
     }
-}
-
-/// The 1-based line a byte offset falls on.
-fn line_of_span(text: &str, span: Option<std::ops::Range<usize>>) -> usize {
-    let start = span.map_or(0, |span| span.start);
-    text.bytes()
-        .take(start)
-        .filter(|&b| b == b'\n')
-        .count()
-        .saturating_add(1)
-}
-
-/// The 1-based line where `key = ...` is written, or the first line.
-fn line_of_key(text: &str, key: &str) -> usize {
-    text.lines()
-        .position(|line| {
-            line.split_once('=')
-                .is_some_and(|(left, _)| left.trim() == key)
-        })
-        .map_or(1, |index| index.saturating_add(1))
-}
-
-/// The field a parse error is about: the one named in the message, or the
-/// key on the line the error points at.
-fn field_of(text: &str, error: &toml::de::Error) -> String {
-    let message = error.message();
-    if let Some((_, rest)) = message.split_once("field `")
-        && let Some((name, _)) = rest.split_once('`')
-    {
-        return name.to_owned();
-    }
-    let line = line_of_span(text, error.span());
-    text.lines()
-        .nth(line.saturating_sub(1))
-        .and_then(|line| line.split_once('='))
-        .map_or_else(String::new, |(key, _)| key.trim().to_owned())
 }
 
 /// The environment variables Khalid reads, captured once at start.

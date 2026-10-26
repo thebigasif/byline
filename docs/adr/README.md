@@ -12,3 +12,6 @@ One file per decision the plan does not already make. Numbered, never edited aft
 | 0006 | Where the command line writes, and the shape of its JSON | Accepted |
 | 0007 | TLS through rustls with the ring provider | Accepted |
 | 0008 | YAML front matter, read with serde-saphyr | Accepted |
+| 0009 | Render input records and the template sandbox | Accepted |
+| 0010 | The database: derived tables, visitor tables, one writer | Accepted |
+| 0010 | Webhook event names and signatures | Accepted |
