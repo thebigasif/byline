@@ -3,6 +3,7 @@
 //! lists, held in memory and replaced as a whole after each change, like the
 //! pages.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, PoisonError, RwLock};
 
@@ -16,10 +17,8 @@ use khalid_content::{SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, UserMessage};
 use khalid_db::{Database, SiteId};
 
+use crate::index::POSTS;
 use crate::{build_message, build_pages, db_message, index, site_lists};
-
-/// The collection the index keeps posts under.
-const POSTS: &str = "posts";
 
 /// The published content readers see now. Cloning shares it, and a
 /// refresh swaps it whole, so a request never sees half a rebuild.
@@ -65,10 +64,10 @@ impl ContentStore for LiveContent {
     }
 }
 
-/// Writes the index of `site` in `db` again from the files in `folder`,
-/// then reads its published posts back, in every language, with the bodies
-/// from `content`, and the site's lists. A post is published when it has a
-/// date, as on the public site.
+/// Writes the index of `site` in `db` again from `content`, read from the
+/// files in `folder`, then reads its published posts back, in every language,
+/// with their bodies from `content`, and the site's lists. A post is published
+/// when it has a date, as on the public site.
 ///
 /// # Errors
 ///
@@ -82,8 +81,13 @@ pub(crate) async fn published(
     content: &SiteContent,
 ) -> Result<MemoryContentStore, UserMessage> {
     let unusable = |error| db_message::of(folder, &error);
-    let indexed = index::of(folder)?;
+    let indexed = index::of_content(folder, content)?;
     db.rebuild(site, &indexed).await.map_err(unusable)?;
+    let documents: BTreeMap<String, _> = content
+        .posts
+        .iter()
+        .filter_map(|doc| Some((index::slashed(&doc.path)?, doc)))
+        .collect();
     let mut entries = Vec::new();
     for locale in config.languages() {
         let rows = db
@@ -94,11 +98,7 @@ pub(crate) async fn published(
             let Some(date) = row.date else {
                 continue;
             };
-            let document = content
-                .posts
-                .iter()
-                .find(|doc| index::slashed(&doc.path).as_deref() == Some(row.path.as_str()));
-            let Some(document) = document else {
+            let Some(document) = documents.get(&row.path) else {
                 continue;
             };
             let rendered = render(&document.body, locale, config.slugs())
@@ -125,7 +125,7 @@ pub(crate) async fn published(
             entries.push((Collection::Posts, post));
         }
     }
-    let lists = site_lists::of(db, site, folder, config, content).await?;
+    let lists = site_lists::of(config, &indexed, content)?;
     Ok(MemoryContentStore::new(entries).with_site(lists))
 }
 
