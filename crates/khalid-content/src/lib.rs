@@ -10,9 +10,17 @@ mod content_error;
 mod content_hash;
 mod front_matter;
 mod post;
+mod render;
+mod schemas;
+mod site_content;
 mod tree;
 
 pub use content_error::ContentError;
 pub use content_hash::ContentHash;
-pub use post::{Post, PostFront, parse_post, read_posts};
+pub use post::{Post, PostFront, parse_post};
+pub use render::{Heading, Image, Link, Rendered, render};
+pub use schemas::{
+    AuthorFront, CaseStudyFront, ChangelogFront, GlossaryFront, IndexFront, PageFront, SnippetFront,
+};
+pub use site_content::{Document, SiteContent, read_content};
 pub use tree::{Collection, ContentTree, Entry, Language};

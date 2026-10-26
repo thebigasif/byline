@@ -4,10 +4,11 @@ use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_core::Slug;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
+use crate::ContentError;
 use crate::front_matter::{Fence, split};
-use crate::{Collection, ContentError, ContentTree};
 
 /// What a post's front matter may say.
 ///
@@ -53,6 +54,16 @@ pub struct Post {
 /// closed, or when a field is unknown, has the wrong kind of value, or the
 /// YAML is broken. Field errors carry the file's line.
 pub fn parse_post(path: &Path, text: &str) -> Result<Post, ContentError> {
+    let (front, body) = parse_front(path, text)?;
+    Ok(Post { front, body })
+}
+
+/// Reads any kind of front matter from `text`, naming `path` in errors, and
+/// returns it with the body exactly as written.
+pub(crate) fn parse_front<F: DeserializeOwned + Default>(
+    path: &Path,
+    text: &str,
+) -> Result<(F, String), ContentError> {
     let parts = split(text).map_err(|fence| match fence {
         Fence::Missing => ContentError::NoFrontMatter {
             path: path.to_path_buf(),
@@ -62,14 +73,11 @@ pub fn parse_post(path: &Path, text: &str) -> Result<Post, ContentError> {
         },
     })?;
     let front = if parts.yaml.trim().is_empty() {
-        PostFront::default()
+        F::default()
     } else {
         serde_saphyr::from_str(parts.yaml).map_err(|source| located(path, parts.yaml, source))?
     };
-    Ok(Post {
-        front,
-        body: parts.body.to_owned(),
-    })
+    Ok((front, parts.body.to_owned()))
 }
 
 /// Turns a YAML error into one that names the file's line and field.
@@ -113,7 +121,9 @@ fn located(path: &Path, yaml: &str, source: serde_saphyr::Error) -> ContentError
 }
 
 /// Reads a date written as `YYYY-MM-DD`, with a message a writer understands.
-fn date<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<NaiveDate>, D::Error> {
+pub(crate) fn date<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<NaiveDate>, D::Error> {
     let text = String::deserialize(deserializer)?;
     NaiveDate::parse_from_str(&text, "%Y-%m-%d")
         .map(Some)
@@ -122,19 +132,4 @@ fn date<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<NaiveDate>,
                 "the date must be a real day written as YYYY-MM-DD, such as 2026-09-14",
             )
         })
-}
-
-/// Reads the front matter of every entry in every `posts` collection, in the
-/// tree's path order. Other collections get their own schemas.
-///
-/// # Errors
-///
-/// Returns the first [`ContentError`] from [`parse_post`].
-pub fn read_posts(tree: &ContentTree) -> Result<Vec<Post>, ContentError> {
-    tree.languages()
-        .iter()
-        .filter_map(|language| language.collection("posts"))
-        .flat_map(Collection::entries)
-        .map(|entry| parse_post(entry.path(), entry.text()))
-        .collect()
 }
