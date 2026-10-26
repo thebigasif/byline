@@ -76,6 +76,22 @@ impl Pages {
         }
     }
 
+    /// The same pages, with each of `saved` in place of the page at its
+    /// address, or added when there was none. The saved pages come without
+    /// a Brotli copy; the next full render adds one. Every other page is
+    /// shared, not copied.
+    #[must_use]
+    pub fn with_saved(&self, saved: Vec<Page>) -> Self {
+        let mut by_path = self.by_path.clone();
+        for page in saved {
+            by_path.insert(page.path().as_str().to_owned(), page);
+        }
+        Self {
+            by_path,
+            not_found: self.not_found.clone(),
+        }
+    }
+
     /// Holds the `rendered` pages. A page whose bytes are the same as the
     /// page at its address in `previous` takes that page's Brotli copy
     /// instead of compressing again, so a change to one post costs one
@@ -132,5 +148,22 @@ mod tests {
             "reused, not compressed again"
         );
         assert_ne!(brotli_of(&changed), brotli_of(&first));
+    }
+
+    #[test]
+    fn a_saved_page_replaces_only_its_own_address() {
+        let about = PagePath::try_new("/blog/about/").unwrap();
+        let about = Page::new(about, MediaType::Html, "<h1>About this blog</h1>");
+        let pages = Pages::new(vec![post("<p>A sitemap lists pages.</p>"), about], "").unwrap();
+        let saved = pages.with_saved(vec![post("<p>A sitemap lists posts.</p>")]);
+        let body = |pages: &Pages, path: &str| pages.get(path).unwrap().body().clone();
+        let edited = "<p>A sitemap lists posts.</p>".repeat(40);
+        assert_eq!(body(&saved, "/blog/what-a-sitemap-does/"), edited);
+        assert_eq!(body(&saved, "/blog/about/"), body(&pages, "/blog/about/"));
+        let kept = saved.get("/blog/what-a-sitemap-does/").unwrap();
+        assert!(
+            kept.brotli().is_none(),
+            "the next full render compresses it"
+        );
     }
 }

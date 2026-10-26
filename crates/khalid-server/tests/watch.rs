@@ -156,6 +156,70 @@ async fn looking_at_the_folder_still_shows_a_save() {
     watching.stop().await;
 }
 
+/// Like [`Posts`], but its full render takes [`SLOW`], and it renders a
+/// saved post's page alone at once.
+#[derive(Debug)]
+struct SlowSite(Posts);
+
+/// How long a full render of [`SlowSite`] takes.
+const SLOW: Duration = Duration::from_secs(2);
+
+#[cfg(test)]
+impl Render for SlowSite {
+    type Error = std::io::Error;
+
+    fn render(&self) -> Result<Rendered, Self::Error> {
+        std::thread::sleep(SLOW);
+        self.0.render()
+    }
+
+    fn render_saved(&self, files: &[PathBuf]) -> Result<Option<Vec<Page>>, Self::Error> {
+        let mut pages = Vec::new();
+        for file in files {
+            let mut path = self.0.site.clone();
+            path.push(file);
+            let name = file.file_stem().unwrap().to_str().unwrap();
+            let address = PagePath::try_new(&format!("/blog/{name}/")).unwrap();
+            pages.push(Page::new(address, MediaType::Html, fs::read(path)?));
+        }
+        Ok(Some(pages))
+    }
+}
+
+#[tokio::test]
+async fn a_saved_post_shows_before_the_full_render_ends() {
+    let (folder, posts, live, look) = site().await;
+    let renderer = Arc::new(SlowSite(Posts {
+        site: posts.site.clone(),
+        renders: AtomicUsize::new(0),
+    }));
+    let watching = watch(folder.path(), &renderer, &live, look, EVERY);
+    let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
+    tokio::time::sleep(EVERY * 3).await;
+
+    for edit in [
+        "<h1>What a sitemap is for</h1>",
+        "<h1>Why a sitemap helps</h1>",
+    ] {
+        fs::write(&post, edit).unwrap();
+        let shown = tokio::time::timeout(SLOW / 2, async {
+            let page = || live.current().get("/blog/what-a-sitemap-does/").cloned();
+            while page().is_none_or(|page| page.body() != edit) {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        });
+        assert!(shown.await.is_ok(), "{edit} waited for the full render");
+    }
+    watching.stop().await;
+    // The full render that ran last read the last save, so it kept it.
+    wait_for(
+        &live,
+        "/blog/what-a-sitemap-does/",
+        Some("<h1>Why a sitemap helps</h1>"),
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn a_post_saved_before_the_watch_first_looks_still_shows() {
     let (folder, renderer, live, look) = site().await;
