@@ -1917,6 +1917,7 @@ dependencies = [
  "comrak",
  "insta",
  "khalid-core",
+ "khalid-routes",
  "proptest",
  "serde",
  "serde-saphyr",
