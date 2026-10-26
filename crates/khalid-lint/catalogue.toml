@@ -1,0 +1,35 @@
+# Every message the linter can show, one table per rule ID.
+#
+# Each message is three sentences for a writer who is new to SEO: what is
+# wrong, why it matters, and what to do. `guide` names the SerpDad guide that
+# explains the rule at length. tests/messages.rs checks every entry.
+
+[no-date]
+what = "This post has no date."
+why = "Google and readers use dates to judge freshness."
+fix = "Add `date:` to the header."
+guide = "post-dates"
+
+[no-author]
+what = "This post has no author."
+why = "People and search engines trust content with a named writer."
+fix = "Add `author:` to the header and give that author a profile."
+guide = "post-authors"
+
+[no-internal-link]
+what = "This post links to none of your other posts."
+why = "Internal links are how readers and Google find the rest of your site."
+fix = "Add one link to a related post."
+guide = "internal-links"
+
+[no-title]
+what = "This post has no title."
+why = "A page needs exactly one headline, and Google shows it in search results."
+fix = "Add `title:` to the header."
+guide = "post-titles"
+
+[many-headlines]
+what = "This post has more than one main headline."
+why = "A page needs exactly one headline, so readers and Google know its topic."
+fix = "Change each extra `#` headline in the text to a `##` subheading."
+guide = "post-titles"

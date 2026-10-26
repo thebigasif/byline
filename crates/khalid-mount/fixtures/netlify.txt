@@ -1,0 +1,2 @@
+/blog  https://blog-origin.example.com/blog  200
+/blog/*  https://blog-origin.example.com/blog/:splat  200

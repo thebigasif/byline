@@ -1,0 +1,37 @@
+# Every word the default templates show, in English. Each language file has
+# exactly these keys; a test checks it (RULES.md BL-TXT-3).
+
+skip_link = "Skip to the content"
+nav_primary = "Main menu"
+nav_footer = "Footer menu"
+nav_languages = "Languages"
+not_found_title = "This page does not exist"
+not_found_text = "The address may be mistyped, or the page may have moved."
+not_found_home = "Go to the blog's front page"
+by = "By"
+published = "Published"
+updated = "Updated"
+in_category = "Filed under"
+tags = "Tags"
+no_posts = "There are no posts here yet."
+pagination = "Pages"
+# {current} and {total} are filled in.
+page_of = "Page {current} of {total}"
+newer_posts = "Newer posts"
+older_posts = "Older posts"
+# {name} is filled in.
+posts_by = "Posts by {name}"
+# How a date reads. {day}, {month} and {year} are filled in.
+date_format = "{day} {month} {year}"
+month_1 = "January"
+month_2 = "February"
+month_3 = "March"
+month_4 = "April"
+month_5 = "May"
+month_6 = "June"
+month_7 = "July"
+month_8 = "August"
+month_9 = "September"
+month_10 = "October"
+month_11 = "November"
+month_12 = "December"
