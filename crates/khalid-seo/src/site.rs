@@ -3,9 +3,9 @@
 use khalid_core::{AbsoluteUrl, Locale};
 
 use crate::{
-    CrawlerPolicy, FeedOptions, IndexPolicy, LinkPolicy, LocalBusiness, MetaTemplates, Publisher,
-    PublisherKind, RootFile, SchemaTemplate, SeoError, ShareImage, SiteSearch, SiteVerification,
-    TwitterHandle, UrlPath,
+    CrawlerPolicy, CustomSchema, FeedOptions, IndexPolicy, LinkPolicy, LocalBusiness,
+    MetaTemplates, Publisher, PublisherKind, RootFile, SchemaTemplate, SeoError, ShareImage,
+    SiteSearch, SiteVerification, TwitterHandle, UrlPath,
 };
 
 /// The site-wide settings every SEO output reads.
@@ -57,6 +57,8 @@ pub struct SeoSite {
     pub locations: Vec<LocalBusiness>,
     /// Schema nodes written for every post in a category or collection.
     pub schema_templates: Vec<SchemaTemplate>,
+    /// JSON-LD written by hand that every page carries.
+    pub custom_schema: CustomSchema,
 }
 
 impl SeoSite {
@@ -85,6 +87,7 @@ impl SeoSite {
             glossary: UrlPath::try_new("/glossary/").unwrap_or_else(|_| UrlPath::root()),
             locations: Vec::new(),
             schema_templates: Vec::new(),
+            custom_schema: CustomSchema::default(),
         }
     }
 

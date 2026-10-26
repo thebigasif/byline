@@ -91,8 +91,9 @@ fn page_node(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
 /// `Person` who wrote it. A glossary term adds its `DefinedTerm`, the
 /// glossary's A to Z page its `DefinedTermSet`, and the home page one node
 /// per location of a local business. Then come the nodes of the page's
-/// blocks, such as an FAQ, and last the nodes of the site's
-/// [`SchemaTemplate`](crate::SchemaTemplate)s that cover the page.
+/// blocks, such as an FAQ, the nodes of the site's
+/// [`SchemaTemplate`](crate::SchemaTemplate)s that cover the page, and last
+/// the [`CustomSchema`](crate::CustomSchema) of the site, then of the page.
 ///
 /// # Errors
 ///
@@ -115,6 +116,14 @@ pub fn page_graph(site: &SeoSite, page: &SeoPage) -> Result<SchemaGraph, SeoErro
         .chain(template_nodes(site, page)?)
     {
         graph.push(node);
+    }
+    let custom = site
+        .custom_schema
+        .nodes()
+        .iter()
+        .chain(page.custom_schema.nodes());
+    for node in custom {
+        graph.push(node.clone());
     }
     Ok(graph)
 }
