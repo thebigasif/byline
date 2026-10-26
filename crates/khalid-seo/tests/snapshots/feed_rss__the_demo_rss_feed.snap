@@ -1,0 +1,25 @@
+---
+source: crates/khalid-seo/tests/feed_rss.rs
+expression: demo_feed().to_rss().unwrap()
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Field Notes on SEO</title>
+    <link>https://www.example.com/blog/</link>
+    <description>Plain advice on search for small teams</description>
+    <language>en</language>
+    <lastBuildDate>Fri, 2 Oct 2026 16:00:00 +0000</lastBuildDate>
+    <atom:link href="https://www.example.com/blog/feed.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Why internal links matter</title>
+      <link>https://www.example.com/blog/why-internal-links-matter/</link>
+      <guid isPermaLink="true">https://www.example.com/blog/why-internal-links-matter/</guid>
+      <pubDate>Mon, 14 Sep 2026 08:00:00 +0000</pubDate>
+      <dc:creator>Asif</dc:creator>
+      <category>On-page SEO</category>
+      <description>Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.</description>
+      <content:encoded>&lt;p&gt;Link from &lt;em&gt;old&lt;/em&gt; posts to new ones.&lt;/p&gt;&lt;p&gt;&lt;a href=&quot;https://www.example.com/blog/why-internal-links-matter/&quot;&gt;Why internal links matter first appeared on Field Notes on SEO.&lt;/a&gt;&lt;/p&gt;</content:encoded>
+    </item>
+  </channel>
+</rss>

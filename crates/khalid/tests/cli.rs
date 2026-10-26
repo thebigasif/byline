@@ -9,8 +9,6 @@ use serde_json::Value;
 /// arguments it needs.
 const COMMANDS: &[&[&str]] = &[
     &["serve"],
-    &["lint"],
-    &["lint", "content/en/posts/choosing-a-crm.md"],
     &["publish", "why-internal-links-matter"],
     &["theme", "sync", "https://serpdad.com"],
     &["theme", "check"],
@@ -159,14 +157,14 @@ fn every_command_accepts_json_and_prints_the_message_as_json() {
 
 #[test]
 fn json_works_before_the_command_too() {
-    let output = khalid(&["--json", "lint"]);
+    let output = khalid(&["--json", "audit"]);
     assert_eq!(output.status.code(), Some(3));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(
         json["error"]["what"]
             .as_str()
             .unwrap()
-            .contains("khalid lint")
+            .contains("khalid audit")
     );
 }
 
@@ -256,8 +254,11 @@ fn every_invalid_site_prints_its_expected_message() {
 #[test]
 fn a_site_with_valid_settings_goes_on_to_the_command() {
     let output = khalid_at_root(&["--site", "fixtures/demo-site", "lint"]);
-    assert_eq!(output.status.code(), Some(3));
-    assert!(text(&output.stderr).contains("is not built yet"));
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    assert!(
+        text(&output.stdout).contains("0 blocks and"),
+        "the demo site has no blocks"
+    );
 }
 
 #[test]

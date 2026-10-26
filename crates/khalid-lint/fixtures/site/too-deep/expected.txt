@@ -1,0 +1,5 @@
+en/pruning-old-posts: warn orphan-post
+en/fixing-broken-links: warn one-inbound-link: link-audits
+en/link-audits: warn too-deep
+en/fixing-broken-links: warn too-deep
+en/pruning-old-posts: warn too-deep

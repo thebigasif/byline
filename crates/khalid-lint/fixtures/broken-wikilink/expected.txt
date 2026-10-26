@@ -1,0 +1,2 @@
+warn broken-wikilink: link-juice
+warn broken-wikilink: interne-links

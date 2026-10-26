@@ -1,0 +1,43 @@
+# The home page links to "start-here". From there, a chain of posts runs
+# four and five clicks deep. "pruning-old-posts" links in, but nothing
+# links to it, so no path from the home page reaches it.
+home_links = ["/blog/start-here/", "/about/"]
+
+[[posts]]
+locale = "en"
+slug = "start-here"
+links = [{ kind = "internal", target = "/blog/choosing-link-text/", text = "choosing link text" }]
+
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+links = [
+  { kind = "internal", target = "/blog/start-here/", text = "start here" },
+  { kind = "internal", target = "/blog/anchor-text-basics/", text = "link text basics" },
+]
+
+[[posts]]
+locale = "en"
+slug = "anchor-text-basics"
+links = [
+  { kind = "internal", target = "/blog/choosing-link-text/", text = "choosing link text" },
+  { kind = "internal", target = "/blog/link-audits/", text = "link audits" },
+]
+
+[[posts]]
+locale = "en"
+slug = "link-audits"
+links = [
+  { kind = "internal", target = "/blog/anchor-text-basics/", text = "link text basics" },
+  { kind = "internal", target = "/blog/fixing-broken-links/", text = "fixing broken links" },
+]
+
+[[posts]]
+locale = "en"
+slug = "fixing-broken-links"
+links = [{ kind = "internal", target = "/blog/link-audits/", text = "link audits" }]
+
+[[posts]]
+locale = "en"
+slug = "pruning-old-posts"
+links = [{ kind = "internal", target = "/blog/start-here/", text = "start here" }]

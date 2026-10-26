@@ -1,0 +1,5 @@
+# This post is in the "internal-links" topic group, whose main post is
+# "internal-linking-guide" (site.toml), but it never links there. The
+# German main post of a group with the same name does not count.
+extends = "clean"
+cluster = { name = "internal-links", role = "member" }

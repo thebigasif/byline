@@ -16,6 +16,7 @@ serde.workspace = true
 serde-saphyr = "2"
 sha2 = "0.11"
 thiserror.workspace = true
+ammonia = "4"
 
 [dev-dependencies]
 proptest = "1"
