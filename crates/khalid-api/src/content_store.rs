@@ -9,18 +9,16 @@ use khalid_core::Slug;
 use crate::query::ListQuery;
 use crate::resources::{Collection, Post};
 
-#[cfg(any(test, feature = "test-util"))]
 mod memory;
-#[cfg(any(test, feature = "test-util"))]
 pub use memory::MemoryContentStore;
 
 /// A future the store returns, boxed so routes can hold any store as a
 /// `dyn ContentStore`.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// Published content, read by the Content API. Task 1.15 implements it on
-/// the content index in `khalid-db`; `MemoryContentStore`, from the
-/// `test-util` feature, keeps entries in memory for tests.
+/// Published content, read by the Content API. `MemoryContentStore` keeps
+/// entries in memory: `khalid serve` fills one from the content index in
+/// `khalid-db` after each change, and tests fill one by hand.
 ///
 /// A store applies the query's filter, order and page itself, so a
 /// database can do it in SQL. Fields named in the query have already been

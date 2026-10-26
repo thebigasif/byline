@@ -21,18 +21,23 @@ mod index;
 mod init;
 mod init_message;
 mod init_prompt;
+mod keys;
+mod keys_message;
 mod lint;
 mod lint_fix;
 mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
+mod post_text;
 mod repair;
 mod report;
 mod routes_message;
 mod serve;
 mod serve_message;
+mod site_content;
 mod site_pages;
+mod site_posts;
 mod slug_repair;
 
 use std::ffi::OsString;
@@ -99,6 +104,9 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Build { out }), Some((folder, config, content))) => {
             build::run(folder, config, content, out.as_deref(), cli.output)
         }
+        (Some(Command::Keys { command }), Some((folder, ..))) => {
+            keys::run(folder, command, cli.output)
+        }
         (Some(Command::Serve { listen }), Some((folder, config, _))) => {
             serve::run(folder, config, *listen, cli.output)
         }
@@ -106,6 +114,7 @@ fn run(cli: &Cli) -> Exit {
             Some(
                 command @ (Command::Db { .. }
                 | Command::Serve { .. }
+                | Command::Keys { .. }
                 | Command::Lint { .. }
                 | Command::New { .. }
                 | Command::Build { .. }),

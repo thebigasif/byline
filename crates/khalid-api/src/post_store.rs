@@ -4,6 +4,7 @@ use std::error::Error;
 
 use chrono::{DateTime, Utc};
 use khalid_core::Slug;
+use khalid_lint::Report;
 
 use crate::content_store::BoxFuture;
 use crate::resources::{AdminPost, PostDraft, PostEdit};
@@ -22,13 +23,16 @@ pub trait PostStore: Send + Sync {
 
     /// Applies `edit`, made by `by`, to post `id`, but only when the post
     /// has not changed since the copy the edit was made on (BL-API-7). The
-    /// check and the write happen together.
+    /// check and the write happen together. When the edit publishes the
+    /// post, the store runs the lint publish gate (`Linter::gate`) on the
+    /// post as it would go live, and saves nothing when the gate refuses.
     ///
     /// # Errors
     ///
     /// Returns [`UpdatePostError::Stale`] naming the last change when the
     /// post changed after that copy, [`UpdatePostError::NotFound`] when no
-    /// post has that identity, and [`UpdatePostError::Store`] when the
+    /// post has that identity, [`UpdatePostError::Refused`] with the lint
+    /// report when the gate refuses, and [`UpdatePostError::Store`] when the
     /// posts cannot be read or written.
     fn update<'a>(
         &'a self,
@@ -86,6 +90,10 @@ pub enum UpdatePostError {
         /// Who changed it, if known.
         updated_by: Option<String>,
     },
+    /// The edit publishes the post, and the lint publish gate refused it.
+    /// The post stays as it was.
+    #[error("the linter refused to publish the post")]
+    Refused(Report),
     /// The posts could not be read or written.
     #[error(transparent)]
     Store(#[from] PostStoreError),
@@ -123,7 +131,8 @@ mod memory {
         UpdatePostError,
     };
 
-    /// Posts held in memory, for tests.
+    /// Posts held in memory, for tests. It runs no publish gate: an edit
+    /// that publishes always goes live.
     #[derive(Debug)]
     pub struct MemoryPostStore {
         posts: Mutex<Vec<AdminPost>>,
@@ -208,6 +217,7 @@ mod memory {
                 draft.markdown(),
                 at,
             )
+            .with_author(draft.author().cloned())
             .with_updated_by(by);
             if let Some(key) = idempotency {
                 seen.insert(key.to_owned(), post.id().to_owned());

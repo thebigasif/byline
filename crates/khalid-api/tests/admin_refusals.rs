@@ -210,7 +210,11 @@ impl KeyStore for BrokenKeys {
         Box::pin(std::future::ready(Err(disk_gone())))
     }
 
-    fn create(&self, _key: StoredKey) -> BoxFuture<'_, Result<(), CreateKeyError>> {
+    fn create<'a>(
+        &'a self,
+        _key: StoredKey,
+        _name: &'a str,
+    ) -> BoxFuture<'a, Result<(), CreateKeyError>> {
         let source = disk_gone();
         Box::pin(std::future::ready(Err(CreateKeyError::Unavailable {
             source,

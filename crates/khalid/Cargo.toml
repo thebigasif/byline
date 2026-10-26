@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-content = { path = "../khalid-content", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
@@ -27,6 +28,7 @@ tokio = { workspace = true, features = ["rt", "net"] }
 tracing.workspace = true
 
 [dev-dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 insta = "1"
 serde_json.workspace = true
 
