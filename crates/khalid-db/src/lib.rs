@@ -1,0 +1,16 @@
+//! The SQLite file under `data/` (ADR 0001, RULES.md BL-FS-1).
+//!
+//! This crate owns the database: opening it with the settings BL-DB-1 asks
+//! for, its forward-only migrations (BL-DB-2), and its typed queries, which
+//! the `sqlx` macros check against the schema when the crate compiles
+//! (BL-DB-3). It holds two kinds of tables, listed one per line in the
+//! crate's `README.md`: derived tables, rebuilt from the content files on
+//! demand, and visitor tables, which hold what people create and are never
+//! rebuilt. It must not know about rendering, HTTP or the files themselves;
+//! callers read the content and hand it over.
+
+mod database;
+mod db_error;
+
+pub use database::Database;
+pub use db_error::DbError;
