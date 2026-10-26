@@ -15,12 +15,18 @@ const SECRET_DIGITS: usize = 64;
 pub enum KeyKind {
     /// `kc_`: reads published content. Safe to put in a web page.
     Content,
+    /// `ki_`: an integration such as `SerpDad`, with scopes.
+    Integration,
+    /// `ks_`: a staff member's token, with their role.
+    Staff,
 }
 
 impl KeyKind {
     fn from_prefix(prefix: &str) -> Option<Self> {
         match prefix {
             "kc" => Some(Self::Content),
+            "ki" => Some(Self::Integration),
+            "ks" => Some(Self::Staff),
             _ => None,
         }
     }
