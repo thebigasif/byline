@@ -35,3 +35,7 @@ A test reads the table below and checks it lists every table in the schema, once
 | `subscribers` | visitor | Newsletter subscribers and whether they confirmed |
 | `comments` | visitor | Comments on posts, named by the post's path so they survive a rebuild |
 | `analytics_counts` | visitor | Page views per day, page and referrer group, counted without cookies |
+
+## Changing a query
+
+The `sqlx` macros check every query against the schema when the crate compiles (RULES.md BL-DB-3). CI has no database, so it reads the checked query shapes from `.sqlx/` at the repository root. After changing a query or adding a migration, run `just db-prepare` and commit what changes in `.sqlx/`.

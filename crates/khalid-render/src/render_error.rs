@@ -1,5 +1,10 @@
 //! What can go wrong while loading or rendering templates.
 
+use std::io;
+use std::path::PathBuf;
+
+use khalid_core::SitePathError;
+
 /// Why a template could not be loaded or a page could not be rendered.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -27,6 +32,24 @@ pub enum RenderError {
         #[source]
         source: Box<minijinja::Error>,
     },
+    /// A file in `theme/templates/` has a name no default template has.
+    #[error("theme/templates/{name} does not replace any default template")]
+    UnknownTemplate {
+        /// The file name that matched nothing.
+        name: String,
+    },
+    /// A theme template could not be read from disk.
+    #[error("could not read {}", path.display())]
+    ReadTemplate {
+        /// The file that could not be read.
+        path: PathBuf,
+        /// What the file system reported.
+        #[source]
+        source: io::Error,
+    },
+    /// The theme folder could not be resolved inside the site folder.
+    #[error("the theme folder could not be used")]
+    ThemePath(#[from] SitePathError),
     /// A built-in strings file is not valid TOML. A build mistake, caught by
     /// this crate's tests.
     #[error("the built-in strings file for {language} is broken")]
