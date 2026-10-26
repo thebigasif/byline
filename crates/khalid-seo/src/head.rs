@@ -4,7 +4,7 @@ use khalid_core::AbsoluteUrl;
 
 use crate::escape::escape_markup;
 use crate::social::push_social_tags;
-use crate::{SeoError, SeoPage, SeoSite};
+use crate::{PageKind, SeoError, SeoPage, SeoSite};
 
 /// One tag in a page's `<head>`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,7 +90,7 @@ impl HeadTags {
 }
 
 /// The SEO tags for `page` on `site`: title, description, robots, canonical,
-/// then Open Graph and the Twitter card.
+/// the verification tags on the home page, then Open Graph and the Twitter card.
 ///
 /// A page's own title, description, robots directives and canonical address
 /// win over the site's templates and index policy.
@@ -122,6 +122,9 @@ pub fn head_tags(site: &SeoSite, page: &SeoPage) -> Result<HeadTags, SeoError> {
         rel: "canonical",
         href: canonical.clone(),
     });
+    if page.kind == PageKind::Home {
+        site.verification.push_tags(&mut tags);
+    }
     push_social_tags(site, page, &canonical, &description, &mut tags);
     Ok(HeadTags(tags))
 }
