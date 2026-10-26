@@ -1,5 +1,6 @@
 ---
 source: crates/khalid/tests/build_files.rs
+assertion_line: 105
 expression: "read(&built(), \"feed.xml\")"
 ---
 <?xml version="1.0" encoding="UTF-8"?>
@@ -18,7 +19,7 @@ expression: "read(&built(), \"feed.xml\")"
       <pubDate>Mon, 12 Oct 2026 00:00:00 +0000</pubDate>
       <dc:creator>Asif</dc:creator>
       <description>A topic cluster is one main post and several shorter posts that link to it. How to plan one with a sheet of paper.</description>
-      <content:encoded>&lt;p&gt;A topic cluster is a group of posts on one subject: one main post that covers the whole subject, and several shorter posts that each answer one question in depth. They all link to each other. Together they show search engines that your site knows the subject, which is what topical-authority means.&lt;/p&gt;
+      <content:encoded>&lt;p&gt;A topic cluster is a group of posts on one subject: one main post that covers the whole subject, and several shorter posts that each answer one question in depth. They all link to each other. Together they show search engines that your site knows the subject, which is what &lt;a href=&quot;https://www.example.com/blog/glossary/topical-authority/&quot;&gt;Topical authority&lt;/a&gt; means.&lt;/p&gt;
 &lt;h2 id=&quot;plan-it-on-one-page&quot;&gt;Plan it on one page&lt;/h2&gt;
 &lt;ol&gt;
 &lt;li&gt;&lt;strong&gt;Pick the subject your customers ask about most.&lt;/strong&gt; For a bakery that sells online, that might be &amp;quot;sourdough at home&amp;quot;.&lt;/li&gt;
@@ -27,7 +28,7 @@ expression: "read(&built(), \"feed.xml\")"
 &lt;li&gt;&lt;strong&gt;Draw the links.&lt;/strong&gt; Every short post links to the main post, and the main post links to every short post.&lt;/li&gt;
 &lt;/ol&gt;
 &lt;h2 id=&quot;write-in-the-right-order&quot;&gt;Write in the right order&lt;/h2&gt;
-&lt;p&gt;Write the short posts first. They are quicker, and they teach you what the main post needs to say. Then write the main post and add the links. &lt;a href=&quot;/blog/why-internal-links-matter/&quot;&gt;Why internal links matter&lt;/a&gt; has the rules for the anchor text.&lt;/p&gt;
+&lt;p&gt;Write the short posts first. They are quicker, and they teach you what the main post needs to say. Then write the main post and add the links. &lt;a href=&quot;https://www.example.com/blog/why-internal-links-matter/&quot;&gt;Why internal links matter&lt;/a&gt; has the rules for the anchor text.&lt;/p&gt;
 </content:encoded>
     </item>
     <item>
@@ -56,7 +57,7 @@ expression: "read(&built(), \"feed.xml\")"
 &lt;li&gt;&lt;strong&gt;Fonts that block the text.&lt;/strong&gt; Show the text in a system font first, and swap in the web font when it arrives.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Layout that jumps.&lt;/strong&gt; Give every image a width and height, so the text does not move while the page loads.&lt;/li&gt;
 &lt;/ol&gt;
-&lt;p&gt;Fix the first cause on your slowest page, measure again, and move on. Faster pages also get crawled more often, which helps &lt;a href=&quot;/blog/what-a-sitemap-does/&quot;&gt;your sitemap&lt;/a&gt; do its job.&lt;/p&gt;
+&lt;p&gt;Fix the first cause on your slowest page, measure again, and move on. Faster pages also get crawled more often, which helps &lt;a href=&quot;https://www.example.com/blog/what-a-sitemap-does/&quot;&gt;your sitemap&lt;/a&gt; do its job.&lt;/p&gt;
 </content:encoded>
     </item>
     <item>
@@ -74,7 +75,7 @@ expression: "read(&built(), \"feed.xml\")"
 &lt;li&gt;It points to each language version of a page, which helps the right reader land on the right version.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 id=&quot;what-it-does-not-do&quot;&gt;What it does not do&lt;/h2&gt;
-&lt;p&gt;A sitemap does not make a page rank. A weak page listed in a sitemap is still a weak page. It also does not replace links: a page that only appears in the sitemap, with no links from your own posts, still looks unimportant. See &lt;a href=&quot;/blog/why-internal-links-matter/&quot;&gt;why internal links matter&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;A sitemap does not make a page rank. A weak page listed in a sitemap is still a weak page. It also does not replace links: a page that only appears in the sitemap, with no links from your own posts, still looks unimportant. See &lt;a href=&quot;https://www.example.com/blog/why-internal-links-matter/&quot;&gt;why internal links matter&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 id=&quot;keep-it-clean&quot;&gt;Keep it clean&lt;/h2&gt;
 &lt;p&gt;List only pages you want in search results. Leave out drafts, redirects and pages marked &lt;code&gt;noindex&lt;/code&gt;. A sitemap full of pages that should not be there teaches search engines to trust it less.&lt;/p&gt;
 </content:encoded>
@@ -97,7 +98,7 @@ expression: "read(&built(), \"feed.xml\")"
 &lt;/ol&gt;
 &lt;h2 id=&quot;title-tag-or-headline&quot;&gt;Title tag or headline?&lt;/h2&gt;
 &lt;p&gt;They can differ. The headline on the page can be longer and warmer. The title tag is for the results page, where space is short and the reader is scanning.&lt;/p&gt;
-&lt;p&gt;When the title is done, check that the page is easy to reach: &lt;a href=&quot;/blog/why-internal-links-matter/&quot;&gt;why internal links matter&lt;/a&gt; explains how.&lt;/p&gt;
+&lt;p&gt;When the title is done, check that the page is easy to reach: &lt;a href=&quot;https://www.example.com/blog/why-internal-links-matter/&quot;&gt;why internal links matter&lt;/a&gt; explains how.&lt;/p&gt;
 </content:encoded>
     </item>
     <item>
@@ -111,14 +112,14 @@ expression: "read(&built(), \"feed.xml\")"
 &lt;h2 id=&quot;readers-use-them-to-keep-going&quot;&gt;Readers use them to keep going&lt;/h2&gt;
 &lt;p&gt;Someone who finishes a post is interested. If the post ends without pointing anywhere, they leave. One link to a related post gives them a next step, and gives you a second page view.&lt;/p&gt;
 &lt;h2 id=&quot;search-engines-use-them-to-find-and-rank-pages&quot;&gt;Search engines use them to find and rank pages&lt;/h2&gt;
-&lt;p&gt;A crawler finds new pages by following links. A post that nothing links to is hard to find and looks unimportant. A post that ten other posts link to looks like something your site cares about. That is how you build topical-authority.&lt;/p&gt;
+&lt;p&gt;A crawler finds new pages by following links. A post that nothing links to is hard to find and looks unimportant. A post that ten other posts link to looks like something your site cares about. That is how you build &lt;a href=&quot;https://www.example.com/blog/glossary/topical-authority/&quot;&gt;Topical authority&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 id=&quot;how-to-add-them-well&quot;&gt;How to add them well&lt;/h2&gt;
 &lt;ul&gt;
 &lt;li&gt;Link from new posts to older ones, and go back to add links from older posts to new ones.&lt;/li&gt;
 &lt;li&gt;Use anchor text that says what the reader gets: &amp;quot;how to write a title tag&amp;quot;, not &amp;quot;click here&amp;quot;.&lt;/li&gt;
 &lt;li&gt;Use the same anchor text for the same page. If one phrase points to two different pages, search engines cannot tell which one you mean.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Start with one link per post. For example, once your links are in place, read &lt;a href=&quot;/blog/how-to-write-a-title-tag/&quot;&gt;how to write a title tag&lt;/a&gt; next.&lt;/p&gt;
+&lt;p&gt;Start with one link per post. For example, once your links are in place, read &lt;a href=&quot;https://www.example.com/blog/how-to-write-a-title-tag/&quot;&gt;how to write a title tag&lt;/a&gt; next.&lt;/p&gt;
 </content:encoded>
     </item>
   </channel>

@@ -50,7 +50,7 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     assert!(
-        text(&output.stdout).contains("20 pages"),
+        text(&output.stdout).contains("22 pages"),
         "{}",
         text(&output.stdout)
     );
@@ -96,6 +96,109 @@ fn build_writes_the_author_and_plain_pages_every_link_points_to() {
 
     assert!(page(out.path(), "about/index.html").contains("About Field Notes</h1>"));
     assert!(page(out.path(), "de/ueber-uns/index.html").contains("Über Field Notes</h1>"));
+}
+
+#[test]
+fn build_writes_a_page_for_each_glossary_term_where_its_route_puts_it() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+
+    let term = page(out.path(), "glossary/topical-authority/index.html");
+    assert!(term.contains("Topical authority</h1>"), "{term}");
+    assert!(term.contains("https://www.example.com/blog/glossary/topical-authority/"));
+    let german = page(out.path(), "de/glossary/thematische-autoritaet/index.html");
+    assert!(german.contains("<html lang=\"de\""), "{german}");
+}
+
+#[test]
+fn build_turns_each_wikilink_of_the_demo_site_into_a_link_to_its_page() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+
+    let post = page(out.path(), "why-internal-links-matter/index.html");
+    let link = "<a href=\"/blog/glossary/topical-authority/\">Topical authority</a>";
+    assert!(post.contains(link), "{post}");
+    let german = page(out.path(), "de/warum-interne-links-wichtig-sind/index.html");
+    let link = "<a href=\"/blog/de/glossary/thematische-autoritaet/\">";
+    assert!(german.contains(link), "{german}");
+    let term = page(out.path(), "glossary/topical-authority/index.html");
+    assert!(
+        term.contains("<a href=\"/blog/planning-a-topic-cluster/\">"),
+        "{term}"
+    );
+}
+
+#[test]
+fn build_draws_the_maths_of_a_post_as_mathml() {
+    let temp = tempfile::tempdir().unwrap();
+    let site = path(temp.path());
+    khalid(&["init", site, "--address", "https://www.example.com"]);
+    let post = "---\ntitle: Compound growth\nslug: compound-growth\ndate: 2026-09-14\n\
+                author: asif\n---\n\n\
+                Traffic grows as $v(1+r)^n$ each month, as [the home page](/) says.\n";
+    fs::write(at(temp.path(), "content/en/posts/compound-growth.md"), post).unwrap();
+
+    let output = khalid(&["--site", site, "build"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let page = page(&at(temp.path(), "public"), "compound-growth/index.html");
+    assert!(page.contains("<math"), "{page}");
+    assert!(!page.contains("$v(1+r)^n$"), "{page}");
+}
+
+#[test]
+fn build_stops_at_a_broken_wikilink_and_names_its_file_and_line() {
+    let out = tempfile::tempdir().unwrap();
+    let site = at(&demo_site(), "../invalid/content-broken-wikilink");
+    let output = khalid(&["--site", path(&site), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(1), "{}", text(&output.stdout));
+    let said = text(&output.stderr);
+    assert!(
+        said.contains("why-links-matter.md, line 10: [[link-equity]] matches no post"),
+        "{said}"
+    );
+    assert!(!at(out.path(), "index.html").exists());
+}
+
+#[test]
+fn build_writes_each_post_where_routes_toml_puts_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let site = path(temp.path());
+    let made = khalid(&["init", site, "--address", "https://www.example.com"]);
+    assert_eq!(made.status.code(), Some(0), "{}", text(&made.stderr));
+    let routes = "[collections.posts]\npermalink = \"/{year}/{slug}/\"\n";
+    fs::write(at(temp.path(), "routes.toml"), routes).unwrap();
+    let post = "---\ntitle: Dated links\nslug: dated-links\ndate: 2026-09-14\nauthor: asif\n\
+                ---\n\nText that links to [the home page](/).\n";
+    fs::write(at(temp.path(), "content/en/posts/dated-links.md"), post).unwrap();
+
+    let output = khalid(&["--site", site, "build"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let public = at(temp.path(), "public");
+    assert!(page(&public, "2026/dated-links/index.html").contains("Dated links</h1>"));
+    assert!(page(&public, "index.html").contains("/2026/dated-links/\""));
+}
+
+#[test]
+fn build_refuses_a_glossary_term_whose_route_needs_a_date() {
+    let temp = tempfile::tempdir().unwrap();
+    let site = path(temp.path());
+    khalid(&["init", site, "--address", "https://www.example.com"]);
+    let routes = "[collections.glossary]\npermalink = \"/{year}/{slug}/\"\n";
+    fs::write(at(temp.path(), "routes.toml"), routes).unwrap();
+    fs::create_dir_all(at(temp.path(), "content/en/glossary")).unwrap();
+    let term = "---\nterm: Crawl budget\nslug: crawl-budget\n---\n\nText.\n";
+    fs::write(at(temp.path(), "content/en/glossary/crawl-budget.md"), term).unwrap();
+
+    let output = khalid(&["--site", site, "build", "--json"]);
+    assert_eq!(output.status.code(), Some(1), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let what = json["error"]["what"].as_str().unwrap();
+    assert!(what.contains("crawl-budget.md has no address"), "{what}");
+    assert!(!at(temp.path(), "public/index.html").exists());
 }
 
 #[test]

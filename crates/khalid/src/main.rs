@@ -106,7 +106,7 @@ fn run(cli: &Cli) -> Exit {
     };
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder) {
-            Ok((config, content)) => Some((folder, config, content)),
+            Ok((config, routes, content)) => Some((folder, config, routes, content)),
             Err(message) => return report::failure(cli.output, &message, Exit::Failure),
         },
         None => None,
@@ -114,9 +114,10 @@ fn run(cli: &Cli) -> Exit {
     // The server renders its first pages from the checked content, then
     // drops it, so it takes the content rather than borrowing it.
     let site = match (&cli.command, site) {
-        (Some(Command::Serve { listen }), Some((folder, config, content))) => {
+        (Some(Command::Serve { listen }), Some((folder, config, routes, content))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
-            return serve::run(folder, &config, (content, look), *listen, cli.output);
+            let checked = (&config, &routes);
+            return serve::run(folder, checked, (content, look), *listen, cli.output);
         }
         (_, site) => site,
     };
@@ -129,17 +130,16 @@ fn run(cli: &Cli) -> Exit {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
             lint::run(folder, path.as_deref(), mode, cli.output)
         }
-        (Some(Command::New { title, language }), Some((folder, config, _))) => {
+        (Some(Command::New { title, language }), Some((folder, config, ..))) => {
             let post = NewPost {
                 title,
                 language: language.as_ref(),
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, content))) => build::run(
+        (Some(Command::Build { out }), Some((folder, config, routes, content))) => build::run(
             folder,
-            config,
-            content,
+            (config, routes, content),
             out.as_deref(),
             &SystemClock,
             cli.output,
@@ -157,7 +157,7 @@ fn run(cli: &Cli) -> Exit {
             Some(Command::Theme {
                 command: ThemeCommand::Check { url },
             }),
-            Some((folder, config, _)),
+            Some((folder, config, ..)),
         ) => theme_check::run(folder, url.as_ref().unwrap_or(config.address()), cli),
         (
             Some(
@@ -176,8 +176,8 @@ fn run(cli: &Cli) -> Exit {
 }
 
 /// Checks the settings, the routes and the content of the `site` folder, and
-/// returns the settings and the content.
-fn check(site: &Path) -> Result<(Config, SiteContent), UserMessage> {
+/// returns the settings, the routes and the content.
+fn check(site: &Path) -> Result<(Config, Routes, SiteContent), UserMessage> {
     let config =
         Config::load(site, &Environment::from_process()).map_err(|e| config_message::of(&e))?;
     let routes = Routes::load(site).map_err(|error| routes_message::of(&error))?;
@@ -185,7 +185,7 @@ fn check(site: &Path) -> Result<(Config, SiteContent), UserMessage> {
         .and_then(|tree| read_content(&tree))
         .and_then(|content| check_bodies(&content, &config, &routes).map(|()| content))
         .map_err(|error| content_message::of(site, &error))?;
-    Ok((config, content))
+    Ok((config, routes, content))
 }
 
 /// The message for a command that works on one site folder when none was given.
