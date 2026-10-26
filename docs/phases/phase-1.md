@@ -189,6 +189,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.1 The rule engine
 
+- Status: `doing`. Part 1 (#106): the crate and its input model. Part 2 (#111): the message catalogue and the messages test. Part 3 (this landing): severities, the rule trait and `lint.toml`. Part 4: the engine, its findings and its report.
 - Status: `doing`. Part 1 (#106): the crate and its input model. Part 2 (this landing): the message catalogue and the messages test. Part 3: severities and `lint.toml`. Part 4: the rule trait and the engine.
 - Status: `doing`. Part 1 (this landing): the crate and its input model. Part 2: the message catalogue and the messages test. Part 3: severities and `lint.toml`. Part 4: the rule trait and the engine.
 - The `Rule` trait, `Severity` (block, warn, off), a `Finding` with its rule, severity, location and a three-sentence `Message` from `catalogue.toml`, `lint.toml` loading with errors that name the line and column, and the input model: `LintPost`, `LintSite` and the `SiteView` trait the content track implements in 1.15.
