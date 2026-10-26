@@ -161,6 +161,8 @@ pub struct SeoPage {
     pub speakable: Vec<String>,
     /// The author's full profile. Without one, `author` alone names them.
     pub author_profile: Option<AuthorProfile>,
+    /// The people who checked the page, in order, for `reviewedBy`.
+    pub reviewers: Vec<AuthorProfile>,
     /// The things the post is about or mentions, for `about` and `mentions`.
     pub entities: Vec<Entity>,
     /// How many words the post has.
@@ -202,6 +204,7 @@ impl SeoPage {
             breadcrumbs: Vec::new(),
             speakable: Vec::new(),
             author_profile: None,
+            reviewers: Vec::new(),
             entities: Vec::new(),
             word_count: None,
             blocks: Vec::new(),

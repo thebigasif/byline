@@ -14,6 +14,7 @@ mod money;
 mod page_graph;
 mod publisher;
 mod recipe;
+mod reviewer;
 mod schema_check;
 mod schema_graph;
 mod schema_node;
