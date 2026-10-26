@@ -88,3 +88,9 @@ impl Output {
         }
     }
 }
+
+/// 40 MB of data to prove the binary size budget fails in CI. Never merged.
+static BLOAT: [u8; 40_000_000] = [7; 40_000_000];
+
+#[used]
+static KEEP: &[u8] = &BLOAT;
