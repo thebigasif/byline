@@ -1,4 +1,4 @@
-# 0016. Blocks with no body are one-line leaf directives
+# 0018. Blocks with no body are one-line leaf directives
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.7, extending ADR 0012.
 
