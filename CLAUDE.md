@@ -7,7 +7,7 @@ Khalid is the product's name, chosen by the founder on 2026-10-26. Older files m
 1. `docs/plan.md`: what we build and why. Section 1 holds the founder's decisions. Do not reopen them.
 2. `docs/standards/RULES.md`: every rule with an ID. Reviews cite the IDs.
 3. `docs/phases/`: the current phase brief. Work only on tasks listed there.
-4. `docs/adr/`: architecture decisions. Add one when you make a choice the plan does not cover.
+4. `docs/adr/`: architecture decisions. Add one when you make a choice the plan does not cover, numbered with the next free number on `main` at the time you open the pull request, re-checked before merge.
 5. `docs/standards/`: `rust.md`, `api.md`, `typescript.md`, `performance.md`, `testing.md`, `review.md`, `git.md`.
 6. `FRONTEND.md`: the front-end checklist every template follows.
 
