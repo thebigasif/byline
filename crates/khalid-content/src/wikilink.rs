@@ -4,77 +4,10 @@
 use std::collections::BTreeMap;
 
 use comrak::nodes::{AstNode, NodeLink, NodeValue};
-use comrak::{Arena, parse_document};
 use khalid_core::{Config, Locale, Slug};
 use khalid_routes::{PostAddress, Routes};
 
-use crate::render::options;
-use crate::{ContentError, Document, SiteContent};
-
-/// Checks that every wikilink in every content file of `site`'s languages
-/// reaches a page, as [`Wikilinks::for_language`] finds them with `routes`.
-///
-/// # Errors
-///
-/// Returns [`ContentError::Wikilink`] for the first wikilink that reaches
-/// nothing, with the file and its line, in language order and then in the
-/// order of [`SiteContent`]'s fields.
-pub fn check_wikilinks(
-    content: &SiteContent,
-    site: &Config,
-    routes: &Routes,
-) -> Result<(), ContentError> {
-    for locale in site.languages() {
-        let links = Wikilinks::for_language(content, site, routes, locale);
-        let check = Check {
-            links: &links,
-            locale,
-        };
-        check.all(&content.posts)?;
-        check.all(&content.pages)?;
-        check.all(&content.authors)?;
-        check.all(&content.glossary)?;
-        check.all(&content.case_studies)?;
-        check.all(&content.changelog)?;
-        check.all(&content.snippets)?;
-        check.all(&content.indexes)?;
-    }
-    Ok(())
-}
-
-/// The wikilinks of one language and the targets they may reach.
-struct Check<'a> {
-    links: &'a Wikilinks,
-    locale: &'a Locale,
-}
-
-impl Check<'_> {
-    /// Checks every document of `docs` written in this language.
-    fn all<F>(&self, docs: &[Document<F>]) -> Result<(), ContentError> {
-        for doc in docs.iter().filter(|doc| &doc.locale == self.locale) {
-            let arena = Arena::new();
-            let root = parse_document(&arena, &doc.body, &options());
-            for node in root.descendants() {
-                let data = node.data.borrow();
-                let NodeValue::WikiLink(link) = &data.value else {
-                    continue;
-                };
-                if self.links.get(&link.url).is_none() {
-                    return Err(ContentError::Wikilink {
-                        path: doc.path.clone(),
-                        line: doc
-                            .body_line
-                            .saturating_add(data.sourcepos.start.line)
-                            .saturating_sub(1),
-                        target: link.url.clone(),
-                        language: self.locale.clone(),
-                    });
-                }
-            }
-        }
-        Ok(())
-    }
-}
+use crate::SiteContent;
 
 /// The pages a wikilink can reach in one language, by slug.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
