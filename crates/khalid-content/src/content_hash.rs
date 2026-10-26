@@ -25,6 +25,12 @@ impl ContentHash {
         }
         Self(hasher.finalize().into())
     }
+
+    /// The 32 bytes of the hash, for storing it compactly, such as in a
+    /// database column.
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
 }
 
 fn part(hasher: &mut Sha256, bytes: &[u8]) {
