@@ -26,6 +26,7 @@ mod serde_display;
 mod site;
 mod strings;
 mod templates;
+mod token_values;
 
 pub use author::{RenderAuthor, RenderPage};
 pub use glossary::{GlossaryGroup, GlossaryTerm, RenderGlossary, RenderSearch, SearchResult};
@@ -37,3 +38,4 @@ pub use post::{BodyHtml, Link, RenderPost};
 pub use render_error::RenderError;
 pub use renderer::Renderer;
 pub use site::{Nav, NavLink, RenderSite};
+pub use token_values::{Color, FontStack, Length, ParseTokenError};
