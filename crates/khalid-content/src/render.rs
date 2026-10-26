@@ -9,7 +9,7 @@ use comrak::nodes::{AstNode, NodeValue, Sourcepos};
 use comrak::options::Plugins;
 use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
 use comrak::{Arena, Options, format_html_with_plugins, parse_document};
-use khalid_core::{Locale, Slug, SlugMode};
+use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
 use crate::{Block, BlockError, BlockKind, CalloutKind, parse_blocks};
 
@@ -94,19 +94,12 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
     };
     let mut run: Vec<&str> = Vec::new();
     for block in &blocks {
-        if matches!(
-            block.kind,
-            BlockKind::Callout { .. }
-                | BlockKind::Figure { .. }
-                | BlockKind::Toggle { .. }
-                | BlockKind::Toc
-                | BlockKind::Button { .. }
-        ) {
+        if is_markdown(&block.kind) {
+            run.push(&block.source);
+        } else {
             renderer.markdown(&run.join("\n\n"));
             run.clear();
             renderer.directive(block);
-        } else {
-            run.push(&block.source);
         }
     }
     renderer.markdown(&run.join("\n\n"));
@@ -127,6 +120,23 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
         images: renderer.facts.images,
         words: renderer.facts.words,
     })
+}
+
+/// Whether `kind` is standard markdown, which renders in runs, rather than a
+/// directive, which renders on its own.
+fn is_markdown(kind: &BlockKind) -> bool {
+    matches!(
+        kind,
+        BlockKind::Heading { .. }
+            | BlockKind::Paragraph
+            | BlockKind::Quote
+            | BlockKind::List
+            | BlockKind::Code { .. }
+            | BlockKind::Divider
+            | BlockKind::Table
+            | BlockKind::Footnote
+            | BlockKind::Html
+    )
 }
 
 /// Renders runs of markdown into one page, keeping heading ids unique across
@@ -186,8 +196,77 @@ impl Renderer {
                     text: label.clone(),
                 });
             }
+            BlockKind::Bookmark {
+                href,
+                title,
+                description,
+                image,
+            } => self.bookmark(
+                href,
+                title.as_deref(),
+                description.as_deref(),
+                image.as_ref(),
+            ),
             _ => {}
         }
+    }
+
+    /// Writes a bookmark: a plain link, or a card when the publish step has
+    /// filled in the page's title.
+    fn bookmark(
+        &mut self,
+        href: &AbsoluteUrl,
+        title: Option<&str>,
+        description: Option<&str>,
+        image: Option<&AbsoluteUrl>,
+    ) {
+        let text = title.unwrap_or(href.as_str());
+        self.link_out(href, text);
+        self.push(&[
+            "<p class=\"bookmark\"><a href=\"",
+            &attribute(href.as_str()),
+            "\">",
+        ]);
+        if let Some(image) = image {
+            self.push(&[
+                "<img src=\"",
+                &attribute(image.as_str()),
+                "\" alt=\"\" width=\"160\" height=\"90\" loading=\"lazy\" decoding=\"async\" />",
+            ]);
+        }
+        if title.is_some() {
+            self.push(&[
+                "<span class=\"bookmark-title\">",
+                &attribute(text),
+                "</span>",
+            ]);
+        } else {
+            self.html.push_str(&attribute(text));
+        }
+        if let Some(description) = description {
+            self.push(&[
+                "<span class=\"bookmark-description\">",
+                &attribute(description),
+                "</span>",
+            ]);
+        }
+        if title.is_some() {
+            self.push(&[
+                "<span class=\"bookmark-host\">",
+                &attribute(href.host()),
+                "</span>",
+            ]);
+        }
+        self.html.push_str("</a></p>\n");
+    }
+
+    /// Records a link to another site.
+    fn link_out(&mut self, href: &AbsoluteUrl, text: &str) {
+        self.facts.links.push(Link {
+            href: href.as_str().to_owned(),
+            text: text.to_owned(),
+            internal: false,
+        });
     }
 
     /// Appends `parts` to the HTML in order.

@@ -2,6 +2,7 @@
 
 use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
+use khalid_core::{AbsoluteUrl, ParseUrlError};
 
 use crate::directive::{Form, directive, opening, unknown_hint};
 
@@ -73,6 +74,19 @@ pub enum BlockKind {
         /// The words on the button.
         label: String,
     },
+    /// `::bookmark{href="..."}`: a link to another site's page, drawn as a
+    /// card when the publish step has filled in its title, description and
+    /// image. Rendering never fetches the page.
+    Bookmark {
+        /// The page it links to.
+        href: AbsoluteUrl,
+        /// The page's title.
+        title: Option<String>,
+        /// One line about the page.
+        description: Option<String>,
+        /// The page's preview image.
+        image: Option<AbsoluteUrl>,
+    },
 }
 
 /// The kinds of callout.
@@ -115,7 +129,10 @@ pub enum BlockError {
         problem: &'static str,
     },
     /// An attribute the block does not take.
-    #[error("line {line}: a {block} does not take {attribute}; it takes {takes}")]
+    #[error(
+        "line {line}: {} does not take {attribute}; it takes {takes}",
+        a(block)
+    )]
     UnknownAttribute {
         /// The line of the opening `:::`.
         line: usize,
@@ -153,6 +170,19 @@ pub enum BlockError {
         /// The link as written.
         href: String,
     },
+    /// An attribute that must be a full web address is not one.
+    #[error("line {line}: {}'s {attribute} is wrong: {source}", a(block))]
+    Address {
+        /// The line of the block.
+        line: usize,
+        /// The block's name.
+        block: &'static str,
+        /// The attribute that holds the address.
+        attribute: &'static str,
+        /// Why the address cannot be used.
+        #[source]
+        source: ParseUrlError,
+    },
     /// An opening `:::` with no closing `:::`.
     #[error("line {line}: the {name} block opened here is never closed with a ::: line")]
     Unclosed {
@@ -175,6 +205,7 @@ impl BlockError {
             | Self::CalloutKind { line, .. }
             | Self::Form { line, .. }
             | Self::Link { line, .. }
+            | Self::Address { line, .. }
             | Self::Unclosed { line, .. } => *line,
         }
     }
@@ -187,6 +218,16 @@ impl BlockError {
         text.strip_prefix(&prefix)
             .map_or_else(|| text.clone(), str::to_owned)
     }
+}
+
+/// `block` with "a" or "an" before it.
+fn a(block: &str) -> String {
+    let article = if block.starts_with(['a', 'e', 'i', 'o', 'u']) {
+        "an"
+    } else {
+        "a"
+    };
+    format!("{article} {block}")
 }
 
 /// Splits a markdown `body` into its top-level blocks, in order.

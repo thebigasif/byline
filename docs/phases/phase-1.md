@@ -57,7 +57,7 @@
 
 ### 1.7 The remaining blocks
 
-- Status: `doing`. 1.7a1 (#175): the one-line leaf form (ADR 0016), toggle, table of contents and button. Checks (this landing): `khalid --site` reads every block in every body and refuses a broken one with the file and line, with a `fixtures/invalid/block-*` folder per refusal. 1.7a2: bookmark and embed with the provider allowlist. 1.7b media, 1.7c faq, how-to and review, 1.7d recipe, product, business card and header, 1.7e html, form, newsletter and gated content.
+- Status: `doing`. 1.7a1 (#175): the one-line leaf form (ADR 0016), toggle, table of contents and button. Checks (this landing): `khalid --site` reads every block in every body and refuses a broken one with the file and line, with a `fixtures/invalid/block-*` folder per refusal (#178). 1.7a2 (this landing): bookmark, drawn as a card when publish fills its title. 1.7a3: embed, a player for the six allowed providers or a plain link. 1.7b media, 1.7c faq, how-to and review, 1.7d recipe, product, business card and header, 1.7e html, form, newsletter and gated content.
 - The rest of plan section 4.6's block list, in parts of about five blocks each: gallery, video, audio, file download, bookmark card, product card, toggle, button, header, embed, HTML with visibility rules, FAQ, how-to, review, recipe, business card, form, newsletter signup, gated content, table of contents. Blocks that need a server feature (form, newsletter, gated content) render their plain HTML form and lock card for now.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
 - Done when: every block in section 4.6 has a directive, a round-trip test and a snapshot.
