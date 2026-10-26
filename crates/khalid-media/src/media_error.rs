@@ -54,6 +54,13 @@ pub enum MediaError {
         /// The encoder's error code, such as `VP8_ENC_ERROR_OUT_OF_MEMORY`.
         code: String,
     },
+    /// The blocking thread that makes images stopped before it finished.
+    #[error("the image worker stopped before it finished")]
+    Worker {
+        /// What the runtime reported.
+        #[source]
+        source: tokio::task::JoinError,
+    },
     /// A derived file could not be written.
     #[error("could not write {}", path.display())]
     Write {

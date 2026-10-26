@@ -12,12 +12,14 @@
 //! render crate shows what this crate made; the wiring code connects them.
 
 mod content_key;
+mod derive;
 mod media_cache;
 mod media_error;
 mod original;
 mod variant;
 
 pub use content_key::ContentKey;
+pub use derive::{DerivedFile, DerivedImage, derive, derive_in_background};
 pub use media_cache::MediaCache;
 pub use media_error::MediaError;
 pub use original::Original;
