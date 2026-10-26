@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use khalid_content::EMBED_PROVIDERS;
 use khalid_core::Config;
-use khalid_server::{LivePages, Pages, SecurityHeaders, router, watch};
+use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
 use tokio::net::TcpListener;
 
@@ -32,6 +32,9 @@ struct ServeBody<'a> {
 
 /// Serves the `site` folder, whose `config` was checked, on `listen`.
 pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Output) -> Exit {
+    // Looked at before the first render, so a file saved from here on is
+    // always seen as an edit.
+    let look = FolderLook::take(site);
     let started = SitePages::new(site, config.clone()).and_then(|source| {
         let (pages, not_found) = source.render_all()?;
         // Brotli copies are added once the server listens, so the first
@@ -70,7 +73,7 @@ pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Outp
                 );
             }
         });
-        let watching = watch(site, &source, &live, WATCH_EVERY);
+        let watching = watch(site, &source, &live, look, WATCH_EVERY);
         let stopped = khalid_server::serve(listener, router(live, security), stop(), GRACE).await;
         watching.stop().await;
         stopped.map_err(|_| (serve_message::stopped(), Exit::Failure))

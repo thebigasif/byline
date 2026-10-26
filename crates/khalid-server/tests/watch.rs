@@ -7,7 +7,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use khalid_server::{LivePages, MediaType, Page, PagePath, Render, Rendered, render_pages, watch};
+use khalid_server::{
+    FolderLook, LivePages, MediaType, Page, PagePath, Render, Rendered, render_pages, watch,
+};
 
 /// How often the tests look at the folder.
 const EVERY: Duration = Duration::from_millis(50);
@@ -53,7 +55,7 @@ fn under(folder: &Path, relative: &str) -> PathBuf {
 
 /// A site folder with one post, its renderer, and the pages it serves.
 #[cfg(test)]
-async fn site() -> (tempfile::TempDir, Arc<Posts>, LivePages) {
+async fn site() -> (tempfile::TempDir, Arc<Posts>, LivePages, FolderLook) {
     let folder = tempfile::tempdir().unwrap();
     fs::create_dir_all(under(folder.path(), "content/en/posts")).unwrap();
     fs::create_dir_all(under(folder.path(), "data")).unwrap();
@@ -63,8 +65,9 @@ async fn site() -> (tempfile::TempDir, Arc<Posts>, LivePages) {
         site: folder.path().to_owned(),
         renders: AtomicUsize::new(0),
     });
+    let look = FolderLook::take(folder.path());
     let live = LivePages::new(render_pages(&renderer, None).await.unwrap());
-    (folder, renderer, live)
+    (folder, renderer, live, look)
 }
 
 /// Waits until the post reads `want`, or fails after [`PATIENCE`].
@@ -85,8 +88,8 @@ async fn wait_for(live: &LivePages, path: &str, want: Option<&str>) {
 
 #[tokio::test]
 async fn a_saved_post_shows_without_a_restart() {
-    let (folder, renderer, live) = site().await;
-    let watching = watch(folder.path(), &renderer, &live, EVERY);
+    let (folder, renderer, live, look) = site().await;
+    let watching = watch(folder.path(), &renderer, &live, look, EVERY);
     let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
     tokio::time::sleep(EVERY * 3).await;
 
@@ -113,9 +116,24 @@ async fn a_saved_post_shows_without_a_restart() {
 }
 
 #[tokio::test]
+async fn a_post_saved_before_the_watch_first_looks_still_shows() {
+    let (folder, renderer, live, look) = site().await;
+    let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
+    fs::write(&post, "<h1>Saved while the server started</h1>").unwrap();
+    let watching = watch(folder.path(), &renderer, &live, look, EVERY);
+    wait_for(
+        &live,
+        "/blog/what-a-sitemap-does/",
+        Some("<h1>Saved while the server started</h1>"),
+    )
+    .await;
+    watching.stop().await;
+}
+
+#[tokio::test]
 async fn files_khalid_writes_itself_cause_no_rebuild() {
-    let (folder, renderer, live) = site().await;
-    let watching = watch(folder.path(), &renderer, &live, EVERY);
+    let (folder, renderer, live, look) = site().await;
+    let watching = watch(folder.path(), &renderer, &live, look, EVERY);
     tokio::time::sleep(EVERY * 3).await;
     let before = renderer.renders.load(Ordering::SeqCst);
 
@@ -134,8 +152,8 @@ async fn files_khalid_writes_itself_cause_no_rebuild() {
 
 #[tokio::test]
 async fn a_broken_save_keeps_watching() {
-    let (folder, renderer, live) = site().await;
-    let watching = watch(folder.path(), &renderer, &live, EVERY);
+    let (folder, renderer, live, look) = site().await;
+    let watching = watch(folder.path(), &renderer, &live, look, EVERY);
     let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
     let address = "/blog/what-a-sitemap-does/";
     tokio::time::sleep(EVERY * 3).await;
