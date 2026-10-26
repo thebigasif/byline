@@ -166,3 +166,22 @@ fn a_threshold_in_lint_toml_reaches_its_rule() {
     assert!(!repeated(""), "two links are under the default of three");
     assert!(repeated("[thresholds]\nsame-link-text-max = 1\n"));
 }
+
+#[test]
+fn site_rules_run_on_the_whole_site_but_never_before_publishing() {
+    let site = undated_site();
+    let linter = Linter::new(&LintConfig::default()).unwrap();
+    let orphan = |report: &Report| {
+        let mut rules = report.findings().iter().map(Finding::rule);
+        rules.any(|rule| rule == RuleId::new("orphan-post"))
+    };
+    assert!(!orphan(&linter.lint_post(&site.posts[0], &site)));
+    assert!(orphan(&linter.site_health(&site)));
+    assert!(orphan(&linter.lint_site(&site)));
+    let quiet = LintConfig::parse("[rules]\norphan-post = \"off\"\n").unwrap();
+    let linter = Linter::new(&quiet).unwrap();
+    assert!(
+        !orphan(&linter.site_health(&site)),
+        "lint.toml turns it off"
+    );
+}

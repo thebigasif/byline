@@ -1,6 +1,8 @@
 //! The list of rules this crate ships.
 
-use crate::{Rule, Thresholds, address, blocking, link_text, snippet, structure, words};
+use crate::{
+    Rule, SiteRule, Thresholds, address, blocking, link_text, site_links, snippet, structure, words,
+};
 
 /// Every built-in rule, measured against `thresholds`, in the order their
 /// findings are listed: the blocks first, then the warnings.
@@ -43,4 +45,9 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(address::SlugStopwords),
         Box::new(address::SlugDate),
     ]
+}
+
+/// Every built-in site rule, in the order their findings are listed.
+pub(crate) fn site_rules() -> Vec<Box<dyn SiteRule>> {
+    vec![Box::new(site_links::OrphanPost)]
 }

@@ -77,3 +77,20 @@ pub trait Rule: fmt::Debug + Send + Sync {
     /// through `site`. An empty list means the post passes.
     fn check(&self, post: &LintPost, site: &dyn SiteView) -> Vec<Hit>;
 }
+
+/// A check the linter runs once over the whole site, after posts are
+/// published, such as finding posts nothing links to.
+///
+/// It looks at every post in one pass, so work such as building the link
+/// graph happens once per run instead of once per post. Its findings are
+/// shown on the dashboard and never block publishing on their own.
+pub trait SiteRule: fmt::Debug + Send + Sync {
+    /// The rule's stable name.
+    fn id(&self) -> RuleId;
+
+    /// The severity when `lint.toml` does not set one.
+    fn default_severity(&self) -> Severity;
+
+    /// The problems this rule finds, each with the post it is about.
+    fn check<'site>(&self, site: &'site dyn SiteView) -> Vec<(&'site LintPost, Hit)>;
+}

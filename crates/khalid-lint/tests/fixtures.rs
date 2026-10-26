@@ -6,6 +6,10 @@
 //! optional `site.toml` holds the rest of the site. Every rule in the
 //! catalogue must have at least one fixture.
 //!
+//! Site rules have theirs under `fixtures/site/<rule>/`: a `site.toml` and an
+//! `expected.txt` with every site finding, each line starting with the
+//! post's `locale/slug: `.
+//!
 //! A `post.toml` with `extends = "clean"` starts from `fixtures/clean/` and
 //! writes only what differs: its keys replace the clean post's, and the keys
 //! listed in `unset` are removed.
@@ -74,30 +78,57 @@ fn run(folder: &Path, linter: &Linter) -> (Vec<String>, Vec<String>) {
         .iter()
         .map(line)
         .collect();
-    let want = read("expected.txt")
-        .unwrap()
-        .lines()
-        .filter(|line| !line.is_empty())
+    (got, expected(folder))
+}
+
+/// A site fixture: the site rules over `site.toml`, each line starting with
+/// the post's `locale/slug`.
+#[cfg(test)]
+fn run_site(folder: &Path, linter: &Linter) -> (Vec<String>, Vec<String>) {
+    let site: LintSite = toml::from_str(&fixture_file(folder, "site.toml").unwrap())
+        .unwrap_or_else(|error| panic!("{}: {error}", folder.display()));
+    let report = linter.site_health(&site);
+    let got = report.findings().iter().map(|finding| {
+        let at = finding.location();
+        format!("{}/{}: {}", at.locale, at.slug, line(finding))
+    });
+    (got.collect(), expected(folder))
+}
+
+#[cfg(test)]
+fn expected(folder: &Path) -> Vec<String> {
+    let text = fixture_file(folder, "expected.txt").unwrap();
+    text.lines()
+        .filter(|l| !l.is_empty())
         .map(str::to_owned)
-        .collect();
-    (got, want)
+        .collect()
+}
+
+/// The fixture folders directly under `root`, sorted.
+#[cfg(test)]
+fn folders(root: &str) -> Vec<std::path::PathBuf> {
+    let entries = fs::read_dir(root)
+        .unwrap()
+        .map(|entry| entry.unwrap().path());
+    let mut folders: Vec<_> = entries.filter(|path| !path.ends_with("site")).collect();
+    folders.sort();
+    folders
 }
 
 #[test]
 fn every_fixture_produces_exactly_its_expected_findings() {
     let linter = Linter::new(&LintConfig::default()).unwrap();
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures");
+    let site_root = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/site");
+    let posts = folders(root).into_iter().map(|f| (run(&f, &linter), f));
+    let sites = folders(site_root)
+        .into_iter()
+        .map(|f| (run_site(&f, &linter), f));
     let mut covered = BTreeSet::new();
-    let mut folders: Vec<_> = fs::read_dir(root)
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .collect();
-    folders.sort();
-    for folder in &folders {
-        let (got, want) = run(folder, &linter);
+    for ((got, want), folder) in posts.chain(sites) {
         assert_eq!(got, want, "fixture {}", folder.display());
         let name = folder.file_name().unwrap().to_string_lossy().into_owned();
-        covered.insert(name.split('.').next().unwrap_or_default().to_owned());
+        covered.insert(name);
     }
     let catalogue = Catalogue::builtin().unwrap();
     for (rule, _) in &catalogue {

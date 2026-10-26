@@ -147,3 +147,9 @@ what = "This `[[link]]` matches no post, page or glossary term in this language.
 why = "Readers who follow it land on a page that does not exist."
 fix = "Change it to the address of an existing page, or remove the brackets."
 guide = "wikilinks"
+
+[orphan-post]
+what = "No other post on your site links to this post."
+why = "Readers and Google find posts by following links, so this one is hard to find."
+fix = "Add a link to this post from one or two related posts."
+guide = "internal-links"

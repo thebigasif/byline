@@ -19,6 +19,10 @@ pub struct LintPost {
     pub locale: Locale,
     /// The last part of the post's address.
     pub slug: Slug,
+    /// The post's path on the site, such as `/blog/why-links-matter/`, when
+    /// the caller knows it. Links then find the post by path; without it,
+    /// by the last part of the link matching the slug.
+    pub path: Option<String>,
     /// The title from the header, which becomes the page's main headline.
     pub title: Option<String>,
     /// The description from the header, which search results show under the
@@ -54,6 +58,7 @@ impl LintPost {
         Self {
             locale,
             slug,
+            path: None,
             title: None,
             description: None,
             date: None,

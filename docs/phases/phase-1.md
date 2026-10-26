@@ -209,7 +209,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.5 The site rules
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): the `SiteRule` trait, which checks the whole site in one pass; `Linter::site_health` for the dashboard; the link graph; orphan post. A post may carry its `path`, so links find it by path. The publish check, `lint_post`, never runs site rules, because a new post has no inbound links yet. Part 2: one inbound link, too deep, stale post, missing translation. Part 3: near-duplicates, glossary term not linked, cluster without its pillar, and the three suggested posts for "no internal link".
 - Orphan post, one inbound link, missing translation, near-duplicate posts by shingles, glossary term not linked, stale post, cluster without its pillar, too deep.
 - Rules: BL-TST-4, BL-RUN-1, BL-TST-2. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings, and the stale rule reads time through `Clock`.

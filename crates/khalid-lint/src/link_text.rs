@@ -2,6 +2,7 @@
 
 use std::collections::BTreeSet;
 
+use crate::link_graph::page_key;
 use crate::{Hit, LinkKind, LintLink, LintPost, Rule, RuleId, Severity, SiteView, german};
 
 /// Link words that say nothing about the page they open, by language.
@@ -33,11 +34,9 @@ fn words(link: &LintLink) -> String {
     joined.trim_end_matches(['.', ':', '!', '…']).to_owned()
 }
 
-/// A link target without its `#section` and trailing slash, so two links to
-/// the same page compare equal.
+/// The page a link opens, so two links to the same page compare equal.
 fn page(link: &LintLink) -> &str {
-    let without_section = link.target.split('#').next().unwrap_or_default();
-    without_section.trim_end_matches('/')
+    page_key(&link.target)
 }
 
 /// Every internal link on the site, in post order.
