@@ -1,4 +1,4 @@
-//! One-line cards that describe something with many attributes.
+//! Cards: blocks drawn as a box from their attributes.
 
 use super::Attributes;
 use crate::{BlockError, BlockKind, BusinessBlock};
@@ -61,3 +61,20 @@ pub(super) fn business(attributes: &Attributes) -> Result<BlockKind, BlockError>
 const BUSINESS_ATTRIBUTES: [&str; 9] = [
     "name", "type", "street", "locality", "postcode", "country", "phone", "email", "href",
 ];
+
+/// Reads a header: an optional picture, which then needs alt text.
+pub(super) fn header(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only("header", &["image", "alt"], "image and alt")?;
+    let image = attributes
+        .get("image")
+        .map(|image| attributes.media("header", "image", image))
+        .transpose()?;
+    let alt = attributes.get("alt");
+    if image.is_some() && alt.is_none() {
+        return Err(BlockError::Missing {
+            line: attributes.line,
+            problem: "a header's picture needs alt, the text that describes it to people who cannot see it",
+        });
+    }
+    Ok(BlockKind::Header { image, alt })
+}

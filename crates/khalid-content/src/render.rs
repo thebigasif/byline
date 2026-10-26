@@ -227,6 +227,9 @@ impl Renderer {
             BlockKind::Recipe(recipe) => self.recipe(recipe),
             BlockKind::Product(product) => self.product(product),
             BlockKind::Business(card) => self.business(card),
+            BlockKind::Header { image, alt } => {
+                self.header(block, image.as_deref(), alt.as_deref());
+            }
             _ => {}
         }
     }

@@ -138,6 +138,14 @@ pub enum BlockKind {
     /// `::business{name="..." ...}`: a business's name, address and how to
     /// reach it.
     Business(BusinessBlock),
+    /// `:::header{image="..." alt="..."}`: a banner with an optional
+    /// picture, its words as the body.
+    Header {
+        /// The picture: a path on this site or a full address.
+        image: Option<String>,
+        /// The text that describes the picture, always with `image`.
+        alt: Option<String>,
+    },
     /// `:::gallery` with one `![alt](src)` image per line: a grid of
     /// pictures.
     Gallery {

@@ -1,6 +1,7 @@
-//! The HTML of the business card, and its structured data.
+//! The HTML of the business card and header blocks.
 
-use super::{Link, Renderer, attribute};
+use super::{Image, Link, Renderer, attribute, inside};
+use crate::Block;
 use crate::{BusinessBlock, StructuredBlock};
 
 impl Renderer {
@@ -35,6 +36,26 @@ impl Renderer {
         self.facts
             .structured
             .push(StructuredBlock::Business(card.clone()));
+    }
+
+    /// Writes a header: the picture first, then the words, in a `<header>`.
+    pub(super) fn header(&mut self, block: &Block, image: Option<&str>, alt: Option<&str>) {
+        self.html.push_str("<header class=\"banner\">\n");
+        if let (Some(image), Some(alt)) = (image, alt) {
+            self.push(&[
+                "<img src=\"",
+                &attribute(image),
+                "\" alt=\"",
+                &attribute(alt),
+                "\" decoding=\"async\" />\n",
+            ]);
+            self.facts.images.push(Image {
+                src: image.to_owned(),
+                alt: Some(alt.to_owned()),
+            });
+        }
+        self.markdown(&inside(&block.source));
+        self.html.push_str("</header>\n");
     }
 }
 
