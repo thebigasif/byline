@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{self, Path, PathBuf};
 
 use khalid_content::SiteContent;
-use khalid_core::{Config, UserMessage};
+use khalid_core::{Clock, Config, UserMessage};
 use khalid_render::Renderer;
 use serde::Serialize;
 
@@ -25,19 +25,20 @@ struct BuildBody {
 }
 
 /// Renders the `site` folder, whose `config` and `content` were checked, into
-/// `out`, or `public/` in the site.
+/// `out`, or `public/` in the site. `clock` dates a feed with no posts.
 pub(crate) fn run(
     site: &Path,
     config: &Config,
     content: &SiteContent,
     out: Option<&Path>,
+    clock: &dyn Clock,
     output: Output,
 ) -> Exit {
     let out = out.map_or_else(|| within(site, PUBLIC), Path::to_path_buf);
     if inside(&out, &within(site, "content")) {
         return report::failure(output, &build_message::into_content(&out), Exit::Failure);
     }
-    match build(site, config, content, &out) {
+    match build(site, config, content, &out, clock) {
         Ok(written) => success(output, &out, written),
         Err(message) => report::failure(output, &message, Exit::Failure),
     }
@@ -50,6 +51,7 @@ fn build(
     config: &Config,
     content: &SiteContent,
     out: &Path,
+    clock: &dyn Clock,
 ) -> Result<usize, UserMessage> {
     let renderer = Renderer::with_theme(site).map_err(|error| build_message::render(&error))?;
     let mut languages = build_pages::pages(config, content)?;
@@ -65,7 +67,7 @@ fn build(
             written += 1;
         }
     }
-    for file in build_files::files(&seo_site, &seo_pages)? {
+    for file in build_files::files(&seo_site, &seo_pages, clock.now())? {
         write(out, &file.file, &file.text)?;
     }
     Ok(written)

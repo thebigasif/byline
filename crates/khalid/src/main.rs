@@ -93,9 +93,14 @@ fn run(cli: &Cli) -> Exit {
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, content))) => {
-            build::run(folder, config, content, out.as_deref(), cli.output)
-        }
+        (Some(Command::Build { out }), Some((folder, config, content))) => build::run(
+            folder,
+            config,
+            content,
+            out.as_deref(),
+            &SystemClock,
+            cli.output,
+        ),
         (
             Some(
                 command @ (Command::Db { .. }
