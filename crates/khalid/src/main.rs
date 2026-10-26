@@ -17,6 +17,14 @@ mod init_message;
 mod lint;
 mod lint_input;
 mod lint_message;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "`khalid lint --fix` calls it in the next part of task 2.6"
+    )
+)]
+mod repair;
 mod report;
 mod routes_message;
 
