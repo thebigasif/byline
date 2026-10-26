@@ -50,6 +50,8 @@ pub struct SeoSite {
     pub publisher: Publisher,
     /// Whether the site has a search page.
     pub search: SiteSearch,
+    /// Where the glossary's A to Z page lives. `/glossary/` by default.
+    pub glossary: UrlPath,
 }
 
 impl SeoSite {
@@ -75,6 +77,7 @@ impl SeoSite {
             links: LinkPolicy::default(),
             publisher: Publisher::new(PublisherKind::Organization, name),
             search: SiteSearch::Off,
+            glossary: UrlPath::try_new("/glossary/").unwrap_or_else(|_| UrlPath::root()),
         }
     }
 

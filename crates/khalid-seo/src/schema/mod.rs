@@ -3,6 +3,7 @@
 mod article;
 mod author;
 mod breadcrumbs;
+mod glossary;
 mod page_graph;
 mod publisher;
 mod schema_graph;
