@@ -1,6 +1,6 @@
-# Schema blocks are typed where an editor block exists
+# 0021. Schema blocks are typed where an editor block exists
 
-**Number:** next free. Renamed from 0015, which the theme track took on `main` first.
+Renamed from 0015, which the theme track took on `main` first.
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.14.
 

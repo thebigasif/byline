@@ -1,6 +1,4 @@
-# The CSP nonce lives in the header, and cached pages stay the same bytes
-
-**Number:** next free.
+# 0023. The CSP nonce lives in the header, and cached pages stay the same bytes
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.15.
 
