@@ -6,7 +6,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use khalid_content::{ContentTree, read_content};
+use khalid_content::{ContentTree, check_bodies, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_render::{PageBody, Renderer};
 use khalid_routes::Routes;
@@ -43,8 +43,10 @@ impl SitePages {
     }
 
     /// Every page of the site at its address, and the not-found page of the
-    /// default language. Reads files and renders, so it runs off the async
-    /// runtime (RULES.md BL-RUN-7).
+    /// default language. Checks every body again, as `khalid --site` does at
+    /// start, so a saved edit with a broken wikilink is refused with its file
+    /// and line, and the pages already served stay. Reads files and renders,
+    /// so it runs off the async runtime (RULES.md BL-RUN-7).
     pub(crate) fn render_all(&self) -> Result<(Vec<Page>, String), UserMessage> {
         let Site {
             folder,
@@ -54,6 +56,7 @@ impl SitePages {
         } = &*self.0;
         let content = ContentTree::walk(folder)
             .and_then(|tree| read_content(&tree))
+            .and_then(|content| check_bodies(&content, config, routes).map(|()| content))
             .map_err(|error| content_message::of(folder, &error))?;
         let languages = build_pages::pages(config, routes, &content)?;
         let mut pages = Vec::new();
@@ -98,3 +101,46 @@ impl fmt::Display for Unrendered {
 }
 
 impl Error for Unrendered {}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use khalid_core::{Config, Environment};
+    use khalid_routes::Routes;
+
+    use super::SitePages;
+
+    fn fixture(name: &str) -> PathBuf {
+        let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
+        path.push("../../fixtures");
+        path.push(name);
+        path
+    }
+
+    fn pages(site: &Path) -> SitePages {
+        let config = Config::load(site, &Environment::empty()).unwrap();
+        SitePages::new(site, config, Routes::load(site).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn a_saved_broken_wikilink_stops_the_render_and_names_its_file_and_line() {
+        let site = fixture("invalid/content-broken-wikilink");
+        let message = pages(&site).render_all().unwrap_err();
+        let what = message.what();
+        assert!(
+            what.ends_with("why-links-matter.md, line 10: [[link-equity]] matches no post, page or glossary term in en."),
+            "{what}"
+        );
+    }
+
+    #[test]
+    fn served_pages_link_each_wikilink() {
+        let (pages, _) = pages(&fixture("demo-site")).render_all().unwrap();
+        let link = "<a href=\"/blog/glossary/topical-authority/\">Topical authority</a>";
+        let linking = pages
+            .iter()
+            .filter(|page| String::from_utf8_lossy(page.body()).contains(link));
+        assert_eq!(linking.count(), 2);
+    }
+}

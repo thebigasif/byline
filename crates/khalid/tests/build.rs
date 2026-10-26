@@ -113,6 +113,56 @@ fn build_writes_a_page_for_each_glossary_term_where_its_route_puts_it() {
 }
 
 #[test]
+fn build_turns_each_wikilink_of_the_demo_site_into_a_link_to_its_page() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+
+    let post = page(out.path(), "why-internal-links-matter/index.html");
+    let link = "<a href=\"/blog/glossary/topical-authority/\">Topical authority</a>";
+    assert!(post.contains(link), "{post}");
+    let german = page(out.path(), "de/warum-interne-links-wichtig-sind/index.html");
+    let link = "<a href=\"/blog/de/glossary/thematische-autoritaet/\">";
+    assert!(german.contains(link), "{german}");
+    let term = page(out.path(), "glossary/topical-authority/index.html");
+    assert!(
+        term.contains("<a href=\"/blog/planning-a-topic-cluster/\">"),
+        "{term}"
+    );
+}
+
+#[test]
+fn build_draws_the_maths_of_a_post_as_mathml() {
+    let temp = tempfile::tempdir().unwrap();
+    let site = path(temp.path());
+    khalid(&["init", site, "--address", "https://www.example.com"]);
+    let post = "---\ntitle: Compound growth\nslug: compound-growth\ndate: 2026-09-14\n---\n\n\
+                Traffic grows as $v(1+r)^n$ each month.\n";
+    fs::write(at(temp.path(), "content/en/posts/compound-growth.md"), post).unwrap();
+
+    let output = khalid(&["--site", site, "build"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let page = page(&at(temp.path(), "public"), "compound-growth/index.html");
+    assert!(page.contains("<math"), "{page}");
+    assert!(!page.contains("$v(1+r)^n$"), "{page}");
+}
+
+#[test]
+fn build_stops_at_a_broken_wikilink_and_names_its_file_and_line() {
+    let out = tempfile::tempdir().unwrap();
+    let site = at(&demo_site(), "../invalid/content-broken-wikilink");
+    let output = khalid(&["--site", path(&site), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(1), "{}", text(&output.stdout));
+    let said = text(&output.stderr);
+    assert!(
+        said.contains("why-links-matter.md, line 10: [[link-equity]] matches no post"),
+        "{said}"
+    );
+    assert!(!at(out.path(), "index.html").exists());
+}
+
+#[test]
 fn build_writes_each_post_where_routes_toml_puts_it() {
     let temp = tempfile::tempdir().unwrap();
     let site = path(temp.path());
