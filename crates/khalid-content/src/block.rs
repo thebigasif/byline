@@ -3,6 +3,8 @@
 use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 
+use crate::directive::{BLOCKS, directive, opening};
+
 /// One top-level block of a body, with its markdown exactly as written.
 ///
 /// The editor works block by block, and every block is stored as markdown, so
@@ -74,7 +76,7 @@ pub enum CalloutKind {
 #[non_exhaustive]
 pub enum BlockError {
     /// A directive name Khalid does not know.
-    #[error("line {line}: there is no block called {name}; the blocks are callout and figure")]
+    #[error("line {line}: there is no block called {name}; the blocks are {}", BLOCKS.join(" and "))]
     UnknownBlock {
         /// The line of the opening `:::`.
         line: usize,
@@ -199,106 +201,6 @@ pub fn print_blocks(blocks: &[Block]) -> String {
         .join("\n\n");
     text.push('\n');
     text
-}
-
-/// A `:::name{...}` opening line: its run of colons and what follows them.
-fn opening(line: &str) -> Option<(&str, &str)> {
-    let colons = line.len() - line.trim_start_matches(':').len();
-    let (fence, rest) = line.split_at_checked(colons)?;
-    (colons >= 3 && rest.starts_with(|c: char| c.is_ascii_alphabetic()))
-        .then_some((fence, rest.trim_end()))
-}
-
-/// Reads a directive's name and attributes into its kind.
-fn directive(line: usize, rest: &str) -> Result<BlockKind, BlockError> {
-    let (name, braces) = rest
-        .split_once('{')
-        .map_or((rest, ""), |(name, braces)| (name, braces));
-    let attributes = match braces.strip_suffix('}') {
-        Some(inside) => attributes(inside).ok_or(BlockError::Attributes { line })?,
-        None if braces.is_empty() => Vec::new(),
-        None => return Err(BlockError::Attributes { line }),
-    };
-    let take = |block: &'static str, allowed: &[&str], takes: &'static str| match attributes
-        .iter()
-        .find(|(key, _)| !allowed.contains(&key.as_str()))
-    {
-        Some((key, _)) => Err(BlockError::UnknownAttribute {
-            line,
-            block,
-            attribute: key.clone(),
-            takes,
-        }),
-        None => Ok(()),
-    };
-    let value = |key: &str| {
-        attributes
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| v.clone())
-    };
-    match name.trim() {
-        "callout" => {
-            take("callout", &["kind"], "kind")?;
-            let kind = match value("kind").as_deref() {
-                Some("note") | None => CalloutKind::Note,
-                Some("tip") => CalloutKind::Tip,
-                Some("warning") => CalloutKind::Warning,
-                Some(other) => {
-                    return Err(BlockError::CalloutKind {
-                        line,
-                        kind: other.to_owned(),
-                    });
-                }
-            };
-            Ok(BlockKind::Callout { kind })
-        }
-        "figure" => {
-            take("figure", &["src", "alt"], "src and alt")?;
-            let src = value("src").ok_or(BlockError::Missing {
-                line,
-                problem: "a figure needs src, the address of the image",
-            })?;
-            let alt = value("alt").ok_or(BlockError::Missing {
-                line,
-                problem: "a figure needs alt, the text that describes the image to people who cannot see it",
-            })?;
-            Ok(BlockKind::Figure { src, alt })
-        }
-        other => Err(BlockError::UnknownBlock {
-            line,
-            name: other.to_owned(),
-        }),
-    }
-}
-
-/// Reads `name=value name="a value"` pairs, or `None` when they cannot be read.
-fn attributes(text: &str) -> Option<Vec<(String, String)>> {
-    let mut found = Vec::new();
-    let mut rest = text.trim();
-    while !rest.is_empty() {
-        let (key, after) = rest.split_once('=')?;
-        let key = key.trim();
-        if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
-            return None;
-        }
-        let (value, after) = match after.strip_prefix('"') {
-            Some(quoted) => {
-                let (value, after) = quoted.split_once('"')?;
-                if !(after.is_empty() || after.starts_with(' ')) {
-                    return None;
-                }
-                (value, after)
-            }
-            None => after.split_once(' ').unwrap_or((after, "")),
-        };
-        if value.contains(['"', '{', '}']) {
-            return None;
-        }
-        found.push((key.to_owned(), value.to_owned()));
-        rest = after.trim_start();
-    }
-    Some(found)
 }
 
 /// The standard markdown blocks in `lines`, in the order of the file.

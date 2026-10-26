@@ -9,6 +9,7 @@
 mod block;
 mod content_error;
 mod content_hash;
+mod directive;
 mod front_matter;
 mod post;
 mod render;
