@@ -3,8 +3,8 @@
 use chrono::NaiveDate;
 
 use crate::{
-    Rule, SiteRule, Thresholds, address, blocking, link_text, site_content, site_links, snippet,
-    structure, topics, words,
+    Rule, SiteRule, Thresholds, address, blocking, collections, focus, link_hygiene, link_targets,
+    link_text, reading, site_content, site_links, snippet, structure, topics, words,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -38,6 +38,19 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(link_text::SameTargetTwice),
         Box::new(link_text::EmptyLinkText),
         Box::new(structure::NoOutboundLink),
+        Box::new(link_hygiene::NofollowInternalLink),
+        Box::new(link_hygiene::InsecureInternalLink),
+        Box::new(link_hygiene::TooManyLinks {
+            max: thresholds.max_links,
+        }),
+        Box::new(link_targets::RedirectingLink),
+        Box::new(link_targets::CrossSiteLink),
+        Box::new(structure::FormWithoutDestination),
+        Box::new(reading::HardToRead {
+            max: thresholds.hard_reading_index,
+        }),
+        Box::new(focus::FocusTopicMissing),
+        Box::new(collections::OverlappingCollections),
         Box::new(address::BrokenWikilink),
         Box::new(words::KeywordStuffing {
             max_percent: thresholds.keyword_density_percent,

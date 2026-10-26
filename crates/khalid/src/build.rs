@@ -10,6 +10,7 @@ use khalid_content::SiteContent;
 use khalid_core::{Clock, Config, UserMessage};
 use khalid_lint::Linter;
 use khalid_render::{Asset, Renderer};
+use khalid_routes::Routes;
 use serde::Serialize;
 
 use crate::cli::Output;
@@ -29,12 +30,12 @@ struct BuildBody {
     pages: usize,
 }
 
-/// Renders the `site` folder, whose `config` and `content` were checked, into
-/// `out`, or `public/` in the site. `clock` dates a feed with no posts.
+/// Renders the `site` folder, whose `config`, `routes` and `content` were
+/// checked, into `out`, or `public/` in the site. `clock` dates a feed with
+/// no posts.
 pub(crate) fn run(
     site: &Path,
-    config: &Config,
-    content: &SiteContent,
+    (config, routes, content): (&Config, &Routes, &SiteContent),
     out: Option<&Path>,
     clock: &dyn Clock,
     output: Output,
@@ -54,7 +55,7 @@ pub(crate) fn run(
     if !refused.is_empty() {
         return build_gate::refuse(output, &refused);
     }
-    match build(site, config, content, &out, clock) {
+    match build(site, config, routes, content, &out, clock) {
         Ok(written) => success(output, &out, written),
         Err(message) => report::failure(output, &message, Exit::Failure),
     }
@@ -65,13 +66,14 @@ pub(crate) fn run(
 fn build(
     site: &Path,
     config: &Config,
+    routes: &Routes,
     content: &SiteContent,
     out: &Path,
     clock: &dyn Clock,
 ) -> Result<usize, UserMessage> {
     let renderer = Renderer::with_theme(site).map_err(|error| build_message::render(&error))?;
     let css = assets::site_stylesheet(site)?;
-    let mut languages = build_pages::pages(config, content, &assets::href(config, &css))?;
+    let mut languages = build_pages::pages(config, routes, content, &assets::href(config, &css))?;
     let seo_site = build_seo::site(config)?;
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
     write_asset(out, &css)?;

@@ -1,6 +1,4 @@
-# Drafts live in `drafts/` until they are published
-
-**Number:** next free.
+# 0030. Drafts live in `drafts/` until they are published
 
 **Status:** Accepted, 2026-10-26. Phase 1 tasks 1.15 and 1.18, the API wiring.
 

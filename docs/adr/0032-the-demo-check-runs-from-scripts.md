@@ -1,6 +1,4 @@
-# The demo check is one script with pinned Node tools
-
-Number: next free
+# 0032. The demo check is one script with pinned Node tools
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.22.
 

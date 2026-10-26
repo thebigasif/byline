@@ -1,6 +1,4 @@
-# The build writes its redirects as a `_redirects` file
-
-Number: next free
+# 0031. The build writes its redirects as a `_redirects` file
 
 **Status:** Accepted, 2026-10-26. Phase 1 tasks 1.13 and 1.16.
 
