@@ -13,10 +13,24 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 /// Returns the theme and the site's home address.
 #[cfg(test)]
 pub(crate) async fn sync(name: &str, stylesheet: &str) -> (SiteTheme, String) {
+    sync_edited(name, stylesheet, |css| css).await
+}
+
+/// As [`sync`], with the site's stylesheet changed by `edit` first, as
+/// when a site changes its look between two syncs.
+#[cfg(test)]
+pub(crate) async fn sync_edited(
+    name: &str,
+    stylesheet: &str,
+    edit: impl Fn(String) -> String,
+) -> (SiteTheme, String) {
     let folder = format!("{}/fixtures/sites/{name}", env!("CARGO_MANIFEST_DIR"));
     let read = |file: &str| std::fs::read_to_string(format!("{folder}/{file}")).unwrap();
     let server = MockServer::start().await;
-    for (at, body) in [("/", read("index.html")), (stylesheet, read("style.css"))] {
+    for (at, body) in [
+        ("/", read("index.html")),
+        (stylesheet, edit(read("style.css"))),
+    ] {
         Mock::given(path(at))
             .respond_with(ResponseTemplate::new(200).set_body_string(body))
             .mount(&server)
