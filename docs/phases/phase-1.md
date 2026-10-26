@@ -49,7 +49,7 @@
 
 ### 1.6 Markdown and the directive layer
 
-- Status: `todo`
+- Status: `doing`. Part (a) (this landing): `render()` with comrak, escaped raw HTML, heading ids, links, images and word count. (b) syntax colours with syntect. (c) the Block model with parse, print and the round-trip harness. (d) directives, callout and figure, ADR 0009.
 - `comrak` with footnotes, tables and task lists, plus the directive syntax every editor block uses. The round-trip harness: markdown to blocks to markdown, byte for byte. First blocks: heading, paragraph, image with required alt and caption, quote, code with syntax colours, divider, table, footnote, callout.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
 - Done when: every listed block has a directive, a round-trip test and an HTML snapshot, and raw HTML in markdown is escaped.
