@@ -9,9 +9,11 @@
 //! BL-RUN-8). The crate must not know about content, posts or the database.
 
 mod color;
+mod css;
 mod fetch;
 mod fetch_error;
 mod links;
+mod properties;
 mod split;
 
 pub use color::Rgb;
@@ -20,3 +22,4 @@ pub use fetch::{
 };
 pub use fetch_error::FetchError;
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
+pub use properties::CustomProperties;
