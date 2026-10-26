@@ -1,6 +1,4 @@
-# The server answers from rendered pages in memory
-
-**Number:** next free.
+# 0024. The server answers from rendered pages in memory
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.15.
 

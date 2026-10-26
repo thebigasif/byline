@@ -1,0 +1,1 @@
+warn redirecting-link: /blog/link-text-tips#examples (suggest: /blog/choosing-link-text/)

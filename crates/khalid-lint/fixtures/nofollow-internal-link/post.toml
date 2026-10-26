@@ -1,0 +1,21 @@
+# An internal link with `nofollow`, in any case, is flagged. Other `rel`
+# words on an internal link, and `nofollow` on an external one, are fine.
+extends = "clean"
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+rel = ["noopener", "NoFollow"]
+
+[[links]]
+kind = "internal"
+target = "/blog/pruning-old-posts/"
+text = "when to prune old posts"
+rel = ["noopener"]
+
+[[links]]
+kind = "external"
+target = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+text = "Google's guide to links"
+rel = ["nofollow"]
