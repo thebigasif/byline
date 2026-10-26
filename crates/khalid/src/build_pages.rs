@@ -232,7 +232,7 @@ fn author_pages(
 
 /// A document's title, or its slug when it has none, and its slug, or one
 /// made from the title when it has none.
-fn named<F>(
+pub(crate) fn named<F>(
     config: &Config,
     doc: &Document<F>,
     slug: Option<&Slug>,
@@ -336,7 +336,7 @@ pub(crate) fn path_of(config: &Config, locale: &Locale, rest: &str) -> String {
 }
 
 /// `de/` for a language other than the default, and nothing for the default.
-fn prefix(config: &Config, locale: &Locale) -> String {
+pub(crate) fn prefix(config: &Config, locale: &Locale) -> String {
     if locale == config.default_language() {
         String::new()
     } else {

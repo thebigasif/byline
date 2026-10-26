@@ -1,0 +1,7 @@
+---
+source: crates/khalid/tests/build_redirects.rs
+expression: redirects
+---
+/blog/titles/ /blog/title-tags/ 301
+/blog/2019/05/links/ /blog/why-links-matter/ 301
+/blog/links/ /blog/why-links-matter/ 301
