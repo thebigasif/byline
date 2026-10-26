@@ -94,7 +94,7 @@ impl SitePages {
             feed,
         } = &*self.0;
         if let Some(feed) = feed {
-            let fed = published(&feed.db, feed.site, folder, config, content);
+            let fed = published((&feed.db, feed.site), folder, config, content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
         let languages = build_pages::pages(config, content, stylesheet.path().as_str())?;
