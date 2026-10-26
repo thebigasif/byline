@@ -4,7 +4,7 @@ use khalid_core::AbsoluteUrl;
 
 use crate::escape::escape_markup;
 use crate::social::push_social_tags;
-use crate::{SeoError, SeoPage, SeoSite};
+use crate::{PageKind, SeoError, SeoPage, SeoSite};
 
 /// One tag in a page's `<head>`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,6 +33,13 @@ pub enum HeadTag {
         /// The `href` attribute.
         href: AbsoluteUrl,
     },
+    /// `<link rel="alternate" hreflang="..." href="...">`.
+    Alternate {
+        /// The `hreflang` attribute: a language tag or `x-default`.
+        hreflang: String,
+        /// The `href` attribute.
+        href: AbsoluteUrl,
+    },
 }
 
 impl HeadTag {
@@ -55,6 +62,13 @@ impl HeadTag {
                 escape_markup(property, out);
                 out.push_str("\" content=\"");
                 escape_markup(content, out);
+                out.push_str("\">");
+            }
+            Self::Alternate { hreflang, href } => {
+                out.push_str("<link rel=\"alternate\" hreflang=\"");
+                escape_markup(hreflang, out);
+                out.push_str("\" href=\"");
+                escape_markup(href.as_str(), out);
                 out.push_str("\">");
             }
             Self::Link { rel, href } => {
@@ -89,8 +103,8 @@ impl HeadTags {
     }
 }
 
-/// The SEO tags for `page` on `site`: title, description, robots, canonical,
-/// then Open Graph and the Twitter card.
+/// The SEO tags for `page` on `site`: title, description, robots, canonical, hreflang,
+/// the verification tags on the home page, then Open Graph and the Twitter card.
 ///
 /// A page's own title, description, robots directives and canonical address
 /// win over the site's templates and index policy.
@@ -122,6 +136,15 @@ pub fn head_tags(site: &SeoSite, page: &SeoPage) -> Result<HeadTags, SeoError> {
         rel: "canonical",
         href: canonical.clone(),
     });
+    for alternate in &page.alternates {
+        tags.push(HeadTag::Alternate {
+            hreflang: alternate.hreflang.as_str().to_owned(),
+            href: alternate.url.clone(),
+        });
+    }
+    if page.kind == PageKind::Home {
+        site.verification.push_tags(&mut tags);
+    }
     push_social_tags(site, page, &canonical, &description, &mut tags);
     Ok(HeadTags(tags))
 }

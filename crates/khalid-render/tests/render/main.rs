@@ -8,6 +8,10 @@ mod html_check;
 #[cfg(test)]
 mod image;
 #[cfg(test)]
+mod listing;
+#[cfg(test)]
+mod more_pages;
+#[cfg(test)]
 mod pages;
 #[cfg(test)]
 mod post;

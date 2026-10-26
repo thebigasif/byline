@@ -1685,17 +1685,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-theme"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "scraper",
+ "url",
+]
+
+[[package]]
 name = "khalid-webhooks"
 version = "0.0.0"
 dependencies = [
  "chrono",
  "hmac",
  "khalid-core",
+ "khalid-webhooks",
  "proptest",
  "serde",
  "serde_json",
  "sha2 0.11.1",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

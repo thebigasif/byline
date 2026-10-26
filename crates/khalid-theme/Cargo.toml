@@ -1,0 +1,17 @@
+[package]
+name = "khalid-theme"
+version = "0.0.0"
+description = "Theme sync: read a main site's colours, fonts and logo into theme tokens, and fix contrast."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+scraper = "0.29"
+url = "2"
+
+[lints]
+workspace = true

@@ -11,6 +11,7 @@
 
 mod escape;
 mod head;
+mod hreflang;
 mod meta_template;
 mod meta_templates;
 mod page;
@@ -19,8 +20,10 @@ mod seo_error;
 mod site;
 mod social;
 mod url_path;
+mod verification;
 
 pub use head::{HeadTag, HeadTags, head_tags};
+pub use hreflang::{Alternate, Hreflang, TranslationKey, link_translations};
 pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use page::{PageKind, SeoPage};
@@ -31,3 +34,4 @@ pub use seo_error::SeoError;
 pub use site::SeoSite;
 pub use social::{ShareImage, TwitterHandle};
 pub use url_path::UrlPath;
+pub use verification::{RootFile, SiteVerification, VerificationCode};
