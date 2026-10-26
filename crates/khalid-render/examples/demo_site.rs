@@ -474,15 +474,18 @@ impl Demo {
             body,
         };
         let (title, key) = (record.title.clone(), post.field("translation"));
-        let body = PageBody::Post(Box::new(record));
-        self.page(lang, (&path, Some(&key)), &title, &body)?;
-        Ok(PostCard {
+        let card = PostCard {
             title: post.field("title"),
-            href: path,
+            href: path.clone(),
             date,
             excerpt: post.field("description"),
             image: None,
-        })
+            author: record.authors.first().cloned(),
+            category: record.category.clone(),
+        };
+        let body = PageBody::Post(Box::new(record));
+        self.page(lang, (&path, Some(&key)), &title, &body)?;
+        Ok(card)
     }
 }
 

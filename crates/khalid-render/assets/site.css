@@ -80,7 +80,7 @@ nav ul, .tags, .cards, .author-profiles, .letters ul, .people {
   padding: 0;
 }
 nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
-nav a, .tags a, .author-profiles a, .person a, .person-name a, .site-name, .skip-link {
+nav a, .tags a, .author-profiles a, .person a, .person-name a, .card-meta a, .site-name, .skip-link {
   display: inline-flex;
   align-items: center;
   min-block-size: 44px;
@@ -158,6 +158,9 @@ figcaption { margin-block-start: 0.5rem; color: var(--color-muted); font-size: 0
 .card h2 a:hover, .card h3 a:hover { text-decoration: underline; }
 .card p { margin-block-end: 0.25rem; }
 .card time { color: var(--color-muted); font-size: 0.9375rem; }
+.card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 1rem; color: var(--color-muted); font-size: 0.9375rem; }
+.card-author { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--color-text); }
+.card-meta .avatar { inline-size: 2rem; block-size: 2rem; }
 @container (min-width: 36rem) {
   .card:has(.image) { display: grid; grid-template-columns: 12rem 1fr; gap: 0 1.5rem; }
   .card .image { grid-row: span 4; margin: 0; }

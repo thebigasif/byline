@@ -9,6 +9,7 @@ use khalid_render::{
 use crate::common::{demo_site, meta};
 use crate::html_check::assert_valid_page;
 use crate::image::sitemap_image;
+use crate::post::{link, person};
 
 pub(crate) fn card(title: &str, slug: &str, day: u32, excerpt: &str) -> PostCard {
     PostCard {
@@ -17,6 +18,12 @@ pub(crate) fn card(title: &str, slug: &str, day: u32, excerpt: &str) -> PostCard
         date: NaiveDate::from_ymd_opt(2026, 9, day).unwrap(),
         excerpt: excerpt.to_owned(),
         image: None,
+        author: Some(person(
+            "Lena Vogt",
+            "lena-vogt",
+            Some("Technical SEO editor"),
+        )),
+        category: Some(link("Technical SEO", "/blog/category/technical-seo/")),
     }
 }
 

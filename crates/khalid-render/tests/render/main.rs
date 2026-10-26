@@ -6,6 +6,8 @@ mod author_box;
 #[cfg(test)]
 mod byline;
 #[cfg(test)]
+mod cards;
+#[cfg(test)]
 mod common;
 #[cfg(test)]
 mod contents;

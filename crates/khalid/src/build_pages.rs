@@ -124,6 +124,8 @@ fn post_pages<'a>(
             date,
             excerpt: description.clone(),
             image: None,
+            author: None,
+            category: None,
         };
         cards.push((front.author.as_ref(), card));
         let mut seo = build_seo::page(SeoKind::Post, locale, &rest, &title)?;
