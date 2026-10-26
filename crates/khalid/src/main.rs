@@ -31,6 +31,9 @@ mod new_message;
 mod repair;
 mod report;
 mod routes_message;
+mod serve;
+mod serve_message;
+mod site_pages;
 mod slug_repair;
 
 use std::ffi::OsString;
@@ -102,9 +105,13 @@ fn run(cli: &Cli) -> Exit {
             &SystemClock,
             cli.output,
         ),
+        (Some(Command::Serve { listen }), Some((folder, config, _))) => {
+            serve::run(folder, config, *listen, cli.output)
+        }
         (
             Some(
                 command @ (Command::Db { .. }
+                | Command::Serve { .. }
                 | Command::Lint { .. }
                 | Command::New { .. }
                 | Command::Build { .. }),
