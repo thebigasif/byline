@@ -69,7 +69,7 @@ fn write_video(video: &Video, out: &mut String) {
     out.push_str("    </video:video>\n");
 }
 
-fn write_entry(entry: &SitemapEntry, out: &mut String) {
+pub(crate) fn write_entry(entry: &SitemapEntry, out: &mut String) {
     out.push_str("  <url>\n");
     element(out, "    ", "loc", entry.loc.as_str());
     if let Some(lastmod) = &entry.lastmod {
@@ -124,22 +124,14 @@ impl Sitemap {
         let entries = pages
             .iter()
             .filter(|page| is_listed(site, page))
-            .map(|page| {
-                Ok(SitemapEntry {
-                    loc: site.url_for(&page.language, &page.path)?,
-                    lastmod: page.modified.or(page.published),
-                    alternates: page.alternates.clone(),
-                    images: page
-                        .images
-                        .iter()
-                        .take(MAX_IMAGES_PER_URL)
-                        .cloned()
-                        .collect(),
-                    videos: page.videos.clone(),
-                })
-            })
+            .map(|page| entry_for(site, page))
             .collect::<Result<Vec<_>, SeoError>>()?;
         Ok(Self { entries })
+    }
+
+    /// A sitemap of entries already chosen and ordered.
+    pub(crate) fn from_entries(entries: Vec<SitemapEntry>) -> Self {
+        Self { entries }
     }
 
     /// The entries, in order.
@@ -149,17 +141,37 @@ impl Sitemap {
 
     /// The sitemap as a UTF-8 XML document.
     pub fn to_xml(&self) -> String {
-        let mut out = String::from(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-             <urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" \
-             xmlns:xhtml=\"http://www.w3.org/1999/xhtml\" \
-             xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\" \
-             xmlns:video=\"http://www.google.com/schemas/sitemap-video/1.1\">\n",
-        );
+        let mut out = String::from(URLSET_OPEN);
         for entry in &self.entries {
             write_entry(entry, &mut out);
         }
-        out.push_str("</urlset>\n");
+        out.push_str(URLSET_CLOSE);
         out
     }
+}
+
+/// The start of a `urlset` document, with every namespace an entry may use.
+pub(crate) const URLSET_OPEN: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+     <urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" \
+     xmlns:xhtml=\"http://www.w3.org/1999/xhtml\" \
+     xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\" \
+     xmlns:video=\"http://www.google.com/schemas/sitemap-video/1.1\">\n";
+
+/// The end of a `urlset` document.
+pub(crate) const URLSET_CLOSE: &str = "</urlset>\n";
+
+/// The sitemap entry for a listed page.
+pub(crate) fn entry_for(site: &SeoSite, page: &SeoPage) -> Result<SitemapEntry, SeoError> {
+    Ok(SitemapEntry {
+        loc: site.url_for(&page.language, &page.path)?,
+        lastmod: page.modified.or(page.published),
+        alternates: page.alternates.clone(),
+        images: page
+            .images
+            .iter()
+            .take(MAX_IMAGES_PER_URL)
+            .cloned()
+            .collect(),
+        videos: page.videos.clone(),
+    })
 }
