@@ -33,6 +33,12 @@ pub(crate) struct Cli {
     /// The site folder, holding site.toml. Its settings are checked first.
     #[arg(long, global = true, value_name = "FOLDER")]
     pub(crate) site: Option<PathBuf>,
+
+    /// Test builds only: answer host names from pairs such as
+    /// `bakery.test=127.0.0.1`, with loopback allowed.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "HOST=ADDRESS")]
+    pub(crate) test_hosts: Option<String>,
 }
 
 /// How a command prints its results and messages.
@@ -251,18 +257,17 @@ pub(crate) enum KeyKindArg {
 
 /// The theme commands.
 #[derive(Debug, Subcommand)]
-#[expect(
-    dead_code,
-    reason = "the arguments are read once each command is built, in later phases"
-)]
 pub(crate) enum ThemeCommand {
-    /// Pull colours, fonts and logo from the main site again and show what changed
+    /// Read the main site's colours and fonts into theme/tokens.toml
     Sync {
-        /// The main site's address
-        url: String,
+        /// The main site's address, such as `https://www.example.com`
+        url: AbsoluteUrl,
     },
-    /// Check a template override before it goes live
-    Check,
+    /// Compare theme/tokens.toml with the main site and check its contrast
+    Check {
+        /// The main site's address [default: the address in site.toml]
+        url: Option<AbsoluteUrl>,
+    },
 }
 
 /// The platforms `khalid import` reads.
@@ -303,7 +308,7 @@ impl Command {
                 command: ThemeCommand::Sync { .. },
             } => "theme sync",
             Self::Theme {
-                command: ThemeCommand::Check,
+                command: ThemeCommand::Check { .. },
             } => "theme check",
             Self::Import { .. } => "import",
             Self::Export => "export",
