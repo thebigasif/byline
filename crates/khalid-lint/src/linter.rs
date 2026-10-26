@@ -119,6 +119,18 @@ impl Linter {
         Report { findings }
     }
 
+    /// Whether the publish gate would refuse `post`, the same answer as
+    /// [`Linter::gate`] gives. It runs only the rules set to block and stops
+    /// at the first hit, so checking every post of a large site stays fast:
+    /// the warnings, several of which compare a post with every other post,
+    /// cannot change the answer.
+    pub fn refuses(&self, post: &LintPost, site: &dyn SiteView) -> bool {
+        self.rules
+            .iter()
+            .filter(|configured| configured.severity == Severity::Block)
+            .any(|configured| !configured.rule.check(post, site).is_empty())
+    }
+
     /// Runs the site rules once over the whole site: the checks that only
     /// make sense after posts are published, such as orphan posts.
     pub fn site_health(&self, site: &dyn SiteView) -> Report {

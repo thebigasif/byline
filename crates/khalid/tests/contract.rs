@@ -2,6 +2,7 @@
 //! outcome in human and `--json` output, with its exit code (RULES.md BL-CLI-1
 //! to BL-CLI-4, ADR 0006), and the journey from `init` to a served post.
 
+use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
 use std::path::Path;
@@ -27,6 +28,8 @@ fn path(base: &Path, rel: &str) -> String {
 /// Every outcome of the three commands, with the exit code it must give: 0
 /// success, 1 a failure the person must act on, 2 a usage error. `site` is a
 /// site made by `khalid init`, and `fresh` a folder that does not exist yet.
+/// `build` runs before `new`, because the publish gate refuses a new post
+/// until it has an author and a link; `tests/build.rs` covers that refusal.
 fn cases(site: &str, fresh: &str) -> Vec<(Vec<String>, i32)> {
     let address = "https://www.example.com";
     let content = format!("{site}/content/html");
@@ -38,12 +41,12 @@ fn cases(site: &str, fresh: &str) -> Vec<(Vec<String>, i32)> {
             1,
         ),
         (&["init", fresh, "--address", address], 0),
-        (&["--site", site, "new", "Why links matter"], 0),
-        (&["--site", site, "new", "Bonjour", "--language", "fr"], 1),
-        (&["new", "Why links matter"], 2),
         (&["--site", site, "build"], 0),
         (&["--site", site, "build", "--out", &content], 1),
         (&["build"], 2),
+        (&["--site", site, "new", "Why links matter"], 0),
+        (&["--site", site, "new", "Bonjour", "--language", "fr"], 1),
+        (&["new", "Why links matter"], 2),
     ];
     table
         .iter()
@@ -132,8 +135,22 @@ fn json_output_is_one_value_on_stdout_with_an_error_only_on_failure() {
     }
 }
 
+/// Gives the one post `khalid new` wrote in `site` an author and two links,
+/// which the publish gate asks for before `build` publishes it.
+#[cfg(test)]
+fn finish_the_new_post(site: &str) {
+    let posts = fs::read_dir(path(Path::new(site), "content/en/posts")).unwrap();
+    let file = posts.map(|entry| entry.unwrap().path()).next().unwrap();
+    let mut text = fs::read_to_string(&file)
+        .unwrap()
+        .replacen("---\n", "---\nauthor: asif\n", 1);
+    text.push_str("Read [the home page](/) and [a guide](https://example.org/).\n");
+    fs::write(&file, text).unwrap();
+}
+
 /// The last check of task 1.16's done line: `init`, then `new`, then `build`
-/// give a site that `serve` serves.
+/// give a site that `serve` serves. Since the publish gate (task 2.6), the
+/// new post needs an author and a link before `build` publishes it.
 #[test]
 fn init_new_build_then_serve_serves_the_post() {
     let (_temp, site, _) = folders();
@@ -144,6 +161,7 @@ fn init_new_build_then_serve_serves_the_post() {
         "Why links matter".to_owned(),
     ]);
     assert_eq!(new.status.code(), Some(0));
+    finish_the_new_post(&site);
     let build = khalid(&["--site".to_owned(), site.clone(), "build".to_owned()]);
     assert_eq!(build.status.code(), Some(0));
 
