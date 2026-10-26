@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+brotli = "9"
 bytes = "1"
 percent-encoding = "2"
 sha2 = "0.11"

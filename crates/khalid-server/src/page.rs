@@ -3,16 +3,19 @@
 use axum::http::HeaderValue;
 use bytes::Bytes;
 
+use crate::compress::Compressed;
 use crate::{MediaType, PagePath, etag};
 
 /// One rendered page or file, ready to send: its address, its kind, its
-/// bytes and the tag made from them.
+/// bytes and the tag made from them. [`Pages`](crate::Pages) adds its
+/// Brotli copy.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Page {
     path: PagePath,
     media_type: MediaType,
     body: Bytes,
     etag: Option<HeaderValue>,
+    brotli: Option<Compressed>,
 }
 
 impl Page {
@@ -25,7 +28,14 @@ impl Page {
             path,
             media_type,
             body,
+            brotli: None,
         }
+    }
+
+    /// The page with its Brotli copy, when compressing makes it smaller.
+    pub(crate) fn compressed(self) -> Self {
+        let brotli = Compressed::brotli(&self.body, self.etag.as_ref());
+        Self { brotli, ..self }
     }
 
     /// Where the page lives on the site.
@@ -46,5 +56,10 @@ impl Page {
     /// The `ETag` header value, made from the bytes.
     pub(crate) fn etag(&self) -> Option<&HeaderValue> {
         self.etag.as_ref()
+    }
+
+    /// The Brotli copy, if the page has one.
+    pub(crate) fn brotli(&self) -> Option<&Compressed> {
+        self.brotli.as_ref()
     }
 }

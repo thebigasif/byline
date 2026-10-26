@@ -11,6 +11,7 @@ use bytes::Bytes;
 use tower::service_fn;
 
 use crate::clean_url::{Resolved, resolve};
+use crate::compress::{self, Compressed};
 use crate::{MediaType, Page, Pages, etag};
 
 /// The methods a page answers.
@@ -19,6 +20,12 @@ const ALLOW: HeaderValue = HeaderValue::from_static("GET, HEAD");
 /// Pages may be kept, but must be checked with their tag before reuse, so
 /// an edited post shows on the next visit.
 const REVALIDATE: HeaderValue = HeaderValue::from_static("no-cache");
+
+/// Tells caches that a page's bytes depend on `Accept-Encoding`.
+const ENCODING_VARIES: HeaderValue = HeaderValue::from_static("accept-encoding");
+
+/// The `Content-Encoding` of a Brotli copy.
+const BROTLI: HeaderValue = HeaderValue::from_static("br");
 
 /// The router that answers every request from `pages`.
 ///
@@ -68,16 +75,32 @@ enum SendBody {
     No,
 }
 
-/// The page, or 304 when the reader's copy is current.
+/// The page, compressed when the browser takes Brotli, or 304 when the
+/// reader's copy, plain or compressed, is current.
 fn page_response(page: &Page, request: &HeaderMap, send: SendBody) -> Response<Body> {
-    let mut response = match page.etag() {
-        Some(tag) if etag::is_current(request, tag) => status(StatusCode::NOT_MODIFIED),
-        _ => file(StatusCode::OK, page.media_type(), page.body(), send),
+    let brotli = page.brotli().filter(|_| compress::accepts_brotli(request));
+    let (body, tag) = match brotli {
+        Some(copy) => (copy.body(), copy.etag()),
+        None => (page.body(), page.etag()),
+    };
+    let tags = [page.etag(), page.brotli().and_then(Compressed::etag)];
+    let current = tags
+        .into_iter()
+        .flatten()
+        .any(|known| etag::is_current(request, known));
+    let mut response = if current {
+        status(StatusCode::NOT_MODIFIED)
+    } else {
+        file(StatusCode::OK, page.media_type(), body, send)
     };
     let headers = response.headers_mut();
     headers.insert(header::CACHE_CONTROL, REVALIDATE);
-    if let Some(tag) = page.etag() {
+    headers.insert(header::VARY, ENCODING_VARIES);
+    if let Some(tag) = tag {
         headers.insert(header::ETAG, tag.clone());
+    }
+    if brotli.is_some() && !current {
+        headers.insert(header::CONTENT_ENCODING, BROTLI);
     }
     response
 }

@@ -16,7 +16,11 @@ pub struct Pages {
 }
 
 impl Pages {
-    /// Holds `pages`, with `not_found` as the HTML for any other address.
+    /// Holds `pages`, with `not_found` as the HTML for any other address,
+    /// and compresses each page with Brotli once, here.
+    ///
+    /// Compressing is CPU work, so call this off the async runtime, for
+    /// example in `spawn_blocking` (RULES.md BL-RUN-7).
     ///
     /// # Errors
     ///
@@ -32,7 +36,7 @@ impl Pages {
                     });
                 }
                 Entry::Vacant(slot) => {
-                    slot.insert(page);
+                    slot.insert(page.compressed());
                 }
             }
         }

@@ -29,6 +29,14 @@ pub(crate) fn of(body: &[u8]) -> Option<HeaderValue> {
     HeaderValue::try_from(tag).ok()
 }
 
+/// The tag for another copy of the same page, such as its Brotli copy:
+/// `"3f2a"` becomes `"3f2a-br"`. Each copy needs its own strong tag
+/// (RFC 9110 section 8.8.3).
+pub(crate) fn with_suffix(tag: &HeaderValue, suffix: &str) -> Option<HeaderValue> {
+    let inner = tag.to_str().ok()?.strip_suffix('"')?;
+    HeaderValue::try_from(format!("{inner}{suffix}\"")).ok()
+}
+
 /// Whether the request's `If-None-Match` names `tag` or `*`. The
 /// comparison is weak, as RFC 9110 section 13.1.2 asks: `W/"x"` matches
 /// `"x"`.
