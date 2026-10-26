@@ -87,12 +87,47 @@ async fn a_bad_list_parameter_is_a_400_problem() {
 }
 
 #[tokio::test]
+async fn one_post_by_slug_or_id() {
+    let (status, _, json) = get("/api/content/v1/posts/slug/fixing-slow-pages/").await;
+    assert_eq!(
+        (status, slugs(&json)),
+        (StatusCode::OK, vec!["fixing-slow-pages"])
+    );
+    assert_eq!(json.get("meta"), None);
+    let (status, _, json) = get("/api/content/v1/posts/what-a-sitemap-does-en/").await;
+    assert_eq!(
+        (status, slugs(&json)),
+        (StatusCode::OK, vec!["what-a-sitemap-does"])
+    );
+}
+
+#[tokio::test]
+async fn a_missing_post_is_a_404_problem() {
+    for uri in [
+        "/api/content/v1/posts/slug/no-such-post/",
+        "/api/content/v1/posts/slug/Not%20A%20Slug/",
+        "/api/content/v1/posts/no-such-id/",
+    ] {
+        let (status, media, json) = get(uri).await;
+        let want = (StatusCode::NOT_FOUND, "application/problem+json");
+        assert_eq!((status, media.as_str()), want, "{uri}");
+        assert_eq!(json["instance"], uri, "{uri}");
+    }
+}
+
+#[tokio::test]
 async fn the_openapi_document_lists_the_routes() {
     let (status, _, json) = get("/api/openapi.json").await;
     assert_eq!(status, StatusCode::OK);
     let paths = json["paths"].as_object().unwrap();
-    let listed: Vec<&str> = paths.keys().map(String::as_str).collect();
-    assert_eq!(listed, ["/api/content/v1/posts/"]);
+    let mut listed: Vec<&str> = paths.keys().map(String::as_str).collect();
+    listed.sort_unstable();
+    let routes = [
+        "/api/content/v1/posts/",
+        "/api/content/v1/posts/slug/{slug}/",
+        "/api/content/v1/posts/{id}/",
+    ];
+    assert_eq!(listed, routes);
     let parameters = json["paths"]["/api/content/v1/posts/"]["get"]["parameters"]
         .as_array()
         .unwrap();

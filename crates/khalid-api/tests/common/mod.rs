@@ -1,4 +1,4 @@
-//! The demo site's five English posts, for the HTTP tests.
+//! The demo site's five English posts, shared by the API tests.
 
 use chrono::{TimeZone, Utc};
 use khalid_api::content_store::MemoryContentStore;

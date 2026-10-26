@@ -13,7 +13,7 @@ publish.workspace = true
 test-util = []
 
 [dependencies]
-axum = { version = "0.8", default-features = false, features = ["json", "query"] }
+axum = { version = "0.8", default-features = false, features = ["json", "original-uri", "query"] }
 chrono = { version = "0.4", default-features = false, features = ["alloc", "serde"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 serde.workspace = true

@@ -2,17 +2,17 @@
 
 use std::sync::Arc;
 
-use axum::extract::{Query, State};
+use axum::extract::{OriginalUri, Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use khalid_core::UserMessage;
+use khalid_core::{Slug, UserMessage};
 use serde::Serialize;
 use utoipa::openapi::OpenApi as Document;
 use utoipa::{OpenApi, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::content_store::{ContentStore, ContentStoreError};
+use crate::content_store::{ContentStore, ContentStoreError, PostKey};
 use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
 use crate::query::{ListQuery, RawListQuery};
@@ -42,6 +42,8 @@ struct ApiDoc;
 pub fn router(store: Store) -> (Router, Document) {
     let content = OpenApiRouter::new()
         .routes(routes!(browse_posts))
+        .routes(routes!(read_post))
+        .routes(routes!(read_post_by_slug))
         .with_state(store);
     let (router, document) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest(BASE, content)
@@ -54,9 +56,9 @@ pub fn router(store: Store) -> (Router, Document) {
 /// Posts, as every post response wraps them (`docs/standards/api.md`).
 #[derive(Debug, Serialize, ToSchema)]
 pub struct Posts {
-    /// The posts on this page.
+    /// The posts on this page, or the one post asked for.
     posts: Vec<Post>,
-    /// Pagination.
+    /// Pagination, on lists only.
     #[serde(skip_serializing_if = "Option::is_none")]
     meta: Option<Meta>,
 }
@@ -91,6 +93,50 @@ async fn browse_posts(
     }))
 }
 
+/// Reads one published post by its identity.
+#[utoipa::path(
+    get, path = "/posts/{id}/", tag = "posts",
+    params(("id" = String, Path, description = "The post's identity")),
+    responses(
+        (status = 200, description = "The post", body = Posts),
+        (status = 404, description = "No published post has this identity", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn read_post(
+    State(store): State<Store>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<Json<Posts>, Problem> {
+    one(&store, &PostKey::Id(id), uri.path()).await
+}
+
+/// Reads one published post by its slug.
+#[utoipa::path(
+    get, path = "/posts/slug/{slug}/", tag = "posts",
+    params(("slug" = String, Path, description = "The post's slug")),
+    responses(
+        (status = 200, description = "The post", body = Posts),
+        (status = 404, description = "No published post has this slug", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn read_post_by_slug(
+    State(store): State<Store>,
+    Path(slug): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<Json<Posts>, Problem> {
+    let slug = Slug::try_new(&slug).map_err(|_| not_found(uri.path()))?;
+    one(&store, &PostKey::Slug(slug), uri.path()).await
+}
+
+async fn one(store: &Store, key: &PostKey, path: &str) -> Result<Json<Posts>, Problem> {
+    let post = store.post(key).await.map_err(|error| unreadable(&error))?;
+    let post = post.ok_or_else(|| not_found(path))?;
+    Ok(Json(Posts {
+        posts: vec![post],
+        meta: None,
+    }))
+}
+
 /// Refuses fields a post does not have in `filter` and `order`.
 fn check_fields(query: &ListQuery) -> Result<(), Problem> {
     let unknown = |parameter: &str, field: &str| {
@@ -117,6 +163,15 @@ fn check_fields(query: &ListQuery) -> Result<(), Problem> {
         Some(key) => Err(unknown("order", key.field())),
         None => Ok(()),
     }
+}
+
+fn not_found(path: &str) -> Problem {
+    let message = UserMessage::new(
+        "No published post is at this address.",
+        "It may still be a draft, or its slug may have changed.",
+        "Check the address, or list the posts at /api/content/v1/posts/.",
+    );
+    Problem::new(ProblemType::NotFound, &message).with_instance(path)
 }
 
 /// Logs the store's failure with its causes and answers with a 500.
