@@ -15,14 +15,14 @@
 
 ### 0.2 The first crate: `byline` prints help
 
-- Status: `doing` (#5, #6, #7, #8 and the `Clock` pull request). Split into stacked pull requests to stay under 400 lines each: the core crate and a binary that prints help, then `Slug`, then the commands, then `--json`, then `Clock`, `Config` and `Secret`.
+- Status: `doing` (#17, #6, #7, #8, #9). Split into stacked pull requests to stay under 400 lines each: the core crate and a binary that prints help, then `Slug`, then the commands, then `--json`, then `Clock`, `Config` and `Secret`.
 - `crates/byline` with `clap`, the commands from plan section 4.1 as subcommands that print "not built yet" with exit code 3, `--version`, `--json` on every command, the `UserMessage` edge, and `mimalloc`.
 - `crates/byline-core` with `Clock`, `FixedClock`, `Config` (empty for now), `UserMessage`, `Secret<T>`, and the `Slug` newtype with its tests. Crate docs that say what each owns.
 - Done when: `cargo run -p byline -- --help` prints the commands, `just check` is green, CI is green, the binary is under 5 MB.
 
 ### 0.3 The lint proof crate
 
-- Status: `doing`
+- Status: `done` (#3)
 - `lints/check` with one deliberate violation per lint in `lints/lints.toml` set to warn, marked `// expect: <lint>`, following `lints/check-reference/`. Adapt `scripts/check-lints.sh` to the workspace layout. Delete `lints/check-reference/`.
 - Done when: `./scripts/check-lints.sh` passes, and removing any one lint from the table makes it fail.
 
