@@ -30,7 +30,7 @@ Read `CLAUDE.md` once per session. This skill is the short form you keep in mind
 - Blocking or heavy work in `spawn_blocking` (BL-RUN-7). Nothing computed at request time that belongs at publish time (BL-PERF-2).
 - Every public item documented with a one-line summary and `# Errors` where it returns `Result` (BL-DOC-1).
 - A suppression is `#[expect(lint, reason = "...")]` and nothing else (BL-LNT-1).
-- Functions under about 80 lines, files under about 600, six parameters at most (BL-SIZ-1).
+- Functions under about 80 lines, files under about 600, six parameters at most (BL-SIZE-1).
 - Content files are the source of truth. Derived data lives in `data/` (BL-FS-1, BL-FS-2).
 - Every block has a directive and a round-trip test (BL-FS-5, BL-TST-5).
 
