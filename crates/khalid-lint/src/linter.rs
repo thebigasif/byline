@@ -1,10 +1,10 @@
 //! The engine that runs every rule on every post.
 
-use crate::blocking;
 use crate::{
     Catalogue, Finding, LintConfig, LintError, LintPost, Location, Message, Rule, Severity,
     SiteView,
 };
+use crate::{blocking, link_text};
 
 /// The configured rules, each with its severity and message.
 #[derive(Debug)]
@@ -100,6 +100,11 @@ fn builtin_rules() -> Vec<Box<dyn Rule>> {
         Box::new(blocking::NoDate),
         Box::new(blocking::NoAuthor),
         Box::new(blocking::NoInternalLink),
+        Box::new(link_text::ReusedLinkText),
+        Box::new(link_text::RepeatedLinkText),
+        Box::new(link_text::VagueLinkText),
+        Box::new(link_text::SameTargetTwice),
+        Box::new(link_text::EmptyLinkText),
     ]
 }
 

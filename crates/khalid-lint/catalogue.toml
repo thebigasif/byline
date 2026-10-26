@@ -33,3 +33,33 @@ what = "This post has more than one main headline."
 why = "A page needs exactly one headline, so readers and Google know its topic."
 fix = "Change each extra `#` headline in the text to a `##` subheading."
 guide = "post-titles"
+
+[reused-link-text]
+what = "These link words already point to a different page on your site."
+why = "Google reads link words as a label, and one label should mean one page."
+fix = "Change the link words, or point the link at the same page as before."
+guide = "link-text"
+
+[repeated-link-text]
+what = "Too many links to this page use these exact words."
+why = "Varied link words tell Google more about what the page covers."
+fix = "Rewrite these link words to fit what this post says about the page."
+guide = "link-text"
+
+[vague-link-text]
+what = "This link uses vague words such as \"click here\" or \"read more\"."
+why = "Readers and Google use the link words to know where a link goes."
+fix = "Rewrite the link so its words name the page it opens."
+guide = "link-text"
+
+[same-target-twice]
+what = "This post links to the same page more than once."
+why = "Google counts only the first link to a page, so the others add nothing."
+fix = "Remove the extra link, or point it at another useful page."
+guide = "internal-links"
+
+[empty-link-text]
+what = "This link has no words a reader can see or hear."
+why = "People using screen readers and Google cannot tell where it goes."
+fix = "Add words to the link, or describe the image inside it."
+guide = "link-text"

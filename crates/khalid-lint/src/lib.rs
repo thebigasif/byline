@@ -15,6 +15,7 @@
 mod blocking;
 mod catalogue;
 mod finding;
+mod link_text;
 mod lint_config;
 mod lint_error;
 mod lint_post;

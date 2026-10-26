@@ -195,7 +195,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.3 The link text rules
 
-- Status: `todo`
+- Status: `done` after this landing. Link words compare without case, spacing or a final full stop, and targets without a `#section` or trailing slash. "Too often" means more than three links site-wide; a `lint.toml` setting for it comes with the threshold rules in 2.4. Vague words are listed for English and German.
 - Link text reused for a different page, the same link text to the same page too often, vague link text, the same target twice in one post, a link with no text.
 - Rules: BL-TST-4. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings.
