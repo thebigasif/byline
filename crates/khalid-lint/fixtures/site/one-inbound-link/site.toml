@@ -1,0 +1,32 @@
+# Only "choosing-link-text" links to "anchor-text-basics". The German post
+# with the same slug is a different post and does not count as a link.
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+links = [
+  { kind = "internal", target = "/blog/anchor-text-basics/", text = "link text basics" },
+  { kind = "internal", target = "/blog/why-internal-links-matter/", text = "why links matter" },
+]
+
+[[posts]]
+locale = "en"
+slug = "anchor-text-basics"
+links = [
+  { kind = "internal", target = "/blog/choosing-link-text/", text = "choosing link text" },
+  { kind = "internal", target = "/blog/why-internal-links-matter/", text = "why links matter" },
+]
+
+[[posts]]
+locale = "en"
+slug = "why-internal-links-matter"
+links = [
+  { kind = "internal", target = "/blog/choosing-link-text/", text = "choosing link text" },
+]
+
+[[posts]]
+locale = "de"
+slug = "anchor-text-basics"
+links = [
+  { kind = "internal", target = "/de/blog/anchor-text-basics/", text = "Grundlagen" },
+  { kind = "internal", target = "/de/blog/anchor-text-basics/", text = "nochmal" },
+]

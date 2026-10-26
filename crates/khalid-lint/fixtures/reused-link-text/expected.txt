@@ -1,0 +1,1 @@
+warn reused-link-text: how to choose link text

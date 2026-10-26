@@ -21,6 +21,13 @@ newer_posts = "Newer posts"
 older_posts = "Older posts"
 # {name} is filled in.
 posts_by = "Posts by {name}"
+glossary_letters = "Jump to a letter"
+no_terms = "The glossary has no terms yet."
+search_label = "Search this blog"
+search_button = "Search"
+# {query} is filled in with what the reader typed.
+search_results = "Results for “{query}”"
+search_nothing = "Nothing matched. Try fewer words, or a different word for the same thing."
 # How a date reads. {day}, {month} and {year} are filled in.
 date_format = "{day} {month} {year}"
 month_1 = "January"

@@ -1,0 +1,26 @@
+[[posts]]
+locale = "en"
+slug = "a-month-of-search-console"
+
+[[posts.links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+
+[[posts]]
+locale = "en"
+slug = "writing-titles-people-click"
+
+[[posts.links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+
+[[posts]]
+locale = "en"
+slug = "pruning-old-posts"
+
+[[posts.links]]
+kind = "internal"
+target = "/blog/choosing-link-text"
+text = "how to choose link text"
