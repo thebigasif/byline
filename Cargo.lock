@@ -1399,10 +1399,12 @@ dependencies = [
 name = "khalid"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "clap",
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-lint",
  "mimalloc",
  "serde",
  "serde_json",
