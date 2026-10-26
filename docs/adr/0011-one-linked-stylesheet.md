@@ -1,4 +1,4 @@
-# 0010. One linked stylesheet, no inline critical CSS
+# 0011. One linked stylesheet, no inline critical CSS
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.12.
 
