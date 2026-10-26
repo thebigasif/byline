@@ -26,6 +26,12 @@ pub enum ContentError {
         /// Why its name is not a language tag.
         source: ParseLocaleError,
     },
+    /// A folder entry has no `index.md`.
+    #[error("{} is a folder post with no index.md", path.display())]
+    FolderWithoutIndex {
+        /// The folder.
+        path: PathBuf,
+    },
     /// The file does not start with a `---` line.
     #[error("{} does not start with front matter between two --- lines", path.display())]
     NoFrontMatter {

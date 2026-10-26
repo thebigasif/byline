@@ -42,7 +42,7 @@
 
 ### 1.5 Front matter and the content tree
 
-- Status: `doing`. Part 1 (#33): front matter and the post schema. Part 2: the content tree with `_index.md`, folder posts and content hashes over the file and its assets. Part 3: `--site` loads the content, with `fixtures/invalid/content-*`. Part 4: the remaining collection schemas and the demo-site parse test, closing 0.5.
+- Status: `doing`. Part 1 (#33): front matter and the post schema. Part 2 (#34 and this landing): the content tree with `_index.md`, folder posts, and content hashes over the file and its assets. Part 3: `--site` loads the content, with `fixtures/invalid/content-*`. Part 4: the remaining collection schemas and the demo-site parse test, closing 0.5.
 - `crates/khalid-content`: typed front matter for posts, pages, authors, glossary terms, case studies, changelog entries and snippets, with errors that name the file, line and field. The content tree reads language folders, post folders with co-located assets, and the `translation` key that pairs language versions.
 - Rules: BL-FS-1, BL-FS-3, BL-TYP-3.
 - Done when: a test asserts `fixtures/demo-site` parses into five English posts, five German posts, two authors per language and one glossary term per language, which also closes task 0.5. Each invalid fixture produces its plain message.
