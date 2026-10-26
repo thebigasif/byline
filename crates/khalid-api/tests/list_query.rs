@@ -1,7 +1,7 @@
 //! The list parameters every list endpoint shares (RULES.md BL-API-5):
 //! defaults, each parameter read, and each mistake named.
 
-use khalid_api::query::{Format, Limit, ListQuery, RawListQuery};
+use khalid_api::query::{Direction, Format, Limit, ListQuery, RawListQuery};
 use proptest::prelude::{prop_assert_eq, proptest};
 
 #[cfg(test)]
@@ -10,6 +10,9 @@ fn parse(pairs: &[(&str, &str)]) -> Result<ListQuery, String> {
     for (name, value) in pairs {
         let slot = match *name {
             "filter" => &mut raw.filter,
+            "include" => &mut raw.include,
+            "fields" => &mut raw.fields,
+            "order" => &mut raw.order,
             "formats" => &mut raw.formats,
             "limit" => &mut raw.limit,
             "page" => &mut raw.page,
@@ -44,6 +47,73 @@ fn every_parameter_is_read() {
     assert_eq!(query.formats(), [Format::Plaintext, Format::Html]);
     assert_eq!(query.limit(), Limit::All);
     assert_eq!(query.page(), 3);
+}
+
+#[test]
+fn include_fields_and_order_are_read() {
+    let query = parse(&[
+        ("include", "authors,tags,authors"),
+        ("fields", "title, slug"),
+        ("order", "published_at DESC, title"),
+    ])
+    .unwrap();
+    assert_eq!(query.include(), ["authors", "tags"]);
+    assert_eq!(query.fields(), ["title", "slug"]);
+    let order: Vec<(&str, Direction)> = query
+        .order()
+        .iter()
+        .map(|key| (key.field(), key.direction()))
+        .collect();
+    let want = [
+        ("published_at", Direction::Descending),
+        ("title", Direction::Ascending),
+    ];
+    assert_eq!(order, want);
+    let none = parse(&[]).unwrap();
+    assert_eq!(
+        (none.include(), none.fields(), none.order()),
+        (&[][..], &[][..], &[][..])
+    );
+}
+
+#[test]
+fn name_and_order_mistakes_name_the_parameter() {
+    let many = ["title"; 51].join(",");
+    let keys = ["title"; 6].join(",");
+    let cases = [
+        (
+            ("include", "authors,Tags!"),
+            "the include parameter has Tags!, which is not a field name",
+        ),
+        (("fields", ""), "the fields parameter has an empty name"),
+        (
+            ("fields", "title,,slug"),
+            "the fields parameter has an empty name",
+        ),
+        (
+            ("fields", many.as_str()),
+            "the fields parameter has more than 50 names",
+        ),
+        (
+            ("order", "title sideways"),
+            "the order parameter has sideways, which is not asc or desc",
+        ),
+        (
+            ("order", "title asc desc"),
+            "the order parameter has title asc desc, which is not a field and a direction",
+        ),
+        (
+            ("order", "9lives"),
+            "the order parameter has 9lives, which is not a field name",
+        ),
+        (
+            ("order", keys.as_str()),
+            "the order parameter has more than 5 names",
+        ),
+    ];
+    for ((name, value), want) in cases {
+        assert_eq!(parse(&[(name, value)]).unwrap_err(), want, "{name}={value}");
+    }
 }
 
 #[test]
@@ -89,7 +159,7 @@ proptest! {
 
     #[test]
     fn no_value_makes_a_parameter_panic(value in "\\PC{0,64}") {
-        for name in ["filter", "formats", "limit", "page"] {
+        for name in ["filter", "include", "fields", "order", "formats", "limit", "page"] {
             let _ = parse(&[(name, &value)]);
         }
     }
