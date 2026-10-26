@@ -129,6 +129,8 @@ pub struct SeoPage {
     pub images: Vec<AbsoluteUrl>,
     /// The videos in the page's content, for the video sitemap.
     pub videos: Vec<Video>,
+    /// The rendered body as HTML, for full-content feeds.
+    pub content_html: String,
 }
 
 impl SeoPage {
@@ -157,6 +159,7 @@ impl SeoPage {
             article_type: ArticleType::BlogPosting,
             images: Vec::new(),
             videos: Vec::new(),
+            content_html: String::new(),
         }
     }
 }

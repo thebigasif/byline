@@ -3,8 +3,8 @@
 use khalid_core::{AbsoluteUrl, Locale};
 
 use crate::{
-    CrawlerPolicy, IndexPolicy, MetaTemplates, RootFile, SeoError, ShareImage, SiteVerification,
-    TwitterHandle, UrlPath,
+    CrawlerPolicy, FeedOptions, IndexPolicy, MetaTemplates, RootFile, SeoError, ShareImage,
+    SiteVerification, TwitterHandle, UrlPath,
 };
 
 /// The site-wide settings every SEO output reads.
@@ -42,6 +42,8 @@ pub struct SeoSite {
     pub root_files: Vec<RootFile>,
     /// Which crawlers may read which paths, for `robots.txt`.
     pub crawlers: CrawlerPolicy,
+    /// What every feed carries.
+    pub feeds: FeedOptions,
 }
 
 impl SeoSite {
@@ -63,6 +65,7 @@ impl SeoSite {
             verification: SiteVerification::default(),
             root_files: Vec::new(),
             crawlers: CrawlerPolicy::default(),
+            feeds: FeedOptions::default(),
         }
     }
 
