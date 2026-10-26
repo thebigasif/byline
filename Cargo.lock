@@ -1223,6 +1223,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-render"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
