@@ -12,6 +12,7 @@
 mod meta_template;
 mod meta_templates;
 mod page;
+mod robots_meta;
 mod seo_error;
 mod site;
 mod url_path;
@@ -19,6 +20,9 @@ mod url_path;
 pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use page::{PageKind, SeoPage};
+pub use robots_meta::{
+    Following, ImagePreview, IndexPolicy, Indexing, PreviewLimit, Restriction, RobotsDirectives,
+};
 pub use seo_error::SeoError;
 pub use site::SeoSite;
 pub use url_path::UrlPath;

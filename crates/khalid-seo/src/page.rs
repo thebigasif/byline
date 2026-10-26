@@ -2,7 +2,7 @@
 
 use khalid_core::Locale;
 
-use crate::{MetaTemplate, UrlPath};
+use crate::{MetaTemplate, RobotsDirectives, UrlPath};
 
 /// The kind of page, which picks its title template and index setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -58,6 +58,10 @@ pub struct SeoPage {
     pub seo_title: Option<MetaTemplate>,
     /// A description template for this page alone.
     pub seo_description: Option<MetaTemplate>,
+    /// Robots directives for this page alone, in place of the site's index policy.
+    pub robots: Option<RobotsDirectives>,
+    /// For an archive, how many posts it lists. A thin archive is not indexed.
+    pub item_count: Option<u32>,
 }
 
 impl SeoPage {
@@ -73,6 +77,8 @@ impl SeoPage {
             author: None,
             seo_title: None,
             seo_description: None,
+            robots: None,
+            item_count: None,
         }
     }
 }
