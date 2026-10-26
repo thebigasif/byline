@@ -1,7 +1,17 @@
 //! The serve measures read the server's address and memory correctly, and
 //! address a generated post where the site serves it.
 
-use khalid_perf::{Fixture, announced, resident_mb};
+use khalid_perf::{Fixture, ServeTimes, announced, resident_mb};
+
+#[test]
+fn the_json_names_the_baseline_measures() {
+    let json = ServeTimes::new(42.5, 37.25, 18.0).to_json();
+    assert_eq!(
+        json,
+        "{\"cold_start_first_byte_ms\": 42.50, \"idle_memory_mb\": 37.25, \
+         \"incremental_rebuild_ms\": 18.00}\n"
+    );
+}
 
 #[test]
 fn the_announced_line_gives_the_host_and_the_mount() {
