@@ -20,3 +20,4 @@ One file per decision the plan does not already make. Numbered, never edited aft
 | 0012 | Blocks beyond markdown are fenced directives | Accepted |
 | 0013 | SEO outputs are built from their own input types | Accepted |
 | 0014 | Webhook event names and signatures | Accepted |
+| 0016 | Blocks with no body are one-line leaf directives | Accepted |

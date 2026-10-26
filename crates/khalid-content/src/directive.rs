@@ -1,37 +1,73 @@
-//! Reading directive blocks, `:::name{...}` (ADR 0012).
+//! Reading directive blocks, `::name{...}` and `:::name{...}` (ADR 0012).
 
 use crate::{BlockError, BlockKind, CalloutKind};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 2] = ["callout", "figure"];
+pub(crate) const BLOCKS: [&str; 5] = ["button", "callout", "figure", "toc", "toggle"];
 
-/// A `:::name{...}` opening line: its run of colons and what follows them.
+/// Blocks with no body, written on one line as `::name{...}`. Every other
+/// block opens with `:::name{...}` and closes with `:::`.
+const LEAVES: [&str; 2] = ["button", "toc"];
+
+/// How a block was written.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Form {
+    /// `::name{...}` on one line.
+    Leaf,
+    /// `:::name{...}`, a body, then `:::`.
+    Container,
+}
+
+/// A `::name` or `:::name{...}` line: its run of colons and what follows.
 pub(crate) fn opening(line: &str) -> Option<(&str, &str)> {
     let colons = line.len() - line.trim_start_matches(':').len();
     let (fence, rest) = line.split_at_checked(colons)?;
-    (colons >= 3 && rest.starts_with(|c: char| c.is_ascii_alphabetic()))
+    (colons >= 2 && rest.starts_with(|c: char| c.is_ascii_alphabetic()))
         .then_some((fence, rest.trim_end()))
 }
 
-/// Reads a directive's name and attributes, on body `line`, into its kind.
-pub(crate) fn directive(line: usize, rest: &str) -> Result<BlockKind, BlockError> {
+/// Reads a directive's name and attributes, written in `form` on body `line`,
+/// into its kind.
+pub(crate) fn directive(line: usize, rest: &str, form: Form) -> Result<BlockKind, BlockError> {
     let (name, braces) = rest
         .split_once('{')
         .map_or((rest, ""), |(name, braces)| (name, braces));
+    let name = name.trim();
+    check_form(line, name, form)?;
     let list = match braces.strip_suffix('}') {
         Some(inside) => parse_attributes(inside).ok_or(BlockError::Attributes { line })?,
         None if braces.is_empty() => Vec::new(),
         None => return Err(BlockError::Attributes { line }),
     };
     let attributes = Attributes { line, list };
-    match name.trim() {
+    match name {
         "callout" => callout(&attributes),
         "figure" => figure(&attributes),
+        "toggle" => toggle(&attributes),
+        "toc" => attributes
+            .only("toc", &[], "nothing")
+            .map(|()| BlockKind::Toc),
+        "button" => button(&attributes),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
         }),
     }
+}
+
+/// Refuses a known block written in the other form, naming the right one.
+fn check_form(line: usize, name: &str, form: Form) -> Result<(), BlockError> {
+    if !BLOCKS.contains(&name) {
+        return Ok(());
+    }
+    let problem = match (form, LEAVES.contains(&name)) {
+        (Form::Container, true) => format!("{name} has no body; write it on one line as ::{name}"),
+        (Form::Leaf, false) => {
+            format!("{name} has a body; open it with :::{name} and close it with :::")
+        }
+        _ => return Ok(()),
+    };
+    Err(BlockError::Form { line, problem })
 }
 
 fn callout(attributes: &Attributes) -> Result<BlockKind, BlockError> {
@@ -58,6 +94,32 @@ fn figure(attributes: &Attributes) -> Result<BlockKind, BlockError> {
         "a figure needs alt, the text that describes the image to people who cannot see it",
     )?;
     Ok(BlockKind::Figure { src, alt })
+}
+
+fn toggle(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only("toggle", &["summary"], "summary")?;
+    let summary = attributes.need(
+        "summary",
+        "a toggle needs summary, the line a reader clicks to open it",
+    )?;
+    Ok(BlockKind::Toggle { summary })
+}
+
+fn button(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only("button", &["href", "label"], "href and label")?;
+    let href = attributes.need("href", "a button needs href, the page it leads to")?;
+    let label = attributes.need("label", "a button needs label, the words on the button")?;
+    let safe = ["/", "#", "https:", "http:", "mailto:"]
+        .iter()
+        .any(|start| href.starts_with(start))
+        || !href.contains(':');
+    if !safe {
+        return Err(BlockError::Link {
+            line: attributes.line,
+            href,
+        });
+    }
+    Ok(BlockKind::Button { href, label })
 }
 
 /// A directive's attributes, with the line they are on for messages.

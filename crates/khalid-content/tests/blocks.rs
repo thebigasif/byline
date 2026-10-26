@@ -216,7 +216,7 @@ fn error(markdown: &str) -> String {
 fn refuses_a_directive_khalid_does_not_know() {
     assert_eq!(
         error("Intro.\n\n:::warning{level=high}\nCareful.\n:::\n"),
-        "line 3: there is no block called warning; the blocks are callout and figure"
+        "line 3: there is no block called warning; the blocks are button, callout, figure, toc, toggle"
     );
 }
 
