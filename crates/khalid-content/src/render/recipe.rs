@@ -5,7 +5,7 @@ use std::time::Duration;
 use super::{Image, Renderer, attribute};
 use crate::{RecipeBlock, StructuredBlock};
 
-impl Renderer {
+impl Renderer<'_> {
     /// Writes a recipe: its name, photo, line about it, what it makes and
     /// how long it takes, then the ingredients and the numbered method.
     pub(super) fn recipe(&mut self, recipe: &RecipeBlock) {

@@ -36,7 +36,7 @@ use std::process::ExitCode;
 
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
-use khalid_content::{ContentTree, SiteContent, read_content};
+use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
 use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 
@@ -112,9 +112,10 @@ fn run(cli: &Cli) -> Exit {
 fn check(site: &Path) -> Result<(Config, SiteContent), UserMessage> {
     let config =
         Config::load(site, &Environment::from_process()).map_err(|e| config_message::of(&e))?;
-    Routes::load(site).map_err(|error| routes_message::of(&error))?;
+    let routes = Routes::load(site).map_err(|error| routes_message::of(&error))?;
     let content = ContentTree::walk(site)
         .and_then(|tree| read_content(&tree))
+        .and_then(|content| check_bodies(&content, &config, &routes).map(|()| content))
         .map_err(|error| content_message::of(site, &error))?;
     Ok((config, content))
 }

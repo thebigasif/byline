@@ -1,0 +1,1 @@
+This site breaks one rule on purpose: a formula that opens a bracket with `\left(` and never closes it, so it cannot be drawn, in `content/en/posts/how-traffic-compounds.md`. The exact message `khalid --site` prints for it is in `expected.txt`.

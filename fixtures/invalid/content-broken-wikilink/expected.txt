@@ -1,0 +1,3 @@
+fixtures/invalid/content-broken-wikilink/content/en/posts/why-links-matter.md, line 10: [[link-equity]] matches no post, page or glossary term in en.
+A wikilink names a page by its slug, the last part of its address, in the post's own language.
+Change [[link-equity]] on line 10 to the slug of a post, page or glossary term in en, or remove the brackets.

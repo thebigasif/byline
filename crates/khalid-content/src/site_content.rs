@@ -17,6 +17,8 @@ use crate::{
 pub struct Document<F> {
     /// The language folder it sits in.
     pub locale: Locale,
+    /// The collection folder it sits in, such as `posts` or `glossary`.
+    pub collection: String,
     /// The markdown file, relative to the site folder.
     pub path: PathBuf,
     /// The hash of the file and its assets.
@@ -25,6 +27,9 @@ pub struct Document<F> {
     pub front: F,
     /// The markdown after the front matter, exactly as written.
     pub body: String,
+    /// The file's line the body starts on, counting from 1, so a message
+    /// about a body line names the file's line.
+    pub body_line: usize,
 }
 
 /// A site's content, by type, each list in the tree's path order.
@@ -61,18 +66,19 @@ pub fn read_content(tree: &ContentTree) -> Result<SiteContent, ContentError> {
     for language in tree.languages() {
         let locale = language.locale();
         for collection in language.collections() {
+            let name = collection.name();
             if let Some(index) = collection.index() {
-                content.indexes.push(read(locale, index)?);
+                content.indexes.push(read(locale, name, index)?);
             }
             for entry in collection.entries() {
-                match collection.name() {
-                    "pages" => content.pages.push(read(locale, entry)?),
-                    "authors" => content.authors.push(read(locale, entry)?),
-                    "glossary" => content.glossary.push(read(locale, entry)?),
-                    "case-studies" => content.case_studies.push(read(locale, entry)?),
-                    "changelog" => content.changelog.push(read(locale, entry)?),
-                    "snippets" => content.snippets.push(read(locale, entry)?),
-                    _ => content.posts.push(read(locale, entry)?),
+                match name {
+                    "pages" => content.pages.push(read(locale, name, entry)?),
+                    "authors" => content.authors.push(read(locale, name, entry)?),
+                    "glossary" => content.glossary.push(read(locale, name, entry)?),
+                    "case-studies" => content.case_studies.push(read(locale, name, entry)?),
+                    "changelog" => content.changelog.push(read(locale, name, entry)?),
+                    "snippets" => content.snippets.push(read(locale, name, entry)?),
+                    _ => content.posts.push(read(locale, name, entry)?),
                 }
             }
         }
@@ -82,11 +88,21 @@ pub fn read_content(tree: &ContentTree) -> Result<SiteContent, ContentError> {
 
 fn read<F: DeserializeOwned + Default>(
     locale: &Locale,
+    collection: &str,
     entry: &Entry,
 ) -> Result<Document<F>, ContentError> {
-    let (front, body) = parse_front(entry.path(), entry.text())?;
+    let text = entry.text();
+    let (front, body) = parse_front(entry.path(), text)?;
+    // The body is the end of the file; count the lines before it.
+    let before = text
+        .get(..text.len().saturating_sub(body.len()))
+        .unwrap_or_default()
+        .matches('\n')
+        .count();
     Ok(Document {
+        body_line: before.saturating_add(1),
         locale: locale.clone(),
+        collection: collection.to_owned(),
         path: entry.path().to_path_buf(),
         hash: entry.hash(),
         front,

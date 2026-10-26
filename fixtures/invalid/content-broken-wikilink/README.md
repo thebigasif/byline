@@ -1,0 +1,1 @@
+This site breaks one rule on purpose: a wikilink to a glossary term the site does not have, so it matches no post, page or glossary term, in `content/en/posts/why-links-matter.md`. The exact message `khalid --site` prints for it is in `expected.txt`.
