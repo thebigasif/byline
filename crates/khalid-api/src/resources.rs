@@ -13,7 +13,23 @@ pub use post::{Bodies, Post};
 
 use std::fmt::Display;
 
+use khalid_core::Slug;
 use serde::Serializer;
+
+use crate::query::FieldValues;
+
+/// A resource a list route sends: it has an identity and a slug to be read
+/// by, and fields a `filter` and `order` may name.
+pub(crate) trait Listable: FieldValues + Clone {
+    /// The fields a `filter` and `order` may name.
+    const FIELDS: &'static [&'static str];
+
+    /// The identity, as in `/authors/{id}/`.
+    fn id(&self) -> &str;
+
+    /// The slug, as in `/authors/slug/{slug}/`.
+    fn slug(&self) -> &Slug;
+}
 
 /// Writes a value through its `Display`, for the core newtypes such as
 /// `Slug`, which read themselves from text but leave writing to the edge.

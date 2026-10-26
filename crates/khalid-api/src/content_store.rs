@@ -12,6 +12,7 @@ use crate::resources::{Collection, Post};
 mod memory;
 mod site_resources;
 pub use memory::MemoryContentStore;
+pub(crate) use memory::select;
 pub use site_resources::SiteResources;
 
 /// A future the store returns, boxed so routes can hold any store as a

@@ -36,36 +36,6 @@ impl MemoryContentStore {
             .map(|(_, post)| post)
     }
 
-    fn select(&self, collection: Collection, query: &ListQuery) -> Listed<Post> {
-        let mut found: Vec<&Post> = self
-            .in_collection(collection)
-            .filter(|post| query.filter().is_none_or(|filter| filter.matches(*post)))
-            .collect();
-        found.sort_by(|a, b| {
-            if query.order().is_empty() {
-                return first(b, "published_at").cmp_with(&first(a, "published_at"));
-            }
-            query.order().iter().fold(Ordering::Equal, |sofar, key| {
-                sofar.then_with(|| {
-                    let order = first(a, key.field()).cmp_with(&first(b, key.field()));
-                    match key.direction() {
-                        Direction::Ascending => order,
-                        Direction::Descending => order.reverse(),
-                    }
-                })
-            })
-        });
-        let total = u64::try_from(found.len()).unwrap_or(u64::MAX);
-        let meta = Meta::new(query.page(), query.limit(), total);
-        let skip = usize::try_from(meta.pagination().offset()).unwrap_or(usize::MAX);
-        let take = match query.limit() {
-            Limit::Count(count) => usize::try_from(count).unwrap_or(usize::MAX),
-            Limit::All => usize::MAX,
-        };
-        let items = found.into_iter().skip(skip).take(take).cloned().collect();
-        Listed::new(items, total)
-    }
-
     fn lookup(&self, collection: Collection, key: &PostKey) -> Option<Post> {
         self.in_collection(collection)
             .find(|post| match key {
@@ -83,7 +53,8 @@ impl ContentStore for MemoryContentStore {
         collection: Collection,
         query: &'a ListQuery,
     ) -> BoxFuture<'a, Result<Listed<Post>, ContentStoreError>> {
-        Box::pin(std::future::ready(Ok(self.select(collection, query))))
+        let entries = self.in_collection(collection);
+        Box::pin(std::future::ready(Ok(select(entries, query))))
     }
 
     fn find<'a>(
@@ -99,9 +70,44 @@ impl ContentStore for MemoryContentStore {
     }
 }
 
+/// One page of the `items` that match `query`'s filter, in its order. With
+/// no order, the newest `published_at` comes first, and items without one
+/// keep the order they came in.
+pub(crate) fn select<'a, T: FieldValues + Clone + 'a>(
+    items: impl Iterator<Item = &'a T>,
+    query: &ListQuery,
+) -> Listed<T> {
+    let mut found: Vec<&T> = items
+        .filter(|item| query.filter().is_none_or(|filter| filter.matches(*item)))
+        .collect();
+    found.sort_by(|a, b| {
+        if query.order().is_empty() {
+            return first(*b, "published_at").cmp_with(&first(*a, "published_at"));
+        }
+        query.order().iter().fold(Ordering::Equal, |sofar, key| {
+            sofar.then_with(|| {
+                let order = first(*a, key.field()).cmp_with(&first(*b, key.field()));
+                match key.direction() {
+                    Direction::Ascending => order,
+                    Direction::Descending => order.reverse(),
+                }
+            })
+        })
+    });
+    let total = u64::try_from(found.len()).unwrap_or(u64::MAX);
+    let meta = Meta::new(query.page(), query.limit(), total);
+    let skip = usize::try_from(meta.pagination().offset()).unwrap_or(usize::MAX);
+    let take = match query.limit() {
+        Limit::Count(count) => usize::try_from(count).unwrap_or(usize::MAX),
+        Limit::All => usize::MAX,
+    };
+    let items = found.into_iter().skip(skip).take(take).cloned().collect();
+    Listed::new(items, total)
+}
+
 /// The first value of `field`, which a sort uses.
-fn first(post: &Post, field: &str) -> SortValue {
-    SortValue(post.values(field).into_iter().next())
+fn first(item: &impl FieldValues, field: &str) -> SortValue {
+    SortValue(item.values(field).into_iter().next())
 }
 
 /// A value to sort by. A missing value sorts first, and values of

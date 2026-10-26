@@ -4,7 +4,7 @@ use khalid_core::{AbsoluteUrl, Locale, Slug};
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use super::{display, display_option};
+use super::{Listable, display, display_option};
 use crate::query::{FieldValues, Literal};
 
 /// An author in one language, in API shape.
@@ -82,6 +82,18 @@ impl Author {
 /// Writes each address through its `Display`.
 fn addresses<S: serde::Serializer>(urls: &[AbsoluteUrl], serializer: S) -> Result<S::Ok, S::Error> {
     serializer.collect_seq(urls.iter().map(AbsoluteUrl::as_str))
+}
+
+impl Listable for Author {
+    const FIELDS: &'static [&'static str] = &["id", "slug", "name", "language"];
+
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn slug(&self) -> &Slug {
+        &self.slug
+    }
 }
 
 impl FieldValues for Author {
