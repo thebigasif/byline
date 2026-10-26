@@ -25,3 +25,4 @@ One file per decision the plan does not already make. Numbered, never edited aft
 | 0016 | The share image is drawn in pure Rust, in its own crate | Accepted |
 | 0017 | Proxy rules live in their own crate and keep the mount path | Accepted |
 | 0015 | Theme sync reads the site it is given, and only that site | Accepted |
+| 0018 | Blocks with no body are one-line leaf directives | Accepted |
