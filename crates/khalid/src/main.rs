@@ -11,6 +11,7 @@ mod content_message;
 mod db;
 mod db_message;
 mod exit;
+mod index;
 mod report;
 
 use std::ffi::OsString;
