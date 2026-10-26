@@ -1,6 +1,7 @@
 //! What goes in a page's head: title, description, canonical, languages and share card.
 
 use khalid_core::{AbsoluteUrl, Locale};
+use minijinja::Value;
 use serde::Serialize;
 
 use crate::serde_display::{display, display_option};
@@ -33,6 +34,34 @@ pub struct PageMeta {
     /// The version for readers whose language the site does not have.
     #[serde(serialize_with = "display_option")]
     pub x_default: Option<AbsoluteUrl>,
+    /// The page's SEO tags and JSON-LD, written by `khalid-seo`. When
+    /// present, the base layout prints it in place of its own title,
+    /// description, robots, canonical, hreflang and share card tags.
+    pub seo_head: Option<HeadHtml>,
+}
+
+/// Head tags that were built and escaped before they reached this crate, so
+/// templates print them as they are.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeadHtml(String);
+
+impl HeadHtml {
+    /// Wraps head tags that `khalid-seo` wrote with every value escaped.
+    /// Never pass text a person wrote straight into this.
+    pub fn from_trusted(html: String) -> Self {
+        Self(html)
+    }
+
+    /// The HTML.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Serialize for HeadHtml {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        Value::from_safe_string(self.0.clone()).serialize(serializer)
+    }
 }
 
 /// What a page is, as Open Graph names it.

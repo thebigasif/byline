@@ -267,6 +267,7 @@ fn meta(
         image: None,
         alternates: Vec::new(),
         x_default: None,
+        seo_head: None,
     })
 }
 
