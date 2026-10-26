@@ -528,6 +528,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "url",
 ]
