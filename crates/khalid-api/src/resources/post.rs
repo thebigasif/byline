@@ -6,7 +6,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use super::display;
-use crate::query::{FieldValues, Literal};
+use crate::query::{FieldValues, Format, Literal};
 
 /// A published post in API shape. Bodies are present only when asked for
 /// with `formats`.
@@ -150,6 +150,18 @@ impl Post {
     /// The same post with these bodies.
     #[must_use]
     pub fn with_bodies(self, bodies: Bodies) -> Self {
+        Self { bodies, ..self }
+    }
+
+    /// The same post with only the body formats in `formats`.
+    #[must_use]
+    pub fn with_formats(self, formats: &[Format]) -> Self {
+        let keep = |format, body: Option<String>| body.filter(|_| formats.contains(&format));
+        let bodies = Bodies {
+            html: keep(Format::Html, self.bodies.html),
+            markdown: keep(Format::Markdown, self.bodies.markdown),
+            plaintext: keep(Format::Plaintext, self.bodies.plaintext),
+        };
         Self { bodies, ..self }
     }
 

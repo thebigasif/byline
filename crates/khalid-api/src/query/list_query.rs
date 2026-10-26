@@ -4,6 +4,7 @@ use std::error::Error;
 use std::fmt;
 
 use serde::Deserialize;
+use utoipa::IntoParams;
 
 use super::{Filter, ParseFilterError};
 
@@ -20,7 +21,8 @@ const MAX_ORDER_KEYS: usize = 5;
 
 /// The list parameters as they arrive in the query string, before any
 /// checking. Other parameters, such as `key`, are left to the caller.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 #[non_exhaustive]
 pub struct RawListQuery {
     /// `filter=tag:news+featured:true`

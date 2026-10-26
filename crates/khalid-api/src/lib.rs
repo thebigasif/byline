@@ -6,6 +6,7 @@
 //! content only through traits other crates implement, so it must not know
 //! about content files, markdown, SQL or templates.
 
+pub mod content_api;
 pub mod content_store;
 pub mod pagination;
 pub mod problem;
