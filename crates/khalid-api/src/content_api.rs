@@ -1,20 +1,19 @@
-//! The Content API under `/api/content/v1/`, and the `OpenAPI` document.
+//! The Content API under `/api/content/v1/`.
 
 use std::sync::Arc;
 
 use axum::extract::{OriginalUri, Path, Query, State};
 use axum::middleware;
-use axum::routing::get;
 use axum::{Json, Router};
 use khalid_core::{Slug, UserMessage};
 use serde::Serialize;
 use utoipa::openapi::OpenApi as Document;
-use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
-use utoipa::{Modify, OpenApi, ToSchema};
+use utoipa::{OpenApi, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::api_version::{self, negotiate_version};
+use crate::api::{ApiDoc, finish};
+use crate::api_version::negotiate_version;
 use crate::content_key::require_content_key;
 use crate::content_store::{ContentStore, PostKey};
 use crate::etag::tag_and_revalidate;
@@ -25,53 +24,24 @@ use crate::query::{ListQuery, RawListQuery};
 use crate::resources::{Collection, Post};
 
 /// Where the Content API lives.
-const BASE: &str = "/api/content/v1";
+pub(crate) const BASE: &str = "/api/content/v1";
 
 /// The store every route reads from.
 type Store = Arc<dyn ContentStore>;
 
-/// The document's title, the schemas every route shares and the ways a
-/// content key may be sent.
-#[derive(OpenApi)]
-#[openapi(
-    info(
-        title = "Khalid API",
-        description = "The Content API and the Admin API of a Khalid blog."
-    ),
-    components(schemas(Problem)),
-    modifiers(&ContentKeySchemes)
-)]
-struct ApiDoc;
-
-/// Adds the two ways to send a content key to the document.
-struct ContentKeySchemes;
-
-impl Modify for ContentKeySchemes {
-    fn modify(&self, document: &mut Document) {
-        let components = document.components.get_or_insert_with(Default::default);
-        let header = ApiKeyValue::with_description(
-            "Authorization",
-            "The site's content key, as Khalid-Content followed by the key.",
-        );
-        components.add_security_scheme(
-            "content_key",
-            SecurityScheme::ApiKey(ApiKey::Header(header)),
-        );
-        let query = ApiKeyValue::with_description("key", "The site's content key.");
-        components.add_security_scheme(
-            "content_key_query",
-            SecurityScheme::ApiKey(ApiKey::Query(query)),
-        );
-    }
+/// The Content API alone and `/api/openapi.json`. [`api::router`] serves
+/// every API behind one document.
+///
+/// [`api::router`]: crate::api::router
+pub fn router(store: Store, keys: Arc<dyn KeyStore>) -> (Router, Document) {
+    finish(OpenApiRouter::with_openapi(ApiDoc::openapi()).nest(BASE, routes(store, keys)))
 }
 
-/// The Content API routes and `/api/openapi.json`, with the `OpenAPI`
-/// document the routes declare (RULES.md BL-API-4). Every route is
-/// declared with `utoipa::path` and registered through `routes!`, so a
-/// route cannot exist without its entry, and every route needs a content
-/// key. The document itself needs none.
-pub fn router(store: Store, keys: Arc<dyn KeyStore>) -> (Router, Document) {
-    let content = OpenApiRouter::new()
+/// The Content API routes, each declared with `utoipa::path` and
+/// registered through `routes!`, so a route cannot exist without its
+/// `OpenAPI` entry (RULES.md BL-API-4). Every route needs a content key.
+pub(crate) fn routes(store: Store, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
+    OpenApiRouter::new()
         .routes(routes!(browse_posts))
         .routes(routes!(read_post))
         .routes(routes!(read_post_by_slug))
@@ -90,14 +60,7 @@ pub fn router(store: Store, keys: Arc<dyn KeyStore>) -> (Router, Document) {
         .route_layer(middleware::from_fn_with_state(keys, require_content_key))
         .route_layer(middleware::from_fn(tag_and_revalidate))
         .route_layer(middleware::from_fn(negotiate_version))
-        .with_state(store);
-    let (router, mut document) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest(BASE, content)
-        .split_for_parts();
-    api_version::document(&mut document);
-    let served = Json(document.clone());
-    let router = router.route("/api/openapi.json", get(move || async move { served }));
-    (router, document)
+        .with_state(store)
 }
 
 /// Declares one collection's envelope and its three routes: the list, one

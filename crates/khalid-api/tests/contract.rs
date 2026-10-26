@@ -13,7 +13,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
-use khalid_api::content_api;
+use khalid_api::api;
 use khalid_api::keys::{KeyToken, MemoryKeyStore, StoredKey};
 use serde_json::Value;
 use tower::ServiceExt;
@@ -50,7 +50,7 @@ const METHODS: [&str; 5] = ["get", "post", "put", "patch", "delete"];
 fn api() -> (Router, Value) {
     let token: KeyToken = KEY.parse().unwrap();
     let keys = MemoryKeyStore::new(vec![StoredKey::for_token(&token)]);
-    let (router, document) = content_api::router(Arc::new(common::store()), Arc::new(keys));
+    let (router, document) = api::router(Arc::new(common::store()), Arc::new(keys));
     (router, serde_json::to_value(document).unwrap())
 }
 
