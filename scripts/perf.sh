@@ -5,9 +5,12 @@
 #
 # Measured today: the release binary's size, the cold start of
 # `khalid --help`, post page render p50 and p99 over the generated
-# 1,000-post site, and a full `khalid build` of the generated 10,000-post
-# site. Cold start to first byte, idle memory and incremental rebuild wait
-# for `khalid serve`; the lint measures wait for the linter's near-copy
+# 1,000-post site, a full `khalid build` of the generated 10,000-post
+# site, and, through `khalid serve` on the 1,000-post site, the cold start
+# to the first byte, the idle memory and the time from saving one post to
+# its page showing the edit. The same three on the 10,000-post site are
+# written under "observed": the budgets name 1,000 posts, so they are
+# reported, not gated. The lint measures wait for the linter's near-copy
 # rule to stop growing with the site (task 1.21).
 set -euo pipefail
 
@@ -30,6 +33,8 @@ mkdir -p "$work"
 "$perf" fixture 1000 "$work/site-1k"
 "$perf" fixture 10000 "$work/site-10k"
 "$perf" render "$work/site-1k" "$work/render.json"
+"$perf" serve "$bin" 1000 "$work/site-1k" "$work/serve-1k.json"
+"$perf" serve "$bin" 10000 "$work/site-10k" "$work/serve-10k.json"
 
 python3 - "$bin" "$work" perf/current.json <<'PY'
 import json
@@ -63,19 +68,27 @@ for attempt in range(3):
     site = os.path.join(work, "site-10k")
     build_runs.append(timed([binary, "--site", site, "build", "--out", target]))
 
-with open(os.path.join(work, "render.json")) as f:
-    render = json.load(f)
+def read(name):
+    with open(os.path.join(work, name)) as f:
+        return json.load(f)
 
+
+render = read("render.json")
 measures = {
     "binary_size_bytes": os.path.getsize(binary),
     "cold_start_help_ms": round(statistics.median(help_runs), 2),
     "post_render_p50_ms": render["post_render_p50_ms"],
     "post_render_p99_ms": render["post_render_p99_ms"],
     "full_rebuild_10k_s": round(statistics.median(build_runs), 2),
+    **read("serve-1k.json"),
 }
+# The 10,000-post site's server measures, reported beside the gate.
+observed = {f"{name}_10k": value for name, value in read("serve-10k.json").items()}
 with open(out, "w") as f:
-    json.dump({"measures": measures}, f, indent=2)
+    json.dump({"measures": measures, "observed": observed}, f, indent=2)
     f.write("\n")
+for name, value in observed.items():
+    print(f"observed, not gated: {name} = {value}")
 PY
 
 python3 scripts/perf-gate.py perf/baseline.json perf/current.json

@@ -18,6 +18,7 @@ mod direction;
 mod enlarge;
 mod escape;
 mod features;
+mod font_fallback;
 mod glossary;
 mod heading_links;
 mod home;

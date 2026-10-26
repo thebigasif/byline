@@ -38,6 +38,39 @@ impl LivePages {
         *slot = Arc::new(pages);
         Ok(())
     }
+
+    /// Adds a Brotli copy to every page being served, on a blocking thread,
+    /// then serves the compressed set. Start the server with
+    /// [`Pages::plain`] and call this once it listens, so the first reader
+    /// does not wait for compression.
+    ///
+    /// When the pages were replaced meanwhile, by an edit, the compressed
+    /// set is dropped: the newer pages were compressed when they were built.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ServerError::Worker`] when the compressing thread stopped.
+    /// The plain pages keep being served.
+    pub async fn compress(&self) -> Result<(), ServerError> {
+        let plain = self.current();
+        let work = Arc::clone(&plain);
+        let compressed = tokio::task::spawn_blocking(move || work.compressed())
+            .await
+            .map_err(|source| ServerError::Worker { source })?;
+        self.replace_if_current(&plain, compressed);
+        Ok(())
+    }
+
+    /// Serves `pages` in place of `expected`, unless something else
+    /// replaced `expected` first. Says whether `pages` are served now.
+    pub fn replace_if_current(&self, expected: &Arc<Pages>, pages: Pages) -> bool {
+        let mut slot = self.0.write().unwrap_or_else(PoisonError::into_inner);
+        if !Arc::ptr_eq(&slot, expected) {
+            return false;
+        }
+        *slot = Arc::new(pages);
+        true
+    }
 }
 
 impl From<Pages> for LivePages {

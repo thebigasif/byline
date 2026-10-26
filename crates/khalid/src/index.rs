@@ -2,43 +2,46 @@
 
 use std::path::{Component, Path};
 
-use khalid_content::{ContentTree, Entry, parse_post};
+use khalid_content::{ContentHash, ContentTree, read_content};
 use khalid_core::UserMessage;
-use khalid_db::{ContentIndex, IndexedPost};
+use khalid_db::{ContentIndex, IndexedAuthor, IndexedPost};
 
-use crate::content_message;
+use crate::{categories, content_message};
 
 /// The collection whose entries are posts. Other collections get their own
 /// schemas and join the index with them.
 const POSTS: &str = "posts";
 
-/// Every post of every language in the `site` folder, ready for the database.
+/// Every post and author of every language in the `site` folder, and the
+/// categories in its `categories.toml`, ready for the database.
 pub(crate) fn of(site: &Path) -> Result<ContentIndex, UserMessage> {
     let content = |error| content_message::of(site, &error);
     let tree = ContentTree::walk(site).map_err(content)?;
+    let read = read_content(&tree).map_err(content)?;
     let mut index = ContentIndex::default();
-    for language in tree.languages() {
-        let Some(collection) = language.collection(POSTS) else {
-            continue;
-        };
-        for entry in collection.entries() {
-            let front = parse_post(entry.path(), entry.text())
-                .map_err(content)?
-                .front;
-            let at = format!("{}/{}", site.display(), entry.path().display());
-            let path = slashed(entry.path()).ok_or_else(|| unreadable_name(&at))?;
-            let slug = front.slug.ok_or_else(|| no_slug(&at))?;
-            let mut post =
-                IndexedPost::new(&path, language.locale().clone(), POSTS, slug, bytes(entry));
-            post.title = front.title;
-            post.description = front.description;
-            post.date = front.date;
-            post.author = front.author;
-            post.category = front.category;
-            post.translation = front.translation;
-            index.posts.push(post);
-        }
+    for doc in read.posts.iter().filter(|doc| doc.collection == POSTS) {
+        let front = &doc.front;
+        let at = format!("{}/{}", site.display(), doc.path.display());
+        let path = slashed(&doc.path).ok_or_else(|| unreadable_name(&at))?;
+        let slug = front.slug.clone().ok_or_else(|| no_slug(&at))?;
+        let mut post = IndexedPost::new(&path, doc.locale.clone(), POSTS, slug, bytes(doc.hash));
+        post.title.clone_from(&front.title);
+        post.description.clone_from(&front.description);
+        post.date = front.date;
+        post.author.clone_from(&front.author);
+        post.category.clone_from(&front.category);
+        post.translation.clone_from(&front.translation);
+        index.posts.push(post);
     }
+    for doc in &read.authors {
+        let at = format!("{}/{}", site.display(), doc.path.display());
+        let path = slashed(&doc.path).ok_or_else(|| unreadable_name(&at))?;
+        let slug = doc.front.slug.clone().ok_or_else(|| no_slug(&at))?;
+        let name = doc.front.name.clone().unwrap_or_else(|| slug.to_string());
+        let author = IndexedAuthor::new(&path, doc.locale.clone(), slug, &name, bytes(doc.hash));
+        index.authors.push(author);
+    }
+    index.categories = categories::of(site)?;
     Ok(index)
 }
 
@@ -55,11 +58,11 @@ pub(crate) fn slashed(path: &Path) -> Option<String> {
     parts.map(|parts| parts.join("/"))
 }
 
-/// The message for a post whose front matter has no slug.
+/// The message for a post or an author whose front matter has no slug.
 fn no_slug(at: &str) -> UserMessage {
     UserMessage::new(
         format!("{at} has no slug."),
-        "The slug is the last part of the post's address, so every post needs one.",
+        "The slug is the last part of the address, so every post and author needs one.",
         format!("Add a `slug:` line to the front matter of {at}."),
     )
 }
@@ -73,10 +76,10 @@ fn unreadable_name(at: &str) -> UserMessage {
     )
 }
 
-/// The entry's content hash as bytes. `ContentHash` shows itself as 64
-/// lowercase hex digits and has no byte accessor yet.
-fn bytes(entry: &Entry) -> [u8; 32] {
-    let hex = entry.hash().to_string();
+/// A content hash as bytes. `ContentHash` shows itself as 64 lowercase hex
+/// digits and has no byte accessor yet.
+fn bytes(hash: ContentHash) -> [u8; 32] {
+    let hex = hash.to_string();
     let mut bytes = [0; 32];
     for (byte, pair) in bytes.iter_mut().zip(hex.as_bytes().chunks(2)) {
         let digits = std::str::from_utf8(pair).unwrap_or_default();

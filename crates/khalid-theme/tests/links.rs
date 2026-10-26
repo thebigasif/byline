@@ -73,6 +73,32 @@ fn a_link_that_is_not_a_web_address_is_skipped() {
 }
 
 #[test]
+fn print_dark_and_alternate_stylesheets_are_skipped_and_screen_ones_are_read() {
+    let html = r#"<head>
+<link rel="stylesheet" href="/print.css" media="print">
+<link rel="stylesheet" href="/dark.css" media="(prefers-color-scheme: dark)">
+<link rel="alternate stylesheet" href="/contrast.css" title="High contrast">
+<link rel="stylesheet" href="/wide.css" media="screen and (min-width: 48em)">
+<link rel="stylesheet" href="/both.css" media="print, screen">
+</head>"#;
+
+    let styles = page_styles(html, &url("https://acme.example/"));
+
+    let not_for_screen =
+        |href: &str| PageStyle::Skipped(Skipped::new(href, SkipReason::NotForScreen));
+    assert_eq!(
+        styles,
+        [
+            not_for_screen("https://acme.example/print.css"),
+            not_for_screen("https://acme.example/dark.css"),
+            not_for_screen("https://acme.example/contrast.css"),
+            PageStyle::Linked(url("https://acme.example/wide.css")),
+            PageStyle::Linked(url("https://acme.example/both.css")),
+        ]
+    );
+}
+
+#[test]
 fn a_page_with_no_styles_lists_nothing() {
     let html = "<!doctype html><title>Loading</title><div id=root></div>";
 

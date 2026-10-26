@@ -1876,6 +1876,7 @@ dependencies = [
  "khalid-core",
  "khalid-db",
  "khalid-lint",
+ "khalid-outbound",
  "khalid-render",
  "khalid-routes",
  "khalid-seo",
@@ -1887,7 +1888,9 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "toml",
  "tracing",
+ "wiremock",
 ]
 
 [[package]]

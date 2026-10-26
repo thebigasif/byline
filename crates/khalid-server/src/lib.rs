@@ -43,4 +43,4 @@ pub use retry::retry_deliveries;
 pub use security::SecurityHeaders;
 pub use serve::{Stopped, serve};
 pub use server_error::ServerError;
-pub use watch::watch;
+pub use watch::{FolderLook, watch};
