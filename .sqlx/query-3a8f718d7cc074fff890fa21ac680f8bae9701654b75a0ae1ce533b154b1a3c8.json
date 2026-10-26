@@ -1,0 +1,146 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.path, p.locale, p.collection, p.slug, p.title, p.description,\n    p.date AS \"date: chrono::NaiveDate\", p.author, p.category,\n    t.key AS \"translation?\", p.content_hash\nFROM posts AS p\nLEFT JOIN translations AS t ON t.site_id = p.site_id AND t.path = p.path\nWHERE p.site_id = ?1 AND p.locale = ?2 AND p.collection = ?3\nORDER BY p.date DESC, p.slug\nLIMIT ?4\n",
+  "describe": {
+    "columns": [
+      {
+        "name": "path",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "name": "locale",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "locale"
+          }
+        }
+      },
+      {
+        "name": "collection",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "collection"
+          }
+        }
+      },
+      {
+        "name": "slug",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "name": "title",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "name": "description",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "name": "date: chrono::NaiveDate",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "author",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "author"
+          }
+        }
+      },
+      {
+        "name": "category",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "category"
+          }
+        }
+      },
+      {
+        "name": "translation?",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "translations",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "name": "content_hash",
+        "ordinal": 10,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "content_hash"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "3a8f718d7cc074fff890fa21ac680f8bae9701654b75a0ae1ce533b154b1a3c8"
+}
