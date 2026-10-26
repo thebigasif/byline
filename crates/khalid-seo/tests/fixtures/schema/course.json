@@ -1,0 +1,4 @@
+{"@context": "https://schema.org", "@type": "Course",
+ "name": "Internal links for beginners",
+ "description": "Five short lessons on adding internal links to an older blog.",
+ "provider": {"@id": "https://www.example.com/blog/#organization"}}

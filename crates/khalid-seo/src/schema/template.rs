@@ -43,7 +43,7 @@ impl fmt::Display for SchemaType {
 }
 
 /// Whether `text` is one ASCII word whose first character passes `first`.
-fn is_word(text: &str, first: fn(&char) -> bool) -> bool {
+pub(crate) fn is_word(text: &str, first: fn(&char) -> bool) -> bool {
     let mut chars = text.chars();
     chars.next().is_some_and(|c| first(&c)) && chars.all(|c| c.is_ascii_alphanumeric())
 }

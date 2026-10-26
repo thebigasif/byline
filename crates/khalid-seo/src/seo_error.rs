@@ -136,6 +136,22 @@ pub enum SeoError {
         /// The name, as given.
         name: String,
     },
+    /// A custom JSON-LD field is not valid JSON.
+    #[error("the custom JSON-LD is not valid JSON at line {line}, column {column}")]
+    CustomSchemaSyntax {
+        /// The line of the first mistake, counting from 1.
+        line: usize,
+        /// The column of the first mistake, counting from 1.
+        column: usize,
+    },
+    /// A custom JSON-LD field is JSON, but not JSON-LD this crate can write.
+    #[error("in the custom JSON-LD, {} {problem}", if at.is_empty() { "the field" } else { at })]
+    CustomSchema {
+        /// Where the problem is, such as `location.@type`. Empty for the whole field.
+        at: String,
+        /// What is wrong there.
+        problem: &'static str,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {
