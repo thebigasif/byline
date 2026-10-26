@@ -10,10 +10,13 @@
 //! code turns content into these records; the server decides when to render
 //! and caches the result.
 
+mod dates;
 mod direction;
 mod escape;
+mod image;
 mod page_body;
 mod page_meta;
+mod post;
 mod render_error;
 mod renderer;
 mod serde_display;
@@ -21,8 +24,10 @@ mod site;
 mod strings;
 mod templates;
 
+pub use image::{ImageCandidate, ImageSet, Loading, RenderImage};
 pub use page_body::PageBody;
 pub use page_meta::{Alternate, PageKind, PageMeta, Robots, ShareImage};
+pub use post::{BodyHtml, Link, RenderPost};
 pub use render_error::RenderError;
 pub use renderer::Renderer;
 pub use site::{Nav, NavLink, RenderSite};
