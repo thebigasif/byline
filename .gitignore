@@ -1,0 +1,22 @@
+# Rust
+/target/
+**/*.rs.bk
+# Node
+node_modules/
+dist/
+# Local data
+*.db
+*.db-wal
+*.db-shm
+/sites/
+# Secrets and env
+.env
+.env.*
+!.env.example
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+# Perf and coverage output
+/perf/current.json
+/coverage/

@@ -1,0 +1,73 @@
+# Byline lints. Based on BeautifulRust's lints.toml (MIT, Morgan Linton), kept in
+# lints/lints.beautifulrust.toml for comparison, with these changes:
+#   - unsafe_code is forbidden, not allowed with a SAFETY comment. No unsafe in a CMS.
+#   - expect_used, panic, unimplemented, unreachable and indexing_slicing warn too.
+#     Return errors (RULES.md BL-ERR-3).
+#   - string_slice and str_to_string warn: byte slicing panics on UTF-8 boundaries.
+#   - large_futures, unused_async, disallowed_methods, disallowed_types warn.
+#   - too_many_lines and too_many_arguments warn, with thresholds in clippy.toml.
+#   - rustdoc lints warn, and cargo doc runs with warnings as errors in CI.
+#
+# Everything is "warn". CI makes it strict:
+#     cargo clippy --workspace --all-targets --all-features -- -D warnings
+#
+# Silence a lint locally with a reason, which the table requires:
+#     #[expect(clippy::indexing_slicing, reason = "index checked two lines above")]
+#
+# This file is mirrored line for line into the [workspace.lints] tables in
+# Cargo.toml (only the section headers differ). scripts/check-lints.sh fails on drift.
+
+[lints.rust]
+unsafe_code = "forbid"
+unsafe_op_in_unsafe_fn = "warn"
+missing_debug_implementations = "warn"
+missing_docs = "warn"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.rustdoc]
+broken_intra_doc_links = "warn"
+private_intra_doc_links = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"
+indexing_slicing = "warn"
+panic_in_result_fn = "warn"
+missing_panics_doc = "warn"
+missing_errors_doc = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+fn_params_excessive_bools = "warn"
+struct_excessive_bools = "warn"
+clone_on_ref_ptr = "warn"
+redundant_clone = "warn"
+rc_buffer = "warn"
+string_add = "warn"
+string_slice = "warn"
+str_to_string = "warn"
+wildcard_imports = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+as_conversions = "warn"
+cast_possible_truncation = "warn"
+cast_sign_loss = "warn"
+large_futures = "warn"
+unused_async = "warn"
+disallowed_methods = "warn"
+disallowed_types = "warn"
+too_many_lines = "warn"
+too_many_arguments = "warn"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+module_inception = "allow"
+enum_glob_use = "allow"

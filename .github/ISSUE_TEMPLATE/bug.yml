@@ -1,0 +1,36 @@
+name: Bug
+description: Something does not work the way the docs say
+labels: [bug]
+body:
+  - type: textarea
+    id: did
+    attributes:
+      label: What you did
+      description: The command, the click, or the request. Never paste a key, token or password.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: The message you saw, word for word, and the exit code if any.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `byline --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options: [server, static, headless]

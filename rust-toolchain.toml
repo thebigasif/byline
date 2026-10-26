@@ -1,0 +1,6 @@
+# Pinned so CI and every machine build with the same compiler (RULES.md BL-DEP-4).
+# Raise it on purpose, in its own pull request.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt", "llvm-tools-preview"]
+profile = "minimal"

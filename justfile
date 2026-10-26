@@ -1,0 +1,45 @@
+# Common tasks. `just` is the one tool to learn. CI runs the same recipes.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Everything CI checks, in the same order.
+check:
+    ./scripts/check.sh
+
+# Format all Rust and TOML.
+fmt:
+    cargo fmt --all
+    taplo fmt
+
+# Clippy with warnings as errors on every target and feature.
+clippy:
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+# Tests with nextest, then doc tests.
+test *ARGS:
+    cargo nextest run --workspace --all-features {{ARGS}}
+    cargo test --workspace --doc
+
+# Docs with warnings as errors.
+doc:
+    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
+
+# Dependency audit: advisories, licences, bans, sources.
+deny:
+    cargo deny check
+
+# Prove every lint in lints/lints.toml fires.
+lints:
+    ./scripts/check-lints.sh
+
+# Benchmarks against the baseline.
+bench:
+    ./scripts/perf.sh
+
+# Line coverage against the floor.
+coverage:
+    cargo llvm-cov nextest --workspace --all-features --summary-only
+
+# Run the binary in a scratch site with a demo fixture.
+dev:
+    cargo run -p byline -- serve --site fixtures/demo-site

@@ -1,0 +1,43 @@
+# cargo deny: advisories, licences, bans and sources. Runs in CI on every pull
+# request (RULES.md BL-SEC-8, BL-DEP-2, BL-DEP-3).
+
+[graph]
+all-features = true
+
+[advisories]
+# Every advisory fails the check unless listed here with a reason and a review date.
+ignore = []
+
+[licenses]
+# Permissive licences only, so SerpDad can reuse every crate in its closed
+# backend (BL-DEP-2). MPL-2.0 needs a named exception per crate below.
+allow = [
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "CDLA-Permissive-2.0",
+  "ISC",
+  "MIT",
+  "Unicode-3.0",
+  "Zlib",
+  "0BSD",
+]
+confidence-threshold = 0.9
+unused-allowed-license = "allow"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+# Crates we never want. Each has a reason.
+deny = [
+  { crate = "openssl", reason = "rustls everywhere; one TLS stack, no system library" },
+  { crate = "openssl-sys", reason = "rustls everywhere; one TLS stack, no system library" },
+  { crate = "anyhow", wrappers = ["byline"], reason = "libraries use thiserror enums (BL-ERR-1); only the binary may wrap" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

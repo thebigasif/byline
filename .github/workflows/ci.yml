@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+
+jobs:
+  text:
+    name: Text rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: No em dashes (RULES.md BL-TXT-1)
+        run: |
+          if git grep -nI -- $'\xe2\x80\x94' -- ':!*.lock' ':!.claude/skills/rust-best-practices/references/*'; then
+            echo "Replace each em dash with a full stop, a comma or a colon."; exit 1; fi
+      - name: Spelling
+        uses: crate-ci/typos@v1
+
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Any crates yet?
+        id: crates
+        run: |
+          if ls crates/*/Cargo.toml >/dev/null 2>&1; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Toolchain from rust-toolchain.toml
+        if: steps.crates.outputs.present == 'true'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          components: clippy, rustfmt, llvm-tools-preview
+      - name: Cache
+        if: steps.crates.outputs.present == 'true'
+        uses: Swatinem/rust-cache@v2
+      - name: Tools
+        if: steps.crates.outputs.present == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,cargo-deny,cargo-machete,cargo-llvm-cov
+      - name: Format
+        if: steps.crates.outputs.present == 'true'
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        if: steps.crates.outputs.present == 'true'
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Tests, network disabled (BL-TST-3)
+        if: steps.crates.outputs.present == 'true'
+        run: |
+          # A user namespace with no network interfaces, no root needed. Falls back
+          # to a plain run where namespaces are off, and says so.
+          if unshare -rn true 2>/dev/null; then
+            unshare -rn cargo nextest run --workspace --all-features
+          else
+            echo "user namespaces unavailable; running tests with the network on"
+            cargo nextest run --workspace --all-features
+          fi
+          cargo test --workspace --doc
+      - name: Docs
+        if: steps.crates.outputs.present == 'true'
+        run: cargo doc --workspace --no-deps --all-features
+      - name: Dependencies
+        if: steps.crates.outputs.present == 'true'
+        run: cargo deny check
+      - name: Unused dependencies
+        if: steps.crates.outputs.present == 'true'
+        run: cargo machete
+      - name: Lint table proven to fire (BL-LNT-3)
+        if: steps.crates.outputs.present == 'true'
+        run: ./scripts/check-lints.sh
+      - name: Coverage floor (BL-TST-6)
+        if: steps.crates.outputs.present == 'true'
+        run: |
+          floor=$(sed -n 's/^lines *= *\([0-9.]*\).*/\1/p' coverage.toml 2>/dev/null || echo 0)
+          cargo llvm-cov nextest --workspace --all-features --summary-only --fail-under-lines "$floor"
+      - name: Binary size and bloat (budget: under 30 MB)
+        if: steps.crates.outputs.present == 'true'
+        run: |
+          cargo build --release -p byline
+          size=$(stat -c %s target/release/byline)
+          echo "binary: $size bytes" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$size" -lt 31457280
+      - name: No crates yet
+        if: steps.crates.outputs.present == 'false'
+        run: echo "Rust checks start with the first crate (Phase 0)."
+
+  admin:
+    name: Admin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Any admin yet?
+        id: admin
+        run: |
+          if [ -f admin/package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.admin.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+      - name: Install
+        if: steps.admin.outputs.present == 'true'
+        run: npm ci
+        working-directory: admin
+      - name: Biome, TypeScript, Vitest
+        if: steps.admin.outputs.present == 'true'
+        run: npx biome ci . && npx tsc --noEmit && npx vitest run
+        working-directory: admin
+      - name: Build and size budget (under 350 KB compressed)
+        if: steps.admin.outputs.present == 'true'
+        run: npm run build && node scripts/size-budget.mjs
+        working-directory: admin
+      - name: No admin yet
+        if: steps.admin.outputs.present == 'false'
+        run: echo "Admin checks start with Phase 4."
+
+  perf:
+    name: Performance budgets
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Budgets (docs/standards/performance.md)
+        run: ./scripts/perf.sh

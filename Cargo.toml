@@ -1,0 +1,95 @@
+# Byline workspace. Crates live in crates/. Lints and dependency versions are
+# shared from here. Each crate sets `[lints] workspace = true`.
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+# Task 0.3 adds "lints/check" here. check-reference is BeautifulRust's copy and
+# is full of deliberate violations, so it is never a member.
+exclude = ["lints/check-reference"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.99"
+license = "AGPL-3.0-only"
+repository = "https://github.com/thebigasif/byline"
+publish = false
+
+[workspace.dependencies]
+# Shared versions. Add a crate here when two or more members use it. See
+# docs/standards/rust.md for the approved list and docs/standards/RULES.md
+# BL-DEP-1 for what a new dependency needs.
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "fs"] }
+tracing = "0.1"
+
+[workspace.lints.rust]
+# The complete lint table is in lints/lints.toml, with the reasoning. It is
+# mirrored here line for line (only the section headers differ), and
+# scripts/check-lints.sh fails if the two drift.
+unsafe_code = "forbid"
+unsafe_op_in_unsafe_fn = "warn"
+missing_debug_implementations = "warn"
+missing_docs = "warn"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "warn"
+private_intra_doc_links = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"
+indexing_slicing = "warn"
+panic_in_result_fn = "warn"
+missing_panics_doc = "warn"
+missing_errors_doc = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+fn_params_excessive_bools = "warn"
+struct_excessive_bools = "warn"
+clone_on_ref_ptr = "warn"
+redundant_clone = "warn"
+rc_buffer = "warn"
+string_add = "warn"
+string_slice = "warn"
+str_to_string = "warn"
+wildcard_imports = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+as_conversions = "warn"
+cast_possible_truncation = "warn"
+cast_sign_loss = "warn"
+large_futures = "warn"
+unused_async = "warn"
+disallowed_methods = "warn"
+disallowed_types = "warn"
+too_many_lines = "warn"
+too_many_arguments = "warn"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+module_inception = "allow"
+enum_glob_use = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

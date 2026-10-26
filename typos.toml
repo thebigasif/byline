@@ -1,0 +1,16 @@
+# Spelling check for code, docs and messages. Runs in scripts/check.sh and CI.
+[default]
+extend-ignore-re = [
+  # hashed asset names and ids in fixtures
+  "[0-9a-f]{32,}",
+]
+
+[default.extend-words]
+# Project words typos would otherwise flag.
+serpdad = "serpdad"
+byline = "byline"
+hreflang = "hreflang"
+minijinja = "minijinja"
+
+[files]
+extend-exclude = ["target/", "node_modules/", "*.lock", ".claude/skills/rust-best-practices/references/"]

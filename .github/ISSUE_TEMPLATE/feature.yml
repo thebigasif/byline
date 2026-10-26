@@ -1,0 +1,21 @@
+name: Feature
+description: Something the plan does not have yet
+labels: [feature]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do and what stops you. Not the solution yet.
+    validations:
+      required: true
+  - type: textarea
+    id: others
+    attributes:
+      label: Who else does this
+      description: Ghost, WordPress, Hugo, another tool. A link helps.
+  - type: textarea
+    id: plan
+    attributes:
+      label: Where it fits the plan
+      description: Which section of docs/plan.md, or why it belongs in a blog engine at all.

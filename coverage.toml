@@ -1,0 +1,3 @@
+# Line coverage floor for cargo llvm-cov (RULES.md BL-TST-6). It only moves up.
+# Raise it in its own pull request when the suite is comfortably above it.
+lines = 80
