@@ -1,5 +1,5 @@
-//! The content tree: language folders, collections, `_index.md`, sorted order
-//! and content hashes.
+//! The content tree: language folders, collections, posts as files or as
+//! folders with their assets, `_index.md`, sorted order and content hashes.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -68,7 +68,7 @@ fn lists_entries_in_path_order_whatever_order_they_were_written() {
     let dir = site(&[
         ("content/en/posts/c.md", POST),
         ("content/en/posts/a.md", POST),
-        ("content/en/posts/b.md", POST),
+        ("content/en/posts/b/index.md", POST),
     ]);
     let tree = walk(dir.path());
     let posts = tree.languages()[0].collection("posts").unwrap();
@@ -76,7 +76,7 @@ fn lists_entries_in_path_order_whatever_order_they_were_written() {
         paths(posts.entries()),
         [
             "content/en/posts/a.md",
-            "content/en/posts/b.md",
+            "content/en/posts/b/index.md",
             "content/en/posts/c.md"
         ]
         .map(PathBuf::from)
@@ -132,4 +132,80 @@ fn the_hash_follows_the_text() {
     assert_eq!(hash(POST), hash(POST));
     assert_ne!(hash(POST), hash(b"---\ntitle: B\n---\nText.\n"));
     assert_eq!(hash(POST).to_string().len(), 64, "a hex SHA-256");
+}
+
+#[test]
+fn a_folder_post_lists_its_assets_in_order() {
+    let dir = site(&[
+        ("content/en/posts/crm/index.md", POST),
+        ("content/en/posts/crm/hero.jpg", b"jpeg"),
+        ("content/en/posts/crm/charts/a.png", b"png"),
+        ("content/en/posts/crm/.DS_Store", b"noise"),
+    ]);
+    let tree = walk(dir.path());
+    let entry = &tree.languages()[0].collection("posts").unwrap().entries()[0];
+    assert_eq!(entry.text(), "---\ntitle: A\n---\nText.\n");
+    assert_eq!(
+        entry.assets(),
+        [
+            "content/en/posts/crm/charts/a.png",
+            "content/en/posts/crm/hero.jpg"
+        ]
+        .map(PathBuf::from)
+    );
+}
+
+#[test]
+fn the_hash_covers_the_text_and_every_asset() {
+    let hash = |files: &[(&str, &[u8])]| {
+        let dir = site(files);
+        walk(dir.path()).languages()[0]
+            .collection("posts")
+            .unwrap()
+            .entries()[0]
+            .hash()
+    };
+    let base = hash(&[
+        ("content/en/posts/crm/index.md", POST),
+        ("content/en/posts/crm/hero.jpg", b"one"),
+    ]);
+    assert_eq!(
+        base,
+        hash(&[
+            ("content/en/posts/crm/index.md", POST),
+            ("content/en/posts/crm/hero.jpg", b"one")
+        ])
+    );
+    assert_ne!(
+        base,
+        hash(&[
+            ("content/en/posts/crm/index.md", POST),
+            ("content/en/posts/crm/hero.jpg", b"two")
+        ])
+    );
+    assert_ne!(
+        base,
+        hash(&[
+            ("content/en/posts/crm/index.md", b"---\n---\nNew.\n"),
+            ("content/en/posts/crm/hero.jpg", b"one")
+        ])
+    );
+    assert_ne!(
+        base,
+        hash(&[
+            ("content/en/posts/crm/index.md", POST),
+            ("content/en/posts/crm/photo.jpg", b"one")
+        ])
+    );
+    assert_eq!(base.to_string().len(), 64, "a hex SHA-256");
+}
+
+#[test]
+fn refuses_a_folder_post_without_index_md() {
+    let dir = site(&[("content/en/posts/crm/hero.jpg", b"jpeg")]);
+    let error = ContentTree::walk(dir.path()).unwrap_err().to_string();
+    assert_eq!(
+        error,
+        "content/en/posts/crm is a folder post with no index.md"
+    );
 }
