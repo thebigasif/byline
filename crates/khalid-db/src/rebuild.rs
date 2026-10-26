@@ -47,8 +47,9 @@ impl Database {
     /// # Errors
     ///
     /// Returns [`DbError::Query`] when a row cannot be written, such as two
-    /// files in one language that share a translation key, or two files with
-    /// the same path.
+    /// files in one language that share a translation key, two files with
+    /// the same path, or two authors, categories or tags with one slug in
+    /// one language.
     pub async fn rebuild(
         &self,
         site: SiteId,
@@ -59,6 +60,7 @@ impl Database {
         for post in &index.posts {
             insert_post(&mut tx, site, post).await?;
         }
+        insert_lists(&mut tx, site, index).await?;
         tx.commit().await?;
         Ok(RebuildSummary {
             posts: index.posts.len(),
@@ -103,6 +105,57 @@ async fn insert_post(
             key,
             locale,
             post.path,
+        )
+        .execute(&mut **tx)
+        .await?;
+    }
+    Ok(())
+}
+
+/// Writes the authors, categories and tags, each list in its order, which
+/// the rows' identities keep.
+async fn insert_lists(
+    tx: &mut Transaction<'_, Sqlite>,
+    site: SiteId,
+    index: &ContentIndex,
+) -> Result<(), DbError> {
+    let site = site.as_row();
+    for author in &index.authors {
+        let (locale, slug) = (author.locale.as_str(), author.slug.as_str());
+        let hash = author.content_hash.as_slice();
+        sqlx::query!(
+            "INSERT INTO authors (site_id, locale, slug, name, path, content_hash) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            site,
+            locale,
+            slug,
+            author.name,
+            author.path,
+            hash,
+        )
+        .execute(&mut **tx)
+        .await?;
+    }
+    for category in &index.categories {
+        let (locale, slug) = (category.locale.as_str(), category.slug.as_str());
+        sqlx::query!(
+            "INSERT INTO categories (site_id, locale, slug, name) VALUES (?1, ?2, ?3, ?4)",
+            site,
+            locale,
+            slug,
+            category.name,
+        )
+        .execute(&mut **tx)
+        .await?;
+    }
+    for tag in &index.tags {
+        let (locale, slug) = (tag.locale.as_str(), tag.slug.as_str());
+        sqlx::query!(
+            "INSERT INTO tags (site_id, locale, slug, name) VALUES (?1, ?2, ?3, ?4)",
+            site,
+            locale,
+            slug,
+            tag.name,
         )
         .execute(&mut **tx)
         .await?;

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO authors (site_id, locale, slug, name, path, content_hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "5004c272cacee5b45e7f10b83d88ec3dd2230308e64575aa0fc5ee7573eabff7"
+}
