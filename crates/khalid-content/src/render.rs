@@ -221,6 +221,7 @@ impl Renderer {
             BlockKind::Gallery { images } => self.gallery(images),
             BlockKind::Faq { questions } => self.faq(questions),
             BlockKind::HowTo(how_to) => self.how_to(how_to),
+            BlockKind::Review(review) => self.review(review),
             _ => {}
         }
     }

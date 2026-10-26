@@ -1,10 +1,10 @@
-//! The HTML of the FAQ and how-to blocks, and their structured data.
+//! The HTML of the FAQ, how-to and review blocks, and their structured data.
 
 use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 
 use super::{Renderer, attribute};
-use crate::{HowToBlock, Question, Step, StructuredBlock};
+use crate::{HowToBlock, Question, ReviewBlock, Step, StructuredBlock};
 
 impl Renderer {
     /// Writes each question as a summary a reader opens to see the answer,
@@ -29,6 +29,28 @@ impl Renderer {
             })
             .collect();
         self.facts.structured.push(StructuredBlock::Faq(plain));
+    }
+
+    /// Writes a review: what it rates, the score out of the best, and the
+    /// review itself.
+    pub(super) fn review(&mut self, review: &ReviewBlock) {
+        self.push(&[
+            "<section class=\"review\">\n<p class=\"review-item\">",
+            &attribute(&review.item),
+            "</p>\n<p class=\"review-rating\">",
+            &attribute(&review.rating),
+            " / ",
+            &attribute(&review.best),
+            "</p>\n",
+        ]);
+        self.markdown(&review.body);
+        self.html.push_str("</section>\n");
+        self.facts
+            .structured
+            .push(StructuredBlock::Review(ReviewBlock {
+                body: plain(&review.body),
+                ..review.clone()
+            }));
     }
 
     /// Writes a how-to as a numbered list of named steps.

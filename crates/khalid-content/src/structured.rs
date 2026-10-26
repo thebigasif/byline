@@ -9,6 +9,8 @@ use std::time::Duration;
 pub enum StructuredBlock {
     /// A video block, which becomes a `VideoObject`.
     Video(VideoBlock),
+    /// A review block, which becomes a `Review`. The body is plain text.
+    Review(ReviewBlock),
     /// An FAQ block, which becomes an `FAQPage`. Answers are plain text.
     Faq(Vec<Question>),
     /// A how-to block, which becomes a `HowTo`. Steps are plain text.
@@ -58,3 +60,42 @@ pub struct VideoBlock {
     /// How long it runs.
     pub duration: Option<Duration>,
 }
+
+/// A rating of one thing, from `:::review{...}`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewBlock {
+    /// The thing reviewed.
+    pub item: String,
+    /// Its schema.org type, one of [`REVIEW_TYPES`](crate::REVIEW_TYPES).
+    pub item_type: String,
+    /// The score, a number as written, such as `4.5`.
+    pub rating: String,
+    /// The best possible score, a number as written; `5` when not given.
+    pub best: String,
+    /// Who wrote the review, when it is not the post's author.
+    pub author: Option<String>,
+    /// The review: markdown in a block, plain text in structured data.
+    pub body: String,
+}
+
+/// The schema.org types search engines show review stars for, so a review
+/// of anything else would never show its rating.
+pub const REVIEW_TYPES: [&str; 17] = [
+    "Book",
+    "Course",
+    "CreativeWorkSeason",
+    "CreativeWorkSeries",
+    "Episode",
+    "Event",
+    "Game",
+    "HowTo",
+    "LocalBusiness",
+    "MediaObject",
+    "Movie",
+    "MusicPlaylist",
+    "MusicRecording",
+    "Organization",
+    "Product",
+    "Recipe",
+    "SoftwareApplication",
+];

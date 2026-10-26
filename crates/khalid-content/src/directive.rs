@@ -4,12 +4,14 @@ use std::time::Duration;
 
 use khalid_core::AbsoluteUrl;
 
-use crate::{BlockError, BlockKind, CalloutKind, GalleryImage, VideoBlock};
+use crate::{
+    BlockError, BlockKind, CalloutKind, GalleryImage, REVIEW_TYPES, ReviewBlock, VideoBlock,
+};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 13] = [
+pub(crate) const BLOCKS: [&str; 14] = [
     "audio", "bookmark", "button", "callout", "embed", "faq", "figure", "file", "gallery", "howto",
-    "toc", "toggle", "video",
+    "review", "toc", "toggle", "video",
 ];
 
 mod nested;
@@ -100,6 +102,7 @@ pub(crate) fn directive(
             .and_then(|()| gallery(line, body)),
         "faq" => nested::faq(&attributes, body),
         "howto" => nested::how_to(&attributes, body),
+        "review" => review(&attributes, body),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
@@ -301,6 +304,50 @@ fn gallery(line: usize, body: &[&str]) -> Result<BlockKind, BlockError> {
         });
     }
     Ok(BlockKind::Gallery { images })
+}
+
+fn review(attributes: &Attributes, body: &[&str]) -> Result<BlockKind, BlockError> {
+    attributes.only(
+        "review",
+        &["item", "type", "rating", "best", "author"],
+        "item, type, rating, best and author",
+    )?;
+    let item = attributes.need("item", "a review needs item, the thing it reviews")?;
+    let item_type = attributes.need(
+        "type",
+        "a review needs type, such as Product, Book or SoftwareApplication",
+    )?;
+    if !REVIEW_TYPES.contains(&item_type.as_str()) {
+        return Err(BlockError::Value {
+            line: attributes.line,
+            problem: "a review's type is one search engines show, such as Product, Book, Course, SoftwareApplication or LocalBusiness",
+        });
+    }
+    let rating = attributes.need("rating", "a review needs rating, its score")?;
+    let best = attributes.get("best").unwrap_or_else(|| "5".to_owned());
+    match (score(&rating), score(&best)) {
+        (Some(value), Some(top)) if top > 0.0 && value <= top => {}
+        _ => {
+            return Err(BlockError::Value {
+                line: attributes.line,
+                problem: "a review's rating is a number from 0 to its best score, such as 4.5 out of 5",
+            });
+        }
+    }
+    Ok(BlockKind::Review(ReviewBlock {
+        item,
+        item_type,
+        rating,
+        best,
+        author: attributes.get("author"),
+        body: body.join("\n"),
+    }))
+}
+
+/// Reads a score written with digits and at most one point, such as `4.5`.
+fn score(text: &str) -> Option<f64> {
+    let digits = text.bytes().all(|b| b.is_ascii_digit() || b == b'.');
+    digits.then(|| text.parse().ok()).flatten()
 }
 
 /// Reads `m:ss` or `h:mm:ss` as a duration.
