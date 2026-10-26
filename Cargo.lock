@@ -1370,6 +1370,7 @@ dependencies = [
  "chrono",
  "khalid-core",
  "serde",
+ "serde_json",
  "thiserror",
  "toml",
 ]

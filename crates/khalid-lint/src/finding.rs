@@ -1,6 +1,7 @@
 //! One problem the linter found, ready to show to a writer.
 
 use khalid_core::{Locale, Slug};
+use serde::{Serialize, Serializer};
 
 use crate::{Message, RuleId, Severity};
 
@@ -70,5 +71,40 @@ impl Finding {
     /// What is wrong, why it matters and what to do.
     pub fn message(&self) -> &Message {
         &self.message
+    }
+}
+
+/// The JSON shape of a finding: one flat object with the rule, where it is,
+/// the three sentences and the guide, so the CLI, the API and the admin
+/// read the same fields.
+#[derive(Serialize)]
+struct FindingBody<'a> {
+    rule: RuleId,
+    severity: Severity,
+    locale: &'a str,
+    slug: &'a str,
+    subject: Option<&'a str>,
+    what: &'a str,
+    why: &'a str,
+    fix: &'a str,
+    guide: &'a str,
+    suggestions: &'a [String],
+}
+
+impl Serialize for Finding {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        FindingBody {
+            rule: self.rule,
+            severity: self.severity,
+            locale: self.location.locale.as_str(),
+            slug: self.location.slug.as_str(),
+            subject: self.location.subject.as_deref(),
+            what: self.message.what(),
+            why: self.message.why(),
+            fix: self.message.fix(),
+            guide: self.message.guide().as_str(),
+            suggestions: &self.suggestions,
+        }
+        .serialize(serializer)
     }
 }

@@ -17,6 +17,7 @@ mod blocking;
 mod builtin;
 mod catalogue;
 mod finding;
+mod gate;
 mod german;
 mod link_graph;
 mod link_text;
@@ -37,6 +38,7 @@ mod words;
 
 pub use catalogue::{Catalogue, Message};
 pub use finding::{Finding, Location};
+pub use gate::Verdict;
 pub use lint_config::LintConfig;
 pub use lint_error::LintError;
 pub use lint_post::{

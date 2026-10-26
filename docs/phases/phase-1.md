@@ -216,7 +216,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.6 `khalid lint` and the publish gate
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): `Linter::gate`, the publish gate the server calls, returning a `Verdict` of publish or refuse with every finding; findings and reports serialise to the JSON the CLI, the API and the admin share. Part 2: `khalid lint [path] --json` in the binary, with exit code 1 on a block. Part 3: `--fix` for the safe repairs.
 - `khalid lint [path] --json --fix` in the binary, exit code 1 on a block, and the publish gate function the server calls.
 - Rules: BL-CLI-1, BL-CLI-2, BL-CLI-3. KH-LNT-3.
 - Done when: CLI tests cover human output, `--json`, `--fix` and each exit code on the fixtures.

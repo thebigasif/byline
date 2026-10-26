@@ -1,6 +1,7 @@
 //! The engine that runs every rule on every post.
 
 use khalid_core::Clock;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 use crate::builtin;
 use crate::{
@@ -178,5 +179,15 @@ impl Report {
         self.findings
             .iter()
             .any(|finding| finding.severity() == Severity::Block)
+    }
+}
+
+/// Serialised as `{"blocks": true, "findings": [...]}`.
+impl Serialize for Report {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut body = serializer.serialize_struct("Report", 2)?;
+        body.serialize_field("blocks", &self.blocks())?;
+        body.serialize_field("findings", &self.findings)?;
+        body.end()
     }
 }
