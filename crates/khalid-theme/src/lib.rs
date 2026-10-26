@@ -9,7 +9,10 @@
 //! the database.
 
 mod brand;
+mod color;
 mod links;
+mod split;
 
 pub use brand::Brand;
+pub use color::Rgb;
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};

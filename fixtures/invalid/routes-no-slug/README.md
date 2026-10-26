@@ -1,0 +1,1 @@
+This site breaks one rule on purpose: the `news` collection's permalink in `routes.toml` has no `{slug}`, so two posts from one year would share an address. The exact message `khalid --site` prints for it is in `expected.txt`.
