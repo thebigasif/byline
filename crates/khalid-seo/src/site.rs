@@ -2,7 +2,7 @@
 
 use khalid_core::{AbsoluteUrl, Locale};
 
-use crate::{SeoError, UrlPath};
+use crate::{IndexPolicy, MetaTemplates, SeoError, UrlPath};
 
 /// The site-wide settings every SEO output reads.
 ///
@@ -13,6 +13,14 @@ use crate::{SeoError, UrlPath};
 pub struct SeoSite {
     /// The site name, as readers see it: "Field Notes on SEO".
     pub name: String,
+    /// One line about the site, the `{tagline}` variable.
+    pub tagline: String,
+    /// The separator the `{sep}` variable stands for. `|` by default.
+    pub separator: String,
+    /// Title and description templates per page type.
+    pub templates: MetaTemplates,
+    /// Which page types search engines may index.
+    pub indexing: IndexPolicy,
     /// The public address of the site, such as `https://www.example.com`.
     pub address: AbsoluteUrl,
     /// The folder the blog is mounted under, such as `/blog/`. `/` for none.
@@ -24,10 +32,15 @@ pub struct SeoSite {
 }
 
 impl SeoSite {
-    /// A site with one language and no mount folder.
+    /// A site with one language, no mount folder, `|` as the separator and
+    /// the default templates and index policy.
     pub fn new(name: &str, address: AbsoluteUrl, default_language: Locale) -> Self {
         Self {
             name: name.to_owned(),
+            tagline: String::new(),
+            separator: "|".to_owned(),
+            templates: MetaTemplates::default(),
+            indexing: IndexPolicy::default(),
             address,
             mount: UrlPath::root(),
             languages: vec![default_language.clone()],
