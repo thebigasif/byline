@@ -28,6 +28,8 @@ pub enum SchemaValue {
     Integer(i64),
     /// A number with a fraction, such as a rating of 4.5.
     Number(f64),
+    /// True or false, such as `isAccessibleForFree`.
+    Boolean(bool),
     /// A node written inside this one.
     Node(Box<SchemaNode>),
     /// A node elsewhere in the graph, written as `{"@id": ...}`.
@@ -53,6 +55,7 @@ impl SchemaValue {
             Self::Duration(duration) => json!(iso_duration(*duration)),
             Self::Integer(number) => json!(number),
             Self::Number(number) => Number::from_f64(*number).map_or(Value::Null, Value::Number),
+            Self::Boolean(flag) => json!(flag),
             Self::Node(node) => node.to_json(),
             Self::List(values) => Value::Array(values.iter().map(Self::to_json).collect()),
         }

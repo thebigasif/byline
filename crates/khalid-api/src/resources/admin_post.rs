@@ -139,8 +139,10 @@ pub struct NewPost {
     pub(crate) title: String,
     /// The slug; made from the title when left out.
     pub(crate) slug: Option<String>,
-    /// The markdown body. Required.
+    /// The markdown body, unless `source=html`.
     pub(crate) markdown: Option<String>,
+    /// The HTML body, with `source=html` only.
+    pub(crate) html: Option<String>,
 }
 
 /// A new post, checked: a title, a valid slug or none, and a body. The

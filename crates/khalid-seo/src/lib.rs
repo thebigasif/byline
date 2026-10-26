@@ -57,9 +57,10 @@ pub use robots_txt::{
     BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,
 };
 pub use schema::{
-    AggregateRating, AuthorProfile, Entity, EntityRole, FaqItem, HowTo, HowToStep, LocalBusiness,
-    Money, OpeningHours, PostalAddress, Publisher, PublisherKind, Rating, Recipe, Review,
-    SchemaBlock, SchemaGraph, SchemaNode, SchemaValue, SiteSearch, breadcrumb_list, page_graph,
+    AggregateRating, AuthorProfile, CustomSchema, Entity, EntityRole, FaqItem, HowTo, HowToStep,
+    IssueLevel, LocalBusiness, Money, OpeningHours, PostalAddress, Publisher, PublisherKind,
+    Rating, Recipe, Review, SchemaBlock, SchemaGraph, SchemaIssue, SchemaNode, SchemaTemplate,
+    SchemaType, SchemaValue, SiteSearch, TemplateScope, breadcrumb_list, check_graph, page_graph,
     site_graph,
 };
 pub use seo_error::SeoError;

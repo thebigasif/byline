@@ -25,7 +25,10 @@ fn urls(list: &[AbsoluteUrl]) -> SchemaValue {
 
 /// The author's `Person` node: at `<author page>#person` when they have an
 /// author page, else at `<post>#author`.
-fn person_node(profile: &AuthorProfile, page_url: &AbsoluteUrl) -> Result<SchemaNode, SeoError> {
+pub(crate) fn person_node(
+    profile: &AuthorProfile,
+    page_url: &AbsoluteUrl,
+) -> Result<SchemaNode, SeoError> {
     let id = match &profile.url {
         Some(url) => node_id(url, "person")?,
         None => node_id(page_url, "author")?,
