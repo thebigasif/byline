@@ -1,0 +1,6 @@
+# Breaks one rule: a taxonomy prefix is one word, without slashes. The
+# exact message khalid --site prints for it is in expected.txt beside this
+# file.
+
+[taxonomies]
+tag = "/topic/"

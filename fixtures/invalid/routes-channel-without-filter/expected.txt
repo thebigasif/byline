@@ -1,0 +1,3 @@
+fixtures/invalid/routes-channel-without-filter/routes.toml, line 6, `filter`: a channel needs at least one filter, such as author or tag.
+Khalid checks routes.toml before it starts, so no page gets a wrong address.
+Correct `filter` on line 6, then run the command again.

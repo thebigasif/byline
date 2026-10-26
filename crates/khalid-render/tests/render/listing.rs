@@ -21,7 +21,7 @@ fn card(title: &str, slug: &str, day: u32, excerpt: &str) -> PostCard {
 }
 
 /// The first page of the demo blog, two posts per page.
-fn first_page() -> RenderListing {
+pub(crate) fn first_page() -> RenderListing {
     let pages = vec!["/blog/".to_owned(), "/blog/page/2/".to_owned()];
     RenderListing {
         title: "Field notes on SEO".to_owned(),
@@ -55,7 +55,8 @@ fn render(body: &PageBody) -> String {
         .unwrap()
 }
 
-fn main_of(page: &str) -> &str {
+/// The inside of `main`, for snapshots that leave out the parts every page shares.
+pub(crate) fn main_of(page: &str) -> &str {
     page.split("<main")
         .nth(1)
         .unwrap()

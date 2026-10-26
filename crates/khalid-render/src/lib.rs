@@ -10,6 +10,7 @@
 //! code turns content into these records; the server decides when to render
 //! and caches the result.
 
+mod author;
 mod dates;
 mod direction;
 mod escape;
@@ -25,6 +26,7 @@ mod site;
 mod strings;
 mod templates;
 
+pub use author::{RenderAuthor, RenderPage};
 pub use image::{ImageCandidate, ImageSet, Loading, RenderImage};
 pub use listing::{Pagination, PostCard, RenderListing};
 pub use page_body::PageBody;
