@@ -14,6 +14,7 @@ One Cargo workspace at the repository root, flat `crates/` folder, one purpose p
 | `khalid-routes` | `routes.toml`: collections and permalinks, channels, taxonomy prefixes, aliases, and the URLs they make | Content files, templates, HTTP |
 | `khalid-render` | MiniJinja templates, the asset pipeline, the page cache | SQL, HTTP clients |
 | `khalid-seo` | Meta tags, schema graphs, sitemaps, feeds, robots, hreflang, redirects | Templates |
+| `khalid-share-image` | The generated 1200 by 630 share image and its cache by content key (ADR 0016) | Content files, templates, HTTP |
 | `khalid-lint` | The rule engine, every rule, every message. Public, reused by SerpDad | Files on disk, HTTP |
 | `khalid-audit` | The self-crawl and the health score | Rendering |
 | `khalid-theme` | Token extraction, contrast fixes, proxy rule generation | Content |
