@@ -20,6 +20,8 @@ pub enum PageBody {
     Tag(RenderListing),
     /// One page of the posts in a category.
     Category(RenderListing),
+    /// Every published post across collections, newest first, at `/archive/`.
+    Archive(RenderListing),
     /// One post.
     Post(Box<RenderPost>),
     /// A page that is not a post, such as About.
@@ -44,6 +46,7 @@ impl PageBody {
             Self::Collection(_) => "collection.html",
             Self::Tag(_) => "tag.html",
             Self::Category(_) => "category.html",
+            Self::Archive(_) => "archive.html",
             Self::Post(_) => "post.html",
             Self::Page(_) => "page.html",
             Self::Author(_) => "author.html",
@@ -58,9 +61,10 @@ impl PageBody {
     pub(crate) fn value(&self) -> Value {
         match self {
             Self::Home(home) => Value::from(Serde(home)),
-            Self::Collection(listing) | Self::Tag(listing) | Self::Category(listing) => {
-                Value::from(Serde(listing))
-            }
+            Self::Collection(listing)
+            | Self::Tag(listing)
+            | Self::Category(listing)
+            | Self::Archive(listing) => Value::from(Serde(listing)),
             Self::Post(post) => Value::from(Serde(post)),
             Self::Page(page) => Value::from(Serde(page)),
             Self::Author(author) => Value::from(Serde(author)),

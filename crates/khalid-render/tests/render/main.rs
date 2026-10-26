@@ -2,6 +2,8 @@
 //! and a validity check per page type.
 
 #[cfg(test)]
+mod archive;
+#[cfg(test)]
 mod author_box;
 #[cfg(test)]
 mod authors;

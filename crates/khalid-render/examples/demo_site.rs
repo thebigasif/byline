@@ -37,6 +37,7 @@ struct Lang {
     glossary: &'static str,
     search: &'static str,
     authors: &'static str,
+    archive: &'static str,
 }
 
 const LANGUAGES: [Lang; 2] = [
@@ -47,6 +48,7 @@ const LANGUAGES: [Lang; 2] = [
         glossary: "Glossary",
         search: "Search",
         authors: "Authors",
+        archive: "Archive",
     },
     Lang {
         tag: "de",
@@ -55,6 +57,7 @@ const LANGUAGES: [Lang; 2] = [
         glossary: "Glossar",
         search: "Suche",
         authors: "Autorinnen und Autoren",
+        archive: "Beitragsarchiv",
     },
 ];
 
@@ -343,6 +346,9 @@ impl Demo {
         });
         self.page(lang, (lang.prefix, None), "Field Notes on SEO", &home)?;
         self.author_pages(lang, &authors, &cards)?;
+        let archive = PageBody::Archive(pick(lang.archive, &|_, _| true));
+        let path = format!("{}archive/", lang.prefix);
+        self.page(lang, (&path, None), lang.archive, &archive)?;
         for slug in used {
             let name = self.category_name(lang, &slug);
             let path = format!("{}category/{slug}/", lang.prefix);
