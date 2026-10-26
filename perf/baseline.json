@@ -1,0 +1,23 @@
+{
+  "note": "The last accepted numbers, compared by scripts/perf-gate.py. The first baseline is the budgets in docs/standards/performance.md. Change it only in its own pull request, with the reason.",
+  "fixture": "none",
+  "measures": {
+    "binary_size_bytes": { "value": 31457280, "drift": 0.02, "better": "lower", "what": "Release binary, stripped" },
+    "cold_start_help_ms": { "value": 100, "drift": 0.10, "better": "lower", "what": "Cold start of byline --help, median of 20 runs" },
+    "cold_start_first_byte_ms": { "value": 100, "drift": 0.10, "better": "lower", "what": "Cold start of byline serve to the first byte, 1,000-post fixture" },
+    "idle_memory_mb": { "value": 50, "drift": 0.10, "better": "lower", "what": "Idle memory, one site, 1,000 posts" },
+    "post_render_p50_ms": { "value": 1, "drift": 0.10, "better": "lower", "what": "Post page render in process, p50" },
+    "post_render_p99_ms": { "value": 5, "drift": 0.10, "better": "lower", "what": "Post page render in process, p99" },
+    "cached_post_requests_per_second": { "value": 10000, "drift": 0.10, "better": "higher", "what": "Cached post page on 2 vCPU" },
+    "full_rebuild_10k_s": { "value": 30, "drift": 0.10, "better": "lower", "what": "Full rebuild, 10,000 posts" },
+    "incremental_rebuild_ms": { "value": 50, "drift": 0.10, "better": "lower", "what": "Incremental rebuild, one post" },
+    "lint_one_post_ms": { "value": 20, "drift": 0.10, "better": "lower", "what": "Lint one post" },
+    "site_audit_1k_s": { "value": 60, "drift": 0.10, "better": "lower", "what": "Full site audit, 1,000 posts" },
+    "lighthouse_min_score": { "value": 100, "drift": 0, "better": "higher", "what": "Lighthouse, default post page, lowest of the four categories" },
+    "largest_contentful_paint_ms": { "value": 1000, "drift": 0, "better": "lower", "what": "Largest Contentful Paint, demo site" },
+    "cumulative_layout_shift": { "value": 0, "drift": 0, "better": "lower", "what": "Cumulative Layout Shift, post pages" },
+    "public_css_compressed_kb": { "value": 20, "drift": 0.05, "better": "lower", "what": "Public CSS, compressed" },
+    "post_javascript_bytes": { "value": 0, "drift": 0, "better": "lower", "what": "JavaScript required to read a post" },
+    "admin_initial_js_compressed_kb": { "value": 350, "drift": 0.05, "better": "lower", "what": "Admin initial JavaScript, compressed" }
+  }
+}
