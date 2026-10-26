@@ -49,7 +49,7 @@
 
 ### 1.6 Markdown and the directive layer
 
-- Status: `doing`. (a) #50: `render()` with comrak, escaped raw HTML, heading ids, links, images and word count. (b) #68: syntax colours. (c) #122: the Block model with byte-for-byte round trips. (d1) this landing: callout and figure directives in the block model (ADR 0012, #127). (d2) rendering directives to HTML.
+- Status: `done` (#50, #68, #122, #127, #136 and this landing). KH-CON-5 for the standard blocks, callout and figure; the rest of the blocks are 1.7.
 - Status: `doing`. (a) #50: `render()` with comrak, escaped raw HTML, heading ids, links, images and word count. (b) #68: syntax colours with syntect, as `hl-` CSS classes. (c) this landing: the Block model with `parse_blocks`, `print_blocks` and the round-trip harness for every standard block. (d) directives, callout and figure, ADR 0009.
 - `comrak` with footnotes, tables and task lists, plus the directive syntax every editor block uses. The round-trip harness: markdown to blocks to markdown, byte for byte. First blocks: heading, paragraph, image with required alt and caption, quote, code with syntax colours, divider, table, footnote, callout.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
