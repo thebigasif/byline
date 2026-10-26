@@ -4,7 +4,7 @@ use super::{Image, Link, Renderer, attribute, inside};
 use crate::{Block, Visibility};
 use crate::{BusinessBlock, StructuredBlock};
 
-impl Renderer {
+impl Renderer<'_> {
     /// Writes a business card as an `<address>`: name, street, town and
     /// postcode, then phone, email and website as links.
     pub(super) fn business(&mut self, card: &BusinessBlock) {

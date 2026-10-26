@@ -3,7 +3,7 @@
 use super::{Image, Link, Renderer, attribute};
 use crate::{GalleryImage, StructuredBlock, VideoBlock};
 
-impl Renderer {
+impl Renderer<'_> {
     /// Writes a video with controls that loads nothing until played, its
     /// file's link for browsers that cannot play it, and its caption.
     pub(super) fn video(&mut self, video: &VideoBlock) {

@@ -11,7 +11,10 @@ use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
 use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
-use crate::{Block, BlockError, BlockKind, CalloutKind, StructuredBlock, embed, parse_blocks};
+use crate::{
+    Block, BlockError, BlockKind, CalloutKind, StructuredBlock, Wikilinks, embed, parse_blocks,
+    wikilink,
+};
 
 mod cards;
 mod forms;
@@ -84,13 +87,33 @@ pub struct Image {
 /// the colours. Each heading gets an `id` made with the same
 /// rules as slugs, with `-2`, `-3` added to repeats, and `section` when the
 /// text has no letters or digits. A callout becomes an `<aside>` and a figure a
-/// `<figure>` with its caption (ADR 0012).
+/// `<figure>` with its caption (ADR 0012). A wikilink shows as its text
+/// alone; [`render_linked`] links it.
 ///
 /// # Errors
 ///
 /// Returns a [`BlockError`] when a directive block is wrong, as
 /// [`parse_blocks`](crate::parse_blocks) does.
 pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, BlockError> {
+    render_linked(body, locale, slugs, &Wikilinks::new())
+}
+
+/// Renders like [`render`], and turns each `[[slug]]` that `wikilinks` knows
+/// into a link to its page, named after the page's title, and each
+/// `[[slug|text]]` into a link named `text`. A wikilink with no target shows
+/// as its text alone, so a page never carries a dead link; checking for them
+/// is the content reader's job.
+///
+/// # Errors
+///
+/// Returns a [`BlockError`] when a directive block is wrong, as
+/// [`parse_blocks`](crate::parse_blocks) does.
+pub fn render_linked(
+    body: &str,
+    locale: &Locale,
+    slugs: SlugMode,
+    wikilinks: &Wikilinks,
+) -> Result<Rendered, BlockError> {
     let blocks = parse_blocks(body)?;
     let mut renderer = Renderer {
         ids: HeadingIds {
@@ -98,6 +121,7 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
             slugs,
             state: Mutex::default(),
         },
+        wikilinks,
         facts: Facts::default(),
         html: String::new(),
         subscribe_forms: 0,
@@ -152,15 +176,16 @@ fn is_markdown(kind: &BlockKind) -> bool {
 
 /// Renders runs of markdown into one page, keeping heading ids unique across
 /// the whole body. Footnotes resolve within the run of markdown they sit in.
-struct Renderer {
+struct Renderer<'links> {
     ids: HeadingIds,
+    wikilinks: &'links Wikilinks,
     facts: Facts,
     html: String,
     /// How many subscribe forms are written so far, for unique ids.
     subscribe_forms: usize,
 }
 
-impl Renderer {
+impl Renderer<'_> {
     /// Writes one directive block.
     fn directive(&mut self, block: &Block) {
         match &block.kind {
@@ -360,9 +385,12 @@ impl Renderer {
         options.extension.tasklist = true;
         options.extension.strikethrough = true;
         options.extension.autolink = true;
+        options.extension.wikilinks_title_after_pipe = true;
+        options.extension.wikilinks_ignore_embeds = true;
         options.render.escape = true;
         let arena = Arena::new();
         let root = parse_document(&arena, text, &options);
+        wikilink::resolve(root, self.wikilinks);
         for node in root.descendants() {
             self.facts.note(node);
         }
