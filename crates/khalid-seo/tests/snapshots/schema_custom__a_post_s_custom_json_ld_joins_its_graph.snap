@@ -1,0 +1,25 @@
+---
+source: crates/khalid-seo/tests/schema_custom.rs
+assertion_line: 36
+expression: "SchemaGraph::new(vec![node]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Event",
+      "name": "Internal links clinic",
+      "startDate": "2026-11-12T18:00:00+00:00",
+      "eventAttendanceMode": "https://schema.org/OnlineEventAttendanceMode",
+      "isAccessibleForFree": true,
+      "maximumAttendeeCapacity": 40,
+      "location": {
+        "@type": "VirtualLocation",
+        "url": "https://www.example.com/blog/clinic/"
+      },
+      "organizer": {
+        "@id": "https://www.example.com/blog/#organization"
+      }
+    }
+  ]
+}

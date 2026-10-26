@@ -5,6 +5,10 @@
 //! read. It must not know business rules. Those live in the library crates,
 //! which this binary calls the same way the API does.
 
+mod atomic;
+mod build;
+mod build_message;
+mod build_pages;
 mod cli;
 mod config_message;
 mod content_message;
@@ -14,10 +18,13 @@ mod exit;
 mod index;
 mod init;
 mod init_message;
+mod init_prompt;
 mod lint;
 mod lint_fix;
 mod lint_input;
 mod lint_message;
+mod new;
+mod new_message;
 mod repair;
 mod report;
 mod routes_message;
@@ -29,13 +36,14 @@ use std::process::ExitCode;
 
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
-use khalid_content::{ContentTree, read_content};
-use khalid_core::{Config, Environment, UserMessage};
+use khalid_content::{ContentTree, SiteContent, read_content};
+use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
 use crate::lint::Mode;
+use crate::new::NewPost;
 
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -60,33 +68,55 @@ fn run(cli: &Cli) -> Exit {
             .unwrap_or(Path::new("."));
         return init::run(folder, args, cli.output);
     }
-    if let Some(site) = &cli.site {
-        if let Err(error) = Config::load(site, &Environment::from_process()) {
-            return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
-        }
-        if let Err(error) = Routes::load(site) {
-            return report::failure(cli.output, &routes_message::of(&error), Exit::Failure);
-        }
-        if let Err(error) = ContentTree::walk(site).and_then(|tree| read_content(&tree)) {
-            return report::failure(
-                cli.output,
-                &content_message::of(site, &error),
-                Exit::Failure,
-            );
-        }
-    }
-    match (&cli.command, &cli.site) {
+    let site = match cli.site.as_deref() {
+        Some(folder) => match check(folder) {
+            Ok((config, content)) => Some((folder, config, content)),
+            Err(message) => return report::failure(cli.output, &message, Exit::Failure),
+        },
+        None => None,
+    };
+    match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
-        (Some(Command::Db { command }), Some(site)) => db::run(site, *command, cli.output),
-        (Some(Command::Lint { path, fix }), Some(site)) => {
+        (Some(Command::Db { command }), Some((folder, ..))) => {
+            db::run(folder, *command, cli.output)
+        }
+        (Some(Command::Lint { path, fix }), Some((folder, ..))) => {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
-            lint::run(site, path.as_deref(), mode, cli.output)
+            lint::run(folder, path.as_deref(), mode, cli.output)
         }
-        (Some(command @ (Command::Db { .. } | Command::Lint { .. })), None) => {
-            report::failure(cli.output, &needs_site(command), Exit::Usage)
+        (Some(Command::New { title, language }), Some((folder, config, _))) => {
+            let post = NewPost {
+                title,
+                language: language.as_ref(),
+            };
+            new::run(folder, config, post, &SystemClock, cli.output)
         }
+        (Some(Command::Build { out }), Some((folder, config, content))) => {
+            build::run(folder, config, content, out.as_deref(), cli.output)
+        }
+        (
+            Some(
+                command @ (Command::Db { .. }
+                | Command::Lint { .. }
+                | Command::New { .. }
+                | Command::Build { .. }),
+            ),
+            None,
+        ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
+}
+
+/// Checks the settings, the routes and the content of the `site` folder, and
+/// returns the settings and the content.
+fn check(site: &Path) -> Result<(Config, SiteContent), UserMessage> {
+    let config =
+        Config::load(site, &Environment::from_process()).map_err(|e| config_message::of(&e))?;
+    Routes::load(site).map_err(|error| routes_message::of(&error))?;
+    let content = ContentTree::walk(site)
+        .and_then(|tree| read_content(&tree))
+        .map_err(|error| content_message::of(site, &error))?;
+    Ok((config, content))
 }
 
 /// The message for a command that works on one site folder when none was given.
@@ -128,7 +158,7 @@ fn usage_message(error: &clap::Error) -> UserMessage {
     let detail: Vec<&str> = rendered
         .lines()
         .map(str::trim)
-        .take_while(|line| !line.starts_with("Usage:"))
+        .take_while(|line| !line.starts_with("Usage:") && !line.starts_with("For more information"))
         .filter(|line| !line.is_empty())
         .collect();
     let detail = detail.join(" ");

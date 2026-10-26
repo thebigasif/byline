@@ -1,0 +1,7 @@
+{"@context": "https://schema.org", "@type": "Dataset",
+ "name": "Internal links on 1,000 small blogs",
+ "description": "How many internal links each post has, counted on 1,000 small blogs in 2026.",
+ "url": "https://www.example.com/blog/data/internal-links-2026/",
+ "keywords": ["internal links", "blogs"],
+ "license": "https://creativecommons.org/licenses/by/4.0/",
+ "creator": {"@type": "Person", "name": "Asif"}}
