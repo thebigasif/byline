@@ -3,7 +3,7 @@
 use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 
-use crate::directive::{BLOCKS, Form, directive, opening};
+use crate::directive::{Form, directive, opening, unknown_hint};
 
 /// One top-level block of a body, with its markdown exactly as written.
 ///
@@ -91,7 +91,7 @@ pub enum CalloutKind {
 #[non_exhaustive]
 pub enum BlockError {
     /// A directive name Khalid does not know.
-    #[error("line {line}: there is no block called {name}; the blocks are {}", BLOCKS.join(", "))]
+    #[error("line {line}: there is no block called {name}; {}", unknown_hint(name))]
     UnknownBlock {
         /// The line of the opening `:::`.
         line: usize,
@@ -100,7 +100,7 @@ pub enum BlockError {
     },
     /// The braces after the name do not hold `name=value` pairs.
     #[error(
-        "line {line}: the attributes in braces cannot be read; write them as name=value, with the value in double quotes when it has a space"
+        "line {line}: the attributes in braces cannot be read; write each as name=value, in double quotes when the value has a space"
     )]
     Attributes {
         /// The line of the opening `:::`.
@@ -161,6 +161,32 @@ pub enum BlockError {
         /// The block's name.
         name: String,
     },
+}
+
+impl BlockError {
+    /// The body line the problem is on, counting from 1.
+    #[must_use]
+    pub fn line(&self) -> usize {
+        match self {
+            Self::UnknownBlock { line, .. }
+            | Self::Attributes { line }
+            | Self::Missing { line, .. }
+            | Self::UnknownAttribute { line, .. }
+            | Self::CalloutKind { line, .. }
+            | Self::Form { line, .. }
+            | Self::Link { line, .. }
+            | Self::Unclosed { line, .. } => *line,
+        }
+    }
+
+    /// What is wrong, in a sentence, without the line.
+    #[must_use]
+    pub fn problem(&self) -> String {
+        let text = self.to_string();
+        let prefix = format!("line {}: ", self.line());
+        text.strip_prefix(&prefix)
+            .map_or_else(|| text.clone(), str::to_owned)
+    }
 }
 
 /// Splits a markdown `body` into its top-level blocks, in order.

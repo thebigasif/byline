@@ -7,8 +7,8 @@ use khalid_core::Slug;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
-use crate::ContentError;
 use crate::front_matter::{Fence, split};
+use crate::{ContentError, parse_blocks};
 
 /// What a post's front matter may say.
 ///
@@ -58,15 +58,16 @@ pub struct Post {
 /// # Errors
 ///
 /// Returns a [`ContentError`] when the front matter fence is missing or never
-/// closed, or when a field is unknown, has the wrong kind of value, or the
-/// YAML is broken. Field errors carry the file's line.
+/// closed, when a field is unknown, has the wrong kind of value, or the YAML
+/// is broken, or when a block in the body is wrong. Field and block errors
+/// carry the file's line.
 pub fn parse_post(path: &Path, text: &str) -> Result<Post, ContentError> {
     let (front, body) = parse_front(path, text)?;
     Ok(Post { front, body })
 }
 
 /// Reads any kind of front matter from `text`, naming `path` in errors, and
-/// returns it with the body exactly as written.
+/// returns it with the body exactly as written once its blocks are checked.
 pub(crate) fn parse_front<F: DeserializeOwned + Default>(
     path: &Path,
     text: &str,
@@ -84,6 +85,19 @@ pub(crate) fn parse_front<F: DeserializeOwned + Default>(
     } else {
         serde_saphyr::from_str(parts.yaml).map_err(|source| located(path, parts.yaml, source))?
     };
+    parse_blocks(parts.body).map_err(|source| {
+        // The body starts on the line after the closing ---.
+        let before = text
+            .get(..text.len().saturating_sub(parts.body.len()))
+            .unwrap_or_default()
+            .matches('\n')
+            .count();
+        ContentError::Block {
+            path: path.to_path_buf(),
+            line: before.saturating_add(source.line()),
+            source,
+        }
+    })?;
     Ok((front, parts.body.to_owned()))
 }
 

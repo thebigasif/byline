@@ -216,7 +216,15 @@ fn error(markdown: &str) -> String {
 fn refuses_a_directive_khalid_does_not_know() {
     assert_eq!(
         error("Intro.\n\n:::warning{level=high}\nCareful.\n:::\n"),
-        "line 3: there is no block called warning; the blocks are button, callout, figure, toc, toggle"
+        "line 3: there is no block called warning; a block's name is one word, such as callout, figure or toggle"
+    );
+}
+
+#[test]
+fn names_the_nearest_block_for_a_typing_slip() {
+    assert_eq!(
+        error("::tco\n"),
+        "line 1: there is no block called tco; the closest name is toc"
     );
 }
 
@@ -248,7 +256,7 @@ fn refuses_an_attribute_the_block_does_not_take() {
 fn refuses_attributes_that_cannot_be_read() {
     assert_eq!(
         error(":::figure{src=\"shelf.jpg alt=\"A shelf\"}\nThe shelf.\n:::\n"),
-        "line 1: the attributes in braces cannot be read; write them as name=value, with the value in double quotes when it has a space"
+        "line 1: the attributes in braces cannot be read; write each as name=value, in double quotes when the value has a space"
     );
 }
 

@@ -139,3 +139,13 @@ fn refuses_an_alias_that_is_not_a_path() {
         "posts/a.md, line 3, field \"aliases\": \"old-title\" is not a path; an alias is an old address on this site starting with /, such as /2019/05/old-title/"
     );
 }
+
+#[test]
+fn refuses_a_broken_block_with_the_line_in_the_file() {
+    assert_eq!(
+        message(
+            "---\ntitle: A\n---\n\nIntro.\n\n:::figur{src=\"a.jpg\" alt=\"A\"}\nCaption.\n:::\n"
+        ),
+        "posts/a.md, line 7: there is no block called figur; the closest name is figure"
+    );
+}
