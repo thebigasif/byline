@@ -1,0 +1,3 @@
+# Another English post (site.toml) has the same title in other case. The
+# German post with the same words is a translation, not a duplicate.
+extends = "clean"

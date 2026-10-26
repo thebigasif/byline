@@ -3,8 +3,9 @@
 use khalid_core::{AbsoluteUrl, Locale};
 
 use crate::{
-    IndexPolicy, MetaTemplates, RootFile, SeoError, ShareImage, SiteVerification, TwitterHandle,
-    UrlPath,
+    CrawlerPolicy, FeedOptions, IndexPolicy, LinkPolicy, LocalBusiness, MetaTemplates, Publisher,
+    PublisherKind, RootFile, SchemaTemplate, SeoError, ShareImage, SiteSearch, SiteVerification,
+    TwitterHandle, UrlPath,
 };
 
 /// The site-wide settings every SEO output reads.
@@ -40,6 +41,22 @@ pub struct SeoSite {
     pub verification: SiteVerification,
     /// Verification files served from the root of the address.
     pub root_files: Vec<RootFile>,
+    /// Which crawlers may read which paths, for `robots.txt`.
+    pub crawlers: CrawlerPolicy,
+    /// What every feed carries.
+    pub feeds: FeedOptions,
+    /// The `rel` and `target` that links get.
+    pub links: LinkPolicy,
+    /// Who publishes the site. An organisation named after the site by default.
+    pub publisher: Publisher,
+    /// Whether the site has a search page.
+    pub search: SiteSearch,
+    /// Where the glossary's A to Z page lives. `/glossary/` by default.
+    pub glossary: UrlPath,
+    /// The locations of a local business, if the site is one.
+    pub locations: Vec<LocalBusiness>,
+    /// Schema nodes written for every post in a category or collection.
+    pub schema_templates: Vec<SchemaTemplate>,
 }
 
 impl SeoSite {
@@ -60,6 +77,14 @@ impl SeoSite {
             twitter_site: None,
             verification: SiteVerification::default(),
             root_files: Vec::new(),
+            crawlers: CrawlerPolicy::default(),
+            feeds: FeedOptions::default(),
+            links: LinkPolicy::default(),
+            publisher: Publisher::new(PublisherKind::Organization, name),
+            search: SiteSearch::Off,
+            glossary: UrlPath::try_new("/glossary/").unwrap_or_else(|_| UrlPath::root()),
+            locations: Vec::new(),
+            schema_templates: Vec::new(),
         }
     }
 

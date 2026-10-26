@@ -1,0 +1,14 @@
+---
+source: crates/khalid-content/tests/blocks_howto.rs
+expression: rendered(HOW_TO).html
+---
+<ol class="howto">
+<li>
+<p class="howto-step">Find an older post</p>
+<p>Search your site for the topic of the <strong>new</strong> post.</p>
+</li>
+<li>
+<p class="howto-step">Link to it</p>
+<p>Write a sentence that names the older post and link those words.</p>
+</li>
+</ol>

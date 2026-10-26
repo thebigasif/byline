@@ -1,0 +1,31 @@
+---
+source: crates/khalid-seo/tests/schema_faq.rs
+expression: "SchemaGraph::new(vec![node]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "FAQPage",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How many internal links should a post have?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Enough to help the reader. Three to five is a good start."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do internal links pass ranking signals?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. They tell search engines which pages matter most."
+          }
+        }
+      ]
+    }
+  ]
+}

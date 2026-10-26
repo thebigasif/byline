@@ -1,0 +1,36 @@
+---
+source: crates/khalid-seo/tests/schema_graph.rs
+expression: demo_graph().to_json()
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://www.example.com/blog/#organization",
+      "name": "Field Notes on SEO",
+      "sameAs": [
+        "https://bsky.app/profile/fieldnotes.example.com"
+      ],
+      "foundingDate": "2019-03-01"
+    },
+    {
+      "@type": "VideoObject",
+      "name": "Internal links in five minutes",
+      "duration": "PT3H5M12S",
+      "uploadDate": "2026-09-12T10:00:00Z",
+      "publisher": {
+        "@id": "https://www.example.com/blog/#organization"
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Link audit checklist",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": 4.5,
+        "ratingCount": 128
+      }
+    }
+  ]
+}

@@ -4,6 +4,8 @@
 #[cfg(test)]
 mod common;
 #[cfg(test)]
+mod glossary;
+#[cfg(test)]
 mod html_check;
 #[cfg(test)]
 mod image;

@@ -1,0 +1,9 @@
+# "running shoes" fills far more than 3% of the words.
+extends = "clean"
+body_text = """
+Cheap running shoes are the best running shoes for a new runner. When you buy
+running shoes, look for running shoes that fit your feet, because running shoes
+that pinch will hurt. Our running shoes guide lists running shoes for every
+budget, and each pair of running shoes was tested on roads and trails for a full
+month by three runners with different feet and different goals for the season.
+"""

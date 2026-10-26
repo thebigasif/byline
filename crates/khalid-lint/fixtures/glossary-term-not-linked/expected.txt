@@ -1,0 +1,2 @@
+warn glossary-term-not-linked: anchor text
+warn glossary-term-not-linked: text

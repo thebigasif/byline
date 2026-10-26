@@ -1,0 +1,9 @@
+[[posts]]
+locale = "en"
+slug = "internal-linking-guide"
+cluster = { name = "internal-links", role = "pillar" }
+
+[[posts]]
+locale = "de"
+slug = "choosing-link-text"
+cluster = { name = "internal-links", role = "pillar" }

@@ -5,12 +5,13 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 use toml::Spanned;
 
-use crate::{Catalogue, LintError, RuleId, Severity};
+use crate::{Catalogue, LintError, RuleId, Severity, Thresholds};
 
 /// The settings from a site's `lint.toml`.
 ///
-/// The file has one table, `[rules]`, that maps a rule ID to `"block"`,
-/// `"warn"` or `"off"`. A rule the file does not name keeps its default.
+/// The `[rules]` table maps a rule ID to `"block"`, `"warn"` or `"off"`. A
+/// rule the file does not name keeps its default. The `[thresholds]` table
+/// tunes the numbers behind the rules that measure (see [`Thresholds`]).
 ///
 /// # Examples
 ///
@@ -24,6 +25,7 @@ use crate::{Catalogue, LintError, RuleId, Severity};
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LintConfig {
     severities: BTreeMap<String, Severity>,
+    thresholds: Thresholds,
 }
 
 /// The file as written, with the position of each rule name.
@@ -32,6 +34,8 @@ pub struct LintConfig {
 struct RawConfig {
     #[serde(default)]
     rules: BTreeMap<Spanned<String>, Severity>,
+    #[serde(default)]
+    thresholds: Thresholds,
 }
 
 impl LintConfig {
@@ -65,12 +69,21 @@ impl LintConfig {
             }
             severities.insert(name.into_inner(), severity);
         }
-        Ok(Self { severities })
+        Ok(Self {
+            severities,
+            thresholds: raw.thresholds,
+        })
     }
 
     /// The severity the file sets for `rule`, or `None` to keep its default.
     pub fn severity(&self, rule: RuleId) -> Option<Severity> {
         self.severities.get(rule.as_str()).copied()
+    }
+
+    /// The limits for the rules that measure, with defaults for any the file
+    /// leaves out.
+    pub fn thresholds(&self) -> Thresholds {
+        self.thresholds
     }
 }
 

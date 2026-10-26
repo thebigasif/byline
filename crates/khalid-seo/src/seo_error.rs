@@ -6,7 +6,7 @@ use khalid_core::ParseUrlError;
 ///
 /// The binary turns each variant into a message with what, why and fix
 /// (BL-ERR-4). The text here names the problem only.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum SeoError {
     /// A title or description template names a variable that does not exist.
@@ -64,6 +64,77 @@ pub enum SeoError {
         key: String,
         /// The language both pages are in.
         language: String,
+    },
+    /// A crawler name in the robots policy holds a character robots.txt refuses.
+    #[error("the crawler name {agent:?} may hold only letters, digits, - and _")]
+    UserAgent {
+        /// The name, as given.
+        agent: String,
+    },
+    /// A robots.txt path rule does not start with `/` or holds a space.
+    #[error("the robots.txt rule {path:?} must start with / and hold no spaces")]
+    RobotsPath {
+        /// The rule, as given.
+        path: String,
+    },
+    /// Two redirect rules start from the same path.
+    #[error("the path {from:?} has more than one redirect rule")]
+    RedirectDuplicate {
+        /// The path both rules start from.
+        from: String,
+    },
+    /// Following redirects from a path comes back round to it.
+    #[error("the redirects from {from:?} go round in a loop")]
+    RedirectLoop {
+        /// The first path found in the loop.
+        from: String,
+    },
+    /// A redirect pattern is not a valid regular expression.
+    #[error("the redirect pattern {pattern:?} is not a valid regular expression")]
+    RedirectPattern {
+        /// The pattern, as given.
+        pattern: String,
+        /// Why it was refused.
+        #[source]
+        source: regex::Error,
+    },
+    /// A pattern's destination is neither a path nor a web address.
+    #[error("the redirect destination {template:?} must start with / or https://")]
+    RedirectTemplate {
+        /// The destination, as given.
+        template: String,
+    },
+    /// A domain in the link policy is not a plain domain name.
+    #[error("{domain:?} is not a plain domain name such as example.com")]
+    Domain {
+        /// The domain, as given.
+        domain: String,
+    },
+    /// A currency is not a three-letter ISO 4217 code such as `GBP`.
+    #[error("{currency:?} is not a currency code such as GBP or EUR")]
+    Currency {
+        /// The code, as given.
+        currency: String,
+    },
+    /// A rating is below zero, above its best score, or its best is not above zero.
+    #[error("a rating of {value} out of {best} is not between 0 and its best score")]
+    Rating {
+        /// The score, as given.
+        value: f64,
+        /// The best possible score, as given.
+        best: f64,
+    },
+    /// A schema type name is not one capitalised word such as `Course`.
+    #[error("{name:?} is not a schema.org type name such as Course")]
+    SchemaType {
+        /// The name, as given.
+        name: String,
+    },
+    /// A schema property name is not one word starting small, such as `provider`.
+    #[error("{name:?} is not a schema.org property name such as provider")]
+    SchemaProperty {
+        /// The name, as given.
+        name: String,
     },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
