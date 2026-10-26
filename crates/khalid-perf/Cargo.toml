@@ -10,10 +10,12 @@ publish.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", default-features = false }
+thiserror.workspace = true
 
 [dev-dependencies]
 khalid-content = { path = "../khalid-content", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+tempfile = "3"
 
 [lints]
 workspace = true
