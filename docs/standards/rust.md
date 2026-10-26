@@ -11,6 +11,7 @@ One Cargo workspace at the repository root, flat `crates/` folder, one purpose p
 | `khalid` | The binary: `clap` commands, the user-message edge, wiring | Business rules |
 | `khalid-core` | Shared newtypes (`Slug`, `SiteId`, `Locale`, `AbsoluteUrl`, `SitePath`), `Clock`, `Config`, `UserMessage`, `Secret` | HTTP, SQL, files |
 | `khalid-content` | Front matter, markdown, directives, wikilinks, the content tree, file watching | Templates, HTTP |
+| `khalid-routes` | `routes.toml`: collections and permalinks, channels, taxonomy prefixes, aliases, and the URLs they make | Content files, templates, HTTP |
 | `khalid-render` | MiniJinja templates, the asset pipeline, the page cache | SQL, HTTP clients |
 | `khalid-seo` | Meta tags, schema graphs, sitemaps, feeds, robots, hreflang, redirects | Templates |
 | `khalid-lint` | The rule engine, every rule, every message. Public, reused by SerpDad | Files on disk, HTTP |
