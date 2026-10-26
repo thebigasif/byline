@@ -88,7 +88,7 @@ jobs:
         run: |
           floor=$(sed -n 's/^lines *= *\([0-9.]*\).*/\1/p' coverage.toml 2>/dev/null || echo 0)
           cargo llvm-cov nextest --workspace --all-features --summary-only --fail-under-lines "$floor"
-      - name: Binary size and bloat (budget: under 30 MB)
+      - name: Binary size, budget under 30 MB
         if: steps.crates.outputs.present == 'true'
         run: |
           cargo build --release -p byline

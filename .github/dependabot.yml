@@ -1,3 +1,4 @@
+# Phase 4 adds an npm entry for /admin when that folder exists.
 version: 2
 updates:
   - package-ecosystem: cargo
@@ -6,13 +7,6 @@ updates:
       interval: weekly
     groups:
       cargo-minor-and-patch:
-        update-types: [minor, patch]
-  - package-ecosystem: npm
-    directory: /admin
-    schedule:
-      interval: weekly
-    groups:
-      npm-minor-and-patch:
         update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
