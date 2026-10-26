@@ -1,0 +1,10 @@
+location = /blog {
+    return 301 /blog/;
+}
+location /blog/ {
+    proxy_pass https://blog-origin.example.com;
+    proxy_ssl_server_name on;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}

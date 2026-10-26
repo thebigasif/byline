@@ -1,0 +1,16 @@
+[package]
+name = "khalid-mount"
+version = "0.0.0"
+description = "Proxy rules that mount the blog under a folder of a site built with something else."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+thiserror.workspace = true
+
+[lints]
+workspace = true
