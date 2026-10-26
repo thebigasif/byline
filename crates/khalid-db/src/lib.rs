@@ -9,12 +9,14 @@
 //! rebuilt. It must not know about rendering, HTTP or the files themselves;
 //! callers read the content and hand it over as a [`ContentIndex`]. It also
 //! keeps the webhook delivery log, as the [`DeliveryLog`] that
-//! `khalid-webhooks` writes through.
+//! `khalid-webhooks` writes through, and the API keys, as the [`KeyTable`]
+//! that `khalid-api` checks keys against.
 
 mod content_index;
 mod database;
 mod db_error;
 mod delivery_log;
+mod key_table;
 mod posts;
 mod rebuild;
 mod site_id;
@@ -23,5 +25,6 @@ pub use content_index::{ContentIndex, IndexedPost};
 pub use database::Database;
 pub use db_error::DbError;
 pub use delivery_log::DeliveryLog;
+pub use key_table::KeyTable;
 pub use rebuild::RebuildSummary;
 pub use site_id::SiteId;

@@ -212,7 +212,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -296,7 +296,7 @@
             }
           },
           "422": {
-            "description": "The body could not be read",
+            "description": "The body could not be read, or the linter refused to publish the post",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1618,6 +1618,14 @@
           "updated_at"
         ],
         "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The author's slug, matching a file in the site's `authors/` folder.",
+            "example": "asif"
+          },
           "id": {
             "type": "string",
             "description": "Stable across edits."
@@ -1818,6 +1826,13 @@
           "title"
         ],
         "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The author's slug, such as `asif`. The linter refuses to publish a\npost without one."
+          },
           "html": {
             "type": [
               "string",
@@ -2038,7 +2053,7 @@
       },
       "PostEdit": {
         "type": "object",
-        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value.",
+        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through.",
         "required": [
           "updated_at"
         ],
@@ -2049,6 +2064,14 @@
               "null"
             ],
             "description": "A new markdown body."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`published` to publish the post. Publishing runs the linter, and a\npost with a blocking finding stays a draft.",
+            "example": "published"
           },
           "title": {
             "type": [
@@ -2125,6 +2148,13 @@
               "null"
             ],
             "description": "The address the problem is about."
+          },
+          "lint": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "For a post the linter refused, every finding, as `khalid lint\n--json` prints them."
           },
           "rule": {
             "type": [

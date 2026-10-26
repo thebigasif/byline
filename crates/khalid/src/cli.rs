@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+use khalid_api::keys::{KeyId, Role, Scope};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 
 /// The command line.
@@ -119,8 +120,12 @@ pub(crate) enum Command {
     },
     /// Fetch the content repository and rebuild, in git mode
     Pull,
-    /// Create and revoke API keys for integrations
-    Keys,
+    /// Create and revoke API keys for integrations, staff and web pages
+    Keys {
+        /// What to do with the keys
+        #[command(subcommand)]
+        command: KeysCommand,
+    },
     /// Bring the site's database up to date, or rebuild its index from the files
     Db {
         /// What to do with the database
@@ -200,6 +205,50 @@ pub(crate) enum DbCommand {
     Rebuild,
 }
 
+/// The key commands. Keys are stored as hashes in `data/site.db`.
+#[derive(Debug, Clone, Subcommand)]
+pub(crate) enum KeysCommand {
+    /// Make a key and show it once. Khalid keeps only a hash of it
+    Create(NewKeyArgs),
+    /// Stop a key from working, at once and for good
+    Revoke {
+        /// The key's identity: the 16 characters after the first `_`
+        #[arg(value_name = "ID", value_parser = |text: &str| KeyId::try_new(text))]
+        id: KeyId,
+    },
+}
+
+/// What `khalid keys create` takes.
+#[derive(Debug, Clone, Args)]
+pub(crate) struct NewKeyArgs {
+    /// Who or what uses the key, such as a publishing tool or a name
+    #[arg(long)]
+    pub(crate) name: String,
+
+    /// What the key is for
+    #[arg(long, value_enum, default_value_t = KeyKindArg::Integration)]
+    pub(crate) kind: KeyKindArg,
+
+    /// What an integration key may do, such as posts:write. Repeat for more
+    #[arg(long = "scope", value_name = "SCOPE")]
+    pub(crate) scopes: Vec<Scope>,
+
+    /// A staff token's role: owner, admin, editor, writer or contributor
+    #[arg(long)]
+    pub(crate) role: Option<Role>,
+}
+
+/// The kinds of key, as `--kind` spells them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum KeyKindArg {
+    /// Reads published posts through the Content API. Safe in a web page
+    Content,
+    /// Lets a tool, such as a publishing service, use the Admin API, with scopes
+    Integration,
+    /// Lets one staff member use the Admin API, with a role
+    Staff,
+}
+
 /// The theme commands.
 #[derive(Debug, Subcommand)]
 #[expect(
@@ -264,7 +313,12 @@ impl Command {
             Self::Audit => "audit",
             Self::Update { .. } => "update",
             Self::Pull => "pull",
-            Self::Keys => "keys",
+            Self::Keys {
+                command: KeysCommand::Create(_),
+            } => "keys create",
+            Self::Keys {
+                command: KeysCommand::Revoke { .. },
+            } => "keys revoke",
             Self::Db {
                 command: DbCommand::Migrate,
             } => "db migrate",

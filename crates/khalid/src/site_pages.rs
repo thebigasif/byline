@@ -8,9 +8,12 @@ use std::sync::Arc;
 
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, UserMessage};
+use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
+use tokio::runtime::Handle;
 
+use crate::site_content::{LiveContent, published};
 use crate::{assets, build_message, build_pages, content_message};
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -27,11 +30,30 @@ struct Site {
     config: Config,
     renderer: Renderer,
     stylesheet: Page,
+    feed: Option<ContentFeed>,
+}
+
+/// Where each render also sends the published posts: the content index in
+/// the site's database, and the posts the Content API answers with.
+#[derive(Debug)]
+pub(crate) struct ContentFeed {
+    /// The runtime the database belongs to. Renders run off it, on the
+    /// main thread at start and on a blocking thread after, so they wait
+    /// for the database through it.
+    pub(crate) runtime: Handle,
+    pub(crate) db: Database,
+    pub(crate) site: SiteId,
+    pub(crate) live: LiveContent,
 }
 
 impl SitePages {
-    /// The pages of the site in `folder`, with its checked `config`.
-    pub(crate) fn new(folder: &Path, config: Config) -> Result<Self, UserMessage> {
+    /// The pages of the site in `folder`, with its checked `config`. With
+    /// a `feed`, each render also refreshes the index and the Content API.
+    pub(crate) fn new(
+        folder: &Path,
+        config: Config,
+        feed: Option<ContentFeed>,
+    ) -> Result<Self, UserMessage> {
         let renderer =
             Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
         let css = assets::site_stylesheet(folder)?;
@@ -41,6 +63,7 @@ impl SitePages {
             config,
             renderer,
             stylesheet,
+            feed,
         })))
     }
 
@@ -53,10 +76,15 @@ impl SitePages {
             config,
             renderer,
             stylesheet,
+            feed,
         } = &*self.0;
         let content = ContentTree::walk(folder)
             .and_then(|tree| read_content(&tree))
             .map_err(|error| content_message::of(folder, &error))?;
+        if let Some(feed) = feed {
+            let fed = published(&feed.db, feed.site, folder, config, &content);
+            feed.live.replace(feed.runtime.block_on(fed)?);
+        }
         let languages = build_pages::pages(config, &content, stylesheet.path().as_str())?;
         let mut pages = vec![stylesheet.clone()];
         let mut not_found = String::new();
