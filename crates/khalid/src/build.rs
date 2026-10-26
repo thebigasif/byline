@@ -1,6 +1,7 @@
 //! `khalid build`: every page of the site rendered as HTML into an output
 //! folder, `public/` in the site folder unless `--out` names another, with
-//! the stylesheet every page links in `assets/`.
+//! the stylesheet every page links in `assets/`, and the site's sitemaps,
+//! `robots.txt`, `llms.txt` and feeds beside them.
 
 use std::fs;
 use std::path::{self, Path, PathBuf};
@@ -12,7 +13,7 @@ use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{assets, build_message, build_pages, report};
+use crate::{assets, build_files, build_message, build_pages, build_seo, report};
 
 /// The output folder inside a site when `--out` is not given.
 const PUBLIC: &str = "public";
@@ -37,45 +38,48 @@ pub(crate) fn run(
     if inside(&out, &within(site, "content")) {
         return report::failure(output, &build_message::into_content(&out), Exit::Failure);
     }
-    let renderer = match Renderer::with_theme(site) {
-        Ok(renderer) => renderer,
-        Err(error) => {
-            return report::failure(output, &build_message::render(&error), Exit::Failure);
-        }
-    };
-    let css = match assets::site_stylesheet(site) {
-        Ok(css) => css,
-        Err(message) => return report::failure(output, &message, Exit::Failure),
-    };
-    let languages = match build_pages::pages(config, content, &assets::href(config, &css)) {
-        Ok(languages) => languages,
-        Err(message) => return report::failure(output, &message, Exit::Failure),
-    };
-    if let Err(message) = write_asset(&out, &css) {
-        return report::failure(output, &message, Exit::Failure);
+    match build(site, config, content, &out) {
+        Ok(written) => success(output, &out, written),
+        Err(message) => report::failure(output, &message, Exit::Failure),
     }
+}
+
+/// Renders every page into `out`, then writes the stylesheet they link and
+/// the site's files beside them, and says how many pages were written.
+fn build(
+    site: &Path,
+    config: &Config,
+    content: &SiteContent,
+    out: &Path,
+) -> Result<usize, UserMessage> {
+    let renderer = Renderer::with_theme(site).map_err(|error| build_message::render(&error))?;
+    let css = assets::site_stylesheet(site)?;
+    let mut languages = build_pages::pages(config, content, &assets::href(config, &css))?;
+    let seo_site = build_seo::site(config)?;
+    let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+    write_asset(out, &css)?;
     let mut written = 0;
     for language in &languages {
         for page in &language.pages {
-            let html = match renderer.render(&language.site, &page.meta, &page.body) {
-                Ok(html) => html,
-                Err(error) => {
-                    return report::failure(output, &build_message::render(&error), Exit::Failure);
-                }
-            };
-            let file = within(&out, &page.file);
-            let made = file.parent().map_or(Ok(()), fs::create_dir_all);
-            if let Err(error) = made.and_then(|()| fs::write(&file, html)) {
-                return report::failure(
-                    output,
-                    &build_message::write(&file, &error),
-                    Exit::Failure,
-                );
-            }
+            let html = renderer
+                .render(&language.site, &page.meta, &page.body)
+                .map_err(|error| build_message::render(&error))?;
+            write(out, &page.file, &html)?;
             written += 1;
         }
     }
-    success(output, &out, written)
+    for file in build_files::files(&seo_site, &seo_pages)? {
+        write(out, &file.file, &file.text)?;
+    }
+    Ok(written)
+}
+
+/// Writes `text` to `relative` inside `out`, making its folders first.
+fn write(out: &Path, relative: &str, text: &str) -> Result<(), UserMessage> {
+    let file = within(out, relative);
+    let made = file.parent().map_or(Ok(()), fs::create_dir_all);
+    made.and_then(|()| fs::write(&file, text))
+        .map_err(|error| build_message::write(&file, &error))
 }
 
 /// Writes `asset` into `out/assets/` with its Brotli and gzip copies beside
