@@ -8,10 +8,13 @@ use std::sync::Arc;
 
 use khalid_content::{ContentTree, check_bodies, read_content};
 use khalid_core::{Config, UserMessage};
+use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
 use khalid_routes::Routes;
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
+use tokio::runtime::Handle;
 
+use crate::site_content::{LiveContent, published};
 use crate::{build_message, build_pages, content_message};
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -27,11 +30,32 @@ struct Site {
     config: Config,
     routes: Routes,
     renderer: Renderer,
+    feed: Option<ContentFeed>,
+}
+
+/// Where each render also sends the published posts: the content index in
+/// the site's database, and the posts the Content API answers with.
+#[derive(Debug)]
+pub(crate) struct ContentFeed {
+    /// The runtime the database belongs to. Renders run off it, on the
+    /// main thread at start and on a blocking thread after, so they wait
+    /// for the database through it.
+    pub(crate) runtime: Handle,
+    pub(crate) db: Database,
+    pub(crate) site: SiteId,
+    pub(crate) live: LiveContent,
 }
 
 impl SitePages {
-    /// The pages of the site in `folder`, with its checked `config` and `routes`.
-    pub(crate) fn new(folder: &Path, config: Config, routes: Routes) -> Result<Self, UserMessage> {
+    /// The pages of the site in `folder`, with its checked `config` and
+    /// `routes`. With a `feed`, each render also refreshes the index and the
+    /// Content API.
+    pub(crate) fn new(
+        folder: &Path,
+        config: Config,
+        routes: Routes,
+        feed: Option<ContentFeed>,
+    ) -> Result<Self, UserMessage> {
         let renderer =
             Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
         Ok(Self(Arc::new(Site {
@@ -39,6 +63,7 @@ impl SitePages {
             config,
             routes,
             renderer,
+            feed,
         })))
     }
 
@@ -53,11 +78,16 @@ impl SitePages {
             config,
             routes,
             renderer,
+            feed,
         } = &*self.0;
         let content = ContentTree::walk(folder)
             .and_then(|tree| read_content(&tree))
             .and_then(|content| check_bodies(&content, config, routes).map(|()| content))
             .map_err(|error| content_message::of(folder, &error))?;
+        if let Some(feed) = feed {
+            let fed = published(&feed.db, feed.site, folder, config, &content);
+            feed.live.replace(feed.runtime.block_on(fed)?);
+        }
         let languages = build_pages::pages(config, routes, &content)?;
         let mut pages = Vec::new();
         let mut not_found = String::new();
@@ -120,7 +150,7 @@ mod tests {
 
     fn pages(site: &Path) -> SitePages {
         let config = Config::load(site, &Environment::empty()).unwrap();
-        SitePages::new(site, config, Routes::load(site).unwrap()).unwrap()
+        SitePages::new(site, config, Routes::load(site).unwrap(), None).unwrap()
     }
 
     #[test]

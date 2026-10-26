@@ -1,0 +1,117 @@
+---
+source: crates/khalid/tests/build_files.rs
+assertion_line: 105
+expression: "read(&built(), \"feed.xml\")"
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Field Notes on SEO</title>
+    <link>https://www.example.com/blog/</link>
+    <description>Field Notes on SEO</description>
+    <language>en</language>
+    <lastBuildDate>Mon, 12 Oct 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://www.example.com/blog/feed.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Planning a topic cluster in an afternoon</title>
+      <link>https://www.example.com/blog/planning-a-topic-cluster/</link>
+      <guid isPermaLink="true">https://www.example.com/blog/planning-a-topic-cluster/</guid>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0000</pubDate>
+      <dc:creator>Asif</dc:creator>
+      <description>A topic cluster is one main post and several shorter posts that link to it. How to plan one with a sheet of paper.</description>
+      <content:encoded>&lt;p&gt;A topic cluster is a group of posts on one subject: one main post that covers the whole subject, and several shorter posts that each answer one question in depth. They all link to each other. Together they show search engines that your site knows the subject, which is what &lt;a href=&quot;https://www.example.com/blog/glossary/topical-authority/&quot;&gt;Topical authority&lt;/a&gt; means.&lt;/p&gt;
+&lt;h2 id=&quot;plan-it-on-one-page&quot;&gt;Plan it on one page&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Pick the subject your customers ask about most.&lt;/strong&gt; For a bakery that sells online, that might be &amp;quot;sourdough at home&amp;quot;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Write the main question at the top:&lt;/strong&gt; &amp;quot;How do I bake sourdough at home?&amp;quot; That becomes the main post.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;List the smaller questions underneath:&lt;/strong&gt; how to feed a starter, why the dough is sticky, which flour to buy. Each becomes a short post.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Draw the links.&lt;/strong&gt; Every short post links to the main post, and the main post links to every short post.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id=&quot;write-in-the-right-order&quot;&gt;Write in the right order&lt;/h2&gt;
+&lt;p&gt;Write the short posts first. They are quicker, and they teach you what the main post needs to say. Then write the main post and add the links. &lt;a href=&quot;https://www.example.com/blog/why-internal-links-matter/&quot;&gt;Why internal links matter&lt;/a&gt; has the rules for the anchor text.&lt;/p&gt;
+</content:encoded>
+    </item>
+    <item>
+      <title>Fixing slow pages, starting with the biggest win</title>
+      <link>https://www.example.com/blog/fixing-slow-pages/</link>
+      <guid isPermaLink="true">https://www.example.com/blog/fixing-slow-pages/</guid>
+      <pubDate>Mon, 5 Oct 2026 00:00:00 +0000</pubDate>
+      <dc:creator>Lena Vogt</dc:creator>
+      <description>Slow pages lose readers before they read a word. Where the time usually goes, and what to fix first.</description>
+      <content:encoded>&lt;p&gt;Readers leave pages that load slowly, and search engines notice. The good news: most slow pages are slow for the same few reasons.&lt;/p&gt;
+&lt;h2 id=&quot;measure-first&quot;&gt;Measure first&lt;/h2&gt;
+&lt;p&gt;Run the page through a speed test on a phone setting, not a desktop one. Write down the largest contentful paint, which is the time until the main content is visible. Under one second is great. Over two and a half seconds needs work.&lt;/p&gt;
+&lt;h2 id=&quot;the-usual-causes-biggest-first&quot;&gt;The usual causes, biggest first&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Images that are too large.&lt;/strong&gt; A photo saved at 4,000 pixels wide for a slot 800 pixels wide wastes most of its bytes. Serve the size the page needs, in a modern format.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Scripts the reader does not need.&lt;/strong&gt; Every chat widget and tracking tag delays the page. Remove the ones nobody reads the data from.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Fonts that block the text.&lt;/strong&gt; Show the text in a system font first, and swap in the web font when it arrives.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Layout that jumps.&lt;/strong&gt; Give every image a width and height, so the text does not move while the page loads.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Fix the first cause on your slowest page, measure again, and move on. Faster pages also get crawled more often, which helps &lt;a href=&quot;https://www.example.com/blog/what-a-sitemap-does/&quot;&gt;your sitemap&lt;/a&gt; do its job.&lt;/p&gt;
+</content:encoded>
+    </item>
+    <item>
+      <title>What a sitemap does, and what it does not</title>
+      <link>https://www.example.com/blog/what-a-sitemap-does/</link>
+      <guid isPermaLink="true">https://www.example.com/blog/what-a-sitemap-does/</guid>
+      <pubDate>Mon, 28 Sep 2026 00:00:00 +0000</pubDate>
+      <dc:creator>Lena Vogt</dc:creator>
+      <description>A sitemap lists the pages you want search engines to know about. It helps them find pages, but it does not make a page rank.</description>
+      <content:encoded>&lt;p&gt;A sitemap is a file, usually at &lt;code&gt;/sitemap.xml&lt;/code&gt;, that lists the addresses of the pages on your site. Search engines read it to find pages they might otherwise miss.&lt;/p&gt;
+&lt;h2 id=&quot;what-it-does&quot;&gt;What it does&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;It helps new pages get found sooner, especially on a young site with few links pointing in.&lt;/li&gt;
+&lt;li&gt;It tells search engines when a page last changed, so they know what to fetch again.&lt;/li&gt;
+&lt;li&gt;It points to each language version of a page, which helps the right reader land on the right version.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;what-it-does-not-do&quot;&gt;What it does not do&lt;/h2&gt;
+&lt;p&gt;A sitemap does not make a page rank. A weak page listed in a sitemap is still a weak page. It also does not replace links: a page that only appears in the sitemap, with no links from your own posts, still looks unimportant. See &lt;a href=&quot;https://www.example.com/blog/why-internal-links-matter/&quot;&gt;why internal links matter&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;keep-it-clean&quot;&gt;Keep it clean&lt;/h2&gt;
+&lt;p&gt;List only pages you want in search results. Leave out drafts, redirects and pages marked &lt;code&gt;noindex&lt;/code&gt;. A sitemap full of pages that should not be there teaches search engines to trust it less.&lt;/p&gt;
+</content:encoded>
+    </item>
+    <item>
+      <title>How to write a title tag</title>
+      <link>https://www.example.com/blog/how-to-write-a-title-tag/</link>
+      <guid isPermaLink="true">https://www.example.com/blog/how-to-write-a-title-tag/</guid>
+      <pubDate>Mon, 21 Sep 2026 00:00:00 +0000</pubDate>
+      <dc:creator>Asif</dc:creator>
+      <description>The title tag is the blue link people click in search results. Five rules for writing one that earns the click.</description>
+      <content:encoded>&lt;p&gt;The title tag is the line of text a search engine shows as the clickable headline of your result. It is often the first thing a reader sees of your site, so it decides whether they visit at all.&lt;/p&gt;
+&lt;h2 id=&quot;five-rules&quot;&gt;Five rules&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Put the topic first.&lt;/strong&gt; &amp;quot;Title tags: how to write one&amp;quot; beats &amp;quot;A complete and friendly guide to title tags&amp;quot;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Keep it under about 60 characters,&lt;/strong&gt; so it is not cut off on a phone.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Make it match the page.&lt;/strong&gt; If the title promises a checklist, the page needs a checklist. A mismatch sends readers straight back.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Write one per page.&lt;/strong&gt; Two pages with the same title compete with each other.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Add your brand at the end, if there is room.&lt;/strong&gt; &amp;quot;Title tags: how to write one | Field Notes&amp;quot;.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id=&quot;title-tag-or-headline&quot;&gt;Title tag or headline?&lt;/h2&gt;
+&lt;p&gt;They can differ. The headline on the page can be longer and warmer. The title tag is for the results page, where space is short and the reader is scanning.&lt;/p&gt;
+&lt;p&gt;When the title is done, check that the page is easy to reach: &lt;a href=&quot;https://www.example.com/blog/why-internal-links-matter/&quot;&gt;why internal links matter&lt;/a&gt; explains how.&lt;/p&gt;
+</content:encoded>
+    </item>
+    <item>
+      <title>Why internal links matter</title>
+      <link>https://www.example.com/blog/why-internal-links-matter/</link>
+      <guid isPermaLink="true">https://www.example.com/blog/why-internal-links-matter/</guid>
+      <pubDate>Mon, 14 Sep 2026 00:00:00 +0000</pubDate>
+      <dc:creator>Asif</dc:creator>
+      <description>Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.</description>
+      <content:encoded>&lt;p&gt;An internal link is a link from one page on your site to another page on the same site. It sounds too simple to matter. It matters a lot.&lt;/p&gt;
+&lt;h2 id=&quot;readers-use-them-to-keep-going&quot;&gt;Readers use them to keep going&lt;/h2&gt;
+&lt;p&gt;Someone who finishes a post is interested. If the post ends without pointing anywhere, they leave. One link to a related post gives them a next step, and gives you a second page view.&lt;/p&gt;
+&lt;h2 id=&quot;search-engines-use-them-to-find-and-rank-pages&quot;&gt;Search engines use them to find and rank pages&lt;/h2&gt;
+&lt;p&gt;A crawler finds new pages by following links. A post that nothing links to is hard to find and looks unimportant. A post that ten other posts link to looks like something your site cares about. That is how you build &lt;a href=&quot;https://www.example.com/blog/glossary/topical-authority/&quot;&gt;Topical authority&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;how-to-add-them-well&quot;&gt;How to add them well&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Link from new posts to older ones, and go back to add links from older posts to new ones.&lt;/li&gt;
+&lt;li&gt;Use anchor text that says what the reader gets: &amp;quot;how to write a title tag&amp;quot;, not &amp;quot;click here&amp;quot;.&lt;/li&gt;
+&lt;li&gt;Use the same anchor text for the same page. If one phrase points to two different pages, search engines cannot tell which one you mean.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Start with one link per post. For example, once your links are in place, read &lt;a href=&quot;https://www.example.com/blog/how-to-write-a-title-tag/&quot;&gt;how to write a title tag&lt;/a&gt; next.&lt;/p&gt;
+</content:encoded>
+    </item>
+  </channel>
+</rss>

@@ -57,6 +57,18 @@ pub(crate) fn address(address: &str) -> UserMessage {
     )
 }
 
+/// The message when a post's alias lies outside the blog's mount folder.
+pub(crate) fn alias_outside(path: &Path, alias: &str, mount: &str) -> UserMessage {
+    UserMessage::new(
+        format!(
+            "{} lists the alias {alias}, which is outside the blog at {mount}.",
+            path.display()
+        ),
+        "The blog can only redirect addresses inside its own folder.",
+        format!("Start the alias with {mount}, or remove it, then build again."),
+    )
+}
+
 /// The message when a page's search tags cannot be written.
 pub(crate) fn seo(error: &SeoError) -> UserMessage {
     UserMessage::new(

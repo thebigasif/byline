@@ -1,21 +1,29 @@
-//! `khalid serve`: the site answered over HTTP from rendered pages, shown
-//! again after every saved edit, until Ctrl+C or a stop signal.
+//! `khalid serve`: the site answered over HTTP from rendered pages, the
+//! Content API from the site's own index, and the Admin API over its files,
+//! each showing every saved edit, published post or API write again after
+//! a moment, until Ctrl+C or a stop signal.
 
 use std::net::SocketAddr;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
+use khalid_api::api;
 use khalid_content::EMBED_PROVIDERS;
-use khalid_core::Config;
+use khalid_core::{Config, Slug, SystemClock, UserMessage};
+use khalid_db::{Database, KeyTable, SiteId};
 use khalid_routes::Routes;
 use khalid_server::{LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
 use tokio::net::TcpListener;
+use tokio::runtime::Runtime;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::site_pages::SitePages;
-use crate::{report, serve_message};
+use crate::site_content::LiveContent;
+use crate::site_pages::{ContentFeed, SitePages};
+use crate::site_posts::SitePosts;
+use crate::{db, db_message, report, serve_message};
 
 /// How often the site folder is checked for a saved edit (ADR "the server
 /// watches files by polling").
@@ -31,7 +39,9 @@ struct ServeBody<'a> {
     address: &'a str,
 }
 
-/// Serves the `site` folder, whose `config` and `routes` were checked, on `listen`.
+/// Serves the `site` folder, whose `config` and `routes` were checked, on
+/// `listen`. The database opens first and closes last, after every request
+/// and the watch have stopped.
 pub(crate) fn run(
     site: &Path,
     config: &Config,
@@ -39,25 +49,55 @@ pub(crate) fn run(
     listen: SocketAddr,
     output: Output,
 ) -> Exit {
-    let started = SitePages::new(site, config.clone(), routes.clone()).and_then(|source| {
-        let (pages, not_found) = source.render_all()?;
-        let pages = Pages::new(pages, not_found).map_err(|_| serve_message::internal())?;
-        Ok((source, pages))
-    });
-    let (source, pages) = match started {
-        Ok(started) => started,
-        Err(message) => return report::failure(output, &message, Exit::Failure),
-    };
-    let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
-    let (Ok(security), Ok(runtime)) = (
-        SecurityHeaders::new(&origins),
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build(),
-    ) else {
+    let Ok(runtime) = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    else {
         return report::failure(output, &serve_message::internal(), Exit::Internal);
     };
-    let served = runtime.block_on(async {
+    let (database, id) = match open(site, &runtime) {
+        Ok(opened) => opened,
+        Err(message) => return report::failure(output, &message, Exit::Failure),
+    };
+    let checked = (config, routes);
+    let served = serve_with(site, checked, listen, output, &runtime, (&database, id));
+    runtime.block_on(database.close());
+    match served {
+        Ok(()) if output == Output::Human => report::text("Stopped.\n", Exit::Success),
+        Ok(()) => Exit::Success,
+        Err((message, exit)) => report::failure(output, &message, exit),
+    }
+}
+
+/// Renders the site with its checked settings and routes, then answers on
+/// `listen` until told to stop.
+fn serve_with(
+    site: &Path,
+    (config, routes): (&Config, &Routes),
+    listen: SocketAddr,
+    output: Output,
+    runtime: &Runtime,
+    (database, id): (&Database, SiteId),
+) -> Result<(), (UserMessage, Exit)> {
+    let content = LiveContent::default();
+    let feed = ContentFeed {
+        runtime: runtime.handle().clone(),
+        db: database.clone(),
+        site: id,
+        live: content.clone(),
+    };
+    let (source, pages) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
+        .and_then(|source| {
+            let (pages, not_found) = source.render_all()?;
+            let pages = Pages::new(pages, not_found).map_err(|_| serve_message::internal())?;
+            Ok((source, pages))
+        })
+        .map_err(|message| (message, Exit::Failure))?;
+    let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
+    let security =
+        SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))?;
+    let keys = KeyTable::new(database.clone(), id, SystemClock);
+    runtime.block_on(async {
         let listener = TcpListener::bind(listen)
             .await
             .map_err(|error| (serve_message::listen(listen, &error), Exit::Failure))?;
@@ -67,15 +107,39 @@ pub(crate) fn run(
         announce(output, config, &format!("http://{local}{}", config.mount()));
         let live = LivePages::new(pages);
         let watching = watch(site, &source, &live, WATCH_EVERY);
-        let stopped = khalid_server::serve(listener, router(live, security), stop(), GRACE).await;
+        let posts = SitePosts::new(site, config.clone(), SystemClock);
+        let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
+        let app = api.merge(router(live, security));
+        let stopped = khalid_server::serve(listener, app, stop(), GRACE).await;
         watching.stop().await;
-        stopped.map_err(|_| (serve_message::stopped(), Exit::Failure))
-    });
-    match served {
-        Ok(_) if output == Output::Human => report::text("Stopped.\n", Exit::Success),
-        Ok(_) => Exit::Success,
-        Err((message, exit)) => report::failure(output, &message, exit),
-    }
+        stopped
+            .map(|_| ())
+            .map_err(|_| (serve_message::stopped(), Exit::Failure))
+    })
+}
+
+/// Opens `data/site.db` in the site folder, making it when it is missing,
+/// brings it up to date, and finds the site's row.
+fn open(site: &Path, runtime: &Runtime) -> Result<(Database, SiteId), UserMessage> {
+    let path = db::data_file(site)?;
+    let main = Slug::try_new(db::MAIN).map_err(|_| db_message::internal())?;
+    runtime.block_on(async {
+        let database = Database::open(&path)
+            .await
+            .map_err(|error| db_message::of(&path, &error))?;
+        let opened = async {
+            database.migrate().await?;
+            database.site(&main).await
+        }
+        .await;
+        match opened {
+            Ok(id) => Ok((database, id)),
+            Err(error) => {
+                database.close().await;
+                Err(db_message::of(&path, &error))
+            }
+        }
+    })
 }
 
 /// Says where the site answers. In JSON, this one line is the whole output.

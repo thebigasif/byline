@@ -10,6 +10,7 @@ mod build;
 mod build_files;
 mod build_message;
 mod build_pages;
+mod build_redirects;
 mod build_seo;
 mod cli;
 mod config_message;
@@ -21,19 +22,32 @@ mod index;
 mod init;
 mod init_message;
 mod init_prompt;
+mod keys;
+mod keys_message;
 mod lint;
 mod lint_fix;
 mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
+mod post_text;
 mod repair;
 mod report;
 mod routes_message;
 mod serve;
 mod serve_message;
+mod site_content;
 mod site_pages;
+mod site_posts;
 mod slug_repair;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "khalid theme sync renders the preview, in task 3.8"
+    )
+)]
+mod theme_preview;
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -96,8 +110,15 @@ fn run(cli: &Cli) -> Exit {
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, routes, content))) => {
-            build::run(folder, config, routes, content, out.as_deref(), cli.output)
+        (Some(Command::Build { out }), Some((folder, config, routes, content))) => build::run(
+            folder,
+            (config, routes, content),
+            out.as_deref(),
+            &SystemClock,
+            cli.output,
+        ),
+        (Some(Command::Keys { command }), Some((folder, ..))) => {
+            keys::run(folder, command, cli.output)
         }
         (Some(Command::Serve { listen }), Some((folder, config, routes, _))) => {
             serve::run(folder, config, routes, *listen, cli.output)
@@ -106,6 +127,7 @@ fn run(cli: &Cli) -> Exit {
             Some(
                 command @ (Command::Db { .. }
                 | Command::Serve { .. }
+                | Command::Keys { .. }
                 | Command::Lint { .. }
                 | Command::New { .. }
                 | Command::Build { .. }),
