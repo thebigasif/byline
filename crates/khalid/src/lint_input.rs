@@ -14,18 +14,18 @@ use khalid_lint::{
     GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintLink, LintPost, LintSite, PageRef,
 };
 
-/// The site's posts, pages and glossary in the lint model, and the file each
-/// post came from, in the same order.
+/// The site's posts, pages and glossary in the lint model, and the document
+/// each post came from, in the same order.
 pub(crate) fn lint_site<'c>(
     content: &'c SiteContent,
     config: &Config,
-) -> (LintSite, Vec<&'c Path>) {
+) -> (LintSite, Vec<&'c Document<PostFront>>) {
     let mut site = LintSite::default();
-    let mut files = Vec::new();
+    let mut documents = Vec::new();
     for document in &content.posts {
         if let Some(post) = lint_post(document, config) {
             site.posts.push(post);
-            files.push(document.path.as_path());
+            documents.push(document);
         }
     }
     for page in &content.pages {
@@ -46,7 +46,7 @@ pub(crate) fn lint_site<'c>(
         }
     }
     site.locales = config.languages().to_vec();
-    (site, files)
+    (site, documents)
 }
 
 /// One post in the lint model, or `None` when no slug can be made for it or

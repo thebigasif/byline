@@ -1919,6 +1919,8 @@ dependencies = [
  "comrak",
  "insta",
  "khalid-core",
+ "khalid-routes",
+ "math-core",
  "proptest",
  "serde",
  "serde-saphyr",
@@ -2010,8 +2012,11 @@ name = "khalid-perf"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "divan",
  "khalid-content",
  "khalid-core",
+ "khalid-lint",
+ "khalid-render",
  "tempfile",
  "thiserror",
 ]
@@ -2108,8 +2113,11 @@ dependencies = [
  "khalid-core",
  "khalid-outbound",
  "scraper",
+ "serde",
+ "tempfile",
  "thiserror",
  "tokio",
+ "toml",
  "url",
  "wiremock",
 ]
@@ -2130,6 +2138,15 @@ dependencies = [
  "thiserror",
  "tokio",
  "wiremock",
+]
+
+[[package]]
+name = "kstring"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a09b82a7f771ed02dc0dd9b27130a0fa5499fa15ed3027116c1e5e4e591bd9e"
+dependencies = [
+ "static_assertions",
 ]
 
 [[package]]
@@ -2278,6 +2295,43 @@ name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
+
+[[package]]
+name = "math-core"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fbcfafbb044793948a288d2b20bc1cb7d6f07ac0a33232165b2e2e742082127"
+dependencies = [
+ "hashbrown 0.17.1",
+ "kstring",
+ "math-core-renderer-internal",
+ "memchr",
+ "phf 0.14.0",
+ "rustc-hash",
+ "serde",
+ "static_assertions",
+ "strum",
+ "strum_macros",
+]
+
+[[package]]
+name = "math-core-renderer-internal"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2a232c604d4a08a856316ab2e608b884db7b141a36e60e1056911a48116f949"
+dependencies = [
+ "bitflags",
+ "dtoa",
+ "hashbrown 0.17.1",
+ "kstring",
+ "percent-encoding",
+ "rustc-hash",
+ "serde",
+ "stable-arena",
+ "static_assertions",
+ "strum",
+ "strum_macros",
+]
 
 [[package]]
 name = "md-5"
@@ -3650,10 +3704,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "stable-arena"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e016625b2c482bea7d5a301e88c75f40ffb2a3bc9c7f8bc16c68e05156fb6807"
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "strict-num"
@@ -3729,6 +3795,24 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
+name = "strum"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
+
+[[package]]
+name = "strum_macros"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "subtle"

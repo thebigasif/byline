@@ -76,6 +76,10 @@ pub(crate) enum Command {
     Lint {
         /// One post to check. Leave it out to check the whole site.
         path: Option<PathBuf>,
+        /// Make the safe repairs in the files: heading order, image
+        /// descriptions from captions and cleaner addresses, then check again.
+        #[arg(long)]
+        fix: bool,
     },
     /// Lint a draft, then publish it. Refuses when a rule blocks it
     Publish {

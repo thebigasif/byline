@@ -8,8 +8,14 @@
 
 mod fixture;
 mod fixture_error;
+mod inputs;
+mod prepare_error;
+mod render_times;
 mod site;
 mod words;
 
 pub use fixture::Fixture;
 pub use fixture_error::FixtureError;
+pub use inputs::{Page, Prepared};
+pub use prepare_error::PrepareError;
+pub use render_times::{RenderTimes, percentile};

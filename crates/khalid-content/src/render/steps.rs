@@ -8,7 +8,7 @@ use super::{Image, Link};
 use super::{Renderer, attribute};
 use crate::{HowToBlock, ProductBlock, Question, ReviewBlock, Step, StructuredBlock};
 
-impl Renderer {
+impl Renderer<'_> {
     /// Writes each question as a summary a reader opens to see the answer,
     /// which works with scripts off.
     pub(super) fn faq(&mut self, questions: &[Question]) {

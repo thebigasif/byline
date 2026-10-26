@@ -5,7 +5,7 @@ use super::{Renderer, attribute};
 use crate::FormField;
 use crate::directive::TRAP;
 
-impl Renderer {
+impl Renderer<'_> {
     /// Writes a form that posts to `/forms/{id}`, one labelled field each.
     pub(super) fn form(&mut self, id: &str, button: &str, fields: &[FormField]) {
         let id = attribute(id);

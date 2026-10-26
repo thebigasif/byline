@@ -7,28 +7,32 @@
 //! `content/` (BL-FS-2).
 
 mod block;
+mod body_check;
 mod content_error;
 mod content_hash;
 mod directive;
 mod embed;
 mod form;
 mod front_matter;
+mod maths;
 mod post;
 mod render;
 mod schemas;
 mod site_content;
 mod structured;
 mod tree;
+mod wikilink;
 
 pub use block::{
     Block, BlockError, BlockKind, CalloutKind, GalleryImage, Visibility, parse_blocks, print_blocks,
 };
+pub use body_check::check_bodies;
 pub use content_error::ContentError;
 pub use content_hash::ContentHash;
 pub use embed::{EMBED_PROVIDERS, EmbedProvider};
 pub use form::{FieldKind, FormField};
 pub use post::{Post, PostFront, parse_post};
-pub use render::{Heading, Image, Link, Rendered, render};
+pub use render::{Heading, Image, Link, Rendered, render, render_linked};
 pub use schemas::{
     AuthorFront, CaseStudyFront, ChangelogFront, GlossaryFront, IndexFront, PageFront, SnippetFront,
 };
@@ -38,3 +42,4 @@ pub use structured::{
     Step, StructuredBlock, VideoBlock,
 };
 pub use tree::{Collection, ContentTree, Entry, Language};
+pub use wikilink::{WikiTarget, Wikilinks};

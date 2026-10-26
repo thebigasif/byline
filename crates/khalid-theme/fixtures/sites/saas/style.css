@@ -1,0 +1,8 @@
+/* Shaped like compiled utility CSS from a Next.js build: hashed class
+   names and no named colours, so frequency decides. */
+@font-face{font-family:"Inter var";font-style:normal;font-weight:100 900;font-display:swap;src:url(/_next/static/media/a34f9d1faa5f3315-s.p.woff2) format("woff2")}
+body{margin:0;font-family:"Inter var",ui-sans-serif,system-ui,sans-serif;line-height:1.5}
+.bg-white{background-color:#fff}.bg-gray-50{background-color:#f9fafb}.bg-white\/90{background-color:#ffffffe6}
+.text-gray-900{color:#111827}.text-gray-600{color:#4b5563}.text-gray-400{color:#9ca3af}.text-gray-400b{color:#9ca3af}.text-gray-400c{color:#9ca3af}
+.bg-indigo-600{background-color:#4f46e5}.hover\:bg-indigo-500:hover{background-color:#6366f1}.ring-indigo-600{--tw-ring-color:#4f46e5;box-shadow:0 0 0 2px #4f46e5}
+.text-indigo-600{color:#4f46e5}.prose a{color:#4f46e5}.border-gray-200{border-color:#e5e7eb}
