@@ -1,0 +1,21 @@
+[package]
+name = "khalid-share-image"
+version = "0.0.0"
+description = "The generated share image: a 1200 by 630 PNG from a post's title, the site name and the theme colours."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+dejavu = "2.37"
+png = "0.18"
+resvg = { version = "0.49", default-features = false, features = ["text"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+insta = "1"
+
+[lints]
+workspace = true

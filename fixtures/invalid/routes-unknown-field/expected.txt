@@ -1,0 +1,3 @@
+fixtures/invalid/routes-unknown-field/routes.toml, line 6, `layout`: unknown field `layout`.
+Khalid checks routes.toml before it starts, so no page gets a wrong address.
+Remove `layout` on line 6, or use `permalink`.

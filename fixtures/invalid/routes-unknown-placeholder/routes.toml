@@ -1,0 +1,5 @@
+# Breaks one rule: {week} is not a placeholder. The exact message
+# khalid --site prints for it is in expected.txt beside this file.
+
+[collections.news]
+permalink = "/news/{week}/{slug}/"
