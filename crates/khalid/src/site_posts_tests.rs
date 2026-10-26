@@ -4,9 +4,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use chrono::{TimeZone, Utc};
-use khalid_api::post_store::CreatePostError;
+use khalid_api::post_store::{CreatePostError, PostStore, UpdatePostError};
 use khalid_api::resources::{PostDraft, PostStatus};
-use khalid_core::Environment;
+use khalid_core::{Environment, FixedClock};
+use serde_json::{Value, json};
 
 use super::*;
 
@@ -24,7 +25,7 @@ fn copy_dir(from: &Path, into: &Path) {
     }
 }
 
-/// A copy of the demo site and its posts.
+/// A copy of the demo site and its posts, on 2026-10-26.
 fn demo() -> (tempfile::TempDir, SitePosts) {
     let mut fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     fixture.push("../../fixtures/demo-site");
@@ -32,7 +33,8 @@ fn demo() -> (tempfile::TempDir, SitePosts) {
     copy_dir(&fixture, temp.path());
     let config = Config::load(temp.path(), &Environment::empty()).unwrap();
 
-    let posts = SitePosts::new(temp.path(), config);
+    let clock = FixedClock::new(Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap());
+    let posts = SitePosts::new(temp.path(), config, clock);
     (temp, posts)
 }
 
@@ -119,4 +121,95 @@ fn a_draft_and_a_published_post_read_back_by_identity() {
     ] {
         assert!(posts.0.get_now(unknown).unwrap().is_none(), "{unknown}");
     }
+}
+
+/// An edit as JSON a client sends.
+fn edit(fields: Value) -> PostEdit {
+    serde_json::from_value(fields).unwrap()
+}
+
+#[tokio::test]
+async fn a_stale_edit_changes_nothing() {
+    let (_site, posts) = demo();
+    posts.create(good_draft(), "k", None).await.unwrap();
+    let stale = edit(json!({"title": "New", "updated_at": "2026-01-01T00:00:00Z"}));
+    let refused = posts.update("en.choosing-anchor-text", stale, "k").await;
+    assert!(
+        matches!(refused, Err(UpdatePostError::Stale { .. })),
+        "{refused:?}"
+    );
+    let missing = edit(json!({"title": "New", "updated_at": "2026-01-01T00:00:00Z"}));
+    let refused = posts.update("en.no-such-post", missing, "k").await;
+    assert!(
+        matches!(refused, Err(UpdatePostError::NotFound)),
+        "{refused:?}"
+    );
+}
+
+#[tokio::test]
+async fn the_gate_keeps_a_weak_post_a_draft() {
+    let (site, posts) = demo();
+    let weak = PostDraft::new("A weak post", None, "No link and no author.");
+    let made = posts.create(weak, "k", None).await.unwrap();
+    let publish = edit(json!({"status": "published", "updated_at": made.updated_at()}));
+    let refused = posts.update(made.id(), publish, "k").await;
+    let Err(UpdatePostError::Refused(report)) = refused else {
+        panic!("published a post the gate blocks: {refused:?}");
+    };
+    let rules: Vec<Value> = report
+        .findings()
+        .iter()
+        .map(|finding| serde_json::to_value(finding).unwrap()["rule"].clone())
+        .collect();
+    assert!(rules.contains(&json!("no-author")), "{rules:?}");
+    assert!(rules.contains(&json!("no-internal-link")), "{rules:?}");
+    assert!(within(site.path(), "drafts/en/a-weak-post.md").is_file());
+    assert!(!within(site.path(), "content/en/posts/2026-10-26-a-weak-post.md").exists());
+}
+
+#[tokio::test]
+async fn a_good_draft_moves_into_content_dated_today() {
+    let (site, posts) = demo();
+    let made = posts.create(good_draft(), "k", None).await.unwrap();
+    let publish = edit(json!({"status": "published", "updated_at": made.updated_at()}));
+    let live = posts.update(made.id(), publish, "k").await.unwrap();
+    assert_eq!(live.status(), PostStatus::Published);
+    let midnight = Utc.with_ymd_and_hms(2026, 10, 26, 0, 0, 0).unwrap();
+    assert_eq!(live.published_at(), Some(midnight));
+    let file = within(
+        site.path(),
+        "content/en/posts/2026-10-26-choosing-anchor-text.md",
+    );
+    assert!(
+        fs::read_to_string(file)
+            .unwrap()
+            .contains("\ndate: 2026-10-26\n")
+    );
+    assert!(!within(site.path(), "drafts/en/choosing-anchor-text.md").exists());
+    let read = posts.get("en.choosing-anchor-text").await.unwrap().unwrap();
+    assert_eq!(read.status(), PostStatus::Published);
+}
+
+#[tokio::test]
+async fn editing_a_published_post_keeps_its_other_fields() {
+    let (site, posts) = demo();
+    let post = posts
+        .get("en.why-internal-links-matter")
+        .await
+        .unwrap()
+        .unwrap();
+    let title = "Why internal links matter most";
+    let change = edit(json!({"title": title, "updated_at": post.updated_at()}));
+    posts.update(post.id(), change, "k").await.unwrap();
+    let file = within(
+        site.path(),
+        "content/en/posts/2026-09-14-why-internal-links-matter.md",
+    );
+    let text = fs::read_to_string(file).unwrap();
+    assert!(
+        text.contains("title: \"Why internal links matter most\"\n"),
+        "{text}"
+    );
+    assert!(text.contains("translation: internal-links\n"), "{text}");
+    assert!(text.contains("\nAn internal link is a link"), "{text}");
 }

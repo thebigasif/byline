@@ -31,7 +31,7 @@ mod new_message;
     not(test),
     expect(
         dead_code,
-        reason = "the Admin API's post store edits post files through it, in the next pull request of this stack"
+        reason = "only the Admin API's post store uses it, and khalid serve mounts that in the next pull request"
     )
 )]
 mod post_text;
@@ -46,7 +46,7 @@ mod site_pages;
     not(test),
     expect(
         dead_code,
-        reason = "the Admin API reaches it through PostStore, added in the next pull request of this stack"
+        reason = "khalid serve mounts the Admin API on it in the next pull request of this stack"
     )
 )]
 mod site_posts;
