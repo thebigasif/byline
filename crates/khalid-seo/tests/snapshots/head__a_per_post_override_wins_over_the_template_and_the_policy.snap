@@ -1,0 +1,9 @@
+---
+source: crates/khalid-seo/tests/head.rs
+assertion_line: 80
+expression: tags.to_html()
+---
+<title>Internal links, explained | Field Notes on SEO</title>
+<meta name="description" content="Five minutes on internal links.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://serpdad.com/blog/internal-links/">

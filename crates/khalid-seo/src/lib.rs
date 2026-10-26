@@ -9,6 +9,8 @@
 //! It must not know about templates, files, HTTP or the database. The crates
 //! that read content and render pages build its inputs and place its output.
 
+mod escape;
+mod head;
 mod meta_template;
 mod meta_templates;
 mod page;
@@ -17,6 +19,7 @@ mod seo_error;
 mod site;
 mod url_path;
 
+pub use head::{HeadTag, HeadTags, head_tags};
 pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use page::{PageKind, SeoPage};
