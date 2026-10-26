@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+regex = "1"
 serde_json.workspace = true
 thiserror.workspace = true
 

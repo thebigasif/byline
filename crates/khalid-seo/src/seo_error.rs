@@ -6,7 +6,7 @@ use khalid_core::ParseUrlError;
 ///
 /// The binary turns each variant into a message with what, why and fix
 /// (BL-ERR-4). The text here names the problem only.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum SeoError {
     /// A title or description template names a variable that does not exist.
@@ -88,6 +88,21 @@ pub enum SeoError {
     RedirectLoop {
         /// The first path found in the loop.
         from: String,
+    },
+    /// A redirect pattern is not a valid regular expression.
+    #[error("the redirect pattern {pattern:?} is not a valid regular expression")]
+    RedirectPattern {
+        /// The pattern, as given.
+        pattern: String,
+        /// Why it was refused.
+        #[source]
+        source: regex::Error,
+    },
+    /// A pattern's destination is neither a path nor a web address.
+    #[error("the redirect destination {template:?} must start with / or https://")]
+    RedirectTemplate {
+        /// The destination, as given.
+        template: String,
     },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]

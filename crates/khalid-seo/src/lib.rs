@@ -22,6 +22,7 @@ mod meta_template;
 mod meta_templates;
 mod news_sitemap;
 mod page;
+mod redirect_patterns;
 mod redirects;
 mod robots_meta;
 mod robots_txt;
@@ -44,6 +45,7 @@ pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use news_sitemap::{NewsEntry, NewsSitemap};
 pub use page::{ArticleType, PageKind, PublishState, SeoPage, SitemapListing};
+pub use redirect_patterns::{PatternRedirect, PatternRule, RedirectPattern};
 pub use redirects::{Destination, Move, Redirect, RedirectRule, RedirectTable, Resolution};
 pub use robots_meta::{
     Following, ImagePreview, IndexPolicy, Indexing, PreviewLimit, Restriction, RobotsDirectives,

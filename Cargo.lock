@@ -1352,6 +1352,7 @@ dependencies = [
  "chrono",
  "insta",
  "khalid-core",
+ "regex",
  "robotstxt",
  "roxmltree",
  "rss",

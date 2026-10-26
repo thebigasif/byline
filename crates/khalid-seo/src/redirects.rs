@@ -6,7 +6,7 @@ use std::fmt;
 
 use khalid_core::AbsoluteUrl;
 
-use crate::{SeoError, UrlPath};
+use crate::{PatternRedirect, PatternRule, SeoError, UrlPath};
 
 /// The longest chain followed before a table is refused as a loop.
 const MAX_HOPS: usize = 32;
@@ -132,6 +132,7 @@ impl Resolution {
 pub struct RedirectTable {
     rules: Vec<RedirectRule>,
     by_source: BTreeMap<UrlPath, usize>,
+    patterns: Vec<PatternRule>,
 }
 
 impl RedirectTable {
@@ -151,7 +152,11 @@ impl RedirectTable {
                 });
             }
         }
-        let table = Self { rules, by_source };
+        let table = Self {
+            rules,
+            by_source,
+            patterns: Vec::new(),
+        };
         for rule in &table.rules {
             if table.follow(&rule.redirect).is_none() {
                 return Err(SeoError::RedirectLoop {
@@ -162,7 +167,16 @@ impl RedirectTable {
         Ok(table)
     }
 
-    /// The rules, in the order given.
+    /// The table with `patterns` added, tried in order after every exact
+    /// rule. A pattern's answer is then followed through the exact rules,
+    /// like any other chain.
+    #[must_use]
+    pub fn with_patterns(mut self, patterns: Vec<PatternRule>) -> Self {
+        self.patterns = patterns;
+        self
+    }
+
+    /// The exact rules, in the order given.
     pub fn rules(&self) -> &[RedirectRule] {
         &self.rules
     }
@@ -199,11 +213,23 @@ impl RedirectTable {
         None
     }
 
-    /// The answer for `path`, or `None` when no rule matches it.
+    /// The answer for `path`, or `None` when no rule matches it. Exact
+    /// rules are tried first, then patterns, which are numbered after the
+    /// exact rules in [`Resolution::rule`].
     pub fn resolve(&self, path: &UrlPath) -> Option<Resolution> {
-        let &rule = self.by_source.get(path)?;
-        let redirect = &self.rules.get(rule)?.redirect;
-        let answer = self.follow(redirect).unwrap_or_else(|| redirect.clone());
+        let (rule, redirect) = match self.by_source.get(path) {
+            Some(&index) => (index, self.rules.get(index)?.redirect.clone()),
+            None => self
+                .patterns
+                .iter()
+                .enumerate()
+                .find_map(|(index, pattern)| {
+                    pattern
+                        .apply(path)
+                        .map(|hit| (self.rules.len() + index, hit))
+                })?,
+        };
+        let answer = self.follow(&redirect).unwrap_or(redirect);
         Some(Resolution { rule, answer })
     }
 }
@@ -223,6 +249,17 @@ impl fmt::Display for RedirectTable {
                 f.write_str(" (chain collapsed)")?;
             }
             writeln!(f)?;
+        }
+        for (offset, rule) in self.patterns.iter().enumerate() {
+            let index = self.rules.len() + offset;
+            write!(f, "{index}: pattern {} answers ", rule.pattern.as_str())?;
+            match &rule.answer {
+                PatternRedirect::Move { kind, template } => {
+                    writeln!(f, "{} {template}", kind.status())?;
+                }
+                PatternRedirect::Gone => writeln!(f, "410")?,
+                PatternRedirect::LegalBlock => writeln!(f, "451")?,
+            }
         }
         Ok(())
     }
