@@ -37,11 +37,11 @@ fn an_image_is_never_scaled_up() {
 #[test]
 fn variants_are_named_by_width_and_format() {
     let variant = Variant {
-        format: Format::Avif,
+        format: Format::Webp,
         width: 800,
         height: 450,
     };
-    assert_eq!(variant.file_name(), "800.avif");
+    assert_eq!(variant.file_name(), "800.webp");
     assert_eq!(Format::Jpeg.extension(), "jpg");
     assert_eq!(Format::Webp.media_type(), "image/webp");
 }

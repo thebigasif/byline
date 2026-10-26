@@ -5,13 +5,13 @@
 /// browser never fetches much more than it draws.
 const BREAKPOINTS: [u32; 8] = [320, 480, 640, 800, 1024, 1280, 1600, 2048];
 
-/// A file format the site serves images in.
+/// A file format the site serves images in. AVIF joins when its encoder
+/// passes the dependency policy (see the questions in the phase brief);
+/// the enum is non-exhaustive so adding it breaks nobody.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum Format {
-    /// AVIF: the smallest, read by every current browser.
-    Avif,
-    /// WebP: the fallback for browsers without AVIF.
+    /// WebP: smaller than JPEG and PNG, read by every current browser.
     Webp,
     /// JPEG, for photos, when the original was a JPEG.
     Jpeg,
@@ -20,20 +20,18 @@ pub enum Format {
 }
 
 impl Format {
-    /// The file extension, such as `avif`.
+    /// The file extension, such as `webp`.
     pub fn extension(self) -> &'static str {
         match self {
-            Self::Avif => "avif",
             Self::Webp => "webp",
             Self::Jpeg => "jpg",
             Self::Png => "png",
         }
     }
 
-    /// The media type, such as `image/avif`.
+    /// The media type, such as `image/webp`.
     pub fn media_type(self) -> &'static str {
         match self {
-            Self::Avif => "image/avif",
             Self::Webp => "image/webp",
             Self::Jpeg => "image/jpeg",
             Self::Png => "image/png",
@@ -54,7 +52,7 @@ pub struct Variant {
 }
 
 impl Variant {
-    /// The file name inside the original's folder, such as `800.avif`.
+    /// The file name inside the original's folder, such as `800.webp`.
     pub fn file_name(&self) -> String {
         format!("{}.{}", self.width, self.format.extension())
     }
