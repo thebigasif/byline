@@ -1,0 +1,25 @@
+[package]
+name = "khalid-webhooks"
+version = "0.0.0"
+description = "Webhook events, signed deliveries with retries, and the verifier for incoming webhooks."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false }
+hmac = "0.13"
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+serde.workspace = true
+sha2 = "0.11"
+thiserror.workspace = true
+
+[dev-dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+proptest = "1"
+serde_json.workspace = true
+
+[lints]
+workspace = true
