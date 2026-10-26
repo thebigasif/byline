@@ -1,5 +1,6 @@
 //! Why `routes.toml` could not be read.
 
+use std::io;
 use std::path::PathBuf;
 
 /// Why `routes.toml` could not be read. Every mistake in the file names its
@@ -7,6 +8,15 @@ use std::path::PathBuf;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum RoutesError {
+    /// The file exists but could not be read.
+    #[error("could not read {}", path.display())]
+    Read {
+        /// The file.
+        path: PathBuf,
+        /// What the file system reported.
+        #[source]
+        source: io::Error,
+    },
     /// The file is not valid TOML, or a field is unknown or of the wrong kind.
     #[error("{}, line {line}, field {field:?}: {}", path.display(), source.message())]
     Parse {

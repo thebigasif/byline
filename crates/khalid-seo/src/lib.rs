@@ -17,6 +17,7 @@ mod page;
 mod robots_meta;
 mod seo_error;
 mod site;
+mod social;
 mod url_path;
 
 pub use head::{HeadTag, HeadTags, head_tags};
@@ -28,4 +29,5 @@ pub use robots_meta::{
 };
 pub use seo_error::SeoError;
 pub use site::SeoSite;
+pub use social::{ShareImage, TwitterHandle};
 pub use url_path::UrlPath;

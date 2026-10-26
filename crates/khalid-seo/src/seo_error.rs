@@ -31,6 +31,12 @@ pub enum SeoError {
         /// What is wrong with it.
         problem: &'static str,
     },
+    /// A Twitter handle is empty, too long, or holds a character Twitter refuses.
+    #[error("the Twitter handle {handle:?} is not a valid account name")]
+    TwitterHandle {
+        /// The handle, as given.
+        handle: String,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {

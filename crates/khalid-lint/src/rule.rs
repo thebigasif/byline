@@ -55,6 +55,10 @@ impl Hit {
     pub fn subject(&self) -> Option<&str> {
         self.subject.as_deref()
     }
+
+    pub(crate) fn into_subject(self) -> Option<String> {
+        self.subject
+    }
 }
 
 /// A check the linter runs on every post.
