@@ -1,0 +1,42 @@
+---
+source: crates/khalid-seo/tests/schema_local_business.rs
+expression: "SchemaGraph::new(vec![business]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Dentist",
+      "@id": "https://www.example.com/blog/#location-1",
+      "name": "Riverside Dental",
+      "url": "https://www.example.com/blog/",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "12 Mill Lane",
+        "addressLocality": "Bristol",
+        "postalCode": "BS1 4DJ",
+        "addressCountry": "GB"
+      },
+      "parentOrganization": {
+        "@id": "https://www.example.com/blog/#organization"
+      },
+      "telephone": "+44 117 496 0000",
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "https://schema.org/Monday",
+            "https://schema.org/Tuesday",
+            "https://schema.org/Wednesday",
+            "https://schema.org/Thursday",
+            "https://schema.org/Friday"
+          ],
+          "opens": "08:30",
+          "closes": "17:00"
+        }
+      ],
+      "priceRange": "££",
+      "hasMap": "https://maps.example.com/riverside-dental"
+    }
+  ]
+}

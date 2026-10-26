@@ -1,0 +1,4 @@
+en/choosing-link-text: warn missing-translation: fr
+de/linktexte-waehlen: warn missing-translation: fr
+en/pruning-old-posts: warn missing-translation: de
+en/pruning-old-posts: warn missing-translation: fr

@@ -1,0 +1,52 @@
+---
+source: crates/khalid-seo/tests/schema_recipe.rs
+expression: "SchemaGraph::new(vec![node]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Recipe",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#recipe-1",
+      "name": "Office flapjacks",
+      "recipeIngredient": [
+        "250 g rolled oats",
+        "125 g butter",
+        "125 g golden syrup"
+      ],
+      "recipeInstructions": [
+        {
+          "@type": "HowToStep",
+          "text": "Melt the butter and syrup in a pan."
+        },
+        {
+          "@type": "HowToStep",
+          "text": "Stir in the oats and press into a lined tin."
+        },
+        {
+          "@type": "HowToStep",
+          "text": "Bake at 180 °C for 20 minutes."
+        }
+      ],
+      "description": "The flapjacks we bake for launch days.",
+      "image": [
+        "https://www.example.com/blog/media/flapjacks.jpg"
+      ],
+      "author": {
+        "@type": "Person",
+        "name": "Asif"
+      },
+      "datePublished": "2026-09-14T08:00:00Z",
+      "prepTime": "PT10M",
+      "cookTime": "PT20M",
+      "totalTime": "PT30M",
+      "recipeYield": "12 bars",
+      "recipeCategory": "Snack",
+      "recipeCuisine": "British",
+      "nutrition": {
+        "@type": "NutritionInformation",
+        "calories": "210 calories"
+      }
+    }
+  ]
+}
