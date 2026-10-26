@@ -4,15 +4,15 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use khalid_content::{Document, PostFront, SiteContent, render};
+use khalid_content::{Document, SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Features, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime,
-    RenderAuthor, RenderHome, RenderListing, RenderPage, RenderPost, RenderSite, Robots,
+    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor,
+    RenderHome, RenderListing, RenderPage, RenderPost, RenderSite, Robots,
 };
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
-use crate::{build_message, build_seo};
+use crate::{build_message, build_reader, build_seo};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
@@ -51,9 +51,10 @@ fn language_pages(
     content: &SiteContent,
     locale: &Locale,
 ) -> Result<LanguagePages, UserMessage> {
-    let (mut pages, cards) = post_pages(config, content, locale)?;
+    let people = build_reader::people(config, content, locale)?;
+    let (mut pages, cards) = post_pages(config, content, locale, &people)?;
     pages.extend(plain_pages(config, content, locale)?);
-    pages.extend(author_pages(config, content, locale, &cards)?);
+    pages.extend(author_pages(config, content, locale, &cards, &people)?);
     let home = RenderListing {
         title: config.name().to_owned(),
         intro: None,
@@ -105,6 +106,7 @@ fn post_pages<'a>(
     config: &Config,
     content: &'a SiteContent,
     locale: &Locale,
+    people: &BTreeMap<Slug, Person>,
 ) -> Result<(Vec<Page>, Vec<Card<'a>>), UserMessage> {
     let mut dated: Vec<_> = content
         .posts
@@ -128,7 +130,10 @@ fn post_pages<'a>(
             date,
             excerpt: description.clone(),
             image: None,
-            author: None,
+            author: front
+                .author
+                .as_ref()
+                .map(|slug| build_reader::person(people, slug, config, locale)),
             category: None,
         };
         cards.push((front.author.as_ref(), card));
@@ -142,7 +147,11 @@ fn post_pages<'a>(
             date,
             updated: None,
             reading_time: ReadingTime::of(&html, locale),
-            authors: authors(config, content, doc),
+            authors: front
+                .author
+                .iter()
+                .map(|slug| build_reader::person(people, slug, config, locale))
+                .collect(),
             reviewers: Vec::new(),
             category: None,
             tags: Vec::new(),
@@ -194,6 +203,7 @@ fn author_pages(
     content: &SiteContent,
     locale: &Locale,
     cards: &[Card<'_>],
+    people: &BTreeMap<Slug, Person>,
 ) -> Result<Vec<Page>, UserMessage> {
     let mut pages = Vec::new();
     for doc in content.authors.iter().filter(|doc| &doc.locale == locale) {
@@ -232,7 +242,11 @@ fn author_pages(
             profiles,
             posts,
             pagination: None,
-            others: Vec::new(),
+            others: people
+                .iter()
+                .filter(|(other, _)| **other != slug)
+                .map(|(_, person)| person.clone())
+                .collect(),
         };
         let body = PageBody::Author(Box::new(author));
         pages.push(page(locale, config, &rest, meta, body, seo));
@@ -259,33 +273,10 @@ pub(crate) fn named<F>(
 }
 
 /// A document's body as HTML, with raw HTML escaped by `khalid_content::render`.
-fn body_html<F>(config: &Config, doc: &Document<F>) -> Result<BodyHtml, UserMessage> {
+pub(crate) fn body_html<F>(config: &Config, doc: &Document<F>) -> Result<BodyHtml, UserMessage> {
     render(&doc.body, &doc.locale, config.slugs())
         .map(|rendered| BodyHtml::from_sanitised(rendered.html))
         .map_err(|error| build_message::block(&doc.path, &error))
-}
-
-/// The post's author, named as their file in the same language names them,
-/// with their role, linked to their author page.
-fn authors(config: &Config, content: &SiteContent, doc: &Document<PostFront>) -> Vec<Person> {
-    let Some(author) = &doc.front.author else {
-        return Vec::new();
-    };
-    let file = content
-        .authors
-        .iter()
-        .filter(|person| person.locale == doc.locale)
-        .find(|person| person.front.slug.as_ref() == Some(author));
-    vec![Person {
-        name: file
-            .and_then(|person| person.front.name.clone())
-            .unwrap_or_else(|| author.to_string()),
-        href: path_of(config, &doc.locale, &format!("authors/{author}/")),
-        role: file.and_then(|person| person.front.role.clone()),
-        image: None,
-        bio: None,
-        profiles: Vec::new(),
-    }]
 }
 
 /// The head of a page at `path`, indexable, with no alternates yet.
@@ -339,7 +330,7 @@ fn render_site(config: &Config, locale: &Locale) -> RenderSite {
         nav: Nav::default(),
         main_site: None,
         share_image: None,
-        features: Features::all(),
+        features: build_reader::features(config.reader()),
         search: None,
         script: None,
     }
