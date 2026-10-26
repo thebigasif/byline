@@ -18,6 +18,9 @@ use tempfile::TempDir;
 /// The demo folder post's chart, inside the site folder.
 const CHART: &str = "content/en/posts/2026-10-05-fixing-slow-pages/page-weight.png";
 
+/// Where the demo folder post answers.
+const POST_PATH: &str = "/blog/fixing-slow-pages/";
+
 /// Where the chart answers.
 const CHART_PATH: &str = "/blog/fixing-slow-pages/page-weight.png";
 
@@ -155,11 +158,22 @@ fn a_folder_post_serves_its_image_and_a_changed_image_changes_hash_and_tag() {
     let site = demo_copy();
     let server = start(site.path());
 
-    let post = get(&server, "/blog/fixing-slow-pages/");
+    let post = get(&server, POST_PATH);
+    let old_page_tag = post.header("etag").unwrap().to_owned();
     let html = String::from_utf8(post.body).unwrap();
-    assert!(
-        html.contains("src=\"/blog/fixing-slow-pages/page-weight.png\""),
-        "{html}"
+    let webp = html
+        .split("srcset=\"")
+        .nth(1)
+        .unwrap()
+        .split(' ')
+        .next()
+        .unwrap();
+    let variant = get(&server, webp);
+    assert_eq!(variant.status, 200, "{webp}");
+    assert_eq!(variant.header("content-type"), Some("image/webp"));
+    assert_eq!(
+        variant.header("cache-control"),
+        Some("public, max-age=31536000, immutable")
     );
 
     let chart = get(&server, CHART_PATH);
@@ -179,6 +193,9 @@ fn a_folder_post_serves_its_image_and_a_changed_image_changes_hash_and_tag() {
         let chart = get(&server, CHART_PATH);
         if chart.header("etag").is_some_and(|tag| tag != old_tag) {
             assert_eq!(chart.body, other_chart());
+            let post = get(&server, POST_PATH);
+            let new_page_tag = post.header("etag").unwrap();
+            assert_ne!(new_page_tag, old_page_tag, "the page names the new sizes");
             return;
         }
         thread::sleep(PAUSE);

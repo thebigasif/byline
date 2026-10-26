@@ -42,7 +42,10 @@ expression: "read(&built(), \"feed.xml\")"
 &lt;p&gt;Run the page through a speed test on a phone setting, not a desktop one. Write down the largest contentful paint, which is the time until the main content is visible. Under one second is great. Over two and a half seconds needs work.&lt;/p&gt;
 &lt;h2 id=&quot;the-usual-causes-biggest-first&quot;&gt;The usual causes, biggest first&lt;/h2&gt;
 &lt;figure&gt;
-&lt;img src=&quot;/blog/fixing-slow-pages/page-weight.png&quot; alt=&quot;Bar chart of a slow page&amp;#39;s bytes: images take the most, then scripts, fonts, styles and HTML&quot; loading=&quot;lazy&quot; decoding=&quot;async&quot; /&gt;
+&lt;picture&gt;
+&lt;source type=&quot;image/webp&quot; srcset=&quot;/blog/media/d9df18e6d7e8625d/320.webp 320w, /blog/media/d9df18e6d7e8625d/480.webp 480w, /blog/media/d9df18e6d7e8625d/640.webp 640w, /blog/media/d9df18e6d7e8625d/800.webp 800w&quot; sizes=&quot;(min-width: 48rem) 48rem, 100vw&quot;&gt;
+&lt;img src=&quot;/blog/media/d9df18e6d7e8625d/800.png&quot; srcset=&quot;/blog/media/d9df18e6d7e8625d/320.png 320w, /blog/media/d9df18e6d7e8625d/480.png 480w, /blog/media/d9df18e6d7e8625d/640.png 640w, /blog/media/d9df18e6d7e8625d/800.png 800w&quot; sizes=&quot;(min-width: 48rem) 48rem, 100vw&quot; width=&quot;800&quot; height=&quot;450&quot; alt=&quot;Bar chart of a slow page&amp;#39;s bytes: images take the most, then scripts, fonts, styles and HTML&quot; loading=&quot;lazy&quot; decoding=&quot;async&quot;&gt;
+&lt;/picture&gt;
 &lt;figcaption&gt;
 &lt;p&gt;Where the bytes of a typical slow page go.&lt;/p&gt;
 &lt;/figcaption&gt;

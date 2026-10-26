@@ -2,9 +2,9 @@
 //! rendered into memory instead of files.
 
 use std::error::Error;
-use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::{fmt, fs};
 
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, UserMessage};
@@ -13,8 +13,9 @@ use khalid_render::{PageBody, Renderer};
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
 use tokio::runtime::Handle;
 
+use crate::build_pages::LanguagePages;
 use crate::site_content::{LiveContent, published};
-use crate::{build_message, build_pages, content_message, post_files};
+use crate::{build_message, build_pages, content_message, post_files, post_images};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
@@ -80,13 +81,7 @@ impl SitePages {
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
         let mut languages = build_pages::pages(config, &content)?;
-        let mut pages = Vec::new();
-        for beside in post_files::attach(&tree, &mut languages) {
-            let path = PagePath::try_new(&beside.address)
-                .map_err(|_| build_message::address(&beside.address))?;
-            let kind = MediaType::for_file(&beside.address);
-            pages.push(Page::new(path, kind, post_files::read(folder, &beside)?));
-        }
+        let mut pages = files(folder, config, &tree, &mut languages)?;
         let mut not_found = String::new();
         for language in &languages {
             for page in &language.pages {
@@ -106,6 +101,31 @@ impl SitePages {
         }
         Ok((pages, not_found))
     }
+}
+
+/// The files beside folder posts in `tree`, each at its page's address,
+/// and the sizes of their images, which never change under their names.
+fn files(
+    folder: &Path,
+    config: &Config,
+    tree: &ContentTree,
+    languages: &mut [LanguagePages],
+) -> Result<Vec<Page>, UserMessage> {
+    let address = |text: &str| PagePath::try_new(text).map_err(|_| build_message::address(text));
+    let beside = post_files::attach(tree, languages);
+    let mut pages = Vec::with_capacity(beside.len());
+    for file in &beside {
+        let kind = MediaType::for_file(&file.address);
+        let bytes = post_files::read(folder, file)?;
+        pages.push(Page::new(address(&file.address)?, kind, bytes));
+    }
+    for size in post_images::attach(folder, config, &beside, languages)? {
+        let kind = MediaType::for_file(&size.address);
+        let bytes =
+            fs::read(&size.path).map_err(|error| post_files::unreadable(&size.path, &error))?;
+        pages.push(Page::immutable(address(&size.address)?, kind, bytes));
+    }
+    Ok(pages)
 }
 
 impl Render for SitePages {

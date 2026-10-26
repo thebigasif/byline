@@ -1,0 +1,2 @@
+Added
+Images beside a folder post are offered in sizes. `khalid build` and `khalid serve` run each JPEG, PNG and WebP through `khalid-media` once, keep the sizes in the site's `data/media/`, and publish them at `<mount>media/<key>/<width>.<ext>`, cached for a year because the name changes with the image. A body image showing one becomes a `picture` with WebP sources and a fallback `img` with `width`, `height`, `srcset`, `sizes` and `alt`, so the page does not move while it loads. A changed image changes the post page's ETag (KH-WEB-5, KH-CON-3).

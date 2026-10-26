@@ -16,7 +16,7 @@ use crate::build_pages::{LanguagePages, Page};
 
 /// How a body image starts, up to its address, as `khalid_content::render`
 /// writes it.
-const IMAGE: &str = "<img src=\"";
+pub(crate) const IMAGE: &str = "<img src=\"";
 
 /// The file every page is written to, which no file beside it may replace.
 const PAGE_FILE: &str = "index.html";
@@ -98,15 +98,21 @@ fn post_file(page: &Page, folder: &Path, asset: &Path) -> Option<PostFile> {
 /// at that file's address. An image the body names otherwise is left as it
 /// is: a browser still finds it beside the page.
 fn relink(page: &mut Page, files: &[PostFile]) {
-    let base = page.meta.path.as_str();
+    let base = page.meta.path.clone();
+    rewrite(page, |html| relinked(html, &base, files));
+}
+
+/// Passes the body of `page`, when it has one written by a person, and
+/// the copy of it the feeds read, through `change`.
+pub(crate) fn rewrite(page: &mut Page, change: impl Fn(&str) -> String) {
     let body = match &mut page.body {
         PageBody::Post(post) => &mut post.body,
         PageBody::Page(plain) => &mut plain.body,
         PageBody::Author(author) => &mut author.bio,
         _ => return,
     };
-    *body = BodyHtml::from_sanitised(relinked(body.as_str(), base, files));
-    page.seo.content_html = relinked(&page.seo.content_html, base, files);
+    *body = BodyHtml::from_sanitised(change(body.as_str()));
+    page.seo.content_html = change(&page.seo.content_html);
 }
 
 /// `html` with each image whose address is a file's name relative to the
