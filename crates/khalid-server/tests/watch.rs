@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use khalid_server::{
-    FolderLook, LivePages, MediaType, Page, PagePath, Render, Rendered, render_pages, watch,
+    FolderLook, LivePages, MediaType, Page, PagePath, Render, Rendered, poll, render_pages, watch,
 };
 
 /// How often the tests look at the folder.
@@ -112,6 +112,47 @@ async fn a_saved_post_shows_without_a_restart() {
 
     fs::remove_file(&added).unwrap();
     wait_for(&live, "/blog/what-hreflang-does/", None).await;
+    watching.stop().await;
+}
+
+#[tokio::test]
+async fn a_saved_post_shows_at_once_through_file_events() {
+    let (folder, renderer, live, look) = site().await;
+    // Looking only once an hour, so only a file event can show the save.
+    let watching = watch(
+        folder.path(),
+        &renderer,
+        &live,
+        look,
+        Duration::from_secs(3600),
+    );
+    let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
+    tokio::time::sleep(EVERY * 3).await;
+
+    fs::write(&post, "<h1>What a sitemap is for</h1>").unwrap();
+    wait_for(
+        &live,
+        "/blog/what-a-sitemap-does/",
+        Some("<h1>What a sitemap is for</h1>"),
+    )
+    .await;
+    watching.stop().await;
+}
+
+#[tokio::test]
+async fn looking_at_the_folder_still_shows_a_save() {
+    let (folder, renderer, live, look) = site().await;
+    let watching = poll(folder.path(), &renderer, &live, look, EVERY);
+    let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
+    tokio::time::sleep(EVERY * 3).await;
+
+    fs::write(&post, "<h1>What a sitemap is for</h1>").unwrap();
+    wait_for(
+        &live,
+        "/blog/what-a-sitemap-does/",
+        Some("<h1>What a sitemap is for</h1>"),
+    )
+    .await;
     watching.stop().await;
 }
 
