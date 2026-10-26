@@ -2,16 +2,16 @@
 //! where the blog lives, the languages and the mode (PRD KH-INS-2).
 
 use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
-use khalid_core::{AbsoluteUrl, Config, Locale};
+use khalid_core::{AbsoluteUrl, Config, Environment, Locale, UserMessage};
 use khalid_routes::Routes;
 use serde::Serialize;
 
-use crate::cli::{InitArgs, Output, SiteMode};
+use crate::cli::{InitArgs, Output, Prompts, SiteMode};
 use crate::exit::Exit;
-use crate::{init_message, report};
+use crate::{init_message, init_prompt, report};
 
 /// The language a site writes in when nothing says otherwise.
 const DEFAULT_LANGUAGE: &str = "en";
@@ -39,16 +39,38 @@ struct InitBody {
     created: Vec<String>,
 }
 
-/// Makes a site in `folder` from the flags in `args`.
+/// Makes a site in `folder`, asking for what the flags in `args` leave out
+/// when a person is at a terminal.
 pub(crate) fn run(folder: &Path, args: &InitArgs, output: Output) -> Exit {
-    let Some(answers) = Answers::from_flags(args) else {
-        return report::failure(output, &init_message::needs_address(), Exit::Usage);
+    let mut settings = folder.to_path_buf();
+    settings.push(Config::FILE_NAME);
+    if settings.exists() {
+        return report::failure(output, &init_message::exists(&settings), Exit::Failure);
+    }
+    let answers = match gather(args) {
+        Ok(answers) => answers,
+        Err((message, exit)) => return report::failure(output, &message, exit),
     };
     let text = answers.site_toml();
+    if let Err(error) = Config::from_toml(&settings, &text, &Environment::empty()) {
+        return report::failure(output, &init_message::refused(&error), Exit::Failure);
+    }
     match write(folder, &answers, &text) {
         Ok(created) => success(output, folder, &answers, created),
         Err(error) => report::failure(output, &init_message::write(folder, &error), Exit::Failure),
     }
+}
+
+/// Takes the answers from the flags when Khalid may not ask, because of
+/// `--yes` or because there is no terminal, and asks otherwise (RULES.md BL-CLI-4).
+fn gather(args: &InitArgs) -> Result<Answers, (UserMessage, Exit)> {
+    let stdin = io::stdin();
+    if args.prompts == Prompts::Never || !stdin.is_terminal() {
+        return Answers::from_flags(args)
+            .ok_or_else(|| (init_message::needs_address(), Exit::Usage));
+    }
+    init_prompt::ask(args, &mut stdin.lock(), &mut io::stderr().lock())
+        .map_err(|_| (init_message::no_answer(), Exit::Failure))
 }
 
 impl Answers {
@@ -103,8 +125,8 @@ pub(crate) fn mount_path(text: &str) -> String {
 }
 
 /// `text` as a TOML basic string, with quotes, backslashes and control
-/// characters escaped.
-fn quoted(text: &str) -> String {
+/// characters escaped. The same text is a YAML double-quoted string.
+pub(crate) fn quoted(text: &str) -> String {
     let escaped: String = text
         .chars()
         .map(|c| match c {

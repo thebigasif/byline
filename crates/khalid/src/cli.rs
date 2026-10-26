@@ -57,6 +57,15 @@ pub(crate) enum Command {
     New {
         /// The post's title
         title: String,
+        /// The language the post is written in [default: the site's default language]
+        #[arg(long, value_name = "CODE")]
+        language: Option<Locale>,
+    },
+    /// Render every page of the site as HTML into a folder
+    Build {
+        /// The folder to write the pages to [default: public in the site folder]
+        #[arg(long, value_name = "FOLDER")]
+        out: Option<PathBuf>,
     },
     /// Check one post or the whole site against the SEO rules
     Lint {
@@ -111,7 +120,8 @@ pub(crate) enum Command {
     },
 }
 
-/// What `khalid init` takes. Each flag answers one of the four questions.
+/// What `khalid init` takes. Each flag answers one of the four questions, and
+/// a question with a flag is not asked.
 #[derive(Debug, Args)]
 pub(crate) struct InitArgs {
     /// The folder to make the site in, made when missing [default: --site, or here]
@@ -133,6 +143,24 @@ pub(crate) struct InitArgs {
     /// Run a server, or write plain files to upload [default: server]
     #[arg(long, value_enum)]
     pub(crate) mode: Option<SiteMode>,
+
+    /// Ask nothing: take the flags, and the defaults for the rest
+    #[arg(
+        long = "yes",
+        short = 'y',
+        action = ArgAction::SetTrue,
+        value_parser = BoolValueParser::new().map(|yes| if yes { Prompts::Never } else { Prompts::Ask }),
+    )]
+    pub(crate) prompts: Prompts,
+}
+
+/// Whether a command may ask questions (RULES.md BL-CLI-4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Prompts {
+    /// Ask in the terminal when there is one.
+    Ask,
+    /// Never ask, because `--yes` was given.
+    Never,
 }
 
 /// How the site runs, as `--mode` spells it.
@@ -210,6 +238,7 @@ impl Command {
             Self::Init(_) => "init",
             Self::Serve => "serve",
             Self::New { .. } => "new",
+            Self::Build { .. } => "build",
             Self::Lint { .. } => "lint",
             Self::Publish { .. } => "publish",
             Self::Theme {

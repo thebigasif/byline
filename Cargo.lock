@@ -1853,6 +1853,7 @@ dependencies = [
  "khalid-core",
  "khalid-db",
  "khalid-lint",
+ "khalid-render",
  "khalid-routes",
  "mimalloc",
  "serde",
