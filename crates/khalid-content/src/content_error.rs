@@ -88,4 +88,14 @@ pub enum ContentError {
         /// The file's language, where the target was looked for.
         language: Locale,
     },
+    /// A formula between `$` signs cannot be drawn.
+    #[error("{}, line {line}: the maths cannot be drawn: {problem}", path.display())]
+    Maths {
+        /// The file.
+        path: PathBuf,
+        /// The 1-based line in the file the formula starts on.
+        line: usize,
+        /// What the maths reader found, in a phrase.
+        problem: String,
+    },
 }

@@ -12,8 +12,8 @@ use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
 use crate::{
-    Block, BlockError, BlockKind, CalloutKind, StructuredBlock, Wikilinks, embed, parse_blocks,
-    wikilink,
+    Block, BlockError, BlockKind, CalloutKind, StructuredBlock, Wikilinks, embed, maths,
+    parse_blocks, wikilink,
 };
 
 mod cards;
@@ -383,6 +383,7 @@ impl Renderer<'_> {
         let arena = Arena::new();
         let root = parse_document(&arena, text, &options);
         wikilink::resolve(root, self.wikilinks);
+        maths::draw(root);
         for node in root.descendants() {
             self.facts.note(node);
         }
@@ -401,9 +402,10 @@ impl Renderer<'_> {
 }
 
 /// How Khalid reads markdown: tables, footnotes, task lists, strikethrough,
-/// bare links and wikilinks on, and raw HTML escaped.
+/// bare links, wikilinks and `$` maths on, and raw HTML escaped.
 pub(crate) fn options() -> Options<'static> {
     let mut options = Options::default();
+    options.extension.math_dollars = true;
     options.extension.table = true;
     options.extension.footnotes = true;
     options.extension.tasklist = true;

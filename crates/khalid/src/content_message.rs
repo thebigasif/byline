@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use khalid_content::ContentError;
-use khalid_core::UserMessage;
+use khalid_core::{Locale, UserMessage};
 
 use crate::config_message::located;
 
@@ -35,16 +35,12 @@ pub(crate) fn of(site: &Path, error: &ContentError) -> UserMessage {
             line,
             target,
             language,
-        } => UserMessage::new(
-            format!(
-                "{}, line {line}: [[{target}]] matches no post, page or glossary term in {language}.",
-                at(path)
-            ),
-            "A wikilink names a page by its slug, the last part of its address, in the post's own language.",
-            format!(
-                "Change [[{target}]] on line {line} to the slug of a post, page or glossary term in {language}, or remove the brackets."
-            ),
-        ),
+        } => wikilink(&at(path), *line, target, language),
+        ContentError::Maths {
+            path,
+            line,
+            problem,
+        } => maths(&at(path), *line, problem),
         ContentError::NoFrontMatter { path } => UserMessage::new(
             format!("{} does not start with front matter.", at(path)),
             "Front matter between two --- lines holds the title, date and author that readers and search engines need.",
@@ -88,4 +84,30 @@ pub(crate) fn of(site: &Path, error: &ContentError) -> UserMessage {
             "Check the files under content/ in the folder given to --site.",
         ),
     }
+}
+
+/// The message for a `[[target]]` on `line` of the file at `path` that
+/// matches no page in `language`.
+fn wikilink(path: &str, line: usize, target: &str, language: &Locale) -> UserMessage {
+    UserMessage::new(
+        format!(
+            "{path}, line {line}: [[{target}]] matches no post, page or glossary term in {language}."
+        ),
+        "A wikilink names a page by its slug, the last part of its address, in the post's own language.",
+        format!(
+            "Change [[{target}]] on line {line} to the slug of a post, page or glossary term in {language}, or remove the brackets."
+        ),
+    )
+}
+
+/// The message for a formula on `line` of the file at `path` that cannot be
+/// drawn, because of `problem`.
+fn maths(path: &str, line: usize, problem: &str) -> UserMessage {
+    UserMessage::new(
+        format!("{path}, line {line}: the maths cannot be drawn: {problem}."),
+        "Khalid draws every formula between $ signs when it builds, so readers see it with scripts off.",
+        format!(
+            "Correct the formula on line {line}, or write \\$ for a dollar sign that is not maths."
+        ),
+    )
 }

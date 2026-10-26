@@ -49,7 +49,7 @@ Choose from this list first. Adding another needs the sentence BL-DEP-1 asks for
 | HTTP client | `reqwest` with `rustls-tls`, wrapped once in `khalid-outbound` |
 | Images | `image`, `ravif`, `webp`, `fast_image_resize` |
 | Syntax colours | `syntect` |
-| Maths | `latex2mathml` |
+| Maths | `math-core`, which escapes its output (ADR "maths with math-core") |
 | Time | `chrono` behind the `Clock` trait |
 | TLS and certificates | `rustls`, `rustls-acme` |
 | Passwords and tokens | `argon2`, `rand`, `subtle`, `hmac`, `sha2` |

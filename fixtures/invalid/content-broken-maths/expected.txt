@@ -1,0 +1,3 @@
+fixtures/invalid/content-broken-maths/content/en/posts/how-traffic-compounds.md, line 10: the maths cannot be drawn: a group was never closed.
+Khalid draws every formula between $ signs when it builds, so readers see it with scripts off.
+Correct the formula on line 10, or write \$ for a dollar sign that is not maths.

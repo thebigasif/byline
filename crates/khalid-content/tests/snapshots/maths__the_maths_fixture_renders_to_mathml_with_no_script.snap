@@ -1,0 +1,11 @@
+---
+source: crates/khalid-content/tests/maths.rs
+assertion_line: 23
+expression: html
+---
+<h2 id="how-traffic-compounds">How traffic compounds</h2>
+<p>If a post gains <math><mi>r</mi></math> more visits each month, it has <math><msub><mi>v</mi><mi>n</mi></msub><mo>=</mo><msub><mi>v</mi><mn>0</mn></msub><mo stretchy="false">(</mo><mn>1</mn><mo>+</mo><mi>r</mi><msup><mo stretchy="false">)</mo><mi>n</mi></msup></math> visits after <math><mi>n</mi></math> months.</p>
+<p><math display="block"><msub><mi>v</mi><mi>n</mi></msub><mo>=</mo><msub><mi>v</mi><mn>0</mn></msub><msup><mrow><mo lspace="0.1667em">(</mo><mn>1</mn><mo>+</mo><mi>r</mi><mo>)</mo></mrow><mi>n</mi></msup></math></p>
+<p>Ten posts that each earn <math><mfrac><mi>v</mi><mn>2</mn></mfrac></math> beat one post that earns <math><mn>3</mn><mi>v</mi></math> when <math><mn>10</mn><mo lspace="0.2222em" rspace="0.2222em">⋅</mo><mfrac><mi>v</mi><mn>2</mn></mfrac><mo>&gt;</mo><mn>3</mn><mi>v</mi></math>.</p>
+<p><math display="block"><munderover><mo lspace="0">∑</mo><mrow><mi>i</mi><mo lspace="0" rspace="0">=</mo><mn>1</mn></mrow><mn>10</mn></munderover><mfrac><mi>v</mi><mn>2</mn></mfrac><mo>=</mo><mn>5</mn><mi>v</mi><mo>≥</mo><mn>3</mn><mi>v</mi></math></p>
+<p>A tool that costs $5 a month and one that costs $10 are prices, not maths.</p>
