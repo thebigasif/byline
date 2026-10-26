@@ -8,11 +8,17 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# FixedClock and other test doubles, for this crate's tests and other crates' tests.
+test-util = []
+
 [dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 serde.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+byline-core = { path = ".", version = "0.0.0", features = ["test-util"] }
 proptest = "1"
 serde_json.workspace = true
 
