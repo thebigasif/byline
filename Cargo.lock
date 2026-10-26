@@ -111,6 +111,7 @@ dependencies = [
 name = "byline"
 version = "0.0.0"
 dependencies = [
+ "byline-core",
  "clap",
  "mimalloc",
 ]

@@ -52,7 +52,7 @@
 
 ## Questions for the founder
 
-None open.
+- **Accented slugs (0.2, not blocking).** A slug today is lowercase letters a to z, digits and hyphens, so `über-seo` is refused and must be written `uber-seo`. That keeps addresses identical on every server and easy to type. Should the German site be allowed slugs with accents such as `ü`? The default stays a to z until you say otherwise.
 
 ## Order
 
