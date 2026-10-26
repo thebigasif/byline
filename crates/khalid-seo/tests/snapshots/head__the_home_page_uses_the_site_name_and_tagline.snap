@@ -1,9 +1,15 @@
 ---
 source: crates/khalid-seo/tests/head.rs
-assertion_line: 21
 expression: tags.to_html()
 ---
 <title>Field Notes on SEO | Plain advice on search for small teams</title>
 <meta name="description" content="Plain advice on search for small teams">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
 <link rel="canonical" href="https://www.example.com/blog/">
+<meta property="og:site_name" content="Field Notes on SEO">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Field Notes on SEO">
+<meta property="og:description" content="Plain advice on search for small teams">
+<meta property="og:url" content="https://www.example.com/blog/">
+<meta property="og:locale" content="en">
+<meta name="twitter:card" content="summary">

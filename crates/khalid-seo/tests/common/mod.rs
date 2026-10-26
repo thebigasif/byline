@@ -5,6 +5,7 @@
 
 #![cfg(test)]
 
+use chrono::{DateTime, TimeZone, Utc};
 use khalid_core::{AbsoluteUrl, Locale};
 use khalid_seo::{PageKind, SeoPage, SeoSite, UrlPath};
 
@@ -14,6 +15,11 @@ pub(crate) fn locale(tag: &str) -> Locale {
 
 pub(crate) fn path(text: &str) -> UrlPath {
     UrlPath::try_new(text).unwrap()
+}
+
+/// A fixed moment, in UTC.
+pub(crate) fn at(year: i32, month: u32, day: u32, hour: u32) -> DateTime<Utc> {
+    Utc.with_ymd_and_hms(year, month, day, hour, 0, 0).unwrap()
 }
 
 pub(crate) fn url(text: &str) -> AbsoluteUrl {
@@ -47,6 +53,8 @@ pub(crate) fn internal_links_post() -> SeoPage {
     );
     page.category = Some(String::from("On-page SEO"));
     page.author = Some(String::from("Asif"));
+    page.published = Some(at(2026, 9, 14, 8));
+    page.modified = Some(at(2026, 10, 2, 16));
     page
 }
 
