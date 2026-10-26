@@ -12,7 +12,9 @@ publish.workspace = true
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 scraper = "0.29"
+serde.workspace = true
 thiserror.workspace = true
+toml = "0.9"
 url = "2"
 
 [dev-dependencies]

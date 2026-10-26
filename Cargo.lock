@@ -1493,8 +1493,10 @@ dependencies = [
  "khalid-core",
  "khalid-outbound",
  "scraper",
+ "serde",
  "thiserror",
  "tokio",
+ "toml",
  "url",
  "wiremock",
 ]

@@ -16,3 +16,4 @@ One file per decision the plan does not already make. Numbered, never edited aft
 | 0010 | The database: derived tables, visitor tables, one writer | Accepted |
 | 0010 | Webhook event names and signatures | Accepted |
 | 0012 | Theme sync reads the site it is given, and only that site | Accepted |
+| 0013 | Theme sync writes tokens by the renderer's rules, without depending on it | Accepted |
