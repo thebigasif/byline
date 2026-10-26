@@ -136,6 +136,16 @@ nav a { min-inline-size: 44px; }
 .heading-link { display: inline-flex; align-items: center; justify-content: center; min-inline-size: 44px; min-block-size: 44px; margin-block: -0.5rem; color: var(--color-muted); font-weight: 400; text-decoration: none; }
 h2[id], h3[id] { scroll-margin-block-start: 1rem; }
 
+/* What the reader script adds: a status line, the enlarged image, the section being read. */
+.reader-status { position: fixed; inset-block-end: 1rem; inset-inline: 1rem; margin: 0 auto; max-inline-size: max-content; padding: 0.5rem 1rem; background: var(--color-text); color: var(--color-background); border-radius: var(--radius); }
+.reader-status:empty { clip-path: inset(50%); padding: 0; }
+.lightbox { max-inline-size: min(96vw, 80rem); padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-background); }
+.lightbox::backdrop { background: rgb(255 255 255 / 0.92); }
+.lightbox figure { margin: 0; }
+.lightbox img { max-block-size: 82vh; margin-inline: auto; }
+.lightbox button { display: block; min-inline-size: 44px; min-block-size: 44px; margin-inline-start: auto; padding-inline: 1rem; font: inherit; }
+.toc-side a[aria-current] { font-weight: 700; }
+
 /* Table of contents: a details block on phones, a sticky column when there is room. */
 .toc-inline { margin-block-end: 2rem; padding-inline: 1rem; background: var(--color-surface); border-radius: var(--radius); }
 .toc-inline summary { display: flex; align-items: center; min-block-size: 44px; font-weight: 700; cursor: pointer; }

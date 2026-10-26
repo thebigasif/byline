@@ -341,6 +341,7 @@ fn render_site(config: &Config, locale: &Locale) -> RenderSite {
         share_image: None,
         features: Features::all(),
         search: None,
+        script: None,
     }
 }
 

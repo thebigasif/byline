@@ -65,6 +65,7 @@ fn the_site_hides_its_locale_from_templates() {
         share_image: None,
         features: Features::all(),
         search: None,
+        script: None,
     };
     let seen = serde_json::to_value(&site).unwrap();
     assert!(

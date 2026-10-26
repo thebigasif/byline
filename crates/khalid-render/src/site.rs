@@ -3,8 +3,8 @@
 use khalid_core::Locale;
 use serde::Serialize;
 
-use crate::Features;
 use crate::page_meta::ShareImage;
+use crate::{Features, ScriptTag};
 
 /// The site in one language, the same for every page in that language.
 ///
@@ -33,6 +33,9 @@ pub struct RenderSite {
     /// The address of the search page, such as `/blog/search/`, which the
     /// header links to. `None` when the site has no search page.
     pub search: Option<String>,
+    /// The reader script's tag. `None` serves no script, and every page
+    /// still reads completely.
+    pub script: Option<ScriptTag>,
 }
 
 /// The site's menus. An empty menu renders nothing.

@@ -22,7 +22,7 @@ use khalid_render::{
     Alternate, AuthorEntry, BodyHtml, Features, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink,
     PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor, RenderAuthors,
     RenderGlossary, RenderHome, RenderListing, RenderPage, RenderPost, RenderSearch, RenderSite,
-    Renderer, Robots, Tokens, TopicGroup, stylesheet,
+    Renderer, Robots, ScriptTag, Tokens, TopicGroup, reader_script, stylesheet,
 };
 
 type Fallible<T> = Result<T, Box<dyn Error>>;
@@ -175,6 +175,7 @@ struct Demo {
     fixture: PathBuf,
     renderer: Renderer,
     stylesheet: String,
+    script: ScriptTag,
     pages: usize,
     /// Each `translation` key's path in every language that has it.
     translations: BTreeMap<String, BTreeMap<&'static str, String>>,
@@ -226,6 +227,7 @@ impl Demo {
             share_image: None,
             features: Features::all(),
             search: Some(format!("{}search/", lang.prefix)),
+            script: Some(self.script.clone()),
         })
     }
 
@@ -581,10 +583,15 @@ fn main() -> Fallible<()> {
     file.push(format!("blog/assets/{}", css.name()));
     fs::create_dir_all(file.parent().ok_or("no folder")?)?;
     fs::write(file, css.body())?;
+    let js = reader_script()?;
+    let mut file = out.clone();
+    file.push(format!("blog/assets/{}", js.name()));
+    fs::write(file, js.body())?;
     let mut demo = Demo {
         out: out.clone(),
         renderer: Renderer::new()?,
         stylesheet: format!("/blog/assets/{}", css.name()),
+        script: ScriptTag::new(&js, "/blog/assets/"),
         pages: 0,
         translations: BTreeMap::new(),
         categories: category_names(&fixture)?,

@@ -28,6 +28,10 @@ contents = "Contents"
 related_posts = "Related posts"
 # Names the # link beside each heading for screen readers.
 heading_link = "Link to this section"
+# Said and shown for a moment after a heading's address is copied.
+link_copied = "Link copied"
+# The button that closes an enlarged image.
+close = "Close"
 no_posts = "There are no posts here yet."
 pagination = "Pages"
 # {current} and {total} are filled in.

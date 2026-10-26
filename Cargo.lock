@@ -2027,6 +2027,7 @@ dependencies = [
 name = "khalid-render"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "brotli",
  "chrono",
  "flate2",

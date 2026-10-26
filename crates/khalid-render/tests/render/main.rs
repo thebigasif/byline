@@ -42,6 +42,8 @@ mod related;
 #[cfg(test)]
 mod sandbox;
 #[cfg(test)]
+mod script;
+#[cfg(test)]
 mod search_link;
 #[cfg(test)]
 mod seo_head;
