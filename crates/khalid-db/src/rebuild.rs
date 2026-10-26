@@ -3,7 +3,21 @@
 use khalid_core::Slug;
 use sqlx::{Sqlite, Transaction};
 
-use crate::{ContentIndex, Database, DbError, SiteId};
+use crate::{ContentIndex, Database, DbError, IndexedPost, SiteId};
+
+/// What a rebuild wrote.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct RebuildSummary {
+    posts: usize,
+}
+
+impl RebuildSummary {
+    /// How many posts are in the index now.
+    pub fn posts(&self) -> usize {
+        self.posts
+    }
+}
 
 impl Database {
     /// The site named `handle`, added to `sites` the first time it is asked
@@ -32,14 +46,68 @@ impl Database {
     ///
     /// # Errors
     ///
-    /// Returns [`DbError::Query`] when a row cannot be written.
-    pub async fn rebuild(&self, site: SiteId, index: &ContentIndex) -> Result<(), DbError> {
-        let ContentIndex {} = index;
+    /// Returns [`DbError::Query`] when a row cannot be written, such as two
+    /// files in one language that share a translation key, or two files with
+    /// the same path.
+    pub async fn rebuild(
+        &self,
+        site: SiteId,
+        index: &ContentIndex,
+    ) -> Result<RebuildSummary, DbError> {
         let mut tx = self.writer.begin().await?;
         clear(&mut tx, site).await?;
+        for post in &index.posts {
+            insert_post(&mut tx, site, post).await?;
+        }
         tx.commit().await?;
-        Ok(())
+        Ok(RebuildSummary {
+            posts: index.posts.len(),
+        })
     }
+}
+
+/// Writes one post and, when it has one, its translation key.
+async fn insert_post(
+    tx: &mut Transaction<'_, Sqlite>,
+    site: SiteId,
+    post: &IndexedPost,
+) -> Result<(), DbError> {
+    let site = site.as_row();
+    let locale = post.locale.as_str();
+    let slug = post.slug.as_str();
+    let author = post.author.as_ref().map(Slug::as_str);
+    let category = post.category.as_ref().map(Slug::as_str);
+    let hash = post.content_hash.as_slice();
+    sqlx::query!(
+        "INSERT INTO posts (site_id, locale, collection, slug, path, title, description, \
+         date, author, category, content_hash) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        site,
+        locale,
+        post.collection,
+        slug,
+        post.path,
+        post.title,
+        post.description,
+        post.date,
+        author,
+        category,
+        hash,
+    )
+    .execute(&mut **tx)
+    .await?;
+    if let Some(key) = &post.translation {
+        sqlx::query!(
+            "INSERT INTO translations (site_id, key, locale, path) VALUES (?1, ?2, ?3, ?4)",
+            site,
+            key,
+            locale,
+            post.path,
+        )
+        .execute(&mut **tx)
+        .await?;
+    }
+    Ok(())
 }
 
 /// Runs `DELETE FROM <table> WHERE site_id = ?1` for each table, each one a
