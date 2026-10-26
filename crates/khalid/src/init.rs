@@ -5,7 +5,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::Path;
 
-use khalid_core::{AbsoluteUrl, Config, Locale};
+use khalid_core::{AbsoluteUrl, Config, Environment, Locale};
 use khalid_routes::Routes;
 use serde::Serialize;
 
@@ -41,10 +41,18 @@ struct InitBody {
 
 /// Makes a site in `folder` from the flags in `args`.
 pub(crate) fn run(folder: &Path, args: &InitArgs, output: Output) -> Exit {
+    let mut settings = folder.to_path_buf();
+    settings.push(Config::FILE_NAME);
+    if settings.exists() {
+        return report::failure(output, &init_message::exists(&settings), Exit::Failure);
+    }
     let Some(answers) = Answers::from_flags(args) else {
         return report::failure(output, &init_message::needs_address(), Exit::Usage);
     };
     let text = answers.site_toml();
+    if let Err(error) = Config::from_toml(&settings, &text, &Environment::empty()) {
+        return report::failure(output, &init_message::refused(&error), Exit::Failure);
+    }
     match write(folder, &answers, &text) {
         Ok(created) => success(output, folder, &answers, created),
         Err(error) => report::failure(output, &init_message::write(folder, &error), Exit::Failure),

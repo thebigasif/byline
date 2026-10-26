@@ -117,7 +117,7 @@ fn usage_message(error: &clap::Error) -> UserMessage {
     let detail: Vec<&str> = rendered
         .lines()
         .map(str::trim)
-        .take_while(|line| !line.starts_with("Usage:"))
+        .take_while(|line| !line.starts_with("Usage:") && !line.starts_with("For more information"))
         .filter(|line| !line.is_empty())
         .collect();
     let detail = detail.join(" ");

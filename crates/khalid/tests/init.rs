@@ -1,6 +1,7 @@
 //! `khalid init`: a site folder from four answers, or from flags when there is
 //! no terminal to ask in (RULES.md BL-CLI-1 to BL-CLI-4, PRD KH-INS-2).
 
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -115,4 +116,62 @@ fn init_needs_the_address_flag() {
     assert_what_why_fix(&stderr);
     assert!(stderr.contains("--address"), "{stderr}");
     assert!(!at(temp.path(), "site.toml").exists());
+}
+
+#[test]
+fn a_missing_address_with_json_prints_the_message_as_json() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = khalid(&["init", path(temp.path()), "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(body["error"]["fix"].as_str().unwrap().contains("--address"));
+}
+
+#[test]
+fn init_refuses_an_address_that_is_not_a_web_address() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = khalid(&["init", path(temp.path()), "--address", "example"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_what_why_fix(&text(&output.stderr));
+}
+
+#[test]
+fn init_refuses_a_folder_that_already_has_a_site() {
+    let temp = tempfile::tempdir().unwrap();
+    fs::write(at(temp.path(), "site.toml"), "name = \"mine\"\n").unwrap();
+    let output = khalid(&[
+        "init",
+        path(temp.path()),
+        "--address",
+        "https://example.org",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = text(&output.stderr);
+    assert_what_why_fix(&stderr);
+    assert!(stderr.contains("already exists"), "{stderr}");
+    let kept = fs::read_to_string(at(temp.path(), "site.toml")).unwrap();
+    assert_eq!(kept, "name = \"mine\"\n");
+    assert!(!at(temp.path(), "content").exists());
+}
+
+#[test]
+fn init_refuses_a_mount_path_before_writing_anything() {
+    let temp = tempfile::tempdir().unwrap();
+    let site = at(temp.path(), "blog");
+    let output = khalid(&[
+        "init",
+        path(&site),
+        "--address",
+        "https://www.example.com",
+        "--mount",
+        "/blog//posts/",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    for part in ["what", "fix"] {
+        let sentence = body["error"][part].as_str().unwrap();
+        assert!(sentence.contains("--mount"), "{part}: {sentence}");
+    }
+    assert!(!site.exists());
 }
