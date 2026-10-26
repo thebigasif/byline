@@ -1,7 +1,9 @@
 //! The APIs on a running `khalid serve`: the Content API answers from the
 //! site's own index with a key made by `khalid keys create` and shows a
 //! saved edit without a restart, and a post made and published through the
-//! Admin API is served, or refused by the linter (KH-API-1, KH-API-2).
+//! Admin API is served, or refused by the linter (KH-API-1, KH-API-2). The
+//! `OpenAPI` document it serves is the SDK's, and its routes keep it
+//! (KH-API-4).
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -103,6 +105,19 @@ fn request(
     headers: &[(&str, &str)],
     body: Option<&Value>,
 ) -> (u16, String) {
+    let (status, _, body) = exchange(server, method, path, headers, body);
+    (status, body)
+}
+
+/// As [`request`], with the media type of the answer, or `""`.
+#[cfg(test)]
+fn exchange(
+    server: &Server,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: Option<&Value>,
+) -> (u16, String, String) {
     let host = &server.host;
     let mut stream = TcpStream::connect(host).unwrap();
     let body = body.map(Value::to_string).unwrap_or_default();
@@ -122,8 +137,14 @@ fn request(
     let mut raw = String::new();
     stream.read_to_string(&mut raw).unwrap();
     let (head, body) = raw.split_once("\r\n\r\n").unwrap();
+    let media = head
+        .lines()
+        .filter_map(|line| line.split_once(": "))
+        .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+        .map_or(String::new(), |(_, value)| value.to_owned());
     (
         head.split(' ').nth(1).unwrap().parse().unwrap(),
+        media,
         body.to_owned(),
     )
 }
@@ -176,6 +197,108 @@ fn the_content_api_lists_the_demo_posts_and_shows_an_edit() {
             .contains("What a sitemap is for")
     });
     assert!(shown, "the edit never reached the Content API");
+}
+
+/// The resources `docs/standards/api.md` names, and `navigation`, as the
+/// contract test in `khalid-api` tries them.
+const RESOURCES: [&str; 18] = [
+    "posts",
+    "pages",
+    "authors",
+    "tags",
+    "categories",
+    "collections",
+    "glossary",
+    "case-studies",
+    "changelog",
+    "media",
+    "redirects",
+    "snippets",
+    "forms",
+    "subscribers",
+    "webhooks",
+    "settings",
+    "site",
+    "navigation",
+];
+
+/// The methods a route could answer.
+const METHODS: [&str; 5] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+/// Whether an answer came from an API handler: those answer JSON or a
+/// problem, and every other address gets the site's HTML pages.
+#[cfg(test)]
+fn from_a_handler(media: &str) -> bool {
+    media.starts_with("application/json") || media.starts_with("application/problem+json")
+}
+
+/// Brief B-API-4's done line: `khalid serve` answers `/api/openapi.json`
+/// without a key, it is the document the SDK is generated from, and the
+/// contract holds on the running server: every documented route reaches a
+/// handler, and every API address that answers is documented.
+#[test]
+fn khalid_serve_serves_the_openapi_document_its_routes_keep() {
+    let site = demo_copy();
+    let content_key = new_key(site.path(), &["--kind", "content", "--name", "Web page"]);
+    let admin_key = new_key(site.path(), &["--name", "Contract", "--scope", "admin:all"]);
+    let server = start(site.path());
+
+    let (status, media, body) = exchange(&server, "GET", "/api/openapi.json", &[], None);
+    assert_eq!(
+        (status, media.as_str()),
+        (200, "application/json"),
+        "{body}"
+    );
+    let document: Value = serde_json::from_str(&body).unwrap();
+    let mut sdk = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    sdk.push("../../sdk/typescript/openapi.json");
+    let committed: Value = serde_json::from_str(&fs::read_to_string(sdk).unwrap()).unwrap();
+    assert!(
+        document == committed,
+        "the served document is not sdk/typescript/openapi.json"
+    );
+
+    let content = format!("Khalid-Content {content_key}");
+    let admin = format!("Khalid {admin_key}");
+    let reached = |method: &str, path: &str| {
+        let key = if path.starts_with("/api/admin/") {
+            &admin
+        } else {
+            &content
+        };
+        let headers = [("Authorization", key.as_str())];
+        let empty = serde_json::json!({});
+        let (_, media, _) = exchange(&server, method, path, &headers, Some(&empty));
+        from_a_handler(&media)
+    };
+    let concrete = |path: &str| {
+        path.replace("{id}", "contract-id")
+            .replace("{slug}", "contract-slug")
+    };
+    let paths = document["paths"].as_object().unwrap();
+    assert!(paths.len() > 30, "{}", paths.len());
+    for (path, item) in paths {
+        for method in METHODS {
+            let documented = item.get(method.to_lowercase()).is_some();
+            let answered = reached(method, &concrete(path));
+            assert_eq!(answered, documented, "{method} {path}");
+        }
+    }
+    for base in ["/api/content/v1", "/api/admin/v1"] {
+        for resource in RESOURCES {
+            for suffix in ["/", "/contract-id/", "/slug/contract-slug/"] {
+                let address = format!("{base}/{resource}{suffix}");
+                for method in METHODS {
+                    if reached(method, &address) {
+                        let listed = paths.iter().any(|(path, item)| {
+                            concrete(path) == address && item.get(method.to_lowercase()).is_some()
+                        });
+                        assert!(listed, "{method} {address} answers but is not documented");
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Brief B-API-1's done line: the demo authors, and the site's other lists,
