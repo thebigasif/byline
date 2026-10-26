@@ -53,6 +53,7 @@
 ## Questions for the founder
 
 - **The name (0.1): answered** in `docs/decisions/2026-10-26-cto-answers.md`. Wellranked, pending a trademark lawyer and the founder's veto.
+- **Accented slugs (0.2): answered** in `docs/decisions/2026-10-26-cto-answers.md`, section 2. Slugs stay ASCII by default with per-language transliteration (in German, `über` becomes `ueber` and `Straße` becomes `strasse`), and a site can opt in to Unicode slugs with `slugs = "unicode"` in `site.toml`. The 200-byte limit stays. Phase 1 builds it; `Slug::try_new` stays the strict ASCII constructor.
 
 ## Order
 
