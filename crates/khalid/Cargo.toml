@@ -29,6 +29,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
 insta = "1"
 serde_json.workspace = true
 

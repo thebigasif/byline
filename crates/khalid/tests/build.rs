@@ -125,6 +125,24 @@ fn init_then_new_then_build_writes_the_post_to_public() {
 }
 
 #[test]
+fn build_copies_a_folder_posts_image_beside_its_page() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let chart = "content/en/posts/2026-10-05-fixing-slow-pages/page-weight.png";
+    assert_eq!(
+        fs::read(at(out.path(), "fixing-slow-pages/page-weight.png")).unwrap(),
+        fs::read(at(&demo, chart)).unwrap(),
+    );
+    let post = page(out.path(), "fixing-slow-pages/index.html");
+    assert!(
+        post.contains("src=\"/blog/fixing-slow-pages/page-weight.png\""),
+        "{post}"
+    );
+}
+
+#[test]
 fn build_needs_a_site_folder() {
     let output = khalid(&["build"]);
     assert_eq!(output.status.code(), Some(2));

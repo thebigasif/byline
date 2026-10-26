@@ -1,0 +1,2 @@
+Added
+A post kept as a folder publishes the files beside its `index.md`: `khalid build` copies each one into the post's folder, `khalid serve` answers it at the post's address, such as `/blog/fixing-slow-pages/page-weight.png`, and a body image named by its file name points at that address in the page and in the feeds. A changed image changes the post's content hash and the image's ETag. The demo post "Fixing slow pages" is now a folder with a chart (KH-CON-3).

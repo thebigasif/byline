@@ -41,6 +41,12 @@ expression: "read(&built(), \"feed.xml\")"
 &lt;h2 id=&quot;measure-first&quot;&gt;Measure first&lt;/h2&gt;
 &lt;p&gt;Run the page through a speed test on a phone setting, not a desktop one. Write down the largest contentful paint, which is the time until the main content is visible. Under one second is great. Over two and a half seconds needs work.&lt;/p&gt;
 &lt;h2 id=&quot;the-usual-causes-biggest-first&quot;&gt;The usual causes, biggest first&lt;/h2&gt;
+&lt;figure&gt;
+&lt;img src=&quot;/blog/fixing-slow-pages/page-weight.png&quot; alt=&quot;Bar chart of a slow page&amp;#39;s bytes: images take the most, then scripts, fonts, styles and HTML&quot; loading=&quot;lazy&quot; decoding=&quot;async&quot; /&gt;
+&lt;figcaption&gt;
+&lt;p&gt;Where the bytes of a typical slow page go.&lt;/p&gt;
+&lt;/figcaption&gt;
+&lt;/figure&gt;
 &lt;ol&gt;
 &lt;li&gt;&lt;strong&gt;Images that are too large.&lt;/strong&gt; A photo saved at 4,000 pixels wide for a slot 800 pixels wide wastes most of its bytes. Serve the size the page needs, in a modern format.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Scripts the reader does not need.&lt;/strong&gt; Every chat widget and tracking tag delays the page. Remove the ones nobody reads the data from.&lt;/li&gt;

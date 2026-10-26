@@ -1,18 +1,22 @@
 //! `khalid build`: every page of the site rendered as HTML into an output
 //! folder, `public/` in the site folder unless `--out` names another, with
-//! the site's sitemaps, `robots.txt`, `llms.txt` and feeds beside them.
+//! the site's sitemaps, `robots.txt`, `llms.txt` and feeds beside them, and
+//! each folder post's files in its page's folder.
 
 use std::fs;
 use std::path::{self, Path, PathBuf};
 
-use khalid_content::SiteContent;
+use khalid_content::{ContentTree, SiteContent};
 use khalid_core::{Clock, Config, UserMessage};
 use khalid_render::Renderer;
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{build_files, build_message, build_pages, build_redirects, build_seo, report};
+use crate::{
+    build_files, build_message, build_pages, build_redirects, build_seo, content_message,
+    post_files, report,
+};
 
 /// The output folder inside a site when `--out` is not given.
 const PUBLIC: &str = "public";
@@ -55,6 +59,15 @@ fn build(
 ) -> Result<usize, UserMessage> {
     let renderer = Renderer::with_theme(site).map_err(|error| build_message::render(&error))?;
     let mut languages = build_pages::pages(config, content)?;
+    // The checked content keeps no assets, so the tree is read again for them.
+    let tree = ContentTree::walk(site).map_err(|error| content_message::of(site, &error))?;
+    for beside in post_files::attach(&tree, &mut languages) {
+        let from = post_files::on_disk(site, &beside)?;
+        let target = within(out, &beside.file);
+        let made = target.parent().map_or(Ok(()), fs::create_dir_all);
+        made.and_then(|()| fs::copy(&from, &target))
+            .map_err(|error| build_message::write(&target, &error))?;
+    }
     let seo_site = build_seo::site(config)?;
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
     let mut written = 0;

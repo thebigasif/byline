@@ -30,6 +30,7 @@ mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
+mod post_files;
 mod post_text;
 mod repair;
 mod report;

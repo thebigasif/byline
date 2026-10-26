@@ -14,7 +14,7 @@ use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
 use tokio::runtime::Handle;
 
 use crate::site_content::{LiveContent, published};
-use crate::{build_message, build_pages, content_message};
+use crate::{build_message, build_pages, content_message, post_files};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
@@ -72,15 +72,21 @@ impl SitePages {
             renderer,
             feed,
         } = &*self.0;
-        let content = ContentTree::walk(folder)
-            .and_then(|tree| read_content(&tree))
-            .map_err(|error| content_message::of(folder, &error))?;
+        let tree =
+            ContentTree::walk(folder).map_err(|error| content_message::of(folder, &error))?;
+        let content = read_content(&tree).map_err(|error| content_message::of(folder, &error))?;
         if let Some(feed) = feed {
             let fed = published(&feed.db, feed.site, folder, config, &content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
-        let languages = build_pages::pages(config, &content)?;
+        let mut languages = build_pages::pages(config, &content)?;
         let mut pages = Vec::new();
+        for beside in post_files::attach(&tree, &mut languages) {
+            let path = PagePath::try_new(&beside.address)
+                .map_err(|_| build_message::address(&beside.address))?;
+            let kind = MediaType::for_file(&beside.address);
+            pages.push(Page::new(path, kind, post_files::read(folder, &beside)?));
+        }
         let mut not_found = String::new();
         for language in &languages {
             for page in &language.pages {
