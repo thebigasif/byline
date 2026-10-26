@@ -1,0 +1,3 @@
+fixtures/invalid/routes-bad-prefix/routes.toml, line 6, `tag`: a prefix is one lowercase word or hyphenated words, such as topic.
+Khalid checks routes.toml before it starts, so no page gets a wrong address.
+Correct `tag` on line 6, then run the command again.

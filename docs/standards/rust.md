@@ -17,7 +17,8 @@ One Cargo workspace at the repository root, flat `crates/` folder, one purpose p
 | `khalid-share-image` | The generated 1200 by 630 share image and its cache by content key (ADR 0016) | Content files, templates, HTTP |
 | `khalid-lint` | The rule engine, every rule, every message. Public, reused by SerpDad | Files on disk, HTTP |
 | `khalid-audit` | The self-crawl and the health score | Rendering |
-| `khalid-theme` | Token extraction, contrast fixes, proxy rule generation | Content |
+| `khalid-theme` | Token extraction, contrast fixes | Content |
+| `khalid-mount` | The proxy rule that mounts the blog under a folder of another site, per stack | Content, HTTP, files |
 | `khalid-db` | SQLite, migrations, typed queries | Rendering |
 | `khalid-media` | Image processing, storage backends | HTTP routes |
 | `khalid-outbound` | The one HTTP client with the private-network guard (BL-RUN-8) | Everything else |

@@ -1631,6 +1631,7 @@ dependencies = [
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-routes",
  "mimalloc",
  "serde",
  "serde_json",
@@ -1643,6 +1644,7 @@ name = "khalid-api"
 version = "0.0.0"
 dependencies = [
  "proptest",
+ "thiserror",
 ]
 
 [[package]]
@@ -1714,6 +1716,14 @@ dependencies = [
  "thiserror",
  "tokio",
  "webp",
+]
+
+[[package]]
+name = "khalid-mount"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "thiserror",
 ]
 
 [[package]]

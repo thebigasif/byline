@@ -1,0 +1,3 @@
+fixtures/invalid/routes-unknown-placeholder/routes.toml, line 5, `permalink`: `{week}` is not a placeholder; use {slug}, {year}, {month}, {day} or {collection}.
+Khalid checks routes.toml before it starts, so no page gets a wrong address.
+Correct `permalink` on line 5, then run the command again.
