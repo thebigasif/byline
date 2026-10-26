@@ -14,6 +14,7 @@ use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 use crate::{Block, BlockError, BlockKind, CalloutKind, StructuredBlock, embed, parse_blocks};
 
 mod media;
+mod recipe;
 mod steps;
 
 /// A body rendered to HTML.
@@ -222,6 +223,7 @@ impl Renderer {
             BlockKind::Faq { questions } => self.faq(questions),
             BlockKind::HowTo(how_to) => self.how_to(how_to),
             BlockKind::Review(review) => self.review(review),
+            BlockKind::Recipe(recipe) => self.recipe(recipe),
             _ => {}
         }
     }

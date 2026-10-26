@@ -9,9 +9,9 @@ use crate::{
 };
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 14] = [
+pub(crate) const BLOCKS: [&str; 15] = [
     "audio", "bookmark", "button", "callout", "embed", "faq", "figure", "file", "gallery", "howto",
-    "review", "toc", "toggle", "video",
+    "recipe", "review", "toc", "toggle", "video",
 ];
 
 mod nested;
@@ -102,6 +102,7 @@ pub(crate) fn directive(
             .and_then(|()| gallery(line, body)),
         "faq" => nested::faq(&attributes, body),
         "howto" => nested::how_to(&attributes, body),
+        "recipe" => nested::recipe(&attributes, body),
         "review" => review(&attributes, body),
         other => Err(BlockError::UnknownBlock {
             line,
@@ -431,6 +432,24 @@ impl Attributes {
             self.address(block, attribute, &text)?;
         }
         Ok(text)
+    }
+
+    /// The value of `key` read with `read`, or `problem` as the error when
+    /// `read` cannot read it.
+    fn parsed<T>(
+        &self,
+        key: &str,
+        read: impl Fn(&str) -> Option<T>,
+        problem: &'static str,
+    ) -> Result<Option<T>, BlockError> {
+        self.get(key)
+            .map(|text| {
+                read(&text).ok_or(BlockError::Value {
+                    line: self.line,
+                    problem,
+                })
+            })
+            .transpose()
     }
 
     /// The value of `key`, or `problem` as the error when it is missing.

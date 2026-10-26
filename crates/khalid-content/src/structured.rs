@@ -11,6 +11,8 @@ pub enum StructuredBlock {
     Video(VideoBlock),
     /// A review block, which becomes a `Review`. The body is plain text.
     Review(ReviewBlock),
+    /// A recipe block, which becomes a `Recipe`.
+    Recipe(RecipeBlock),
     /// An FAQ block, which becomes an `FAQPage`. Answers are plain text.
     Faq(Vec<Question>),
     /// A how-to block, which becomes a `HowTo`. Steps are plain text.
@@ -99,3 +101,30 @@ pub const REVIEW_TYPES: [&str; 17] = [
     "Recipe",
     "SoftwareApplication",
 ];
+
+/// A recipe, from `::::recipe{...}` with its ingredients and method.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecipeBlock {
+    /// The dish.
+    pub name: String,
+    /// One line about it.
+    pub description: Option<String>,
+    /// A photo of the dish: a path on this site or a full address.
+    pub image: Option<String>,
+    /// What it makes, such as `12 bars`.
+    pub servings: Option<String>,
+    /// Time to prepare.
+    pub prep: Option<Duration>,
+    /// Time to cook.
+    pub cook: Option<Duration>,
+    /// The kind of dish, such as `Dessert`.
+    pub category: Option<String>,
+    /// Where it comes from, such as `British`.
+    pub cuisine: Option<String>,
+    /// Calories per serving.
+    pub calories: Option<u32>,
+    /// Each ingredient with its amount, as plain text.
+    pub ingredients: Vec<String>,
+    /// The steps in order, as plain text.
+    pub steps: Vec<String>,
+}
