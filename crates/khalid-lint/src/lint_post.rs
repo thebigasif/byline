@@ -2,14 +2,17 @@
 
 use chrono::NaiveDate;
 use khalid_core::{Locale, Slug};
+use serde::Deserialize;
 
 /// A post, reduced to what the rules read.
 ///
 /// The content track builds it from a parsed and rendered post; `SerpDad` builds
 /// it from a draft. Fields that can be missing in a draft are `Option`, so a
 /// rule sees the gap instead of a made-up value. Start from [`LintPost::new`]
-/// and set the fields you have.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// and set the fields you have, or read one from JSON or TOML with `serde`,
+/// where every field but `locale` and `slug` may be left out.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[non_exhaustive]
 pub struct LintPost {
     /// The language the post is written in.
@@ -18,19 +21,24 @@ pub struct LintPost {
     pub slug: Slug,
     /// The title from the header, which becomes the page's main headline.
     pub title: Option<String>,
-    /// The publish date from the header.
+    /// The publish date from the header, written `2026-10-26` in JSON or TOML.
     pub date: Option<NaiveDate>,
     /// The author from the header.
     pub author: Option<String>,
     /// The headings in the body, in order. The title is not one of them.
+    #[serde(default)]
     pub headings: Vec<Heading>,
     /// The links in the body, in order.
+    #[serde(default)]
     pub links: Vec<LintLink>,
     /// The images in the body, in order.
+    #[serde(default)]
     pub images: Vec<Image>,
     /// How many words the body holds.
+    #[serde(default)]
     pub word_count: usize,
     /// The body as plain text, with markup removed.
+    #[serde(default)]
     pub body_text: String,
 }
 
@@ -53,7 +61,7 @@ impl LintPost {
 }
 
 /// A heading in a post's body.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Heading {
     /// How deep the heading sits, from the main headline down.
@@ -72,8 +80,10 @@ impl Heading {
     }
 }
 
-/// The six heading levels of HTML, from `h1` to `h6`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// The six heading levels of HTML, from `h1` to `h6`, written that way in
+/// JSON or TOML.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum HeadingLevel {
     /// The main headline, `#` in markdown.
     H1,
@@ -89,8 +99,10 @@ pub enum HeadingLevel {
     H6,
 }
 
-/// Whether a link stays on this site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Whether a link stays on this site, written `internal` or `external` in
+/// JSON or TOML.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum LinkKind {
     /// A link to another post or page of this site.
     Internal,
@@ -99,12 +111,13 @@ pub enum LinkKind {
 }
 
 /// A link in a post's body.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct LintLink {
     /// Where the link goes, as written. For an internal link, the path.
     pub target: String,
     /// The words a reader clicks. Empty when the link has none.
+    #[serde(default)]
     pub text: String,
     /// Whether the link stays on this site.
     pub kind: LinkKind,
@@ -122,7 +135,7 @@ impl LintLink {
 }
 
 /// An image in a post's body.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Image {
     /// The image file or address, as written.
