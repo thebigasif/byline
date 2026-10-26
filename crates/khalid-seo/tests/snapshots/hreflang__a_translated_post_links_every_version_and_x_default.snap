@@ -1,0 +1,9 @@
+---
+source: crates/khalid-seo/tests/hreflang.rs
+expression: "hreflang_lines(&site, &pages[1]).join(\"\\n\")"
+---
+<link rel="alternate" hreflang="en" href="https://www.example.com/blog/why-internal-links-matter/">
+<link rel="alternate" hreflang="de" href="https://www.example.com/blog/de/warum-interne-links-wichtig-sind/">
+<link rel="alternate" hreflang="x-default" href="https://www.example.com/blog/why-internal-links-matter/">
+<meta property="og:locale" content="en">
+<meta property="og:locale:alternate" content="de">

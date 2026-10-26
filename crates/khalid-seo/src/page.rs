@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use khalid_core::{AbsoluteUrl, Locale};
 
-use crate::{MetaTemplate, RobotsDirectives, ShareImage, UrlPath};
+use crate::{Alternate, MetaTemplate, RobotsDirectives, ShareImage, TranslationKey, UrlPath};
 
 /// The kind of page, which picks its title template and index setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -71,6 +71,11 @@ pub struct SeoPage {
     pub published: Option<DateTime<Utc>>,
     /// When the page last changed in a way a reader would notice.
     pub modified: Option<DateTime<Utc>>,
+    /// The group this page's language versions share.
+    pub translation: Option<TranslationKey>,
+    /// Every language version of the page, itself included, then
+    /// `x-default`. [`link_translations`](crate::link_translations) fills it.
+    pub alternates: Vec<Alternate>,
 }
 
 impl SeoPage {
@@ -92,6 +97,8 @@ impl SeoPage {
             share_image: None,
             published: None,
             modified: None,
+            translation: None,
+            alternates: Vec::new(),
         }
     }
 }
