@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ meta.title }}</title>
+<meta name="description" content="{{ meta.description }}">
+{% if meta.robots == "noindex" %}<meta name="robots" content="noindex">
+{% endif %}<link rel="canonical" href="{{ meta.canonical }}">
+{% for alternate in meta.alternates %}<link rel="alternate" hreflang="{{ alternate.locale }}" href="{{ alternate.href }}">
+{% endfor %}{% if meta.x_default %}<link rel="alternate" hreflang="x-default" href="{{ meta.x_default }}">
+{% endif %}<link rel="stylesheet" href="{{ site.stylesheet }}">
+<meta property="og:type" content="{{ meta.kind }}">
+<meta property="og:site_name" content="{{ site.name }}">
+<meta property="og:title" content="{{ meta.title }}">
+<meta property="og:description" content="{{ meta.description }}">
+<meta property="og:url" content="{{ meta.canonical }}">
+<meta property="og:locale" content="{{ lang | replace("-", "_") }}">
+{% set image = meta.image or site.share_image %}{% if image %}<meta property="og:image" content="{{ image.url }}">
+<meta property="og:image:width" content="{{ image.width }}">
+<meta property="og:image:height" content="{{ image.height }}">
+<meta property="og:image:alt" content="{{ image.alt }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="{{ image.alt }}">
+{% else %}<meta name="twitter:card" content="summary">
+{% endif %}</head>
+<body>
+<a class="skip-link" href="#main">{{ t.skip_link }}</a>
+<header class="site-header">
+<a class="site-name" href="{{ site.home }}">{{ site.name }}</a>
+{% if site.nav.primary %}<nav aria-label="{{ t.nav_primary }}">
+<ul>
+{% for link in site.nav.primary %}<li><a href="{{ link.href }}"{% if link.href == meta.path %} aria-current="page"{% endif %}>{{ link.label }}</a></li>
+{% endfor %}</ul>
+</nav>
+{% endif %}</header>
+<main id="main" tabindex="-1">
+{% block main %}{% endblock %}
+</main>
+<footer class="site-footer">
+{% if meta.alternates | length > 1 %}<nav aria-label="{{ t.nav_languages }}">
+<ul>
+{% for alternate in meta.alternates %}<li><a href="{{ alternate.href }}" hreflang="{{ alternate.locale }}" lang="{{ alternate.locale }}"{% if alternate.locale == lang %} aria-current="page"{% endif %}>{{ alternate.label }}</a></li>
+{% endfor %}</ul>
+</nav>
+{% endif %}{% if site.nav.footer %}<nav aria-label="{{ t.nav_footer }}">
+<ul>
+{% for link in site.nav.footer %}<li><a href="{{ link.href }}"{% if link.href == meta.path %} aria-current="page"{% endif %}>{{ link.label }}</a></li>
+{% endfor %}</ul>
+</nav>
+{% endif %}{% if site.main_site %}<p><a href="{{ site.main_site.href }}">{{ site.main_site.label }}</a></p>
+{% endif %}</footer>
+</body>
+</html>
