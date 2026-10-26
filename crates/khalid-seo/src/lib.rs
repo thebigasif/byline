@@ -11,6 +11,7 @@
 
 mod escape;
 mod feed;
+mod feed_rss;
 mod head;
 mod hreflang;
 mod html_sitemap;
@@ -31,7 +32,7 @@ mod url_path;
 mod verification;
 mod video;
 
-pub use feed::{Feed, FeedContent, FeedItem, FeedOptions, FeedScope};
+pub use feed::{Feed, FeedContent, FeedFormat, FeedItem, FeedOptions, FeedScope};
 pub use head::{HeadTag, HeadTags, head_tags};
 pub use hreflang::{Alternate, Hreflang, TranslationKey, link_translations};
 pub use html_sitemap::{HtmlSitemap, HtmlSitemapGroup, HtmlSitemapLink};

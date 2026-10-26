@@ -46,6 +46,28 @@ impl Default for FeedOptions {
     }
 }
 
+/// A feed format, each served next to the page the feed belongs to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub enum FeedFormat {
+    /// RSS 2.0, at `feed.xml`.
+    Rss,
+    /// Atom 1.0, at `atom.xml`.
+    Atom,
+    /// JSON Feed 1.1, at `feed.json`.
+    Json,
+}
+
+impl FeedFormat {
+    fn file_name(self) -> &'static str {
+        match self {
+            Self::Rss => "feed.xml",
+            Self::Atom => "atom.xml",
+            Self::Json => "feed.json",
+        }
+    }
+}
+
 /// Which posts a feed holds: one language, and one category or all.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FeedScope {
@@ -143,6 +165,22 @@ fn item_content(site: &SeoSite, page: &SeoPage, url: &AbsoluteUrl) -> String {
 }
 
 impl Feed {
+    /// The feed's own address in `format`, next to its page: the home
+    /// page's feed is `/blog/feed.xml`, a category's is in its folder.
+    ///
+    /// # Errors
+    ///
+    /// [`SeoError::Url`] when the address cannot be built.
+    pub fn url(&self, format: FeedFormat) -> Result<AbsoluteUrl, SeoError> {
+        let home = self.home.as_str();
+        let slash = if home.ends_with('/') { "" } else { "/" };
+        let joined = format!("{home}{slash}{}", format.file_name());
+        AbsoluteUrl::parse(&joined).map_err(|source| SeoError::Url {
+            path: format.file_name().to_owned(),
+            source,
+        })
+    }
+
     /// The feed of `scope` at `now`: the newest published posts in its
     /// language and category, up to the site's limit.
     ///
