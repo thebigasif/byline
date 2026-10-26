@@ -70,7 +70,7 @@
 
 ### 1.9 Routes, collections and channels
 
-- Status: `doing`. Part 1 (this landing): `crates/khalid-routes` reads collections and their permalink patterns (`{slug}`, `{year}`, `{month}`, `{day}`, `{collection}`) from `routes.toml`, with the line and field of each mistake. Part 2: taxonomy prefixes, channels with filters, and the defaults when there is no file. Part 3: `khalid --site` checks `routes.toml`, with one `fixtures/invalid/routes-*` folder per mistake. Part 4: addresses from patterns, with the mount path and language prefix, and aliases that become redirects.
+- Status: `doing`. Part 1 (#80): `crates/khalid-routes` reads collections and their permalink patterns (`{slug}`, `{year}`, `{month}`, `{day}`, `{collection}`) from `routes.toml`, with the line and field of each mistake. Part 2 (this landing): taxonomy prefixes, channels with filters, and `Routes::load`, which gives the defaults when there is no file. Part 3: `khalid --site` checks `routes.toml`, with one `fixtures/invalid/routes-*` folder per mistake. Part 4: addresses from patterns, with the mount path and language prefix, and aliases that become redirects.
 - `routes.toml` per plan section 4.11: collections with URL patterns, channels, taxonomy prefixes, aliases, mount path and language prefix. Defaults need no file. The glossary, case studies and changelog collections from section 5.13 with their typed front matter.
 - Rules: BL-FS-3. Plan sections 4.11 and 5.13.
 - Done when: URL tests cover the default `/blog/{slug}/`, a `/news/{year}/{slug}/` collection, `/de/` prefixes, a mount path, and an alias that becomes a redirect.
