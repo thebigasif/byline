@@ -1,0 +1,20 @@
+---
+source: crates/khalid-seo/tests/sitemap_set.rs
+expression: demo_set().index().to_xml()
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://www.example.com/blog/sitemaps/posts-en-1.xml</loc>
+    <lastmod>2026-10-02T16:00:00Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://www.example.com/blog/sitemaps/posts-de-1.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://www.example.com/blog/sitemaps/pages-en-1.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://www.example.com/blog/sitemaps/archives-en-1.xml</loc>
+  </sitemap>
+</sitemapindex>

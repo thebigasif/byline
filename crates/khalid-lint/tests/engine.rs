@@ -1,8 +1,10 @@
 //! The rule engine: severities from `lint.toml`, findings and their messages.
 
-use khalid_core::{Locale, Slug};
+use chrono::{TimeZone, Utc};
+use khalid_core::{FixedClock, Locale, Slug};
 use khalid_lint::{
-    Hit, Image, LintConfig, LintError, LintPost, LintSite, Linter, Report, Rule, RuleId, Severity,
+    Finding, Hit, Image, LinkKind, LintConfig, LintError, LintLink, LintPost, LintSite, Linter,
+    Report, Rule, RuleId, Severity,
 };
 
 /// A stand-in rule that fires on every post without a date.
@@ -25,6 +27,12 @@ impl Rule for NoDate {
             Vec::new()
         }
     }
+}
+
+/// The day every test runs on.
+#[cfg(test)]
+fn clock() -> FixedClock {
+    FixedClock::new(Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap())
 }
 
 #[cfg(test)]
@@ -143,5 +151,44 @@ fn a_rule_without_a_catalogue_message_is_refused() {
     assert!(
         matches!(&error, LintError::MissingMessage { rule } if rule.as_str() == "unwritten"),
         "{error:?}"
+    );
+}
+
+#[test]
+fn a_threshold_in_lint_toml_reaches_its_rule() {
+    let en = Locale::try_new("en").unwrap();
+    let mut site = LintSite::default();
+    for slug in ["first-post", "second-post"] {
+        let mut post = LintPost::new(en.clone(), Slug::try_new(slug).unwrap());
+        let link = LintLink::new(LinkKind::Internal, "/blog/link-text/", "choosing link text");
+        post.links.push(link);
+        site.posts.push(post);
+    }
+    let repeated = |lint_toml: &str| {
+        let linter = Linter::new(&LintConfig::parse(lint_toml).unwrap(), &clock()).unwrap();
+        let report = linter.lint_post(&site.posts[0], &site);
+        let rules: Vec<_> = report.findings().iter().map(Finding::rule).collect();
+        rules.contains(&RuleId::new("repeated-link-text"))
+    };
+    assert!(!repeated(""), "two links are under the default of three");
+    assert!(repeated("[thresholds]\nsame-link-text-max = 1\n"));
+}
+
+#[test]
+fn site_rules_run_on_the_whole_site_but_never_before_publishing() {
+    let site = undated_site();
+    let linter = Linter::new(&LintConfig::default(), &clock()).unwrap();
+    let orphan = |report: &Report| {
+        let mut rules = report.findings().iter().map(Finding::rule);
+        rules.any(|rule| rule == RuleId::new("orphan-post"))
+    };
+    assert!(!orphan(&linter.lint_post(&site.posts[0], &site)));
+    assert!(orphan(&linter.site_health(&site)));
+    assert!(orphan(&linter.lint_site(&site)));
+    let quiet = LintConfig::parse("[rules]\norphan-post = \"off\"\n").unwrap();
+    let linter = Linter::new(&quiet, &clock()).unwrap();
+    assert!(
+        !orphan(&linter.site_health(&site)),
+        "lint.toml turns it off"
     );
 }
