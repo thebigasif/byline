@@ -34,6 +34,23 @@ fn a_later_rule_wins_and_dark_variants_are_left_out() {
 }
 
 #[test]
+fn resolves_references_with_fallbacks_and_stops_on_a_loop() {
+    let properties = CustomProperties::from_css(&[
+        ":root { --a: var(--b); --b: var(--a); --space: 4px; --Brand: teal }",
+    ]);
+
+    let resolved = properties.resolve("calc(var(--space) * 2) solid var(--Brand)");
+    assert_eq!(resolved, "calc(4px * 2) solid teal");
+    assert_eq!(properties.resolve("var(--accent, #e4572e)"), "#e4572e");
+    assert_eq!(properties.resolve("VAR(--space)"), "4px");
+    assert_eq!(properties.resolve("var(--unset)"), "var(--unset)");
+    assert!(
+        properties.resolve("var(--a)").contains("var("),
+        "a loop ends"
+    );
+}
+
+#[test]
 fn property_names_keep_their_case() {
     let properties = CustomProperties::from_css(&["body { --Brand: teal; COLOR: red }"]);
 

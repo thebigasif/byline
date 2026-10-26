@@ -13,6 +13,7 @@ mod css;
 mod fetch;
 mod fetch_error;
 mod links;
+mod palette;
 mod properties;
 mod split;
 
@@ -22,4 +23,5 @@ pub use fetch::{
 };
 pub use fetch_error::FetchError;
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
+pub use palette::Palette;
 pub use properties::CustomProperties;

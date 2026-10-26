@@ -100,6 +100,22 @@ impl Rgb {
         0.2126 * red + 0.7152 * green + 0.0722 * blue
     }
 
+    /// Whether the colour is strong enough to read as a brand colour: HSL
+    /// saturation of at least 35% and lightness between 15% and 85%. Greys,
+    /// near-whites and near-blacks are not.
+    pub(crate) fn is_vivid(self) -> bool {
+        let [red, green, blue] = self.channels().map(|channel| f64::from(channel) / 255.0);
+        let (high, low) = (red.max(green).max(blue), red.min(green).min(blue));
+        let lightness = f64::midpoint(high, low);
+        let spread = high - low;
+        let saturation = if spread == 0.0 {
+            0.0
+        } else {
+            spread / (1.0 - (2.0 * lightness - 1.0).abs())
+        };
+        saturation >= 0.35 && (0.15..=0.85).contains(&lightness)
+    }
+
     /// The WCAG contrast ratio between this colour and `other`, from 1 to 21.
     /// The order does not matter.
     pub fn contrast(self, other: Self) -> f64 {
