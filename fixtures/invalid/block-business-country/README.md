@@ -1,0 +1,1 @@
+This site breaks one rule on purpose: a business card whose country is a name, not a two-letter code, in `content/en/posts/why-links-matter.md`. The exact message `khalid --site` prints for it is in `expected.txt`.

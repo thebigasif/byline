@@ -32,7 +32,7 @@ pub use schemas::{
 };
 pub use site_content::{Document, SiteContent, read_content};
 pub use structured::{
-    HowToBlock, ProductBlock, Question, REVIEW_TYPES, RecipeBlock, ReviewBlock, Step,
-    StructuredBlock, VideoBlock,
+    BusinessBlock, HowToBlock, ProductBlock, Question, REVIEW_TYPES, RecipeBlock, ReviewBlock,
+    Step, StructuredBlock, VideoBlock,
 };
 pub use tree::{Collection, ContentTree, Entry, Language};

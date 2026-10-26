@@ -13,6 +13,7 @@ use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
 use crate::{Block, BlockError, BlockKind, CalloutKind, StructuredBlock, embed, parse_blocks};
 
+mod cards;
 mod media;
 mod recipe;
 mod steps;
@@ -225,6 +226,7 @@ impl Renderer {
             BlockKind::Review(review) => self.review(review),
             BlockKind::Recipe(recipe) => self.recipe(recipe),
             BlockKind::Product(product) => self.product(product),
+            BlockKind::Business(card) => self.business(card),
             _ => {}
         }
     }

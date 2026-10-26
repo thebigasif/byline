@@ -16,6 +16,8 @@ pub enum StructuredBlock {
     /// A product card, which becomes a `Product`. The description is plain
     /// text.
     Product(ProductBlock),
+    /// A business card, which becomes a `LocalBusiness` or a more exact type.
+    Business(BusinessBlock),
     /// An FAQ block, which becomes an `FAQPage`. Answers are plain text.
     Faq(Vec<Question>),
     /// A how-to block, which becomes a `HowTo`. Steps are plain text.
@@ -153,4 +155,27 @@ pub struct ProductBlock {
     pub button: Option<String>,
     /// What it is: markdown in a block, plain text in structured data.
     pub description: String,
+}
+
+/// A business card, from `::business{...}`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BusinessBlock {
+    /// The business.
+    pub name: String,
+    /// Its schema.org type, such as `Bakery`; `LocalBusiness` when not given.
+    pub business_type: String,
+    /// The street and number.
+    pub street: String,
+    /// The town or city.
+    pub locality: String,
+    /// The postcode.
+    pub postal_code: String,
+    /// The two-letter country code, such as `GB`.
+    pub country: String,
+    /// Its phone number as written.
+    pub phone: Option<String>,
+    /// Its email address.
+    pub email: Option<String>,
+    /// Its website: a path on this site or a full address.
+    pub website: Option<String>,
 }

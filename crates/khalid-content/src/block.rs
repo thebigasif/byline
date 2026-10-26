@@ -4,7 +4,9 @@ use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 use khalid_core::{AbsoluteUrl, ParseUrlError};
 
-use crate::{HowToBlock, ProductBlock, Question, RecipeBlock, ReviewBlock, VideoBlock};
+use crate::{
+    BusinessBlock, HowToBlock, ProductBlock, Question, RecipeBlock, ReviewBlock, VideoBlock,
+};
 
 use crate::directive::{Form, directive, opening, unknown_hint};
 
@@ -133,6 +135,9 @@ pub enum BlockKind {
     /// `:::product{name="..." ...}`: a product card with a picture, price,
     /// rating and button, the description as the body.
     Product(ProductBlock),
+    /// `::business{name="..." ...}`: a business's name, address and how to
+    /// reach it.
+    Business(BusinessBlock),
     /// `:::gallery` with one `![alt](src)` image per line: a grid of
     /// pictures.
     Gallery {

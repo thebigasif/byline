@@ -10,11 +10,12 @@ use crate::{
 };
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 16] = [
-    "audio", "bookmark", "button", "callout", "embed", "faq", "figure", "file", "gallery", "howto",
-    "product", "recipe", "review", "toc", "toggle", "video",
+pub(crate) const BLOCKS: [&str; 17] = [
+    "audio", "bookmark", "business", "button", "callout", "embed", "faq", "figure", "file",
+    "gallery", "howto", "product", "recipe", "review", "toc", "toggle", "video",
 ];
 
+mod cards;
 mod nested;
 
 /// What to say after "there is no block called `name`": the nearest block
@@ -55,8 +56,8 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// Blocks with no body, written on one line as `::name{...}`. Every other
 /// block opens with `:::name{...}` and closes with `:::`.
-const LEAVES: [&str; 7] = [
-    "audio", "bookmark", "button", "embed", "file", "toc", "video",
+const LEAVES: [&str; 8] = [
+    "audio", "bookmark", "business", "button", "embed", "file", "toc", "video",
 ];
 
 /// How a block was written.
@@ -106,6 +107,7 @@ pub(crate) fn directive(
         "recipe" => nested::recipe(&attributes, body),
         "review" => review(&attributes, body),
         "product" => product(&attributes, body),
+        "business" => cards::business(&attributes),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
