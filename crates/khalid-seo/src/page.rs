@@ -37,6 +37,23 @@ pub enum PageKind {
     NotFound,
 }
 
+/// What kind of article a post is, from its content type.
+///
+/// It picks the post's schema.org type and whether it goes in the news sitemap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum ArticleType {
+    /// A general article.
+    Article,
+    /// A blog post, the default.
+    #[default]
+    BlogPosting,
+    /// A news story, listed in the news sitemap for two days.
+    NewsArticle,
+    /// A technical guide or reference.
+    TechArticle,
+}
+
 /// Whether readers can see the page yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[non_exhaustive]
@@ -106,6 +123,8 @@ pub struct SeoPage {
     pub state: PublishState,
     /// Whether the page appears in the XML sitemap.
     pub sitemap: SitemapListing,
+    /// For a post, what kind of article it is.
+    pub article_type: ArticleType,
     /// The images in the page's content, for the image sitemap.
     pub images: Vec<AbsoluteUrl>,
     /// The videos in the page's content, for the video sitemap.
@@ -135,6 +154,7 @@ impl SeoPage {
             alternates: Vec::new(),
             state: PublishState::Published,
             sitemap: SitemapListing::Listed,
+            article_type: ArticleType::BlogPosting,
             images: Vec::new(),
             videos: Vec::new(),
         }

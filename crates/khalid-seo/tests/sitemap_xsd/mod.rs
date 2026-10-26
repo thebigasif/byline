@@ -135,6 +135,7 @@ fn check_url(
 
 const IMAGE_NS: &str = "http://www.google.com/schemas/sitemap-image/1.1";
 const VIDEO_NS: &str = "http://www.google.com/schemas/sitemap-video/1.1";
+const NEWS_NS: &str = "http://www.google.com/schemas/sitemap-news/0.9";
 
 fn children<'a, 'i>(node: Node<'a, 'i>, ns: &str) -> Vec<(&'a str, Node<'a, 'i>)> {
     node.children()
@@ -189,11 +190,37 @@ fn check_video(node: Node<'_, '_>) -> Result<(), String> {
     Ok(())
 }
 
-/// The Google image and video extensions, each against its schema.
+/// `sitemap-news` 0.9: a publication with a name and a language, a W3C
+/// publication date and a title.
+fn check_news(node: Node<'_, '_>) -> Result<(), String> {
+    let found = children(node, NEWS_NS);
+    let publication = found
+        .iter()
+        .find(|(n, _)| *n == "publication")
+        .map(|(_, p)| children(*p, NEWS_NS))
+        .ok_or("news:news has no publication")?;
+    if text_of(&publication, "name").is_none_or(str::is_empty)
+        || text_of(&publication, "language").is_none_or(|l| l.len() < 2)
+    {
+        return Err("news:publication needs a name and a language".to_owned());
+    }
+    let date = found
+        .iter()
+        .find(|(n, _)| *n == "publication_date")
+        .ok_or("news:news has no publication_date")?;
+    check_lastmod(date.1)?;
+    if text_of(&found, "title").is_none_or(str::is_empty) {
+        return Err("news:news has no title".to_owned());
+    }
+    Ok(())
+}
+
+/// The Google image, video and news extensions, each against its schema.
 pub(crate) fn google_extensions(node: Node<'_, '_>) -> Result<(), String> {
     match (node.tag_name().namespace(), node.tag_name().name()) {
         (Some(IMAGE_NS), "image") => check_image(node),
         (Some(VIDEO_NS), "video") => check_video(node),
+        (Some(NEWS_NS), "news") => check_news(node),
         _ => no_extension(node),
     }
 }

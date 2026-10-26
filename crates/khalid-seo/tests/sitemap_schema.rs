@@ -42,12 +42,13 @@ fn every_rule_of_the_schema_refuses_its_violation() {
 }
 
 #[test]
-fn the_image_and_video_rules_refuse_a_broken_extension() {
+fn the_image_video_and_news_rules_refuse_a_broken_extension() {
     let wrap = |body: &str| {
         format!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"{SITEMAP_NS}\" \
              xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\" \
-             xmlns:video=\"http://www.google.com/schemas/sitemap-video/1.1\">\
+             xmlns:video=\"http://www.google.com/schemas/sitemap-video/1.1\" \
+             xmlns:news=\"http://www.google.com/schemas/sitemap-news/0.9\">\
              <url><loc>https://example.com/</loc>{body}</url></urlset>"
         )
     };
@@ -61,6 +62,7 @@ fn the_image_and_video_rules_refuse_a_broken_extension() {
             "<video:video>{video}<video:player_loc>https://example.com/p</video:player_loc>\
              <video:duration>0</video:duration></video:video>"
         ),
+        "<news:news><news:title>Links</news:title></news:news>".to_owned(),
     ] {
         assert!(
             check_urlset(&wrap(&bad), google_extensions).is_err(),
