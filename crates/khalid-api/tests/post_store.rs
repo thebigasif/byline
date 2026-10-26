@@ -29,6 +29,7 @@ fn a_new_admin_post_is_a_draft_in_api_shape() {
             "id": "anchor-text-draft",
             "slug": "choosing-anchor-text",
             "title": "Choosing anchor text",
+            "author": null,
             "status": "draft",
             "markdown": "Anchor text tells readers where a link goes.",
             "published_at": null,

@@ -1898,6 +1898,7 @@ dependencies = [
  "htmd",
  "khalid-api",
  "khalid-core",
+ "khalid-lint",
  "proptest",
  "serde",
  "serde_json",
