@@ -1,0 +1,17 @@
+# Three links, internal and external counted together, over a limit of two.
+extends = "clean"
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+
+[[links]]
+kind = "internal"
+target = "/blog/pruning-old-posts/"
+text = "when to prune old posts"
+
+[[links]]
+kind = "external"
+target = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+text = "Google's guide to links"

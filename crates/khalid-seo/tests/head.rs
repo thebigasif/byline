@@ -3,9 +3,8 @@
 mod common;
 
 use common::{demo_site, internal_links_post, internal_links_post_de, locale, path, url};
-use khalid_seo::{
-    Following, Indexing, MetaTemplate, PageKind, RobotsDirectives, SeoPage, UrlPath, head_tags,
-};
+use khalid_core::{Following, Indexing, RobotsDirectives};
+use khalid_seo::{MetaTemplate, PageKind, SeoPage, UrlPath, head_tags};
 
 #[test]
 fn a_post_gets_title_description_canonical_and_robots() {

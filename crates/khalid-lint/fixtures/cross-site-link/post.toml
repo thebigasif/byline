@@ -1,0 +1,28 @@
+# Links to the sister site, over http or https and with or without `www.`,
+# are flagged. A different host that ends the same way is not the sister.
+extends = "clean"
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+
+[[links]]
+kind = "external"
+target = "https://shop.example.org/boots/"
+text = "our walking boots"
+
+[[links]]
+kind = "external"
+target = "https://WWW.Shop.Example.org"
+text = "the shop"
+
+[[links]]
+kind = "external"
+target = "https://example.org/"
+text = "an example organisation"
+
+[[links]]
+kind = "external"
+target = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+text = "Google's guide to links"

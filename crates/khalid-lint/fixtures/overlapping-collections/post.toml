@@ -1,0 +1,3 @@
+# A post in `guides`, whose addresses `howto` could also give.
+extends = "clean"
+collection = "guides"
