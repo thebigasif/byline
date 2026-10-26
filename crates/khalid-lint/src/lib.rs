@@ -13,6 +13,7 @@
 //! content track builds the input model from its own types (ADR 0011).
 
 mod blocking;
+mod builtin;
 mod catalogue;
 mod finding;
 mod link_text;
@@ -23,6 +24,7 @@ mod lint_site;
 mod linter;
 mod rule;
 mod severity;
+mod thresholds;
 
 pub use catalogue::{Catalogue, Message};
 pub use finding::{Finding, Location};
@@ -33,3 +35,4 @@ pub use lint_site::{GlossaryTerm, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};
 pub use rule::{Hit, Rule, RuleId};
 pub use severity::Severity;
+pub use thresholds::Thresholds;

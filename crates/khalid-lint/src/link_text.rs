@@ -4,10 +4,6 @@ use std::collections::BTreeSet;
 
 use crate::{Hit, LinkKind, LintLink, LintPost, Rule, RuleId, Severity, SiteView};
 
-/// How many times the same words may link to the same page across the site
-/// before the next one is flagged. Three leaves room for a series of posts.
-const MAX_SAME_LINK: usize = 3;
-
 /// Link words that say nothing about the page they open, by language.
 const VAGUE: &[(&str, &[&str])] = &[
     (
@@ -99,7 +95,10 @@ impl Rule for ReusedLinkText {
 
 /// The same words linking to the same page too many times across the site.
 #[derive(Debug)]
-pub(crate) struct RepeatedLinkText;
+pub(crate) struct RepeatedLinkText {
+    /// The most links allowed, from `Thresholds::same_link_text_max`.
+    pub(crate) max: usize,
+}
 
 impl Rule for RepeatedLinkText {
     fn id(&self) -> RuleId {
@@ -114,7 +113,7 @@ impl Rule for RepeatedLinkText {
         per_distinct_words(post, |link, text| {
             let same = internal_links(site)
                 .filter(|other| words(other) == text && page(other) == page(link));
-            same.count() > MAX_SAME_LINK
+            same.count() > self.max
         })
     }
 }

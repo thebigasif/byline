@@ -1,6 +1,6 @@
 //! Severities from `lint.toml`, and mistakes in it named by line and column.
 
-use khalid_lint::{LintConfig, LintError, RuleId, Severity};
+use khalid_lint::{LintConfig, LintError, RuleId, Severity, Thresholds};
 
 #[test]
 fn lint_toml_sets_a_severity_per_rule() {
@@ -60,6 +60,31 @@ fn an_unknown_section_names_its_line() {
 #[test]
 fn text_that_is_not_toml_names_its_line() {
     let error = LintConfig::parse("[rules]\nno-date = warn\n").unwrap_err();
+    assert!(
+        matches!(error, LintError::Syntax { line: 2, .. }),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn lint_toml_tunes_a_threshold() {
+    let config = LintConfig::parse("[thresholds]\nsame-link-text-max = 5\n").unwrap();
+    assert_eq!(config.thresholds().same_link_text_max, 5);
+    assert_eq!(LintConfig::default().thresholds(), Thresholds::default());
+}
+
+#[test]
+fn an_unknown_threshold_names_its_line() {
+    let error = LintConfig::parse("[thresholds]\n\nsame-link-max = 5\n").unwrap_err();
+    assert!(
+        matches!(error, LintError::Syntax { line: 3, .. }),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn a_negative_threshold_names_its_line() {
+    let error = LintConfig::parse("[thresholds]\nsame-link-text-max = -1\n").unwrap_err();
     assert!(
         matches!(error, LintError::Syntax { line: 2, .. }),
         "{error:?}"
