@@ -11,7 +11,7 @@ use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
 use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{Locale, Slug, SlugMode};
 
-use crate::{BlockError, BlockKind, CalloutKind, parse_blocks};
+use crate::{Block, BlockError, BlockKind, CalloutKind, parse_blocks};
 
 /// A body rendered to HTML.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,41 +94,15 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
     };
     let mut run: Vec<&str> = Vec::new();
     for block in &blocks {
-        match &block.kind {
-            BlockKind::Callout { kind } => {
-                renderer.markdown(&run.join("\n\n"));
-                run.clear();
-                let kind = match kind {
-                    CalloutKind::Note => "note",
-                    CalloutKind::Tip => "tip",
-                    CalloutKind::Warning => "warning",
-                };
-                for part in ["<aside class=\"callout callout-", kind, "\">\n"] {
-                    renderer.html.push_str(part);
-                }
-                renderer.markdown(&inside(&block.source));
-                renderer.html.push_str("</aside>\n");
-            }
-            BlockKind::Figure { src, alt } => {
-                renderer.markdown(&run.join("\n\n"));
-                run.clear();
-                renderer.facts.images.push(Image {
-                    src: src.clone(),
-                    alt: Some(alt.clone()),
-                });
-                for part in [
-                    "<figure>\n<img src=\"",
-                    &attribute(src),
-                    "\" alt=\"",
-                    &attribute(alt),
-                    "\" loading=\"lazy\" decoding=\"async\" />\n<figcaption>\n",
-                ] {
-                    renderer.html.push_str(part);
-                }
-                renderer.markdown(&inside(&block.source));
-                renderer.html.push_str("</figcaption>\n</figure>\n");
-            }
-            _ => run.push(&block.source),
+        if matches!(
+            block.kind,
+            BlockKind::Callout { .. } | BlockKind::Figure { .. }
+        ) {
+            renderer.markdown(&run.join("\n\n"));
+            run.clear();
+            renderer.directive(block);
+        } else {
+            run.push(&block.source);
         }
     }
     renderer.markdown(&run.join("\n\n"));
@@ -155,6 +129,45 @@ struct Renderer {
 }
 
 impl Renderer {
+    /// Writes one directive block.
+    fn directive(&mut self, block: &Block) {
+        match &block.kind {
+            BlockKind::Callout { kind } => {
+                let kind = match kind {
+                    CalloutKind::Note => "note",
+                    CalloutKind::Tip => "tip",
+                    CalloutKind::Warning => "warning",
+                };
+                self.push(&["<aside class=\"callout callout-", kind, "\">\n"]);
+                self.markdown(&inside(&block.source));
+                self.html.push_str("</aside>\n");
+            }
+            BlockKind::Figure { src, alt } => {
+                self.facts.images.push(Image {
+                    src: src.clone(),
+                    alt: Some(alt.clone()),
+                });
+                self.push(&[
+                    "<figure>\n<img src=\"",
+                    &attribute(src),
+                    "\" alt=\"",
+                    &attribute(alt),
+                    "\" loading=\"lazy\" decoding=\"async\" />\n<figcaption>\n",
+                ]);
+                self.markdown(&inside(&block.source));
+                self.html.push_str("</figcaption>\n</figure>\n");
+            }
+            _ => {}
+        }
+    }
+
+    /// Appends `parts` to the HTML in order.
+    fn push(&mut self, parts: &[&str]) {
+        for part in parts {
+            self.html.push_str(part);
+        }
+    }
+
     fn markdown(&mut self, text: &str) {
         if text.trim().is_empty() {
             return;
