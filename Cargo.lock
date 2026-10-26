@@ -1348,6 +1348,7 @@ dependencies = [
 name = "khalid-seo"
 version = "0.0.0"
 dependencies = [
+ "atom_syndication",
  "chrono",
  "insta",
  "khalid-core",

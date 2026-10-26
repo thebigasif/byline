@@ -125,6 +125,8 @@ pub struct FeedItem {
 pub struct Feed {
     /// The feed's title: the site name, or the category then the site name.
     pub title: String,
+    /// The site's name, the feed's author.
+    pub site_name: String,
     /// One line about the feed: the site's tagline.
     pub description: String,
     /// The page the feed belongs to: the home page or the category archive.
@@ -240,6 +242,7 @@ impl Feed {
         };
         Ok(Self {
             title,
+            site_name: site.name.clone(),
             description: site.tagline.clone(),
             home,
             language: scope.language.clone(),

@@ -11,6 +11,7 @@
 
 mod escape;
 mod feed;
+mod feed_atom;
 mod feed_rss;
 mod head;
 mod hreflang;
