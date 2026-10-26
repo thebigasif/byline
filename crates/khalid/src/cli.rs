@@ -57,6 +57,9 @@ pub(crate) enum Command {
     New {
         /// The post's title
         title: String,
+        /// The language the post is written in [default: the site's default language]
+        #[arg(long, value_name = "CODE")]
+        language: Option<Locale>,
     },
     /// Check one post or the whole site against the SEO rules
     Lint {

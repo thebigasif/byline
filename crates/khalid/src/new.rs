@@ -5,13 +5,22 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use khalid_core::{Clock, Config, Slug};
+use khalid_core::{Clock, Config, Locale, Slug};
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::init::quoted;
 use crate::{atomic, new_message, report};
+
+/// What `new` writes in.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NewPost<'a> {
+    /// The headline, as typed.
+    pub(crate) title: &'a str,
+    /// The language from `--language`, or `None` for the site's default.
+    pub(crate) language: Option<&'a Locale>,
+}
 
 /// The JSON shape of `khalid new --json`. `path` is relative to the site.
 #[derive(Serialize)]
@@ -23,18 +32,21 @@ struct NewBody<'a> {
     date: String,
 }
 
-/// Writes a post titled `title` in the `site` folder, in the site's default
-/// language, dated today by `clock`, into
+/// Writes a new post in the `site` folder, dated today by `clock`, into
 /// `content/<language>/posts/<date>-<slug>.md`.
 pub(crate) fn run(
     site: &Path,
     config: &Config,
-    title: &str,
+    post: NewPost<'_>,
     clock: &dyn Clock,
     output: Output,
 ) -> Exit {
-    let locale = config.default_language();
-    let title = title.trim();
+    let locale = post.language.unwrap_or(config.default_language());
+    if !config.languages().contains(locale) {
+        let message = new_message::language(locale, config.languages());
+        return report::failure(output, &message, Exit::Failure);
+    }
+    let title = post.title.trim();
     let Ok(slug) = Slug::from_title(title, locale, config.slugs()) else {
         return report::failure(output, &new_message::no_slug(title), Exit::Failure);
     };
@@ -52,6 +64,9 @@ pub(crate) fn run(
                 date,
             };
             success(output, site, &body)
+        }
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            report::failure(output, &new_message::exists(&relative), Exit::Failure)
         }
         Err(error) => report::failure(
             output,

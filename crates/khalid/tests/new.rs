@@ -145,3 +145,34 @@ fn new_needs_a_site_folder() {
     assert_what_why_fix(&stderr);
     assert!(stderr.contains("--site"), "{stderr}");
 }
+
+#[test]
+fn new_with_language_writes_in_that_language() {
+    let (temp, folder) = site();
+    let output = khalid(&["--site", &folder, "new", "Über", "--language", "en"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let (name, _) = only_post(temp.path(), "en");
+    assert!(name.ends_with("-uber.md"), "{name}");
+}
+
+#[test]
+fn new_refuses_a_language_the_site_does_not_publish() {
+    let (temp, folder) = site();
+    let output = khalid(&["--site", &folder, "new", "Bonjour", "--language", "fr"]);
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = text(&output.stderr);
+    assert_what_why_fix(&stderr);
+    assert!(stderr.contains("de, en"), "{stderr}");
+    assert!(!at(temp.path(), "content/fr").exists());
+}
+
+#[test]
+fn new_says_which_post_already_exists() {
+    let (_temp, folder) = site();
+    khalid(&["--site", &folder, "new", "Twice"]);
+    let output = khalid(&["--site", &folder, "new", "Twice", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let what = json["error"]["what"].as_str().unwrap();
+    assert!(what.ends_with("-twice.md already exists."), "{what}");
+}

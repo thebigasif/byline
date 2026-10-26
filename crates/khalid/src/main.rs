@@ -33,6 +33,7 @@ use khalid_routes::Routes;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
+use crate::new::NewPost;
 
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -67,8 +68,12 @@ fn run(cli: &Cli) -> Exit {
     match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some((folder, _))) => db::run(folder, *command, cli.output),
-        (Some(Command::New { title }), Some((folder, config))) => {
-            new::run(folder, config, title, &SystemClock, cli.output)
+        (Some(Command::New { title, language }), Some((folder, config))) => {
+            let post = NewPost {
+                title,
+                language: language.as_ref(),
+            };
+            new::run(folder, config, post, &SystemClock, cli.output)
         }
         (Some(command @ (Command::Db { .. } | Command::New { .. })), None) => {
             report::failure(cli.output, &needs_site(command), Exit::Usage)
