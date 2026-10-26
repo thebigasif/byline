@@ -1,0 +1,23 @@
+[package]
+name = "khalid-media"
+version = "0.0.0"
+description = "Images resized and encoded at publish in responsive sizes, cached by content hash."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+fast_image_resize = { version = "6", default-features = false, features = ["std"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+webp = { version = "0.3", default-features = false }
+sha2 = "0.11"
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

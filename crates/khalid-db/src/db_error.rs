@@ -24,4 +24,16 @@ pub enum DbError {
         #[source]
         source: sqlx::migrate::MigrateError,
     },
+    /// A query failed: the file is locked for longer than the busy timeout,
+    /// the disk is full, or a row breaks a rule of the schema.
+    #[error("a database query failed")]
+    Query(#[from] sqlx::Error),
+    /// Something else changed a stored value; a rebuild writes it again.
+    #[error("the database holds a {column} Khalid cannot read: {value:?}")]
+    Unreadable {
+        /// The column the value came from.
+        column: &'static str,
+        /// The value, or a description of it when it is not text.
+        value: String,
+    },
 }
