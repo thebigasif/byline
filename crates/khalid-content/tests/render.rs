@@ -148,3 +148,22 @@ fn lists_images_with_their_alt_text_or_none() {
         [("shelf.jpg", Some("A bakery shelf")), ("chart.png", None)]
     );
 }
+
+#[test]
+fn code_is_coloured_with_classes_not_inline_styles() {
+    let html = render("```rust\nlet links = 3;\n```\n", &en(), SlugMode::Ascii).html;
+    assert!(html.contains("class=\"hl-"), "{html}");
+    assert!(!html.contains("style="), "{html}");
+}
+
+#[test]
+fn code_in_an_unknown_language_stays_plain_and_escaped() {
+    let html = render(
+        "```klingon\n<script>qapla</script>\n```\n",
+        &en(),
+        SlugMode::Ascii,
+    )
+    .html;
+    assert!(html.contains("&lt;script&gt;"), "{html}");
+    assert!(!html.contains("<script>"), "{html}");
+}
