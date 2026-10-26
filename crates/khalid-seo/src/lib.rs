@@ -19,6 +19,7 @@ mod seo_error;
 mod site;
 mod social;
 mod url_path;
+mod verification;
 
 pub use head::{HeadTag, HeadTags, head_tags};
 pub use meta_template::MetaTemplate;
@@ -31,3 +32,4 @@ pub use seo_error::SeoError;
 pub use site::SeoSite;
 pub use social::{ShareImage, TwitterHandle};
 pub use url_path::UrlPath;
+pub use verification::{RootFile, SiteVerification, VerificationCode};
