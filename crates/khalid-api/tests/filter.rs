@@ -1,4 +1,4 @@
-//! The `filter` grammar, Ghost's NQL: one condition, its values, its mistakes.
+//! The `filter` grammar, Ghost's NQL: every operator, `+`, `,` and brackets, and mistakes.
 
 use khalid_api::query::{Condition, Filter, FilterErrorKind, Literal, Predicate};
 use proptest::prelude::{prop_assert, proptest};
@@ -55,6 +55,55 @@ fn words_become_keywords_numbers_or_text_and_quotes_keep_text() {
 }
 
 #[test]
+fn every_operator_from_the_api_standard() {
+    let list = || vec![text("seo"), text("links")];
+    let cases = [
+        ("tag:[seo,links]", Predicate::In(list())),
+        ("tag:-[seo,links]", Predicate::NotIn(list())),
+        ("at:>'2026-01-01'", Predicate::Greater(text("2026-01-01"))),
+        ("at:>=5", Predicate::GreaterOrEqual(Literal::Integer(5))),
+        ("at:<10", Predicate::Less(Literal::Integer(10))),
+        (
+            "at:<='2026-12-31'",
+            Predicate::LessOrEqual(text("2026-12-31")),
+        ),
+        (
+            "at:~'internal links'",
+            Predicate::Contains("internal links".into()),
+        ),
+        ("at:-~draft", Predicate::NotContains("draft".into())),
+        ("at:~^'how-'", Predicate::StartsWith("how-".into())),
+        ("at:~$'-guide'", Predicate::EndsWith("-guide".into())),
+    ];
+    for (input, predicate) in cases {
+        let Filter::Condition(got) = parse(input) else {
+            panic!("{input}")
+        };
+        assert_eq!(got.predicate(), &predicate, "{input}");
+    }
+}
+
+#[test]
+fn and_binds_tighter_than_or_and_brackets_group() {
+    let news = || condition("tag", Predicate::Is(text("news")));
+    let featured = || condition("featured", Predicate::Is(Literal::Bool(true)));
+    let author = || condition("author", Predicate::Is(text("asif")));
+    assert_eq!(
+        parse("tag:news+featured:true"),
+        Filter::And(vec![news(), featured()])
+    );
+    assert_eq!(
+        parse("tag:news+featured:true,author:asif"),
+        Filter::Or(vec![Filter::And(vec![news(), featured()]), author()])
+    );
+    assert_eq!(
+        parse("tag:news+(featured:true,author:asif)"),
+        Filter::And(vec![news(), Filter::Or(vec![featured(), author()])])
+    );
+    assert_eq!(parse("((tag:news))"), news());
+}
+
+#[test]
 fn mistakes_are_refused_with_where_and_what() {
     let cases = [
         ("", 0, FilterErrorKind::Empty),
@@ -66,6 +115,13 @@ fn mistakes_are_refused_with_where_and_what() {
         ("tag:'news", 4, FilterErrorKind::UnclosedQuote),
         ("tag:'news\\", 4, FilterErrorKind::UnclosedQuote),
         ("tag:news)", 8, FilterErrorKind::Unexpected(')')),
+        ("tag:[seo,links", 14, FilterErrorKind::UnclosedBracket),
+        ("tag:[seo;links]", 8, FilterErrorKind::Unexpected(';')),
+        ("tag:[]", 5, FilterErrorKind::ExpectedValue),
+        ("title:~5", 7, FilterErrorKind::ExpectedText),
+        ("(tag:news", 9, FilterErrorKind::UnclosedBracket),
+        ("tag:news+", 9, FilterErrorKind::ExpectedField),
+        ("tag:news,,featured:true", 9, FilterErrorKind::ExpectedField),
     ];
     for (input, at, kind) in cases {
         let error = input.parse::<Filter>().unwrap_err();
@@ -80,10 +136,20 @@ fn the_error_message_names_the_place() {
 }
 
 #[test]
-fn a_very_long_filter_is_refused() {
+fn limits_stop_hostile_filters() {
     let long = format!("title:'{}'", "a".repeat(5000));
-    let error = long.parse::<Filter>().unwrap_err();
-    assert_eq!(error.kind(), &FilterErrorKind::TooLong);
+    let deep = format!("{}tag:news{}", "(".repeat(40), ")".repeat(40));
+    let wide = vec!["tag:news"; 200].join("+");
+    for (input, kind) in [
+        (long, FilterErrorKind::TooLong),
+        (deep, FilterErrorKind::TooDeep),
+        (wide, FilterErrorKind::TooManyConditions),
+    ] {
+        let error = input.parse::<Filter>().unwrap_err();
+        assert_eq!(error.kind(), &kind);
+    }
+    let ten_deep = format!("{}tag:news{}", "(".repeat(10), ")".repeat(10));
+    assert!(ten_deep.parse::<Filter>().is_ok());
 }
 
 proptest! {
