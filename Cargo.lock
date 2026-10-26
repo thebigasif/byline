@@ -1458,6 +1458,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-lint"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "khalid-core",
+]
+
+[[package]]
 name = "khalid-media"
 version = "0.0.0"
 dependencies = [
