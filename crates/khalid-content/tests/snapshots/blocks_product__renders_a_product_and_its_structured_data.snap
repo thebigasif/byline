@@ -1,0 +1,13 @@
+---
+source: crates/khalid-content/tests/blocks_product.rs
+assertion_line: 55
+expression: page.html
+---
+<section class="product">
+<img src="/media/audit-kit.png" alt="Site Audit Kit" loading="lazy" decoding="async" />
+<p class="product-name">Site Audit Kit</p>
+<p class="product-rating">4.5 / 5</p>
+<p class="product-price"><data value="49.00">USD 49.00</data></p>
+<p>Checklists and <strong>sheets</strong> for a full site audit.</p>
+<p><a class="button" href="https://shop.example.com/audit-kit">Buy the kit</a></p>
+</section>

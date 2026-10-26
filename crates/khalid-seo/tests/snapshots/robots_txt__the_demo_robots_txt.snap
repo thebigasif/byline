@@ -1,0 +1,17 @@
+---
+source: crates/khalid-seo/tests/robots_txt.rs
+expression: robots.to_string()
+---
+User-agent: *
+Disallow: /blog/preview/
+Allow: /blog/
+
+User-agent: Claude-SearchBot
+Disallow: /blog/preview/
+Allow: /blog/
+
+User-agent: CCBot
+User-agent: GPTBot
+Disallow: /blog/
+
+Sitemap: https://www.example.com/blog/sitemap.xml

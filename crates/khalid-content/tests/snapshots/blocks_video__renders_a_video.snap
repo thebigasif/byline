@@ -1,0 +1,8 @@
+---
+source: crates/khalid-content/tests/blocks_video.rs
+expression: rendered(VIDEO).html
+---
+<figure class="video">
+<video controls preload="none" poster="/media/site-tour.jpg" aria-label="A tour of the site"><source src="/media/site-tour.mp4" /><a href="/media/site-tour.mp4">A tour of the site</a></video>
+<figcaption>Where posts, pages and settings live.</figcaption>
+</figure>

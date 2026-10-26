@@ -4,6 +4,11 @@ use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 use khalid_core::{AbsoluteUrl, ParseUrlError};
 
+use crate::{
+    BusinessBlock, FormField, HowToBlock, ProductBlock, Question, RecipeBlock, ReviewBlock,
+    VideoBlock,
+};
+
 use crate::directive::{Form, directive, opening, unknown_hint};
 
 /// One top-level block of a body, with its markdown exactly as written.
@@ -96,6 +101,113 @@ pub enum BlockKind {
         /// The name a screen reader says for the player.
         title: String,
     },
+    /// `::video{src="..." title="..." poster="..."}`: a video file with
+    /// controls, which search engines read as a `VideoObject`.
+    Video(VideoBlock),
+    /// `::audio{src="..." title="..."}`: a sound file with controls.
+    Audio {
+        /// The sound file: a path on this site or a full address.
+        src: String,
+        /// What it is, shown above the player.
+        title: String,
+    },
+    /// `::file{src="..." title="..."}`: a link that downloads a file.
+    File {
+        /// The file: a path on this site or a full address.
+        src: String,
+        /// The link's words.
+        title: String,
+    },
+    /// `::::faq` holding one `:::question{text="..."}` per question, its
+    /// answer as the body. Readers open each answer with scripts off.
+    Faq {
+        /// The questions, in order, with their answers in markdown.
+        questions: Vec<Question>,
+    },
+    /// `::::howto{name="..." time="..."}` holding one `:::step{name="..."}`
+    /// per step, what to do as the body.
+    HowTo(HowToBlock),
+    /// `:::review{item="..." type="..." rating="..."}`: a rating of one
+    /// thing, the review as the body.
+    Review(ReviewBlock),
+    /// `::::recipe{name="..." ...}` holding a `:::ingredients` list and a
+    /// `:::method` list.
+    Recipe(RecipeBlock),
+    /// `:::product{name="..." ...}`: a product card with a picture, price,
+    /// rating and button, the description as the body.
+    Product(ProductBlock),
+    /// `::business{name="..." ...}`: a business's name, address and how to
+    /// reach it.
+    Business(BusinessBlock),
+    /// `:::header{image="..." alt="..."}`: a banner with an optional
+    /// picture, its words as the body.
+    Header {
+        /// The picture: a path on this site or a full address.
+        image: Option<String>,
+        /// The text that describes the picture, always with `image`.
+        alt: Option<String>,
+    },
+    /// `:::html{show="..."}`: a writer's own HTML, sanitised with `ammonia`
+    /// against an allowlist so it cannot run a script (RULES.md BL-SEC-1).
+    SafeHtml {
+        /// Who sees it.
+        show: Visibility,
+    },
+    /// `:::form{id="..." button="..."}` with one field per line: a form that
+    /// posts to `/forms/{id}`.
+    Form {
+        /// The name its answers are kept under.
+        id: String,
+        /// The words on its button.
+        button: String,
+        /// Its fields, in order.
+        fields: Vec<FormField>,
+    },
+    /// `::newsletter{label="..." button="..."}`: an email field that posts
+    /// to `/subscribe`.
+    Newsletter {
+        /// The words beside the email field.
+        label: String,
+        /// The words on the button.
+        button: String,
+    },
+    /// `:::gated{note="..." label="..." button="..."}`: a body only
+    /// subscribers read. The page shows the note and a subscribe form, never
+    /// the body.
+    Gated {
+        /// The line that tells readers how to read the rest.
+        note: String,
+        /// The words beside the email field.
+        label: String,
+        /// The words on the button.
+        button: String,
+    },
+    /// `:::gallery` with one `![alt](src)` image per line: a grid of
+    /// pictures.
+    Gallery {
+        /// The pictures, in order.
+        images: Vec<GalleryImage>,
+    },
+}
+
+/// One picture in a gallery, written `![alt](src)` on its own line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GalleryImage {
+    /// The image's address.
+    pub src: String,
+    /// The text that describes the image.
+    pub alt: String,
+}
+
+/// Who sees an HTML block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Visibility {
+    /// Every reader.
+    Everyone,
+    /// Readers who are not signed in.
+    Visitors,
+    /// Signed-in members. Until readers can sign in, nobody sees it.
+    Members,
 }
 
 /// The kinds of callout.
@@ -169,6 +281,14 @@ pub enum BlockError {
         /// Which form to use instead, in a sentence.
         problem: String,
     },
+    /// An attribute's value is not written the way the block needs it.
+    #[error("line {line}: {problem}")]
+    Value {
+        /// The line of the block or of the wrong line in its body.
+        line: usize,
+        /// How to write it, in a sentence.
+        problem: &'static str,
+    },
     /// A button whose link could run a script or leave the web.
     #[error(
         "line {line}: a button links to a page, a #section, https:, http: or mailto:, not {href}"
@@ -215,6 +335,7 @@ impl BlockError {
             | Self::Form { line, .. }
             | Self::Link { line, .. }
             | Self::Address { line, .. }
+            | Self::Value { line, .. }
             | Self::Unclosed { line, .. } => *line,
         }
     }
@@ -275,7 +396,7 @@ pub fn parse_blocks(body: &str) -> Result<Vec<Block>, BlockError> {
             blocks.extend(markdown_blocks(
                 lines.get(run_start..index).unwrap_or_default(),
             ));
-            let kind = directive(index.saturating_add(1), rest, Form::Leaf)?;
+            let kind = directive(index.saturating_add(1), rest, Form::Leaf, &[])?;
             blocks.push(Block {
                 kind,
                 source: line.trim_end().to_owned(),
@@ -300,7 +421,10 @@ pub fn parse_blocks(body: &str) -> Result<Vec<Block>, BlockError> {
                     name,
                 });
             };
-            let kind = directive(line_number, rest, Form::Container)?;
+            let body = lines
+                .get(index.saturating_add(1)..close)
+                .unwrap_or_default();
+            let kind = directive(line_number, rest, Form::Container, body)?;
             let source = lines.get(index..=close).unwrap_or_default().join("\n");
             blocks.push(Block { kind, source });
             index = close.saturating_add(1);

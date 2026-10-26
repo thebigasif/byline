@@ -1,0 +1,12 @@
+---
+source: crates/khalid-seo/tests/redirects.rs
+expression: demo_table().to_string()
+---
+0: /old-links/ answers 301 /why-internal-links-matter/ (chain collapsed)
+1: /internal-links/ answers 301 /why-internal-links-matter/
+2: /sale/ answers 302 /offers-2026/ (chain collapsed)
+3: /offers/ answers 307 /offers-2026/
+4: /retired-tool/ answers 410
+5: /link-to-retired/ answers 410 (chain collapsed)
+6: /court-order/ answers 451
+7: /serpdad/ answers 301 https://serpdad.com/
