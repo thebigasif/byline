@@ -16,7 +16,7 @@ mod schemas;
 mod site_content;
 mod tree;
 
-pub use block::{Block, BlockKind, parse_blocks, print_blocks};
+pub use block::{Block, BlockError, BlockKind, CalloutKind, parse_blocks, print_blocks};
 pub use content_error::ContentError;
 pub use content_hash::ContentHash;
 pub use post::{Post, PostFront, parse_post};
