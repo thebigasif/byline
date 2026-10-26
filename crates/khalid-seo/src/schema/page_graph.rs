@@ -3,15 +3,15 @@
 
 use khalid_core::AbsoluteUrl;
 
-use crate::schema::article::article_nodes;
+use crate::schema::article::{article_nodes, person_node};
 use crate::schema::blocks::block_nodes;
 use crate::schema::glossary::{term_node, term_set_node};
 use crate::schema::local_business::business_nodes;
 use crate::schema::template::template_nodes;
 use crate::schema::{image_node, node_id, site_home};
 use crate::{
-    PageKind, SchemaGraph, SchemaNode, SchemaValue, SeoError, SeoPage, SeoSite, breadcrumb_list,
-    site_graph,
+    AuthorProfile, PageKind, SchemaGraph, SchemaNode, SchemaValue, SeoError, SeoPage, SeoSite,
+    breadcrumb_list, site_graph,
 };
 
 /// The schema.org type of a page of `kind`.
@@ -38,6 +38,20 @@ pub(crate) fn page_id(site: &SeoSite, page: &SeoPage) -> Result<AbsoluteUrl, Seo
     node_id(&site.url_for(&page.language, &page.path)?, "webpage")
 }
 
+/// The `Person` an author page is about, at `<author page>#person`, the id
+/// their posts point to: from the page's author profile, else its author
+/// name, else its title.
+fn profile_person(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
+    let url = site.url_for(&page.language, &page.path)?;
+    let name = page.author.as_deref().unwrap_or(&page.title);
+    let mut profile = page
+        .author_profile
+        .clone()
+        .unwrap_or_else(|| AuthorProfile::new(name));
+    profile.url = Some(url.clone());
+    person_node(&profile, &url)
+}
+
 fn page_node(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
     let url = site.url_for(&page.language, &page.path)?;
     let name = if page.title.is_empty() {
@@ -60,6 +74,10 @@ fn page_node(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
         );
     if !page.excerpt.is_empty() {
         node.set("description", SchemaValue::text(&page.excerpt));
+    }
+    if page.kind == PageKind::Author {
+        let person = node_id(&url, "person")?;
+        node.set("mainEntity", SchemaValue::Reference(person));
     }
     if let Some(image) = &page.share_image {
         node.set("primaryImageOfPage", image_node(image));
@@ -88,7 +106,8 @@ fn page_node(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
 /// `CollectionPage` for archives, `ProfilePage` for an author,
 /// `SearchResultsPage` for search, `WebPage` for the rest. A post adds its
 /// article node, typed by its [`ArticleType`](crate::ArticleType), and the
-/// `Person` who wrote it. A glossary term adds its `DefinedTerm`, the
+/// `Person` who wrote it. An author page adds the `Person` it is about, its
+/// `mainEntity`. A glossary term adds its `DefinedTerm`, the
 /// glossary's A to Z page its `DefinedTermSet`, and the home page one node
 /// per location of a local business. Then come the nodes of the page's
 /// blocks, such as an FAQ, the nodes of the site's
@@ -107,6 +126,7 @@ pub fn page_graph(site: &SeoSite, page: &SeoPage) -> Result<SchemaGraph, SeoErro
         PageKind::GlossaryTerm => vec![term_node(site, page)?],
         PageKind::GlossaryIndex => vec![term_set_node(site, page)?],
         PageKind::Home => business_nodes(site)?,
+        PageKind::Author => vec![profile_person(site, page)?],
         _ => Vec::new(),
     };
     let blocks = block_nodes(site, page)?;

@@ -1,0 +1,6 @@
+{"@context": "https://schema.org", "@type": "SoftwareApplication",
+ "name": "Khalid", "applicationCategory": "BusinessApplication",
+ "operatingSystem": "Linux, macOS, Windows",
+ "offers": {"@type": "Offer", "price": 0, "priceCurrency": "GBP",
+            "availability": "https://schema.org/InStock"},
+ "aggregateRating": {"@type": "AggregateRating", "ratingValue": 4.8, "bestRating": 5, "ratingCount": 120}}

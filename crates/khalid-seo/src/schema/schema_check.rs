@@ -51,8 +51,9 @@ impl SchemaIssue {
 /// Every property Google asks for that a node of `graph` lacks, nodes inside
 /// nodes included, in the order the nodes are written. A node that stands
 /// alone may need more than the same node inside another, such as a
-/// `Review`'s `itemReviewed`. A type Google shows no rich result for raises
-/// nothing.
+/// `Review`'s `itemReviewed`. The item a review is about needs only its
+/// `name`, as Google's review guide says, not what it would need as a rich
+/// result of its own. A type Google shows no rich result for raises nothing.
 pub fn check_graph(graph: &SchemaGraph) -> Vec<SchemaIssue> {
     let mut issues = Vec::new();
     for node in graph.nodes() {
@@ -65,23 +66,34 @@ pub fn check_graph(graph: &SchemaGraph) -> Vec<SchemaIssue> {
 enum Placement {
     Alone,
     Nested,
+    Reviewed,
 }
 
 fn check_node(node: &SchemaNode, placement: Placement, issues: &mut Vec<SchemaIssue>) {
-    if let Some(rule) = rule_for(node.kind()) {
+    if placement == Placement::Reviewed {
+        if !has(node, "name") {
+            let feature = "a review with its stars";
+            issues.push(issue(IssueLevel::Blocks, node.kind(), &["name"], feature));
+        }
+    } else if let Some(rule) = rule_for(node.kind()) {
         check_rule(node, rule, placement, issues);
     }
-    for (_, value) in node.properties() {
-        check_value(value, issues);
+    for (name, value) in node.properties() {
+        let placement = if name == "itemReviewed" {
+            Placement::Reviewed
+        } else {
+            Placement::Nested
+        };
+        check_value(value, placement, issues);
     }
 }
 
-fn check_value(value: &SchemaValue, issues: &mut Vec<SchemaIssue>) {
+fn check_value(value: &SchemaValue, placement: Placement, issues: &mut Vec<SchemaIssue>) {
     match value {
-        SchemaValue::Node(inner) => check_node(inner, Placement::Nested, issues),
+        SchemaValue::Node(inner) => check_node(inner, placement, issues),
         SchemaValue::List(values) => {
             for value in values {
-                check_value(value, issues);
+                check_value(value, placement, issues);
             }
         }
         _ => {}
@@ -91,7 +103,7 @@ fn check_value(value: &SchemaValue, issues: &mut Vec<SchemaIssue>) {
 fn check_rule(node: &SchemaNode, rule: Rule, placement: Placement, issues: &mut Vec<SchemaIssue>) {
     let alone: Vec<Vec<&str>> = match placement {
         Placement::Alone => rule.required_alone().collect(),
-        Placement::Nested => Vec::new(),
+        Placement::Nested | Placement::Reviewed => Vec::new(),
     };
     for choice in rule.required().chain(alone) {
         if !choice.iter().any(|name| has(node, name)) {

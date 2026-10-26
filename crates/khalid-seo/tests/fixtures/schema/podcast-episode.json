@@ -1,0 +1,4 @@
+{"@context": "https://schema.org", "@type": "PodcastEpisode",
+ "name": "Why orphan pages hurt", "episodeNumber": 12, "datePublished": "2026-10-01",
+ "partOfSeries": {"@type": "PodcastSeries", "name": "Field Notes on SEO",
+                  "url": "https://www.example.com/blog/podcast/"}}
