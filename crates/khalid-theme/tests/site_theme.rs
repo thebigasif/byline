@@ -3,43 +3,10 @@
 //! through `Outbound`, and read into a `SiteTheme`. Nothing is fetched
 //! from the internet.
 
-use std::net::{IpAddr, Ipv4Addr};
+mod common;
 
-use khalid_core::AbsoluteUrl;
-use khalid_outbound::{Limits, Outbound, Reach, Resolver};
-use khalid_theme::{FontHost, FontSource, Rgb, SiteTheme, fetch_site};
-use wiremock::matchers::path;
-use wiremock::{Mock, MockServer, ResponseTemplate};
-
-/// Serves `fixtures/sites/<name>/` at `example.test` and reads its theme.
-#[cfg(test)]
-async fn sync(name: &str, stylesheet: &str) -> (SiteTheme, String) {
-    let folder = format!("{}/fixtures/sites/{name}", env!("CARGO_MANIFEST_DIR"));
-    let read = |file: &str| std::fs::read_to_string(format!("{folder}/{file}")).unwrap();
-    let server = MockServer::start().await;
-    for (at, body) in [("/", read("index.html")), (stylesheet, read("style.css"))] {
-        Mock::given(path(at))
-            .respond_with(ResponseTemplate::new(200).set_body_string(body))
-            .mount(&server)
-            .await;
-    }
-    let hosts = vec![(
-        "example.test".to_owned(),
-        vec![IpAddr::V4(Ipv4Addr::LOCALHOST)],
-    )];
-    let resolver = Resolver::for_tests(hosts, Reach::PublicAndLoopback);
-    let outbound = Outbound::with_resolver(Limits::default(), resolver).unwrap();
-    let home = format!("http://example.test:{}", server.address().port());
-    let source = fetch_site(&outbound, &url(&format!("{home}/")))
-        .await
-        .unwrap();
-    (SiteTheme::from_source(&source), home)
-}
-
-#[cfg(test)]
-fn url(text: &str) -> AbsoluteUrl {
-    AbsoluteUrl::parse(text).unwrap()
-}
+use common::{sync, url};
+use khalid_theme::{FontHost, FontSource, Rgb};
 
 #[cfg(test)]
 fn hex(text: &str) -> Option<Rgb> {
