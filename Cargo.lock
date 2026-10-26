@@ -2008,8 +2008,11 @@ name = "khalid-perf"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "divan",
  "khalid-content",
  "khalid-core",
+ "khalid-lint",
+ "khalid-render",
  "tempfile",
  "thiserror",
 ]
