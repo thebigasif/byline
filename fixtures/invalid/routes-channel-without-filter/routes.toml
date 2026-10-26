@@ -1,0 +1,6 @@
+# Breaks one rule: a channel needs a filter. The exact message
+# khalid --site prints for it is in expected.txt beside this file.
+
+[channels.everything]
+path = "/everything/"
+filter = {}

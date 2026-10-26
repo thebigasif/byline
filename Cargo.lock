@@ -1540,6 +1540,7 @@ dependencies = [
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-routes",
  "mimalloc",
  "serde",
  "serde_json",
