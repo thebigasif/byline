@@ -119,6 +119,24 @@ fn init_needs_the_address_flag() {
 }
 
 #[test]
+fn init_with_yes_asks_nothing_and_takes_the_flags() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = khalid(&["init", path(temp.path()), "--yes", "--languages", "fr"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(text(&output.stderr).contains("--address"));
+
+    let output = khalid(&[
+        "init",
+        path(temp.path()),
+        "-y",
+        "--address",
+        "https://example.org",
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    assert_eq!(text(&output.stderr), "", "nothing is asked");
+}
+
+#[test]
 fn a_missing_address_with_json_prints_the_message_as_json() {
     let temp = tempfile::tempdir().unwrap();
     let output = khalid(&["init", path(temp.path()), "--json"]);

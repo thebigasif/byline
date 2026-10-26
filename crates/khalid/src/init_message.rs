@@ -48,6 +48,15 @@ pub(crate) fn needs_address() -> UserMessage {
     )
 }
 
+/// The message when the questions stopped before the last answer.
+pub(crate) fn no_answer() -> UserMessage {
+    UserMessage::new(
+        "Khalid stopped before every question was answered.",
+        "A site needs all four answers, so nothing was written.",
+        "Run `khalid init` again, or give the answers as flags.",
+    )
+}
+
 /// The message when a file or folder of the new site cannot be written.
 pub(crate) fn write(folder: &Path, error: &io::Error) -> UserMessage {
     UserMessage::new(

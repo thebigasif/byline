@@ -14,6 +14,7 @@ mod exit;
 mod index;
 mod init;
 mod init_message;
+mod init_prompt;
 mod report;
 mod routes_message;
 
