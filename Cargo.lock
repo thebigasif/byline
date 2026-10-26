@@ -1309,6 +1309,7 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "chrono",
+ "khalid-api",
  "khalid-core",
  "proptest",
  "serde",
