@@ -9,7 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [features]
-# MemoryContentStore, for this crate's tests and other crates' tests.
+# MemoryContentStore and MemoryKeyStore, for this crate's tests and other crates' tests.
 test-util = []
 
 [dependencies]
@@ -17,6 +17,8 @@ axum = { version = "0.8", default-features = false, features = ["json", "origina
 chrono = { version = "0.4", default-features = false, features = ["alloc", "serde"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 serde.workspace = true
+sha2 = "0.11"
+subtle = "2"
 thiserror.workspace = true
 tracing.workspace = true
 utoipa = { version = "6", features = ["chrono"] }

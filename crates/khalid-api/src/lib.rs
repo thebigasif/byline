@@ -8,6 +8,7 @@
 
 pub mod content_api;
 pub mod content_store;
+pub mod keys;
 pub mod pagination;
 pub mod problem;
 pub mod query;
