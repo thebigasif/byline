@@ -1,11 +1,31 @@
 //! Why a content file could not be read.
 
+use std::io;
 use std::path::PathBuf;
+
+use khalid_core::ParseLocaleError;
 
 /// Why a content file could not be read.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ContentError {
+    /// A file or folder could not be read.
+    #[error("could not read {}", path.display())]
+    Read {
+        /// The file or folder, relative to the site folder.
+        path: PathBuf,
+        /// What the file system reported.
+        #[source]
+        source: io::Error,
+    },
+    /// A folder in `content/` is not named after a language.
+    #[error("{} is not a language folder: {source}", path.display())]
+    NotALanguage {
+        /// The folder.
+        path: PathBuf,
+        /// Why its name is not a language tag.
+        source: ParseLocaleError,
+    },
     /// The file does not start with a `---` line.
     #[error("{} does not start with front matter between two --- lines", path.display())]
     NoFrontMatter {
