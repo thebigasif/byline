@@ -132,6 +132,20 @@ for name, level, _ in table:
     if not any(kind == want and lint == name for _, kind, lint in markers):
         fail(f"The table entry {name} = {level} has no `// {want}: {name}` marker in lints/check.")
 
+# Every disallowed method and type in clippy.toml needs a violation, written
+# with its full path. A crate the workspace does not use yet cannot be proven,
+# so it is named here with the reason, and the script says so on every run.
+NOT_YET = {"reqwest::Client": "reqwest arrives with byline-outbound, which brings its violation"}
+clippy_conf = tomllib.loads((Path(table_path).parents[1] / "clippy.toml").read_text())
+src_text = "\n".join(src_lines)
+for key in ("disallowed-methods", "disallowed-types"):
+    for entry in clippy_conf.get(key, []):
+        path = entry["path"] if isinstance(entry, dict) else entry
+        if path in NOT_YET:
+            print(f"Not proven yet: {path}. {NOT_YET[path]}.")
+        elif path not in src_text:
+            fail(f"clippy.toml disallows {path}, but lints/check has no violation that uses it.")
+
 # ----------------------------------------------------------- the diagnostics
 
 W_NOTE = re.compile(r"-[WDF] ([A-Za-z0-9_:-]+)")

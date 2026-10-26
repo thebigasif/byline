@@ -425,6 +425,9 @@ dependencies = [
 [[package]]
 name = "lint-check"
 version = "0.0.0"
+dependencies = [
+ "chrono",
+]
 
 [[package]]
 name = "linux-raw-sys"

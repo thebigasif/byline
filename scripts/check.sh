@@ -48,6 +48,22 @@ if ls crates/*/Cargo.toml >/dev/null 2>&1; then
     exit 1
   fi
 
+  step "Disallowed methods and types are suppressed only where allowed (BL-RUN-1, BL-RUN-2, BL-RUN-8, BL-SEC-4)"
+  # The clock, config, outbound and path modules may each suppress the rule
+  # once, on the one line that has to break it. Nothing else may.
+  allowed='crates/byline-core/src/clock.rs crates/byline-core/src/config.rs crates/byline-core/src/site_path.rs crates/byline-outbound/src/outbound.rs'
+  bad=$(git grep -nE 'clippy::disallowed_(methods|types)' -- 'crates/**/*.rs' | grep -vE "^($(echo "$allowed" | tr ' ' '|')):" || true)
+  for file in $allowed; do
+    if [ -f "$file" ] && [ "$(grep -cE 'clippy::disallowed_(methods|types)' "$file")" -gt 1 ]; then
+      bad="$bad"$'\n'"$file: more than one suppression"
+    fi
+  done
+  if [ -n "${bad//[$'\n']/}" ]; then
+    echo "$bad"
+    echo "Read time through Clock, settings through Config, the network through Outbound and paths through SitePath."
+    exit 1
+  fi
+
   step "File size (BL-SIZE-1): hand-written Rust files under 600 lines"
   over=$(git ls-files 'crates/*/src/*.rs' 'crates/*/src/**/*.rs' | grep -v '/generated/' | xargs -I{} awk 'END{ if (NR>600) print FILENAME": "NR" lines" }' {} || true)
   if [ -n "$over" ]; then echo "$over"; echo "Split the file (BL-SIZE-1)."; exit 1; fi
