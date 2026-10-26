@@ -15,7 +15,7 @@
 
 ### 0.2 The first crate: `byline` prints help
 
-- Status: `todo`
+- Status: `doing`. Split into stacked pull requests to stay under 400 lines each: the core crate and a binary that prints help, then `Slug`, then the commands, then `--json`, then `Clock`, `Config` and `Secret`.
 - `crates/byline` with `clap`, the commands from plan section 4.1 as subcommands that print "not built yet" with exit code 3, `--version`, `--json` on every command, the `UserMessage` edge, and `mimalloc`.
 - `crates/byline-core` with `Clock`, `FixedClock`, `Config` (empty for now), `UserMessage`, `Secret<T>`, and the `Slug` newtype with its tests. Crate docs that say what each owns.
 - Done when: `cargo run -p byline -- --help` prints the commands, `just check` is green, CI is green, the binary is under 5 MB.
