@@ -234,7 +234,19 @@ async fn the_openapi_document_lists_the_routes() {
     let paths = json["paths"].as_object().unwrap();
     let mut listed: Vec<&str> = paths.keys().map(String::as_str).collect();
     listed.sort_unstable();
-    let mut routes: Vec<String> = ["case-studies", "changelog", "glossary", "pages", "posts"]
+    let names = [
+        "authors",
+        "case-studies",
+        "categories",
+        "changelog",
+        "collections",
+        "glossary",
+        "navigation",
+        "pages",
+        "posts",
+        "tags",
+    ];
+    let mut routes: Vec<String> = names
         .iter()
         .flat_map(|name| {
             let base = format!("/api/content/v1/{name}");

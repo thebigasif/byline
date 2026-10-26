@@ -1,19 +1,20 @@
 //! `khalid build`: every page of the site rendered as HTML into an output
 //! folder, `public/` in the site folder unless `--out` names another, with
-//! the site's sitemaps, `robots.txt`, `llms.txt` and feeds beside them.
+//! the stylesheet every page links in `assets/`, and the site's sitemaps,
+//! `robots.txt`, `llms.txt` and feeds beside them.
 
 use std::fs;
 use std::path::{self, Path, PathBuf};
 
 use khalid_content::SiteContent;
 use khalid_core::{Clock, Config, UserMessage};
-use khalid_render::Renderer;
+use khalid_render::{Asset, Renderer};
 use khalid_routes::Routes;
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{build_files, build_message, build_pages, build_redirects, build_seo, report};
+use crate::{assets, build_files, build_message, build_pages, build_redirects, build_seo, report};
 
 /// The output folder inside a site when `--out` is not given.
 const PUBLIC: &str = "public";
@@ -45,8 +46,8 @@ pub(crate) fn run(
     }
 }
 
-/// Renders every page into `out`, then writes the site's files beside them,
-/// and says how many pages were written.
+/// Renders every page into `out`, then writes the stylesheet they link and
+/// the site's files beside them, and says how many pages were written.
 fn build(
     site: &Path,
     config: &Config,
@@ -56,9 +57,11 @@ fn build(
     clock: &dyn Clock,
 ) -> Result<usize, UserMessage> {
     let renderer = Renderer::with_theme(site).map_err(|error| build_message::render(&error))?;
-    let mut languages = build_pages::pages(config, routes, content)?;
+    let css = assets::site_stylesheet(site)?;
+    let mut languages = build_pages::pages(config, routes, content, &assets::href(config, &css))?;
     let seo_site = build_seo::site(config)?;
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+    write_asset(out, &css)?;
     let mut written = 0;
     for language in &languages {
         for page in &language.pages {
@@ -85,8 +88,26 @@ fn write(out: &Path, relative: &str, text: &str) -> Result<(), UserMessage> {
         .map_err(|error| build_message::write(&file, &error))
 }
 
+/// Writes `asset` into `out/assets/` with its Brotli and gzip copies beside
+/// it, `.br` and `.gz`, so a web server can send them as they are.
+fn write_asset(out: &Path, asset: &Asset) -> Result<(), UserMessage> {
+    let folder = within(out, assets::FOLDER);
+    let name = asset.name();
+    let copies = [
+        (name.to_owned(), asset.body()),
+        (format!("{name}.br"), asset.brotli()),
+        (format!("{name}.gz"), asset.gzip()),
+    ];
+    fs::create_dir_all(&folder).map_err(|error| build_message::write(&folder, &error))?;
+    for (file, bytes) in copies {
+        let file = within(&folder, &file);
+        fs::write(&file, bytes).map_err(|error| build_message::write(&file, &error))?;
+    }
+    Ok(())
+}
+
 /// `relative` inside `folder`. Every `relative` here is a fixed name, or a
-/// path made from a checked slug and language.
+/// path made from a checked slug and language, or an asset's hashed name.
 fn within(folder: &Path, relative: &str) -> PathBuf {
     let mut path = folder.to_path_buf();
     path.push(relative);

@@ -5,7 +5,7 @@ use khalid_core::{AbsoluteUrl, Locale, Slug};
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use super::display;
+use super::{Listable, display};
 use crate::query::{FieldValues, Format, Literal};
 
 /// A published post in API shape. Bodies are present only when asked for
@@ -172,6 +172,18 @@ impl Post {
 
     /// The slug.
     pub fn slug(&self) -> &Slug {
+        &self.slug
+    }
+}
+
+impl Listable for Post {
+    const FIELDS: &'static [&'static str] = &Self::FILTER_FIELDS;
+
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn slug(&self) -> &Slug {
         &self.slug
     }
 }

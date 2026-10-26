@@ -36,16 +36,18 @@ pub(crate) struct Page {
 /// Every page of the site, per language in the order of `site.toml`: each
 /// dated post and each glossary term at the address `routes` gives it, each
 /// plain page, each author with their posts, the home page with the posts
-/// newest first, and the 404 page.
+/// newest first, and the 404 page. Every page links the stylesheet at
+/// `stylesheet`.
 pub(crate) fn pages(
     config: &Config,
     routes: &Routes,
     content: &SiteContent,
+    stylesheet: &str,
 ) -> Result<Vec<LanguagePages>, UserMessage> {
     config
         .languages()
         .iter()
-        .map(|locale| language_pages(config, routes, content, locale))
+        .map(|locale| language_pages(config, routes, content, locale, stylesheet))
         .collect()
 }
 
@@ -54,6 +56,7 @@ fn language_pages(
     routes: &Routes,
     content: &SiteContent,
     locale: &Locale,
+    stylesheet: &str,
 ) -> Result<LanguagePages, UserMessage> {
     let links = Wikilinks::for_language(content, config, routes, locale);
     let (mut pages, cards) = post_pages(config, routes, &links, content, locale)?;
@@ -94,7 +97,7 @@ fn language_pages(
         seo: missing_seo,
     });
     Ok(LanguagePages {
-        site: render_site(config, locale),
+        site: render_site(config, locale, stylesheet),
         pages,
     })
 }
@@ -405,13 +408,13 @@ fn page(
     }
 }
 
-/// The site as pages in `locale` show it. The stylesheet arrives with task 1.12.
-fn render_site(config: &Config, locale: &Locale) -> RenderSite {
+/// The site as pages in `locale` show it, linking the stylesheet at `stylesheet`.
+fn render_site(config: &Config, locale: &Locale, stylesheet: &str) -> RenderSite {
     RenderSite {
         name: config.name().to_owned(),
         locale: locale.clone(),
         home: path_of(config, locale, ""),
-        stylesheet: format!("{}assets/site.css", config.mount()),
+        stylesheet: stylesheet.to_owned(),
         nav: Nav::default(),
         main_site: None,
         share_image: None,
@@ -458,7 +461,8 @@ mod tests {
         let config = Config::load(&site, &Environment::empty()).unwrap();
         let routes = Routes::load(&site).unwrap();
         let content = read_content(&ContentTree::walk(&site).unwrap()).unwrap();
-        let mut languages = super::pages(&config, &routes, &content).unwrap();
+        let stylesheet = "/blog/assets/site.css";
+        let mut languages = super::pages(&config, &routes, &content, stylesheet).unwrap();
         let seo_site = build_seo::site(&config).unwrap();
         let seo_pages = build_seo::heads(&seo_site, &mut languages).unwrap();
         let english = FeedScope::language(config.default_language().clone());

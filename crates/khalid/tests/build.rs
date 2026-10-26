@@ -200,6 +200,35 @@ fn build_refuses_a_glossary_term_whose_route_needs_a_date() {
 }
 
 #[test]
+fn build_writes_the_stylesheet_every_page_links_with_its_compressed_copies() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+
+    let home = page(out.path(), "index.html");
+    let (_, rest) = home.split_once(r#"<link rel="stylesheet" href=""#).unwrap();
+    let (href, _) = rest.split_once('"').unwrap();
+    let file = href.strip_prefix("/blog/").unwrap();
+    let hash = file
+        .strip_prefix("assets/site.")
+        .and_then(|r| r.strip_suffix(".css"));
+    assert_eq!(hash.map(str::len), Some(8), "{href}");
+    assert!(
+        page(out.path(), "de/index.html").contains(href),
+        "one stylesheet"
+    );
+    let css = page(out.path(), file);
+    assert!(css.contains("--color-background: #ffffff;"), "{css}");
+    for copy in [".br", ".gz"] {
+        let size = fs::metadata(at(out.path(), &format!("{file}{copy}")))
+            .unwrap()
+            .len();
+        assert!(size > 0 && size < 20 * 1024, "{copy}: {size} bytes");
+    }
+}
+
+#[test]
 fn init_then_new_then_build_writes_the_post_to_public() {
     let temp = tempfile::tempdir().unwrap();
     let site = path(temp.path());
