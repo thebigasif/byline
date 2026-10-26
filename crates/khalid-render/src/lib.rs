@@ -13,6 +13,7 @@
 mod dates;
 mod direction;
 mod escape;
+mod image;
 mod page_body;
 mod page_meta;
 mod post;
@@ -23,6 +24,7 @@ mod site;
 mod strings;
 mod templates;
 
+pub use image::{ImageCandidate, ImageSet, Loading, RenderImage};
 pub use page_body::PageBody;
 pub use page_meta::{Alternate, PageKind, PageMeta, Robots, ShareImage};
 pub use post::{BodyHtml, Link, RenderPost};

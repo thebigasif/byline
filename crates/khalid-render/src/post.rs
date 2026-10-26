@@ -4,6 +4,7 @@ use chrono::NaiveDate;
 use minijinja::Value;
 use serde::Serialize;
 
+use crate::RenderImage;
 use crate::serde_display::{display, display_option};
 
 /// One post: its heading, dates, people, topics and body.
@@ -25,6 +26,8 @@ pub struct RenderPost {
     pub category: Option<Link>,
     /// Its tags, in the order the writer gave them.
     pub tags: Vec<Link>,
+    /// The lead image under the heading, usually loaded at once.
+    pub image: Option<RenderImage>,
     /// The post's HTML, already sanitised.
     pub body: BodyHtml,
 }

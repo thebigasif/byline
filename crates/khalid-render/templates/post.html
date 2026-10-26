@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block main %}
+{% from "image.html" import picture -%}
 <article class="post">
 <header class="post-header">
 <h1>{{ page.title }}</h1>
@@ -8,7 +9,8 @@
 <p>{{ t.published }} <time datetime="{{ page.date }}">{{ page.date | date }}</time>{% if page.updated %}. {{ t.updated }} <time datetime="{{ page.updated }}">{{ page.updated | date }}</time>{% endif %}</p>
 {% if page.category %}<p>{{ t.in_category }} <a href="{{ page.category.href }}">{{ page.category.name }}</a></p>
 {% endif %}</div>
-</header>
+{% if page.image %}{{ picture(page.image) }}
+{% endif %}</header>
 <div class="post-body">
 {{ page.body }}
 </div>
