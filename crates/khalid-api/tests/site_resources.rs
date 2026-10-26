@@ -1,4 +1,4 @@
-//! The Content API's site lists, such as authors, over HTTP: each lists,
+//! The Content API's authors, tags and categories over HTTP: each lists,
 //! filters and reads one entry by identity or slug, like the posts.
 
 mod common;
@@ -69,13 +69,23 @@ async fn the_authors_list_in_the_order_the_store_gives() {
 }
 
 #[tokio::test]
-async fn the_list_parameters_apply_to_site_lists() {
+async fn the_list_parameters_apply_to_authors_tags_and_categories() {
     let cases = [
         ("authors/?filter=language:de", "authors", vec!["de.asif"]),
         (
             "authors/?order=name%20desc&limit=1",
             "authors",
             vec!["en.lena-vogt"],
+        ),
+        (
+            "tags/?filter=slug:[seo,speed]",
+            "tags",
+            vec!["en.seo", "en.speed"],
+        ),
+        (
+            "categories/?filter=name:~'seo'",
+            "categories",
+            vec!["en.on-page-seo", "de.on-page-seo"],
         ),
     ];
     for (query, key, want) in cases {
@@ -90,6 +100,8 @@ async fn one_entry_by_identity_or_slug() {
     let cases = [
         ("authors/slug/lena-vogt/", "authors", "en.lena-vogt"),
         ("authors/de.asif/", "authors", "de.asif"),
+        ("tags/slug/links/", "tags", "en.links"),
+        ("categories/de.on-page-seo/", "categories", "de.on-page-seo"),
     ];
     for (path, key, id) in cases {
         let (status, _, json) = get(&format!("/api/content/v1/{path}")).await;
@@ -101,7 +113,11 @@ async fn one_entry_by_identity_or_slug() {
 
 #[tokio::test]
 async fn a_missing_entry_is_a_404_and_a_wrong_field_a_400() {
-    for path in ["authors/slug/nobody/", "authors/en.nobody/"] {
+    for path in [
+        "authors/slug/nobody/",
+        "tags/en.nothing/",
+        "categories/slug/Not%20A%20Slug/",
+    ] {
         let uri = format!("/api/content/v1/{path}");
         let (status, media, json) = get(&uri).await;
         assert_eq!(

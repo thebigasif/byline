@@ -21,7 +21,7 @@ use crate::keys::KeyStore;
 use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
 use crate::query::{ListQuery, RawListQuery};
-use crate::resources::{Author, Collection, Listable, Post};
+use crate::resources::{Author, Collection, Listable, Post, Term};
 
 /// Where the Content API lives.
 pub(crate) const BASE: &str = "/api/content/v1";
@@ -60,6 +60,12 @@ pub(crate) fn routes(store: Store, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
         .routes(routes!(browse_authors))
         .routes(routes!(read_author))
         .routes(routes!(read_author_by_slug))
+        .routes(routes!(browse_tags))
+        .routes(routes!(read_tag))
+        .routes(routes!(read_tag_by_slug))
+        .routes(routes!(browse_categories))
+        .routes(routes!(read_category))
+        .routes(routes!(read_category_by_slug))
         .route_layer(middleware::from_fn_with_state(keys, require_content_key))
         .route_layer(middleware::from_fn(tag_and_revalidate))
         .route_layer(middleware::from_fn(negotiate_version))
@@ -220,6 +226,30 @@ collection_routes!(
     browse_authors = "/authors/",
     read_author = "/authors/{id}/",
     read_author_by_slug = "/authors/slug/{slug}/",
+);
+collection_routes!(
+    Term,
+    SiteResources::tags,
+    browse_site,
+    one_in_site,
+    Tags,
+    tags,
+    "tags",
+    browse_tags = "/tags/",
+    read_tag = "/tags/{id}/",
+    read_tag_by_slug = "/tags/slug/{slug}/",
+);
+collection_routes!(
+    Term,
+    SiteResources::categories,
+    browse_site,
+    one_in_site,
+    Categories,
+    categories,
+    "categories",
+    browse_categories = "/categories/",
+    read_category = "/categories/{id}/",
+    read_category_by_slug = "/categories/slug/{slug}/",
 );
 
 /// One page of `collection` for a list request, with its pagination.

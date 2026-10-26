@@ -237,10 +237,12 @@ async fn the_openapi_document_lists_the_routes() {
     let names = [
         "authors",
         "case-studies",
+        "categories",
         "changelog",
         "glossary",
         "pages",
         "posts",
+        "tags",
     ];
     let mut routes: Vec<String> = names
         .iter()

@@ -3,7 +3,7 @@
 
 use chrono::{TimeZone, Utc};
 use khalid_api::content_store::{MemoryContentStore, SiteResources};
-use khalid_api::resources::{Author, Bodies, Collection, Post};
+use khalid_api::resources::{Author, Bodies, Collection, Post, Term};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 
 /// A demo post: slug, title, publish month and day in 2026, tags.
@@ -98,7 +98,8 @@ pub(crate) fn store() -> MemoryContentStore {
     MemoryContentStore::new(posts.chain(others).collect()).with_site(site())
 }
 
-/// The demo site's authors in both languages.
+/// The demo site's authors in both languages, the tags the demo posts above
+/// carry, and two categories, one of them in both languages.
 #[cfg(test)]
 fn site() -> SiteResources {
     let (en, de) = (
@@ -107,12 +108,23 @@ fn site() -> SiteResources {
     );
     let slug = |slug: &str| Slug::try_new(slug).unwrap();
     let url = |url: &str| AbsoluteUrl::parse(url).unwrap();
-    SiteResources::default().with_authors(vec![
-        Author::new(slug("asif"), "Asif", en.clone())
-            .with_role("Founder of SerpDad")
-            .with_url(url("https://example.com/blog/authors/asif/"))
-            .with_same_as(vec![url("https://serpdad.com/")]),
-        Author::new(slug("lena-vogt"), "Lena Vogt", en),
-        Author::new(slug("asif"), "Asif", de).with_role("Head of SerpDad"),
-    ])
+    let tags = ["seo", "links", "speed"]
+        .iter()
+        .map(|tag| Term::new(slug(tag), &tag.to_uppercase(), en.clone()))
+        .collect();
+    SiteResources::default()
+        .with_authors(vec![
+            Author::new(slug("asif"), "Asif", en.clone())
+                .with_role("Founder of SerpDad")
+                .with_url(url("https://example.com/blog/authors/asif/"))
+                .with_same_as(vec![url("https://serpdad.com/")]),
+            Author::new(slug("lena-vogt"), "Lena Vogt", en.clone()),
+            Author::new(slug("asif"), "Asif", de.clone()).with_role("Head of SerpDad"),
+        ])
+        .with_tags(tags)
+        .with_categories(vec![
+            Term::new(slug("on-page-seo"), "On-page SEO", en.clone()),
+            Term::new(slug("content-strategy"), "Content strategy", en),
+            Term::new(slug("on-page-seo"), "On-Page-SEO", de),
+        ])
 }
