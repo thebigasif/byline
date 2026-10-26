@@ -29,6 +29,7 @@ mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
+mod outbound;
 mod post_text;
 mod repair;
 mod report;
@@ -39,6 +40,8 @@ mod site_content;
 mod site_pages;
 mod site_posts;
 mod slug_repair;
+mod theme_message;
+mod theme_sync;
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -50,7 +53,7 @@ use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
 use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 
-use crate::cli::{Cli, Command, Output};
+use crate::cli::{Cli, Command, Output, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
@@ -111,8 +114,15 @@ fn run(cli: &Cli) -> Exit {
             serve::run(folder, config, *listen, cli.output)
         }
         (
+            Some(Command::Theme {
+                command: ThemeCommand::Sync { url },
+            }),
+            Some((folder, ..)),
+        ) => theme_sync::run(folder, url, cli),
+        (
             Some(
                 command @ (Command::Db { .. }
+                | Command::Theme { .. }
                 | Command::Serve { .. }
                 | Command::Keys { .. }
                 | Command::Lint { .. }

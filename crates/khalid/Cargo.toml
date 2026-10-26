@@ -18,6 +18,8 @@ khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
+khalid-theme = { path = "../khalid-theme", version = "0.0.0" }
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4", features = ["derive"] }
 mimalloc = "0.1"
@@ -27,10 +29,21 @@ tempfile = "3"
 tokio = { workspace = true, features = ["rt", "net"] }
 tracing.workspace = true
 
+[features]
+# The hidden --test-hosts flag, for CLI tests against a local stand-in.
+# Release builds leave it off, so the private-network guard has no switch.
+test-util = ["khalid-outbound/test-util"]
+
 [dev-dependencies]
 khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 insta = "1"
 serde_json.workspace = true
+tokio.workspace = true
+wiremock = "0.6"
+
+[[test]]
+name = "theme"
+required-features = ["test-util"]
 
 [lints]
 workspace = true
