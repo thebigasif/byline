@@ -9,6 +9,20 @@ use khalid_core::ParseUrlError;
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum SeoError {
+    /// A title or description template names a variable that does not exist.
+    #[error("the template {template:?} uses {{{name}}}, which is not a known variable")]
+    TemplateVariable {
+        /// The whole template, as written.
+        template: String,
+        /// The unknown name between the braces.
+        name: String,
+    },
+    /// A title or description template has a `{` without its `}`, or the reverse.
+    #[error("the template {template:?} has a brace without its partner")]
+    TemplateBrace {
+        /// The whole template, as written.
+        template: String,
+    },
     /// A path is not a clean absolute path such as `/blog/why-links-matter/`.
     #[error("the path {path:?} {problem}")]
     Path {

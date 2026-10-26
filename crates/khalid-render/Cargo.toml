@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+chrono = { version = "0.4", default-features = false }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 minijinja = { version = "3", default-features = false, features = ["builtins", "macros", "multi_template", "fuel", "serde"] }
 rust-embed = { version = "8", features = ["debug-embed"] }
@@ -17,7 +18,10 @@ thiserror.workspace = true
 toml = "0.9"
 
 [dev-dependencies]
+insta = "1"
+scraper = "0.29"
 serde_json.workspace = true
+tempfile = "3"
 
 [lints]
 workspace = true
