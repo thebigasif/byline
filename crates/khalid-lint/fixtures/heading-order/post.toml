@@ -1,0 +1,32 @@
+# A `####` follows a `##` with no `###` between them. The `##` after the
+# `####` is fine: going back up never skips a level.
+locale = "en"
+slug = "why-internal-links-matter"
+description = "Why links between your own posts help readers and search engines, and how to add them."
+title = "Why internal links matter"
+date = "2026-10-01"
+author = "Amira Haddad"
+word_count = 640
+body_text = "Internal links help readers find the next useful post on your site."
+
+[[headings]]
+level = "h2"
+text = "What an internal link is"
+
+[[headings]]
+level = "h4"
+text = "Links in the menu"
+
+[[headings]]
+level = "h2"
+text = "How many links to add"
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+
+[[links]]
+kind = "external"
+target = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+text = "Google's guide to links"
