@@ -1,4 +1,4 @@
-//! Turns the content files into the linter's own model (ADR 0011).
+//! Turns the content files into the linter's own model (ADR 0019).
 //!
 //! The lint crate never reads files, so this binary maps parsed posts and
 //! their rendered output to `LintPost` and `LintSite`. Wikilinks (task 1.8),

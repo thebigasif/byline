@@ -10,7 +10,7 @@
 //! The `SerpDad` backend runs the same rules on its own drafts, so this crate must
 //! not know about files on disk, HTTP, SQL, templates or the other Khalid
 //! crates. It depends on `khalid-core` only, for shared identifiers. The
-//! content track builds the input model from its own types (ADR 0011).
+//! content track builds the input model from its own types (ADR 0019).
 
 mod address;
 mod blocking;

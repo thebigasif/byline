@@ -1,6 +1,6 @@
 //! The theme preview: a sample post drawn with synced tokens (plan section
 //! 4.9). It lives in the binary, which may use both `khalid-theme` and
-//! `khalid-render` (ADR 0013).
+//! `khalid-render` (ADR 0020).
 
 use std::fs;
 use std::io::{self, Write as _};

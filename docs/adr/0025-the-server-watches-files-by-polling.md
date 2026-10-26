@@ -1,6 +1,4 @@
-# The server watches the site folder by looking, not by file events
-
-**Number:** next free.
+# 0025. The server watches the site folder by looking, not by file events
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.15.
 
