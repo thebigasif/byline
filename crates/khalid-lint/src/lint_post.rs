@@ -64,6 +64,12 @@ pub struct LintPost {
     /// The forms in the body, in order.
     #[serde(default)]
     pub forms: Vec<LintForm>,
+    /// The phrase the post wants to be found for, such as "internal links",
+    /// from the header.
+    pub focus: Option<String>,
+    /// The collection the post belongs to, such as `guides`, from the
+    /// folder it lives in.
+    pub collection: Option<String>,
 }
 
 impl LintPost {
@@ -88,6 +94,8 @@ impl LintPost {
             body_text: String::new(),
             aliases: Vec::new(),
             forms: Vec::new(),
+            focus: None,
+            collection: None,
         }
     }
 }

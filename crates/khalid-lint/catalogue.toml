@@ -243,3 +243,15 @@ what = "This post is hard to read, because its sentences are long and many of it
 why = "Readers who struggle leave early, and Google favours pages that answer people quickly."
 fix = "Split long sentences, and use shorter everyday words where you can."
 guide = "readability"
+
+[focus-topic-missing]
+what = "Your focus topic is missing from one of the places readers and Google look at first."
+why = "The title, address, opening, description and headings tell Google what the post is about."
+fix = "Add the words of `focus:` to the place this message names."
+guide = "focus-topic"
+
+[overlapping-collections]
+what = "Two collections, the folders that group your posts, could give two posts the same address."
+why = "Only one post can live at an address, so the other could vanish from your site and from Google."
+fix = "Change the `permalink` of one collection in `routes.toml` so their addresses differ."
+guide = "collections"

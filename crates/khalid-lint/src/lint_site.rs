@@ -49,6 +49,12 @@ pub trait SiteView {
     fn sibling_hosts(&self) -> &[String] {
         &[]
     }
+
+    /// The site's collections from `routes.toml`, in the file's order.
+    /// Empty when unknown, and the rules that need them skip.
+    fn collections(&self) -> &[LintCollection] {
+        &[]
+    }
 }
 
 /// A site's posts, pages and glossary, held in memory.
@@ -72,6 +78,8 @@ pub struct LintSite {
     pub host: Option<String>,
     /// The host names of the other sites in the same process.
     pub sibling_hosts: Vec<String>,
+    /// The site's collections.
+    pub collections: Vec<LintCollection>,
 }
 
 impl SiteView for LintSite {
@@ -105,6 +113,32 @@ impl SiteView for LintSite {
 
     fn sibling_hosts(&self) -> &[String] {
         &self.sibling_hosts
+    }
+
+    fn collections(&self) -> &[LintCollection] {
+        &self.collections
+    }
+}
+
+/// A collection: a folder of posts and the address pattern they share.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct LintCollection {
+    /// The collection's name, which is also its folder, such as `guides`.
+    pub name: String,
+    /// The address pattern of its posts, such as `/news/{year}/{slug}/`,
+    /// with the placeholders `routes.toml` allows.
+    pub permalink: String,
+}
+
+impl LintCollection {
+    /// The collection `name` with the address pattern `permalink`.
+    pub fn new(name: impl Into<String>, permalink: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            permalink: permalink.into(),
+        }
     }
 }
 

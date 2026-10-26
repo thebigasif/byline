@@ -16,7 +16,9 @@ mod address;
 mod blocking;
 mod builtin;
 mod catalogue;
+mod collections;
 mod finding;
+mod focus;
 mod gate;
 mod german;
 mod link_graph;
@@ -49,7 +51,7 @@ pub use lint_post::{
     Cluster, ClusterRole, FormDestination, Heading, HeadingLevel, Image, LinkKind, LintForm,
     LintLink, LintPost,
 };
-pub use lint_site::{GlossaryTerm, LintSite, PageRef, SiteView};
+pub use lint_site::{GlossaryTerm, LintCollection, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};
 pub use rule::{Hit, Rule, RuleId, SiteRule};
 pub use severity::Severity;
