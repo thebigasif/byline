@@ -35,6 +35,30 @@ pub enum PageKind {
     NotFound,
 }
 
+/// Whether readers can see the page yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum PublishState {
+    /// Live on the site.
+    #[default]
+    Published,
+    /// Not finished, seen only in the admin.
+    Draft,
+    /// Finished, waiting for its publish time.
+    Scheduled,
+}
+
+/// Whether the page appears in the XML sitemap when it is indexable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum SitemapListing {
+    /// Listed, the default.
+    #[default]
+    Listed,
+    /// Left out, such as a thank-you page after a form.
+    Excluded,
+}
+
 /// What the SEO outputs need to know about one page.
 ///
 /// Build it with [`SeoPage::new`], then fill the fields the page has.
@@ -76,6 +100,10 @@ pub struct SeoPage {
     /// Every language version of the page, itself included, then
     /// `x-default`. [`link_translations`](crate::link_translations) fills it.
     pub alternates: Vec<Alternate>,
+    /// Whether readers can see the page yet.
+    pub state: PublishState,
+    /// Whether the page appears in the XML sitemap.
+    pub sitemap: SitemapListing,
 }
 
 impl SeoPage {
@@ -99,6 +127,8 @@ impl SeoPage {
             modified: None,
             translation: None,
             alternates: Vec::new(),
+            state: PublishState::Published,
+            sitemap: SitemapListing::Listed,
         }
     }
 }

@@ -15,6 +15,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 insta = "1"
+roxmltree = "0.20"
 
 [lints]
 workspace = true
