@@ -1,11 +1,11 @@
 //! [`SeoPage`]: what the SEO outputs need to know about one page.
 
 use chrono::{DateTime, Utc};
-use khalid_core::{AbsoluteUrl, Locale};
+use khalid_core::{AbsoluteUrl, Locale, RobotsDirectives};
 
 use crate::{
-    Alternate, AuthorProfile, CustomSchema, Entity, MetaTemplate, RobotsDirectives, SchemaBlock,
-    ShareImage, TranslationKey, UrlPath, Video,
+    Alternate, AuthorProfile, CustomSchema, Entity, MetaTemplate, SchemaBlock, ShareImage,
+    TranslationKey, UrlPath, Video,
 };
 
 /// The kind of page, which picks its title template and index setting.
