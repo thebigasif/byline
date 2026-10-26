@@ -28,7 +28,7 @@ pub enum SitemapSection {
 }
 
 impl SitemapSection {
-    fn of(kind: PageKind) -> Self {
+    pub(crate) fn of(kind: PageKind) -> Self {
         match kind {
             PageKind::Post => Self::Posts,
             PageKind::Home | PageKind::Page | PageKind::GlossaryTerm => Self::Pages,

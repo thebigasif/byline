@@ -12,6 +12,7 @@
 mod escape;
 mod head;
 mod hreflang;
+mod html_sitemap;
 mod meta_template;
 mod meta_templates;
 mod news_sitemap;
@@ -29,6 +30,7 @@ mod video;
 
 pub use head::{HeadTag, HeadTags, head_tags};
 pub use hreflang::{Alternate, Hreflang, TranslationKey, link_translations};
+pub use html_sitemap::{HtmlSitemap, HtmlSitemapGroup, HtmlSitemapLink};
 pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use news_sitemap::{NewsEntry, NewsSitemap};

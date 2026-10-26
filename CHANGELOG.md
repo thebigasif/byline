@@ -11,6 +11,7 @@ What changed for people who use Khalid, one line per change, newest first. Group
 - `--json` on every command prints the same message as JSON, for scripts and agents.
 - A mistyped command gets a plain explanation and exit code 2, instead of a wall of usage text.
 - `khalid --site <folder>` checks the site's settings and reads every content file: posts, pages, authors, glossary terms, case studies, changelog entries and snippets, as plain files or as folders with their images. A mistake is explained by file, line and field (KH-CON-1, KH-CON-2, KH-CON-3, KH-CON-4).
+- An HTML sitemap for readers lists every published page in a language, by section and title (KH-SEO-5).
 - Sitemaps come as one file per section (posts, pages, archives) and language, split at 50,000 addresses, each listed in the index (KH-SEO-5).
 - One sitemap index at `sitemap.xml` in the blog's folder lists every sitemap file (KH-SEO-5).
 - A news sitemap lists news articles from the last two days, for Google News (KH-SEO-5).
