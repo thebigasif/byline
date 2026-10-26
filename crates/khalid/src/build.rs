@@ -12,7 +12,7 @@ use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{build_files, build_message, build_pages, build_seo, report};
+use crate::{build_files, build_message, build_pages, build_redirects, build_seo, report};
 
 /// The output folder inside a site when `--out` is not given.
 const PUBLIC: &str = "public";
@@ -67,7 +67,9 @@ fn build(
             written += 1;
         }
     }
-    for file in build_files::files(&seo_site, &seo_pages, clock.now())? {
+    let redirects = build_redirects::file(config, content)?;
+    let files = build_files::files(&seo_site, &seo_pages, clock.now())?;
+    for file in files.iter().chain(&redirects) {
         write(out, &file.file, &file.text)?;
     }
     Ok(written)
