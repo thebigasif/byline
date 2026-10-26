@@ -1,0 +1,21 @@
+{#- author_box(authors, reviewers): at the end of a post, each author's
+    photo, name, role, bio and profiles, then who reviewed it. A theme
+    replaces this file to change the box everywhere. -#}
+{% from "image.html" import avatar %}
+{% macro author_box(authors, reviewers) -%}
+<section class="author-box">
+<h2>{% if authors | length > 1 %}{{ t.about_the_authors }}{% else %}{{ t.about_the_author }}{% endif %}</h2>
+{% for author in authors %}<div class="person-card">
+{% if author.image %}{{ avatar(author.image) }}
+{% endif %}<div>
+<p class="person-name"><a href="{{ author.href }}">{{ author.name }}</a></p>
+{% if author.role %}<p class="person-role">{{ author.role }}</p>
+{% endif %}{% if author.bio %}{{ author.bio }}
+{% endif %}{% if author.profiles %}<ul class="author-profiles">
+{% for profile in author.profiles %}<li><a href="{{ profile.href }}">{{ profile.name }}</a></li>
+{% endfor %}</ul>
+{% endif %}</div>
+</div>
+{% endfor %}{% if reviewers %}<p class="reviewed-by">{{ t.reviewed_by }} {% for reviewer in reviewers %}<a href="{{ reviewer.href }}">{{ reviewer.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% endif %}</section>
+{%- endmacro %}

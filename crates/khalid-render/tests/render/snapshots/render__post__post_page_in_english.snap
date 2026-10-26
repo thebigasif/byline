@@ -65,6 +65,15 @@ expression: page
 <li><a href="/blog/tag/sitemaps/" rel="tag">Sitemaps</a></li>
 </ul>
 </footer>
+<section class="author-box">
+<h2>About the author</h2>
+<div class="person-card">
+<div>
+<p class="person-name"><a href="/blog/authors/lena-vogt/">Lena Vogt</a></p>
+<p class="person-role">Technical SEO editor</p>
+</div>
+</div>
+</section>
 </article>
 
 </main>

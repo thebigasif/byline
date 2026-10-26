@@ -38,8 +38,9 @@ fn without_the_byline_feature_the_authors_are_plain_names() {
     assert!(page.contains(
         r#"<address>By <a rel="author" href="/blog/authors/lena-vogt/">Lena Vogt</a>, <a rel="author" href="/blog/authors/asif/">Asif</a></address>"#
     ));
-    assert!(!page.contains("Technical SEO editor"));
-    assert!(!page.contains("<picture"));
+    let byline = part(&page, "<div class=\"post-meta\">", "</div>");
+    assert!(!byline.contains("Technical SEO editor"));
+    assert!(!byline.contains("<picture"));
 }
 
 #[test]

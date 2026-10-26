@@ -13,6 +13,9 @@ by = "By"
 written_by = "Written by"
 # Comes before the names of the people who checked a post.
 reviewed_by = "Reviewed by"
+# The heading of the box about the writer at the end of a post.
+about_the_author = "About the author"
+about_the_authors = "About the authors"
 published = "Published"
 updated = "Updated"
 # How long a post takes to read. {minutes} is filled in.

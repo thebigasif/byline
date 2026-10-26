@@ -2,6 +2,8 @@
 //! and a validity check per page type.
 
 #[cfg(test)]
+mod author_box;
+#[cfg(test)]
 mod byline;
 #[cfg(test)]
 mod common;

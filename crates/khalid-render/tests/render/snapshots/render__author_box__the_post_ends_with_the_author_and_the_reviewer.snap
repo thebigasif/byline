@@ -1,0 +1,22 @@
+---
+source: crates/khalid-render/tests/render/author_box.rs
+expression: "part(&page, \"<section class=\\\"author-box\\\">\", \"</section>\")"
+---
+<section class="author-box">
+<h2>About the author</h2>
+<div class="person-card">
+<picture>
+<source type="image/avif" srcset="/blog/media/lena-vogt-800.avif 800w, /blog/media/lena-vogt-1600.avif 1600w" sizes="2.75rem">
+<img class="avatar" src="/blog/media/lena-vogt-1600.jpg" srcset="/blog/media/lena-vogt-800.jpg 800w, /blog/media/lena-vogt-1600.jpg 1600w" sizes="2.75rem" width="1600" height="1600" alt="" loading="lazy" decoding="async">
+</picture>
+<div>
+<p class="person-name"><a href="/blog/authors/lena-vogt/">Lena Vogt</a></p>
+<p class="person-role">Technical SEO editor</p>
+<p>Lena has fixed crawl problems on sites with a million pages.</p>
+<ul class="author-profiles">
+<li><a href="https://www.linkedin.com/in/lena-vogt-example">www.linkedin.com</a></li>
+</ul>
+</div>
+</div>
+<p class="reviewed-by">Reviewed by <a href="/blog/authors/mara-lind/">Mara Lind</a></p>
+</section>

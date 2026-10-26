@@ -2,6 +2,7 @@
 {% block main %}
 {% from "image.html" import picture, avatar -%}
 {% from "contents.html" import contents_list -%}
+{% from "author_box.html" import author_box -%}
 {% set toc = page.contents and "table_of_contents" in site.features -%}
 {% if toc %}<article class="post post-with-toc">{% else %}<article class="post">{% endif %}
 <header class="post-header">
@@ -39,5 +40,6 @@
 {% for tag in page.tags %}<li><a href="{{ tag.href }}" rel="tag">{{ tag.name }}</a></li>
 {% endfor %}</ul>
 </footer>
+{% endif %}{% if "author_box" in site.features and page.authors %}{{ author_box(page.authors, page.reviewers if "reviewed_by" in site.features else []) }}
 {% endif %}</article>
 {% endblock %}
