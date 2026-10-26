@@ -1,6 +1,6 @@
 # Changelog
 
-What changed for people who use Khalid, one line per change, newest first. Grouped by Added, Changed, Fixed and Removed. Every pull request that changes behaviour adds its line under Unreleased (`docs/standards/git.md`).
+What changed for people who use Khalid, one line per change, newest first. Grouped by Added, Changed, Fixed and Removed. Every pull request that changes behaviour adds a fragment in `changelog.d/`, folded in here when it lands (`docs/standards/git.md`).
 
 ## Unreleased
 
