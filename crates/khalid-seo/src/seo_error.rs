@@ -77,6 +77,18 @@ pub enum SeoError {
         /// The rule, as given.
         path: String,
     },
+    /// Two redirect rules start from the same path.
+    #[error("the path {from:?} has more than one redirect rule")]
+    RedirectDuplicate {
+        /// The path both rules start from.
+        from: String,
+    },
+    /// Following redirects from a path comes back round to it.
+    #[error("the redirects from {from:?} go round in a loop")]
+    RedirectLoop {
+        /// The first path found in the loop.
+        from: String,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {
