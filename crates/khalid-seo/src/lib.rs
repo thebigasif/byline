@@ -18,6 +18,7 @@ mod page;
 mod robots_meta;
 mod seo_error;
 mod site;
+mod sitemap;
 mod social;
 mod url_path;
 mod verification;
@@ -26,12 +27,13 @@ pub use head::{HeadTag, HeadTags, head_tags};
 pub use hreflang::{Alternate, Hreflang, TranslationKey, link_translations};
 pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
-pub use page::{PageKind, SeoPage};
+pub use page::{PageKind, PublishState, SeoPage, SitemapListing};
 pub use robots_meta::{
     Following, ImagePreview, IndexPolicy, Indexing, PreviewLimit, Restriction, RobotsDirectives,
 };
 pub use seo_error::SeoError;
 pub use site::SeoSite;
+pub use sitemap::{Sitemap, SitemapEntry};
 pub use social::{ShareImage, TwitterHandle};
 pub use url_path::UrlPath;
 pub use verification::{RootFile, SiteVerification, VerificationCode};
