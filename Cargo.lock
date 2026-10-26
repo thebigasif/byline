@@ -2004,6 +2004,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-perf"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "khalid-content",
+ "khalid-core",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "khalid-render"
 version = "0.0.0"
 dependencies = [
