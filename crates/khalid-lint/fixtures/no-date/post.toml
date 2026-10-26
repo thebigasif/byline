@@ -1,0 +1,12 @@
+# The header has no `date:`.
+locale = "en"
+slug = "why-internal-links-matter"
+title = "Why internal links matter"
+author = "Amira Haddad"
+word_count = 640
+body_text = "Internal links help readers find the next useful post on your site."
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
