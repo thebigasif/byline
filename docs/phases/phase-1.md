@@ -147,7 +147,7 @@
 
 ### 1.19 Webhooks
 
-- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (this landing): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3: signing. Part 4: the verifier for incoming webhooks. Part 5: delivery, retries and the delivery log.
+- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (this landing): signing. Part 4: the verifier for incoming webhooks. Part 5: delivery, retries and the delivery log.
 - The events in plan section 5.12, signed with HMAC-SHA256 over timestamp and body, sent through `Outbound`, retried with backoff over 24 hours, with a delivery log in the database.
 - Rules: BL-SEC-7, BL-RUN-8.
 - Done when: `wiremock` tests show each event fires once, is signed correctly, and retries after a failure.
