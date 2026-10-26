@@ -7,7 +7,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use khalid_core::AbsoluteUrl;
+use reqwest::RequestBuilder;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::redirect::{Action, Attempt, Policy};
 
 use crate::{Reach, ResolveError, Resolver};
@@ -113,21 +115,58 @@ impl Outbound {
     /// a limit is passed; and
     /// [`OutboundError::Http`] for anything else.
     pub async fn get(&self, url: &AbsoluteUrl) -> Result<Fetched, OutboundError> {
+        self.check_literal(url)?;
+        self.send(self.client.get(url.as_str())).await
+    }
+
+    /// Sends a POST request for `url` with `headers` and `body`, and reads the
+    /// answer within the limits. Redirects are followed through the same
+    /// guard as for [`Outbound::get`]: a 307 or 308 repeats the POST with its
+    /// body, and a 301, 302 or 303 continues as a GET, as browsers do. A
+    /// caller that must see the first answer, such as a webhook delivery,
+    /// treats any status other than 2xx as a failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OutboundError::Header`] when a header name or value is not
+    /// valid HTTP, before anything is sent, and otherwise the errors
+    /// [`Outbound::get`] returns.
+    pub async fn post(
+        &self,
+        url: &AbsoluteUrl,
+        headers: &[(&str, &str)],
+        body: Vec<u8>,
+    ) -> Result<Fetched, OutboundError> {
+        let mut map = HeaderMap::with_capacity(headers.len());
+        for &(name, value) in headers {
+            let invalid = || OutboundError::Header {
+                name: name.to_owned(),
+            };
+            let key = HeaderName::from_bytes(name.as_bytes()).map_err(|_| invalid())?;
+            let value = HeaderValue::from_str(value).map_err(|_| invalid())?;
+            map.append(key, value);
+        }
+        self.check_literal(url)?;
+        self.send(self.client.post(url.as_str()).headers(map).body(body))
+            .await
+    }
+
+    /// Refuses a URL whose host is a literal address the guard does not
+    /// allow. A host name is checked when it resolves.
+    fn check_literal(&self, url: &AbsoluteUrl) -> Result<(), OutboundError> {
         let host = url.host().trim_matches(['[', ']']);
-        if let Ok(address) = host.parse::<IpAddr>()
-            && !self.resolver.reach().allows(address)
-        {
-            return Err(OutboundError::Blocked {
+        match host.parse::<IpAddr>() {
+            Ok(address) if !self.resolver.reach().allows(address) => Err(OutboundError::Blocked {
                 host: host.to_owned(),
                 address,
-            });
+            }),
+            _ => Ok(()),
         }
-        let mut response = self
-            .client
-            .get(url.as_str())
-            .send()
-            .await
-            .map_err(classify)?;
+    }
+
+    /// Sends a prepared request and reads its body within the size cap.
+    async fn send(&self, request: RequestBuilder) -> Result<Fetched, OutboundError> {
+        let mut response = request.send().await.map_err(classify)?;
         let status = response.status().as_u16();
         let limit = self.limits.max_body_bytes;
         let mut body = Vec::new();
@@ -263,6 +302,12 @@ pub enum OutboundError {
     TooManyRedirects {
         /// The redirect cap.
         limit: usize,
+    },
+    /// A header name or value is not valid HTTP. Nothing was sent.
+    #[error("the header {name} is not valid HTTP")]
+    Header {
+        /// The header name as given.
+        name: String,
     },
     /// Any other failure while sending or reading, such as a name that
     /// cannot be found.
