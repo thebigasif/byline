@@ -11,7 +11,7 @@ allow-print-in-tests = true
 allow-panic-in-tests = true
 allow-indexing-slicing-in-tests = true
 
-# Size rules (RULES.md BL-SIZ-1).
+# Size rules (RULES.md BL-SIZE-1).
 too-many-lines-threshold = 80
 too-many-arguments-threshold = 6
 
