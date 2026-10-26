@@ -1,0 +1,16 @@
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+
+[[posts]]
+locale = "de"
+slug = "interne-links"
+
+[[pages]]
+locale = "en"
+slug = "about"
+
+[[glossary]]
+locale = "en"
+term = "anchor text"
+slug = "anchor-text"
