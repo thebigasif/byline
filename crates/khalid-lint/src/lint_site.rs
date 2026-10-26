@@ -37,6 +37,12 @@ pub trait SiteView {
     fn slug_mode(&self) -> Option<SlugMode> {
         None
     }
+
+    /// The site's own host name, such as `example.com`, from its public
+    /// address. `None` when unknown, and the rules that need it skip.
+    fn host(&self) -> Option<&str> {
+        None
+    }
 }
 
 /// A site's posts, pages and glossary, held in memory.
@@ -56,6 +62,8 @@ pub struct LintSite {
     pub locales: Vec<Locale>,
     /// How the site writes slugs, when known.
     pub slugs: Option<SlugMode>,
+    /// The site's own host name, such as `example.com`, when known.
+    pub host: Option<String>,
 }
 
 impl SiteView for LintSite {
@@ -81,6 +89,10 @@ impl SiteView for LintSite {
 
     fn slug_mode(&self) -> Option<SlugMode> {
         self.slugs
+    }
+
+    fn host(&self) -> Option<&str> {
+        self.host.as_deref()
     }
 }
 

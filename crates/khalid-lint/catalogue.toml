@@ -201,3 +201,21 @@ what = "This post belongs to a topic group but does not link to the group's main
 why = "Links to the main post show Google which page covers the topic best."
 fix = "Add a link to the main post of this topic group."
 guide = "topic-clusters"
+
+[nofollow-internal-link]
+what = "A link to another page of your own site tells Google not to follow it."
+why = "Links between your pages help Google find them and judge their value, and this link passes nothing."
+fix = "Remove `nofollow` from the link's `rel` attribute."
+guide = "internal-links"
+
+[insecure-internal-link]
+what = "A link to your own site uses an address that starts with `http://`."
+why = "Google prefers secure pages, and each click takes a slower detour before the secure page opens."
+fix = "Change the address to start with `https://`, or use the path alone, such as `/blog/my-post/`."
+guide = "secure-links"
+
+[too-many-links]
+what = "This post holds more links than your site's limit."
+why = "Google shares a page's value across its links, so each one counts for less, and readers skim past them."
+fix = "Cut the links that do not help the reader, or split the post into two."
+guide = "internal-links"

@@ -149,6 +149,37 @@ fn lint_warns_about_an_accented_address_on_a_plain_address_site() {
     assert_eq!(found["subject"], "cafe-menus");
 }
 
+/// A good post that links to its own site over `http://`; the demo site's
+/// address is `https://www.example.com`.
+const INSECURE: &str = "---
+title: Why internal links matter
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+---
+
+An internal link points to [how to pick link text](/blog/choosing-link-text/), and
+an old one to [pruning posts](http://example.com/blog/pruning-old-posts/).
+";
+
+#[test]
+fn lint_warns_about_a_link_to_the_own_site_over_http() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", INSECURE)]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let found = findings
+        .iter()
+        .find(|f| f["rule"] == "insecure-internal-link");
+    let found = found.unwrap_or_else(|| panic!("no insecure-internal-link in {json}"));
+    assert_eq!(found["severity"], "warn");
+    assert_eq!(
+        found["subject"],
+        "http://example.com/blog/pruning-old-posts/"
+    );
+}
+
 #[test]
 fn lint_names_a_post_it_cannot_find() {
     let site = site(&[("choosing-link-text.md", UNDATED)]);

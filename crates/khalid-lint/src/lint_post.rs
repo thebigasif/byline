@@ -190,6 +190,10 @@ pub struct LintLink {
     pub text: String,
     /// Whether the link stays on this site.
     pub kind: LinkKind,
+    /// The words of the link's `rel` attribute, such as `nofollow`, as
+    /// written. Empty when the link has none, as markdown links do.
+    #[serde(default)]
+    pub rel: Vec<String>,
 }
 
 impl LintLink {
@@ -199,6 +203,7 @@ impl LintLink {
             target: target.into(),
             text: text.into(),
             kind,
+            rel: Vec::new(),
         }
     }
 }

@@ -20,6 +20,7 @@ mod finding;
 mod gate;
 mod german;
 mod link_graph;
+mod link_hygiene;
 mod link_text;
 mod lint_config;
 mod lint_error;

@@ -47,6 +47,8 @@ pub(crate) fn lint_site<'c>(
     }
     site.locales = config.languages().to_vec();
     site.slugs = Some(config.slugs());
+    let host = config.address().host();
+    site.host = (!host.is_empty()).then(|| host.to_owned());
     (site, documents)
 }
 

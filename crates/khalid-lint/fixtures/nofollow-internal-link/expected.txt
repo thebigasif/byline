@@ -1,0 +1,1 @@
+warn nofollow-internal-link: /blog/choosing-link-text/
