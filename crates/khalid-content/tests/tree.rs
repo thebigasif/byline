@@ -54,7 +54,18 @@ fn walks_the_demo_site() {
             .collect()
     };
     assert_eq!(names(0), ["authors", "glossary", "pages", "posts"]);
-    assert_eq!(names(1), ["authors", "glossary", "pages", "posts"]);
+    assert_eq!(
+        names(1),
+        [
+            "authors",
+            "case-studies",
+            "changelog",
+            "glossary",
+            "pages",
+            "posts",
+            "snippets"
+        ]
+    );
     for language in tree.languages() {
         let posts = language.collection("posts").unwrap();
         assert_eq!(posts.entries().len(), 5, "{}", language.locale());
