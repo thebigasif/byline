@@ -1,0 +1,6 @@
+---
+source: crates/khalid-share-image/tests/render.rs
+expression: png
+extension: png
+snapshot_kind: binary
+---

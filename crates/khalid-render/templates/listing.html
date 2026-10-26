@@ -1,0 +1,13 @@
+{#- The shared shape of every list of posts. home.html, collection.html,
+    tag.html and category.html extend it, so a theme can change one or all. -#}
+{% extends "base.html" %}
+{% block main %}
+{% from "card.html" import cards, pages -%}
+<h1>{{ page.title }}</h1>
+{% if page.intro %}<div class="intro">
+{{ page.intro }}
+</div>
+{% endif %}{% if page.posts %}{{ cards(page.posts) }}
+{% else %}<p>{{ t.no_posts }}</p>
+{% endif %}{% if page.pagination %}{{ pages(page.pagination) }}
+{% endif %}{% endblock %}

@@ -49,14 +49,17 @@
 
 ### 1.6 Markdown and the directive layer
 
-- Status: `todo`
+- Status: `done` (#50, #68, #122, #127, #136 and this landing). KH-CON-5 for the standard blocks, callout and figure; the rest of the blocks are 1.7.
+- Status: `doing`. (a) #50: `render()` with comrak, escaped raw HTML, heading ids, links, images and word count. (b) #68: syntax colours with syntect, as `hl-` CSS classes. (c) this landing: the Block model with `parse_blocks`, `print_blocks` and the round-trip harness for every standard block. (d) directives, callout and figure, ADR 0009.
 - `comrak` with footnotes, tables and task lists, plus the directive syntax every editor block uses. The round-trip harness: markdown to blocks to markdown, byte for byte. First blocks: heading, paragraph, image with required alt and caption, quote, code with syntax colours, divider, table, footnote, callout.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
 - Done when: every listed block has a directive, a round-trip test and an HTML snapshot, and raw HTML in markdown is escaped.
 
 ### 1.7 The remaining blocks
 
-- Status: `todo`
+- Status: `doing`. 1.7a1 (#175): the one-line leaf form (ADR 0018), toggle, table of contents and button. Checks (this landing): `khalid --site` reads every block in every body and refuses a broken one with the file and line, with a `fixtures/invalid/block-*` folder per refusal (#178). 1.7a2: bookmark, drawn as a card when publish fills its title. 1.7a3 (this landing): embed, a player in a frame for the six providers in `EMBED_PROVIDERS`, or a plain link for any other address. 1.7b media, 1.7c faq, how-to and review, 1.7d recipe, product, business card and header, 1.7e html, form, newsletter and gated content.
+- Status: `doing`. 1.7a1 (#175): the one-line leaf form (ADR 0018), toggle, table of contents and button. Checks (this landing): `khalid --site` reads every block in every body and refuses a broken one with the file and line, with a `fixtures/invalid/block-*` folder per refusal. 1.7a2: bookmark and embed with the provider allowlist. 1.7b media, 1.7c faq, how-to and review, 1.7d recipe, product, business card and header, 1.7e html, form, newsletter and gated content.
+- Status: `doing`. 1.7a1 (this landing): the one-line leaf form (ADR 0018), toggle, table of contents and button. 1.7a2: bookmark and embed with the provider allowlist. 1.7b media, 1.7c faq, how-to and review, 1.7d recipe, product, business card and header, 1.7e html, form, newsletter and gated content.
 - The rest of plan section 4.6's block list, in parts of about five blocks each: gallery, video, audio, file download, bookmark card, product card, toggle, button, header, embed, HTML with visibility rules, FAQ, how-to, review, recipe, business card, form, newsletter signup, gated content, table of contents. Blocks that need a server feature (form, newsletter, gated content) render their plain HTML form and lock card for now.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
 - Done when: every block in section 4.6 has a directive, a round-trip test and a snapshot.
@@ -70,14 +73,20 @@
 
 ### 1.9 Routes, collections and channels
 
-- Status: `todo`
+- Status: `doing`. Part 1 (#80): `crates/khalid-routes` reads collections and their permalink patterns (`{slug}`, `{year}`, `{month}`, `{day}`, `{collection}`) from `routes.toml`, with the line and field of each mistake. Part 2 (#81): taxonomy prefixes, channels with filters, and `Routes::load`, which gives the defaults when there is no file. Part 3 (this landing): `khalid --site` checks `routes.toml` after `site.toml` and before the content, with five `fixtures/invalid/routes-*` folders, one per mistake. Part 4: addresses from patterns, with the mount path and language prefix, and aliases that become redirects.
+- Status: `doing`. Part 1 (#80): `crates/khalid-routes` reads collections and their permalink patterns (`{slug}`, `{year}`, `{month}`, `{day}`, `{collection}`) from `routes.toml`, with the line and field of each mistake. Part 2 (this landing): taxonomy prefixes, channels with filters, and `Routes::load`, which gives the defaults when there is no file. Part 3: `khalid --site` checks `routes.toml`, with one `fixtures/invalid/routes-*` folder per mistake. Part 4: addresses from patterns, with the mount path and language prefix, and aliases that become redirects.
+- Status: `doing`. Part 1 (this landing): `crates/khalid-routes` reads collections and their permalink patterns (`{slug}`, `{year}`, `{month}`, `{day}`, `{collection}`) from `routes.toml`, with the line and field of each mistake. Part 2: taxonomy prefixes, channels with filters, and the defaults when there is no file. Part 3: `khalid --site` checks `routes.toml`, with one `fixtures/invalid/routes-*` folder per mistake. Part 4: addresses from patterns, with the mount path and language prefix, and aliases that become redirects.
 - `routes.toml` per plan section 4.11: collections with URL patterns, channels, taxonomy prefixes, aliases, mount path and language prefix. Defaults need no file. The glossary, case studies and changelog collections from section 5.13 with their typed front matter.
 - Rules: BL-FS-3. Plan sections 4.11 and 5.13.
 - Done when: URL tests cover the default `/blog/{slug}/`, a `/news/{year}/{slug}/` collection, `/de/` prefixes, a mount path, and an alias that becomes a redirect.
 
 ### 1.10 The database
 
-- Status: `doing`. Part 1 (this landing): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2: the derived tables of the content index. Part 3: the visitor tables. Part 4: the rebuild and the list queries with their query plans. Part 5: `khalid db migrate` and `khalid db rebuild`.
+- Status: `done` when part 7 lands. Part 1 (#39): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2 (#40): the derived tables of the content index, ADR 0010, and a test that the crate README lists every table as derived or visitor. Part 3 (#42): the visitor tables, none of which points at a derived table. Part 4 (#51): `Database::site` and a rebuild that empties a site's derived tables in one transaction and keeps its visitor rows, with checked queries compiled from `.sqlx/`. Part 5 (#55): posts written into the index, listed newest first, and an `EXPLAIN QUERY PLAN` test that the list reads `posts_by_date` and never sorts. Part 6 (#59): `khalid --site <folder> db migrate`. Part 7 (this landing): `khalid --site <folder> db rebuild` indexes every post from the content files, and `crates/khalid/tests/rebuild.rs` deletes `data/site.db`, rebuilds, and gets the same index with `content/` unchanged.
+- Status: `doing`. Part 1 (#39): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2 (#40): the derived tables of the content index, ADR 0010, and a test that the crate README lists every table as derived or visitor. Part 3 (#42): the visitor tables, none of which points at a derived table. Part 4 (#51): `Database::site` and a rebuild that empties a site's derived tables in one transaction and keeps its visitor rows, with checked queries compiled from `.sqlx/`. Part 5 (#55): posts written into the index, listed newest first, and an `EXPLAIN QUERY PLAN` test that the list reads `posts_by_date` and never sorts. Part 6 (this landing): `khalid --site <folder> db migrate`. Part 7: `khalid db rebuild` from the content files, and the test from the done line.
+- Status: `doing`. Part 1 (#39): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2 (#40): the derived tables of the content index, ADR 0010, and a test that the crate README lists every table as derived or visitor. Part 3 (#42): the visitor tables, none of which points at a derived table. Part 4 (#51): `Database::site` and a rebuild that empties a site's derived tables in one transaction and keeps its visitor rows, with checked queries compiled from `.sqlx/`. Part 5 (this landing): posts written into the index, listed newest first, and an `EXPLAIN QUERY PLAN` test that the list reads `posts_by_date` and never sorts. Part 6: `khalid db migrate` and `khalid db rebuild`.
+- Status: `doing`. Part 1 (#39): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2 (#40): the derived tables of the content index, ADR 0010, and a test that the crate README lists every table as derived or visitor. Part 3 (#42): the visitor tables, none of which points at a derived table. Part 4 (this landing): `Database::site` and a rebuild that empties a site's derived tables in one transaction and keeps its visitor rows, with checked queries compiled from `.sqlx/`. Part 5: posts written into the index, the list query and its query plan. Part 6: `khalid db migrate` and `khalid db rebuild`.
+- Status: `doing`. Part 1 (#39): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2 (#40): the derived tables of the content index, ADR 0010, and a test that the crate README lists every table as derived or visitor. Part 3 (this landing): the visitor tables, none of which points at a derived table. Part 4: the rebuild and the list queries with their query plans. Part 5: `khalid db migrate` and `khalid db rebuild`.
 - `crates/khalid-db`: SQLite in WAL mode with foreign keys, a busy timeout, one writer and a read pool; forward-only migrations; the index rebuilt from content files on demand. Nothing derived is written under `content/`.
 - Rules: BL-DB-1 to BL-DB-3, BL-FS-1, BL-FS-2, BL-RUN-3.
 - Done when: deleting `data/site.db` and starting again rebuilds the same index, checked by a test.
@@ -86,14 +95,22 @@
 
 ### 1.11 Templates
 
-- Status: `todo`
+- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (#45): strings per language, text direction, HTML escaping. Part 3 (#46): the renderer, the base layout with the head and share card, and the 404 page. Part 4 (#47): the snapshot and HTML validity checker every page type passes. Part 5 (#48): templates in `theme/templates/` replace the defaults, with the sandbox tests. Part 6 (#52): the post page, with dates in the page's language. Part 7 (#57): responsive images as `picture` with AVIF and WebP, and the post's lead image. Part 8 (#58): the home page and collection lists with pagination. Part 9 (this landing): tag and category lists, the author page and plain pages. Next: the strings, the renderer and its sandbox, theme replacements, then each page type.
+- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (#45): strings per language, text direction, HTML escaping. Part 3 (#46): the renderer, the base layout with the head and share card, and the 404 page. Part 4 (#47): the snapshot and HTML validity checker every page type passes. Part 5 (#48): templates in `theme/templates/` replace the defaults, with the sandbox tests. Part 6 (#52): the post page, with dates in the page's language. Part 7 (#57): responsive images as `picture` with AVIF and WebP, and the post's lead image. Part 8 (this landing): the home page and collection lists with pagination. Next: the strings, the renderer and its sandbox, theme replacements, then each page type.
+- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (#45): strings per language, text direction, HTML escaping. Part 3 (#46): the renderer, the base layout with the head and share card, and the 404 page. Part 4 (#47): the snapshot and HTML validity checker every page type passes. Part 5 (#48): templates in `theme/templates/` replace the defaults, with the sandbox tests. Part 6 (#52): the post page, with dates in the page's language. Part 7 (this landing): responsive images as `picture` with AVIF and WebP, and the post's lead image. Next: the strings, the renderer and its sandbox, theme replacements, then each page type.
+- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (#45): strings per language, text direction, HTML escaping. Part 3 (#46): the renderer, the base layout with the head and share card, and the 404 page. Part 4 (#47): the snapshot and HTML validity checker every page type passes. Part 5 (#48): templates in `theme/templates/` replace the defaults, with the sandbox tests. Part 6 (this landing): the post page, with dates in the page's language. Next: the strings, the renderer and its sandbox, theme replacements, then each page type.
+- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (#45): strings per language, text direction, HTML escaping. Part 3 (#46): the renderer, the base layout with the head and share card, and the 404 page. Part 4 (#47): the snapshot and HTML validity checker every page type passes. Part 5 (this landing): templates in `theme/templates/` replace the defaults, with the sandbox tests. Next: the strings, the renderer and its sandbox, theme replacements, then each page type.
+- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (#45): strings per language, text direction, HTML escaping. Part 3 (#73): the renderer, the base layout with the head and share card, and the 404 page. Part 4 (this landing): the snapshot and HTML validity checker every page type passes. Next: theme replacements, then each page type.
 - `crates/khalid-render`: sandboxed MiniJinja with autoescape, default templates for home, post, page, author, tag, category, collection index, glossary A to Z and 404, semantic HTML with one `h1`, `lang` and `dir`, strings in one file per language, template overrides from `theme/templates/`.
 - Rules: BL-WEB-1 to BL-WEB-6, BL-SEC-10, BL-TXT-3, BL-TST-7. `FRONTEND.md`.
 - Done when: every page type of the demo site has an `insta` snapshot, passes the HTML validator, and reads completely with scripts off.
 
 ### 1.12 CSS and images
 
-- Status: `todo`
+- Status: `doing`. Media part 1 (this landing): `crates/khalid-media` with the content key, the widths an image is offered in, and the cache under `data/media/` with atomic writes (#93). Media part 2 (this landing): decoding by content, Lanczos3 resizing, and WebP, JPEG and PNG encoding. AVIF waits on the dependency question below (#98). Media part 3 (this landing): `derive` makes every variant in a rayon pool and skips files the cache has; `derive_in_background` runs it in `spawn_blocking` (#100). Media part 4 (this landing): the divan benchmark for the resize path. Left for 1.12: AVIF (the question below), and the CSS measure in `scripts/perf.sh`, which this track may not edit. The stylesheet parts are stacked on the templates track (#75, #78).
+- Status: `doing`. Media part 1 (this landing): `crates/khalid-media` with the content key, the widths an image is offered in, and the cache under `data/media/` with atomic writes (#93). Media part 2 (this landing): decoding by content, Lanczos3 resizing, and WebP, JPEG and PNG encoding. AVIF waits on the dependency question below (#98). Media part 3 (this landing): `derive` makes every variant in a rayon pool and skips files the cache has; `derive_in_background` runs it in `spawn_blocking`. The stylesheet parts are stacked on the templates track (#75, #78).
+- Status: `doing`. Media part 1 (this landing): `crates/khalid-media` with the content key, the widths an image is offered in, and the cache under `data/media/` with atomic writes (#93). Media part 2 (this landing): decoding by content, Lanczos3 resizing, and WebP, JPEG and PNG encoding. AVIF waits on the dependency question below. The stylesheet parts are stacked on the templates track (#75, #78).
+- Status: `doing`. Media part 1 (this landing): `crates/khalid-media` with the content key, the widths an image is offered in, and the cache under `data/media/` with atomic writes. The stylesheet parts are stacked on the templates track (#75, #78).
 - One public stylesheet under 20 KB compressed, critical CSS inline, tokens from `theme/tokens.toml`. Images resized and converted to WebP and AVIF at publish, never at request, with `width`, `height`, `srcset` and `sizes`.
 - Rules: BL-WEB-5, BL-WEB-7, BL-PERF-5, BL-RUN-7.
 - Done when: the CSS budget is measured in `scripts/perf.sh` and holds, and every rendered image has its four attributes.
@@ -101,6 +118,10 @@
 ### 1.13 SEO outputs
 
 - Status: `doing`. Parts 1 to 4: the `khalid-seo` crate and its own input types (ADR 0009), page addresses, title and description templates, robots directives, head tags. Part 5: Open Graph and Twitter cards with a default share image and a per-page override. Part 6: verification tags for Google, Bing, Yandex, Baidu and Pinterest, and verification files at the root. Part 7: hreflang with `x-default` from translation groups, the same complete set on every version. Part 8a: test checks for the rules of the sitemap schema. Part 8b: the XML sitemap of exactly the published, indexable pages, with language alternates. Part 9a: images and videos in the sitemap. Part 9b: the news sitemap. Part 10a: the sitemap index at `sitemap.xml`, checked against the index schema's rules. Part 10b: one sitemap file per section and language, split at 50,000 addresses or 50 MiB. Part 10c: the HTML sitemap model per language. Part 11a: `robots.txt` with per-bot allow and block, checked with Google's parser. Part 11b: `llms.txt`. Part 12a: the feed model per language and category, full or excerpt, with text before and after items and a source line. Part 12b: RSS 2.0, checked with a strict reader and validator. Part 12c: Atom 1.0. Part 12d: JSON Feed 1.1. Part 13a: the redirect table with 301, 302, 307, 410 and 451, chains collapsed into one hop, loops refused, and a debug view. Part 13b: regex redirect rules. Part 14 (this landing): the link policy, the last part. Every 1.13 output now has its snapshot and its validator; the item left is wiring the inputs from content and `Config`, which is task 1.15. The share image generated when none is set is image work for 1.12 or Phase 2.
+- Status: `doing`. Parts 1 to 4: the `khalid-seo` crate and its own input types (ADR 0009), page addresses, title and description templates, robots directives, head tags. Part 5: Open Graph and Twitter cards with a default share image and a per-page override. Part 6: verification tags for Google, Bing, Yandex, Baidu and Pinterest, and verification files at the root. Part 7 (this landing): hreflang with `x-default` from translation groups, the same complete set on every version. Next: sitemaps; robots.txt and `llms.txt`; feeds; redirects; the link policy.
+- Status: `doing`. Parts 1 to 4: the `khalid-seo` crate and its own input types (ADR 0009), page addresses, title and description templates, robots directives, head tags. Part 5: Open Graph and Twitter cards with a default share image and a per-page override. Part 6 (this landing): verification tags for Google, Bing, Yandex, Baidu and Pinterest, and verification files at the root. Next: hreflang; sitemaps; robots.txt and `llms.txt`; feeds; redirects; the link policy.
+- Status: `doing`. Parts 1 to 4: the `khalid-seo` crate and its own input types (ADR 0009), page addresses, title and description templates, robots directives, head tags. Part 5 (this landing): Open Graph and Twitter cards with a default share image and a per-page override. Next: verification tags; hreflang; sitemaps; robots.txt and `llms.txt`; feeds; redirects; the link policy.
+- Status: `doing`. Part 1 (this landing): the `khalid-seo` crate, its own input types (ADR 0009), clean page paths and page addresses for the mount path and language. Next: title and description templates; robots directives; head tags; Open Graph, Twitter cards, verification and hreflang; sitemaps; robots.txt, `llms.txt` and redirects; feeds; the link policy.
 - `crates/khalid-seo`: title and description tags, canonical, hreflang pairs from the `translation` key, Open Graph, sitemaps per language with `lastmod`, RSS, Atom and JSON feeds per collection and channel, and `robots.txt`.
 - Rules: BL-TYP-5, BL-PERF-2. Plan section 5.2.
 - Done when: snapshots cover each output for the demo site, every hreflang pair is complete, and a sitemap lists exactly the published, indexable pages.
@@ -132,7 +153,9 @@
 
 ### 1.17 The Content API
 
-- Status: `todo`
+- Status: `doing`. Part 1 (#84): `crates/khalid-api` with the `filter` parser for one condition. Part 2 (#86): every operator, `+`, `,` and brackets, with limits on length, depth and size. Part 3 (this landing): printing filters so they parse back, and matching them against a resource. Next: the other list parameters, problem details and the envelope, posts behind a `ContentStore` trait with the OpenAPI document, content keys, the other resources with ETags and `Accept-Version`, and the contract test.
+- Status: `doing`. Part 1 (#84): `crates/khalid-api` with the `filter` parser for one condition. Part 2 (this landing): every operator, `+`, `,` and brackets, with limits on length, depth and size. Next: printing and matching filters, the other list parameters, problem details and the envelope, posts behind a `ContentStore` trait with the OpenAPI document, content keys, the other resources with ETags and `Accept-Version`, and the contract test.
+- Status: `doing`. Part 1 (this landing): `crates/khalid-api` with the `filter` parser for one condition. Next: `+`, `,` and brackets, printing and matching filters, the other list parameters, problem details and the envelope, posts behind a `ContentStore` trait with the OpenAPI document, content keys, the other resources with ETags and `Accept-Version`, and the contract test.
 - `/api/content/v1/` for posts, pages, authors, tags, categories, collections, glossary, case studies, changelog, settings and navigation, with the shared query grammar (`filter`, `include`, `fields`, `formats`, `limit`, `page`, `order`) parsed by one module, content keys, ETags, `Accept-Version`, and the OpenAPI document at `/api/openapi.json` generated with `utoipa`.
 - Rules: BL-API-4, BL-API-5, BL-ERR-5. `docs/standards/api.md`.
 - Done when: a contract test fails when routes and the OpenAPI document disagree, the filter grammar has property tests, and the demo posts come back through the API.
@@ -146,7 +169,10 @@
 
 ### 1.19 Webhooks
 
-- Status: `doing`. Part 1 (this landing): `Outbound::post`, which deliveries go through. Part 2: the event catalogue and the signature. Part 3: delivery, retries and the delivery log.
+- Status: `done` after this landing. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (#56): the verifier for incoming webhooks. Part 5 (#61): the delivery log model and the retry schedule over 24 hours. Part 6 (#70): the `DeliveryStore` trait with an in-memory store. Part 7 (#74): the `Dispatcher`, which signs, sends through `Outbound` and logs. Part 8 (this landing): retrying what is due. Task 1.15 implements `DeliveryStore` on SQLite and calls `retry_due` on a timer.
+- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (#56): the verifier for incoming webhooks. Part 5 (#61): the delivery log model and the retry schedule over 24 hours. Part 6 (this landing): the `DeliveryStore` trait with an in-memory store. Part 7: sending deliveries through `Outbound`.
+- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (#56): the verifier for incoming webhooks. Part 5 (this landing): the delivery log model and the retry schedule over 24 hours. Part 6: the `DeliveryStore` trait with an in-memory store. Part 7: sending deliveries through `Outbound`.
+- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (#49): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3 (#53): signing. Part 4 (this landing): the verifier for incoming webhooks. Part 5: delivery, retries and the delivery log.
 - The events in plan section 5.12, signed with HMAC-SHA256 over timestamp and body, sent through `Outbound`, retried with backoff over 24 hours, with a delivery log in the database.
 - Rules: BL-SEC-7, BL-RUN-8.
 - Done when: `wiremock` tests show each event fires once, is signed correctly, and retries after a failure.
@@ -174,9 +200,117 @@
 - Rules: BL-WEB-1 to BL-WEB-5, BL-PERF-1.
 - Done when: Lighthouse scores 100 in all four categories on the default post page, and the "Shows the founder" line above works from a fresh clone.
 
+## Phase 2 work pulled forward
+
+The linter depends on nothing in progress, so it is built now, in parallel, from plan section 6 and KH-LNT-1, KH-LNT-2, KH-LNT-3 and KH-LNT-6. `crates/khalid-lint` depends on `khalid-core` only and reads its own input model (ADR 0011). Each part lands as its own pull request.
+
+### 2.1 The rule engine
+
+- Status: `done` after this landing. Part 1 (#106): the crate and its input model. Part 2 (#111): the message catalogue and the messages test. Part 3 (#112): severities, the rule trait and `lint.toml`. Part 4 (this landing): the engine, its findings and its report.
+- Status: `doing`. Part 1 (#106): the crate and its input model. Part 2 (#111): the message catalogue and the messages test. Part 3 (this landing): severities, the rule trait and `lint.toml`. Part 4: the engine, its findings and its report.
+- Status: `doing`. Part 1 (#106): the crate and its input model. Part 2 (this landing): the message catalogue and the messages test. Part 3: severities and `lint.toml`. Part 4: the rule trait and the engine.
+- Status: `doing`. Part 1 (this landing): the crate and its input model. Part 2: the message catalogue and the messages test. Part 3: severities and `lint.toml`. Part 4: the rule trait and the engine.
+- The `Rule` trait, `Severity` (block, warn, off), a `Finding` with its rule, severity, location and a three-sentence `Message` from `catalogue.toml`, `lint.toml` loading with errors that name the line and column, and the input model: `LintPost`, `LintSite` and the `SiteView` trait the content track implements in 1.15.
+- Rules: BL-ERR-1, BL-TXT-2, BL-TST-4, BL-TYP-5.
+- Done when: the messages test from `docs/standards/testing.md` walks the catalogue (three sentences, each under 25 words, no em dash, no jargon, the fix names an action), and a mistake in `lint.toml` names its line and column.
+
+### 2.2 The five blocking rules
+
+- Status: `done` after this landing. Fixtures are `post.toml` files in the lint input model, because the crate reads no markdown; `tests/fixtures.rs` fails if a catalogue rule has no fixture.
+- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`. The three related posts the plan suggests with "no internal link" come in 2.5, with the rules that compare posts.
+- Status: `todo`
+- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`.
+- Rules: BL-TST-4. KH-LNT-1.
+- Done when: each fixture produces exactly its expected findings, and a clean post produces none.
+
+### 2.3 The link text rules
+
+- Status: `todo`
+- Link text reused for a different page, the same link text to the same page too often, vague link text, the same target twice in one post, a link with no text.
+- Rules: BL-TST-4. KH-LNT-2.
+- Done when: one fixture per message, each with its expected findings.
+
+### 2.4 The structure rules
+
+- Status: `todo`
+- Heading order, title and description length and duplicates, missing alt text, thin post, keyword stuffing, slug hygiene, no outbound link, broken wikilink.
+- Rules: BL-TST-4. KH-LNT-2.
+- Done when: one fixture per message, each with its expected findings.
+
+### 2.5 The site rules
+
+- Status: `todo`
+- Orphan post, one inbound link, missing translation, near-duplicate posts by shingles, glossary term not linked, stale post, cluster without its pillar, too deep.
+- Rules: BL-TST-4, BL-RUN-1, BL-TST-2. KH-LNT-2.
+- Done when: one fixture per message, each with its expected findings, and the stale rule reads time through `Clock`.
+
+### 2.6 `khalid lint` and the publish gate
+
+- Status: `todo`
+- `khalid lint [path] --json --fix` in the binary, exit code 1 on a block, and the publish gate function the server calls.
+- Rules: BL-CLI-1, BL-CLI-2, BL-CLI-3. KH-LNT-3.
+- Done when: CLI tests cover human output, `--json`, `--fix` and each exit code on the fixtures.
+
+## Phase 3 work pulled forward
+
+Theme sync and the generated share image depend on nothing in progress, so they start now. Plan sections 4.8 and 4.9, PRD KH-WEB-8, KH-INS-3, KH-SEO-2 and KH-OPS-2. Each part lands as its own pull request, branched from `main`.
+
+### 3.1 Fetch the site
+
+- Status: `doing`. Part 1 (this landing): `crates/khalid-theme`, and the stylesheets a page uses, in page order, same site only (ADR 0015). Part 2: fetching them through `Outbound` within the caps.
+- Read the home page and its same-site stylesheets through `Outbound`, with a cap on the page, on the CSS in all and on the number of stylesheets. Keep the raw CSS. A stylesheet that fails is listed with the reason; only the home page can stop a sync.
+- Rules: BL-RUN-8, BL-TST-3.
+- Done when: `wiremock` tests cover each cap, a link to another site that is never fetched, a failing stylesheet, a private address and an unreachable name.
+
+### 3.2 Extract the tokens
+
+- Status: `doing`. Part 1 (this landing): CSS colour values and their WCAG contrast. Next: the CSS reader and custom properties; the colours by frequency and contrast; fonts, logo and icons; all of it from one site.
+- CSS custom properties, `@font-face` rules and Google Fonts links; the background, text, link and accent colours by frequency and contrast; the logo from `og:image` and the header image; the icon links.
+- Done when: fixtures of saved real-world CSS each give the expected tokens.
+
+### 3.3 Write `theme/tokens.toml` and a preview
+
+- Status: `todo`, after 3.2 and the renderer's tokens loader (#72).
+- The file in the shape the renderer loads, written atomically, and a preview page rendered through `khalid-render`.
+- Rules: BL-RUN-9, BL-SEC-4.
+- Done when: a synced file loads with the renderer's rules and the preview passes the HTML checks.
+
+### 3.4 The contrast pass
+
+- Status: `todo`, after 3.2.
+- A text and background pair that fails WCAG 2.2 AA gets the nearest passing shade, and the user is told in plain words.
+- Rules: BL-WEB-4, BL-TXT-2.
+- Done when: every failing pair in the fixtures passes after the fix, with the smallest change of shade.
+
+### 3.5 Re-sync with a diff
+
+- Status: `todo`, after 3.3.
+- `theme sync` again shows what changed, and keeps every field named in the file's `locked` list.
+- Done when: a test edits a field by hand, locks it, re-syncs against a changed site and finds the hand edit kept and the rest updated.
+
+### 3.6 Proxy rules
+
+- Status: `doing`, in its own pull request. `crates/khalid-mount`.
+- The exact snippet for nginx, caddy, apache, traefik, cloudflare-worker, vercel, nextjs, netlify, webflow and shopify, for a given mount path. KH-INS-3.
+- Done when: each stack has a fixture, and the snippet for every stack matches it byte for byte.
+
+### 3.7 The generated share image
+
+- Status: `doing`, in its own pull request. `crates/khalid-share-image`.
+- A 1200 by 630 PNG from the title, the site name and the theme colours, drawn in pure Rust, cached by content hash. KH-SEO-2.
+- Done when: a snapshot test pins the image, and the same input reads from the cache.
+
+### 3.8 `khalid theme sync` and `khalid theme check`
+
+- Status: `todo`, after 3.1 to 3.5.
+- Both commands in the binary, with a what, why and fix message for each failure: the site is unreachable, there is no stylesheet, the address is private, a token is missing. KH-OPS-2.
+- Rules: BL-CLI-1 to BL-CLI-4, BL-ERR-4.
+- Done when: CLI tests run both commands against a `wiremock` site, in human and `--json` output, with the right exit codes.
+
 ## Questions for the founder
 
-1. **AI crawlers in a new site's robots.txt (task 1.13).** Context: AI companies send crawlers that copy blog posts to train their models (GPTBot, CCBot and others), and separate crawlers that fetch posts to quote and link them in AI answers (OAI-SearchBot, Claude-SearchBot, PerplexityBot). Khalid can block or allow each one by name. Today a new site allows all of them. Consequence: blocking the training crawlers keeps posts out of future models and costs no search traffic; blocking the answer crawlers also removes the blog from AI answers. Question: should a new site block the training crawlers by default, and keep the answer crawlers allowed?
+- **AI crawlers in a new site's robots.txt (task 1.13).** Context: AI companies send crawlers that copy blog posts to train their models (GPTBot, CCBot and others), and separate crawlers that fetch posts to quote and link them in AI answers (OAI-SearchBot, Claude-SearchBot, PerplexityBot). Khalid can block or allow each one by name. Today a new site allows all of them. Consequence: blocking the training crawlers keeps posts out of future models and costs no search traffic; blocking the answer crawlers also removes the blog from AI answers. Question: should a new site block the training crawlers by default, and keep the answer crawlers allowed?
+- **AVIF images need three exceptions in `deny.toml` (task 1.12, for the CTO session).** Every pure-Rust AVIF encoder is built on `rav1e`, which pulls in `libfuzzer-sys` (licence `(MIT OR Apache-2.0) AND NCSA`, not on our list), `av1-grain`, which uses `anyhow` (banned outside the binary), and `paste` (RUSTSEC-2024-0436, unmaintained). Why it matters: AVIF images are about half the size of JPEG, which helps the LCP budget, but the policy refuses these crates today. The choice: allow NCSA, add `av1-grain` as an `anyhow` wrapper and accept the `paste` advisory with a review date; or ship WebP with JPEG and PNG fallbacks only, which is what `khalid-media` does now. WebP alone already meets the budgets on the demo site. Adding AVIF later is one small pull request, because `Format` is non-exhaustive and the render side already accepts AVIF sources.
 
 ## Order
 
