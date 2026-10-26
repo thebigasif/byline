@@ -110,6 +110,12 @@ pub enum SeoError {
         /// The domain, as given.
         domain: String,
     },
+    /// A currency is not a three-letter ISO 4217 code such as `GBP`.
+    #[error("{currency:?} is not a currency code such as GBP or EUR")]
+    Currency {
+        /// The code, as given.
+        currency: String,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {
