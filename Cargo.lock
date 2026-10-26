@@ -1876,11 +1876,13 @@ dependencies = [
  "khalid-lint",
  "khalid-render",
  "khalid-routes",
+ "khalid-server",
  "mimalloc",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
