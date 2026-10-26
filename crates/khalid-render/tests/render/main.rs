@@ -6,6 +6,8 @@ mod byline;
 #[cfg(test)]
 mod common;
 #[cfg(test)]
+mod contents;
+#[cfg(test)]
 mod glossary;
 #[cfg(test)]
 mod html_check;

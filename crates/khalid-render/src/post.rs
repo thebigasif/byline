@@ -5,7 +5,7 @@ use minijinja::Value;
 use serde::Serialize;
 
 use crate::serde_display::{display, display_option};
-use crate::{Person, ReadingTime, RenderImage};
+use crate::{Contents, Person, ReadingTime, RenderImage};
 
 /// One post: its heading, dates, people, topics and body.
 ///
@@ -33,6 +33,8 @@ pub struct RenderPost {
     pub tags: Vec<Link>,
     /// The lead image under the heading, usually loaded at once.
     pub image: Option<RenderImage>,
+    /// The table of contents, from [`Contents::of`] the body's headings.
+    pub contents: Option<Contents>,
     /// The post's HTML, already sanitised.
     pub body: BodyHtml,
 }

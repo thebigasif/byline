@@ -468,6 +468,7 @@ impl Demo {
             }),
             tags: Vec::new(),
             image: None,
+            contents: None,
             body,
         };
         let (title, key) = (record.title.clone(), post.field("translation"));

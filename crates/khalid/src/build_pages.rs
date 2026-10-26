@@ -140,6 +140,7 @@ fn post_pages<'a>(
             category: None,
             tags: Vec::new(),
             image: None,
+            contents: None,
             body: html,
         };
         seo.author = post.authors.first().map(|author| author.name.clone());

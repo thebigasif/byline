@@ -1,0 +1,39 @@
+---
+source: crates/khalid-render/tests/render/contents.rs
+expression: "part(&page, \"<details\", \"</nav>\\n<div\")"
+---
+<details class="toc-inline">
+<summary>Contents</summary>
+<nav aria-label="Contents">
+<ol>
+<li><a href="#what-it-does">What it does</a>
+<ol>
+<li><a href="#new-pages">New pages</a></li>
+</ol>
+</li>
+<li><a href="#what-it-does-not">What it does not</a></li>
+<li><a href="#how-to-make-one">How to make one</a>
+<ol>
+<li><a href="#by-hand">By hand</a></li>
+</ol>
+</li>
+</ol>
+</nav>
+</details>
+<nav class="toc-side" aria-label="Contents">
+<p class="toc-title">Contents</p>
+<ol>
+<li><a href="#what-it-does">What it does</a>
+<ol>
+<li><a href="#new-pages">New pages</a></li>
+</ol>
+</li>
+<li><a href="#what-it-does-not">What it does not</a></li>
+<li><a href="#how-to-make-one">How to make one</a>
+<ol>
+<li><a href="#by-hand">By hand</a></li>
+</ol>
+</li>
+</ol>
+</nav>
+<div

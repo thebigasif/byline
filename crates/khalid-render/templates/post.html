@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block main %}
 {% from "image.html" import picture, avatar -%}
-<article class="post">
+{% from "contents.html" import contents_list -%}
+{% set toc = page.contents and "table_of_contents" in site.features -%}
+{% if toc %}<article class="post post-with-toc">{% else %}<article class="post">{% endif %}
 <header class="post-header">
 <h1>{{ page.title }}</h1>
 <div class="post-meta">
@@ -18,7 +20,17 @@
 {% endif %}</div>
 {% if page.image %}{{ picture(page.image) }}
 {% endif %}</header>
-<div class="post-body">
+{% if toc %}<details class="toc-inline">
+<summary>{{ t.contents }}</summary>
+<nav aria-label="{{ t.contents }}">
+{{ contents_list(page.contents) }}
+</nav>
+</details>
+<nav class="toc-side" aria-label="{{ t.contents }}">
+<p class="toc-title">{{ t.contents }}</p>
+{{ contents_list(page.contents) }}
+</nav>
+{% endif %}<div class="post-body">
 {{ page.body }}
 </div>
 {% if page.tags %}<footer class="post-footer">

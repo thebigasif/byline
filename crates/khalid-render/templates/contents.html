@@ -1,0 +1,11 @@
+{#- contents_list(contents): a post's sections, each with its parts,
+    linked to their headings. -#}
+{% macro contents_list(contents) -%}
+<ol>
+{% for section in contents.sections %}<li><a href="#{{ section.id }}">{{ section.text }}</a>{% if section.parts %}
+<ol>
+{% for part in section.parts %}<li><a href="#{{ part.id }}">{{ part.text }}</a></li>
+{% endfor %}</ol>
+{% endif %}</li>
+{% endfor %}</ol>
+{%- endmacro %}

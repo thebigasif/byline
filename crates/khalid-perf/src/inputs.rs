@@ -94,6 +94,7 @@ impl Prepared {
             category: None,
             tags: Vec::new(),
             image: None,
+            contents: None,
             body,
         };
         let meta = PageMeta {

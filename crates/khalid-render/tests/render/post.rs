@@ -50,6 +50,7 @@ pub(crate) fn sitemap_post() -> RenderPost {
         category: Some(link("Technical SEO", "/blog/category/technical-seo/")),
         tags: vec![link("Sitemaps", "/blog/tag/sitemaps/")],
         image: None,
+        contents: None,
         body,
     }
 }
