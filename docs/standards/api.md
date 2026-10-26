@@ -25,7 +25,7 @@ The API is the only door (CLAUDE.md). This file fixes the shape so every endpoin
 
 ## Keys and scopes
 
-Integration keys are created in the admin or with `khalid keys create`. Each key has scopes: `content:read`, `posts:write`, `media:write`, `settings:write`, `webhooks:manage`, `subscribers:write`, `admin:all`. Keys are stored hashed and shown once. Staff tokens carry the user's role.
+Integration keys are created in the admin or with `khalid keys create`. Each key has scopes: `content:read`, `posts:write`, `media:write`, `settings:write`, `webhooks:manage`, `subscribers:write`, `admin:all`. Keys are stored hashed and shown once. Staff tokens carry the user's role. For example, `khalid --site <folder> keys create --name SerpDad --scope posts:write` makes an integration key, `--kind content` a content key and `--kind staff --role editor` a staff token, and `khalid keys revoke <id>` stops one at once.
 
 ## Webhooks
 

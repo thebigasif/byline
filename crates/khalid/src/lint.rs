@@ -64,7 +64,7 @@ fn check(site: &Path, post: Option<&Path>, mode: Mode) -> Result<Outcome, (UserM
     let content = ContentTree::walk(site)
         .and_then(|tree| read_content(&tree))
         .map_err(|error| (content_message::of(site, &error), Exit::Failure))?;
-    let settings = settings(site).map_err(|message| (message, Exit::Failure))?;
+    let settings = lint_settings(site).map_err(|message| (message, Exit::Failure))?;
     let linter = Linter::new(&settings, &SystemClock)
         .map_err(|error| (lint_message::of(&error), Exit::Internal))?;
     let (lint_site, documents) = lint_input::lint_site(&content, &config);
@@ -98,7 +98,7 @@ fn check(site: &Path, post: Option<&Path>, mode: Mode) -> Result<Outcome, (UserM
 }
 
 /// The settings in the site's `lint.toml`, or the defaults when it has none.
-pub(crate) fn settings(site: &Path) -> Result<LintConfig, UserMessage> {
+pub(crate) fn lint_settings(site: &Path) -> Result<LintConfig, UserMessage> {
     let path = SitePath::within(site, "lint.toml").map_err(|_| lint_message::unreadable())?;
     match fs::read_to_string(path.as_path()) {
         Ok(text) => LintConfig::parse(&text).map_err(|error| lint_message::of(&error)),

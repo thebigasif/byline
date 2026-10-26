@@ -8,7 +8,7 @@ use khalid_core::SitePath;
 use serde::{Deserialize, Serialize};
 
 use crate::token_values::{FontStack, Length, hex};
-use crate::{Rgb, SiteTheme, TokensError};
+use crate::{Rgb, SiteTheme, TokenName, TokensError};
 
 /// Where a site keeps its tokens, as the renderer reads them.
 const TOKENS_FILE: &str = "theme/tokens.toml";
@@ -16,7 +16,8 @@ const TOKENS_FILE: &str = "theme/tokens.toml";
 /// The comment at the top of every file this crate writes.
 const HEADER: &str = "# The blog's colours, fonts and shape, read by the templates as CSS
 # variables. `khalid theme sync` writes this file from the main site.
-# Every value may be edited by hand.
+# Every value may be edited by hand. To keep an edit when the site is
+# synced again, name it in a list at the top: locked = [\"colors.link\"]
 
 ";
 
@@ -33,6 +34,9 @@ const MUTED_STEP: f64 = 0.35;
 #[serde(deny_unknown_fields)]
 #[non_exhaustive]
 pub struct ThemeTokens {
+    /// The tokens a person set by hand. A sync keeps each of them as it is.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub locked: Vec<TokenName>,
     /// The colours.
     pub colors: Colors,
     /// The font stacks.
@@ -99,6 +103,7 @@ impl Default for ThemeTokens {
         let sans =
             r#"system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif"#;
         Self {
+            locked: Vec::new(),
             colors: Colors {
                 background: Rgb::new(0xff, 0xff, 0xff),
                 surface: Rgb::new(0xf6, 0xf7, 0xf9),

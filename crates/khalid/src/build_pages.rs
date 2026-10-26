@@ -229,7 +229,7 @@ fn author_pages(
 
 /// A document's title, or its slug when it has none, and its slug, or one
 /// made from the title when it has none.
-fn named<F>(
+pub(crate) fn named<F>(
     config: &Config,
     doc: &Document<F>,
     slug: Option<&Slug>,
@@ -328,12 +328,12 @@ fn render_site(config: &Config, locale: &Locale) -> RenderSite {
 /// The path of `rest` in `locale`: the mount, the language prefix for any
 /// language but the default, then `rest`, the rule `khalid_seo::SeoSite::url_for`
 /// follows, so `why-links-matter/` in German is `/blog/de/why-links-matter/`.
-fn path_of(config: &Config, locale: &Locale, rest: &str) -> String {
+pub(crate) fn path_of(config: &Config, locale: &Locale, rest: &str) -> String {
     format!("{}{}{rest}", config.mount(), prefix(config, locale))
 }
 
 /// `de/` for a language other than the default, and nothing for the default.
-fn prefix(config: &Config, locale: &Locale) -> String {
+pub(crate) fn prefix(config: &Config, locale: &Locale) -> String {
     if locale == config.default_language() {
         String::new()
     } else {

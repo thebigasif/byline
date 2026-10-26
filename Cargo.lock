@@ -1871,6 +1871,7 @@ dependencies = [
  "chrono",
  "clap",
  "insta",
+ "khalid-api",
  "khalid-content",
  "khalid-core",
  "khalid-db",
@@ -1879,7 +1880,9 @@ dependencies = [
  "khalid-routes",
  "khalid-seo",
  "khalid-server",
+ "khalid-theme",
  "mimalloc",
+ "scraper",
  "serde",
  "serde_json",
  "tempfile",
@@ -1899,6 +1902,7 @@ dependencies = [
  "htmd",
  "khalid-api",
  "khalid-core",
+ "khalid-lint",
  "proptest",
  "serde",
  "serde_json",
@@ -1952,6 +1956,7 @@ name = "khalid-db"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "khalid-api",
  "khalid-core",
  "khalid-webhooks",
  "sqlx",
