@@ -6,15 +6,15 @@ use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use khalid_core::{Config, Locale, UserMessage};
 use khalid_render::HeadHtml;
 use khalid_seo::{
-    PageKind, SeoError, SeoPage, SeoSite, TranslationKey, UrlPath, head_tags, link_translations,
-    page_graph,
+    IndexPolicy, PageKind, SeoError, SeoPage, SeoSite, TranslationKey, UrlPath, head_tags,
+    link_translations, page_graph,
 };
 
 use crate::build_message;
 use crate::build_pages::LanguagePages;
 
 /// The site as the SEO outputs read it, from `site.toml`: its name, address,
-/// mount folder and languages, default first.
+/// mount folder, languages, default first, and which archives are indexed.
 pub(crate) fn site(config: &Config) -> Result<SeoSite, UserMessage> {
     let mut site = SeoSite::new(
         config.name(),
@@ -27,6 +27,7 @@ pub(crate) fn site(config: &Config) -> Result<SeoSite, UserMessage> {
         .iter()
         .filter(|locale| *locale != config.default_language());
     site.languages.extend(others.cloned());
+    site.indexing = IndexPolicy::from(&config.seo().index);
     Ok(site)
 }
 

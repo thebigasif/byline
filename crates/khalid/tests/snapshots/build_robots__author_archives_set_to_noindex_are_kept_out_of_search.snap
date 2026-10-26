@@ -1,0 +1,6 @@
+---
+source: crates/khalid/tests/build_robots.rs
+expression: "robots_and_canonical(&out, \"authors/asif/index.html\")"
+---
+<meta name="robots" content="noindex, follow">
+<link rel="canonical" href="https://www.example.com/blog/authors/asif/">
