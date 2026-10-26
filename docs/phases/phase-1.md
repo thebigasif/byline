@@ -189,7 +189,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 ### 2.2 The five blocking rules
 
 - Status: `done` after this landing. Fixtures are `post.toml` files in the lint input model, because the crate reads no markdown; `tests/fixtures.rs` fails if a catalogue rule has no fixture.
-- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`. The three related posts the plan suggests with "no internal link" come in 2.5, with the rules that compare posts.
+- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`. The three related posts the plan suggests with "no internal link" came in 2.5, part 5.
 - Rules: BL-TST-4. KH-LNT-1.
 - Done when: each fixture produces exactly its expected findings, and a clean post produces none.
 
@@ -209,7 +209,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.5 The site rules
 
-- Status: `doing`. Part 1 (#143): the `SiteRule` trait, which checks the whole site in one pass; `Linter::site_health` for the dashboard; the link graph; orphan post. A post may carry its `path`, so links find it by path. The publish check, `lint_post`, never runs site rules, because a new post has no inbound links yet. Part 2 (#145): one inbound link, and too deep, counted in clicks from the home page's links (`max-clicks`, default 3). Part 3 (#149): stale post, measured from today's date read once through `Clock` when the linter starts (`stale-months`, default 12), and missing translation across the languages the site declares. Fixtures may carry a `lint.toml`. Part 4 (this landing): near-duplicates by five-word shingles (`near-duplicate-percent`, default 50), glossary term not linked, cluster without its pillar. These are post rules, because a writer can fix each one before publishing. Part 5: the three suggested posts for "no internal link".
+- Status: `done` after this landing. Part 1 (#143): the `SiteRule` trait, which checks the whole site in one pass; `Linter::site_health` for the dashboard; the link graph; orphan post. A post may carry its `path`, so links find it by path. The publish check, `lint_post`, never runs site rules, because a new post has no inbound links yet. Part 2 (#145): one inbound link, and too deep, counted in clicks from the home page's links (`max-clicks`, default 3). Part 3 (#149): stale post, measured from today's date read once through `Clock` when the linter starts (`stale-months`, default 12), and missing translation across the languages the site declares. Fixtures may carry a `lint.toml`. Part 4 (#151): near-duplicates by five-word shingles (`near-duplicate-percent`, default 50), glossary term not linked, cluster without its pillar. These are post rules, because a writer can fix each one before publishing. Part 5 (this landing): the three suggested posts for "no internal link", ranked by the topic words they share with the post, carried on the finding as `suggestions`.
 - Orphan post, one inbound link, missing translation, near-duplicate posts by shingles, glossary term not linked, stale post, cluster without its pillar, too deep.
 - Rules: BL-TST-4, BL-RUN-1, BL-TST-2. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings, and the stale rule reads time through `Clock`.

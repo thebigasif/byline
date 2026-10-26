@@ -2,7 +2,8 @@
 //!
 //! Each folder under `fixtures/` holds `post.toml`, the post under test, and
 //! `expected.txt`, its findings one per line as `<severity> <rule>`, followed
-//! by `: <subject>` when the finding names a link, image or phrase. An
+//! by `: <subject>` when the finding names a link, image or phrase, and by
+//! `(suggest: a, b)` when it suggests posts to link to. An
 //! optional `site.toml` holds the rest of the site. Every rule in the
 //! catalogue must have at least one fixture.
 //!
@@ -69,10 +70,14 @@ fn line(finding: &Finding) -> String {
         Severity::Warn => "warn",
         Severity::Off => "off",
     };
-    match &finding.location().subject {
+    let mut line = match &finding.location().subject {
         Some(subject) => format!("{severity} {}: {subject}", finding.rule()),
         None => format!("{severity} {}", finding.rule()),
+    };
+    if !finding.suggestions().is_empty() {
+        line = format!("{line} (suggest: {})", finding.suggestions().join(", "));
     }
+    line
 }
 
 #[cfg(test)]

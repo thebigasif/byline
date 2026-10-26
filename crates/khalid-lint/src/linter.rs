@@ -145,12 +145,19 @@ impl Linter {
 
 impl<R: ?Sized> Configured<R> {
     fn finding(&self, rule: RuleId, post: &LintPost, hit: Hit) -> Finding {
+        let (subject, suggestions) = hit.into_parts();
         let location = Location {
             locale: post.locale.clone(),
             slug: post.slug.clone(),
-            subject: hit.into_subject(),
+            subject,
         };
-        Finding::new(rule, self.severity, location, self.message.clone())
+        Finding::new(
+            rule,
+            self.severity,
+            location,
+            self.message.clone(),
+            suggestions,
+        )
     }
 }
 

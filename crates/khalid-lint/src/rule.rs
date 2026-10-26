@@ -35,6 +35,7 @@ impl fmt::Display for RuleId {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Hit {
     subject: Option<String>,
+    suggestions: Vec<String>,
 }
 
 impl Hit {
@@ -48,7 +49,16 @@ impl Hit {
     pub fn about(subject: impl Into<String>) -> Self {
         Self {
             subject: Some(subject.into()),
+            suggestions: Vec::new(),
         }
+    }
+
+    /// This hit with `suggestions`, such as posts to link to, best first,
+    /// for a fix the writer can pick from.
+    #[must_use]
+    pub fn suggesting(mut self, suggestions: Vec<String>) -> Self {
+        self.suggestions = suggestions;
+        self
     }
 
     /// The thing the problem is about, if it is not the whole post.
@@ -56,8 +66,13 @@ impl Hit {
         self.subject.as_deref()
     }
 
-    pub(crate) fn into_subject(self) -> Option<String> {
-        self.subject
+    /// The suggestions for the fix, best first.
+    pub fn suggestions(&self) -> &[String] {
+        &self.suggestions
+    }
+
+    pub(crate) fn into_parts(self) -> (Option<String>, Vec<String>) {
+        (self.subject, self.suggestions)
     }
 }
 

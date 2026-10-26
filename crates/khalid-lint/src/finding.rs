@@ -26,6 +26,7 @@ pub struct Finding {
     severity: Severity,
     location: Location,
     message: Message,
+    suggestions: Vec<String>,
 }
 
 impl Finding {
@@ -34,13 +35,21 @@ impl Finding {
         severity: Severity,
         location: Location,
         message: Message,
+        suggestions: Vec<String>,
     ) -> Self {
         Self {
             rule,
             severity,
             location,
             message,
+            suggestions,
         }
+    }
+
+    /// Choices for the fix, best first, such as the addresses of related
+    /// posts to link to. Empty for most rules.
+    pub fn suggestions(&self) -> &[String] {
+        &self.suggestions
     }
 
     /// The rule that found the problem.
