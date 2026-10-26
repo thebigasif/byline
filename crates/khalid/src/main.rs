@@ -32,6 +32,14 @@ mod serve;
 mod serve_message;
 mod site_pages;
 mod slug_repair;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "khalid theme sync renders the preview, in task 3.8"
+    )
+)]
+mod theme_preview;
 
 use std::ffi::OsString;
 use std::path::Path;
