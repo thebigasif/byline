@@ -51,8 +51,12 @@ INSERT INTO api_key_scopes (site_id, api_key_id, scope) VALUES (1, 1, 'posts:rea
 INSERT INTO webhooks (id, site_id, event, url, secret, created_at) VALUES
     (1, 1, 'post.published', 'https://hooks.example.com/k', randomblob(32), '2026-10-26T09:00:00Z'),
     (2, 2, 'post.published', 'https://hooks.example.com/k', randomblob(32), '2026-10-26T09:00:00Z');
-INSERT INTO webhook_deliveries (site_id, webhook_id, payload, created_at) VALUES
-    (1, 1, '{"post":"old-post"}', '2026-10-26T09:00:00Z'), (2, 2, '{"post":"old-post"}', '2026-10-26T09:00:00Z');
+INSERT INTO webhook_deliveries (id, site_id, webhook_id, event, url, body, first_at, state, state_at) VALUES
+    (1, 1, 1, 'post.published', 'https://hooks.example.com/k', X'7B7D', '2026-10-26T09:00:00.000000Z', 'pending', '2026-10-26T09:01:00.000000Z'),
+    (2, 2, 2, 'post.published', 'https://hooks.example.com/k', X'7B7D', '2026-10-26T09:00:00.000000Z', 'delivered', '2026-10-26T09:00:00.000000Z');
+INSERT INTO webhook_attempts (site_id, delivery_id, number, at, status, reason) VALUES
+    (1, 1, 1, '2026-10-26T09:00:00.000000Z', 503, NULL),
+    (2, 2, 1, '2026-10-26T09:00:00.000000Z', 204, NULL);
 INSERT INTO form_submissions (site_id, form, fields, status, created_at) VALUES
     (1, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z'),
     (2, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z');
