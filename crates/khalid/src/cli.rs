@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 
 use clap::builder::{BoolValueParser, TypedValueParser};
-use clap::{ArgAction, Parser, Subcommand, ValueEnum};
-use khalid_core::Slug;
+use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+use khalid_core::{AbsoluteUrl, Locale, Slug};
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -50,7 +50,7 @@ pub(crate) enum Output {
 )]
 pub(crate) enum Command {
     /// Set up a site: address, mount, languages, mode
-    Init,
+    Init(InitArgs),
     /// Run the blog and the admin
     Serve,
     /// Create a post file with correct front matter
@@ -111,6 +111,49 @@ pub(crate) enum Command {
     },
 }
 
+/// What `khalid init` takes. Each flag answers one of the four questions.
+#[derive(Debug, Args)]
+pub(crate) struct InitArgs {
+    /// The folder to make the site in, made when missing [default: --site, or here]
+    #[arg(value_name = "FOLDER")]
+    pub(crate) folder: Option<PathBuf>,
+
+    /// The website's address, such as `https://www.example.com`
+    #[arg(long, value_name = "URL")]
+    pub(crate) address: Option<AbsoluteUrl>,
+
+    /// The folder of that website the blog lives under, such as /blog/ [default: /]
+    #[arg(long, value_name = "PATH")]
+    pub(crate) mount: Option<String>,
+
+    /// The languages you write in, the first being the default, such as en,de [default: en]
+    #[arg(long, value_name = "CODES", value_delimiter = ',')]
+    pub(crate) languages: Vec<Locale>,
+
+    /// Run a server, or write plain files to upload [default: server]
+    #[arg(long, value_enum)]
+    pub(crate) mode: Option<SiteMode>,
+}
+
+/// How the site runs, as `--mode` spells it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum SiteMode {
+    /// Khalid runs the blog as a server
+    Server,
+    /// Khalid writes plain files to upload anywhere
+    Static,
+}
+
+impl SiteMode {
+    /// The word `site.toml` uses.
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Server => "server",
+            Self::Static => "static",
+        }
+    }
+}
+
 /// The database commands. The database is `data/site.db` in the site folder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
 pub(crate) enum DbCommand {
@@ -164,7 +207,7 @@ impl Command {
     /// The command as a person types it, such as `theme sync`.
     pub(crate) fn name(&self) -> &'static str {
         match self {
-            Self::Init => "init",
+            Self::Init(_) => "init",
             Self::Serve => "serve",
             Self::New { .. } => "new",
             Self::Lint { .. } => "lint",
