@@ -237,3 +237,9 @@ what = "A form in this post sends its answers nowhere."
 why = "Readers who fill it in never hear back, so the visits search brings you are lost."
 fix = "Give this form an email address or a service such as Zapier to send its answers to."
 guide = "forms"
+
+[hard-to-read]
+what = "This post is hard to read, because its sentences are long and many of its words are long."
+why = "Readers who struggle leave early, and Google favours pages that answer people quickly."
+fix = "Split long sentences, and use shorter everyday words where you can."
+guide = "readability"

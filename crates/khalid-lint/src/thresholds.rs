@@ -42,6 +42,10 @@ pub struct Thresholds {
     /// The most links one post's body may hold. Default 100: past that, each
     /// link passes little value and readers stop following them.
     pub max_links: usize,
+    /// The highest reading index, LIX, a post of 100 words or more may
+    /// reach. Default 60, where LIX calls a text very hard in English and
+    /// German alike.
+    pub hard_reading_index: usize,
 }
 
 impl Default for Thresholds {
@@ -57,6 +61,7 @@ impl Default for Thresholds {
             stale_months: 12,
             near_duplicate_percent: 50,
             max_links: 100,
+            hard_reading_index: 60,
         }
     }
 }

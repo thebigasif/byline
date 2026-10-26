@@ -28,6 +28,7 @@ mod lint_error;
 mod lint_post;
 mod lint_site;
 mod linter;
+mod reading;
 mod rule;
 mod severity;
 mod site_content;
