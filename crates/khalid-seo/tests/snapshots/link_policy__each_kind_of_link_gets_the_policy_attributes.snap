@@ -1,0 +1,15 @@
+---
+source: crates/khalid-seo/tests/link_policy.rs
+expression: table
+---
+/blog/why-internal-links-matter/ -> rel=- target=-
+#anchor-text -> rel=- target=-
+https://www.example.com/pricing/ -> rel=- target=-
+https://example.com/about/ -> rel=- target=-
+https://app.serpdad.com/briefs/ -> rel=- target=-
+https://developers.google.com/search/ -> rel=nofollow noopener target=_blank
+//developers.google.com/search/ -> rel=nofollow noopener target=_blank
+https://www.amazon.com/dp/B0C1234567 -> rel=nofollow sponsored noopener target=_blank
+https://partner.example.org/offer -> rel=nofollow sponsored noopener target=_blank
+https://notpartner.example.org/offer -> rel=nofollow noopener target=_blank
+mailto:hello@example.com -> rel=- target=-

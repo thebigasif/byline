@@ -1,0 +1,1 @@
+warn vague-link-text: Click here.

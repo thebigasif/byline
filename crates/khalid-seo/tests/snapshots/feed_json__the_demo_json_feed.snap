@@ -1,0 +1,37 @@
+---
+source: crates/khalid-seo/tests/feed_json.rs
+expression: demo_feed().to_json().unwrap()
+---
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Field Notes on SEO",
+  "home_page_url": "https://www.example.com/blog/",
+  "feed_url": "https://www.example.com/blog/feed.json",
+  "description": "Plain advice on search for small teams",
+  "language": "en",
+  "authors": [
+    {
+      "name": "Field Notes on SEO"
+    }
+  ],
+  "items": [
+    {
+      "id": "https://www.example.com/blog/why-internal-links-matter/",
+      "url": "https://www.example.com/blog/why-internal-links-matter/",
+      "title": "Why internal links matter",
+      "content_html": "<p>Link from <em>old</em> posts to new ones.</p>",
+      "summary": "Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.",
+      "image": "https://www.example.com/blog/media/internal-links.png",
+      "date_published": "2026-09-14T08:00:00Z",
+      "date_modified": "2026-10-02T16:00:00Z",
+      "authors": [
+        {
+          "name": "Asif"
+        }
+      ],
+      "tags": [
+        "On-page SEO"
+      ]
+    }
+  ]
+}

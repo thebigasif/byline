@@ -29,8 +29,8 @@ const JARGON: &[&str] = &[
 
 /// The verbs a fix may start with: each one is something the writer does.
 const ACTIONS: &[&str] = &[
-    "Add", "Change", "Cut", "Delete", "Describe", "Give", "Link", "Merge", "Move", "Remove",
-    "Rename", "Replace", "Rewrite", "Shorten", "Split", "Turn", "Update", "Use", "Write",
+    "Add", "Change", "Cut", "Delete", "Describe", "Give", "Link", "Merge", "Move", "Refresh",
+    "Remove", "Rename", "Replace", "Rewrite", "Shorten", "Split", "Turn", "Update", "Use", "Write",
 ];
 
 /// The text of `sentence` with every backtick span removed.
