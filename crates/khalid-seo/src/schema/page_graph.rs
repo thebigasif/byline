@@ -4,6 +4,7 @@
 use khalid_core::AbsoluteUrl;
 
 use crate::schema::article::article_nodes;
+use crate::schema::blocks::block_nodes;
 use crate::schema::glossary::{term_node, term_set_node};
 use crate::schema::local_business::business_nodes;
 use crate::schema::{image_node, node_id, site_home};
@@ -88,7 +89,8 @@ fn page_node(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
 /// article node, typed by its [`ArticleType`](crate::ArticleType), and the
 /// `Person` who wrote it. A glossary term adds its `DefinedTerm`, the
 /// glossary's A to Z page its `DefinedTermSet`, and the home page one node
-/// per location of a local business.
+/// per location of a local business. Last come the nodes of the page's
+/// blocks, such as an FAQ.
 ///
 /// # Errors
 ///
@@ -104,7 +106,7 @@ pub fn page_graph(site: &SeoSite, page: &SeoPage) -> Result<SchemaGraph, SeoErro
         PageKind::Home => business_nodes(site)?,
         _ => Vec::new(),
     };
-    for node in extra {
+    for node in extra.into_iter().chain(block_nodes(site, page)?) {
         graph.push(node);
     }
     Ok(graph)

@@ -4,8 +4,8 @@ use chrono::{DateTime, Utc};
 use khalid_core::{AbsoluteUrl, Locale};
 
 use crate::{
-    Alternate, AuthorProfile, Entity, MetaTemplate, RobotsDirectives, ShareImage, TranslationKey,
-    UrlPath, Video,
+    Alternate, AuthorProfile, Entity, MetaTemplate, RobotsDirectives, SchemaBlock, ShareImage,
+    TranslationKey, UrlPath, Video,
 };
 
 /// The kind of page, which picks its title template and index setting.
@@ -163,6 +163,8 @@ pub struct SeoPage {
     pub entities: Vec<Entity>,
     /// How many words the post has.
     pub word_count: Option<u32>,
+    /// The page's blocks that write their own schema, such as an FAQ.
+    pub blocks: Vec<SchemaBlock>,
 }
 
 impl SeoPage {
@@ -197,6 +199,7 @@ impl SeoPage {
             author_profile: None,
             entities: Vec::new(),
             word_count: None,
+            blocks: Vec::new(),
         }
     }
 }

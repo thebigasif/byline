@@ -2,7 +2,9 @@
 
 mod article;
 mod author;
+mod blocks;
 mod breadcrumbs;
+mod faq;
 mod glossary;
 mod local_business;
 mod page_graph;
@@ -13,7 +15,9 @@ mod schema_value;
 mod site_graph;
 
 pub use author::{AuthorProfile, Entity, EntityRole};
+pub use blocks::SchemaBlock;
 pub use breadcrumbs::breadcrumb_list;
+pub use faq::FaqItem;
 pub use local_business::{LocalBusiness, OpeningHours, PostalAddress};
 pub use page_graph::page_graph;
 pub use publisher::{Publisher, PublisherKind};
