@@ -1,0 +1,16 @@
+[package]
+name = "khalid-lint"
+version = "0.0.0"
+description = "The Khalid linter: rules that refuse a weak post and explain why in plain words."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+
+[lints]
+workspace = true

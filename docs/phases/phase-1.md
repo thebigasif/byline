@@ -175,6 +175,52 @@
 - Rules: BL-WEB-1 to BL-WEB-5, BL-PERF-1.
 - Done when: Lighthouse scores 100 in all four categories on the default post page, and the "Shows the founder" line above works from a fresh clone.
 
+## Phase 2 work pulled forward
+
+The linter depends on nothing in progress, so it is built now, in parallel, from plan section 6 and KH-LNT-1, KH-LNT-2, KH-LNT-3 and KH-LNT-6. `crates/khalid-lint` depends on `khalid-core` only and reads its own input model (ADR 0011). Each part lands as its own pull request.
+
+### 2.1 The rule engine
+
+- Status: `doing`. Part 1 (this landing): the crate and its input model. Part 2: the message catalogue and the messages test. Part 3: severities and `lint.toml`. Part 4: the rule trait and the engine.
+- The `Rule` trait, `Severity` (block, warn, off), a `Finding` with its rule, severity, location and a three-sentence `Message` from `catalogue.toml`, `lint.toml` loading with errors that name the line and column, and the input model: `LintPost`, `LintSite` and the `SiteView` trait the content track implements in 1.15.
+- Rules: BL-ERR-1, BL-TXT-2, BL-TST-4, BL-TYP-5.
+- Done when: the messages test from `docs/standards/testing.md` walks the catalogue (three sentences, each under 25 words, no em dash, no jargon, the fix names an action), and a mistake in `lint.toml` names its line and column.
+
+### 2.2 The five blocking rules
+
+- Status: `todo`
+- No date, no author, no internal link, no title, more than one main headline. Each has a fixture under `crates/khalid-lint/fixtures/<rule>/` with a post and `expected.txt`.
+- Rules: BL-TST-4. KH-LNT-1.
+- Done when: each fixture produces exactly its expected findings, and a clean post produces none.
+
+### 2.3 The link text rules
+
+- Status: `todo`
+- Link text reused for a different page, the same link text to the same page too often, vague link text, the same target twice in one post, a link with no text.
+- Rules: BL-TST-4. KH-LNT-2.
+- Done when: one fixture per message, each with its expected findings.
+
+### 2.4 The structure rules
+
+- Status: `todo`
+- Heading order, title and description length and duplicates, missing alt text, thin post, keyword stuffing, slug hygiene, no outbound link, broken wikilink.
+- Rules: BL-TST-4. KH-LNT-2.
+- Done when: one fixture per message, each with its expected findings.
+
+### 2.5 The site rules
+
+- Status: `todo`
+- Orphan post, one inbound link, missing translation, near-duplicate posts by shingles, glossary term not linked, stale post, cluster without its pillar, too deep.
+- Rules: BL-TST-4, BL-RUN-1, BL-TST-2. KH-LNT-2.
+- Done when: one fixture per message, each with its expected findings, and the stale rule reads time through `Clock`.
+
+### 2.6 `khalid lint` and the publish gate
+
+- Status: `todo`
+- `khalid lint [path] --json --fix` in the binary, exit code 1 on a block, and the publish gate function the server calls.
+- Rules: BL-CLI-1, BL-CLI-2, BL-CLI-3. KH-LNT-3.
+- Done when: CLI tests cover human output, `--json`, `--fix` and each exit code on the fixtures.
+
 ## Questions for the founder
 
 None open.
