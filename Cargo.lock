@@ -1408,6 +1408,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-api"
+version = "0.0.0"
+dependencies = [
+ "proptest",
+]
+
+[[package]]
 name = "khalid-content"
 version = "0.0.0"
 dependencies = [
@@ -1443,11 +1450,30 @@ dependencies = [
 name = "khalid-db"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "khalid-core",
  "sqlx",
  "tempfile",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "khalid-lint"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "khalid-core",
+]
+
+[[package]]
+name = "khalid-media"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]
@@ -1474,6 +1500,16 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
+ "tempfile",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
+name = "khalid-routes"
+version = "0.0.0"
+dependencies = [
+ "serde",
  "thiserror",
  "toml",
 ]
@@ -1493,6 +1529,7 @@ dependencies = [
  "chrono",
  "hmac",
  "khalid-core",
+ "proptest",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -2497,6 +2534,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "cfg-if",
+ "chrono",
  "crc",
  "crossbeam-queue",
  "either",
@@ -2552,6 +2590,8 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "sqlx-core",
+ "sqlx-mysql",
+ "sqlx-postgres",
  "sqlx-sqlite",
  "syn 2.0.119",
  "thiserror",
@@ -2568,6 +2608,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "bytes",
+ "chrono",
  "crc",
  "digest 0.11.3",
  "dotenvy",
@@ -2595,6 +2636,7 @@ dependencies = [
  "base64 0.22.1",
  "bitflags",
  "byteorder",
+ "chrono",
  "crc",
  "dotenvy",
  "etcetera",
@@ -2627,6 +2669,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488e99c397a62007e4229aec669a179816339afc6d2620ca6fa420dbee2e982c"
 dependencies = [
  "atoi",
+ "chrono",
  "flume",
  "form_urlencoded",
  "futures-channel",

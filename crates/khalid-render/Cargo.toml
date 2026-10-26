@@ -20,6 +20,7 @@ toml = "0.9"
 insta = "1"
 scraper = "0.29"
 serde_json.workspace = true
+tempfile = "3"
 
 [lints]
 workspace = true
