@@ -4,4 +4,5 @@ One file per phase from `docs/plan.md` section 10. Each file lists the tasks, th
 
 | Phase | File | Status |
 |---|---|---|
-| 0 | `phase-0.md` | Current |
+| 0 | `phase-0.md` | Done, except 0.4 and the 0.7 tag test, which move into Phase 1 and the founder |
+| 1 | `phase-1.md` | Current |
