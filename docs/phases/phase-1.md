@@ -77,7 +77,7 @@
 
 ### 1.10 The database
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2: the derived tables of the content index. Part 3: the visitor tables. Part 4: the rebuild and the list queries with their query plans. Part 5: `khalid db migrate` and `khalid db rebuild`.
 - `crates/khalid-db`: SQLite in WAL mode with foreign keys, a busy timeout, one writer and a read pool; forward-only migrations; the index rebuilt from content files on demand. Nothing derived is written under `content/`.
 - Rules: BL-DB-1 to BL-DB-3, BL-FS-1, BL-FS-2, BL-RUN-3.
 - Done when: deleting `data/site.db` and starting again rebuilds the same index, checked by a test.
@@ -86,7 +86,7 @@
 
 ### 1.11 Templates
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): `crates/khalid-render` and its input records. Next: the strings, the renderer and its sandbox, theme replacements, then each page type.
 - `crates/khalid-render`: sandboxed MiniJinja with autoescape, default templates for home, post, page, author, tag, category, collection index, glossary A to Z and 404, semantic HTML with one `h1`, `lang` and `dir`, strings in one file per language, template overrides from `theme/templates/`.
 - Rules: BL-WEB-1 to BL-WEB-6, BL-SEC-10, BL-TXT-3, BL-TST-7. `FRONTEND.md`.
 - Done when: every page type of the demo site has an `insta` snapshot, passes the HTML validator, and reads completely with scripts off.
@@ -146,7 +146,7 @@
 
 ### 1.19 Webhooks
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): `Outbound::post`, which deliveries go through. Part 2: the event catalogue and the signature. Part 3: delivery, retries and the delivery log.
 - The events in plan section 5.12, signed with HMAC-SHA256 over timestamp and body, sent through `Outbound`, retried with backoff over 24 hours, with a delivery log in the database.
 - Rules: BL-SEC-7, BL-RUN-8.
 - Done when: `wiremock` tests show each event fires once, is signed correctly, and retries after a failure.
