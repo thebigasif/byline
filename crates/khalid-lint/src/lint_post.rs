@@ -30,8 +30,13 @@ pub struct LintPost {
     pub description: Option<String>,
     /// The publish date from the header, written `2026-10-26` in JSON or TOML.
     pub date: Option<NaiveDate>,
+    /// The date of the last real update, from the header.
+    pub updated: Option<NaiveDate>,
     /// The author from the header.
     pub author: Option<String>,
+    /// The `translation` key from the header, shared by every language
+    /// version of the same post.
+    pub translation: Option<String>,
     /// The headings in the body, in order. The title is not one of them.
     #[serde(default)]
     pub headings: Vec<Heading>,
@@ -62,7 +67,9 @@ impl LintPost {
             title: None,
             description: None,
             date: None,
+            updated: None,
             author: None,
+            translation: None,
             headings: Vec::new(),
             links: Vec::new(),
             images: Vec::new(),

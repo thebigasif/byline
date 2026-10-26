@@ -1,7 +1,10 @@
 //! The list of rules this crate ships.
 
+use chrono::NaiveDate;
+
 use crate::{
-    Rule, SiteRule, Thresholds, address, blocking, link_text, site_links, snippet, structure, words,
+    Rule, SiteRule, Thresholds, address, blocking, link_text, site_content, site_links, snippet,
+    structure, words,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -47,13 +50,19 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
     ]
 }
 
-/// Every built-in site rule, in the order their findings are listed.
-pub(crate) fn site_rules(thresholds: Thresholds) -> Vec<Box<dyn SiteRule>> {
+/// Every built-in site rule, in the order their findings are listed. `today`
+/// is the date the age rules measure from.
+pub(crate) fn site_rules(thresholds: Thresholds, today: NaiveDate) -> Vec<Box<dyn SiteRule>> {
     vec![
         Box::new(site_links::OrphanPost),
         Box::new(site_links::OneInboundLink),
         Box::new(site_links::TooDeep {
             max: thresholds.max_clicks,
+        }),
+        Box::new(site_content::MissingTranslation),
+        Box::new(site_content::StalePost {
+            months: thresholds.stale_months,
+            today,
         }),
     ]
 }

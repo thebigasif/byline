@@ -27,6 +27,7 @@ mod lint_site;
 mod linter;
 mod rule;
 mod severity;
+mod site_content;
 mod site_links;
 mod snippet;
 mod structure;

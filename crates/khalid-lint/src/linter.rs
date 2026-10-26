@@ -1,5 +1,7 @@
 //! The engine that runs every rule on every post.
 
+use khalid_core::Clock;
+
 use crate::builtin;
 use crate::{
     Catalogue, Finding, Hit, LintConfig, LintError, LintPost, Location, Message, Rule, RuleId,
@@ -24,16 +26,18 @@ struct Configured<R: ?Sized> {
 
 impl Linter {
     /// A linter running every built-in rule with the severities and
-    /// thresholds in `config`.
+    /// thresholds in `config`. `clock` gives today's date, read once here,
+    /// for the rules that judge a post's age.
     ///
     /// # Errors
     ///
     /// Returns [`LintError::Catalogue`] or [`LintError::MissingMessage`] if
     /// the built-in catalogue is broken, which the crate's tests rule out.
-    pub fn new(config: &LintConfig) -> Result<Self, LintError> {
+    pub fn new(config: &LintConfig, clock: &dyn Clock) -> Result<Self, LintError> {
         let thresholds = config.thresholds();
+        let today = clock.now().date_naive();
         Self::with_rules(config, builtin::rules(thresholds))?
-            .with_site_rules(config, builtin::site_rules(thresholds))
+            .with_site_rules(config, builtin::site_rules(thresholds, today))
     }
 
     /// A linter running the post rules `rules` with the severities in

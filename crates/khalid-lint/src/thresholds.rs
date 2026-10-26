@@ -32,6 +32,9 @@ pub struct Thresholds {
     /// The most clicks from the home page to a post. Default 3, the plan's
     /// limit: deeper pages are visited less by readers and by Google.
     pub max_clicks: usize,
+    /// How many months a post may go without an update before it is stale.
+    /// Default 12: most facts in a how-to post hold for about a year.
+    pub stale_months: u32,
 }
 
 impl Default for Thresholds {
@@ -44,6 +47,7 @@ impl Default for Thresholds {
             keyword_density_percent: 3,
             slug_max_chars: 60,
             max_clicks: 3,
+            stale_months: 12,
         }
     }
 }

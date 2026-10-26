@@ -1,6 +1,7 @@
 //! The rule engine: severities from `lint.toml`, findings and their messages.
 
-use khalid_core::{Locale, Slug};
+use chrono::{TimeZone, Utc};
+use khalid_core::{FixedClock, Locale, Slug};
 use khalid_lint::{
     Finding, Hit, Image, LinkKind, LintConfig, LintError, LintLink, LintPost, LintSite, Linter,
     Report, Rule, RuleId, Severity,
@@ -26,6 +27,12 @@ impl Rule for NoDate {
             Vec::new()
         }
     }
+}
+
+/// The day every test runs on.
+#[cfg(test)]
+fn clock() -> FixedClock {
+    FixedClock::new(Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap())
 }
 
 #[cfg(test)]
@@ -158,7 +165,7 @@ fn a_threshold_in_lint_toml_reaches_its_rule() {
         site.posts.push(post);
     }
     let repeated = |lint_toml: &str| {
-        let linter = Linter::new(&LintConfig::parse(lint_toml).unwrap()).unwrap();
+        let linter = Linter::new(&LintConfig::parse(lint_toml).unwrap(), &clock()).unwrap();
         let report = linter.lint_post(&site.posts[0], &site);
         let rules: Vec<_> = report.findings().iter().map(Finding::rule).collect();
         rules.contains(&RuleId::new("repeated-link-text"))
@@ -170,7 +177,7 @@ fn a_threshold_in_lint_toml_reaches_its_rule() {
 #[test]
 fn site_rules_run_on_the_whole_site_but_never_before_publishing() {
     let site = undated_site();
-    let linter = Linter::new(&LintConfig::default()).unwrap();
+    let linter = Linter::new(&LintConfig::default(), &clock()).unwrap();
     let orphan = |report: &Report| {
         let mut rules = report.findings().iter().map(Finding::rule);
         rules.any(|rule| rule == RuleId::new("orphan-post"))
@@ -179,7 +186,7 @@ fn site_rules_run_on_the_whole_site_but_never_before_publishing() {
     assert!(orphan(&linter.site_health(&site)));
     assert!(orphan(&linter.lint_site(&site)));
     let quiet = LintConfig::parse("[rules]\norphan-post = \"off\"\n").unwrap();
-    let linter = Linter::new(&quiet).unwrap();
+    let linter = Linter::new(&quiet, &clock()).unwrap();
     assert!(
         !orphan(&linter.site_health(&site)),
         "lint.toml turns it off"

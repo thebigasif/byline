@@ -13,13 +13,26 @@
 //! A `post.toml` with `extends = "clean"` starts from `fixtures/clean/` and
 //! writes only what differs: its keys replace the clean post's, and the keys
 //! listed in `unset` are removed.
+//!
+//! Any fixture may hold a `lint.toml`, for example to switch off rules it is
+//! not about. Today is 2026-10-26 for every fixture.
 
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
+use chrono::{TimeZone, Utc};
+use khalid_core::FixedClock;
 use khalid_lint::{Catalogue, Finding, LintConfig, LintPost, LintSite, Linter, Severity};
 use toml::Table;
+
+/// The linter for `folder`, with its `lint.toml` if it has one.
+#[cfg(test)]
+fn linter_for(folder: &Path) -> Linter {
+    let text = fixture_file(folder, "lint.toml").unwrap_or_default();
+    let clock = FixedClock::new(Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap());
+    Linter::new(&LintConfig::parse(&text).unwrap(), &clock).unwrap()
+}
 
 #[cfg(test)]
 fn fixture_file(folder: &Path, name: &str) -> std::io::Result<String> {
@@ -63,7 +76,8 @@ fn line(finding: &Finding) -> String {
 }
 
 #[cfg(test)]
-fn run(folder: &Path, linter: &Linter) -> (Vec<String>, Vec<String>) {
+fn run(folder: &Path) -> (Vec<String>, Vec<String>) {
+    let linter = linter_for(folder);
     let read = |name: &str| fixture_file(folder, name);
     let post: LintPost = post_table(folder)
         .try_into()
@@ -84,7 +98,8 @@ fn run(folder: &Path, linter: &Linter) -> (Vec<String>, Vec<String>) {
 /// A site fixture: the site rules over `site.toml`, each line starting with
 /// the post's `locale/slug`.
 #[cfg(test)]
-fn run_site(folder: &Path, linter: &Linter) -> (Vec<String>, Vec<String>) {
+fn run_site(folder: &Path) -> (Vec<String>, Vec<String>) {
+    let linter = linter_for(folder);
     let site: LintSite = toml::from_str(&fixture_file(folder, "site.toml").unwrap())
         .unwrap_or_else(|error| panic!("{}: {error}", folder.display()));
     let report = linter.site_health(&site);
@@ -117,13 +132,10 @@ fn folders(root: &str) -> Vec<std::path::PathBuf> {
 
 #[test]
 fn every_fixture_produces_exactly_its_expected_findings() {
-    let linter = Linter::new(&LintConfig::default()).unwrap();
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures");
     let site_root = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/site");
-    let posts = folders(root).into_iter().map(|f| (run(&f, &linter), f));
-    let sites = folders(site_root)
-        .into_iter()
-        .map(|f| (run_site(&f, &linter), f));
+    let posts = folders(root).into_iter().map(|f| (run(&f), f));
+    let sites = folders(site_root).into_iter().map(|f| (run_site(&f), f));
     let mut covered = BTreeSet::new();
     for ((got, want), folder) in posts.chain(sites) {
         assert_eq!(got, want, "fixture {}", folder.display());

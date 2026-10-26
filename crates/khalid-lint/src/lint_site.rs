@@ -25,6 +25,12 @@ pub trait SiteView {
     fn home_links(&self) -> &[String] {
         &[]
     }
+
+    /// The languages the site declares. Empty when unknown, and the rules
+    /// that need them skip.
+    fn locales(&self) -> &[Locale] {
+        &[]
+    }
 }
 
 /// A site's posts, pages and glossary, held in memory.
@@ -40,6 +46,8 @@ pub struct LintSite {
     pub glossary: Vec<GlossaryTerm>,
     /// The links on the home pages, as site paths.
     pub home_links: Vec<String>,
+    /// The languages the site declares.
+    pub locales: Vec<Locale>,
 }
 
 impl SiteView for LintSite {
@@ -57,6 +65,10 @@ impl SiteView for LintSite {
 
     fn home_links(&self) -> &[String] {
         &self.home_links
+    }
+
+    fn locales(&self) -> &[Locale] {
+        &self.locales
     }
 }
 
