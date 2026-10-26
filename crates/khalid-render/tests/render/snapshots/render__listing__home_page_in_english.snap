@@ -1,0 +1,32 @@
+---
+source: crates/khalid-render/tests/render/listing.rs
+expression: main_of(&page)
+---
+ id="main" tabindex="-1">
+
+<h1>Field notes on SEO</h1>
+<div class="intro">
+<p>Short, practical posts for small teams who look after their own website.</p>
+</div>
+<ul class="cards" role="list">
+<li>
+<article class="card">
+<h2><a href="/blog/what-a-sitemap-does/">What a sitemap does, and what it does not</a></h2>
+<p><time datetime="2026-09-28">28 September 2026</time></p>
+<p>A sitemap lists the pages you want search engines to know about.</p>
+</article>
+</li>
+<li>
+<article class="card">
+<h2><a href="/blog/how-to-write-a-title-tag/">How to write a title tag</a></h2>
+<p><time datetime="2026-09-21">21 September 2026</time></p>
+<p>The title tag is the blue link in search results.</p>
+</article>
+</li>
+</ul>
+<nav class="pagination" aria-label="Pages">
+<p>Page 1 of 2</p>
+<ul>
+<li><a href="/blog/page/2/" rel="next">Older posts</a></li>
+</ul>
+</nav>

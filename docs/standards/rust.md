@@ -11,15 +11,19 @@ One Cargo workspace at the repository root, flat `crates/` folder, one purpose p
 | `khalid` | The binary: `clap` commands, the user-message edge, wiring | Business rules |
 | `khalid-core` | Shared newtypes (`Slug`, `SiteId`, `Locale`, `AbsoluteUrl`, `SitePath`), `Clock`, `Config`, `UserMessage`, `Secret` | HTTP, SQL, files |
 | `khalid-content` | Front matter, markdown, directives, wikilinks, the content tree, file watching | Templates, HTTP |
+| `khalid-routes` | `routes.toml`: collections and permalinks, channels, taxonomy prefixes, aliases, and the URLs they make | Content files, templates, HTTP |
 | `khalid-render` | MiniJinja templates, the asset pipeline, the page cache | SQL, HTTP clients |
 | `khalid-seo` | Meta tags, schema graphs, sitemaps, feeds, robots, hreflang, redirects | Templates |
+| `khalid-share-image` | The generated 1200 by 630 share image and its cache by content key (ADR 0016) | Content files, templates, HTTP |
 | `khalid-lint` | The rule engine, every rule, every message. Public, reused by SerpDad | Files on disk, HTTP |
 | `khalid-audit` | The self-crawl and the health score | Rendering |
-| `khalid-theme` | Token extraction, contrast fixes, proxy rule generation | Content |
+| `khalid-theme` | Token extraction, contrast fixes | Content |
+| `khalid-mount` | The proxy rule that mounts the blog under a folder of another site, per stack | Content, HTTP, files |
 | `khalid-db` | SQLite, migrations, typed queries | Rendering |
 | `khalid-media` | Image processing, storage backends | HTTP routes |
 | `khalid-outbound` | The one HTTP client with the private-network guard (BL-RUN-8) | Everything else |
-| `khalid-server` | Axum routes, the Content and Admin APIs, auth, webhooks, the embedded admin | Markdown parsing |
+| `khalid-webhooks` | The event catalogue, signed deliveries, retries, the delivery log model, the verifier for incoming webhooks | Content files, templates, SQL |
+| `khalid-server` | Axum routes, the Content and Admin APIs, auth, the embedded admin | Markdown parsing |
 | `khalid-import` | One module per source: WordPress, Ghost, Medium, Substack, markdown folders | Rendering |
 | `khalid-api` | The Content and Admin API routes, the list query grammar, keys and scopes, problem details, the OpenAPI document. `khalid-server` mounts it | Content files, markdown, SQL, templates |
 | `khalid-mcp` | The MCP server, a client of the same functions the API calls | SQL |

@@ -1,0 +1,3 @@
+fixtures/invalid/routes-no-slug/routes.toml, line 5, `permalink`: the permalink must hold {slug}, so every post has its own address.
+Khalid checks routes.toml before it starts, so no page gets a wrong address.
+Correct `permalink` on line 5, then run the command again.

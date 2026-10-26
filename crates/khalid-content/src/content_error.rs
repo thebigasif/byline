@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use khalid_core::ParseLocaleError;
 
+use crate::BlockError;
+
 /// Why a content file could not be read.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -58,5 +60,17 @@ pub enum ContentError {
         /// What the YAML reader found.
         #[source]
         source: Box<serde_saphyr::Error>,
+    },
+    /// A block in the body is wrong: an unknown directive, a wrong or missing
+    /// attribute, or a block that is never closed.
+    #[error("{}, line {line}: {}", path.display(), source.problem())]
+    Block {
+        /// The file.
+        path: PathBuf,
+        /// The 1-based line in the file.
+        line: usize,
+        /// What the block reader found.
+        #[source]
+        source: BlockError,
     },
 }

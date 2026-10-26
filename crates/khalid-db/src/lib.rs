@@ -7,10 +7,17 @@
 //! crate's `README.md`: derived tables, rebuilt from the content files on
 //! demand, and visitor tables, which hold what people create and are never
 //! rebuilt. It must not know about rendering, HTTP or the files themselves;
-//! callers read the content and hand it over.
+//! callers read the content and hand it over as a [`ContentIndex`].
 
+mod content_index;
 mod database;
 mod db_error;
+mod posts;
+mod rebuild;
+mod site_id;
 
+pub use content_index::{ContentIndex, IndexedPost};
 pub use database::Database;
 pub use db_error::DbError;
+pub use rebuild::RebuildSummary;
+pub use site_id::SiteId;

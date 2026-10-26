@@ -1,0 +1,6 @@
+---
+source: crates/khalid-content/tests/blocks_bookmark.rs
+expression: "html(\"\\\n::bookmark{href=\\\"https://web.dev/articles/vitals\\\"}\n\n::bookmark{href=\\\"https://web.dev/articles/vitals\\\" title=\\\"Web Vitals\\\" description=\\\"Quality signals for a good experience.\\\" image=\\\"https://web.dev/vitals.png\\\"}\n\")"
+---
+<p class="bookmark"><a href="https://web.dev/articles/vitals">https://web.dev/articles/vitals</a></p>
+<p class="bookmark"><a href="https://web.dev/articles/vitals"><img src="https://web.dev/vitals.png" alt="" width="160" height="90" loading="lazy" decoding="async" /><span class="bookmark-title">Web Vitals</span><span class="bookmark-description">Quality signals for a good experience.</span><span class="bookmark-host">web.dev</span></a></p>

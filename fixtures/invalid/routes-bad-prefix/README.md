@@ -1,0 +1,1 @@
+This site breaks one rule on purpose: the tag prefix in `routes.toml` is written with slashes, as `/topic/`, where Khalid wants the one word `topic`. The exact message `khalid --site` prints for it is in `expected.txt`.
