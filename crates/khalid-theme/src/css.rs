@@ -38,6 +38,29 @@ pub(crate) struct Declaration {
     pub(crate) value: String,
 }
 
+/// The declarations of any property in `names` in rules for any selector
+/// in `selectors`, the one the browser would use first: later rules and
+/// later declarations come before earlier ones.
+pub(crate) fn declared<'a>(
+    rules: &'a [&'a Rule],
+    selectors: &'a [&'a str],
+    names: &'a [&'a str],
+) -> impl Iterator<Item = &'a Declaration> + 'a {
+    rules
+        .iter()
+        .rev()
+        .filter(|rule| selects(&rule.prelude, selectors))
+        .flat_map(|rule| rule.declarations.iter().rev())
+        .filter(|declaration| names.contains(&declaration.property.as_str()))
+}
+
+/// Whether one of the selectors in `prelude` is exactly one of `wanted`.
+fn selects(prelude: &str, wanted: &[&str]) -> bool {
+    split_top(prelude, |c| c == ',')
+        .into_iter()
+        .any(|selector| wanted.contains(&selector.to_ascii_lowercase().as_str()))
+}
+
 /// Reads `css` into rules.
 pub(crate) fn read(css: &str) -> Sheet {
     let text = without_comments(css);

@@ -12,6 +12,7 @@ mod color;
 mod css;
 mod fetch;
 mod fetch_error;
+mod fonts;
 mod links;
 mod palette;
 mod properties;
@@ -22,6 +23,7 @@ pub use fetch::{
     MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_STYLESHEETS, Origin, SiteSource, Stylesheet, fetch_site,
 };
 pub use fetch_error::FetchError;
+pub use fonts::{FontHost, FontSource, Typography};
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
 pub use palette::Palette;
 pub use properties::CustomProperties;

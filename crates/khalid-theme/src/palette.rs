@@ -4,7 +4,6 @@ use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
 use crate::css::{self, Rule};
-use crate::split::split_top;
 use crate::{CustomProperties, Rgb};
 
 /// The background assumed when the CSS sets none, as browsers do.
@@ -82,17 +81,11 @@ impl Palette {
         let rules: Vec<&Rule> = sheets.iter().flat_map(|sheet| &sheet.rules).collect();
         let properties = CustomProperties::from_rules(rules.iter().copied());
         let declared = |selectors: &[&str], names: &[&str]| -> Option<Rgb> {
-            rules
-                .iter()
-                .rev()
-                .filter(|rule| selects(&rule.prelude, selectors))
-                .flat_map(|rule| rule.declarations.iter().rev())
-                .filter(|declaration| names.contains(&declaration.property.as_str()))
-                .find_map(|declaration| {
-                    Rgb::all_in(&properties.resolve(&declaration.value))
-                        .into_iter()
-                        .next()
-                })
+            css::declared(&rules, selectors, names).find_map(|declaration| {
+                Rgb::all_in(&properties.resolve(&declaration.value))
+                    .into_iter()
+                    .next()
+            })
         };
         let named = |role| named(&properties, role);
         let counts = Counts::of(&rules, &properties);
@@ -160,13 +153,6 @@ fn most(counts: &BTreeMap<Rgb, usize>, keep: impl Fn(Rgb) -> bool) -> Option<Rgb
         .filter(|&(&color, _)| keep(color))
         .max_by_key(|&(&color, &count)| (count, Reverse(color)))
         .map(|(&color, _)| color)
-}
-
-/// Whether one of the selectors in `prelude` is exactly one of `wanted`.
-fn selects(prelude: &str, wanted: &[&str]) -> bool {
-    split_top(prelude, |c| c == ',')
-        .into_iter()
-        .any(|selector| wanted.contains(&selector.to_ascii_lowercase().as_str()))
 }
 
 /// The colour of the property with the shortest name that holds `role`.
