@@ -40,6 +40,7 @@ mod site_content;
 mod site_pages;
 mod site_posts;
 mod slug_repair;
+mod theme_check;
 mod theme_message;
 mod theme_sync;
 
@@ -119,6 +120,12 @@ fn run(cli: &Cli) -> Exit {
             }),
             Some((folder, ..)),
         ) => theme_sync::run(folder, url, cli),
+        (
+            Some(Command::Theme {
+                command: ThemeCommand::Check { url },
+            }),
+            Some((folder, config, _)),
+        ) => theme_check::run(folder, url.as_ref().unwrap_or(config.address()), cli),
         (
             Some(
                 command @ (Command::Db { .. }

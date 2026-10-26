@@ -263,8 +263,11 @@ pub(crate) enum ThemeCommand {
         /// The main site's address, such as `https://www.example.com`
         url: AbsoluteUrl,
     },
-    /// Check a template override before it goes live
-    Check,
+    /// Compare theme/tokens.toml with the main site and check its contrast
+    Check {
+        /// The main site's address [default: the address in site.toml]
+        url: Option<AbsoluteUrl>,
+    },
 }
 
 /// The platforms `khalid import` reads.
@@ -305,7 +308,7 @@ impl Command {
                 command: ThemeCommand::Sync { .. },
             } => "theme sync",
             Self::Theme {
-                command: ThemeCommand::Check,
+                command: ThemeCommand::Check { .. },
             } => "theme check",
             Self::Import { .. } => "import",
             Self::Export => "export",
