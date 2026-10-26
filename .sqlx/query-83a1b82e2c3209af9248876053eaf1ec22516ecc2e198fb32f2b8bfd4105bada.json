@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM alias_redirects WHERE site_id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "83a1b82e2c3209af9248876053eaf1ec22516ecc2e198fb32f2b8bfd4105bada"
+}
