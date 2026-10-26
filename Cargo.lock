@@ -1553,6 +1553,9 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "khalid-core",
+ "serde",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]
