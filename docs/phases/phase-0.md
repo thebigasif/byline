@@ -52,7 +52,7 @@
 
 ## Questions for the founder
 
-- **Accented slugs (0.2, not blocking).** A slug today is lowercase letters a to z, digits and hyphens, so `über-seo` is refused and must be written `uber-seo`. That keeps addresses identical on every server and easy to type. Should the German site be allowed slugs with accents such as `ü`? The default stays a to z until you say otherwise.
+- **Accented slugs (0.2): answered** in `docs/decisions/2026-10-26-cto-answers.md`, section 2. Slugs stay ASCII by default with per-language transliteration (in German, `über` becomes `ueber` and `Straße` becomes `strasse`), and a site can opt in to Unicode slugs with `slugs = "unicode"` in `site.toml`. The 200-byte limit stays. Phase 1 builds it; `Slug::try_new` stays the strict ASCII constructor.
 
 ## Order
 
