@@ -2,7 +2,10 @@
 
 use khalid_core::{AbsoluteUrl, Locale};
 
-use crate::{IndexPolicy, MetaTemplates, SeoError, ShareImage, TwitterHandle, UrlPath};
+use crate::{
+    IndexPolicy, MetaTemplates, RootFile, SeoError, ShareImage, SiteVerification, TwitterHandle,
+    UrlPath,
+};
 
 /// The site-wide settings every SEO output reads.
 ///
@@ -33,6 +36,10 @@ pub struct SeoSite {
     pub share_image: Option<ShareImage>,
     /// The site's Twitter or X account, the `twitter:site` tag.
     pub twitter_site: Option<TwitterHandle>,
+    /// Verification codes, written as tags on the home page.
+    pub verification: SiteVerification,
+    /// Verification files served from the root of the address.
+    pub root_files: Vec<RootFile>,
 }
 
 impl SeoSite {
@@ -51,6 +58,8 @@ impl SeoSite {
             default_language,
             share_image: None,
             twitter_site: None,
+            verification: SiteVerification::default(),
+            root_files: Vec::new(),
         }
     }
 

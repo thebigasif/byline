@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block main %}
+{% from "image.html" import picture %}
+{% from "card.html" import cards, pages -%}
+<article class="author">
+<header class="author-header">
+{% if page.image %}{{ picture(page.image) }}
+{% endif %}<h1>{{ page.name }}</h1>
+{% if page.role %}<p class="author-role">{{ page.role }}</p>
+{% endif %}</header>
+<div class="author-bio">
+{{ page.bio }}
+</div>
+{% if page.profiles %}<ul class="author-profiles">
+{% for profile in page.profiles %}<li><a href="{{ profile.href }}" rel="me">{{ profile.name }}</a></li>
+{% endfor %}</ul>
+{% endif %}</article>
+<section aria-labelledby="author-posts">
+<h2 id="author-posts">{{ t.posts_by | replace("{name}", page.name) }}</h2>
+{% if page.posts %}{{ cards(page.posts, 3) }}
+{% else %}<p>{{ t.no_posts }}</p>
+{% endif %}{% if page.pagination %}{{ pages(page.pagination) }}
+{% endif %}</section>
+{% endblock %}

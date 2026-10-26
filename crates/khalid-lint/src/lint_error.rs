@@ -1,5 +1,7 @@
 //! The one error type of this crate (BL-ERR-1).
 
+use crate::RuleId;
+
 /// Something that stops the linter from starting.
 ///
 /// The binary turns each variant into a message with what, why and fix
@@ -28,6 +30,12 @@ pub enum LintError {
         line: usize,
         /// The column of the rule name.
         column: usize,
+    },
+    /// A rule has no message in the catalogue.
+    #[error("the rule {rule} has no message in the catalogue")]
+    MissingMessage {
+        /// The rule without a message.
+        rule: RuleId,
     },
     /// The catalogue built into the crate is malformed.
     #[error("the built-in message catalogue is malformed")]
