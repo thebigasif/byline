@@ -33,8 +33,13 @@ impl Page {
     }
 
     /// The page with its Brotli copy, when compressing makes it smaller.
-    pub(crate) fn compressed(self) -> Self {
-        let brotli = Compressed::brotli(&self.body, self.etag.as_ref());
+    /// When `old` has the same bytes, by its tag, its copy is shared
+    /// instead of compressing again.
+    pub(crate) fn compressed_like(self, old: Option<&Self>) -> Self {
+        let brotli = match old {
+            Some(old) if old.etag.is_some() && old.etag == self.etag => old.brotli.clone(),
+            _ => Compressed::brotli(&self.body, self.etag.as_ref()),
+        };
         Self { brotli, ..self }
     }
 

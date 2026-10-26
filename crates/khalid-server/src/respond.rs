@@ -12,7 +12,7 @@ use tower::service_fn;
 
 use crate::clean_url::{Resolved, resolve};
 use crate::compress::{self, Compressed};
-use crate::{MediaType, Page, Pages, SecurityHeaders, etag};
+use crate::{LivePages, MediaType, Page, Pages, SecurityHeaders, etag};
 
 /// The methods a page answers.
 const ALLOW: HeaderValue = HeaderValue::from_static("GET, HEAD");
@@ -34,11 +34,14 @@ const BROTLI: HeaderValue = HeaderValue::from_static("br");
 /// bytes, and a request whose `If-None-Match` names it gets 304 with no
 /// body. Any other method gets 405. Every response, whatever its status,
 /// carries `security`.
-pub fn router(pages: Pages, security: SecurityHeaders) -> Router {
-    let site = Arc::new((pages, security));
+///
+/// Each request reads the pages being served at that moment, so a
+/// [`LivePages`] replaced after an edit shows the edit at once.
+pub fn router(pages: impl Into<LivePages>, security: SecurityHeaders) -> Router {
+    let site = Arc::new((pages.into(), security));
     Router::new().fallback_service(service_fn(move |request: Request<Body>| {
-        let (pages, security) = &*site;
-        answer(pages, security, &request)
+        let (live, security) = &*site;
+        answer(&live.current(), security, &request)
     }))
 }
 

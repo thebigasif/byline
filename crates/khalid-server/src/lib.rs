@@ -15,19 +15,23 @@
 mod clean_url;
 mod compress;
 mod etag;
+mod live_pages;
 mod media_type;
 mod page;
 mod page_path;
 mod pages;
+mod render;
 mod respond;
 mod security;
 mod serve;
 mod server_error;
 
+pub use live_pages::LivePages;
 pub use media_type::MediaType;
 pub use page::Page;
 pub use page_path::{PagePath, ParsePagePathError};
 pub use pages::Pages;
+pub use render::{Render, Rendered, render_pages};
 pub use respond::router;
 pub use security::SecurityHeaders;
 pub use serve::{Stopped, serve};

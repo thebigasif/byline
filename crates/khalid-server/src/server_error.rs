@@ -19,6 +19,21 @@ pub enum ServerError {
         /// The origin as given.
         origin: String,
     },
+    /// The site's renderer failed, so the pages being served stay as they
+    /// were.
+    #[error("the site could not be rendered")]
+    Render {
+        /// What the renderer reported.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    /// The thread that renders the site stopped before it finished.
+    #[error("the rendering thread stopped before it finished")]
+    Worker {
+        /// What the runtime reported.
+        #[source]
+        source: tokio::task::JoinError,
+    },
     /// Accepting or answering connections failed.
     #[error("the server stopped answering requests")]
     Serve {

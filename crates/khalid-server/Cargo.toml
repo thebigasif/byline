@@ -23,6 +23,7 @@ tracing.workspace = true
 [dev-dependencies]
 divan = "0.1"
 http-body-util = "0.1"
+tempfile = "3"
 tokio = { workspace = true, features = ["io-util"] }
 
 [[bench]]
