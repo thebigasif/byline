@@ -1,6 +1,6 @@
 -- Visitor tables: what people create while the site runs. A rebuild never
 -- touches them, and none of them holds a foreign key to a derived table, so
--- emptying the content index cannot delete a row here (ADR 0009). Content is
+-- emptying the content index cannot delete a row here (ADR 0010). Content is
 -- named by its path, such as content/en/posts/hello.md.
 --
 -- Times are UTC, written by Khalid's clock as RFC 3339 text. Tokens and keys
