@@ -1975,6 +1975,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-perf"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "khalid-content",
+ "khalid-core",
+]
+
+[[package]]
 name = "khalid-render"
 version = "0.0.0"
 dependencies = [
