@@ -1,0 +1,11 @@
+//! The one way Khalid talks to other servers (RULES.md BL-RUN-8).
+//!
+//! This crate owns outbound HTTP: theme sync, bookmark cards, imports,
+//! webhooks and search engine pings all go through it. Its guard refuses private,
+//! loopback and link-local addresses, so a site address or a pasted link can
+//! never make Khalid reach into the network it runs in. It must not know about
+//! content, rendering or storage.
+
+mod address;
+
+pub use address::is_public;

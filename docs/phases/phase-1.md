@@ -33,7 +33,7 @@
 
 ### 1.4 The outbound client
 
-- Status: `todo`
+- Status: `doing`. Part 1: the address guard, `khalid_outbound::is_public`, with a test per refused range. Part 2: the client with DNS checks, caps and the `reqwest::Client` violation in `lints/check`.
 - `crates/khalid-outbound`: the one HTTP client, with timeouts, a response size cap, a redirect cap, and a guard that refuses private, loopback and link-local addresses after DNS resolution. Its module carries the one `disallowed_types` `#[expect]` for `reqwest::Client`, and `lints/check` gains the `reqwest::Client` violation, which closes task 0.4.
 - Rules: BL-RUN-8, BL-TST-3.
 - Done when: `wiremock` tests cover each cap and each refused address range, and `scripts/check-lints.sh` no longer prints "Not proven yet".
