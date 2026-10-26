@@ -72,30 +72,40 @@ pub fn page_styles(html: &str, home: &AbsoluteUrl) -> Vec<PageStyle> {
     let Ok(home) = Url::parse(home.as_str()) else {
         return Vec::new();
     };
-    let (Ok(styles), Ok(base_href)) = (
-        Selector::parse("link[rel][href], style"),
-        Selector::parse("base[href]"),
-    ) else {
+    let Ok(styles) = Selector::parse("link[rel][href], style") else {
         return Vec::new();
     };
     let document = Html::parse_document(html);
-    let base = document
-        .select(&base_href)
-        .find_map(|element| home.join(element.attr("href")?).ok())
-        .unwrap_or_else(|| home.clone());
+    let base = base_address(&document, &home);
     document
         .select(&styles)
         .filter_map(|element| {
             if element.value().name() == "style" {
                 return Some(PageStyle::Inline(element.text().collect()));
             }
-            let rel = element.attr("rel")?;
             let href = element.attr("href")?;
-            rel.split_ascii_whitespace()
-                .any(|token| token.eq_ignore_ascii_case("stylesheet"))
-                .then(|| link(&home, &base, href))
+            has_rel(element.attr("rel")?, &["stylesheet"]).then(|| link(&home, &base, href))
         })
         .collect()
+}
+
+/// The address relative links in `document` resolve against: its
+/// `<base href>`, or `home` when it has none.
+pub(crate) fn base_address(document: &Html, home: &Url) -> Url {
+    Selector::parse("base[href]")
+        .ok()
+        .and_then(|base| {
+            document
+                .select(&base)
+                .find_map(|element| home.join(element.attr("href")?).ok())
+        })
+        .unwrap_or_else(|| home.clone())
+}
+
+/// Whether a `rel` attribute holds one of `wanted`, in any case.
+pub(crate) fn has_rel(rel: &str, wanted: &[&str]) -> bool {
+    rel.split_ascii_whitespace()
+        .any(|token| wanted.iter().any(|w| token.eq_ignore_ascii_case(w)))
 }
 
 /// Resolves one stylesheet link against the page's base address.
