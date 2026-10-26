@@ -17,7 +17,7 @@ const MAX_URLS: usize = 50_000;
 const MAX_BYTES: usize = 52_428_800;
 
 /// `tLoc`: a URL between 12 and 2048 characters.
-fn check_loc(node: Node<'_, '_>) -> Result<(), String> {
+pub(crate) fn check_loc(node: Node<'_, '_>) -> Result<(), String> {
     let text = node.text().unwrap_or_default();
     if !(12..=2048).contains(&text.chars().count()) {
         return Err(format!("loc {text:?} is not 12 to 2048 characters"));
@@ -32,7 +32,7 @@ fn check_loc(node: Node<'_, '_>) -> Result<(), String> {
 }
 
 /// `tLastmod`: a W3C datetime, either a date or a full time with a zone.
-fn check_lastmod(node: Node<'_, '_>) -> Result<(), String> {
+pub(crate) fn check_lastmod(node: Node<'_, '_>) -> Result<(), String> {
     let text = node.text().unwrap_or_default();
     let date = chrono::NaiveDate::parse_from_str(text, "%Y-%m-%d").is_ok();
     let time = chrono::DateTime::parse_from_rfc3339(text).is_ok();

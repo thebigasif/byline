@@ -20,6 +20,7 @@ mod robots_meta;
 mod seo_error;
 mod site;
 mod sitemap;
+mod sitemap_index;
 mod social;
 mod url_path;
 mod verification;
@@ -37,6 +38,7 @@ pub use robots_meta::{
 pub use seo_error::SeoError;
 pub use site::SeoSite;
 pub use sitemap::{Sitemap, SitemapEntry};
+pub use sitemap_index::{IndexEntry, SitemapIndex, sitemap_index_url};
 pub use social::{ShareImage, TwitterHandle};
 pub use url_path::UrlPath;
 pub use verification::{RootFile, SiteVerification, VerificationCode};
