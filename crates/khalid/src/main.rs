@@ -8,7 +8,10 @@
 mod cli;
 mod config_message;
 mod content_message;
+mod db;
+mod db_message;
 mod exit;
+mod index;
 mod report;
 
 use std::ffi::OsString;
@@ -49,10 +52,29 @@ fn run(cli: &Cli) -> Exit {
             );
         }
     }
-    match &cli.command {
-        None => report::text(&Cli::command().render_help().to_string(), Exit::Success),
-        Some(command) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    match (&cli.command, &cli.site) {
+        (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
+        (Some(Command::Db { command }), Some(site)) => db::run(site, *command, cli.output),
+        (Some(command @ Command::Db { .. }), None) => {
+            report::failure(cli.output, &needs_site(command), Exit::Usage)
+        }
+        (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
+}
+
+/// The message for a command that works on one site folder when none was given.
+fn needs_site(command: &Command) -> UserMessage {
+    UserMessage::new(
+        format!(
+            "The command `khalid {}` needs a site folder.",
+            command.name()
+        ),
+        "It works on the database inside one site, so Khalid has to know which one.",
+        format!(
+            "Run `khalid --site <folder> {}` with the folder that holds site.toml.",
+            command.name()
+        ),
+    )
 }
 
 /// The message for a command that a later phase builds.

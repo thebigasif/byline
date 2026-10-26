@@ -12,10 +12,12 @@
 mod content_index;
 mod database;
 mod db_error;
+mod posts;
 mod rebuild;
 mod site_id;
 
-pub use content_index::ContentIndex;
+pub use content_index::{ContentIndex, IndexedPost};
 pub use database::Database;
 pub use db_error::DbError;
+pub use rebuild::RebuildSummary;
 pub use site_id::SiteId;

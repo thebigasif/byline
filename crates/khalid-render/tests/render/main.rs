@@ -6,7 +6,13 @@ mod common;
 #[cfg(test)]
 mod html_check;
 #[cfg(test)]
+mod image;
+#[cfg(test)]
+mod listing;
+#[cfg(test)]
 mod pages;
+#[cfg(test)]
+mod post;
 #[cfg(test)]
 mod sandbox;
 #[cfg(test)]

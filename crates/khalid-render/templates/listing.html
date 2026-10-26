@@ -1,0 +1,28 @@
+{#- The shared shape of every list of posts. home.html, collection.html,
+    tag.html and category.html extend it, so a theme can change one or all. -#}
+{% extends "base.html" %}
+{% block main %}
+{% from "image.html" import picture -%}
+<h1>{{ page.title }}</h1>
+{% if page.intro %}<div class="intro">
+{{ page.intro }}
+</div>
+{% endif %}{% if page.posts %}<ul class="cards" role="list">
+{% for post in page.posts %}<li>
+<article class="card">
+{% if post.image %}{{ picture(post.image) }}
+{% endif %}<h2><a href="{{ post.href }}">{{ post.title }}</a></h2>
+<p><time datetime="{{ post.date }}">{{ post.date | date }}</time></p>
+<p>{{ post.excerpt }}</p>
+</article>
+</li>
+{% endfor %}</ul>
+{% else %}<p>{{ t.no_posts }}</p>
+{% endif %}{% if page.pagination %}{% set pages = page.pagination %}<nav class="pagination" aria-label="{{ t.pagination }}">
+<p>{{ t.page_of | replace("{current}", pages.current | string) | replace("{total}", pages.total | string) }}</p>
+<ul>
+{% if pages.previous %}<li><a href="{{ pages.previous }}" rel="prev">{{ t.newer_posts }}</a></li>
+{% endif %}{% if pages.next %}<li><a href="{{ pages.next }}" rel="next">{{ t.older_posts }}</a></li>
+{% endif %}</ul>
+</nav>
+{% endif %}{% endblock %}
