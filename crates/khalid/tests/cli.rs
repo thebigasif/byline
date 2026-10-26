@@ -216,3 +216,72 @@ fn import_lists_the_sources_it_knows() {
     let stderr = text(&output.stderr);
     assert!(stderr.contains("wordpress"), "{stderr}");
 }
+
+/// The repository root, where the fixture paths in expected messages start.
+const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+
+/// Runs the binary from the repository root.
+#[cfg(test)]
+fn khalid_at_root(args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .current_dir(ROOT)
+        .args(args)
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn every_invalid_site_prints_its_expected_message() {
+    let mut checked = 0;
+    for entry in std::fs::read_dir(format!("{ROOT}/fixtures/invalid")).unwrap() {
+        let entry = entry.unwrap();
+        if !entry.file_type().unwrap().is_dir() {
+            continue;
+        }
+        let name = entry.file_name().into_string().unwrap();
+        let expected =
+            std::fs::read_to_string(format!("{ROOT}/fixtures/invalid/{name}/expected.txt"))
+                .unwrap();
+        let site = format!("fixtures/invalid/{name}");
+        let output = khalid_at_root(&["--site", &site, "lint"]);
+        assert_eq!(output.status.code(), Some(1), "{name}");
+        assert_eq!(text(&output.stderr), expected, "{name}");
+        for line in expected.lines() {
+            assert_plain_sentence(line, &name);
+        }
+        checked += 1;
+    }
+    assert!(checked >= 3, "only {checked} invalid sites were checked");
+}
+
+#[test]
+fn a_site_with_valid_settings_goes_on_to_the_command() {
+    let output = khalid_at_root(&["--site", "fixtures/demo-site", "lint"]);
+    assert_eq!(output.status.code(), Some(3));
+    assert!(text(&output.stderr).contains("is not built yet"));
+}
+
+#[test]
+fn a_settings_mistake_with_json_prints_json() {
+    let output = khalid_at_root(&[
+        "--site",
+        "fixtures/invalid/settings-unknown-mode",
+        "lint",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(json["error"]["what"].as_str().unwrap().contains("Line 6"));
+    assert!(
+        json["error"]["fix"]
+            .as_str()
+            .unwrap()
+            .contains("`server` or `static`")
+    );
+}
+
+#[test]
+fn help_lists_the_site_flag() {
+    let help = text(&khalid(&["--help"]).stdout);
+    assert!(help.contains("--site <FOLDER>"), "{help}");
+}
