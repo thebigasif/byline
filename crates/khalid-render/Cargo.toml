@@ -1,0 +1,19 @@
+[package]
+name = "khalid-render"
+version = "0.0.0"
+description = "The public site's templates: sandboxed MiniJinja pages, theme tokens and strings per language."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

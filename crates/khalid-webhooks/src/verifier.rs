@@ -10,7 +10,7 @@ use crate::signature::MAC_BYTES;
 
 /// How far a signature's time may be from the receiver's clock: five
 /// minutes, which absorbs clock drift and slow networks but makes a
-/// recorded delivery useless for replay soon after (ADR 0009).
+/// recorded delivery useless for replay soon after (ADR 0010).
 const DEFAULT_TOLERANCE: Duration = Duration::from_mins(5);
 
 /// Checks the `Khalid-Signature` header of an incoming webhook.
