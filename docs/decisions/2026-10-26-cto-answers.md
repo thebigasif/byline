@@ -43,3 +43,11 @@ The founder has asked Claude, acting as CTO, to answer the questions the coding 
 - **Stacked branches.** A pull request's base branch is deleted only after every child has been retargeted. GitHub closes a child whose base disappears.
 - **Anything in the plan's section 12.** Decided as written there. Do not reopen.
 - **Phase 1.** Starts when the founder says go. The first Phase 1 pull request is the rename above.
+
+## 5. Founder decisions later on 2026-10-26
+
+These override anything above that disagrees.
+
+- **The name is Khalid.** The founder chose it. Byline and Wellranked were working names and are retired. "Khalid by SerpDad" is how it is written. Rename the repository, the crates, the binary, the skills and every document that still says Byline or Wellranked, in the first commit of the next working session. The trademark lawyer's check before launch still applies, to Khalid.
+- **No more pull-request round trips.** Each finished task is pushed to a short-lived `task/<slug>` branch, and when the three CI checks are green on it the coding agent fast-forwards `main` itself. No pull request, no reviewer, no waiting on anyone. CI stays the gate so `main` never sees red. Pull requests only for rule, CI or budget changes, or for a diff the founder must see before deciding. `CLAUDE.md` and `docs/standards/git.md` carry the new flow.
+- **Phase 1 is a go.** Speed is the instruction. Write `docs/phases/phase-1.md` from `docs/plan.md` section 10, Phase 1, and start.

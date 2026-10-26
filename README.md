@@ -1,8 +1,8 @@
-# Byline, by SerpDad
+# Khalid, by SerpDad
 
-**Working name. Status: planning. No code yet.**
+**Status: Phase 0 complete, Phase 1 starting.** Byline and Wellranked were working names; the product is Khalid.
 
-Byline is an open-source blog engine any business can add to its website, whatever the site is built with. One Rust binary. Every post is a text file. The best SEO defaults are built in, including schema markup for every content type and a site audit that passes the Ahrefs and Semrush checks. A linter refuses to publish a post that breaks basic SEO hygiene, and every refusal teaches why. It is run from the command line and from a web editor, by people and by agents. There is no drag-and-drop page builder.
+Khalid is an open-source blog engine any business can add to its website, whatever the site is built with. One Rust binary. Every post is a text file. The best SEO defaults are built in, including schema markup for every content type and a site audit that passes the Ahrefs and Semrush checks. A linter refuses to publish a post that breaks basic SEO hygiene, and every refusal teaches why. It is run from the command line and from a web editor, by people and by agents. There is no drag-and-drop page builder.
 
 The one-line idea: get an Ahrefs- or Semrush-quality blog in one click.
 

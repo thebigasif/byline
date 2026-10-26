@@ -1,6 +1,6 @@
-# Byline, by SerpDad: how agents work in this repository
+# Khalid, by SerpDad: how agents work in this repository
 
-Byline is a working name, see docs/plan.md D-1. The product is an open-source blog engine in Rust: one binary, text files as the source of truth, SEO defaults built in, a linter that refuses to publish a weak post, and a public API. The founder does not write code. Claude Opus 5.5 writes it, and other agents review it. This file is the contract between them.
+Khalid is the product's name, chosen by the founder on 2026-10-26. Older files may still say Byline or Wellranked; those are the earlier working names and mean the same thing. The product is an open-source blog engine in Rust: one binary, text files as the source of truth, SEO defaults built in, a linter that refuses to publish a weak post, and a public API. The founder does not write code. Claude Opus 5.5 writes it, and other agents review it. This file is the contract between them.
 
 ## Read these first, in this order
 
@@ -25,14 +25,16 @@ The skills in `.claude/skills/` load on their own. `rust-best-practices` and `ru
 
 ## How a task flows
 
-1. **Pick one task** from the current phase brief. One task, one branch, one pull request, under 400 changed lines excluding generated code and fixtures. Split anything bigger.
+The founder wants speed. There are no pull-request round trips. Each finished task goes straight to `main`.
+
+1. **Pick one task** from the current phase brief. Work on `main` in the repository folder, or on a short-lived local branch you fast-forward into `main` yourself.
 2. **Write the failing test first.** A lint rule starts with its fixture and its message. A block starts with its round-trip test. An endpoint starts with its OpenAPI entry and a request test.
 3. **Write the code** with `rust-best-practices` and `byline-way` loaded. Check `RULES.md` IDs as you go. Make invalid states unrepresentable before you write the first `if`.
-4. **Run `just check`** (or `scripts/check.sh`). Format, clippy with warnings as errors, tests, docs, dependency audit, unused dependencies, typos. Everything green locally before you push.
-5. **Self-review** with `rust-review` and the rubric in `docs/standards/review.md`. Fix everything it finds. Paste the rubric scores in the pull request.
-6. **Open the pull request** with the template filled: what, why, how tested, budgets, rubric, what the founder should look at.
-7. **CI is the judge.** Red never merges. Nobody edits CI, lints or budgets to make a change pass. If a rule is wrong, change the rule in its own pull request with the reason.
-8. **Address review findings by fixing**, not by arguing. If a finding is wrong, say why and cite the rule ID.
+4. **Run `just check`** (or `scripts/check.sh`). Format, clippy with warnings as errors, tests, docs, dependency audit, unused dependencies, typos. Everything green locally before you push. Never push red.
+5. **Self-review** with `rust-review` and the rubric in `docs/standards/review.md`. Fix everything it finds. Put the rubric score and anything below 10 in the commit body.
+6. **Commit and push.** A Conventional Commit whose body says why, how it was tested, the rubric score, and what the founder can look at. Push it to a short-lived branch named `task/<slug>`.
+7. **CI is the gate, and you hold the key.** Wait for the three required checks on that commit with `gh run watch`. When they are green, fast-forward `main` yourself: `git push origin task/<slug>:main`, then delete the remote branch. No pull request, no reviewer, no round trip. If a check is red, fix forward on the same branch and push again; `main` never sees red.
+8. **Pull requests are for the exceptions:** a rule change, a change to CI or budgets, a founder question that needs a diff to discuss. Everything else lands by fast-forward.
 
 ## Code rules in one screen
 
@@ -50,7 +52,7 @@ Details and IDs are in `docs/standards/RULES.md`.
 - The API is the only door. The CLI, the MCP server, the admin and the SerpDad publish target call the same functions the API calls.
 - Every editor block has a markdown directive and a round-trip test.
 - Every outbound HTTP request goes through the one shared client, with timeouts, size limits and the private-network guard.
-- A new dependency needs one sentence in the pull request saying why, a permissive licence, and a green `cargo deny`.
+- A new dependency needs one sentence in the commit body saying why, a permissive licence, and a green `cargo deny`.
 
 ## Performance is a feature with a budget
 
@@ -68,15 +70,15 @@ A task is done when all of these hold:
 - `just check` is green, and so is CI.
 - Docs are updated: rustdoc, `docs/`, the OpenAPI spec, the CLI help.
 - The done line in the phase brief is met, word for word.
-- The pull request shows the rubric at 10/10, or says which point is below and why.
+- The commit body shows the rubric at 10/10, or says which point is below and why.
 - No founder rule is broken and no budget has regressed.
-- A short demo note in the pull request tells the founder what to look at and how, in plain words.
+- A short demo note in the commit body tells the founder what to look at and how, in plain words.
 
 ## When you are unsure
 
-Product decisions belong to the founder. They are listed in `docs/plan.md`, sections 1 and 12. Do not decide them yourself. Write the question in the pull request, mark the task blocked in the phase brief, and move to the next task.
+Product decisions belong to the founder. They are listed in `docs/plan.md`, sections 1 and 12. Do not decide them yourself. Write the question under "Questions for the founder" in the phase brief, mark the task blocked, push, and move to the next task. The CTO session answers in `docs/decisions/`.
 
-Technical decisions the plan does not cover are yours. Make the call, record it in `docs/adr/`, and say so in the pull request.
+Technical decisions the plan does not cover are yours. Make the call, record it in `docs/adr/`, and say so in the commit body.
 
 ## Commits and attribution
 
