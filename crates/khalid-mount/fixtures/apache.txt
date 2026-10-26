@@ -1,0 +1,4 @@
+SSLProxyEngine on
+RedirectMatch 301 ^/blog$ /blog/
+ProxyPass /blog/ https://blog-origin.example.com/blog/
+ProxyPassReverse /blog/ https://blog-origin.example.com/blog/

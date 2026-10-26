@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO webhook_deliveries (site_id, webhook_id, event, url, body, first_at, state, state_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'pending', ?6) RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "webhook_deliveries",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2ed1be83f77c5aff3c3a01652fa4add2bebcb22b0853533ab2d6c2f36e0d2c0f"
+}

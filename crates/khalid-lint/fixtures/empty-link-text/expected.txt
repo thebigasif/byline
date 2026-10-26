@@ -1,0 +1,1 @@
+warn empty-link-text: /blog/anchor-text-basics/

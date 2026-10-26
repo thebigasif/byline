@@ -11,10 +11,17 @@ publish.workspace = true
 [dependencies]
 khalid-content = { path = "../khalid-content", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
+khalid-db = { path = "../khalid-db", version = "0.0.0" }
+khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
+khalid-render = { path = "../khalid-render", version = "0.0.0" }
+chrono = { version = "0.4", default-features = false }
 clap = { version = "4", features = ["derive"] }
 mimalloc = "0.1"
 serde.workspace = true
 serde_json.workspace = true
+tempfile = "3"
+tokio = { workspace = true, features = ["rt"] }
 
 [dev-dependencies]
 serde_json.workspace = true

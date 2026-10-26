@@ -5,6 +5,7 @@ use std::path::Path;
 use minijinja::value::Serde;
 use minijinja::{AutoEscape, Environment, UndefinedBehavior, context};
 
+use crate::dates;
 use crate::direction::Direction;
 use crate::escape;
 use crate::strings::Strings;
@@ -59,6 +60,7 @@ impl Renderer {
         env.set_formatter(escape::format);
         env.set_undefined_behavior(UndefinedBehavior::Strict);
         env.set_fuel(Some(FUEL_PER_PAGE));
+        env.add_filter("date", dates::format_date);
         for source in templates::defaults().into_iter().chain(overrides) {
             env.add_template_owned(source.name.clone(), source.text)
                 .map_err(|error| RenderError::compile(&source.name, error))?;

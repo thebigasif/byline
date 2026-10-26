@@ -30,7 +30,8 @@ A test reads the table below and checks it lists every table in the schema, once
 | `api_keys` | visitor | Integration keys and staff tokens, stored as a hash of the key |
 | `api_key_scopes` | visitor | What each key may do |
 | `webhooks` | visitor | The addresses that receive each event, with the secret that signs deliveries |
-| `webhook_deliveries` | visitor | Each delivery of an event, its attempts and when it is due again |
+| `webhook_deliveries` | visitor | Each delivery of an event: the bytes sent, where it stands and when it is due again |
+| `webhook_attempts` | visitor | Every attempt at a delivery, with the status that came back or why there was none |
 | `form_submissions` | visitor | What people sent through forms on the site |
 | `subscribers` | visitor | Newsletter subscribers and whether they confirmed |
 | `comments` | visitor | Comments on posts, named by the post's path so they survive a rebuild |

@@ -1,0 +1,1 @@
+block no-internal-link (suggest: internal-linking-guide, pruning-old-posts, choosing-link-text)

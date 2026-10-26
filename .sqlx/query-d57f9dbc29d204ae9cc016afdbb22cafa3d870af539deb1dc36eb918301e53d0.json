@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO webhook_attempts (site_id, delivery_id, number, at, status, reason) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (delivery_id, number) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "d57f9dbc29d204ae9cc016afdbb22cafa3d870af539deb1dc36eb918301e53d0"
+}

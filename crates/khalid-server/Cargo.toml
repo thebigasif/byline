@@ -1,0 +1,41 @@
+[package]
+name = "khalid-server"
+version = "0.0.0"
+description = "The web server: rendered pages from memory at clean addresses, and a graceful stop."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+brotli = "9"
+bytes = "1"
+getrandom = "0.4"
+khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0" }
+percent-encoding = "2"
+sha2 = "0.11"
+thiserror.workspace = true
+tokio = { workspace = true, features = ["net"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }
+tracing.workspace = true
+
+[dev-dependencies]
+chrono = { version = "0.4", default-features = false }
+divan = "0.1"
+http-body-util = "0.1"
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
+khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0", features = ["test-util"] }
+serde_json.workspace = true
+tempfile = "3"
+wiremock = "0.6"
+tokio = { workspace = true, features = ["io-util"] }
+
+[[bench]]
+name = "request"
+harness = false
+
+[lints]
+workspace = true

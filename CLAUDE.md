@@ -7,7 +7,7 @@ Khalid is the product's name, chosen by the founder on 2026-10-26. Older files m
 1. `docs/plan.md`: what we build and why. Section 1 holds the founder's decisions. Do not reopen them.
 2. `docs/standards/RULES.md`: every rule with an ID. Reviews cite the IDs.
 3. `docs/phases/`: the current phase brief. Work only on tasks listed there.
-4. `docs/adr/`: architecture decisions. Add one when you make a choice the plan does not cover.
+4. `docs/adr/`: architecture decisions. Add one when you make a choice the plan does not cover, named `0000-<slug>.md` with "Number: next free"; the CTO assigns the number when the pull request lands.
 5. `docs/standards/`: `rust.md`, `api.md`, `typescript.md`, `performance.md`, `testing.md`, `review.md`, `git.md`.
 6. `FRONTEND.md`: the front-end checklist every template follows.
 
@@ -25,16 +25,16 @@ The skills in `.claude/skills/` load on their own. `rust-best-practices` and `ru
 
 ## How a task flows
 
-The founder wants speed. There are no pull-request round trips. Each finished task goes straight to `main`.
+The founder wants speed. Builders work in parallel and the CTO session lands their work in batches: a whole stack of pull requests goes to `main` as one squash once its top is green.
 
-1. **Pick one task** from the current phase brief. Work on `main` in the repository folder, or on a short-lived local branch you fast-forward into `main` yourself.
+1. **Pick one task** from the current phase brief. Branch `task/<slug>` from a fresh `origin/main`. Parts of one task may stack, each branch on the previous part; never stack on another track's branch.
 2. **Write the failing test first.** A lint rule starts with its fixture and its message. A block starts with its round-trip test. An endpoint starts with its OpenAPI entry and a request test.
 3. **Write the code** with `rust-best-practices` and `khalid-way` loaded. Check `RULES.md` IDs as you go. Make invalid states unrepresentable before you write the first `if`.
 4. **Run `just check`** (or `scripts/check.sh`). Format, clippy with warnings as errors, tests, docs, dependency audit, unused dependencies, typos. Everything green locally before you push. Never push red.
 5. **Self-review** with `rust-review` and the rubric in `docs/standards/review.md`. Fix everything it finds. Put the rubric score and anything below 10 in the commit body.
-6. **Commit and push.** A Conventional Commit whose body says why, how it was tested, the rubric score, and what the founder can look at. Push it to a short-lived branch named `task/<slug>`.
-7. **CI is the gate, and you hold the key.** Wait for the three required checks on that commit with `gh run watch`. When they are green, fast-forward `main` yourself: `git push origin task/<slug>:main`, then delete the remote branch. No pull request, no reviewer, no round trip. If a check is red, fix forward on the same branch and push again; `main` never sees red.
-8. **Pull requests are for the exceptions:** a rule change, a change to CI or budgets, a founder question that needs a diff to discuss. Everything else lands by fast-forward.
+6. **Commit and push.** A Conventional Commit whose body says why, how it was tested, the rubric score, and what the founder can look at. Push the branch and open a pull request against `main`, or against the previous part's branch when stacking, using the template.
+7. **CI is the gate.** Wait for the three required checks with `gh run watch`. If a check is red, fix forward on the same branch and push again. Never merge, force-push or delete branches: the CTO session reviews each pull request and lands whole stacks.
+8. **Shared files belong to the CTO.** Do not edit status lines in `docs/phases/*.md`, `docs/adr/README.md` or `CHANGELOG.md`. Write a changelog fragment in `changelog.d/` and name a new ADR `0000-<slug>.md`; numbers and status lines are set when the pull request lands. To list pull requests without `gh pr list`, use `gh api repos/thebigasif/khalid/pulls`.
 
 ## Code rules in one screen
 
