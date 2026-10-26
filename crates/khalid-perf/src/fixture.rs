@@ -63,6 +63,12 @@ impl Fixture {
         ))
     }
 
+    /// Post `index`'s page address on the site, such as
+    /// `/blog/sitemaps-checklist-1/`.
+    pub fn post_address(self, index: usize) -> String {
+        format!("/blog/{}/", slug(index))
+    }
+
     /// Post `index`'s file contents: front matter, then about 600 words of
     /// markdown in four sections, three links to other posts and one to a
     /// source outside the site.
