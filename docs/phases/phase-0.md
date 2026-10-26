@@ -28,7 +28,7 @@
 
 ### 0.4 Disallowed methods and types carry their reasons
 
-- Status: `doing`. Done now: the clock's one `#[expect]` (with 0.2), a violation in `lints/check` for every disallowed entry in `clippy.toml` except `reqwest::Client`, and a `just check` gate that allows the suppression only in the clock, config, outbound and path modules, once each. Waiting: the config module's `#[expect]` arrives with its first setting read from the environment, and the outbound module's with `khalid-outbound`, both Phase 1.
+- Status: `doing`. Done: the clock's one `#[expect]`, the config module's one `#[expect]` for reading the environment (Phase 1 task 1.1), a violation in `lints/check` for every disallowed entry in `clippy.toml` except `reqwest::Client`, and the `just check` gate that allows the suppression only in the clock, config, outbound and path modules, once each. Waiting: the outbound module, Phase 1 task 1.4.
 - The clock module, the config module and the outbound module each carry one `#[expect(clippy::disallowed_methods, reason = "...")]` or `disallowed_types` on the one line that is allowed to break the rule. A test in `lints/check` proves the disallowed methods fire elsewhere.
 - Done when: `cargo clippy` is clean and the expects are the only ones in the workspace.
 

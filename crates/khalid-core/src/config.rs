@@ -1,18 +1,19 @@
 //! Settings, read once when Khalid starts.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::{AbsoluteUrl, Locale};
+use crate::{AbsoluteUrl, Locale, ParseUrlError};
 
 /// Every setting Khalid reads, checked once at start and then passed by
 /// reference (RULES.md BL-RUN-2).
 ///
-/// It comes from `site.toml` in the site folder. No other module reads that
-/// file itself.
+/// It comes from `site.toml` in the site folder, then the environment, which
+/// wins. No other module reads either source itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Config {
@@ -71,29 +72,31 @@ impl Config {
     /// The settings file's name inside a site folder.
     pub const FILE_NAME: &str = "site.toml";
 
-    /// Reads `site.toml` from the `site` folder.
+    /// Reads `site.toml` from the `site` folder and applies `env` on top.
     ///
     /// # Errors
     ///
     /// Returns [`ConfigError::Read`] when the file cannot be read, and the
     /// errors of [`Config::from_toml`] when its content is wrong.
-    pub fn load(site: &Path) -> Result<Self, ConfigError> {
+    pub fn load(site: &Path, env: &Environment) -> Result<Self, ConfigError> {
         let mut path = site.to_path_buf();
         path.push(Self::FILE_NAME);
         let text = fs::read_to_string(&path).map_err(|source| ConfigError::Read {
             path: path.clone(),
             source,
         })?;
-        Self::from_toml(&path, &text)
+        Self::from_toml(&path, &text, env)
     }
 
-    /// Checks the text of a settings file, named `path` in messages.
+    /// Checks the text of a settings file, named `path` in messages, and
+    /// applies `env` on top.
     ///
     /// # Errors
     ///
     /// Returns [`ConfigError::Parse`] or [`ConfigError::Field`] with the line
-    /// and field of the first mistake.
-    pub fn from_toml(path: &Path, text: &str) -> Result<Self, ConfigError> {
+    /// and field of the first mistake, and [`ConfigError::Environment`] when an
+    /// environment variable holds a value that is not allowed.
+    pub fn from_toml(path: &Path, text: &str, env: &Environment) -> Result<Self, ConfigError> {
         let file: SiteFile = toml::from_str(text).map_err(|source| ConfigError::Parse {
             path: path.to_path_buf(),
             line: line_of_span(text, source.span()),
@@ -122,9 +125,16 @@ impl Config {
                 "the default language must be one of languages",
             ));
         }
+        let address = match env.get(Environment::ADDRESS) {
+            Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
+                variable: Environment::ADDRESS.to_owned(),
+                source,
+            })?,
+            None => file.address,
+        };
         Ok(Self {
             name: file.name,
-            address: file.address,
+            address,
             mount: file.mount,
             mode: file.mode,
             slugs: file.slugs,
@@ -205,6 +215,53 @@ fn field_of(text: &str, error: &toml::de::Error) -> String {
         .map_or_else(String::new, |(key, _)| key.trim().to_owned())
 }
 
+/// The environment variables Khalid reads, captured once at start.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Environment(BTreeMap<String, String>);
+
+impl Environment {
+    /// Overrides `address` in `site.toml`, for deploys that move the site.
+    pub const ADDRESS: &str = "KHALID_ADDRESS";
+
+    /// Every variable Khalid reads.
+    const ALL: [&str; 1] = [Self::ADDRESS];
+
+    /// Reads Khalid's variables from this process's environment.
+    pub fn from_process() -> Self {
+        let mut found = BTreeMap::new();
+        for name in Self::ALL {
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "the one place that reads the environment (BL-RUN-2)"
+            )]
+            let value = std::env::var(name);
+            if let Ok(value) = value {
+                found.insert(name.to_owned(), value);
+            }
+        }
+        Self(found)
+    }
+
+    /// An environment with no variables set.
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    /// An environment with exactly these variables, for tests and tools.
+    pub fn from_pairs(pairs: &[(&str, &str)]) -> Self {
+        Self(
+            pairs
+                .iter()
+                .map(|&(name, value)| (name.to_owned(), value.to_owned()))
+                .collect(),
+        )
+    }
+
+    fn get(&self, name: &str) -> Option<&str> {
+        self.0.get(name).map(String::as_str)
+    }
+}
+
 /// Why the settings could not be read.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -242,5 +299,14 @@ pub enum ConfigError {
         field: String,
         /// The rule it breaks.
         problem: String,
+    },
+    /// An environment variable holds a value that is not allowed.
+    #[error("the environment variable {variable} is not a valid address")]
+    Environment {
+        /// The variable.
+        variable: String,
+        /// Why its value was refused.
+        #[source]
+        source: ParseUrlError,
     },
 }
