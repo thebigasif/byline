@@ -3,7 +3,10 @@
 use chrono::{DateTime, Utc};
 use khalid_core::{AbsoluteUrl, Locale};
 
-use crate::{Alternate, MetaTemplate, RobotsDirectives, ShareImage, TranslationKey, UrlPath};
+use crate::{
+    Alternate, AuthorProfile, Entity, MetaTemplate, RobotsDirectives, SchemaBlock, ShareImage,
+    TranslationKey, UrlPath, Video,
+};
 
 /// The kind of page, which picks its title template and index setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -33,6 +36,67 @@ pub enum PageKind {
     GlossaryTerm,
     /// The page shown for an address that does not exist.
     NotFound,
+}
+
+/// What kind of article a post is, from its content type.
+///
+/// It picks the post's schema.org type and whether it goes in the news sitemap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum ArticleType {
+    /// A general article.
+    Article,
+    /// A blog post, the default.
+    #[default]
+    BlogPosting,
+    /// A news story, listed in the news sitemap for two days.
+    NewsArticle,
+    /// A technical guide or reference.
+    TechArticle,
+}
+
+/// One step in a page's breadcrumb trail, between the home page and the page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Crumb {
+    /// What the step is called, such as the category name.
+    pub name: String,
+    /// Its path, such as `/category/on-page-seo/`.
+    pub path: UrlPath,
+}
+
+impl Crumb {
+    /// A step called `name` at `path`.
+    pub fn new(name: &str, path: UrlPath) -> Self {
+        Self {
+            name: name.to_owned(),
+            path,
+        }
+    }
+}
+
+/// Whether readers can see the page yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum PublishState {
+    /// Live on the site.
+    #[default]
+    Published,
+    /// Not finished, seen only in the admin.
+    Draft,
+    /// Finished, waiting for its publish time.
+    Scheduled,
+}
+
+/// Whether the page appears in the XML sitemap when it is indexable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum SitemapListing {
+    /// Listed, the default.
+    #[default]
+    Listed,
+    /// Left out, such as a thank-you page after a form.
+    Excluded,
 }
 
 /// What the SEO outputs need to know about one page.
@@ -76,6 +140,31 @@ pub struct SeoPage {
     /// Every language version of the page, itself included, then
     /// `x-default`. [`link_translations`](crate::link_translations) fills it.
     pub alternates: Vec<Alternate>,
+    /// Whether readers can see the page yet.
+    pub state: PublishState,
+    /// Whether the page appears in the XML sitemap.
+    pub sitemap: SitemapListing,
+    /// For a post, what kind of article it is.
+    pub article_type: ArticleType,
+    /// The images in the page's content, for the image sitemap.
+    pub images: Vec<AbsoluteUrl>,
+    /// The videos in the page's content, for the video sitemap.
+    pub videos: Vec<Video>,
+    /// The rendered body as HTML, for full-content feeds.
+    pub content_html: String,
+    /// The steps between the home page and this page, such as its category.
+    pub breadcrumbs: Vec<Crumb>,
+    /// CSS selectors of the parts a voice assistant may read aloud, such as
+    /// the summary, for schema.org `speakable`.
+    pub speakable: Vec<String>,
+    /// The author's full profile. Without one, `author` alone names them.
+    pub author_profile: Option<AuthorProfile>,
+    /// The things the post is about or mentions, for `about` and `mentions`.
+    pub entities: Vec<Entity>,
+    /// How many words the post has.
+    pub word_count: Option<u32>,
+    /// The page's blocks that write their own schema, such as an FAQ.
+    pub blocks: Vec<SchemaBlock>,
 }
 
 impl SeoPage {
@@ -99,6 +188,18 @@ impl SeoPage {
             modified: None,
             translation: None,
             alternates: Vec::new(),
+            state: PublishState::Published,
+            sitemap: SitemapListing::Listed,
+            article_type: ArticleType::BlogPosting,
+            images: Vec::new(),
+            videos: Vec::new(),
+            content_html: String::new(),
+            breadcrumbs: Vec::new(),
+            speakable: Vec::new(),
+            author_profile: None,
+            entities: Vec::new(),
+            word_count: None,
+            blocks: Vec::new(),
         }
     }
 }
