@@ -17,6 +17,10 @@ use std::str::FromStr;
 /// let site = AbsoluteUrl::parse("https://Example.com")?;
 /// assert_eq!(site.as_str(), "https://example.com/");
 /// assert_eq!(site.host(), "example.com");
+///
+/// let video = AbsoluteUrl::parse("https://www.youtube.com/watch?v=abc")?;
+/// assert_eq!(video.segments(), ["watch"]);
+/// assert_eq!(video.query_value("v").as_deref(), Some("abc"));
 /// # Ok::<(), khalid_core::ParseUrlError>(())
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -54,6 +58,24 @@ impl AbsoluteUrl {
     /// The host name, such as `www.example.com`.
     pub fn host(&self) -> &str {
         self.0.host_str().unwrap_or_default()
+    }
+
+    /// The parts of the path between slashes, leaving out empty ones, such
+    /// as `["watch"]` for `https://www.youtube.com/watch?v=abc`.
+    pub fn segments(&self) -> Vec<&str> {
+        self.0
+            .path_segments()
+            .map(|segments| segments.filter(|part| !part.is_empty()).collect())
+            .unwrap_or_default()
+    }
+
+    /// The first value of `key` in the query, such as `abc` for `v` in
+    /// `https://www.youtube.com/watch?v=abc`.
+    pub fn query_value(&self, key: &str) -> Option<String> {
+        self.0
+            .query_pairs()
+            .find(|(name, _)| name == key)
+            .map(|(_, value)| value.into_owned())
     }
 }
 

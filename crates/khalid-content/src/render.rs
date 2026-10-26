@@ -11,7 +11,7 @@ use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
 use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
-use crate::{Block, BlockError, BlockKind, CalloutKind, parse_blocks};
+use crate::{Block, BlockError, BlockKind, CalloutKind, embed, parse_blocks};
 
 /// A body rendered to HTML.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,6 +207,7 @@ impl Renderer {
                 description.as_deref(),
                 image.as_ref(),
             ),
+            BlockKind::Embed { src, title } => self.embed(src, title),
             _ => {}
         }
     }
@@ -258,6 +259,42 @@ impl Renderer {
             ]);
         }
         self.html.push_str("</a></p>\n");
+    }
+
+    /// Writes an embed: an allowed provider's player in a lazy, sandboxed
+    /// frame of fixed size with the page's link under it, or the link alone.
+    fn embed(&mut self, src: &AbsoluteUrl, title: &str) {
+        self.link_out(src, title);
+        let link = [
+            "<a href=\"",
+            &attribute(src.as_str()),
+            "\">",
+            &attribute(title),
+            "</a>",
+        ]
+        .concat();
+        let Some((provider, player)) = embed::player(src) else {
+            self.push(&["<p class=\"bookmark\">", &link, "</p>\n"]);
+            return;
+        };
+        let (shape, height) = if provider.is_audio() {
+            ("audio", "152")
+        } else {
+            ("wide", "315")
+        };
+        self.push(&[
+            "<figure class=\"embed embed-",
+            shape,
+            "\">\n<iframe src=\"",
+            &attribute(&player),
+            "\" title=\"",
+            &attribute(title),
+            "\" width=\"560\" height=\"",
+            height,
+            "\" loading=\"lazy\" referrerpolicy=\"strict-origin-when-cross-origin\" sandbox=\"allow-scripts allow-same-origin allow-popups allow-presentation\" allow=\"encrypted-media; fullscreen; picture-in-picture\"></iframe>\n<figcaption>",
+            &link,
+            "</figcaption>\n</figure>\n",
+        ]);
     }
 
     /// Records a link to another site.

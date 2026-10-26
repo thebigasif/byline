@@ -5,7 +5,9 @@ use khalid_core::AbsoluteUrl;
 use crate::{BlockError, BlockKind, CalloutKind};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 6] = ["bookmark", "button", "callout", "figure", "toc", "toggle"];
+pub(crate) const BLOCKS: [&str; 7] = [
+    "bookmark", "button", "callout", "embed", "figure", "toc", "toggle",
+];
 
 /// What to say after "there is no block called `name`": the nearest block
 /// name when one is a typing slip away, or where the names come from.
@@ -45,7 +47,7 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// Blocks with no body, written on one line as `::name{...}`. Every other
 /// block opens with `:::name{...}` and closes with `:::`.
-const LEAVES: [&str; 3] = ["bookmark", "button", "toc"];
+const LEAVES: [&str; 4] = ["bookmark", "button", "embed", "toc"];
 
 /// How a block was written.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -87,6 +89,7 @@ pub(crate) fn directive(line: usize, rest: &str, form: Form) -> Result<BlockKind
             .map(|()| BlockKind::Toc),
         "button" => button(&attributes),
         "bookmark" => bookmark(&attributes),
+        "embed" => embed(&attributes),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
@@ -177,6 +180,19 @@ fn bookmark(attributes: &Attributes) -> Result<BlockKind, BlockError> {
         title: attributes.get("title"),
         description: attributes.get("description"),
         image,
+    })
+}
+
+fn embed(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only("embed", &["src", "title"], "src and title")?;
+    let src = attributes.need("src", "an embed needs src, the page of the video or sound")?;
+    let title = attributes.need(
+        "title",
+        "an embed needs title, the name a screen reader says for the player",
+    )?;
+    Ok(BlockKind::Embed {
+        src: attributes.address("embed", "src", &src)?,
+        title,
     })
 }
 

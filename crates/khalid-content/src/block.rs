@@ -87,6 +87,15 @@ pub enum BlockKind {
         /// The page's preview image.
         image: Option<AbsoluteUrl>,
     },
+    /// `::embed{src="..." title="..."}`: a player from one of the
+    /// [`EMBED_PROVIDERS`](crate::EMBED_PROVIDERS) in a frame, or a plain link
+    /// for any other address.
+    Embed {
+        /// The page a writer pasted, such as a video's page.
+        src: AbsoluteUrl,
+        /// The name a screen reader says for the player.
+        title: String,
+    },
 }
 
 /// The kinds of callout.
