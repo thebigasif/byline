@@ -24,6 +24,8 @@ pub enum ProblemType {
     LintBlocked,
     /// The server failed while answering.
     Internal,
+    /// The request carried no key the API accepts.
+    Unauthorized,
 }
 
 impl ProblemType {
@@ -33,6 +35,7 @@ impl ProblemType {
             Self::NotFound => "not-found",
             Self::LintBlocked => "lint-blocked",
             Self::Internal => "internal",
+            Self::Unauthorized => "unauthorized",
         }
     }
 
@@ -42,6 +45,7 @@ impl ProblemType {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::LintBlocked => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Internal => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Unauthorized => StatusCode::UNAUTHORIZED,
         }
     }
 
@@ -51,6 +55,7 @@ impl ProblemType {
             Self::NotFound => "Nothing is at this address",
             Self::LintBlocked => "The post cannot be published",
             Self::Internal => "The server could not answer",
+            Self::Unauthorized => "The key was not accepted",
         }
     }
 }
@@ -93,6 +98,18 @@ impl Problem {
             rule: None,
             instance: None,
         }
+    }
+
+    /// A 500 for a failure inside the server: `error` and its causes go to
+    /// the log through `tracing`, and the person reads only what to do.
+    pub fn internal(error: &(dyn std::error::Error + 'static)) -> Self {
+        tracing::error!(error, "the API could not answer");
+        let message = UserMessage::new(
+            "The server could not read what it needed.",
+            "Nothing was changed, but this request could not be answered.",
+            "Try again in a minute, and check the server log if it keeps happening.",
+        );
+        Self::new(ProblemType::Internal, &message)
     }
 
     /// The same problem, naming the rule or parameter behind it.

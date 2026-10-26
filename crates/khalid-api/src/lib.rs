@@ -7,6 +7,7 @@
 //! about content files, markdown, SQL or templates.
 
 pub mod content_api;
+mod content_key;
 pub mod content_store;
 pub mod keys;
 pub mod pagination;

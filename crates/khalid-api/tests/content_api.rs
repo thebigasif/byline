@@ -6,24 +6,102 @@ mod common;
 use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode};
+use axum::http::{HeaderMap, Request, StatusCode};
 use khalid_api::content_api;
+use khalid_api::keys::{KeyToken, MemoryKeyStore, StoredKey};
 use serde_json::Value;
 use tower::ServiceExt;
 
+/// A content key made up for these tests. It opens nothing real.
+const KEY: &str =
+    "kc_0123456789abcdef_00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+
+#[cfg(test)]
+async fn send(uri: &str, authorization: Option<&str>) -> (StatusCode, HeaderMap, Value) {
+    let token: KeyToken = KEY.parse().unwrap();
+    let keys = MemoryKeyStore::new(vec![StoredKey::for_token(&token)]);
+    let (router, _) = content_api::router(Arc::new(common::store()), Arc::new(keys));
+    let mut request = Request::get(uri);
+    if let Some(value) = authorization {
+        request = request.header("authorization", value);
+    }
+    let response = router
+        .oneshot(request.body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let (parts, body) = response.into_parts();
+    let body = to_bytes(body, 1024 * 1024).await.unwrap();
+    (
+        parts.status,
+        parts.headers,
+        serde_json::from_slice(&body).unwrap(),
+    )
+}
+
+/// A request with the content key in the `Authorization` header.
 #[cfg(test)]
 async fn get(uri: &str) -> (StatusCode, String, Value) {
-    let (router, _) = content_api::router(Arc::new(common::store()));
-    let request = Request::get(uri).body(Body::empty()).unwrap();
-    let response = router.oneshot(request).await.unwrap();
-    let status = response.status();
-    let media = response
-        .headers()
+    let (status, headers, json) = send(uri, Some(&format!("Khalid-Content {KEY}"))).await;
+    let media = headers
         .get("content-type")
-        .map(|value| value.to_str().unwrap().to_owned())
-        .unwrap_or_default();
-    let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
-    (status, media, serde_json::from_slice(&body).unwrap())
+        .map(|value| value.to_str().unwrap().to_owned());
+    (status, media.unwrap_or_default(), json)
+}
+
+#[tokio::test]
+async fn the_content_key_may_also_come_in_the_query() {
+    let (status, _, json) = send(&format!("/api/content/v1/posts/?key={KEY}&limit=1"), None).await;
+    assert_eq!(
+        (status, json["posts"].as_array().map(Vec::len)),
+        (StatusCode::OK, Some(1))
+    );
+}
+
+#[tokio::test]
+async fn a_missing_or_wrong_key_is_a_401_problem() {
+    let wrong = KEY.replace('f', "e");
+    let cases = [
+        ("/api/content/v1/posts/".to_owned(), None),
+        (
+            "/api/content/v1/posts/".to_owned(),
+            Some(format!("Khalid-Content {wrong}")),
+        ),
+        (
+            "/api/content/v1/posts/".to_owned(),
+            Some(format!("Bearer {KEY}")),
+        ),
+        (format!("/api/content/v1/posts/?key={wrong}"), None),
+        (
+            "/api/content/v1/posts/slug/fixing-slow-pages/".to_owned(),
+            None,
+        ),
+    ];
+    for (uri, authorization) in cases {
+        let (status, headers, json) = send(&uri, authorization.as_deref()).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "{uri} {authorization:?}");
+        assert_eq!(headers["www-authenticate"], "Khalid-Content", "{uri}");
+        assert_eq!(headers["content-type"], "application/problem+json", "{uri}");
+        assert_eq!(
+            json["type"], "https://khalid.dev/problems/unauthorized",
+            "{uri}"
+        );
+        assert!(
+            !json.to_string().contains(KEY.get(3..19).unwrap()),
+            "{json}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_openapi_document_needs_no_key_and_names_the_schemes() {
+    let (status, _, json) = send("/api/openapi.json", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let schemes = &json["components"]["securitySchemes"];
+    assert_eq!(schemes["content_key"]["in"], "header");
+    assert_eq!(schemes["content_key_query"]["in"], "query");
+    assert_eq!(schemes["content_key_query"]["name"], "key");
+    let security = &json["paths"]["/api/content/v1/posts/"]["get"]["security"];
+    assert_eq!(security.as_array().map(Vec::len), Some(2));
 }
 
 #[cfg(test)]
