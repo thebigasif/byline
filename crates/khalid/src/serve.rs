@@ -18,9 +18,10 @@ use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 
 use crate::cli::Output;
+use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
 use crate::site_content::LiveContent;
-use crate::site_pages::{ContentFeed, SitePages};
+use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{db, db_message, report, serve_message};
 
@@ -87,12 +88,14 @@ fn serve_with(
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
     let content = LiveContent::default();
-    let feed = ContentFeed {
-        runtime: runtime.handle().clone(),
+    let to = Destination {
+        folder: site.to_path_buf(),
+        config: config.clone(),
         db: database.clone(),
         site: id,
         live: content.clone(),
     };
+    let (feed, feeding) = content_feed::start(runtime.handle(), to);
     let (source, pages) = SitePages::new(site, config.clone(), Some(feed))
         .and_then(|source| {
             let (pages, not_found) = source.render_content(&checked)?;
@@ -107,7 +110,7 @@ fn serve_with(
     let security =
         SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))?;
     let keys = KeyTable::new(database.clone(), id, SystemClock);
-    runtime.block_on(async {
+    let served = runtime.block_on(async {
         let listener = TcpListener::bind(listen)
             .await
             .map_err(|error| (serve_message::listen(listen, &error), Exit::Failure))?;
@@ -134,7 +137,14 @@ fn serve_with(
         stopped
             .map(|_| ())
             .map_err(|_| (serve_message::stopped(), Exit::Failure))
-    })
+    });
+    // The pages hold the last feed. Once they are gone the Content API's
+    // task finishes its last write, before the database closes.
+    drop(source);
+    if let Err(error) = runtime.block_on(feeding) {
+        tracing::warn!(?error, "the Content API's task stopped early");
+    }
+    served
 }
 
 /// Opens `data/site.db` in the site folder, making it when it is missing,

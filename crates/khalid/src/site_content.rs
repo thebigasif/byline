@@ -4,8 +4,9 @@
 //! files, so the store is small and quick to build.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, PoisonError, RwLock};
+use std::sync::Arc;
 
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use khalid_api::content_store::{
@@ -15,9 +16,10 @@ use khalid_api::query::ListQuery;
 use khalid_api::resources::{Bodies, Collection, Post};
 use khalid_content::{SiteContent, parse_post, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, SitePath, SlugMode, UserMessage};
-use khalid_db::{ContentIndex, Database, IndexedPost, SiteId};
+use khalid_db::{ContentIndex, IndexedPost};
+use tokio::sync::watch;
 
-use crate::{build_message, build_pages, db_message, index, site_lists};
+use crate::{build_message, build_pages, index, site_lists};
 
 /// What one render of the pages read for the Content API, without a single
 /// post body: the content index, which posts are featured, and the lists.
@@ -58,22 +60,53 @@ impl Catalog {
     }
 }
 
-/// The published content readers see now. Cloning shares it, and a
-/// refresh swaps it whole, so a request never sees half a rebuild.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct LiveContent(Arc<RwLock<Arc<Published>>>);
+/// The published content readers see now. Cloning shares it. Until the
+/// first store is ready a request waits for it, and a refresh swaps the
+/// store whole, so a request never sees half a rebuild.
+#[derive(Debug, Clone)]
+pub(crate) struct LiveContent(Arc<watch::Sender<State>>);
+
+#[derive(Debug, Clone)]
+enum State {
+    Loading,
+    Ready(Arc<Published>),
+    Failed,
+}
+
+impl Default for LiveContent {
+    fn default() -> Self {
+        Self(Arc::new(watch::channel(State::Loading).0))
+    }
+}
 
 impl LiveContent {
     /// Serves `published` until it is replaced.
     pub(crate) fn replace(&self, published: Published) {
-        let mut slot = self.0.write().unwrap_or_else(PoisonError::into_inner);
-        *slot = Arc::new(published);
+        self.0.send_replace(State::Ready(Arc::new(published)));
     }
 
-    fn current(&self) -> Arc<Published> {
-        // Holding the lock only reads or swaps an `Arc`, so a poisoned lock
-        // still holds a whole store.
-        Arc::clone(&self.0.read().unwrap_or_else(PoisonError::into_inner))
+    /// Answers waiting requests with an error when no store was ever ready.
+    /// A store already served stays.
+    pub(crate) fn fail(&self) {
+        self.0.send_if_modified(|state| {
+            let loading = matches!(state, State::Loading);
+            if loading {
+                *state = State::Failed;
+            }
+            loading
+        });
+    }
+
+    async fn current(&self) -> Result<Arc<Published>, ContentStoreError> {
+        let mut states = self.0.subscribe();
+        let state = states
+            .wait_for(|state| !matches!(state, State::Loading))
+            .await
+            .map_err(|_| ContentStoreError::new(NotLoaded))?;
+        match &*state {
+            State::Ready(published) => Ok(Arc::clone(published)),
+            State::Loading | State::Failed => Err(ContentStoreError::new(NotLoaded)),
+        }
     }
 }
 
@@ -84,7 +117,7 @@ impl ContentStore for LiveContent {
         query: &'a ListQuery,
     ) -> BoxFuture<'a, Result<Listed<Post>, ContentStoreError>> {
         Box::pin(async move {
-            let published = self.current();
+            let published = self.current().await?;
             let listed = published.store.list(collection, query).await?;
             if query.formats().is_empty() {
                 return Ok(listed);
@@ -101,7 +134,7 @@ impl ContentStore for LiveContent {
         key: &'a PostKey,
     ) -> BoxFuture<'a, Result<Option<Post>, ContentStoreError>> {
         Box::pin(async move {
-            let published = self.current();
+            let published = self.current().await?;
             let Some(post) = published.store.find(collection, key).await? else {
                 return Ok(None);
             };
@@ -110,13 +143,25 @@ impl ContentStore for LiveContent {
     }
 
     fn site(&self) -> BoxFuture<'_, Result<SiteResources, ContentStoreError>> {
-        let published = self.current();
-        Box::pin(async move { published.store.site().await })
+        Box::pin(async move { self.current().await?.store.site().await })
     }
 }
 
+/// The site's published content could not be read from its files, so the
+/// Content API has nothing to answer with until the next save.
+#[derive(Debug)]
+struct NotLoaded;
+
+impl fmt::Display for NotLoaded {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("the published posts could not be read from the site's files")
+    }
+}
+
+impl std::error::Error for NotLoaded {}
+
 /// One store of published posts, without bodies, and where each body is.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Published {
     store: MemoryContentStore,
     /// Each post's file and language, by the post's identity.
@@ -194,27 +239,6 @@ impl Published {
     }
 }
 
-/// Writes the index of `site` in `db` again from `content`, read from the
-/// files in `folder`, and returns the published posts and lists it holds,
-/// without their bodies.
-///
-/// # Errors
-///
-/// Returns what, why and fix when a post cannot be indexed, the database
-/// cannot be written, or an address cannot be made from the settings.
-pub(crate) async fn published(
-    (db, site): (&Database, SiteId),
-    folder: &Path,
-    config: &Config,
-    content: &SiteContent,
-) -> Result<Published, UserMessage> {
-    let catalog = Catalog::of(folder, config, content)?;
-    db.rebuild(site, &catalog.index)
-        .await
-        .map_err(|error| db_message::of(folder, &error))?;
-    Published::of(folder, config, &catalog)
-}
-
 /// `posts` with their bodies, rendered on a blocking thread, since each
 /// one reads a file (RULES.md BL-RUN-7).
 async fn with_bodies(
@@ -280,6 +304,8 @@ fn plaintext(html: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use khalid_api::query::RawListQuery;
     use khalid_content::{ContentTree, read_content};
     use khalid_core::Environment;
@@ -356,6 +382,33 @@ mod tests {
         assert!(live.list(Collection::Posts, &english()).await.is_err());
         let german = PostKey::Id("de.warum-interne-links-wichtig-sind".to_owned());
         assert!(live.find(Collection::Posts, &german).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_request_waits_for_the_first_store_instead_of_answering_empty() {
+        let (folder, config, catalog) = demo();
+        let live = LiveContent::default();
+        let asking = live.clone();
+        let answer = tokio::spawn(async move {
+            let listed = asking.list(Collection::Posts, &english()).await;
+            listed.map(|listed| listed.total())
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(!answer.is_finished(), "answered before the store was ready");
+        live.replace(Published::of(&folder, &config, &catalog).unwrap());
+        assert_eq!(answer.await.unwrap().unwrap(), 5);
+    }
+
+    #[tokio::test]
+    async fn a_store_that_never_loaded_answers_an_error_but_a_served_one_stays() {
+        let (folder, config, catalog) = demo();
+        let live = LiveContent::default();
+        live.fail();
+        assert!(live.list(Collection::Posts, &english()).await.is_err());
+        live.replace(Published::of(&folder, &config, &catalog).unwrap());
+        live.fail();
+        let listed = live.list(Collection::Posts, &english()).await.unwrap();
+        assert_eq!(listed.total(), 5);
     }
 
     #[test]

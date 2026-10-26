@@ -17,6 +17,7 @@ mod build_seo;
 mod categories;
 mod cli;
 mod config_message;
+mod content_feed;
 mod content_message;
 mod db;
 mod db_message;

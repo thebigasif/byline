@@ -8,12 +8,11 @@ use std::sync::Arc;
 
 use khalid_content::{ContentTree, SiteContent, read_content};
 use khalid_core::{Config, UserMessage};
-use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
-use tokio::runtime::Handle;
 
-use crate::site_content::{LiveContent, published};
+use crate::content_feed::ContentFeed;
+use crate::site_content::Catalog;
 use crate::{assets, build_message, build_pages, content_message};
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -33,22 +32,9 @@ struct Site {
     feed: Option<ContentFeed>,
 }
 
-/// Where each render also sends the published posts: the content index in
-/// the site's database, and the posts the Content API answers with.
-#[derive(Debug)]
-pub(crate) struct ContentFeed {
-    /// The runtime the database belongs to. Renders run off it, on the
-    /// main thread at start and on a blocking thread after, so they wait
-    /// for the database through it.
-    pub(crate) runtime: Handle,
-    pub(crate) db: Database,
-    pub(crate) site: SiteId,
-    pub(crate) live: LiveContent,
-}
-
 impl SitePages {
     /// The pages of the site in `folder`, with its checked `config`. With
-    /// a `feed`, each render also refreshes the index and the Content API.
+    /// a `feed`, each render also hands the Content API what it read.
     pub(crate) fn new(
         folder: &Path,
         config: Config,
@@ -79,7 +65,7 @@ impl SitePages {
     }
 
     /// Every page made from `content`, already read from the site folder,
-    /// and the not-found page, refreshing the feed first when there is one.
+    /// and the not-found page, then hands the feed its catalog when there is one.
     /// At start, `khalid serve` passes the content it checked, so the folder
     /// is read once, not twice.
     pub(crate) fn render_content(
@@ -93,10 +79,12 @@ impl SitePages {
             stylesheet,
             feed,
         } = &*self.0;
-        if let Some(feed) = feed {
-            let fed = published((&feed.db, feed.site), folder, config, content);
-            feed.live.replace(feed.runtime.block_on(fed)?);
-        }
+        // The catalog holds no post body, so it is quick to make here, and
+        // the Content API's store is built from it in the background.
+        let catalog = match feed {
+            Some(_) => Some(Catalog::of(folder, config, content)?),
+            None => None,
+        };
         let languages = build_pages::pages(config, content, stylesheet.path().as_str())?;
         let mut pages = vec![stylesheet.clone()];
         let mut not_found = String::new();
@@ -115,6 +103,9 @@ impl SitePages {
                     .map_err(|_| build_message::address(&page.meta.path))?;
                 pages.push(Page::new(path, MediaType::Html, html));
             }
+        }
+        if let (Some(feed), Some(catalog)) = (feed, catalog) {
+            feed.send(catalog);
         }
         Ok((pages, not_found))
     }
