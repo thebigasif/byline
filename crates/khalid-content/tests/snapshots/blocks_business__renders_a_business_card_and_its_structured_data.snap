@@ -1,0 +1,13 @@
+---
+source: crates/khalid-content/tests/blocks_business.rs
+assertion_line: 37
+expression: page.html
+---
+<address class="business">
+<strong>Field Notes Studio</strong><br />
+12 Mill Lane<br />
+Leeds LS1 4AB<br />
+<a href="tel:+441134960000">+44 113 496 0000</a><br />
+<a href="mailto:hello@example.com">hello@example.com</a><br />
+<a href="https://www.example.com">https://www.example.com</a>
+</address>

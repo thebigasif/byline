@@ -12,6 +12,9 @@ mod db;
 mod db_message;
 mod exit;
 mod index;
+mod lint;
+mod lint_input;
+mod lint_message;
 mod report;
 mod routes_message;
 
@@ -60,7 +63,8 @@ fn run(cli: &Cli) -> Exit {
     match (&cli.command, &cli.site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some(site)) => db::run(site, *command, cli.output),
-        (Some(command @ Command::Db { .. }), None) => {
+        (Some(Command::Lint { path }), Some(site)) => lint::run(site, path.as_deref(), cli.output),
+        (Some(command @ (Command::Db { .. } | Command::Lint { .. })), None) => {
             report::failure(cli.output, &needs_site(command), Exit::Usage)
         }
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
@@ -74,7 +78,7 @@ fn needs_site(command: &Command) -> UserMessage {
             "The command `khalid {}` needs a site folder.",
             command.name()
         ),
-        "It works on the database inside one site, so Khalid has to know which one.",
+        "It works on the files inside one site, so Khalid has to know which one.",
         format!(
             "Run `khalid --site <folder> {}` with the folder that holds site.toml.",
             command.name()

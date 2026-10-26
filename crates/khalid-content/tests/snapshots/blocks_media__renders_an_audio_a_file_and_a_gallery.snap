@@ -1,0 +1,13 @@
+---
+source: crates/khalid-content/tests/blocks_media.rs
+expression: rendered(&markdown).html
+---
+<figure class="audio">
+<figcaption>Episode 12: internal links</figcaption>
+<audio controls preload="none" src="/media/episode-12.mp3"><a href="/media/episode-12.mp3">Episode 12: internal links</a></audio>
+</figure>
+<p class="file"><a href="/media/link-audit.csv" download>The link audit sheet</a></p>
+<div class="gallery">
+<figure><img src="/media/editor.png" alt="The editor with a post open" loading="lazy" decoding="async" /></figure>
+<figure><img src="/media/lint.png" alt="The linter&#39;s findings" loading="lazy" decoding="async" /></figure>
+</div>

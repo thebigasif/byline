@@ -1,0 +1,9 @@
+# Another English post (site.toml) has this text with two words changed.
+# A German post with the same text is a translation and does not count.
+extends = "clean"
+body_text = """
+An internal link points from one post on your site to another post on the
+same site. Readers follow these links to the next useful page, and search
+engines follow them to discover pages and to understand which ones matter
+most. Add a few links to related posts in every new post you write.
+"""

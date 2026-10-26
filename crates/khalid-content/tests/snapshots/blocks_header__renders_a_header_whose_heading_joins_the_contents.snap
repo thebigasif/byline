@@ -1,0 +1,10 @@
+---
+source: crates/khalid-content/tests/blocks_header.rs
+assertion_line: 32
+expression: page.html
+---
+<header class="banner">
+<img src="/media/links-cover.jpg" alt="A map of pages joined by lines" decoding="async" />
+<h2 id="part-two-linking-old-posts">Part two: linking old posts</h2>
+<p>Ten minutes a week keeps every post one click from a new one.</p>
+</header>

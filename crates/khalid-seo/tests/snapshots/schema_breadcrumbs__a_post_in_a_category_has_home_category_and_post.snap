@@ -1,0 +1,33 @@
+---
+source: crates/khalid-seo/tests/schema_breadcrumbs.rs
+expression: "SchemaGraph::new(vec![node]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Field Notes on SEO",
+          "item": "https://www.example.com/blog/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "On-page SEO",
+          "item": "https://www.example.com/blog/category/on-page-seo/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Why internal links matter",
+          "item": "https://www.example.com/blog/why-internal-links-matter/"
+        }
+      ]
+    }
+  ]
+}

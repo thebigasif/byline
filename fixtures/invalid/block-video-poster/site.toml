@@ -1,0 +1,8 @@
+# Valid settings: this site breaks one content rule, in README.md.
+
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+mode = "server"
+default_language = "en"
+languages = ["en", "de"]
