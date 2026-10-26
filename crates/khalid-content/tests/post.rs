@@ -6,6 +6,7 @@
 use std::path::Path;
 
 use khalid_content::parse_post;
+use khalid_core::Slug;
 
 const GOOD: &str = "---
 title: Why internal links matter
@@ -69,7 +70,7 @@ fn allows_the_fields_the_linter_checks_to_be_missing() {
 fn refuses_an_unknown_field() {
     assert_eq!(
         message("---\ntitle: A\ncolour: blue\n---\n"),
-        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation, aliases, featured"
+        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation, aliases, featured, reviewed_by, related"
     );
 }
 
@@ -137,6 +138,41 @@ fn refuses_an_alias_that_is_not_a_path() {
     assert_eq!(
         message("---\naliases:\n  - old-title\n---\n"),
         "posts/a.md, line 3, field \"aliases\": \"old-title\" is not a path; an alias is an old address on this site starting with /, such as /2019/05/old-title/"
+    );
+}
+
+#[test]
+fn reads_reviewers_and_related_posts_as_one_slug_or_a_list() {
+    let text = "---\ntitle: A\nreviewed_by: lena-vogt\nrelated:\n  - what-a-sitemap-does\n  - fixing-slow-pages\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), text).unwrap();
+    assert_eq!(
+        post.front.reviewed_by,
+        [Slug::try_new("lena-vogt").unwrap()]
+    );
+    assert_eq!(
+        post.front.related,
+        [
+            Slug::try_new("what-a-sitemap-does").unwrap(),
+            Slug::try_new("fixing-slow-pages").unwrap()
+        ]
+    );
+    let plain = parse_post(Path::new("posts/a.md"), "---\ntitle: A\n---\n").unwrap();
+    assert!(plain.front.reviewed_by.is_empty() && plain.front.related.is_empty());
+}
+
+#[test]
+fn refuses_a_reviewer_that_is_not_a_slug() {
+    assert_eq!(
+        message("---\nreviewed_by:\n  - Lena Vogt\n---\n"),
+        "posts/a.md, line 3, field \"reviewed_by\": \"Lena Vogt\" is not a slug; name the file in authors/ or posts/ without .md, such as lena-vogt"
+    );
+}
+
+#[test]
+fn refuses_more_than_five_related_posts() {
+    assert_eq!(
+        message("---\nrelated: [a, b, c, d, e, f]\n---\n"),
+        "posts/a.md, line 2, field \"related\": a post shows at most 5 related posts, and this lists 6; keep the 5 that matter most"
     );
 }
 
