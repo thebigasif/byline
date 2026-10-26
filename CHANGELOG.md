@@ -11,6 +11,7 @@ What changed for people who use Khalid, one line per change, newest first. Group
 - `--json` on every command prints the same message as JSON, for scripts and agents.
 - A mistyped command gets a plain explanation and exit code 2, instead of a wall of usage text.
 - `khalid --site <folder>` checks the site's settings and reads every content file: posts, pages, authors, glossary terms, case studies, changelog entries and snippets, as plain files or as folders with their images. A mistake is explained by file, line and field (KH-CON-1, KH-CON-2, KH-CON-3, KH-CON-4).
+- JSON feeds at `feed.json`, for apps and scripts that read JSON (KH-SEO-6).
 - Atom feeds at `atom.xml`, for readers that prefer Atom (KH-SEO-6).
 - RSS feeds at `feed.xml`, with the full post for readers that show it (KH-SEO-6).
 - Feeds per language and per category hold the newest posts, in full or as excerpts, with optional text before and after each post and a line linking the original (KH-SEO-6).
