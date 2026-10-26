@@ -116,6 +116,11 @@ fn serve_answers_every_page_type_with_a_csp_and_shows_an_edit_without_a_restart(
         ("/blog/what-a-sitemap-does/", 200, "What a sitemap does"),
         ("/blog/about/", 200, "About Field Notes</h1>"),
         ("/blog/authors/lena-vogt/", 200, "Lena Vogt</h1>"),
+        (
+            "/blog/glossary/topical-authority/",
+            200,
+            "Topical authority</h1>",
+        ),
         ("/blog/de/", 200, "lang=\"de\""),
         (
             "/blog/de/warum-interne-links-wichtig-sind/",

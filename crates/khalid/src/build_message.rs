@@ -6,6 +6,7 @@ use std::path::Path;
 use khalid_content::BlockError;
 use khalid_core::UserMessage;
 use khalid_render::RenderError;
+use khalid_routes::AddressError;
 use khalid_seo::SeoError;
 
 /// The message when the output folder is inside `content/`.
@@ -35,6 +36,15 @@ pub(crate) fn no_slug(path: &Path) -> UserMessage {
         ),
         "Every page needs an address, and its address ends in its slug.",
         "Add a slug to the front matter of that file.",
+    )
+}
+
+/// The message when `routes.toml` gives the file at `path` no address.
+pub(crate) fn route(path: &Path, error: &AddressError) -> UserMessage {
+    UserMessage::new(
+        format!("{} has no address: {error}.", path.display()),
+        "Every page is written where routes.toml says it lives, so it needs an address.",
+        "Remove the date from that collection's permalink in routes.toml, then build again.",
     )
 }
 

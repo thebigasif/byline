@@ -2,6 +2,7 @@
 //! records of `khalid-render` (ADR 0009), one language at a time.
 
 use std::cmp::Reverse;
+use std::path::Path;
 
 use khalid_content::{Document, PostFront, SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
@@ -9,6 +10,7 @@ use khalid_render::{
     BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, PostCard, RenderAuthor, RenderListing,
     RenderPage, RenderPost, RenderSite, Robots,
 };
+use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
 use crate::{build_message, build_seo};
@@ -32,26 +34,30 @@ pub(crate) struct Page {
 }
 
 /// Every page of the site, per language in the order of `site.toml`: each
-/// dated post, each plain page, each author with their posts, the home page
-/// with the posts newest first, and the 404 page.
+/// dated post and each glossary term at the address `routes` gives it, each
+/// plain page, each author with their posts, the home page with the posts
+/// newest first, and the 404 page.
 pub(crate) fn pages(
     config: &Config,
+    routes: &Routes,
     content: &SiteContent,
 ) -> Result<Vec<LanguagePages>, UserMessage> {
     config
         .languages()
         .iter()
-        .map(|locale| language_pages(config, content, locale))
+        .map(|locale| language_pages(config, routes, content, locale))
         .collect()
 }
 
 fn language_pages(
     config: &Config,
+    routes: &Routes,
     content: &SiteContent,
     locale: &Locale,
 ) -> Result<LanguagePages, UserMessage> {
-    let (mut pages, cards) = post_pages(config, content, locale)?;
+    let (mut pages, cards) = post_pages(config, routes, content, locale)?;
     pages.extend(plain_pages(config, content, locale)?);
+    pages.extend(glossary_pages(config, routes, content, locale)?);
     pages.extend(author_pages(config, content, locale, &cards)?);
     let home = RenderListing {
         title: config.name().to_owned(),
@@ -98,6 +104,7 @@ type Card<'a> = (Option<&'a Slug>, PostCard);
 /// The page of every dated post in `locale`, and their cards, newest first.
 fn post_pages<'a>(
     config: &Config,
+    routes: &Routes,
     content: &'a SiteContent,
     locale: &Locale,
 ) -> Result<(Vec<Page>, Vec<Card<'a>>), UserMessage> {
@@ -113,7 +120,8 @@ fn post_pages<'a>(
     for (doc, date) in dated {
         let front = &doc.front;
         let (title, slug) = named(config, doc, front.slug.as_ref(), front.title.as_deref())?;
-        let rest = format!("{slug}/");
+        let entry = PostAddress::new(&doc.collection, locale, &slug, Some(date));
+        let rest = routed(config, routes, locale, &entry, &doc.path)?;
         let path = path_of(config, locale, &rest);
         let html = body_html(config, doc)?;
         let description = front.description.clone().unwrap_or_default();
@@ -167,6 +175,35 @@ fn plain_pages(
         let meta = meta(config, title.clone(), description, path, PageKind::Website)?;
         let body = RenderPage {
             title,
+            updated: None,
+            body: body_html(config, doc)?,
+        };
+        pages.push(page(locale, config, &rest, meta, PageBody::Page(body), seo));
+    }
+    Ok(pages)
+}
+
+/// The page of every glossary term in `locale`, at the address `routes`
+/// gives its collection, `/glossary/<slug>/` unless `routes.toml` names
+/// another, so the wikilinks that reach it find it.
+fn glossary_pages(
+    config: &Config,
+    routes: &Routes,
+    content: &SiteContent,
+    locale: &Locale,
+) -> Result<Vec<Page>, UserMessage> {
+    let mut pages = Vec::new();
+    for doc in content.glossary.iter().filter(|doc| &doc.locale == locale) {
+        let front = &doc.front;
+        let (term, slug) = named(config, doc, front.slug.as_ref(), front.term.as_deref())?;
+        let entry = PostAddress::new(&doc.collection, locale, &slug, None);
+        let rest = routed(config, routes, locale, &entry, &doc.path)?;
+        let path = path_of(config, locale, &rest);
+        let mut seo = build_seo::page(SeoKind::GlossaryTerm, locale, &rest, &term)?;
+        seo.translation = build_seo::translation(front.translation.as_deref())?;
+        let meta = meta(config, term.clone(), String::new(), path, PageKind::Website)?;
+        let body = RenderPage {
+            title: term,
             updated: None,
             body: body_html(config, doc)?,
         };
@@ -243,6 +280,28 @@ fn named<F>(
     };
     let title = title.map_or_else(|| slug.to_string(), str::to_owned);
     Ok((title, slug))
+}
+
+/// The end of the address `routes` gives the document at `file`, after the
+/// mount and the language prefix, such as `glossary/seo/`.
+fn routed(
+    config: &Config,
+    routes: &Routes,
+    locale: &Locale,
+    entry: &PostAddress<'_>,
+    file: &Path,
+) -> Result<String, UserMessage> {
+    let address = routes
+        .address(config, entry)
+        .map_err(|error| build_message::route(file, &error))?;
+    let rest = address.strip_prefix(config.mount()).unwrap_or(&address);
+    let language = format!("{locale}/");
+    let rest = if locale == config.default_language() {
+        rest
+    } else {
+        rest.strip_prefix(&language).unwrap_or(rest)
+    };
+    Ok(rest.to_owned())
 }
 
 /// A document's body as HTML, with raw HTML escaped by `khalid_content::render`.

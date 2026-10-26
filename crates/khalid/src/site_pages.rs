@@ -9,14 +9,15 @@ use std::sync::Arc;
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_render::{PageBody, Renderer};
+use khalid_routes::Routes;
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
 
 use crate::{build_message, build_pages, content_message};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
-/// The settings and the theme are read once, when `khalid serve` starts.
-/// The content is read again on each render, so an edited post shows.
+/// The settings, the routes and the theme are read once, when `khalid serve`
+/// starts. The content is read again on each render, so an edited post shows.
 #[derive(Debug, Clone)]
 pub(crate) struct SitePages(Arc<Site>);
 
@@ -24,17 +25,19 @@ pub(crate) struct SitePages(Arc<Site>);
 struct Site {
     folder: PathBuf,
     config: Config,
+    routes: Routes,
     renderer: Renderer,
 }
 
 impl SitePages {
-    /// The pages of the site in `folder`, with its checked `config`.
-    pub(crate) fn new(folder: &Path, config: Config) -> Result<Self, UserMessage> {
+    /// The pages of the site in `folder`, with its checked `config` and `routes`.
+    pub(crate) fn new(folder: &Path, config: Config, routes: Routes) -> Result<Self, UserMessage> {
         let renderer =
             Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
+            routes,
             renderer,
         })))
     }
@@ -46,12 +49,13 @@ impl SitePages {
         let Site {
             folder,
             config,
+            routes,
             renderer,
         } = &*self.0;
         let content = ContentTree::walk(folder)
             .and_then(|tree| read_content(&tree))
             .map_err(|error| content_message::of(folder, &error))?;
-        let languages = build_pages::pages(config, &content)?;
+        let languages = build_pages::pages(config, routes, &content)?;
         let mut pages = Vec::new();
         let mut not_found = String::new();
         for language in &languages {

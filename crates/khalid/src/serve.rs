@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use khalid_content::EMBED_PROVIDERS;
 use khalid_core::Config;
+use khalid_routes::Routes;
 use khalid_server::{LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
 use tokio::net::TcpListener;
@@ -30,9 +31,15 @@ struct ServeBody<'a> {
     address: &'a str,
 }
 
-/// Serves the `site` folder, whose `config` was checked, on `listen`.
-pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Output) -> Exit {
-    let started = SitePages::new(site, config.clone()).and_then(|source| {
+/// Serves the `site` folder, whose `config` and `routes` were checked, on `listen`.
+pub(crate) fn run(
+    site: &Path,
+    config: &Config,
+    routes: &Routes,
+    listen: SocketAddr,
+    output: Output,
+) -> Exit {
+    let started = SitePages::new(site, config.clone(), routes.clone()).and_then(|source| {
         let (pages, not_found) = source.render_all()?;
         let pages = Pages::new(pages, not_found).map_err(|_| serve_message::internal())?;
         Ok((source, pages))

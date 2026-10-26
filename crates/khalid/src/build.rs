@@ -8,6 +8,7 @@ use std::path::{self, Path, PathBuf};
 use khalid_content::SiteContent;
 use khalid_core::{Config, UserMessage};
 use khalid_render::Renderer;
+use khalid_routes::Routes;
 use serde::Serialize;
 
 use crate::cli::Output;
@@ -24,11 +25,12 @@ struct BuildBody {
     pages: usize,
 }
 
-/// Renders the `site` folder, whose `config` and `content` were checked, into
-/// `out`, or `public/` in the site.
+/// Renders the `site` folder, whose `config`, `routes` and `content` were
+/// checked, into `out`, or `public/` in the site.
 pub(crate) fn run(
     site: &Path,
     config: &Config,
+    routes: &Routes,
     content: &SiteContent,
     out: Option<&Path>,
     output: Output,
@@ -37,7 +39,7 @@ pub(crate) fn run(
     if inside(&out, &within(site, "content")) {
         return report::failure(output, &build_message::into_content(&out), Exit::Failure);
     }
-    match build(site, config, content, &out) {
+    match build(site, config, routes, content, &out) {
         Ok(written) => success(output, &out, written),
         Err(message) => report::failure(output, &message, Exit::Failure),
     }
@@ -48,11 +50,12 @@ pub(crate) fn run(
 fn build(
     site: &Path,
     config: &Config,
+    routes: &Routes,
     content: &SiteContent,
     out: &Path,
 ) -> Result<usize, UserMessage> {
     let renderer = Renderer::with_theme(site).map_err(|error| build_message::render(&error))?;
-    let mut languages = build_pages::pages(config, content)?;
+    let mut languages = build_pages::pages(config, routes, content)?;
     let seo_site = build_seo::site(config)?;
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
     let mut written = 0;
