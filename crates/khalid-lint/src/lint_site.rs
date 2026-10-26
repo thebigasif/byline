@@ -1,6 +1,7 @@
 //! The rest of the site, for rules that compare a post with its neighbours.
 
 use khalid_core::{Locale, Slug};
+use serde::Deserialize;
 
 use crate::LintPost;
 
@@ -21,7 +22,8 @@ pub trait SiteView {
 }
 
 /// A site's posts, pages and glossary, held in memory.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
 #[non_exhaustive]
 pub struct LintSite {
     /// Every post, in every language.
@@ -47,7 +49,7 @@ impl SiteView for LintSite {
 }
 
 /// A page on the site that is not a post.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 #[non_exhaustive]
 pub struct PageRef {
     /// The page's language.
@@ -64,7 +66,7 @@ impl PageRef {
 }
 
 /// A term the site's glossary defines.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 #[non_exhaustive]
 pub struct GlossaryTerm {
     /// The term's language.
