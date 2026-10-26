@@ -1,0 +1,19 @@
+[package]
+name = "khalid-content"
+version = "0.0.0"
+description = "Front matter, markdown and the content tree: the files that are the source of truth."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+serde.workspace = true
+serde-saphyr = "2"
+thiserror.workspace = true
+
+[lints]
+workspace = true

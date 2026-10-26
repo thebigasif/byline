@@ -112,6 +112,20 @@ impl AsRef<str> for Slug {
     }
 }
 
+impl<'de> serde::Deserialize<'de> for Slug {
+    /// Reads a slug from text, accepting the ASCII form or, when the text is
+    /// not ASCII, the Unicode form.
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        let slug = if text.is_ascii() {
+            Self::try_new(&text)
+        } else {
+            Self::try_new_unicode(&text)
+        };
+        slug.map_err(serde::de::Error::custom)
+    }
+}
+
 impl fmt::Display for Slug {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
