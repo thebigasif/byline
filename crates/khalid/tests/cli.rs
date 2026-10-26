@@ -204,7 +204,7 @@ fn publish_refuses_a_slug_that_breaks_the_rules() {
     assert_eq!(output.status.code(), Some(2));
     let stderr = text(&output.stderr);
     assert!(
-        stderr.contains("only lowercase letters a to z, digits and hyphens"),
+        stderr.contains("only a to z, 0 to 9 and hyphens"),
         "{stderr}"
     );
 }
@@ -271,7 +271,12 @@ fn a_settings_mistake_with_json_prints_json() {
     ]);
     assert_eq!(output.status.code(), Some(1));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(json["error"]["what"].as_str().unwrap().contains("Line 6"));
+    assert!(
+        json["error"]["what"]
+            .as_str()
+            .unwrap()
+            .contains("line 6, `mode`")
+    );
     assert!(
         json["error"]["fix"]
             .as_str()

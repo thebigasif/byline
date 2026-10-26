@@ -1,0 +1,3 @@
+fixtures/invalid/content-not-a-language/content/english is not named after a language.
+Each folder in content/ holds one language, named with its code, such as en or de.
+Rename fixtures/invalid/content-not-a-language/content/english to a language code such as en, or move it out of content/.

@@ -1,0 +1,3 @@
+fixtures/invalid/content-unclosed-front-matter/content/en/posts/why-links-matter.md opens its front matter with --- but never closes it.
+Without the closing line, Khalid cannot tell where the fields end and the post begins.
+Add a --- line after the last field in fixtures/invalid/content-unclosed-front-matter/content/en/posts/why-links-matter.md.

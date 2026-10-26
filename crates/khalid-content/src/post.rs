@@ -6,8 +6,8 @@ use chrono::NaiveDate;
 use khalid_core::Slug;
 use serde::{Deserialize, Deserializer};
 
-use crate::ContentError;
 use crate::front_matter::{Fence, split};
+use crate::{Collection, ContentError, ContentTree};
 
 /// What a post's front matter may say.
 ///
@@ -92,6 +92,16 @@ fn located(path: &Path, yaml: &str, source: serde_saphyr::Error) -> ContentError
         _ => without_error,
     }
     .to_owned();
+    // Two of the reader's phrases mean nothing to a writer; say what happened.
+    let problem = match problem.as_str() {
+        "expected string scalar" => {
+            "this field must be plain text, not a list or a group".to_owned()
+        }
+        "mapping values are not allowed in this context" => {
+            "the line has a second colon; put the value in quotes if it needs one".to_owned()
+        }
+        _ => problem,
+    };
     ContentError::Field {
         path: path.to_path_buf(),
         // The YAML starts on the file's second line, after the opening ---.
@@ -112,4 +122,19 @@ fn date<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<NaiveDate>,
                 "the date must be a real day written as YYYY-MM-DD, such as 2026-09-14",
             )
         })
+}
+
+/// Reads the front matter of every entry in every `posts` collection, in the
+/// tree's path order. Other collections get their own schemas.
+///
+/// # Errors
+///
+/// Returns the first [`ContentError`] from [`parse_post`].
+pub fn read_posts(tree: &ContentTree) -> Result<Vec<Post>, ContentError> {
+    tree.languages()
+        .iter()
+        .filter_map(|language| language.collection("posts"))
+        .flat_map(Collection::entries)
+        .map(|entry| parse_post(entry.path(), entry.text()))
+        .collect()
 }

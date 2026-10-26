@@ -148,7 +148,7 @@ pub enum ParseSlugError {
     },
     /// The text held something other than `a` to `z`, `0` to `9` or `-`.
     #[error(
-        "the slug has {character:?} at byte {position}, and only lowercase letters a to z, digits and hyphens are allowed"
+        "the slug has {character:?} at byte {position}, but only a to z, 0 to 9 and hyphens are allowed"
     )]
     InvalidCharacter {
         /// The first character that is not allowed.

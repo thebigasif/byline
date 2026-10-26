@@ -944,6 +944,7 @@ name = "khalid"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "khalid-content",
  "khalid-core",
  "mimalloc",
  "serde",

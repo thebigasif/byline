@@ -76,7 +76,7 @@ fn errors_read_as_plain_lowercase_phrases() {
     let error = Slug::try_new("Links").unwrap_err().to_string();
     assert_eq!(
         error,
-        "the slug has 'L' at byte 0, and only lowercase letters a to z, digits and hyphens are allowed"
+        "the slug has 'L' at byte 0, but only a to z, 0 to 9 and hyphens are allowed"
     );
 }
 

@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+khalid-content = { path = "../khalid-content", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 clap = { version = "4", features = ["derive"] }
 mimalloc = "0.1"

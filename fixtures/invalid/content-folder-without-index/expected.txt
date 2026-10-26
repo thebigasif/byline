@@ -1,0 +1,3 @@
+fixtures/invalid/content-folder-without-index/content/en/posts/choosing-a-crm is a post folder with no index.md.
+A post folder holds the post in index.md and its images beside it.
+Add index.md to fixtures/invalid/content-folder-without-index/content/en/posts/choosing-a-crm, or move its files out of the folder.

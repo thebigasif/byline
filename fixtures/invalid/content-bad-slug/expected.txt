@@ -1,0 +1,3 @@
+fixtures/invalid/content-bad-slug/content/en/posts/why-links-matter.md, line 3, `slug`: the slug has 'W' at byte 0, but only a to z, 0 to 9 and hyphens are allowed.
+Khalid reads every post before it runs, so nothing is built from a file it cannot read.
+Correct `slug` on line 3, then run the command again.

@@ -85,7 +85,7 @@ fn refuses_a_date_that_is_not_a_real_day() {
 fn refuses_a_slug_that_breaks_the_rules() {
     assert_eq!(
         message("---\nslug: Why Links\n---\n"),
-        "posts/a.md, line 2, field \"slug\": the slug has 'W' at byte 0, and only lowercase letters a to z, digits and hyphens are allowed"
+        "posts/a.md, line 2, field \"slug\": the slug has 'W' at byte 0, but only a to z, 0 to 9 and hyphens are allowed"
     );
 }
 
@@ -93,7 +93,7 @@ fn refuses_a_slug_that_breaks_the_rules() {
 fn refuses_a_field_with_the_wrong_kind_of_value() {
     assert_eq!(
         message("---\ntitle: [one, two]\n---\n"),
-        "posts/a.md, line 2, field \"title\": expected string scalar"
+        "posts/a.md, line 2, field \"title\": this field must be plain text, not a list or a group"
     );
 }
 
@@ -101,7 +101,7 @@ fn refuses_a_field_with_the_wrong_kind_of_value() {
 fn refuses_front_matter_that_is_not_yaml() {
     assert_eq!(
         message("---\ntitle: A\n  oops: indented\n---\n"),
-        "posts/a.md, line 3, field \"oops\": mapping values are not allowed in this context"
+        "posts/a.md, line 3, field \"oops\": the line has a second colon; put the value in quotes if it needs one"
     );
 }
 
