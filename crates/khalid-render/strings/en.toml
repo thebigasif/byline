@@ -34,6 +34,10 @@ pagination = "Pages"
 page_of = "Page {current} of {total}"
 newer_posts = "Newer posts"
 older_posts = "Older posts"
+# The link under a home page section. {name} is the section's name.
+view_all = "View all posts in {name}"
+# The heading and label of the row of topic links on the home page.
+topics = "Topics"
 # {name} is filled in.
 posts_by = "Posts by {name}"
 glossary_letters = "Jump to a letter"

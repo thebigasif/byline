@@ -6,7 +6,7 @@ use khalid_render::{Feature, Features, PageBody, PageKind, Renderer};
 use crate::common::{demo_site, meta};
 use crate::html_check::assert_valid_page;
 use crate::image::avatar_image;
-use crate::listing::{first_page, main_of};
+use crate::listing::{first_page, home, main_of};
 use crate::post::part;
 
 fn render_home(features: Features) -> String {
@@ -19,7 +19,7 @@ fn render_home(features: Features) -> String {
     let meta = meta("Field Notes on SEO", "/blog/", PageKind::Website);
     Renderer::new()
         .unwrap()
-        .render(&site, &meta, &PageBody::Home(listing))
+        .render(&site, &meta, &PageBody::Home(home(listing)))
         .unwrap()
 }
 

@@ -8,7 +8,7 @@ use khalid_content::{Document, PostFront, SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
     BodyHtml, Features, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime,
-    RenderAuthor, RenderListing, RenderPage, RenderPost, RenderSite, Robots,
+    RenderAuthor, RenderHome, RenderListing, RenderPage, RenderPost, RenderSite, Robots,
 };
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
@@ -76,7 +76,11 @@ fn language_pages(
         config,
         "",
         home_meta,
-        PageBody::Home(home),
+        PageBody::Home(RenderHome {
+            listing: home,
+            sections: Vec::new(),
+            topics: Vec::new(),
+        }),
         home_seo,
     ));
     let mut missing_seo = build_seo::page(SeoKind::NotFound, locale, "404.html", config.name())?;

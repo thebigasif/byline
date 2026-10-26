@@ -20,8 +20,9 @@ use chrono::NaiveDate;
 use khalid_core::{AbsoluteUrl, Locale};
 use khalid_render::{
     Alternate, BodyHtml, Features, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink, PageBody,
-    PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor, RenderGlossary, RenderListing,
-    RenderPage, RenderPost, RenderSearch, RenderSite, Renderer, Robots, Tokens, stylesheet,
+    PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor, RenderGlossary, RenderHome,
+    RenderListing, RenderPage, RenderPost, RenderSearch, RenderSite, Renderer, Robots, Tokens,
+    TopicGroup, stylesheet,
 };
 
 type Fallible<T> = Result<T, Box<dyn Error>>;
@@ -318,7 +319,25 @@ impl Demo {
                 .collect(),
             pagination: None,
         };
-        let home = PageBody::Home(pick("Field Notes on SEO", &|_, _| true));
+        let used: BTreeSet<String> = cards
+            .iter()
+            .map(|(_, category, _)| category.clone())
+            .collect();
+        let topics = used
+            .iter()
+            .map(|slug| Link {
+                name: self.category_name(lang, slug),
+                href: format!("{}category/{slug}/", lang.prefix),
+            })
+            .collect();
+        let home = PageBody::Home(RenderHome {
+            listing: pick("Field Notes on SEO", &|_, _| true),
+            sections: Vec::new(),
+            topics: vec![TopicGroup {
+                name: None,
+                links: topics,
+            }],
+        });
         self.page(lang, (lang.prefix, None), "Field Notes on SEO", &home)?;
         for author in &authors {
             let slug = author.field("slug");
@@ -339,10 +358,6 @@ impl Demo {
                 &PageBody::Author(Box::new(page)),
             )?;
         }
-        let used: BTreeSet<String> = cards
-            .iter()
-            .map(|(_, category, _)| category.clone())
-            .collect();
         for slug in used {
             let name = self.category_name(lang, &slug);
             let path = format!("{}category/{slug}/", lang.prefix);

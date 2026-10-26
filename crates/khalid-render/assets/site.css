@@ -115,6 +115,11 @@ nav a { min-inline-size: 44px; }
 .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .tags a { padding-inline: 0.75rem; background: var(--color-surface); border-radius: var(--radius); text-decoration: none; }
 
+/* Home page sections and the row of topic links. */
+.home-section { margin-block-end: 2.5rem; }
+.view-all a { display: inline-flex; align-items: center; min-block-size: 44px; }
+.topics { margin-block-start: 3rem; }
+
 /* The related posts under a post. */
 .related { margin-block-start: 1rem; }
 

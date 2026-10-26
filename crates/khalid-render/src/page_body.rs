@@ -3,14 +3,16 @@
 use minijinja::Value;
 use minijinja::value::Serde;
 
-use crate::{RenderAuthor, RenderGlossary, RenderListing, RenderPage, RenderPost, RenderSearch};
+use crate::{
+    RenderAuthor, RenderGlossary, RenderHome, RenderListing, RenderPage, RenderPost, RenderSearch,
+};
 
 /// The main content of one page. The variant picks the template.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum PageBody {
     /// The blog's front page in one language.
-    Home(RenderListing),
+    Home(RenderHome),
     /// One page of a collection, such as `/blog/` or `/guides/`.
     Collection(RenderListing),
     /// One page of the posts with a tag.
@@ -51,10 +53,10 @@ impl PageBody {
     /// The page's own data, which templates read as `page`.
     pub(crate) fn value(&self) -> Value {
         match self {
-            Self::Home(listing)
-            | Self::Collection(listing)
-            | Self::Tag(listing)
-            | Self::Category(listing) => Value::from(Serde(listing)),
+            Self::Home(home) => Value::from(Serde(home)),
+            Self::Collection(listing) | Self::Tag(listing) | Self::Category(listing) => {
+                Value::from(Serde(listing))
+            }
             Self::Post(post) => Value::from(Serde(post)),
             Self::Page(page) => Value::from(Serde(page)),
             Self::Author(author) => Value::from(Serde(author)),

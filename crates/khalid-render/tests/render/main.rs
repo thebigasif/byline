@@ -18,6 +18,8 @@ mod glossary;
 #[cfg(test)]
 mod heading_links;
 #[cfg(test)]
+mod home;
+#[cfg(test)]
 mod html_check;
 #[cfg(test)]
 mod image;
