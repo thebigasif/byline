@@ -27,6 +27,7 @@ mod redirect_patterns;
 mod redirects;
 mod robots_meta;
 mod robots_txt;
+mod schema;
 mod seo_error;
 mod site;
 mod sitemap;
@@ -55,6 +56,7 @@ pub use robots_meta::{
 pub use robots_txt::{
     BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,
 };
+pub use schema::{SchemaGraph, SchemaNode, SchemaValue};
 pub use seo_error::SeoError;
 pub use site::SeoSite;
 pub use sitemap::{Sitemap, SitemapEntry};

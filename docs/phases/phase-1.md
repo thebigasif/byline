@@ -107,7 +107,7 @@
 
 ### 1.14 Schema markup
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): the JSON-LD graph model in `khalid-seo`: typed values, nodes with `@id` references, one `@graph` per page, and a script tag no text can close. Next: site nodes (publisher, WebSite, breadcrumbs); articles and authors; glossary and LocalBusiness; block schemas; schema templates and custom JSON-LD; the schema.org vocabulary and Google's required and recommended properties.
 - JSON-LD graphs for Article, BlogPosting, Person, Organization, BreadcrumbList, WebSite, DefinedTerm and DefinedTermSet, TechArticle, and the schema each block from 1.7 writes (FAQ, how-to, review, recipe, video, business card).
 - Rules: plan section 5.9.
 - Done when: each graph has a snapshot and passes a JSON-LD structure test against the types Google's Rich Results Test accepts.

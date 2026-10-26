@@ -22,6 +22,7 @@ robotstxt = "0.3"
 roxmltree = "0.20"
 rss = { version = "2", features = ["validation"] }
 serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true
