@@ -5,13 +5,14 @@ use std::fs;
 use std::path::{self, Path, PathBuf};
 
 use khalid_content::SiteContent;
-use khalid_core::Config;
+use khalid_core::{Config, SystemClock};
+use khalid_lint::Linter;
 use khalid_render::Renderer;
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{build_message, build_pages, report};
+use crate::{build_gate, build_message, build_pages, lint, lint_message, report};
 
 /// The output folder inside a site when `--out` is not given.
 const PUBLIC: &str = "public";
@@ -35,6 +36,17 @@ pub(crate) fn run(
     let out = out.map_or_else(|| within(site, PUBLIC), Path::to_path_buf);
     if inside(&out, &within(site, "content")) {
         return report::failure(output, &build_message::into_content(&out), Exit::Failure);
+    }
+    let linter = match lint::settings(site).map(|settings| Linter::new(&settings, &SystemClock)) {
+        Ok(Ok(linter)) => linter,
+        Ok(Err(error)) => {
+            return report::failure(output, &lint_message::of(&error), Exit::Internal);
+        }
+        Err(message) => return report::failure(output, &message, Exit::Failure),
+    };
+    let refused = build_gate::refused(&linter, content, config);
+    if !refused.is_empty() {
+        return build_gate::refuse(output, &refused);
     }
     let renderer = match Renderer::with_theme(site) {
         Ok(renderer) => renderer,

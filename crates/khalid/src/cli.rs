@@ -61,7 +61,7 @@ pub(crate) enum Command {
         #[arg(long, value_name = "CODE")]
         language: Option<Locale>,
     },
-    /// Render every page of the site as HTML into a folder
+    /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked
     Build {
         /// The folder to write the pages to [default: public in the site folder]
         #[arg(long, value_name = "FOLDER")]

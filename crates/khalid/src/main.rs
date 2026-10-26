@@ -7,6 +7,7 @@
 
 mod atomic;
 mod build;
+mod build_gate;
 mod build_message;
 mod build_pages;
 mod cli;

@@ -27,6 +27,8 @@ fn path(base: &Path, rel: &str) -> String {
 /// Every outcome of the three commands, with the exit code it must give: 0
 /// success, 1 a failure the person must act on, 2 a usage error. `site` is a
 /// site made by `khalid init`, and `fresh` a folder that does not exist yet.
+/// `build` runs before `new`, because the publish gate refuses a new post
+/// until it has an author and a link; `tests/build.rs` covers that refusal.
 fn cases(site: &str, fresh: &str) -> Vec<(Vec<String>, i32)> {
     let address = "https://www.example.com";
     let content = format!("{site}/content/html");
@@ -38,12 +40,12 @@ fn cases(site: &str, fresh: &str) -> Vec<(Vec<String>, i32)> {
             1,
         ),
         (&["init", fresh, "--address", address], 0),
-        (&["--site", site, "new", "Why links matter"], 0),
-        (&["--site", site, "new", "Bonjour", "--language", "fr"], 1),
-        (&["new", "Why links matter"], 2),
         (&["--site", site, "build"], 0),
         (&["--site", site, "build", "--out", &content], 1),
         (&["build"], 2),
+        (&["--site", site, "new", "Why links matter"], 0),
+        (&["--site", site, "new", "Bonjour", "--language", "fr"], 1),
+        (&["new", "Why links matter"], 2),
     ];
     table
         .iter()
@@ -135,7 +137,10 @@ fn json_output_is_one_value_on_stdout_with_an_error_only_on_failure() {
 /// The last check of task 1.16's done line: `init`, then `new`, then `build`
 /// give a site that `serve` serves. It waits for task 1.15, which builds
 /// `khalid serve`; when that lands, match the start-up line and the flags
-/// below to what it prints and takes, and remove the `ignore`.
+/// below to what it prints and takes, and remove the `ignore`. Since the
+/// publish gate (task 2.6), give the new post `author:` and an internal link
+/// before `build`, as `init_then_new_then_build_writes_the_post_to_public`
+/// in `tests/build.rs` does.
 #[test]
 #[ignore = "waits for task 1.15: khalid serve is not built yet"]
 fn init_new_build_then_serve_serves_the_post() {

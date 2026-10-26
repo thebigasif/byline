@@ -49,3 +49,29 @@ impl Linter {
         }
     }
 }
+
+/// Whatever decides if a post may go live, as every publish path holds it.
+///
+/// `khalid build` and the Admin API's publish path take a `&dyn PublishGate`
+/// rather than a [`Linter`], so both ask the same question and a test can
+/// stand in for the rules. [`Linter`] is the gate in the product.
+pub trait PublishGate {
+    /// The decision for `post`, read against the rest of `site`.
+    fn verdict(&self, post: &LintPost, site: &dyn SiteView) -> Verdict;
+
+    /// Whether [`PublishGate::verdict`] would refuse `post`. A gate may
+    /// answer faster than a full verdict, which carries every warning too.
+    fn refuses(&self, post: &LintPost, site: &dyn SiteView) -> bool {
+        !self.verdict(post, site).allows_publishing()
+    }
+}
+
+impl PublishGate for Linter {
+    fn verdict(&self, post: &LintPost, site: &dyn SiteView) -> Verdict {
+        self.gate(post, site)
+    }
+
+    fn refuses(&self, post: &LintPost, site: &dyn SiteView) -> bool {
+        Self::refuses(self, post, site)
+    }
+}
