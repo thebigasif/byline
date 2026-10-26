@@ -8,6 +8,8 @@
 //! BL-RUN-8). The crate must not know about content, posts, templates or
 //! the database.
 
+mod brand;
 mod links;
 
+pub use brand::Brand;
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
