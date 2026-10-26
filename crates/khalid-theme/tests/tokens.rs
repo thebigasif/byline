@@ -2,7 +2,7 @@
 
 use std::fs;
 
-use khalid_theme::{FontStack, Length, ThemeTokens};
+use khalid_theme::{FontStack, Length, ThemeTokens, TokenName};
 
 #[cfg(test)]
 fn defaults_file() -> String {
@@ -31,16 +31,34 @@ fn a_file_with_an_unknown_field_or_a_bad_value_is_refused_with_its_line() {
     let bad_length = defaults_file().replace("\"68ch\"", "\"68vw\"");
 
     let cases = [
-        (unknown, 20),
-        (bad_colour, 8),
-        (alpha, 10),
-        (bad_font, 17),
-        (bad_length, 21),
+        (unknown, 21),
+        (bad_colour, 9),
+        (alpha, 11),
+        (bad_font, 18),
+        (bad_length, 22),
     ];
     for (text, line) in cases {
         let error = ThemeTokens::from_toml(&text).unwrap_err();
         assert_eq!(error.line(), Some(line), "{error}");
     }
+}
+
+#[test]
+fn a_locked_list_is_read_written_back_above_the_tables_and_checked_by_name() {
+    let text = defaults_file().replace(
+        "[colors]",
+        "locked = [\"colors.link\", \"fonts.heading\"]\n\n[colors]",
+    );
+
+    let tokens = ThemeTokens::from_toml(&text).unwrap();
+
+    let names: Vec<&str> = tokens.locked.iter().map(|name| name.as_str()).collect();
+    assert_eq!(names, ["colors.link", "fonts.heading"]);
+    assert_eq!(TokenName::ALL.len(), 12);
+    assert_eq!(tokens.to_toml(), text);
+    let wrong = defaults_file().replace("[colors]", "locked = [\"colors.lnk\"]\n\n[colors]");
+    let error = ThemeTokens::from_toml(&wrong).unwrap_err();
+    assert_eq!(error.line(), Some(6), "{error}");
 }
 
 #[test]
