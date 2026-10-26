@@ -28,8 +28,8 @@ const READERS: u32 = 8;
 /// on each other's locks. Reads go through the pool and never block a write.
 #[derive(Debug, Clone)]
 pub struct Database {
-    writer: SqlitePool,
-    readers: SqlitePool,
+    pub(crate) writer: SqlitePool,
+    pub(crate) readers: SqlitePool,
 }
 
 impl Database {
