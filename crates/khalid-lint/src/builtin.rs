@@ -1,6 +1,6 @@
 //! The list of rules this crate ships.
 
-use crate::{Rule, Thresholds, blocking, link_text, snippet, structure};
+use crate::{Rule, Thresholds, address, blocking, link_text, snippet, structure, words};
 
 /// Every built-in rule, measured against `thresholds`, in the order their
 /// findings are listed: the blocks first, then the warnings.
@@ -33,5 +33,14 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(link_text::SameTargetTwice),
         Box::new(link_text::EmptyLinkText),
         Box::new(structure::NoOutboundLink),
+        Box::new(address::BrokenWikilink),
+        Box::new(words::KeywordStuffing {
+            max_percent: thresholds.keyword_density_percent,
+        }),
+        Box::new(address::LongSlug {
+            max: thresholds.slug_max_chars,
+        }),
+        Box::new(address::SlugStopwords),
+        Box::new(address::SlugDate),
     ]
 }

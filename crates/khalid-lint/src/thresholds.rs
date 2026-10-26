@@ -23,6 +23,12 @@ pub struct Thresholds {
     /// The longest description, in characters, before search results cut it.
     /// Default 160, about what Google shows on a desktop result.
     pub description_max_chars: usize,
+    /// The share of a post's words, in percent, one repeated phrase may
+    /// fill. Default 3, well above what natural writing reaches.
+    pub keyword_density_percent: usize,
+    /// The longest web address ending, in characters. Default 60, about ten
+    /// short words.
+    pub slug_max_chars: usize,
 }
 
 impl Default for Thresholds {
@@ -32,6 +38,8 @@ impl Default for Thresholds {
             same_link_text_max: 3,
             title_max_chars: 60,
             description_max_chars: 160,
+            keyword_density_percent: 3,
+            slug_max_chars: 60,
         }
     }
 }

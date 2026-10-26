@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::{Hit, LinkKind, LintLink, LintPost, Rule, RuleId, Severity, SiteView};
+use crate::{Hit, LinkKind, LintLink, LintPost, Rule, RuleId, Severity, SiteView, german};
 
 /// Link words that say nothing about the page they open, by language.
 const VAGUE: &[(&str, &[&str])] = &[
@@ -22,18 +22,7 @@ const VAGUE: &[(&str, &[&str])] = &[
             "continue reading",
         ],
     ),
-    (
-        "de",
-        &[
-            "hier",
-            "hier klicken",
-            "mehr",
-            "mehr lesen",
-            "weiterlesen",
-            "dieser artikel",
-            "link",
-        ],
-    ),
+    ("de", german::VAGUE_LINK_TEXT),
 ];
 
 /// Link words compared the way a reader sees them: lowercase, single spaces,

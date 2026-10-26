@@ -117,3 +117,33 @@ what = "Another post on this site has the same description."
 why = "A shared description makes two posts look the same in search results."
 fix = "Rewrite the description so it sums up this post alone."
 guide = "descriptions"
+
+[keyword-stuffing]
+what = "One phrase appears so often that the post reads as if written for machines."
+why = "Google treats heavy repetition as spam and may show the post less."
+fix = "Rewrite some of those sentences with other words, or cut the repeats."
+guide = "keyword-stuffing"
+
+[long-slug]
+what = "This post's web address is long."
+why = "Short addresses are easier to read, share and remember."
+fix = "Shorten `slug:` to the few words that name the topic, before you publish."
+guide = "web-addresses"
+
+[slug-stopwords]
+what = "This post's web address holds filler words such as \"the\" or \"of\"."
+why = "Filler words make the address longer without telling readers or Google anything."
+fix = "Remove the filler words from `slug:` before you publish."
+guide = "web-addresses"
+
+[slug-date]
+what = "This post's web address holds a year."
+why = "A year in the address makes the post look old once that year has passed."
+fix = "Remove the year from `slug:` before you publish."
+guide = "web-addresses"
+
+[broken-wikilink]
+what = "This `[[link]]` matches no post, page or glossary term in this language."
+why = "Readers who follow it land on a page that does not exist."
+fix = "Change it to the address of an existing page, or remove the brackets."
+guide = "wikilinks"

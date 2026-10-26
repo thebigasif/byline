@@ -37,6 +37,9 @@ pub struct LintPost {
     /// The images in the body, in order.
     #[serde(default)]
     pub images: Vec<Image>,
+    /// The targets of the `[[slug]]` links in the body, as written, in order.
+    #[serde(default)]
+    pub wikilinks: Vec<String>,
     /// How many words the body holds.
     #[serde(default)]
     pub word_count: usize,
@@ -58,6 +61,7 @@ impl LintPost {
             headings: Vec::new(),
             links: Vec::new(),
             images: Vec::new(),
+            wikilinks: Vec::new(),
             word_count: 0,
             body_text: String::new(),
         }
