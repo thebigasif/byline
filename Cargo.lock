@@ -1867,6 +1867,7 @@ dependencies = [
  "brotli",
  "bytes",
  "divan",
+ "getrandom 0.4.3",
  "http-body-util",
  "percent-encoding",
  "sha2 0.11.1",

@@ -12,6 +12,7 @@ publish.workspace = true
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 brotli = "9"
 bytes = "1"
+getrandom = "0.4"
 percent-encoding = "2"
 sha2 = "0.11"
 thiserror.workspace = true

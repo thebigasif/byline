@@ -9,7 +9,7 @@ use axum::http::header::{
 };
 use axum::http::{Method, Request, Response, StatusCode};
 use http_body_util::BodyExt;
-use khalid_server::{MediaType, Page, PagePath, Pages, router};
+use khalid_server::{MediaType, Page, PagePath, Pages, SecurityHeaders, router};
 use tower::ServiceExt;
 
 /// A post long enough to be worth compressing.
@@ -40,7 +40,10 @@ async fn send(method: Method, uri: &str, headers: &[(HeaderName, &str)]) -> Resp
         request = request.header(name, *value);
     }
     let request = request.body(Body::empty()).unwrap();
-    router(pages).oneshot(request).await.unwrap()
+    router(pages, SecurityHeaders::default())
+        .oneshot(request)
+        .await
+        .unwrap()
 }
 
 #[cfg(test)]

@@ -12,6 +12,13 @@ pub enum ServerError {
         /// The address both claim.
         path: PagePath,
     },
+    /// A frame origin for the Content Security Policy is not `https://`
+    /// and a host.
+    #[error("the frame origin {origin:?} is not an https origin")]
+    FrameOrigin {
+        /// The origin as given.
+        origin: String,
+    },
     /// Accepting or answering connections failed.
     #[error("the server stopped answering requests")]
     Serve {

@@ -12,7 +12,7 @@ use tower::service_fn;
 
 use crate::clean_url::{Resolved, resolve};
 use crate::compress::{self, Compressed};
-use crate::{MediaType, Page, Pages, etag};
+use crate::{MediaType, Page, Pages, SecurityHeaders, etag};
 
 /// The methods a page answers.
 const ALLOW: HeaderValue = HeaderValue::from_static("GET, HEAD");
@@ -32,17 +32,25 @@ const BROTLI: HeaderValue = HeaderValue::from_static("br");
 /// `GET` and `HEAD` get the page, a redirect to its clean address, or the
 /// not-found page with status 404. A page carries an `ETag` made from its
 /// bytes, and a request whose `If-None-Match` names it gets 304 with no
-/// body. Any other method gets 405.
-pub fn router(pages: Pages) -> Router {
-    let pages = Arc::new(pages);
+/// body. Any other method gets 405. Every response, whatever its status,
+/// carries `security`.
+pub fn router(pages: Pages, security: SecurityHeaders) -> Router {
+    let site = Arc::new((pages, security));
     Router::new().fallback_service(service_fn(move |request: Request<Body>| {
-        answer(&pages, &request)
+        let (pages, security) = &*site;
+        answer(pages, security, &request)
     }))
 }
 
 /// Answers at once: every page is already in memory.
-fn answer(pages: &Pages, request: &Request<Body>) -> Ready<Result<Response<Body>, Infallible>> {
-    ready(Ok(respond(pages, request)))
+fn answer(
+    pages: &Pages,
+    security: &SecurityHeaders,
+    request: &Request<Body>,
+) -> Ready<Result<Response<Body>, Infallible>> {
+    let mut response = respond(pages, request);
+    security.apply(response.headers_mut());
+    ready(Ok(response))
 }
 
 fn respond(pages: &Pages, request: &Request<Body>) -> Response<Body> {

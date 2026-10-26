@@ -9,7 +9,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, header};
 use divan::Bencher;
-use khalid_server::{MediaType, Page, PagePath, Pages, router};
+use khalid_server::{MediaType, Page, PagePath, Pages, SecurityHeaders, router};
 use tokio::runtime::Runtime;
 use tower::ServiceExt;
 
@@ -64,7 +64,8 @@ fn site() -> Option<Router> {
             _ => post(&format!("/blog/post-{n}/"), n),
         })
         .collect::<Option<Vec<Page>>>()?;
-    Some(router(Pages::new(pages, "<h1>Page not found</h1>").ok()?))
+    let pages = Pages::new(pages, "<h1>Page not found</h1>").ok()?;
+    Some(router(pages, SecurityHeaders::default()))
 }
 
 /// Building the set for one post: its tag and its Brotli copy.

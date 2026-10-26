@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-use khalid_server::{MediaType, Page, PagePath, Pages, Stopped, router, serve};
+use khalid_server::{MediaType, Page, PagePath, Pages, SecurityHeaders, Stopped, router, serve};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::oneshot;
@@ -37,7 +37,8 @@ async fn start(grace: Duration) -> Running {
     let shutdown = async move {
         let _ = stopped.await;
     };
-    let server = tokio::spawn(serve(listener, router(pages), shutdown, grace));
+    let app = router(pages, SecurityHeaders::default());
+    let server = tokio::spawn(serve(listener, app, shutdown, grace));
     Running {
         address,
         stop,

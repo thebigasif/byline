@@ -4,7 +4,7 @@
 use axum::body::Body;
 use axum::http::{Method, Request, Response, StatusCode, header};
 use http_body_util::BodyExt;
-use khalid_server::{MediaType, Page, PagePath, Pages, router};
+use khalid_server::{MediaType, Page, PagePath, Pages, SecurityHeaders, router};
 use tower::ServiceExt;
 
 /// The post every test asks for.
@@ -35,7 +35,10 @@ async fn send(pages: Pages, method: Method, uri: &str, tag: Option<&str>) -> Res
         request = request.header(header::IF_NONE_MATCH, tag);
     }
     let request = request.body(Body::empty()).unwrap();
-    router(pages).oneshot(request).await.unwrap()
+    router(pages, SecurityHeaders::default())
+        .oneshot(request)
+        .await
+        .unwrap()
 }
 
 #[cfg(test)]
