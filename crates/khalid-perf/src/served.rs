@@ -17,8 +17,9 @@ use crate::ServeError;
 /// How long a request may wait for the server before it counts as failed.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// How long an edit may take to show before the measure gives up.
-const EDIT_TIMEOUT_S: u64 = 10;
+/// How long an edit may take to show before the measure gives up: long
+/// enough that a slow rebuild on the 10,000-post site is still reported.
+const EDIT_TIMEOUT_S: u64 = 60;
 
 /// How often the edited page is asked for while waiting for the edit.
 const POLL_EVERY: Duration = Duration::from_millis(1);
