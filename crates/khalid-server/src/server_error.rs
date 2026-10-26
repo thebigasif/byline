@@ -12,4 +12,11 @@ pub enum ServerError {
         /// The address both claim.
         path: PagePath,
     },
+    /// Accepting or answering connections failed.
+    #[error("the server stopped answering requests")]
+    Serve {
+        /// What the operating system reported.
+        #[source]
+        source: std::io::Error,
+    },
 }

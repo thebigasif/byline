@@ -13,11 +13,13 @@ axum = { version = "0.8", default-features = false, features = ["http1", "tokio"
 bytes = "1"
 percent-encoding = "2"
 thiserror.workspace = true
+tokio = { workspace = true, features = ["net"] }
 tower = { version = "0.5", default-features = false, features = ["util"] }
+tracing.workspace = true
 
 [dev-dependencies]
 http-body-util = "0.1"
-tokio.workspace = true
+tokio = { workspace = true, features = ["io-util"] }
 
 [lints]
 workspace = true
