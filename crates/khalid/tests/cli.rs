@@ -8,7 +8,6 @@ use serde_json::Value;
 /// Every command in docs/plan.md section 4.1 that is not built yet, with the
 /// arguments it needs.
 const COMMANDS: &[&[&str]] = &[
-    &["serve"],
     &["publish", "why-internal-links-matter"],
     &["theme", "sync", "https://serpdad.com"],
     &["theme", "check"],
