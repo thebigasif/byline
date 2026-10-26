@@ -12,7 +12,7 @@ const MOST: usize = 5;
 /// others fill the list, so a reader always has somewhere to go next.
 const FEWEST: usize = 3;
 
-/// What a wikilink between two posts, in either direction, counts for.
+/// What a link between two posts, in either direction, counts for.
 const LINK: u32 = 3;
 
 /// What sharing a category counts for.
@@ -32,14 +32,14 @@ pub struct PostTopics {
     pub category: Option<String>,
     /// Its tags' slugs.
     pub tags: Vec<String>,
-    /// The slugs of the posts its body links to with wikilinks.
+    /// The slugs of the posts its body links to, by wikilink or by address.
     pub links: Vec<String>,
 }
 
 /// The posts to show under `post`, as indexes into `posts`, best first.
 ///
 /// When `pinned` names any post in `posts`, those are the list, in the
-/// order given. Otherwise each other post scores 3 for a wikilink between
+/// order given. Otherwise each other post scores 3 for a link between
 /// the two in either direction, 2 for the same category and 1 for each
 /// shared tag. The best five that score are kept, newest first on equal
 /// scores, then by slug, so the same posts always give the same list. With

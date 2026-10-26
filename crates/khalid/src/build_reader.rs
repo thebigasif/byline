@@ -1,12 +1,18 @@
 //! The reader features of plan section 4.12 as `khalid build` fills them in:
-//! which ones are on, and the people a post names.
+//! which ones are on, the people a post names, its contents and the posts
+//! related to it.
 
 use std::collections::BTreeMap;
 
-use khalid_content::SiteContent;
-use khalid_core::{Config, Locale, Reader, Slug, UserMessage};
-use khalid_render::{Feature, Features, Link, Person};
+use chrono::NaiveDate;
+use khalid_content::{Heading, PostFront, Rendered, SiteContent};
+use khalid_core::{AbsoluteUrl, Config, Locale, Reader, Slug, UserMessage};
+use khalid_render::{
+    Contents, ContentsHeading, Feature, Features, HeadingLevel, Link, Person, PostTopics,
+};
+use khalid_seo::AuthorProfile;
 
+use crate::build_message;
 use crate::build_pages::{body_html, named, path_of};
 
 /// The render crate's switches for `[reader]` in `site.toml`.
@@ -79,4 +85,82 @@ pub(crate) fn person(
         bio: None,
         profiles: Vec::new(),
     })
+}
+
+/// The reviewers `front` names that have an author file: links for the
+/// byline, and profiles for `reviewedBy`. A slug with no file is left out,
+/// so no page links to a missing author; the linter names it.
+///
+/// # Errors
+///
+/// A [`UserMessage`] when the site address cannot form a reviewer's address.
+pub(crate) fn reviewers(
+    front: &PostFront,
+    people: &BTreeMap<Slug, Person>,
+    config: &Config,
+) -> Result<(Vec<Link>, Vec<AuthorProfile>), UserMessage> {
+    let mut links = Vec::new();
+    let mut profiles = Vec::new();
+    for person in front.reviewed_by.iter().filter_map(|slug| people.get(slug)) {
+        let address = format!(
+            "{}{}",
+            config.address().as_str().trim_end_matches('/'),
+            person.href
+        );
+        let mut profile = AuthorProfile::new(&person.name);
+        profile.url =
+            Some(AbsoluteUrl::parse(&address).map_err(|_| build_message::address(&address))?);
+        profile.job_title.clone_from(&person.role);
+        profiles.push(profile);
+        links.push(Link {
+            name: person.name.clone(),
+            href: person.href.clone(),
+        });
+    }
+    Ok((links, profiles))
+}
+
+/// The table of contents of a body with `headings`: its H2s and H3s.
+pub(crate) fn contents(headings: &[Heading]) -> Option<Contents> {
+    let listed = headings
+        .iter()
+        .filter_map(|heading| {
+            let level = match heading.level {
+                2 => HeadingLevel::Two,
+                3 => HeadingLevel::Three,
+                _ => return None,
+            };
+            Some(ContentsHeading {
+                level,
+                id: heading.id.clone(),
+                text: heading.text.clone(),
+            })
+        })
+        .collect();
+    Contents::of(listed)
+}
+
+/// What the related-posts choice reads of the post with `slug`: its date,
+/// category and the posts its body links to, found by their paths in
+/// `slugs`.
+pub(crate) fn topics(
+    slug: &Slug,
+    date: NaiveDate,
+    front: &PostFront,
+    rendered: &Rendered,
+    slugs: &BTreeMap<String, String>,
+) -> PostTopics {
+    PostTopics {
+        slug: slug.to_string(),
+        date,
+        category: front.category.as_ref().map(Slug::to_string),
+        tags: Vec::new(),
+        links: rendered
+            .links
+            .iter()
+            .filter(|link| link.internal)
+            .filter_map(|link| slugs.get(link.href.split('#').next().unwrap_or_default()))
+            .cloned()
+            .collect(),
+    }
 }

@@ -1,6 +1,7 @@
 //! `khalid build` fills in the reader features of plan section 4.12 from the
-//! content and `site.toml`: bylines with roles, reading time, the author box
-//! and the other authors, each one off when `[reader]` says so.
+//! content and `site.toml`: bylines with roles, reviewers in the page and its
+//! JSON-LD, reading time, related posts, the author box and the other
+//! authors, each one off when `[reader]` says so.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -80,11 +81,23 @@ fn page(out: &Path, rel: &str) -> String {
 }
 
 #[test]
-fn a_post_shows_its_author_with_role_and_bio_and_its_reading_time() {
+fn a_post_shows_its_people_reading_time_and_related_posts() {
     let (_temp, out) = build("");
     let post = page(&out, "what-a-sitemap-does/index.html");
     assert!(
         post.contains("<span class=\"person-role\">Technical SEO editor</span>"),
+        "{post}"
+    );
+    assert!(
+        post.contains(
+            "<p class=\"reviewed-by\">Reviewed by <a href=\"/blog/authors/asif/\">Asif</a></p>"
+        ),
+        "{post}"
+    );
+    assert!(
+        post.contains(
+            "\"reviewedBy\":{\"@id\":\"https://www.example.com/blog/authors/asif/#person\"}"
+        ),
         "{post}"
     );
     assert!(post.contains("min read</time>"), "{post}");
@@ -93,11 +106,35 @@ fn a_post_shows_its_author_with_role_and_bio_and_its_reading_time() {
         post.contains("She writes in English and German."),
         "the bio:\n{post}"
     );
+    let related = post
+        .split("<section class=\"related\">")
+        .nth(1)
+        .expect("related posts");
+    // It links to the internal links post, and shares a category with the slow pages post.
+    assert!(
+        related.contains("/blog/why-internal-links-matter/"),
+        "{related}"
+    );
+    assert!(related.contains("/blog/fixing-slow-pages/"), "{related}");
+    assert!(
+        !related.contains("/blog/what-a-sitemap-does/"),
+        "never itself"
+    );
     let home = page(&out, "index.html");
     assert!(
         home.contains("<span class=\"card-author\">Lena Vogt</span>"),
         "cards name their author:\n{home}"
     );
+}
+
+#[test]
+fn a_post_with_three_sections_lists_them_and_a_shorter_one_does_not() {
+    let (_temp, out) = build("");
+    let long = page(&out, "what-a-sitemap-does/index.html");
+    assert!(long.contains("<details class=\"toc-inline\">"), "{long}");
+    assert!(long.contains("<nav class=\"toc-side\" aria-label=\"Contents\">"));
+    let short = page(&out, "fixing-slow-pages/index.html");
+    assert!(!short.contains("toc-inline"), "{short}");
 }
 
 #[test]
@@ -114,9 +151,17 @@ fn an_author_page_ends_with_the_other_authors() {
 
 #[test]
 fn features_switched_off_in_site_toml_are_gone() {
-    let (_temp, out) = build("\n[reader]\nauthor_box = false\nreading_time = false\n");
+    let (_temp, out) = build(
+        "\n[reader]\nrelated_posts = false\nauthor_box = false\nreviewed_by = false\nreading_time = false\ntable_of_contents = false\n",
+    );
     let post = page(&out, "what-a-sitemap-does/index.html");
-    for gone in ["author-box", "min read"] {
+    for gone in [
+        "class=\"related\"",
+        "author-box",
+        "Reviewed by",
+        "min read",
+        "toc-inline",
+    ] {
         assert!(!post.contains(gone), "{gone} is still there:\n{post}");
     }
     assert!(post.contains("Technical SEO editor"), "the byline stays on");

@@ -4,11 +4,12 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use khalid_content::{Document, SiteContent, render};
+use chrono::NaiveDate;
+use khalid_content::{Document, PostFront, Rendered, SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor,
-    RenderHome, RenderListing, RenderPage, RenderPost, RenderSite, Robots,
+    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
+    RenderAuthor, RenderHome, RenderListing, RenderPage, RenderPost, RenderSite, Robots, related,
 };
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
@@ -101,72 +102,167 @@ fn language_pages(
 /// A post's card with the slug of its author, so author pages can list it.
 type Card<'a> = (Option<&'a Slug>, PostCard);
 
+/// A dated post, read and rendered, before its page is built.
+struct Draft<'a> {
+    doc: &'a Document<PostFront>,
+    date: NaiveDate,
+    title: String,
+    slug: Slug,
+    rendered: Rendered,
+}
+
 /// The page of every dated post in `locale`, and their cards, newest first.
+/// Every card is made before any page, so each post can list related ones.
 fn post_pages<'a>(
     config: &Config,
     content: &'a SiteContent,
     locale: &Locale,
     people: &BTreeMap<Slug, Person>,
 ) -> Result<(Vec<Page>, Vec<Card<'a>>), UserMessage> {
-    let mut dated: Vec<_> = content
-        .posts
-        .iter()
-        .filter(|doc| &doc.locale == locale)
-        .filter_map(|doc| doc.front.date.map(|date| (doc, date)))
-        .collect();
-    dated.sort_by_key(|&(_, date)| Reverse(date));
-    let mut pages = Vec::with_capacity(dated.len() + 2);
-    let mut cards = Vec::with_capacity(dated.len());
-    for (doc, date) in dated {
+    let mut drafts = Vec::new();
+    for doc in content.posts.iter().filter(|doc| &doc.locale == locale) {
+        let Some(date) = doc.front.date else {
+            continue;
+        };
         let front = &doc.front;
         let (title, slug) = named(config, doc, front.slug.as_ref(), front.title.as_deref())?;
-        let rest = format!("{slug}/");
-        let path = path_of(config, locale, &rest);
-        let html = body_html(config, doc)?;
-        let description = front.description.clone().unwrap_or_default();
-        let card = PostCard {
-            title: title.clone(),
-            href: path.clone(),
+        let rendered = render(&doc.body, &doc.locale, config.slugs())
+            .map_err(|error| build_message::block(&doc.path, &error))?;
+        drafts.push(Draft {
+            doc,
             date,
-            excerpt: description.clone(),
-            image: None,
-            author: front
-                .author
-                .as_ref()
-                .map(|slug| build_reader::person(people, slug, config, locale)),
-            category: None,
-        };
-        cards.push((front.author.as_ref(), card));
-        let mut seo = build_seo::page(SeoKind::Post, locale, &rest, &title)?;
-        seo.excerpt.clone_from(&description);
-        seo.published = Some(build_seo::midnight(date));
-        seo.translation = build_seo::translation(front.translation.as_deref())?;
-        html.as_str().clone_into(&mut seo.content_html);
-        let post = RenderPost {
-            title: title.clone(),
-            date,
-            updated: None,
-            reading_time: ReadingTime::of(&html, locale),
-            authors: front
-                .author
-                .iter()
-                .map(|slug| build_reader::person(people, slug, config, locale))
-                .collect(),
-            reviewers: Vec::new(),
-            category: None,
-            tags: Vec::new(),
-            image: None,
-            contents: None,
-            originals: BTreeMap::new(),
-            related: Vec::new(),
-            body: html,
-        };
-        seo.author = post.authors.first().map(|author| author.name.clone());
-        let meta = meta(config, title, description, path, PageKind::Article)?;
-        let body = PageBody::Post(Box::new(post));
-        pages.push(page(locale, config, &rest, meta, body, seo));
+            title,
+            slug,
+            rendered,
+        });
+    }
+    drafts.sort_by_key(|draft| Reverse(draft.date));
+    let slugs: BTreeMap<String, String> = drafts
+        .iter()
+        .map(|draft| {
+            (
+                path_of(config, locale, &format!("{}/", draft.slug)),
+                draft.slug.to_string(),
+            )
+        })
+        .collect();
+    let topics: Vec<PostTopics> = drafts
+        .iter()
+        .map(|draft| {
+            build_reader::topics(
+                &draft.slug,
+                draft.date,
+                &draft.doc.front,
+                &draft.rendered,
+                &slugs,
+            )
+        })
+        .collect();
+    let cards: Vec<Card<'a>> = drafts
+        .iter()
+        .map(|draft| {
+            (
+                draft.doc.front.author.as_ref(),
+                card(config, locale, draft, people),
+            )
+        })
+        .collect();
+    let mut pages = Vec::with_capacity(drafts.len() + 2);
+    for (draft, topic) in drafts.into_iter().zip(&topics) {
+        let pinned: Vec<String> = draft
+            .doc
+            .front
+            .related
+            .iter()
+            .map(Slug::to_string)
+            .collect();
+        let related = related(topic, &topics, &pinned)
+            .into_iter()
+            .filter_map(|index| cards.get(index).map(|(_, card)| card.clone()))
+            .collect();
+        pages.push(post_page(config, locale, draft, related, people)?);
     }
     Ok((pages, cards))
+}
+
+/// A post as lists show it.
+fn card(
+    config: &Config,
+    locale: &Locale,
+    draft: &Draft<'_>,
+    people: &BTreeMap<Slug, Person>,
+) -> PostCard {
+    let front = &draft.doc.front;
+    PostCard {
+        title: draft.title.clone(),
+        href: path_of(config, locale, &format!("{}/", draft.slug)),
+        date: draft.date,
+        excerpt: front.description.clone().unwrap_or_default(),
+        image: None,
+        author: front
+            .author
+            .as_ref()
+            .map(|slug| build_reader::person(people, slug, config, locale)),
+        category: None,
+    }
+}
+
+/// The page of one post, with the posts chosen to show under it.
+fn post_page(
+    config: &Config,
+    locale: &Locale,
+    draft: Draft<'_>,
+    related: Vec<PostCard>,
+    people: &BTreeMap<Slug, Person>,
+) -> Result<Page, UserMessage> {
+    let Draft {
+        doc,
+        date,
+        title,
+        slug,
+        rendered,
+    } = draft;
+    let front = &doc.front;
+    let rest = format!("{slug}/");
+    let path = path_of(config, locale, &rest);
+    let description = front.description.clone().unwrap_or_default();
+    let mut seo = build_seo::page(SeoKind::Post, locale, &rest, &title)?;
+    seo.excerpt.clone_from(&description);
+    seo.published = Some(build_seo::midnight(date));
+    seo.translation = build_seo::translation(front.translation.as_deref())?;
+    rendered.html.clone_into(&mut seo.content_html);
+    let (reviewers, profiles) = build_reader::reviewers(front, people, config)?;
+    seo.reviewers = profiles;
+    let html = BodyHtml::from_sanitised(rendered.html);
+    let post = RenderPost {
+        title: title.clone(),
+        date,
+        updated: None,
+        reading_time: ReadingTime::of(&html, locale),
+        authors: front
+            .author
+            .iter()
+            .map(|slug| build_reader::person(people, slug, config, locale))
+            .collect(),
+        reviewers,
+        category: None,
+        tags: Vec::new(),
+        image: None,
+        contents: build_reader::contents(&rendered.headings),
+        originals: BTreeMap::new(),
+        related,
+        body: html,
+    };
+    seo.author = post.authors.first().map(|author| author.name.clone());
+    let meta = meta(config, title, description, path, PageKind::Article)?;
+    Ok(page(
+        locale,
+        config,
+        &rest,
+        meta,
+        PageBody::Post(Box::new(post)),
+        seo,
+    ))
 }
 
 /// The page of every plain page in `locale`, such as About, at `/<slug>/`.
