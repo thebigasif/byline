@@ -13,6 +13,7 @@ mod locale;
 mod secret;
 mod site_path;
 mod slug;
+mod slug_from_title;
 mod user_message;
 
 pub use absolute_url::{AbsoluteUrl, ParseUrlError};
