@@ -9,6 +9,7 @@ use crate::common::{demo_site, meta};
 use crate::html_check::assert_valid_page;
 use crate::image::sitemap_image;
 use crate::listing::{first_page, main_of};
+use crate::post::person;
 
 fn render(body: &PageBody, tag: &str) -> String {
     let meta = meta("A page", "/blog/a-page/", PageKind::Website);
@@ -19,7 +20,7 @@ fn render(body: &PageBody, tag: &str) -> String {
 }
 
 /// Lena Vogt from the demo site, with one of her posts.
-fn lena() -> RenderAuthor {
+pub(crate) fn lena() -> RenderAuthor {
     RenderAuthor {
         name: "Lena Vogt".to_owned(),
         role: Some("Technical SEO editor".to_owned()),
@@ -34,6 +35,7 @@ fn lena() -> RenderAuthor {
         }],
         posts: first_page().posts,
         pagination: None,
+        others: vec![person("Asif", "asif", Some("Founder, SerpDad"))],
     }
 }
 

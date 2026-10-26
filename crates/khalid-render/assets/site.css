@@ -128,6 +128,9 @@ nav a { min-inline-size: 44px; }
 .author-box h2 { margin-block-start: 0; font-size: 1.25rem; }
 .person-card { display: flex; gap: 1rem; align-items: start; margin-block-end: 1rem; }
 .person-name { margin-block-end: 0; font-weight: 700; }
+.people-list { display: grid; gap: 1rem; margin: 0 0 2rem; padding: 0; list-style: none; }
+.people-list .person-card { margin-block-end: 0; }
+.people-list p { margin-block-end: 0; }
 
 /* The # link on each heading: always shown and muted, so it never needs hover. */
 .heading-link { display: inline-flex; align-items: center; justify-content: center; min-inline-size: 44px; min-block-size: 44px; margin-block: -0.5rem; color: var(--color-muted); font-weight: 400; text-decoration: none; }

@@ -19,10 +19,10 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use khalid_core::{AbsoluteUrl, Locale};
 use khalid_render::{
-    Alternate, BodyHtml, Features, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink, PageBody,
-    PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor, RenderGlossary, RenderHome,
-    RenderListing, RenderPage, RenderPost, RenderSearch, RenderSite, Renderer, Robots, Tokens,
-    TopicGroup, stylesheet,
+    Alternate, AuthorEntry, BodyHtml, Features, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink,
+    PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor, RenderAuthors,
+    RenderGlossary, RenderHome, RenderListing, RenderPage, RenderPost, RenderSearch, RenderSite,
+    Renderer, Robots, Tokens, TopicGroup, stylesheet,
 };
 
 type Fallible<T> = Result<T, Box<dyn Error>>;
@@ -36,6 +36,7 @@ struct Lang {
     name: &'static str,
     glossary: &'static str,
     search: &'static str,
+    authors: &'static str,
 }
 
 const LANGUAGES: [Lang; 2] = [
@@ -45,6 +46,7 @@ const LANGUAGES: [Lang; 2] = [
         name: "English",
         glossary: "Glossary",
         search: "Search",
+        authors: "Authors",
     },
     Lang {
         tag: "de",
@@ -52,6 +54,7 @@ const LANGUAGES: [Lang; 2] = [
         name: "Deutsch",
         glossary: "Glossar",
         search: "Suche",
+        authors: "Autorinnen und Autoren",
     },
 ];
 
@@ -339,7 +342,57 @@ impl Demo {
             }],
         });
         self.page(lang, (lang.prefix, None), "Field Notes on SEO", &home)?;
-        for author in &authors {
+        self.author_pages(lang, &authors, &cards)?;
+        for slug in used {
+            let name = self.category_name(lang, &slug);
+            let path = format!("{}category/{slug}/", lang.prefix);
+            let body = PageBody::Category(pick(&name, &|_, category| category == slug));
+            self.page(lang, (&path, None), &name, &body)?;
+        }
+        self.glossary_and_search(lang)
+    }
+
+    /// The authors page, then each author's page with their posts and the
+    /// other authors. `cards` holds each post's author, category and card.
+    fn author_pages(
+        &mut self,
+        lang: &Lang,
+        authors: &[Doc],
+        cards: &[(String, String, PostCard)],
+    ) -> Fallible<()> {
+        let posts_by = |slug: &str| -> Vec<PostCard> {
+            cards
+                .iter()
+                .filter(|(author, _, _)| author == slug)
+                .map(|(_, _, card)| card.clone())
+                .collect()
+        };
+        let people: Vec<Person> = authors
+            .iter()
+            .map(|author| Person {
+                name: author.field("name"),
+                href: format!("{}authors/{}/", lang.prefix, author.field("slug")),
+                role: Some(author.field("role")),
+                image: None,
+                bio: None,
+                profiles: Vec::new(),
+            })
+            .collect();
+        let entries = authors
+            .iter()
+            .zip(&people)
+            .map(|(author, person)| AuthorEntry {
+                person: person.clone(),
+                posts: posts_by(&author.field("slug")).len(),
+            })
+            .collect();
+        let everyone = PageBody::Authors(RenderAuthors {
+            title: lang.authors.to_owned(),
+            authors: entries,
+        });
+        let path = format!("{}authors/", lang.prefix);
+        self.page(lang, (&path, None), lang.authors, &everyone)?;
+        for (author, person) in authors.iter().zip(&people) {
             let slug = author.field("slug");
             let page = RenderAuthor {
                 name: author.field("name"),
@@ -347,8 +400,13 @@ impl Demo {
                 image: None,
                 bio: markdown(&author.body, &format!("{}glossary/", lang.prefix)),
                 profiles: Vec::new(),
-                posts: pick("", &|by, _| by == slug).posts,
+                posts: posts_by(&slug),
                 pagination: None,
+                others: people
+                    .iter()
+                    .filter(|other| *other != person)
+                    .cloned()
+                    .collect(),
             };
             let (path, name) = (format!("{}authors/{slug}/", lang.prefix), page.name.clone());
             self.page(
@@ -358,13 +416,7 @@ impl Demo {
                 &PageBody::Author(Box::new(page)),
             )?;
         }
-        for slug in used {
-            let name = self.category_name(lang, &slug);
-            let path = format!("{}category/{slug}/", lang.prefix);
-            let body = PageBody::Category(pick(&name, &|_, category| category == slug));
-            self.page(lang, (&path, None), &name, &body)?;
-        }
-        self.glossary_and_search(lang)
+        Ok(())
     }
 
     fn category_name(&self, lang: &Lang, slug: &str) -> String {

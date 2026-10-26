@@ -40,7 +40,7 @@ mod token_values;
 mod tokens;
 
 pub use asset::Asset;
-pub use author::{RenderAuthor, RenderPage};
+pub use author::{AuthorEntry, RenderAuthor, RenderAuthors, RenderPage};
 pub use contents::{Contents, ContentsHeading, HeadingLevel};
 pub use features::{Feature, Features};
 pub use glossary::{GlossaryGroup, GlossaryTerm, RenderGlossary, RenderSearch, SearchResult};

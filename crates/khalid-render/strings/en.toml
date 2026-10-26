@@ -40,6 +40,12 @@ view_all = "View all posts in {name}"
 topics = "Topics"
 # {name} is filled in.
 posts_by = "Posts by {name}"
+# The heading of the other authors at the end of an author page.
+other_authors = "Other authors"
+# How many posts an author wrote, on the authors page. {count} is filled in.
+post_count_one = "1 post"
+post_count = "{count} posts"
+no_authors = "This blog has no authors yet."
 glossary_letters = "Jump to a letter"
 no_terms = "The glossary has no terms yet."
 search_label = "Search this blog"

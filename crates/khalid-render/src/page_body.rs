@@ -4,7 +4,8 @@ use minijinja::Value;
 use minijinja::value::Serde;
 
 use crate::{
-    RenderAuthor, RenderGlossary, RenderHome, RenderListing, RenderPage, RenderPost, RenderSearch,
+    RenderAuthor, RenderAuthors, RenderGlossary, RenderHome, RenderListing, RenderPage, RenderPost,
+    RenderSearch,
 };
 
 /// The main content of one page. The variant picks the template.
@@ -23,6 +24,8 @@ pub enum PageBody {
     Post(Box<RenderPost>),
     /// A page that is not a post, such as About.
     Page(RenderPage),
+    /// Every author, at `/authors/`.
+    Authors(RenderAuthors),
     /// An author and their posts.
     Author(Box<RenderAuthor>),
     /// The glossary from A to Z.
@@ -44,6 +47,7 @@ impl PageBody {
             Self::Post(_) => "post.html",
             Self::Page(_) => "page.html",
             Self::Author(_) => "author.html",
+            Self::Authors(_) => "authors.html",
             Self::Glossary(_) => "glossary.html",
             Self::Search(_) => "search.html",
             Self::NotFound => "not_found.html",
@@ -60,6 +64,7 @@ impl PageBody {
             Self::Post(post) => Value::from(Serde(post)),
             Self::Page(page) => Value::from(Serde(page)),
             Self::Author(author) => Value::from(Serde(author)),
+            Self::Authors(authors) => Value::from(Serde(authors)),
             Self::Glossary(glossary) => Value::from(Serde(glossary)),
             Self::Search(search) => Value::from(Serde(search)),
             Self::NotFound => Value::UNDEFINED,

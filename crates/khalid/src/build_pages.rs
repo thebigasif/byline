@@ -232,6 +232,7 @@ fn author_pages(
             profiles,
             posts,
             pagination: None,
+            others: Vec::new(),
         };
         let body = PageBody::Author(Box::new(author));
         pages.push(page(locale, config, &rest, meta, body, seo));
