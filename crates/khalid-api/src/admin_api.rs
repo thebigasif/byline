@@ -2,20 +2,21 @@
 
 use std::sync::Arc;
 
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{OriginalUri, Path, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{OriginalUri, Path, Query, State};
 use axum::http::header::LOCATION;
 use axum::http::{HeaderMap, HeaderName, StatusCode};
 use axum::{Extension, Json, middleware};
 use chrono::{DateTime, Utc};
 use khalid_core::{Slug, UserMessage};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::admin_key::{require, require_admin_key};
 use crate::api_version::negotiate_version;
+use crate::html_source::markdown_from_html;
 use crate::keys::{KeyStore, Principal, Scope};
 use crate::post_store::{CreatePostError, PostStore, UpdatePostError};
 use crate::problem::{Problem, ProblemType};
@@ -131,16 +132,38 @@ pub(crate) struct NewPosts {
 /// The longest `Idempotency-Key` accepted.
 const MAX_IDEMPOTENCY_KEY: usize = 255;
 
-/// Creates a draft post from markdown. A retry with the same
-/// `Idempotency-Key` returns the post the first request made, so it never
-/// makes two (RULES.md BL-API-7). Needs `posts:write`.
+/// What a new post's body is written in.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum Source {
+    /// Markdown, stored as sent.
+    #[default]
+    Markdown,
+    /// HTML, sanitised and turned into markdown.
+    Html,
+}
+
+/// The query of a create request.
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct CreateOptions {
+    /// `html` to send the body as HTML; markdown otherwise.
+    #[param(inline)]
+    source: Option<Source>,
+}
+
+/// Creates a draft post from markdown, or from HTML with `source=html`. A
+/// retry with the same `Idempotency-Key` returns the post the first
+/// request made, so it never makes two (RULES.md BL-API-7). Needs
+/// `posts:write`.
 #[utoipa::path(
     post, path = "/posts/", tag = "admin posts",
     security(("admin_key" = [])),
-    params(("Idempotency-Key" = Option<String>, Header, description = "Any text up to 255 characters that names this request, so a retry makes no second post")),
+    params(CreateOptions, ("Idempotency-Key" = Option<String>, Header, description = "Any text up to 255 characters that names this request, so a retry makes no second post")),
     request_body = NewPosts,
     responses(
         (status = 201, description = "The new draft", body = AdminPosts),
+        (status = 400, description = "The source is neither markdown nor html", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "Another post has the slug", body = Problem, content_type = "application/problem+json"),
@@ -150,15 +173,17 @@ const MAX_IDEMPOTENCY_KEY: usize = 255;
 async fn create_admin_post(
     State(posts): State<Posts>,
     Extension(principal): Extension<Principal>,
+    options: Result<Query<CreateOptions>, QueryRejection>,
     headers: HeaderMap,
     body: Result<Json<NewPosts>, JsonRejection>,
 ) -> Result<(StatusCode, [(HeaderName, String); 1], Json<AdminPosts>), Problem> {
     require(&principal, Scope::PostsWrite)?;
+    let Query(options) = options.map_err(|_| unknown_source())?;
     let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
     let [new] = <[NewPost; 1]>::try_from(body.posts)
         .map_err(|_| invalid_body("posts must hold exactly one post"))?;
-    let draft = checked(new)?;
     let idempotency = idempotency_key(&headers)?;
+    let draft = checked(new, options.source.unwrap_or_default()).await?;
     let made = posts
         .create(draft, principal.id().as_str(), idempotency)
         .await;
@@ -177,8 +202,11 @@ async fn create_admin_post(
     ))
 }
 
-/// Checks a new post: a title, a slug that is valid if given, a body.
-fn checked(new: NewPost) -> Result<PostDraft, Problem> {
+/// Checks a new post: a title, a slug that is valid if given, and a body
+/// in the format `source` names. HTML is sanitised and turned into
+/// markdown off the async runtime, since a large body takes real work
+/// (RULES.md BL-RUN-7).
+async fn checked(new: NewPost, source: Source) -> Result<PostDraft, Problem> {
     if new.title.trim().is_empty() {
         return Err(invalid_body("title must not be empty"));
     }
@@ -188,10 +216,32 @@ fn checked(new: NewPost) -> Result<PostDraft, Problem> {
         .map(Slug::try_new)
         .transpose()
         .map_err(|_| invalid_body("slug must be lowercase letters, digits and hyphens"))?;
-    let markdown = new
-        .markdown
-        .ok_or_else(|| invalid_body("markdown is required"))?;
+    let markdown = match (source, new.markdown, new.html) {
+        (Source::Markdown, Some(markdown), None) => markdown,
+        (Source::Html, None, Some(html)) => {
+            tokio::task::spawn_blocking(move || markdown_from_html(&html))
+                .await
+                .map_err(|error| Problem::internal(&error))?
+                .map_err(|_| invalid_body("the HTML could not be read"))?
+        }
+        (Source::Html, _, _) => return Err(invalid_body("source=html needs html and no markdown")),
+        (Source::Markdown, _, _) => {
+            return Err(invalid_body(
+                "markdown is required, and html needs source=html",
+            ));
+        }
+    };
     Ok(PostDraft::new(&new.title, slug, &markdown))
+}
+
+/// The 400 for a `source` that is neither `markdown` nor `html`.
+fn unknown_source() -> Problem {
+    let message = UserMessage::new(
+        "The source parameter is neither markdown nor html.",
+        "The server cannot tell how to read the body.",
+        "Use source=html for HTML, or leave source out for markdown.",
+    );
+    Problem::new(ProblemType::InvalidQuery, &message).with_rule("source")
 }
 
 /// The `Idempotency-Key` header, if sent: 1 to 255 visible characters.
