@@ -1,0 +1,55 @@
+---
+source: crates/khalid-render/tests/render/validity.rs
+expression: page
+---
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Page not found</title>
+<meta name="description" content="Plain advice on search for small teams.">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://www.example.com/blog/missing/">
+<link rel="stylesheet" href="/blog/assets/site.0123abcd.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Field Notes on SEO">
+<meta property="og:title" content="Page not found">
+<meta property="og:description" content="Plain advice on search for small teams.">
+<meta property="og:url" content="https://www.example.com/blog/missing/">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="https://www.example.com/blog/assets/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Field Notes on SEO, a blog about search">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="Field Notes on SEO, a blog about search">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to the content</a>
+<header class="site-header">
+<a class="site-name" href="/blog/">Field Notes on SEO</a>
+<nav aria-label="Main menu">
+<ul>
+<li><a href="/blog/">Posts</a></li>
+<li><a href="/blog/glossary/">Glossary</a></li>
+</ul>
+</nav>
+</header>
+<main id="main" tabindex="-1">
+
+<h1>This page does not exist</h1>
+<p>The address may be mistyped, or the page may have moved.</p>
+<p><a href="/blog/">Go to the blog&#39;s front page</a></p>
+
+</main>
+<footer class="site-footer">
+<nav aria-label="Footer menu">
+<ul>
+<li><a href="/blog/about/">About</a></li>
+</ul>
+</nav>
+<p><a href="https://www.example.com/">Back to example.com</a></p>
+</footer>
+</body>
+</html>
