@@ -44,39 +44,62 @@ fn page(out: &Path, rel: &str) -> String {
 }
 
 #[test]
-fn build_renders_the_home_and_404_pages_of_each_language() {
+fn build_renders_every_post_and_home_page_of_the_demo_site() {
     let out = tempfile::tempdir().unwrap();
     let demo = demo_site();
     let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
-    let said = text(&output.stdout);
-    assert!(said.contains("4 pages"), "{said}");
+    assert!(
+        text(&output.stdout).contains("14 pages"),
+        "{}",
+        text(&output.stdout)
+    );
+
+    let post = page(out.path(), "why-internal-links-matter/index.html");
+    assert!(post.contains("<html lang=\"en\""), "{post}");
+    assert!(post.contains("Why internal links matter</h1>"), "{post}");
+    assert!(
+        post.contains("<h2 id=\"readers-use-them-to-keep-going\""),
+        "{post}"
+    );
+    assert!(post.contains("https://www.example.com/blog/why-internal-links-matter/"));
+
+    let german = page(out.path(), "de/warum-interne-links-wichtig-sind/index.html");
+    assert!(german.contains("<html lang=\"de\""), "{german}");
 
     let home = page(out.path(), "index.html");
-    assert!(home.contains("<html lang=\"en\""), "{home}");
-    assert!(home.contains("Field Notes on SEO</h1>"), "{home}");
-    assert!(home.contains("https://www.example.com/blog/"), "{home}");
-    assert!(page(out.path(), "de/index.html").contains("https://www.example.com/blog/de/"));
+    let newest = home.find("/blog/planning-a-topic-cluster/");
+    let oldest = home.find("/blog/why-internal-links-matter/");
+    assert!(newest.is_some() && newest < oldest, "newest first:\n{home}");
+    assert!(page(out.path(), "de/index.html").contains("/blog/de/"));
     assert!(page(out.path(), "404.html").contains("<h1"));
     assert!(page(out.path(), "de/404.html").contains("lang=\"de\""));
 }
 
 #[test]
-fn init_then_build_writes_to_public() {
+fn init_then_new_then_build_writes_the_post_to_public() {
     let temp = tempfile::tempdir().unwrap();
     let site = path(temp.path());
-    let made = khalid(&["init", site, "--address", "https://www.example.com"]);
+    let made = khalid(&[
+        "init",
+        site,
+        "--address",
+        "https://www.example.com",
+        "--mount",
+        "/blog/",
+    ]);
     assert_eq!(made.status.code(), Some(0), "{}", text(&made.stderr));
+    let new = khalid(&["--site", site, "new", "Why links matter"]);
+    assert_eq!(new.status.code(), Some(0), "{}", text(&new.stderr));
 
     let output = khalid(&["--site", site, "build", "--json"]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     let public = at(temp.path(), "public");
-    assert_eq!(
-        json,
-        serde_json::json!({ "out": path(&public), "pages": 2 })
-    );
-    assert!(page(&public, "index.html").contains("www.example.com</h1>"));
+    assert_eq!(json["out"], path(&public));
+    assert_eq!(json["pages"], 3);
+    let post = page(&public, "why-links-matter/index.html");
+    assert!(post.contains("Why links matter</h1>"), "{post}");
 }
 
 #[test]

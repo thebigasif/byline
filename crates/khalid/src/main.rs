@@ -30,7 +30,7 @@ use std::process::ExitCode;
 
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
-use khalid_content::{ContentTree, read_content};
+use khalid_content::{ContentTree, SiteContent, read_content};
 use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 
@@ -63,23 +63,25 @@ fn run(cli: &Cli) -> Exit {
     }
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder) {
-            Ok(config) => Some((folder, config)),
+            Ok((config, content)) => Some((folder, config, content)),
             Err(message) => return report::failure(cli.output, &message, Exit::Failure),
         },
         None => None,
     };
     match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
-        (Some(Command::Db { command }), Some((folder, _))) => db::run(folder, *command, cli.output),
-        (Some(Command::New { title, language }), Some((folder, config))) => {
+        (Some(Command::Db { command }), Some((folder, ..))) => {
+            db::run(folder, *command, cli.output)
+        }
+        (Some(Command::New { title, language }), Some((folder, config, _))) => {
             let post = NewPost {
                 title,
                 language: language.as_ref(),
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config))) => {
-            build::run(folder, config, out.as_deref(), cli.output)
+        (Some(Command::Build { out }), Some((folder, config, content))) => {
+            build::run(folder, config, content, out.as_deref(), cli.output)
         }
         (
             Some(command @ (Command::Db { .. } | Command::New { .. } | Command::Build { .. })),
@@ -90,15 +92,15 @@ fn run(cli: &Cli) -> Exit {
 }
 
 /// Checks the settings, the routes and the content of the `site` folder, and
-/// returns the settings.
-fn check(site: &Path) -> Result<Config, UserMessage> {
+/// returns the settings and the content.
+fn check(site: &Path) -> Result<(Config, SiteContent), UserMessage> {
     let config =
         Config::load(site, &Environment::from_process()).map_err(|e| config_message::of(&e))?;
     Routes::load(site).map_err(|error| routes_message::of(&error))?;
-    ContentTree::walk(site)
+    let content = ContentTree::walk(site)
         .and_then(|tree| read_content(&tree))
         .map_err(|error| content_message::of(site, &error))?;
-    Ok(config)
+    Ok((config, content))
 }
 
 /// The message for a command that works on one site folder when none was given.

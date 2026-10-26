@@ -4,6 +4,7 @@
 use std::fs;
 use std::path::{self, Path, PathBuf};
 
+use khalid_content::SiteContent;
 use khalid_core::Config;
 use khalid_render::Renderer;
 use serde::Serialize;
@@ -22,9 +23,15 @@ struct BuildBody {
     pages: usize,
 }
 
-/// Renders the `site` folder, whose `config` was checked, into `out`, or
-/// `public/` in the site.
-pub(crate) fn run(site: &Path, config: &Config, out: Option<&Path>, output: Output) -> Exit {
+/// Renders the `site` folder, whose `config` and `content` were checked, into
+/// `out`, or `public/` in the site.
+pub(crate) fn run(
+    site: &Path,
+    config: &Config,
+    content: &SiteContent,
+    out: Option<&Path>,
+    output: Output,
+) -> Exit {
     let out = out.map_or_else(|| within(site, PUBLIC), Path::to_path_buf);
     if inside(&out, &within(site, "content")) {
         return report::failure(output, &build_message::into_content(&out), Exit::Failure);
@@ -35,7 +42,7 @@ pub(crate) fn run(site: &Path, config: &Config, out: Option<&Path>, output: Outp
             return report::failure(output, &build_message::render(&error), Exit::Failure);
         }
     };
-    let languages = match build_pages::pages(config) {
+    let languages = match build_pages::pages(config, content) {
         Ok(languages) => languages,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };

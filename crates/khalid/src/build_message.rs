@@ -3,6 +3,7 @@
 use std::io;
 use std::path::Path;
 
+use khalid_content::BlockError;
 use khalid_core::UserMessage;
 use khalid_render::RenderError;
 
@@ -12,6 +13,27 @@ pub(crate) fn into_content(out: &Path) -> UserMessage {
         format!("Khalid will not build the site into {}.", out.display()),
         "The content folder holds only what you write, never what Khalid makes from it.",
         "Choose an output folder outside content with --out, or drop --out to use public.",
+    )
+}
+
+/// The message when a post's body has a block Khalid cannot draw.
+pub(crate) fn block(path: &Path, error: &BlockError) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid could not render {}: {error}.", path.display()),
+        "A page is built only when every block in it can be drawn.",
+        "Correct the block in that file, then build again.",
+    )
+}
+
+/// The message when a post has neither a slug nor a title to make one from.
+pub(crate) fn no_slug(path: &Path) -> UserMessage {
+    UserMessage::new(
+        format!(
+            "{} has no slug and no title to make one from.",
+            path.display()
+        ),
+        "Every post needs an address, and its address ends in its slug.",
+        "Add a title or a slug to the front matter of that file.",
     )
 }
 
