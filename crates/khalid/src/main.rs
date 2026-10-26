@@ -42,6 +42,14 @@ mod serve;
 mod serve_message;
 mod site_content;
 mod site_pages;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the Admin API reaches it through PostStore, added in the next pull request of this stack"
+    )
+)]
+mod site_posts;
 mod slug_repair;
 
 use std::ffi::OsString;
