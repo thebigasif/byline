@@ -49,7 +49,7 @@
 
 ### 1.6 Markdown and the directive layer
 
-- Status: `todo`
+- Status: `doing`. Part (a) (this landing): `render()` with comrak, escaped raw HTML, heading ids, links, images and word count. (b) syntax colours with syntect. (c) the Block model with parse, print and the round-trip harness. (d) directives, callout and figure, ADR 0009.
 - `comrak` with footnotes, tables and task lists, plus the directive syntax every editor block uses. The round-trip harness: markdown to blocks to markdown, byte for byte. First blocks: heading, paragraph, image with required alt and caption, quote, code with syntax colours, divider, table, footnote, callout.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
 - Done when: every listed block has a directive, a round-trip test and an HTML snapshot, and raw HTML in markdown is escaped.
@@ -86,7 +86,7 @@
 
 ### 1.11 Templates
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): `crates/khalid-render` and its input records. Next: the strings, the renderer and its sandbox, theme replacements, then each page type.
 - `crates/khalid-render`: sandboxed MiniJinja with autoescape, default templates for home, post, page, author, tag, category, collection index, glossary A to Z and 404, semantic HTML with one `h1`, `lang` and `dir`, strings in one file per language, template overrides from `theme/templates/`.
 - Rules: BL-WEB-1 to BL-WEB-6, BL-SEC-10, BL-TXT-3, BL-TST-7. `FRONTEND.md`.
 - Done when: every page type of the demo site has an `insta` snapshot, passes the HTML validator, and reads completely with scripts off.
@@ -146,7 +146,7 @@
 
 ### 1.19 Webhooks
 
-- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (this landing): `crates/khalid-webhooks` with the event catalogue (ADR 0009). Part 3: signing. Part 4: the verifier for incoming webhooks. Part 5: delivery, retries and the delivery log.
+- Status: `doing`. Part 1 (#41): `Outbound::post`, which deliveries go through. Part 2 (this landing): `crates/khalid-webhooks` with the event catalogue (ADR 0010). Part 3: signing. Part 4: the verifier for incoming webhooks. Part 5: delivery, retries and the delivery log.
 - The events in plan section 5.12, signed with HMAC-SHA256 over timestamp and body, sent through `Outbound`, retried with backoff over 24 hours, with a delivery log in the database.
 - Rules: BL-SEC-7, BL-RUN-8.
 - Done when: `wiremock` tests show each event fires once, is signed correctly, and retries after a failure.
