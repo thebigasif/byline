@@ -32,10 +32,6 @@ mod report;
 mod routes_message;
 mod serve;
 mod serve_message;
-#[expect(
-    dead_code,
-    reason = "khalid serve mounts the Content API on it in the next pull request of this stack"
-)]
 mod site_content;
 mod site_pages;
 mod slug_repair;
