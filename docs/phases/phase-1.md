@@ -42,14 +42,14 @@
 
 ### 1.5 Front matter and the content tree
 
-- Status: `doing`. Part 1 (#33): front matter and the post schema. Part 2 (#34, #35): the content tree with `_index.md`, folder posts and content hashes over the file and its assets. Part 3 (this landing): `--site` reads every post, with nine `fixtures/invalid/content-*` sites. Part 4: the remaining collection schemas and the demo-site parse test, closing 0.5.
+- Status: `done` (#33 to #37 and this landing). KH-CON-1 to KH-CON-4.
 - `crates/khalid-content`: typed front matter for posts, pages, authors, glossary terms, case studies, changelog entries and snippets, with errors that name the file, line and field. The content tree reads language folders, post folders with co-located assets, and the `translation` key that pairs language versions.
 - Rules: BL-FS-1, BL-FS-3, BL-TYP-3.
 - Done when: a test asserts `fixtures/demo-site` parses into five English posts, five German posts, two authors per language and one glossary term per language, which also closes task 0.5. Each invalid fixture produces its plain message.
 
 ### 1.6 Markdown and the directive layer
 
-- Status: `todo`
+- Status: `doing`. Part (a) (this landing): `render()` with comrak, escaped raw HTML, heading ids, links, images and word count. (b) syntax colours with syntect. (c) the Block model with parse, print and the round-trip harness. (d) directives, callout and figure, ADR 0009.
 - `comrak` with footnotes, tables and task lists, plus the directive syntax every editor block uses. The round-trip harness: markdown to blocks to markdown, byte for byte. First blocks: heading, paragraph, image with required alt and caption, quote, code with syntax colours, divider, table, footnote, callout.
 - Rules: BL-FS-5, BL-TST-5, BL-SEC-1.
 - Done when: every listed block has a directive, a round-trip test and an HTML snapshot, and raw HTML in markdown is escaped.
@@ -77,7 +77,7 @@
 
 ### 1.10 The database
 
-- Status: `doing`. Part 1 (#39): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2 (this landing): the derived tables of the content index, ADR 0009, and a test that the crate README lists every table as derived or visitor. Part 3: the visitor tables. Part 4: the rebuild and the list queries with their query plans. Part 5: `khalid db migrate` and `khalid db rebuild`.
+- Status: `doing`. Part 1 (#39): `crates/khalid-db`, opening the file with WAL, foreign keys, a busy timeout, one writer and a read pool, and forward-only migrations. Part 2 (this landing): the derived tables of the content index, ADR 0010, and a test that the crate README lists every table as derived or visitor. Part 3: the visitor tables. Part 4: the rebuild and the list queries with their query plans. Part 5: `khalid db migrate` and `khalid db rebuild`.
 - `crates/khalid-db`: SQLite in WAL mode with foreign keys, a busy timeout, one writer and a read pool; forward-only migrations; the index rebuilt from content files on demand. Nothing derived is written under `content/`.
 - Rules: BL-DB-1 to BL-DB-3, BL-FS-1, BL-FS-2, BL-RUN-3.
 - Done when: deleting `data/site.db` and starting again rebuilds the same index, checked by a test.
@@ -86,7 +86,7 @@
 
 ### 1.11 Templates
 
-- Status: `todo`
+- Status: `doing`. Part 1 (#43): `crates/khalid-render` and its input records. Part 2 (this landing): strings per language, text direction, HTML escaping. Next: the renderer and its sandbox, theme replacements, then each page type.
 - `crates/khalid-render`: sandboxed MiniJinja with autoescape, default templates for home, post, page, author, tag, category, collection index, glossary A to Z and 404, semantic HTML with one `h1`, `lang` and `dir`, strings in one file per language, template overrides from `theme/templates/`.
 - Rules: BL-WEB-1 to BL-WEB-6, BL-SEC-10, BL-TXT-3, BL-TST-7. `FRONTEND.md`.
 - Done when: every page type of the demo site has an `insta` snapshot, passes the HTML validator, and reads completely with scripts off.
@@ -146,7 +146,7 @@
 
 ### 1.19 Webhooks
 
-- Status: `todo`
+- Status: `doing`. Part 1 (this landing): `Outbound::post`, which deliveries go through. Part 2: the event catalogue and the signature. Part 3: delivery, retries and the delivery log.
 - The events in plan section 5.12, signed with HMAC-SHA256 over timestamp and body, sent through `Outbound`, retried with backoff over 24 hours, with a delivery log in the database.
 - Rules: BL-SEC-7, BL-RUN-8.
 - Done when: `wiremock` tests show each event fires once, is signed correctly, and retries after a failure.

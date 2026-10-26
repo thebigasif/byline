@@ -1,4 +1,4 @@
-# 0009. The database: derived tables, visitor tables, one writer
+# 0010. The database: derived tables, visitor tables, one writer
 
 **Status:** Accepted, 2026-10-26. Phase 1 task 1.10. ADR 0001 and 0002 decide that there is one SQLite file per site under `data/`; this record decides its shape.
 
