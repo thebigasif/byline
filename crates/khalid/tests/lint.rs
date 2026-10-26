@@ -214,6 +214,38 @@ fn lint_fix_puts_headings_in_order_and_leaves_the_rest() {
     assert!(said.contains("Fixed 2 problems."), "{said}");
 }
 
+/// A post with a figure that has a caption but no description.
+const BARE_FIGURE: &str = "---
+title: A door in Lisbon
+date: 2026-09-14
+author: asif
+---
+
+Read [why links matter](/blog/why-internal-links-matter/) first.
+
+:::figure{src=\"/media/door.jpg\" alt=\"\"}
+A *blue* door in Lisbon at noon.
+:::
+";
+
+#[test]
+fn lint_fix_describes_an_image_with_its_caption() {
+    let site = site(&[("a-door.md", BARE_FIGURE)]);
+    let output = khalid(site.path(), &["lint", "--fix", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let file = within(site.path(), "content/en/posts/a-door.md");
+    let described = BARE_FIGURE.replace("alt=\"\"}", "alt=\"A blue door in Lisbon at noon.\"}");
+    assert_eq!(fs::read_to_string(file).unwrap(), described);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    assert_eq!(json["fixed"][0]["rule"], "missing-alt");
+    assert_eq!(json["fixed"][0]["subject"], "/media/door.jpg");
+    let findings = json["findings"].as_array().unwrap();
+    assert!(
+        findings.iter().all(|f| f["rule"] != "missing-alt"),
+        "{json}"
+    );
+}
+
 #[test]
 fn lint_fix_json_lists_repairs_and_still_exits_1_on_a_block() {
     let undated_jumpy = JUMPY.replace("date: 2026-09-14\n", "");

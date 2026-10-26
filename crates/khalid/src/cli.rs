@@ -62,8 +62,8 @@ pub(crate) enum Command {
     Lint {
         /// One post to check. Leave it out to check the whole site.
         path: Option<PathBuf>,
-        /// Make the safe repairs in the files, such as heading order, then
-        /// check again.
+        /// Make the safe repairs in the files, such as heading order and
+        /// image descriptions from captions, then check again.
         #[arg(long)]
         fix: bool,
     },

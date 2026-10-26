@@ -9,11 +9,11 @@ use std::io::{self, Write as _};
 use std::path::{Component, Path};
 
 use khalid_content::{Document, PostFront};
-use khalid_core::{SitePath, UserMessage};
+use khalid_core::{SitePath, SlugMode, UserMessage};
 use khalid_lint::{Finding, LintPost};
 use serde::Serialize;
 
-use crate::repair::{HEADING_ORDER, repaired_body};
+use crate::repair::{RULES, repaired_body};
 
 /// One repair made in one post file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -29,7 +29,8 @@ pub(crate) struct Repair {
 }
 
 /// Makes the safe repairs for `findings` in the files of `documents`, which
-/// sit in the same order as `posts`, and returns what it changed.
+/// sit in the same order as `posts`, and returns what it changed. `slugs` is
+/// the site's slug mode, which captions render with.
 ///
 /// # Errors
 ///
@@ -39,22 +40,25 @@ pub(crate) fn repair(
     posts: &[LintPost],
     documents: &[&Document<PostFront>],
     findings: &[Finding],
+    slugs: SlugMode,
 ) -> Result<Vec<Repair>, UserMessage> {
     let mut repairs = Vec::new();
     for (post, document) in posts.iter().zip(documents) {
-        let reported = |rule: &str| {
+        let reported = |rule: &&str| {
             findings.iter().any(|finding| {
                 let at = finding.location();
-                finding.rule().as_str() == rule && at.locale == post.locale && at.slug == post.slug
+                finding.rule().as_str() == *rule && at.locale == post.locale && at.slug == post.slug
             })
         };
-        if !reported(HEADING_ORDER) {
+        let rules: Vec<&str> = RULES.into_iter().filter(reported).collect();
+        if rules.is_empty() {
             continue;
         }
         let Some(path) = slashed(&document.path) else {
             continue;
         };
-        let Some((body, changes)) = repaired_body(&document.body) else {
+        let Some((body, changes)) = repaired_body(&document.body, &rules, &post.locale, slugs)
+        else {
             continue;
         };
         if write_body(site, &path, &document.body, &body)? {
