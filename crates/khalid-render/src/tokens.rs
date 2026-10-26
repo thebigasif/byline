@@ -8,8 +8,8 @@ use std::path::Path;
 use khalid_core::SitePath;
 use serde::Deserialize;
 
-use crate::RenderError;
 use crate::token_values::{Color, FontStack, Length};
+use crate::{RenderError, font_fallback};
 
 /// Where a site keeps its tokens.
 const TOKENS_FILE: &str = "theme/tokens.toml";
@@ -163,9 +163,22 @@ impl Tokens {
     }
 
     /// The tokens as a `:root` rule of CSS variables, such as
-    /// `--color-text: #1f2328;`, for the top of the stylesheet.
+    /// `--color-text: #1f2328;`, for the top of the stylesheet. A font stack
+    /// that starts with a known web font gains its tuned local fallback,
+    /// whose `@font-face` rule follows (RULES.md BL-WEB-5).
     pub fn to_css(&self) -> String {
         let colors = &self.colors;
+        let mut families = Vec::new();
+        let mut font = |stack: &FontStack| {
+            let (tuned, family) = font_fallback::tuned(stack.as_str());
+            families.extend(family.filter(|family| !families.contains(family)));
+            tuned
+        };
+        let (body, heading, mono) = (
+            font(&self.fonts.body),
+            font(&self.fonts.heading),
+            font(&self.fonts.mono),
+        );
         let mut css = String::from(":root {\n");
         for (name, value) in [
             ("color-background", colors.background.as_str()),
@@ -175,15 +188,18 @@ impl Tokens {
             ("color-link", colors.link.as_str()),
             ("color-accent", colors.accent.as_str()),
             ("color-border", colors.border.as_str()),
-            ("font-body", self.fonts.body.as_str()),
-            ("font-heading", self.fonts.heading.as_str()),
-            ("font-mono", self.fonts.mono.as_str()),
+            ("font-body", body.as_str()),
+            ("font-heading", heading.as_str()),
+            ("font-mono", mono.as_str()),
             ("radius", self.shape.radius.as_str()),
             ("measure", self.shape.measure.as_str()),
         ] {
             let _ = writeln!(css, "  --{name}: {value};");
         }
         css.push_str("}\n");
+        for family in families {
+            css.push_str(&font_fallback::face(family));
+        }
         css
     }
 
