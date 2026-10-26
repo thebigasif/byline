@@ -1,9 +1,13 @@
 //! Reading directive blocks, `::name{...}` and `:::name{...}` (ADR 0012).
 
+use khalid_core::AbsoluteUrl;
+
 use crate::{BlockError, BlockKind, CalloutKind};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 5] = ["button", "callout", "figure", "toc", "toggle"];
+pub(crate) const BLOCKS: [&str; 7] = [
+    "bookmark", "button", "callout", "embed", "figure", "toc", "toggle",
+];
 
 /// What to say after "there is no block called `name`": the nearest block
 /// name when one is a typing slip away, or where the names come from.
@@ -43,7 +47,7 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// Blocks with no body, written on one line as `::name{...}`. Every other
 /// block opens with `:::name{...}` and closes with `:::`.
-const LEAVES: [&str; 2] = ["button", "toc"];
+const LEAVES: [&str; 4] = ["bookmark", "button", "embed", "toc"];
 
 /// How a block was written.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -84,6 +88,8 @@ pub(crate) fn directive(line: usize, rest: &str, form: Form) -> Result<BlockKind
             .only("toc", &[], "nothing")
             .map(|()| BlockKind::Toc),
         "button" => button(&attributes),
+        "bookmark" => bookmark(&attributes),
+        "embed" => embed(&attributes),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
@@ -158,6 +164,38 @@ fn button(attributes: &Attributes) -> Result<BlockKind, BlockError> {
     Ok(BlockKind::Button { href, label })
 }
 
+fn bookmark(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only(
+        "bookmark",
+        &["href", "title", "description", "image"],
+        "href, title, description and image",
+    )?;
+    let href = attributes.need("href", "a bookmark needs href, the page it links to")?;
+    let image = attributes
+        .get("image")
+        .map(|image| attributes.address("bookmark", "image", &image))
+        .transpose()?;
+    Ok(BlockKind::Bookmark {
+        href: attributes.address("bookmark", "href", &href)?,
+        title: attributes.get("title"),
+        description: attributes.get("description"),
+        image,
+    })
+}
+
+fn embed(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only("embed", &["src", "title"], "src and title")?;
+    let src = attributes.need("src", "an embed needs src, the page of the video or sound")?;
+    let title = attributes.need(
+        "title",
+        "an embed needs title, the name a screen reader says for the player",
+    )?;
+    Ok(BlockKind::Embed {
+        src: attributes.address("embed", "src", &src)?,
+        title,
+    })
+}
+
 /// A directive's attributes, with the line they are on for messages.
 struct Attributes {
     line: usize,
@@ -192,6 +230,21 @@ impl Attributes {
             .iter()
             .find(|(k, _)| k == key)
             .map(|(_, v)| v.clone())
+    }
+
+    /// `text`, the value of `attribute`, as a full web address.
+    fn address(
+        &self,
+        block: &'static str,
+        attribute: &'static str,
+        text: &str,
+    ) -> Result<AbsoluteUrl, BlockError> {
+        AbsoluteUrl::parse(text).map_err(|source| BlockError::Address {
+            line: self.line,
+            block,
+            attribute,
+            source,
+        })
     }
 
     /// The value of `key`, or `problem` as the error when it is missing.
