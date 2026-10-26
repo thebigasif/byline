@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT locale, slug, name FROM categories WHERE site_id = ?1 ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "locale",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "categories",
+            "name": "locale"
+          }
+        }
+      },
+      {
+        "name": "slug",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "categories",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "categories",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fd47842054f8c9c77ffaa6cfe70f9b88d3b5c8872812b4162d70832114349db4"
+}

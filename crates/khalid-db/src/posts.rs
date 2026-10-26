@@ -54,7 +54,7 @@ impl Database {
 }
 
 /// Reads a stored value back into its type.
-fn stored<T, E>(
+pub(crate) fn stored<T, E>(
     column: &'static str,
     value: &str,
     parse: impl FnOnce(&str) -> Result<T, E>,
@@ -73,7 +73,7 @@ fn optional(column: &'static str, value: Option<&str>) -> Result<Option<Slug>, D
 }
 
 /// Reads a stored content hash, which is always 32 bytes.
-fn stored_hash(bytes: &[u8]) -> Result<[u8; 32], DbError> {
+pub(crate) fn stored_hash(bytes: &[u8]) -> Result<[u8; 32], DbError> {
     <[u8; 32]>::try_from(bytes).map_err(|_| DbError::Unreadable {
         column: "content_hash",
         value: format!("{} bytes", bytes.len()),

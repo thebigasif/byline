@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT locale, slug, name FROM tags WHERE site_id = ?1 ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "locale",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "locale"
+          }
+        }
+      },
+      {
+        "name": "slug",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tags",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ad43364183647ae59d8010bd70786bc17ba0efe68b90834ed88bf50162168f72"
+}

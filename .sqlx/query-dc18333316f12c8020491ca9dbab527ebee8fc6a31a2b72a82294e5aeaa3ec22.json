@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO tags (site_id, locale, slug, name) VALUES (?1, ?2, ?3, ?4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "dc18333316f12c8020491ca9dbab527ebee8fc6a31a2b72a82294e5aeaa3ec22"
+}

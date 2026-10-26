@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT path, locale, slug, name, content_hash FROM authors WHERE site_id = ?1 ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "path",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "name": "locale",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "locale"
+          }
+        }
+      },
+      {
+        "name": "slug",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "content_hash",
+        "ordinal": 4,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "authors",
+            "name": "content_hash"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2a3a9f3f9e5d83aa47a5f78bc82a41ea6bf3484d244dcc15d169f5d1234ff424"
+}

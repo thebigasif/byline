@@ -10,6 +10,65 @@ use khalid_core::{Locale, Slug};
 pub struct ContentIndex {
     /// Every post in every collection and language, in any order.
     pub posts: Vec<IndexedPost>,
+    /// Every author in every language, in the order lists show them.
+    pub authors: Vec<IndexedAuthor>,
+    /// Every category in every language, in the order lists show them.
+    pub categories: Vec<IndexedTerm>,
+    /// Every tag in every language, in the order lists show them.
+    pub tags: Vec<IndexedTerm>,
+}
+
+/// One author's file as the index stores it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct IndexedAuthor {
+    /// The file, relative to the site folder, with `/` between folders, such
+    /// as `content/en/authors/asif.md`.
+    pub path: String,
+    /// The language folder the file sits in.
+    pub locale: Locale,
+    /// The slug posts name the author by.
+    pub slug: Slug,
+    /// The name readers see.
+    pub name: String,
+    /// The SHA-256 of the file.
+    pub content_hash: [u8; 32],
+}
+
+impl IndexedAuthor {
+    /// An author with every field the index stores.
+    pub fn new(path: &str, locale: Locale, slug: Slug, name: &str, content_hash: [u8; 32]) -> Self {
+        Self {
+            path: path.to_owned(),
+            locale,
+            slug,
+            name: name.to_owned(),
+            content_hash,
+        }
+    }
+}
+
+/// A category or a tag in one language: the name posts are grouped under.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct IndexedTerm {
+    /// The language the name is written in.
+    pub locale: Locale,
+    /// The slug posts name it by.
+    pub slug: Slug,
+    /// The name readers see in this language.
+    pub name: String,
+}
+
+impl IndexedTerm {
+    /// The term `slug`, called `name` in `locale`.
+    pub fn new(locale: Locale, slug: Slug, name: &str) -> Self {
+        Self {
+            locale,
+            slug,
+            name: name.to_owned(),
+        }
+    }
 }
 
 /// One post as the index stores it.

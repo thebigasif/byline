@@ -1,6 +1,6 @@
 //! The Content API's authors, tags, categories, collections and menus over
 //! HTTP: each lists, filters and reads one entry by identity or slug, like
-//! the posts.
+//! the posts. And the site's settings, which are one entry.
 
 mod common;
 
@@ -9,6 +9,7 @@ use std::sync::Arc;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use khalid_api::content_api;
+use khalid_api::content_store::MemoryContentStore;
 use khalid_api::keys::{KeyToken, MemoryKeyStore, StoredKey};
 use serde_json::Value;
 use tower::ServiceExt;
@@ -17,13 +18,19 @@ use tower::ServiceExt;
 const KEY: &str =
     "kc_0123456789abcdef_00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
 
-/// Sends `uri` with the content key and returns the status, the media type
-/// and the body.
+/// Sends `uri` to the demo store with the content key and returns the
+/// status, the media type and the body.
 #[cfg(test)]
 async fn get(uri: &str) -> (StatusCode, String, Value) {
+    get_from(common::store(), uri).await
+}
+
+/// Sends `uri` to `store` with the content key.
+#[cfg(test)]
+async fn get_from(store: MemoryContentStore, uri: &str) -> (StatusCode, String, Value) {
     let token: KeyToken = KEY.parse().unwrap();
     let keys = MemoryKeyStore::new(vec![StoredKey::for_token(&token)]);
-    let (router, _) = content_api::router(Arc::new(common::store()), Arc::new(keys));
+    let (router, _) = content_api::router(Arc::new(store), Arc::new(keys));
     let request = Request::get(uri)
         .header("authorization", format!("Khalid-Content {KEY}"))
         .body(Body::empty())
@@ -67,6 +74,31 @@ async fn the_authors_list_in_the_order_the_store_gives() {
     assert_eq!(asif["url"], "https://example.com/blog/authors/asif/");
     assert_eq!(asif["same_as"][0], "https://serpdad.com/");
     assert_eq!(json["authors"][1]["role"], Value::Null);
+}
+
+#[tokio::test]
+async fn the_settings_are_one_entry_or_a_404() {
+    let (status, media, json) = get("/api/content/v1/settings/").await;
+    assert_eq!(
+        (status, media.as_str()),
+        (StatusCode::OK, "application/json")
+    );
+    assert_eq!(
+        json,
+        serde_json::json!({"settings": [{
+            "title": "Field Notes on SEO",
+            "url": "https://example.com/blog/",
+            "default_language": "en",
+            "languages": ["en", "de"],
+        }]})
+    );
+    let empty = MemoryContentStore::new(Vec::new());
+    let (status, media, json) = get_from(empty, "/api/content/v1/settings/").await;
+    assert_eq!(
+        (status, media.as_str()),
+        (StatusCode::NOT_FOUND, "application/problem+json")
+    );
+    assert_eq!(json["instance"], "/api/content/v1/settings/");
 }
 
 #[tokio::test]

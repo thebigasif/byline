@@ -2635,6 +2635,66 @@
         ]
       }
     },
+    "/api/content/v1/settings/": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Reads the site's public settings: its name, address and languages.",
+        "operationId": "read_settings",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The site has no settings to show yet",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/tags/": {
       "get": {
         "tags": [
@@ -3722,6 +3782,59 @@
             "type": "string",
             "description": "A link to the page that explains this kind of problem.",
             "example": "https://khalid.dev/problems/not-found"
+          }
+        }
+      },
+      "Settings": {
+        "type": "object",
+        "description": "The public settings of the site, in API shape: its name, where it lives\nand its languages. Nothing secret is ever part of it.",
+        "required": [
+          "title",
+          "url",
+          "default_language",
+          "languages"
+        ],
+        "properties": {
+          "default_language": {
+            "type": "string",
+            "description": "The language a reader gets first, such as `en`.",
+            "example": "en"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every language the site is written in, the default among them.",
+            "example": [
+              "en",
+              "de"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "The site's name."
+          },
+          "url": {
+            "type": "string",
+            "description": "The address of the blog's front page in the default language.",
+            "example": "https://example.com/blog/"
+          }
+        }
+      },
+      "SiteSettings": {
+        "type": "object",
+        "description": "The site's settings, as every response wraps them: a list of one.",
+        "required": [
+          "settings"
+        ],
+        "properties": {
+          "settings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Settings"
+            },
+            "description": "The settings."
           }
         }
       },
