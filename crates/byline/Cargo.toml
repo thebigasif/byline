@@ -1,0 +1,16 @@
+[package]
+name = "byline"
+version = "0.0.0"
+description = "An open-source blog engine with SEO defaults built in, by SerpDad."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+mimalloc = "0.1"
+
+[lints]
+workspace = true
