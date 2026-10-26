@@ -21,7 +21,9 @@ use crate::keys::KeyStore;
 use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
 use crate::query::{ListQuery, RawListQuery};
-use crate::resources::{Author, Collection, ContentCollection, Listable, Menu, Post, Term};
+use crate::resources::{
+    Author, Collection, ContentCollection, Listable, Menu, Post, Settings, Term,
+};
 
 /// Where the Content API lives.
 pub(crate) const BASE: &str = "/api/content/v1";
@@ -72,6 +74,7 @@ pub(crate) fn routes(store: Store, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
         .routes(routes!(browse_navigation))
         .routes(routes!(read_menu))
         .routes(routes!(read_menu_by_slug))
+        .routes(routes!(read_settings))
         .route_layer(middleware::from_fn_with_state(keys, require_content_key))
         .route_layer(middleware::from_fn(tag_and_revalidate))
         .route_layer(middleware::from_fn(negotiate_version))
@@ -281,6 +284,37 @@ collection_routes!(
     read_menu = "/navigation/{id}/",
     read_menu_by_slug = "/navigation/slug/{slug}/",
 );
+
+/// The site's settings, as every response wraps them: a list of one.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SiteSettings {
+    /// The settings.
+    settings: Vec<Settings>,
+}
+
+/// Reads the site's public settings: its name, address and languages.
+#[utoipa::path(
+    get, path = "/settings/", tag = "settings",
+    security(("content_key" = []), ("content_key_query" = [])),
+    responses(
+        (status = 200, description = "The settings", body = SiteSettings),
+        (status = 401, description = "No valid content key", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "The site has no settings to show yet", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn read_settings(
+    State(store): State<Store>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<Json<SiteSettings>, Problem> {
+    let site = store
+        .site()
+        .await
+        .map_err(|error| Problem::internal(&error))?;
+    let settings = site.settings().ok_or_else(|| not_found(uri.path()))?;
+    Ok(Json(SiteSettings {
+        settings: vec![settings.clone()],
+    }))
+}
 
 /// One page of `collection` for a list request, with its pagination.
 async fn browse(

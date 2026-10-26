@@ -21,9 +21,26 @@ const OWN_FOLDERS: [&str; 2] = ["data", "public"];
 /// changed.
 type Snapshot = BTreeMap<PathBuf, (u64, Option<SystemTime>)>;
 
-/// Looks at every file under `site` each `every`, and when one is added,
-/// removed or changed, renders the pages again with `renderer` and serves
-/// them through `live`.
+/// What the site folder held at one moment: every file [`watch`] looks at,
+/// with its size and when it last changed.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FolderLook(Snapshot);
+
+impl FolderLook {
+    /// Looks at every file under `site` now. Take it before the pages are
+    /// first rendered and hand it to [`watch`], so a file saved during the
+    /// render or before the watch starts is still seen as a change.
+    ///
+    /// Reads the folder, so call it before the async runtime starts or on
+    /// a blocking thread (RULES.md BL-RUN-7).
+    pub fn take(site: &Path) -> Self {
+        Self(scan(site))
+    }
+}
+
+/// Looks at every file under `site` each `every`, and when one was added,
+/// removed or changed since the look before, starting with `since`,
+/// renders the pages again with `renderer` and serves them through `live`.
 ///
 /// Hidden files and folders, such as `.git` and editor swap files, and
 /// the `data/` and `public/` folders Khalid writes itself, are left out,
@@ -37,20 +54,23 @@ pub fn watch<R: Render + Clone>(
     site: &Path,
     renderer: &R,
     live: &LivePages,
+    since: FolderLook,
     every: Duration,
 ) -> Background {
     let (site, renderer, live) = (Arc::from(site), renderer.clone(), live.clone());
-    Background::spawn(move |stopped| watch_until_stopped(site, renderer, live, every, stopped))
+    Background::spawn(move |stopped| {
+        watch_until_stopped(site, renderer, live, since.0, every, stopped)
+    })
 }
 
 async fn watch_until_stopped<R: Render + Clone>(
     site: Arc<Path>,
     renderer: R,
     live: LivePages,
+    mut seen: Snapshot,
     every: Duration,
     mut stopped: oneshot::Receiver<()>,
 ) {
-    let mut seen = snapshot(&site).await.unwrap_or_default();
     let mut ticks = tokio::time::interval(every);
     ticks.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {

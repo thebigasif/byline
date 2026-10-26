@@ -157,7 +157,10 @@ fn sentences(report: &Report, fixed: Option<&[Repair]>) -> String {
     text
 }
 
-fn write_finding(text: &mut String, finding: &Finding) {
+/// One finding as its post, its severity and its three sentences, then its
+/// subject, suggestions, rule and guide, as `khalid lint` and a refused
+/// `khalid build` both show it.
+pub(crate) fn write_finding(text: &mut String, finding: &Finding) {
     let at = finding.location();
     let kind = match finding.severity() {
         Severity::Block => "blocks publishing",

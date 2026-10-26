@@ -30,6 +30,52 @@ impl Pages {
         Self::from_rendered(Rendered::new(pages, not_found), None)
     }
 
+    /// Holds `pages` as they are, without Brotli copies, so a server can
+    /// answer at once and add them later with [`Pages::compressed`]. On a
+    /// 1,000-post site, compressing first would hold the first answer back
+    /// by most of a second.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ServerError::DuplicatePage`] when two pages share a path.
+    pub fn plain(pages: Vec<Page>, not_found: impl Into<Bytes>) -> Result<Self, ServerError> {
+        let mut by_path = BTreeMap::new();
+        for page in pages {
+            match by_path.entry(page.path().as_str().to_owned()) {
+                Entry::Occupied(_) => {
+                    return Err(ServerError::DuplicatePage {
+                        path: page.path().clone(),
+                    });
+                }
+                Entry::Vacant(slot) => {
+                    slot.insert(page);
+                }
+            }
+        }
+        Ok(Self {
+            by_path,
+            not_found: not_found.into(),
+        })
+    }
+
+    /// The same pages, each with its Brotli copy. A page that has one
+    /// already keeps it. The bytes are shared, not copied.
+    ///
+    /// Compressing is CPU work, so call this off the async runtime
+    /// (RULES.md BL-RUN-7).
+    #[must_use]
+    pub fn compressed(&self) -> Self {
+        let by_path = self
+            .by_path
+            .iter()
+            .map(|(path, page)| (path.clone(), page.clone().compressed_like(Some(page))))
+            .collect();
+        Self {
+            by_path,
+            not_found: self.not_found.clone(),
+        }
+    }
+
     /// Holds the `rendered` pages. A page whose bytes are the same as the
     /// page at its address in `previous` takes that page's Brotli copy
     /// instead of compressing again, so a change to one post costs one
@@ -39,22 +85,12 @@ impl Pages {
         previous: Option<&Self>,
     ) -> Result<Self, ServerError> {
         let (pages, not_found) = rendered.into_parts();
-        let mut by_path = BTreeMap::new();
-        for page in pages {
-            let path = page.path().as_str().to_owned();
-            let old = previous.and_then(|pages| pages.get(&path));
-            match by_path.entry(path) {
-                Entry::Occupied(_) => {
-                    return Err(ServerError::DuplicatePage {
-                        path: page.path().clone(),
-                    });
-                }
-                Entry::Vacant(slot) => {
-                    slot.insert(page.compressed_like(old));
-                }
-            }
+        let mut plain = Self::plain(pages, not_found)?;
+        for (path, page) in &mut plain.by_path {
+            let old = previous.and_then(|pages| pages.get(path));
+            *page = page.clone().compressed_like(old);
         }
-        Ok(Self { by_path, not_found })
+        Ok(plain)
     }
 
     /// The page at `path`, once percent-encoding is undone.

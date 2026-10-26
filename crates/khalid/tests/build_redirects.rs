@@ -23,7 +23,8 @@ fn at(base: &Path, rel: &str) -> PathBuf {
 }
 
 /// A site with one post per `(slug, aliases)` pair, each alias on its own
-/// line of the post's `aliases` list.
+/// line of the post's `aliases` list. Each post has an author and an
+/// internal link, so the publish gate lets it through.
 #[cfg(test)]
 fn site(posts: &[(&str, &[&str])]) -> TempDir {
     let temp = tempfile::tempdir().unwrap();
@@ -31,13 +32,14 @@ fn site(posts: &[(&str, &[&str])]) -> TempDir {
     let folder = at(temp.path(), "content/en/posts");
     fs::create_dir_all(&folder).unwrap();
     for (slug, aliases) in posts {
-        let mut text = format!("---\ntitle: {slug}\nslug: {slug}\ndate: 2026-10-01\naliases:\n");
+        let mut text =
+            format!("---\ntitle: {slug}\nslug: {slug}\ndate: 2026-10-01\nauthor: asif\naliases:\n");
         for alias in *aliases {
             text.push_str("  - ");
             text.push_str(alias);
             text.push('\n');
         }
-        text.push_str("---\n\nA post that moved.\n");
+        text.push_str("---\n\nA post that moved from [the home page](/blog/).\n");
         fs::write(at(&folder, &format!("{slug}.md")), text).unwrap();
     }
     temp

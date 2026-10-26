@@ -45,11 +45,60 @@ radius = "4px"
         css.contains("  --color-link: #0a58ca;\n"),
         "hex is lowercased"
     );
-    assert!(css.contains(r#"  --font-body: Inter, "Segoe UI", sans-serif;"#));
+    assert!(css.contains(r#"  --font-body: Inter, "Inter Fallback", "Segoe UI", sans-serif;"#));
     assert!(css.contains("  --radius: 4px;\n"));
     assert!(
         css.contains("  --color-background: #ffffff;\n"),
         "unset tokens keep defaults"
+    );
+}
+
+#[test]
+fn a_known_web_font_gets_a_local_fallback_tuned_to_its_size() {
+    let tokens = Tokens::from_toml(
+        "[fonts]\nbody = '\"Inter\", sans-serif'\nheading = 'Roboto, Georgia, serif'\n",
+    )
+    .unwrap();
+    let css = tokens.to_css();
+    assert!(css.starts_with(":root {\n"), "{css}");
+    assert!(
+        css.contains(r#"  --font-body: "Inter", "Inter Fallback", sans-serif;"#),
+        "{css}"
+    );
+    assert!(
+        css.contains(r#"  --font-heading: Roboto, "Roboto Fallback", Georgia, serif;"#),
+        "{css}"
+    );
+    assert!(
+        css.contains(
+            "@font-face { font-family: \"Inter Fallback\"; src: local(\"Arial\"); \
+         ascent-override: 90.44%; descent-override: 22.52%; \
+         line-gap-override: 0%; size-adjust: 107.12%; }\n"
+        ),
+        "{css}"
+    );
+    assert!(
+        css.contains(
+            "@font-face { font-family: \"Roboto Fallback\"; src: local(\"Arial\"); \
+         ascent-override: 92.49%; descent-override: 24.34%; \
+         line-gap-override: 0%; size-adjust: 100.3%; }\n"
+        ),
+        "{css}"
+    );
+}
+
+#[test]
+fn system_fonts_and_unknown_fonts_need_no_fallback() {
+    let css = Tokens::default().to_css();
+    assert!(!css.contains("@font-face"), "{css}");
+    let tokens = Tokens::from_toml("[fonts]\nbody = 'Lexend, sans-serif'\n").unwrap();
+    assert!(!tokens.to_css().contains("@font-face"));
+    let tokens =
+        Tokens::from_toml("[fonts]\nbody = 'Inter, sans-serif'\nheading = 'Inter'\n").unwrap();
+    assert_eq!(
+        tokens.to_css().matches("@font-face").count(),
+        1,
+        "one face per font"
     );
 }
 

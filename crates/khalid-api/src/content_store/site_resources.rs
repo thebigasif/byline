@@ -1,10 +1,12 @@
-//! The site's small lists: authors, tags, categories, collections and menus.
+//! The site's small lists, authors, tags, categories, collections and
+//! menus, and its settings.
 
-use crate::resources::{Author, ContentCollection, Menu, Term};
+use crate::resources::{Author, ContentCollection, Menu, Settings, Term};
 
 /// The site's authors, tags, categories, collections and menus in every
-/// language. A site has tens of these, not thousands, so a store hands them
-/// over whole and the API filters, orders and pages them itself.
+/// language, and its settings. A site has tens of these, not thousands, so
+/// a store hands them over whole and the API filters, orders and pages
+/// them itself.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SiteResources {
     authors: Vec<Author>,
@@ -12,6 +14,7 @@ pub struct SiteResources {
     categories: Vec<Term>,
     collections: Vec<ContentCollection>,
     menus: Vec<Menu>,
+    settings: Option<Settings>,
 }
 
 impl SiteResources {
@@ -48,6 +51,13 @@ impl SiteResources {
         Self { menus, ..self }
     }
 
+    /// The same lists with the site's settings.
+    #[must_use]
+    pub fn with_settings(self, settings: Settings) -> Self {
+        let settings = Some(settings);
+        Self { settings, ..self }
+    }
+
     /// The authors.
     pub fn authors(&self) -> &[Author] {
         &self.authors
@@ -71,5 +81,10 @@ impl SiteResources {
     /// The menus.
     pub fn menus(&self) -> &[Menu] {
         &self.menus
+    }
+
+    /// The settings, when the store has them.
+    pub fn settings(&self) -> Option<&Settings> {
+        self.settings.as_ref()
     }
 }

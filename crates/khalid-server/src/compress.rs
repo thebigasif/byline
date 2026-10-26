@@ -12,8 +12,17 @@ use crate::etag;
 /// the same size, so a rebuild of many pages stays quick.
 const QUALITY: i32 = 5;
 
-/// The Brotli window, as a power of two: 4 MB, more than any page needs.
-const WINDOW: i32 = 22;
+/// The smallest and largest Brotli window Brotli allows, as powers of two:
+/// 1 KB and 4 MB.
+const WINDOW: (i32, i32) = (10, 22);
+
+/// The smallest Brotli window that holds all of a `len`-byte page, so the
+/// encoder sets up buffers the size of the page, not 4 MB for each one.
+/// A window that covers the whole page compresses it exactly as well.
+pub(crate) fn window(len: usize) -> i32 {
+    let bits = len.max(1).next_power_of_two().trailing_zeros();
+    i32::try_from(bits).map_or(WINDOW.1, |bits| bits.clamp(WINDOW.0, WINDOW.1))
+}
 
 /// A page's bytes compressed with Brotli, and the tag for that copy.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,7 +40,8 @@ impl Compressed {
     pub(crate) fn brotli(body: &[u8], plain_tag: Option<&HeaderValue>) -> Option<Self> {
         let params = BrotliEncoderParams {
             quality: QUALITY,
-            lgwin: WINDOW,
+            lgwin: window(body.len()),
+            size_hint: body.len(),
             ..BrotliEncoderParams::default()
         };
         let mut input = body;
@@ -86,4 +96,20 @@ fn is_zero_weight(param: &str) -> bool {
         .strip_prefix("q=")
         .or_else(|| param.strip_prefix("Q="));
     weight.is_some_and(|w| w.starts_with('0') && w.chars().all(|c| matches!(c, '0' | '.')))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_window_holds_the_whole_page_and_no_more() {
+        assert_eq!(window(0), 10, "never below 1 KB");
+        assert_eq!(window(700), 10);
+        assert_eq!(window(1024), 10);
+        assert_eq!(window(1025), 11);
+        assert_eq!(window(7_000), 13);
+        assert_eq!(window(30_000), 15);
+        assert_eq!(window(50_000_000), 22, "never above 4 MB");
+    }
 }

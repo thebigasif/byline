@@ -6,7 +6,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use khalid_content::{ContentTree, check_bodies, read_content};
+use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
@@ -83,19 +83,36 @@ impl SitePages {
             folder,
             config,
             routes,
-            renderer,
-            stylesheet,
-            feed,
+            ..
         } = &*self.0;
         let content = ContentTree::walk(folder)
             .and_then(|tree| read_content(&tree))
             .and_then(|content| check_bodies(&content, config, routes).map(|()| content))
             .map_err(|error| content_message::of(folder, &error))?;
+        self.render_content(&content)
+    }
+
+    /// Every page made from `content`, already read from the site folder,
+    /// and the not-found page, refreshing the feed first when there is one.
+    /// At start, `khalid serve` passes the content it checked, so the folder
+    /// is read once, not twice. `content` must have passed `check_bodies`.
+    pub(crate) fn render_content(
+        &self,
+        content: &SiteContent,
+    ) -> Result<(Vec<Page>, String), UserMessage> {
+        let Site {
+            folder,
+            config,
+            routes,
+            renderer,
+            stylesheet,
+            feed,
+        } = &*self.0;
         if let Some(feed) = feed {
-            let fed = published(&feed.db, feed.site, folder, config, &content);
+            let fed = published(&feed.db, feed.site, folder, config, content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
-        let languages = build_pages::pages(config, routes, &content, stylesheet.path().as_str())?;
+        let languages = build_pages::pages(config, routes, content, stylesheet.path().as_str())?;
         let mut pages = vec![stylesheet.clone()];
         let mut not_found = String::new();
         for language in &languages {
@@ -146,7 +163,7 @@ mod tests {
     use khalid_core::{Config, Environment};
     use khalid_routes::Routes;
 
-    use super::SitePages;
+    use super::{ContentTree, SitePages, read_content};
 
     fn fixture(name: &str) -> PathBuf {
         let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
@@ -179,5 +196,17 @@ mod tests {
             .iter()
             .filter(|page| String::from_utf8_lossy(page.body()).contains(link));
         assert_eq!(linking.count(), 2);
+    }
+
+    #[test]
+    fn the_checked_content_renders_the_same_pages_as_the_folder() {
+        let demo = fixture("demo-site");
+        let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
+        let source = pages(&demo);
+        let (given, given_missing) = source.render_content(&content).unwrap();
+        let (read, read_missing) = source.render_all().unwrap();
+        assert!(given.len() > 10, "{} pages", given.len());
+        assert_eq!(given, read);
+        assert_eq!(given_missing, read_missing);
     }
 }

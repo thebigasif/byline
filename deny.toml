@@ -38,6 +38,8 @@ allow = [
 exceptions = [
   # Servo's CSS and selector parsers, reached through scraper, which
   # docs/standards/rust.md names for reading a site's HTML in theme sync.
+  # File events for `khalid serve` (CTO answers 2026-10-27, section 1); CC0 is public domain.
+  { crate = "notify", allow = ["CC0-1.0"] },
   { crate = "cssparser", allow = ["MPL-2.0"] },
   { crate = "cssparser-macros", allow = ["MPL-2.0"] },
   { crate = "dtoa-short", allow = ["MPL-2.0"] },

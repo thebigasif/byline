@@ -196,7 +196,17 @@ fn serve_answers_the_stylesheet_the_home_page_links() {
     let css = get(&server, href);
     assert_eq!(css.status, 200, "{href}");
     assert!(css.body.contains("--color-link:"), "{}", css.body);
-    let (head, brotli_bytes) = head_of(&server, href);
+    // Pages answer plain at once and get their Brotli copies in the
+    // background, so look again until the copy is there.
+    let mut answer = head_of(&server, href);
+    for _ in 0..TRIES {
+        if answer.0.contains("content-encoding: br") {
+            break;
+        }
+        thread::sleep(PAUSE);
+        answer = head_of(&server, href);
+    }
+    let (head, brotli_bytes) = answer;
     assert!(head.contains("content-type: text/css"), "{head}");
     assert!(head.contains("content-encoding: br"), "{head}");
     assert!(head.contains("max-age=31536000, immutable"), "{head}");

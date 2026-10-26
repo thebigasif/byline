@@ -15,6 +15,7 @@ mod author;
 mod dates;
 mod direction;
 mod escape;
+mod font_fallback;
 mod glossary;
 mod image;
 mod listing;

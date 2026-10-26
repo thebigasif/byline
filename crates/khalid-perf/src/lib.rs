@@ -11,6 +11,9 @@ mod fixture_error;
 mod inputs;
 mod prepare_error;
 mod render_times;
+mod serve_error;
+mod serve_times;
+mod served;
 mod site;
 mod words;
 
@@ -19,3 +22,6 @@ pub use fixture_error::FixtureError;
 pub use inputs::{Page, Prepared};
 pub use prepare_error::PrepareError;
 pub use render_times::{RenderTimes, percentile};
+pub use serve_error::ServeError;
+pub use serve_times::ServeTimes;
+pub use served::{Served, announced, resident_mb};

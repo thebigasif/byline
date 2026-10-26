@@ -257,6 +257,7 @@ async fn the_openapi_document_lists_the_routes() {
             ]
         })
         .collect();
+    routes.push("/api/content/v1/settings/".to_owned());
     routes.sort_unstable();
     assert_eq!(listed, routes);
     let parameters = json["paths"]["/api/content/v1/posts/"]["get"]["parameters"]
