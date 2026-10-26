@@ -1,0 +1,5 @@
+# Breaks one rule: a permalink must hold {slug}. The exact message
+# khalid --site prints for it is in expected.txt beside this file.
+
+[collections.news]
+permalink = "/news/{year}/"

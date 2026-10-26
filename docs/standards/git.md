@@ -14,6 +14,6 @@ Trunk-based, because the founder wants speed. Every finished task is pushed stra
 - Never force-push `main`. Never rewrite history another session may have fetched.
 - Never commit `target/`, `node_modules/`, `.env`, a database file or a secret. `.gitignore` is not optional.
 - Tags are semver: `v0.1.0`. Releases are built by CI from a tag, never by hand. Prerelease tags such as `v0.1.0-alpha.1` are for tests and get deleted after.
-- `CHANGELOG.md` is written for users in plain language, one line per change, grouped by Added, Changed, Fixed, Removed. Every commit that changes behaviour adds its line.
+- `CHANGELOG.md` is written for users in plain language, one line per change, grouped by Added, Changed, Fixed, Removed. Every pull request that changes behaviour adds its line as a fragment in `changelog.d/` (see its README); fragments are folded in when the pull request lands.
 
 Where any other standard in this repository says "pull request", read "commit" in this trunk-based mode.

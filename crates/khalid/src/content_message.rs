@@ -11,6 +11,10 @@ use crate::config_message::located;
 const WHY: &str =
     "Khalid reads every post before it runs, so nothing is built from a file it cannot read.";
 
+/// Why a block mistake stops the run.
+const BLOCK_WHY: &str =
+    "Khalid checks every block before it runs, so no page shows a block it cannot draw.";
+
 /// Turns a content error into what happened, why it matters and what to do.
 /// Paths in content errors are relative to `site`, so messages join the two.
 pub(crate) fn of(site: &Path, error: &ContentError) -> UserMessage {
@@ -23,6 +27,9 @@ pub(crate) fn of(site: &Path, error: &ContentError) -> UserMessage {
             problem,
             ..
         } => located(&at(path), *line, field, problem, WHY),
+        ContentError::Block { path, line, source } => {
+            located(&at(path), *line, "", &source.problem(), BLOCK_WHY)
+        }
         ContentError::NoFrontMatter { path } => UserMessage::new(
             format!("{} does not start with front matter.", at(path)),
             "Front matter between two --- lines holds the title, date and author that readers and search engines need.",

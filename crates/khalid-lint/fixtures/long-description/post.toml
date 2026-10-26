@@ -1,0 +1,3 @@
+# 186 characters, past the default 160.
+extends = "clean"
+description = "Why links between your own posts help readers find the next useful page, how search engines use them to understand your site, and how to add them without cluttering every paragraph."

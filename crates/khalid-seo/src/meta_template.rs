@@ -7,7 +7,7 @@ use crate::{SeoError, SeoPage, SeoSite};
 
 /// A variable a template may use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Variable {
+pub(crate) enum Variable {
     Title,
     Site,
     Tagline,
@@ -54,7 +54,7 @@ impl Variable {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Piece {
+pub(crate) enum Piece {
     Text(String),
     Var(Variable),
 }
@@ -115,6 +115,18 @@ impl MetaTemplate {
     /// The template as written.
     pub fn as_str(&self) -> &str {
         &self.source
+    }
+
+    /// A template built from known pieces, for the defaults.
+    pub(crate) fn from_pieces(pieces: Vec<Piece>) -> Self {
+        let source = pieces
+            .iter()
+            .map(|piece| match piece {
+                Piece::Text(text) => text.clone(),
+                Piece::Var(variable) => format!("{{{}}}", variable.name()),
+            })
+            .collect();
+        Self { pieces, source }
     }
 
     /// Fills the variables for `page` on `site` and tidies the result: one

@@ -1,0 +1,5 @@
+{"@context": "https://schema.org", "@type": "ClaimReview",
+ "url": "https://www.example.com/blog/do-internal-links-pass-authority/",
+ "claimReviewed": "Internal links pass no ranking value.",
+ "author": {"@id": "https://www.example.com/blog/#organization"},
+ "reviewRating": {"@type": "Rating", "ratingValue": 1, "bestRating": 5, "alternateName": "False"}}

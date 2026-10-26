@@ -1,0 +1,33 @@
+---
+source: crates/khalid-seo/tests/schema_article.rs
+expression: article.to_json()
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BlogPosting",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#article",
+      "headline": "Why internal links matter",
+      "mainEntityOfPage": {
+        "@id": "https://www.example.com/blog/why-internal-links-matter/#webpage"
+      },
+      "publisher": {
+        "@id": "https://www.example.com/blog/#organization"
+      },
+      "inLanguage": "en",
+      "description": "Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.",
+      "image": [
+        "https://www.example.com/blog/media/internal-links.png",
+        "https://www.example.com/blog/media/internal-links-map.png"
+      ],
+      "datePublished": "2026-09-14T08:00:00Z",
+      "dateModified": "2026-10-02T16:00:00Z",
+      "wordCount": 1240,
+      "articleSection": "On-page SEO",
+      "author": {
+        "@id": "https://www.example.com/blog/why-internal-links-matter/#author"
+      }
+    }
+  ]
+}

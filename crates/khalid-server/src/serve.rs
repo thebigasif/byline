@@ -1,0 +1,67 @@
+//! Serving until told to stop, then stopping gracefully.
+
+use std::future::{Future, IntoFuture, pending};
+use std::time::Duration;
+
+use axum::Router;
+use tokio::net::TcpListener;
+use tokio::sync::oneshot;
+
+use crate::ServerError;
+
+/// How the server stopped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stopped {
+    /// Every request in flight was answered before the server stopped.
+    Finished,
+    /// Some connections were still open when the grace period ran out, and
+    /// were closed unanswered.
+    GraceExpired,
+}
+
+/// Answers requests on `listener` with `router` until `shutdown` completes,
+/// then stops gracefully (RULES.md BL-RUN-10).
+///
+/// When `shutdown` completes, the server stops accepting connections and
+/// finishes the requests it has. Connections still open after `grace` are
+/// closed. The caller then flushes its queues and closes the database.
+///
+/// # Errors
+///
+/// Returns [`ServerError::Serve`] when the listener fails.
+pub async fn serve<F>(
+    listener: TcpListener,
+    router: Router,
+    shutdown: F,
+    grace: Duration,
+) -> Result<Stopped, ServerError>
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    let (signalled, on_signal) = oneshot::channel::<()>();
+    let signal = async move {
+        shutdown.await;
+        tracing::info!("stopping: no new connections, finishing the requests in flight");
+        let _ = signalled.send(());
+    };
+    let server = axum::serve(listener, router)
+        .with_graceful_shutdown(signal)
+        .into_future();
+    let deadline = async move {
+        match on_signal.await {
+            Ok(()) => tokio::time::sleep(grace).await,
+            // The signal future is gone only once the server has finished.
+            Err(_) => pending().await,
+        }
+    };
+    tokio::select! {
+        result = server => {
+            result.map_err(|source| ServerError::Serve { source })?;
+            Ok(Stopped::Finished)
+        }
+        () = deadline => {
+            tracing::warn!(?grace, "stopped with connections still open after the grace period");
+            Ok(Stopped::GraceExpired)
+        }
+    }
+}

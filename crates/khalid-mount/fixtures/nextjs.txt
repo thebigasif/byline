@@ -1,0 +1,8 @@
+module.exports = {
+  async rewrites() {
+    return [
+      { source: "/blog", destination: "https://blog-origin.example.com/blog" },
+      { source: "/blog/:path*", destination: "https://blog-origin.example.com/blog/:path*" },
+    ];
+  },
+};

@@ -1,0 +1,3 @@
+fixtures/invalid/block-form-field/content/en/posts/why-links-matter.md, line 8: each line of a form is a field, such as - email reply_to: Your email address.
+Khalid checks every block before it runs, so no page shows a block it cannot draw.
+Correct line 8, then run the command again.

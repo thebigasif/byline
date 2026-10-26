@@ -1,0 +1,25 @@
+---
+source: crates/khalid-seo/tests/sitemap_media.rs
+expression: sitemap.to_xml()
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  <url>
+    <loc>https://www.example.com/blog/why-internal-links-matter/</loc>
+    <lastmod>2026-10-02T16:00:00Z</lastmod>
+    <image:image>
+      <image:loc>https://www.example.com/blog/media/internal-links-map.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.example.com/blog/media/anchor-text.png</image:loc>
+    </image:image>
+    <video:video>
+      <video:thumbnail_loc>https://www.example.com/blog/media/internal-links-thumb.jpg</video:thumbnail_loc>
+      <video:title>Internal links in five minutes</video:title>
+      <video:description>A short walk through adding internal links to an older post.</video:description>
+      <video:player_loc>https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ</video:player_loc>
+      <video:duration>312</video:duration>
+      <video:publication_date>2026-09-12T10:00:00Z</video:publication_date>
+    </video:video>
+  </url>
+</urlset>

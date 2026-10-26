@@ -1,0 +1,21 @@
+[package]
+name = "khalid-perf"
+version = "0.0.0"
+description = "Generated large sites and the measures behind the performance budgets."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false }
+thiserror.workspace = true
+
+[dev-dependencies]
+khalid-content = { path = "../khalid-content", version = "0.0.0" }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+tempfile = "3"
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+---
+source: crates/khalid-content/tests/render.rs
+expression: "render(markdown, &en(), SlugMode::Ascii).unwrap().html"
+---
+<h2 id="before-you-start">Before you start</h2>
+<aside class="callout callout-tip">
+<p>Link from new posts to old ones, then <strong>back again</strong>.</p>
+</aside>
+<figure>
+<img src="shelf.jpg" alt="A bakery shelf of sourdough loaves" loading="lazy" decoding="async" />
+<figcaption>
+<p>The shelf on a <em>Saturday</em> morning.</p>
+</figcaption>
+</figure>
+<p>That is all.</p>
