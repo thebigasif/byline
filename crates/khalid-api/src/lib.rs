@@ -9,3 +9,4 @@
 pub mod pagination;
 pub mod problem;
 pub mod query;
+pub mod resources;

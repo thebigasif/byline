@@ -10,10 +10,11 @@ publish.workspace = true
 
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["json", "query"] }
+chrono = { version = "0.4", default-features = false, features = ["alloc", "serde"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 serde.workspace = true
 thiserror.workspace = true
-utoipa = "6"
+utoipa = { version = "6", features = ["chrono"] }
 
 [dev-dependencies]
 proptest = "1"
