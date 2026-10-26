@@ -10,6 +10,7 @@ mod build;
 mod build_files;
 mod build_message;
 mod build_pages;
+mod build_redirects;
 mod build_seo;
 mod cli;
 mod config_message;
@@ -101,9 +102,14 @@ fn run(cli: &Cli) -> Exit {
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, content))) => {
-            build::run(folder, config, content, out.as_deref(), cli.output)
-        }
+        (Some(Command::Build { out }), Some((folder, config, content))) => build::run(
+            folder,
+            config,
+            content,
+            out.as_deref(),
+            &SystemClock,
+            cli.output,
+        ),
         (Some(Command::Keys { command }), Some((folder, ..))) => {
             keys::run(folder, command, cli.output)
         }

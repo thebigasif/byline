@@ -1,5 +1,6 @@
 //! `khalid build` writes the site's files beside its pages: the sitemap
-//! index and sitemaps, `robots.txt` and `llms.txt` (KH-SEO-5, KH-SEO-7).
+//! index and sitemaps, `robots.txt`, `llms.txt` and the feeds of each
+//! language (KH-SEO-5, KH-SEO-6, KH-SEO-7).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -97,4 +98,33 @@ fn the_sitemaps_list_no_page_kept_out_of_search() {
     for rel in ["sitemaps/pages-en-1.xml", "sitemaps/pages-de-1.xml"] {
         assert!(!read(&out, rel).contains("404"), "{rel}");
     }
+}
+
+#[test]
+fn the_english_rss_feed() {
+    insta::assert_snapshot!(read(&built(), "feed.xml"));
+}
+
+#[test]
+fn each_language_has_its_feed_in_three_formats() {
+    let out = built();
+    for language in ["", "de/"] {
+        let home = format!("https://www.example.com/blog/{language}");
+        let rss = read(&out, &format!("{language}feed.xml"));
+        assert!(rss.contains(&format!("<link>{home}</link>")), "{rss}");
+        let atom = read(&out, &format!("{language}atom.xml"));
+        assert!(
+            atom.contains(&format!(r#"href="{home}atom.xml""#)),
+            "{atom}"
+        );
+        let json = read(&out, &format!("{language}feed.json"));
+        assert!(json.contains(&format!("{home}feed.json")), "{json}");
+    }
+}
+
+#[test]
+fn a_feed_holds_only_the_posts_of_its_language() {
+    let german = read(&built(), "de/feed.xml");
+    assert_eq!(german.matches("<item>").count(), 5, "{german}");
+    assert!(!german.contains("why-internal-links-matter"), "{german}");
 }
