@@ -1324,11 +1324,13 @@ dependencies = [
  "chrono",
  "hmac",
  "khalid-core",
+ "khalid-webhooks",
  "proptest",
  "serde",
  "serde_json",
  "sha2 0.11.1",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
