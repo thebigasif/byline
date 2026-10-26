@@ -26,7 +26,7 @@
 
 ### 1.3 Slugs from titles
 
-- Status: `todo`
+- Status: `done` after this landing.
 - `Slug::from_title(title, locale)`: in German, `über` becomes `ueber` and `Straße` becomes `strasse`, other Latin scripts lose their diacritics, other scripts take the Unicode path. With `slugs = "unicode"` a slug is NFC-normalised lowercase letters, digits and hyphens from any script, and the 200-byte limit applies to the percent-encoded form. `Slug::try_new` stays the strict ASCII constructor.
 - Rules: BL-TYP-3. CTO answers, section 2.
 - Done when: fixture tests cover German, French, Polish, Arabic and Japanese titles in both modes.
