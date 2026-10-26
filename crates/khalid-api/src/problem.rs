@@ -28,6 +28,10 @@ pub enum ProblemType {
     Unauthorized,
     /// The key is known but may not do this.
     Forbidden,
+    /// The request body could not be read.
+    InvalidBody,
+    /// Someone else changed the resource first.
+    Conflict,
     /// `Accept-Version` is not a version.
     InvalidVersion,
     /// `Accept-Version` asks for a version this server does not serve.
@@ -43,6 +47,8 @@ impl ProblemType {
             Self::Internal => "internal",
             Self::Unauthorized => "unauthorized",
             Self::Forbidden => "forbidden",
+            Self::InvalidBody => "invalid-body",
+            Self::Conflict => "conflict",
             Self::InvalidVersion => "invalid-version",
             Self::VersionNotSupported => "version-not-supported",
         }
@@ -52,10 +58,11 @@ impl ProblemType {
         match self {
             Self::InvalidQuery | Self::InvalidVersion => StatusCode::BAD_REQUEST,
             Self::NotFound => StatusCode::NOT_FOUND,
-            Self::LintBlocked => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::LintBlocked | Self::InvalidBody => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Internal => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
+            Self::Conflict => StatusCode::CONFLICT,
             Self::VersionNotSupported => StatusCode::NOT_ACCEPTABLE,
         }
     }
@@ -68,6 +75,8 @@ impl ProblemType {
             Self::Internal => "The server could not answer",
             Self::Unauthorized => "The key was not accepted",
             Self::Forbidden => "This key cannot do that",
+            Self::InvalidBody => "The request could not be read",
+            Self::Conflict => "Someone else changed this first",
             Self::InvalidVersion => "The version could not be read",
             Self::VersionNotSupported => "This version is not served here",
         }
