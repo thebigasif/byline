@@ -12,5 +12,8 @@ publish.workspace = true
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 thiserror.workspace = true
 
+[dev-dependencies]
+insta = "1"
+
 [lints]
 workspace = true

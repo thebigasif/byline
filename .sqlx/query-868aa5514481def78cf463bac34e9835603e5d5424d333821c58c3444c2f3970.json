@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM lint_results WHERE site_id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "868aa5514481def78cf463bac34e9835603e5d5424d333821c58c3444c2f3970"
+}

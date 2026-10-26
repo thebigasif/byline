@@ -103,6 +103,21 @@ pub(crate) enum Command {
     Pull,
     /// Create and revoke API keys for integrations
     Keys,
+    /// Bring the site's database up to date, or rebuild its index from the files
+    Db {
+        /// What to do with the database
+        #[command(subcommand)]
+        command: DbCommand,
+    },
+}
+
+/// The database commands. The database is `data/site.db` in the site folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum DbCommand {
+    /// Make the database if it is missing and apply every new migration
+    Migrate,
+    /// Empty the index and fill it again from the content files, keeping visitor data
+    Rebuild,
 }
 
 /// The theme commands.
@@ -169,6 +184,12 @@ impl Command {
             Self::Update { .. } => "update",
             Self::Pull => "pull",
             Self::Keys => "keys",
+            Self::Db {
+                command: DbCommand::Migrate,
+            } => "db migrate",
+            Self::Db {
+                command: DbCommand::Rebuild,
+            } => "db rebuild",
         }
     }
 }
