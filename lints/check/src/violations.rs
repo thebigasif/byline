@@ -334,9 +334,48 @@ pub async fn no_await() -> u32 {
 
 // ------------------------------------------------- disallowed methods, types
 
+// Every entry in the root clippy.toml has a violation here, spelled with its
+// full path so scripts/check-lints.sh can find it. Only the clock, config,
+// outbound and path modules may suppress these, once each.
+
+/// Reads the system time directly instead of through `Clock`.
+pub fn system_time() -> std::time::SystemTime {
+    std::time::SystemTime::now() // expect: clippy::disallowed_methods
+}
+
+/// Reads the monotonic clock directly instead of through `Clock`.
+pub fn instant() -> std::time::Instant {
+    std::time::Instant::now() // expect: clippy::disallowed_methods
+}
+
+/// Reads UTC time from `chrono` directly instead of through `Clock`.
+pub fn utc_time() -> chrono::DateTime<chrono::Utc> {
+    chrono::Utc::now() // expect: clippy::disallowed_methods
+}
+
+/// Reads local time from `chrono` directly instead of through `Clock`.
+pub fn local_time() -> chrono::DateTime<chrono::Local> {
+    chrono::Local::now() // expect: clippy::disallowed_methods
+}
+
 /// Reads the environment directly instead of through `Config`.
 pub fn site_from_env() -> Option<String> {
     std::env::var("BYLINE_SITE").ok() // expect: clippy::disallowed_methods
+}
+
+/// Reads the environment as an `OsString` instead of through `Config`.
+pub fn site_from_env_os() -> Option<std::ffi::OsString> {
+    std::env::var_os("BYLINE_SITE") // expect: clippy::disallowed_methods
+}
+
+/// Joins an untrusted segment onto a path instead of through `SitePath`.
+pub fn join_untrusted(root: &std::path::Path, segment: &str) -> std::path::PathBuf {
+    std::path::Path::join(root, segment) // expect: clippy::disallowed_methods
+}
+
+/// Ends the process instead of returning an error to `main`.
+pub fn quit() -> ! {
+    std::process::exit(1) // expect: clippy::disallowed_methods
 }
 
 /// Keeps counts in a map whose order is random.
