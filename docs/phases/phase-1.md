@@ -240,6 +240,62 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 - Rules: BL-CLI-1, BL-CLI-2, BL-CLI-3. KH-LNT-3.
 - Done when: CLI tests cover human output, `--json`, `--fix` and each exit code on the fixtures.
 
+## Phase 3 work pulled forward
+
+Theme sync and the generated share image depend on nothing in progress, so they start now. Plan sections 4.8 and 4.9, PRD KH-WEB-8, KH-INS-3, KH-SEO-2 and KH-OPS-2. Each part lands as its own pull request, branched from `main`.
+
+### 3.1 Fetch the site
+
+- Status: `doing`. Part 1 (this landing): `crates/khalid-theme`, and the stylesheets a page uses, in page order, same site only (ADR 0015). Part 2: fetching them through `Outbound` within the caps.
+- Read the home page and its same-site stylesheets through `Outbound`, with a cap on the page, on the CSS in all and on the number of stylesheets. Keep the raw CSS. A stylesheet that fails is listed with the reason; only the home page can stop a sync.
+- Rules: BL-RUN-8, BL-TST-3.
+- Done when: `wiremock` tests cover each cap, a link to another site that is never fetched, a failing stylesheet, a private address and an unreachable name.
+
+### 3.2 Extract the tokens
+
+- Status: `todo`, after 3.1.
+- CSS custom properties, `@font-face` rules and Google Fonts links; the background, text, link and accent colours by frequency and contrast; the logo from `og:image` and the header image; the icon links.
+- Done when: fixtures of saved real-world CSS each give the expected tokens.
+
+### 3.3 Write `theme/tokens.toml` and a preview
+
+- Status: `todo`, after 3.2 and the renderer's tokens loader (#72).
+- The file in the shape the renderer loads, written atomically, and a preview page rendered through `khalid-render`.
+- Rules: BL-RUN-9, BL-SEC-4.
+- Done when: a synced file loads with the renderer's rules and the preview passes the HTML checks.
+
+### 3.4 The contrast pass
+
+- Status: `todo`, after 3.2.
+- A text and background pair that fails WCAG 2.2 AA gets the nearest passing shade, and the user is told in plain words.
+- Rules: BL-WEB-4, BL-TXT-2.
+- Done when: every failing pair in the fixtures passes after the fix, with the smallest change of shade.
+
+### 3.5 Re-sync with a diff
+
+- Status: `todo`, after 3.3.
+- `theme sync` again shows what changed, and keeps every field named in the file's `locked` list.
+- Done when: a test edits a field by hand, locks it, re-syncs against a changed site and finds the hand edit kept and the rest updated.
+
+### 3.6 Proxy rules
+
+- Status: `doing`, in its own pull request. `crates/khalid-mount`.
+- The exact snippet for nginx, caddy, apache, traefik, cloudflare-worker, vercel, nextjs, netlify, webflow and shopify, for a given mount path. KH-INS-3.
+- Done when: each stack has a fixture, and the snippet for every stack matches it byte for byte.
+
+### 3.7 The generated share image
+
+- Status: `doing`, in its own pull request. `crates/khalid-share-image`.
+- A 1200 by 630 PNG from the title, the site name and the theme colours, drawn in pure Rust, cached by content hash. KH-SEO-2.
+- Done when: a snapshot test pins the image, and the same input reads from the cache.
+
+### 3.8 `khalid theme sync` and `khalid theme check`
+
+- Status: `todo`, after 3.1 to 3.5.
+- Both commands in the binary, with a what, why and fix message for each failure: the site is unreachable, there is no stylesheet, the address is private, a token is missing. KH-OPS-2.
+- Rules: BL-CLI-1 to BL-CLI-4, BL-ERR-4.
+- Done when: CLI tests run both commands against a `wiremock` site, in human and `--json` output, with the right exit codes.
+
 ## Questions for the founder
 
 - **AVIF images need three exceptions in `deny.toml` (task 1.12, for the CTO session).** Every pure-Rust AVIF encoder is built on `rav1e`, which pulls in `libfuzzer-sys` (licence `(MIT OR Apache-2.0) AND NCSA`, not on our list), `av1-grain`, which uses `anyhow` (banned outside the binary), and `paste` (RUSTSEC-2024-0436, unmaintained). Why it matters: AVIF images are about half the size of JPEG, which helps the LCP budget, but the policy refuses these crates today. The choice: allow NCSA, add `av1-grain` as an `anyhow` wrapper and accept the `paste` advisory with a review date; or ship WebP with JPEG and PNG fallbacks only, which is what `khalid-media` does now. WebP alone already meets the budgets on the demo site. Adding AVIF later is one small pull request, because `Format` is non-exhaustive and the render side already accepts AVIF sources.

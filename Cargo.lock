@@ -1677,6 +1677,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-theme"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "scraper",
+ "url",
+]
+
+[[package]]
 name = "khalid-webhooks"
 version = "0.0.0"
 dependencies = [
