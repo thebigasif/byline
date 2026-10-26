@@ -119,6 +119,8 @@ pub struct SeoPage {
     pub category: Option<String>,
     /// The author's name, the `{author}` variable.
     pub author: Option<String>,
+    /// The collection the page belongs to, such as `guides`.
+    pub collection: Option<String>,
     /// A title template for this page alone, in place of its kind's template.
     pub seo_title: Option<MetaTemplate>,
     /// A description template for this page alone.
@@ -178,6 +180,7 @@ impl SeoPage {
             excerpt: String::new(),
             category: None,
             author: None,
+            collection: None,
             seo_title: None,
             seo_description: None,
             canonical: None,
