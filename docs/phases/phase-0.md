@@ -40,7 +40,7 @@
 
 ### 0.6 Performance gate skeleton
 
-- Status: `todo`
+- Status: `doing`
 - `perf/baseline.json` with the budgets from `docs/standards/performance.md` as the first baseline, `scripts/perf.sh` measuring binary size and cold start of `byline --help`, and `scripts/perf-gate.py` comparing with the allowed drift.
 - Done when: the perf job in CI runs the two measures and fails when the binary is made artificially large in a test branch.
 
