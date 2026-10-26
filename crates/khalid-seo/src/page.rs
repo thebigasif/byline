@@ -4,7 +4,8 @@ use chrono::{DateTime, Utc};
 use khalid_core::{AbsoluteUrl, Locale};
 
 use crate::{
-    Alternate, MetaTemplate, RobotsDirectives, ShareImage, TranslationKey, UrlPath, Video,
+    Alternate, AuthorProfile, Entity, MetaTemplate, RobotsDirectives, ShareImage, TranslationKey,
+    UrlPath, Video,
 };
 
 /// The kind of page, which picks its title template and index setting.
@@ -156,6 +157,10 @@ pub struct SeoPage {
     /// CSS selectors of the parts a voice assistant may read aloud, such as
     /// the summary, for schema.org `speakable`.
     pub speakable: Vec<String>,
+    /// The author's full profile. Without one, `author` alone names them.
+    pub author_profile: Option<AuthorProfile>,
+    /// The things the post is about or mentions, for `about` and `mentions`.
+    pub entities: Vec<Entity>,
     /// How many words the post has.
     pub word_count: Option<u32>,
 }
@@ -189,6 +194,8 @@ impl SeoPage {
             content_html: String::new(),
             breadcrumbs: Vec::new(),
             speakable: Vec::new(),
+            author_profile: None,
+            entities: Vec::new(),
             word_count: None,
         }
     }

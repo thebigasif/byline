@@ -40,7 +40,8 @@ fn every_page_graph_holds_publisher_site_breadcrumbs_and_page() {
             "WebSite",
             "BreadcrumbList",
             "WebPage",
-            "BlogPosting"
+            "BlogPosting",
+            "Person"
         ]
     );
     let page = &graph.nodes()[3];

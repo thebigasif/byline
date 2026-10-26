@@ -3,7 +3,7 @@
 
 use khalid_core::AbsoluteUrl;
 
-use crate::schema::article::article_node;
+use crate::schema::article::article_nodes;
 use crate::schema::{image_node, node_id, site_home};
 use crate::{
     PageKind, SchemaGraph, SchemaNode, SchemaValue, SeoError, SeoPage, SeoSite, breadcrumb_list,
@@ -83,7 +83,8 @@ fn page_node(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
 /// `BreadcrumbList`, then the page node, typed by the page's kind:
 /// `CollectionPage` for archives, `ProfilePage` for an author,
 /// `SearchResultsPage` for search, `WebPage` for the rest. A post adds its
-/// article node, typed by its [`ArticleType`](crate::ArticleType).
+/// article node, typed by its [`ArticleType`](crate::ArticleType), and the
+/// `Person` who wrote it.
 ///
 /// # Errors
 ///
@@ -93,7 +94,9 @@ pub fn page_graph(site: &SeoSite, page: &SeoPage) -> Result<SchemaGraph, SeoErro
     graph.push(breadcrumb_list(site, page)?);
     graph.push(page_node(site, page)?);
     if page.kind == PageKind::Post {
-        graph.push(article_node(site, page, page_id(site, page)?)?);
+        for node in article_nodes(site, page, page_id(site, page)?)? {
+            graph.push(node);
+        }
     }
     Ok(graph)
 }

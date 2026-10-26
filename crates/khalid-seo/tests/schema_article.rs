@@ -21,7 +21,7 @@ fn a_post_is_a_blog_posting() {
         "https://www.example.com/blog/media/internal-links-map.png",
     )];
     let graph = page_graph(&demo_site(), &post).unwrap();
-    let article = SchemaGraph::new(graph.nodes()[4..].to_vec());
+    let article = SchemaGraph::new(vec![graph.nodes()[4].clone()]);
     insta::assert_snapshot!(article.to_json());
 }
 

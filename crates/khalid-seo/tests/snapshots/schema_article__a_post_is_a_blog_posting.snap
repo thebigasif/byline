@@ -26,8 +26,7 @@ expression: article.to_json()
       "wordCount": 1240,
       "articleSection": "On-page SEO",
       "author": {
-        "@type": "Person",
-        "name": "Asif"
+        "@id": "https://www.example.com/blog/why-internal-links-matter/#author"
       }
     }
   ]
