@@ -20,6 +20,9 @@ allow = [
   "ISC",
   "MIT",
   "Unicode-3.0",
+  # The Unicode data licence before 3.0; permissive, used by finl_unicode, a
+  # dependency of the markdown parser comrak.
+  "Unicode-DFS-2016",
   "Zlib",
   "0BSD",
 ]
