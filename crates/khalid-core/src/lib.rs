@@ -14,6 +14,7 @@ mod secret;
 mod site_path;
 mod slug;
 mod slug_from_title;
+pub mod toml_location;
 mod user_message;
 
 pub use absolute_url::{AbsoluteUrl, ParseUrlError};
