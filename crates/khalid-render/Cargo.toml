@@ -17,6 +17,8 @@ thiserror.workspace = true
 toml = "0.9"
 
 [dev-dependencies]
+insta = "1"
+scraper = "0.29"
 serde_json.workspace = true
 
 [lints]
