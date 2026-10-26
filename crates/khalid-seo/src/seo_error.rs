@@ -124,6 +124,18 @@ pub enum SeoError {
         /// The best possible score, as given.
         best: f64,
     },
+    /// A schema type name is not one capitalised word such as `Course`.
+    #[error("{name:?} is not a schema.org type name such as Course")]
+    SchemaType {
+        /// The name, as given.
+        name: String,
+    },
+    /// A schema property name is not one word starting small, such as `provider`.
+    #[error("{name:?} is not a schema.org property name such as provider")]
+    SchemaProperty {
+        /// The name, as given.
+        name: String,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {

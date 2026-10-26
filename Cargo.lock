@@ -206,6 +206,8 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
+ "hyper",
+ "hyper-util",
  "itoa",
  "matchit",
  "memchr",
@@ -217,6 +219,7 @@ dependencies = [
  "serde_path_to_error",
  "serde_urlencoded",
  "sync_wrapper",
+ "tokio",
  "tower",
  "tower-layer",
  "tower-service",
@@ -2022,6 +2025,19 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "khalid-server"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "http-body-util",
+ "percent-encoding",
+ "thiserror",
+ "tokio",
+ "tower",
 ]
 
 [[package]]
