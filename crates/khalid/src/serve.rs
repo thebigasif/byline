@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
 
-use khalid_content::EMBED_PROVIDERS;
+use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::Config;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
@@ -30,13 +30,22 @@ struct ServeBody<'a> {
     address: &'a str,
 }
 
-/// Serves the `site` folder, whose `config` was checked, on `listen`.
-pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Output) -> Exit {
-    // Looked at before the first render, so a file saved from here on is
-    // always seen as an edit.
-    let look = FolderLook::take(site);
+/// Serves the `site` folder, whose `config` and `content` were checked, on
+/// `listen`. `look` was taken before the content was read, so a file saved
+/// from then on is always seen as an edit.
+///
+/// The first pages are rendered from `content`, which is then dropped: the
+/// server keeps only pages, and reads the folder again after an edit.
+pub(crate) fn run(
+    site: &Path,
+    config: &Config,
+    (content, look): (SiteContent, FolderLook),
+    listen: SocketAddr,
+    output: Output,
+) -> Exit {
     let started = SitePages::new(site, config.clone()).and_then(|source| {
-        let (pages, not_found) = source.render_all()?;
+        let (pages, not_found) = source.render_content(&content)?;
+        drop(content);
         // Brotli copies are added once the server listens, so the first
         // reader does not wait for them (docs/standards/performance.md).
         let pages = Pages::plain(pages, not_found).map_err(|_| serve_message::internal())?;

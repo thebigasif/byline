@@ -44,6 +44,7 @@ use clap::{CommandFactory, Parser};
 use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
 use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
+use khalid_server::FolderLook;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
@@ -73,6 +74,12 @@ fn run(cli: &Cli) -> Exit {
             .unwrap_or(Path::new("."));
         return init::run(folder, args, cli.output);
     }
+    // The server's watch starts from a look taken before the content is
+    // read, so a post saved while the server starts still shows.
+    let look = match (&cli.command, cli.site.as_deref()) {
+        (Some(Command::Serve { .. }), Some(folder)) => Some(FolderLook::take(folder)),
+        _ => None,
+    };
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder) {
             Ok((config, content)) => Some((folder, config, content)),
@@ -80,7 +87,7 @@ fn run(cli: &Cli) -> Exit {
         },
         None => None,
     };
-    match (&cli.command, &site) {
+    match (&cli.command, site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some((folder, ..))) => {
             db::run(folder, *command, cli.output)
@@ -94,13 +101,14 @@ fn run(cli: &Cli) -> Exit {
                 title,
                 language: language.as_ref(),
             };
-            new::run(folder, config, post, &SystemClock, cli.output)
+            new::run(folder, &config, post, &SystemClock, cli.output)
         }
         (Some(Command::Build { out }), Some((folder, config, content))) => {
-            build::run(folder, config, content, out.as_deref(), cli.output)
+            build::run(folder, &config, &content, out.as_deref(), cli.output)
         }
-        (Some(Command::Serve { listen }), Some((folder, config, _))) => {
-            serve::run(folder, config, *listen, cli.output)
+        (Some(Command::Serve { listen }), Some((folder, config, content))) => {
+            let look = look.unwrap_or_else(|| FolderLook::take(folder));
+            serve::run(folder, &config, (content, look), *listen, cli.output)
         }
         (
             Some(

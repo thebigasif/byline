@@ -6,7 +6,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use khalid_content::{ContentTree, read_content};
+use khalid_content::{ContentTree, SiteContent, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_render::{PageBody, Renderer};
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
@@ -43,15 +43,24 @@ impl SitePages {
     /// default language. Reads files and renders, so it runs off the async
     /// runtime (RULES.md BL-RUN-7).
     pub(crate) fn render_all(&self) -> Result<(Vec<Page>, String), UserMessage> {
-        let Site {
-            folder,
-            config,
-            renderer,
-        } = &*self.0;
+        let folder = &self.0.folder;
         let content = ContentTree::walk(folder)
             .and_then(|tree| read_content(&tree))
             .map_err(|error| content_message::of(folder, &error))?;
-        let languages = build_pages::pages(config, &content)?;
+        self.render_content(&content)
+    }
+
+    /// Every page made from `content`, already read from the site folder,
+    /// and the not-found page. At start, `khalid serve` passes the content
+    /// it checked, so the folder is read once, not twice.
+    pub(crate) fn render_content(
+        &self,
+        content: &SiteContent,
+    ) -> Result<(Vec<Page>, String), UserMessage> {
+        let Site {
+            config, renderer, ..
+        } = &*self.0;
+        let languages = build_pages::pages(config, content)?;
         let mut pages = Vec::new();
         let mut not_found = String::new();
         for language in &languages {
@@ -94,3 +103,24 @@ impl fmt::Display for Unrendered {
 }
 
 impl Error for Unrendered {}
+
+#[cfg(test)]
+mod tests {
+    use khalid_core::Environment;
+
+    use super::*;
+
+    #[test]
+    fn the_checked_content_renders_the_same_pages_as_the_folder() {
+        let mut demo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        demo.push("../../fixtures/demo-site");
+        let config = Config::load(&demo, &Environment::default()).unwrap();
+        let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
+        let source = SitePages::new(&demo, config).unwrap();
+        let (given, given_missing) = source.render_content(&content).unwrap();
+        let (read, read_missing) = source.render_all().unwrap();
+        assert!(given.len() > 10, "{} pages", given.len());
+        assert_eq!(given, read);
+        assert_eq!(given_missing, read_missing);
+    }
+}
