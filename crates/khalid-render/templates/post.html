@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block main %}
+<article class="post">
+<header class="post-header">
+<h1>{{ page.title }}</h1>
+<div class="post-meta">
+<address>{{ t.by }} {% for author in page.authors %}<a rel="author" href="{{ author.href }}">{{ author.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</address>
+<p>{{ t.published }} <time datetime="{{ page.date }}">{{ page.date | date }}</time>{% if page.updated %}. {{ t.updated }} <time datetime="{{ page.updated }}">{{ page.updated | date }}</time>{% endif %}</p>
+{% if page.category %}<p>{{ t.in_category }} <a href="{{ page.category.href }}">{{ page.category.name }}</a></p>
+{% endif %}</div>
+</header>
+<div class="post-body">
+{{ page.body }}
+</div>
+{% if page.tags %}<footer class="post-footer">
+<h2>{{ t.tags }}</h2>
+<ul class="tags">
+{% for tag in page.tags %}<li><a href="{{ tag.href }}" rel="tag">{{ tag.name }}</a></li>
+{% endfor %}</ul>
+</footer>
+{% endif %}</article>
+{% endblock %}
