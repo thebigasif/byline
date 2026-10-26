@@ -4,14 +4,10 @@ use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
 use crate::css::{self, Rule};
-use crate::{CustomProperties, Rgb};
+use crate::{CustomProperties, Rgb, TEXT_CONTRAST};
 
 /// The background assumed when the CSS sets none, as browsers do.
 const WHITE: Rgb = Rgb::new(255, 255, 255);
-
-/// The contrast WCAG 2.2 AA asks of body text. A colour used often but
-/// fainter than this is decoration, not the body text.
-const READABLE: f64 = 4.5;
 
 /// Selectors whose rules set the page's own background and text colour.
 const PAGE: [&str; 3] = ["body", "html", ":root"];
@@ -101,7 +97,7 @@ impl Palette {
         let on = background.unwrap_or(WHITE);
         let text = declared(&PAGE, &["color"])
             .or_else(|| named(Role::Text))
-            .or_else(|| most(&counts.texts, |color| color.contrast(on) >= READABLE));
+            .or_else(|| most(&counts.texts, |color| color.contrast(on) >= TEXT_CONTRAST));
         let link = declared(&LINKS, &["color"]).or_else(|| named(Role::Link));
         let accent = named(Role::Accent)
             .or_else(|| {

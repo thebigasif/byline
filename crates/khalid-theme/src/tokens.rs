@@ -128,7 +128,8 @@ impl ThemeTokens {
     /// the rest. When the background or text colour was found, the surface,
     /// border and quiet text colours are mixed from the two, so they suit
     /// the site. The accent falls back to the link colour, and the heading
-    /// font to the body font. Contrast is not checked here.
+    /// font to the body font. Contrast is not checked here; call
+    /// [`ThemeTokens::fix_contrast`] next.
     pub fn from_theme(theme: &SiteTheme) -> Self {
         let mut tokens = Self::default();
         let found = &theme.palette;

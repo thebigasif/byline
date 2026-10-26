@@ -10,6 +10,7 @@
 
 mod brand;
 mod color;
+mod contrast;
 mod css;
 mod fetch;
 mod fetch_error;
@@ -25,6 +26,7 @@ mod tokens_error;
 
 pub use brand::Brand;
 pub use color::Rgb;
+pub use contrast::{ColorToken, ContrastFix, MARK_CONTRAST, TEXT_CONTRAST};
 pub use fetch::{
     MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_STYLESHEETS, Origin, SiteSource, Stylesheet, fetch_site,
 };
