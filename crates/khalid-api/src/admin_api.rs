@@ -4,9 +4,11 @@ use std::sync::Arc;
 
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{OriginalUri, Path, State};
+use axum::http::header::LOCATION;
+use axum::http::{HeaderMap, HeaderName, StatusCode};
 use axum::{Extension, Json, middleware};
 use chrono::{DateTime, Utc};
-use khalid_core::UserMessage;
+use khalid_core::{Slug, UserMessage};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
@@ -15,9 +17,9 @@ use utoipa_axum::routes;
 use crate::admin_key::{require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::keys::{KeyStore, Principal, Scope};
-use crate::post_store::{PostStore, UpdatePostError};
+use crate::post_store::{CreatePostError, PostStore, UpdatePostError};
 use crate::problem::{Problem, ProblemType};
-use crate::resources::{AdminPost, PostEdit};
+use crate::resources::{AdminPost, NewPost, PostDraft, PostEdit};
 
 /// Where the Admin API lives.
 pub(crate) const BASE: &str = "/api/admin/v1";
@@ -30,6 +32,7 @@ type Posts = Arc<dyn PostStore>;
 /// integration key or staff token, and checks its own scope.
 pub(crate) fn routes(posts: Posts, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
+        .routes(routes!(create_admin_post))
         .routes(routes!(read_admin_post, edit_admin_post))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
@@ -115,6 +118,102 @@ async fn edit_admin_post(
         }) => Err(stale(updated_at, updated_by.as_deref())),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
     }
+}
+
+/// A new post, wrapped the way the Admin API wraps posts: exactly one.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NewPosts {
+    /// The one new post.
+    posts: Vec<NewPost>,
+}
+
+/// The longest `Idempotency-Key` accepted.
+const MAX_IDEMPOTENCY_KEY: usize = 255;
+
+/// Creates a draft post from markdown. A retry with the same
+/// `Idempotency-Key` returns the post the first request made, so it never
+/// makes two (RULES.md BL-API-7). Needs `posts:write`.
+#[utoipa::path(
+    post, path = "/posts/", tag = "admin posts",
+    security(("admin_key" = [])),
+    params(("Idempotency-Key" = Option<String>, Header, description = "Any text up to 255 characters that names this request, so a retry makes no second post")),
+    request_body = NewPosts,
+    responses(
+        (status = 201, description = "The new draft", body = AdminPosts),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "Another post has the slug", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn create_admin_post(
+    State(posts): State<Posts>,
+    Extension(principal): Extension<Principal>,
+    headers: HeaderMap,
+    body: Result<Json<NewPosts>, JsonRejection>,
+) -> Result<(StatusCode, [(HeaderName, String); 1], Json<AdminPosts>), Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
+    let [new] = <[NewPost; 1]>::try_from(body.posts)
+        .map_err(|_| invalid_body("posts must hold exactly one post"))?;
+    let draft = checked(new)?;
+    let idempotency = idempotency_key(&headers)?;
+    let made = posts
+        .create(draft, principal.id().as_str(), idempotency)
+        .await;
+    let post = made.map_err(|error| match error {
+        CreatePostError::SlugTaken(slug) => slug_taken(slug.as_str()),
+        CreatePostError::NoSlug => {
+            invalid_body("the title has no letters or digits to make a slug from")
+        }
+        CreatePostError::Store(error) => Problem::internal(&error),
+    })?;
+    let location = format!("{BASE}/posts/{}/", post.id());
+    Ok((
+        StatusCode::CREATED,
+        [(LOCATION, location)],
+        Json(AdminPosts { posts: vec![post] }),
+    ))
+}
+
+/// Checks a new post: a title, a slug that is valid if given, a body.
+fn checked(new: NewPost) -> Result<PostDraft, Problem> {
+    if new.title.trim().is_empty() {
+        return Err(invalid_body("title must not be empty"));
+    }
+    let slug = new
+        .slug
+        .as_deref()
+        .map(Slug::try_new)
+        .transpose()
+        .map_err(|_| invalid_body("slug must be lowercase letters, digits and hyphens"))?;
+    let markdown = new
+        .markdown
+        .ok_or_else(|| invalid_body("markdown is required"))?;
+    Ok(PostDraft::new(&new.title, slug, &markdown))
+}
+
+/// The `Idempotency-Key` header, if sent: 1 to 255 visible characters.
+fn idempotency_key(headers: &HeaderMap) -> Result<Option<&str>, Problem> {
+    let Some(value) = headers.get("idempotency-key") else {
+        return Ok(None);
+    };
+    match value.to_str() {
+        Ok(key) if !key.is_empty() && key.len() <= MAX_IDEMPOTENCY_KEY => Ok(Some(key)),
+        _ => Err(invalid_body(
+            "Idempotency-Key must be 1 to 255 visible characters",
+        )),
+    }
+}
+
+fn slug_taken(slug: &str) -> Problem {
+    let message = UserMessage::new(
+        format!("Another post already has the slug {slug}."),
+        "Two posts cannot share one address.",
+        "Send a different slug, or leave slug out to have one made from the title.",
+    );
+    Problem::new(ProblemType::Conflict, &message).with_rule("slug")
 }
 
 fn invalid_body(reason: &str) -> Problem {

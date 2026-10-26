@@ -3,9 +3,10 @@
 use std::error::Error;
 
 use chrono::{DateTime, Utc};
+use khalid_core::Slug;
 
 use crate::content_store::BoxFuture;
-use crate::resources::{AdminPost, PostEdit};
+use crate::resources::{AdminPost, PostDraft, PostEdit};
 
 /// Posts in every status, for the Admin API. Task 1.15 implements it on
 /// the content files and the index, writing each file atomically
@@ -35,6 +36,39 @@ pub trait PostStore: Send + Sync {
         edit: PostEdit,
         by: &'a str,
     ) -> BoxFuture<'a, Result<AdminPost, UpdatePostError>>;
+
+    /// Saves `draft`, made by `by`, as a new draft post, with a slug made
+    /// from its title when it has none. A second call with the same
+    /// `idempotency` key returns the post the first call made, so a retried
+    /// request never makes two posts (BL-API-7).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CreatePostError::SlugTaken`] when another post has the
+    /// slug, [`CreatePostError::NoSlug`] when the title has nothing to make
+    /// one from, and [`CreatePostError::Store`] when the posts cannot be
+    /// read or written.
+    fn create<'a>(
+        &'a self,
+        draft: PostDraft,
+        by: &'a str,
+        idempotency: Option<&'a str>,
+    ) -> BoxFuture<'a, Result<AdminPost, CreatePostError>>;
+}
+
+/// Why a new post was not saved.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum CreatePostError {
+    /// Another post has the slug.
+    #[error("another post has the slug {0}")]
+    SlugTaken(Slug),
+    /// The title has no letters or digits to make a slug from.
+    #[error("the title has nothing to make a slug from")]
+    NoSlug,
+    /// The posts could not be read or written.
+    #[error(transparent)]
+    Store(#[from] PostStoreError),
 }
 
 /// Why an edit was not saved.
@@ -79,16 +113,21 @@ pub use memory::MemoryPostStore;
 
 #[cfg(any(test, feature = "test-util"))]
 mod memory {
+    use std::collections::BTreeMap;
     use std::sync::{Mutex, MutexGuard, PoisonError};
 
-    use khalid_core::{Clock, SystemClock};
+    use khalid_core::{Clock, Locale, Slug, SlugMode, SystemClock};
 
-    use super::{AdminPost, BoxFuture, PostEdit, PostStore, PostStoreError, UpdatePostError};
+    use super::{
+        AdminPost, BoxFuture, CreatePostError, PostDraft, PostEdit, PostStore, PostStoreError,
+        UpdatePostError,
+    };
 
     /// Posts held in memory, for tests.
     #[derive(Debug)]
     pub struct MemoryPostStore {
         posts: Mutex<Vec<AdminPost>>,
+        seen: Mutex<BTreeMap<String, String>>,
         clock: Box<dyn Clock>,
     }
 
@@ -103,6 +142,7 @@ mod memory {
         pub fn new(posts: Vec<AdminPost>) -> Self {
             Self {
                 posts: Mutex::new(posts),
+                seen: Mutex::new(BTreeMap::new()),
                 clock: Box::new(SystemClock),
             }
         }
@@ -135,6 +175,46 @@ mod memory {
             *post = post.clone().edited(edit, self.clock.now(), by);
             Ok(post.clone())
         }
+
+        /// Adds a draft, making slugs in English ASCII as a site with the
+        /// default settings would.
+        fn add(
+            &self,
+            draft: &PostDraft,
+            by: &str,
+            idempotency: Option<&str>,
+        ) -> Result<AdminPost, CreatePostError> {
+            let mut seen = self.seen.lock().unwrap_or_else(PoisonError::into_inner);
+            let mut posts = self.posts();
+            let earlier = idempotency.and_then(|key| seen.get(key));
+            if let Some(post) = earlier.and_then(|id| posts.iter().find(|post| post.id() == id)) {
+                return Ok(post.clone());
+            }
+            let slug = if let Some(slug) = draft.slug() {
+                slug.clone()
+            } else {
+                let english = Locale::try_new("en").map_err(|_| CreatePostError::NoSlug)?;
+                Slug::from_title(draft.title(), &english, SlugMode::Ascii)
+                    .map_err(|_| CreatePostError::NoSlug)?
+            };
+            if posts.iter().any(|post| post.slug() == &slug) {
+                return Err(CreatePostError::SlugTaken(slug));
+            }
+            let at = self.clock.now();
+            let post = AdminPost::new(
+                slug.as_str(),
+                slug.clone(),
+                draft.title(),
+                draft.markdown(),
+                at,
+            )
+            .with_updated_by(by);
+            if let Some(key) = idempotency {
+                seen.insert(key.to_owned(), post.id().to_owned());
+            }
+            posts.push(post.clone());
+            Ok(post)
+        }
     }
 
     /// Memory answers at once, so each future is ready when returned.
@@ -154,6 +234,15 @@ mod memory {
             by: &'a str,
         ) -> BoxFuture<'a, Result<AdminPost, UpdatePostError>> {
             Box::pin(std::future::ready(self.apply(id, edit, by)))
+        }
+
+        fn create<'a>(
+            &'a self,
+            draft: PostDraft,
+            by: &'a str,
+            idempotency: Option<&'a str>,
+        ) -> BoxFuture<'a, Result<AdminPost, CreatePostError>> {
+            Box::pin(std::future::ready(self.add(&draft, by, idempotency)))
         }
     }
 }

@@ -70,6 +70,11 @@ impl AdminPost {
         &self.id
     }
 
+    /// The slug.
+    pub fn slug(&self) -> &Slug {
+        &self.slug
+    }
+
     /// Where it stands.
     pub fn status(&self) -> PostStatus {
         self.status
@@ -123,5 +128,53 @@ impl PostEdit {
     /// The `updated_at` of the copy the edit was made on.
     pub fn updated_at(&self) -> DateTime<Utc> {
         self.updated_at
+    }
+}
+
+/// A new post as a client sends it, before any checks.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct NewPost {
+    /// The title. Required.
+    pub(crate) title: String,
+    /// The slug; made from the title when left out.
+    pub(crate) slug: Option<String>,
+    /// The markdown body. Required.
+    pub(crate) markdown: Option<String>,
+}
+
+/// A new post, checked: a title, a valid slug or none, and a body. The
+/// store makes the slug from the title when there is none, because only
+/// the site's settings say which language and slug mode to use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PostDraft {
+    title: String,
+    slug: Option<Slug>,
+    markdown: String,
+}
+
+impl PostDraft {
+    /// A draft with this title, slug and markdown body.
+    pub fn new(title: &str, slug: Option<Slug>, markdown: &str) -> Self {
+        Self {
+            title: title.to_owned(),
+            slug,
+            markdown: markdown.to_owned(),
+        }
+    }
+
+    /// The title.
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    /// The slug asked for, if any.
+    pub fn slug(&self) -> Option<&Slug> {
+        self.slug.as_ref()
+    }
+
+    /// The markdown body.
+    pub fn markdown(&self) -> &str {
+        &self.markdown
     }
 }
