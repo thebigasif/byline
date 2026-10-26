@@ -21,6 +21,7 @@ One Cargo workspace at the repository root, flat `crates/` folder, one purpose p
 | `khalid-outbound` | The one HTTP client with the private-network guard (BL-RUN-8) | Everything else |
 | `khalid-server` | Axum routes, the Content and Admin APIs, auth, webhooks, the embedded admin | Markdown parsing |
 | `khalid-import` | One module per source: WordPress, Ghost, Medium, Substack, markdown folders | Rendering |
+| `khalid-api` | The Content and Admin API routes, the list query grammar, keys and scopes, problem details, the OpenAPI document. `khalid-server` mounts it | Content files, markdown, SQL, templates |
 | `khalid-mcp` | The MCP server, a client of the same functions the API calls | SQL |
 | `lint-check` | One deliberate violation per lint, proving the lint table fires (BL-LNT-3) | The product |
 

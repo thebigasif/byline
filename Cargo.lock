@@ -1255,6 +1255,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-api"
+version = "0.0.0"
+dependencies = [
+ "proptest",
+]
+
+[[package]]
 name = "khalid-content"
 version = "0.0.0"
 dependencies = [
