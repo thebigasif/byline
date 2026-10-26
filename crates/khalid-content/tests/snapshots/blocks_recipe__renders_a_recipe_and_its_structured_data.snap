@@ -1,0 +1,18 @@
+---
+source: crates/khalid-content/tests/blocks_recipe.rs
+expression: page.html
+---
+<section class="recipe">
+<p class="recipe-name">Oat bars</p>
+<img src="/media/oat-bars.jpg" alt="Oat bars" loading="lazy" decoding="async" />
+<p class="recipe-description">Chewy bars for a long walk.</p>
+<p class="recipe-facts"><span class="recipe-servings">12 bars</span> <time class="recipe-prep" datetime="PT0H15M">0:15</time> <time class="recipe-cook" datetime="PT0H30M">0:30</time></p>
+<ul class="recipe-ingredients">
+<li>250 g rolled oats</li>
+<li>125 g butter</li>
+</ul>
+<ol class="recipe-method">
+<li>Melt the butter and stir in the oats.</li>
+<li>Bake at 180 C for 30 minutes.</li>
+</ol>
+</section>

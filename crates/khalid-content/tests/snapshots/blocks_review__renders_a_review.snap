@@ -1,0 +1,10 @@
+---
+source: crates/khalid-content/tests/blocks_review.rs
+assertion_line: 49
+expression: rendered(REVIEW).html
+---
+<section class="review">
+<p class="review-item">Ahrefs Webmaster Tools</p>
+<p class="review-rating">4.5 / 5</p>
+<p>Free, fast, and the <strong>link data</strong> is enough for a small site.</p>
+</section>
