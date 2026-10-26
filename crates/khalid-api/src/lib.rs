@@ -14,6 +14,7 @@ pub mod content_api;
 mod content_key;
 pub mod content_store;
 mod etag;
+mod html_source;
 pub mod keys;
 pub mod pagination;
 pub mod post_store;
