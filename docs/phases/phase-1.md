@@ -19,7 +19,7 @@
 
 ### 1.2 `Locale`, `AbsoluteUrl` and `SitePath`
 
-- Status: `todo`
+- Status: `doing`. Built before 1.1, because settings need these types. Part 1, `Locale` and `AbsoluteUrl`, in this landing; part 2, `SitePath`, next.
 - The remaining identifier newtypes from `docs/standards/rust.md`, each with a fallible constructor. `SitePath::within(root, untrusted)` cannot escape the site folder and carries the one `Path::join` `#[expect]`.
 - Rules: BL-TYP-3, BL-SEC-4.
 - Done when: property tests show no input escapes the root (including `..`, absolute paths, symlinks and encoded separators), and the suppression gate in `just check` still passes.
