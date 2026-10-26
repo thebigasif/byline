@@ -1,0 +1,19 @@
+[[posts]]
+locale = "en"
+slug = "internal-links-explained"
+body_text = """
+An internal link points from one post on your site to another post on the
+same site. Readers follow these links to the next helpful page, and search
+engines follow them to discover pages and to understand which ones matter
+most. Add a few links to related posts in every new article you write.
+"""
+
+[[posts]]
+locale = "de"
+slug = "why-internal-links-matter"
+body_text = """
+An internal link points from one post on your site to another post on the
+same site. Readers follow these links to the next useful page, and search
+engines follow them to discover pages and to understand which ones matter
+most. Add a few links to related posts in every new post you write.
+"""

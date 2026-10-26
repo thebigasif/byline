@@ -35,6 +35,7 @@ impl fmt::Display for RuleId {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Hit {
     subject: Option<String>,
+    suggestions: Vec<String>,
 }
 
 impl Hit {
@@ -48,7 +49,16 @@ impl Hit {
     pub fn about(subject: impl Into<String>) -> Self {
         Self {
             subject: Some(subject.into()),
+            suggestions: Vec::new(),
         }
+    }
+
+    /// This hit with `suggestions`, such as posts to link to, best first,
+    /// for a fix the writer can pick from.
+    #[must_use]
+    pub fn suggesting(mut self, suggestions: Vec<String>) -> Self {
+        self.suggestions = suggestions;
+        self
     }
 
     /// The thing the problem is about, if it is not the whole post.
@@ -56,8 +66,13 @@ impl Hit {
         self.subject.as_deref()
     }
 
-    pub(crate) fn into_subject(self) -> Option<String> {
-        self.subject
+    /// The suggestions for the fix, best first.
+    pub fn suggestions(&self) -> &[String] {
+        &self.suggestions
+    }
+
+    pub(crate) fn into_parts(self) -> (Option<String>, Vec<String>) {
+        (self.subject, self.suggestions)
     }
 }
 
@@ -76,4 +91,21 @@ pub trait Rule: fmt::Debug + Send + Sync {
     /// The problems this rule finds in `post`, reading the rest of the site
     /// through `site`. An empty list means the post passes.
     fn check(&self, post: &LintPost, site: &dyn SiteView) -> Vec<Hit>;
+}
+
+/// A check the linter runs once over the whole site, after posts are
+/// published, such as finding posts nothing links to.
+///
+/// It looks at every post in one pass, so work such as building the link
+/// graph happens once per run instead of once per post. Its findings are
+/// shown on the dashboard and never block publishing on their own.
+pub trait SiteRule: fmt::Debug + Send + Sync {
+    /// The rule's stable name.
+    fn id(&self) -> RuleId;
+
+    /// The severity when `lint.toml` does not set one.
+    fn default_severity(&self) -> Severity;
+
+    /// The problems this rule finds, each with the post it is about.
+    fn check<'site>(&self, site: &'site dyn SiteView) -> Vec<(&'site LintPost, Hit)>;
 }

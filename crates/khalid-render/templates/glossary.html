@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block main %}
+<h1>{{ page.title }}</h1>
+{% if page.intro %}<div class="intro">
+{{ page.intro }}
+</div>
+{% endif %}{% if page.groups %}<nav class="letters" aria-label="{{ t.glossary_letters }}">
+<ul>
+{% for group in page.groups %}<li><a href="#letter-{{ group.anchor }}">{{ group.letter }}</a></li>
+{% endfor %}</ul>
+</nav>
+{% for group in page.groups %}<section aria-labelledby="letter-{{ group.anchor }}">
+<h2 id="letter-{{ group.anchor }}">{{ group.letter }}</h2>
+<dl>
+{% for term in group.terms %}<dt><a href="{{ term.href }}">{{ term.term }}</a></dt>
+<dd>{{ term.summary }}</dd>
+{% endfor %}</dl>
+</section>
+{% endfor %}{% else %}<p>{{ t.no_terms }}</p>
+{% endif %}{% endblock %}

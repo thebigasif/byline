@@ -1,0 +1,3 @@
+fixtures/invalid/block-product-button/content/en/posts/why-links-matter.md, line 7: a product with href needs button, the words on its button.
+Khalid checks every block before it runs, so no page shows a block it cannot draw.
+Correct line 7, then run the command again.

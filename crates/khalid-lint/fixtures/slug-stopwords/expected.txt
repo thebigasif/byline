@@ -1,0 +1,1 @@
+warn slug-stopwords: the, of

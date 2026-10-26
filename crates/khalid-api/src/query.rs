@@ -5,7 +5,11 @@
 mod field_values;
 mod filter;
 mod filter_parser;
+mod list_query;
 
 pub use field_values::{FieldValues, UnknownFieldError};
 pub use filter::{Condition, Filter, Literal, Predicate};
 pub use filter_parser::{FilterErrorKind, ParseFilterError};
+pub use list_query::{
+    Direction, Format, Limit, ListQuery, OrderKey, ParseQueryError, QueryErrorKind, RawListQuery,
+};

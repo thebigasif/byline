@@ -1,0 +1,32 @@
+# Posts the linter can suggest. The three that share the most words with
+# the post come first; a post sharing no words and a German post are never
+# suggested.
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+title = "Choosing link text readers trust"
+body_text = "Good link text tells readers where a link goes before they click."
+
+[[posts]]
+locale = "en"
+slug = "pruning-old-posts"
+title = "Pruning old posts"
+body_text = "Remove posts that no readers find, and redirect them."
+
+[[posts]]
+locale = "en"
+slug = "internal-linking-guide"
+title = "The internal linking guide"
+body_text = "Internal links help readers find related posts on your site."
+
+[[posts]]
+locale = "en"
+slug = "sourdough-starter"
+title = "Feeding a sourdough starter"
+body_text = "Flour and water, every morning, at the same time."
+
+[[posts]]
+locale = "de"
+slug = "interne-links"
+title = "Internal links"
+body_text = "Internal links help readers find the next useful post on your site."
