@@ -12,10 +12,13 @@ mod db;
 mod db_message;
 mod exit;
 mod index;
+mod init;
+mod init_message;
 mod report;
 mod routes_message;
 
 use std::ffi::OsString;
+use std::path::Path;
 use std::process::ExitCode;
 
 use clap::error::ErrorKind;
@@ -42,6 +45,14 @@ fn main() -> ExitCode {
 /// Runs the command the person asked for, after checking the site's settings
 /// and reading its content when `--site` names a folder.
 fn run(cli: &Cli) -> Exit {
+    if let Some(Command::Init(args)) = &cli.command {
+        let folder = args
+            .folder
+            .as_deref()
+            .or(cli.site.as_deref())
+            .unwrap_or(Path::new("."));
+        return init::run(folder, args, cli.output);
+    }
     if let Some(site) = &cli.site {
         if let Err(error) = Config::load(site, &Environment::from_process()) {
             return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
