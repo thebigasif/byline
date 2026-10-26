@@ -124,6 +124,31 @@ fn lint_checks_only_the_post_it_is_given() {
     );
 }
 
+/// A good post whose address has an accented letter.
+const ACCENTED: &str = "---
+title: Café menus that sell
+slug: café-menus
+date: 2026-09-14
+author: asif
+description: How a short menu on the café wall helps people choose and order faster.
+---
+
+Short menus work like [good link text](/blog/choosing-link-text/).
+";
+
+#[test]
+fn lint_warns_about_an_accented_address_on_a_plain_address_site() {
+    let site = site(&[("2026-09-14-cafe-menus.md", ACCENTED)]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let found = findings.iter().find(|f| f["rule"] == "unicode-slug");
+    let found = found.unwrap_or_else(|| panic!("no unicode-slug in {json}"));
+    assert_eq!(found["severity"], "warn");
+    assert_eq!(found["subject"], "cafe-menus");
+}
+
 #[test]
 fn lint_names_a_post_it_cannot_find() {
     let site = site(&[("choosing-link-text.md", UNDATED)]);

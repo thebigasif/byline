@@ -1,0 +1,4 @@
+# An accented letter in the address of a site that keeps plain addresses.
+# The fix is the plain form, the same one `khalid new` would have made.
+extends = "clean"
+slug = "café-menus"
