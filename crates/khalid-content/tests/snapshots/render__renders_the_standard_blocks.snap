@@ -33,8 +33,8 @@ expression: "render(markdown, &en(), SlugMode::Ascii).html"
 </tr>
 </tbody>
 </table>
-<pre><code class="language-rust">let links = 3;
-</code></pre>
+<pre class="syntax-highlighting"><code class="language-rust"><span class="hl-source hl-rust"><span class="hl-storage hl-type hl-rust">let</span> links <span class="hl-keyword hl-operator hl-rust">=</span> <span class="hl-constant hl-numeric hl-integer hl-decimal hl-rust">3</span><span class="hl-punctuation hl-terminator hl-rust">;</span>
+</span></code></pre>
 <hr />
 <p>A claim that needs a source.<sup class="footnote-ref"><a href="#fn-1" id="fnref-1" data-footnote-ref>1</a></sup></p>
 <section class="footnotes" data-footnotes>
