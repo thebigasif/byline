@@ -8,7 +8,7 @@
 
 ### 0.1 Name checks (founder decides, agent prepares)
 
-- Status: `todo`
+- Status: `done` (#10, #18). Wellranked is the working name, pending a trademark lawyer and the founder's veto. `docs/decisions/name.md` covers the first shortlist, the Lede and Stylebook fallbacks, and Wellranked with its five runners-up. The rename is the first Phase 1 pull request.
 - For each name on the shortlist in `docs/plan.md` D-1 (Byline, Masthead, Dateline, Gazette, Typeset), check and record: GitHub organisation and repository name free, crates.io name free, npm name free, `.dev` and `.com` domains, a USPTO and EUIPO trademark search for classes 9 and 42, and whether any CMS, editor or publishing tool already uses the name.
 - Write the results as a table in `docs/decisions/name.md` with links. Make no recommendation beyond the plan's. The founder picks.
 - Done when: the table has every check for every name and the founder has replied.
@@ -52,7 +52,7 @@
 
 ## Questions for the founder
 
-None open.
+- **The name (0.1): answered** in `docs/decisions/2026-10-26-cto-answers.md`. Wellranked, pending a trademark lawyer and the founder's veto.
 
 ## Order
 
