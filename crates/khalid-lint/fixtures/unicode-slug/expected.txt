@@ -1,0 +1,1 @@
+warn unicode-slug: cafe-menus

@@ -1,6 +1,6 @@
 //! The rest of the site, for rules that compare a post with its neighbours.
 
-use khalid_core::{Locale, Slug};
+use khalid_core::{Locale, Slug, SlugMode};
 use serde::Deserialize;
 
 use crate::LintPost;
@@ -31,6 +31,12 @@ pub trait SiteView {
     fn locales(&self) -> &[Locale] {
         &[]
     }
+
+    /// How the site writes slugs, from `slugs` in `site.toml`. `None` when
+    /// unknown, and the rules that need it skip.
+    fn slug_mode(&self) -> Option<SlugMode> {
+        None
+    }
 }
 
 /// A site's posts, pages and glossary, held in memory.
@@ -48,6 +54,8 @@ pub struct LintSite {
     pub home_links: Vec<String>,
     /// The languages the site declares.
     pub locales: Vec<Locale>,
+    /// How the site writes slugs, when known.
+    pub slugs: Option<SlugMode>,
 }
 
 impl SiteView for LintSite {
@@ -69,6 +77,10 @@ impl SiteView for LintSite {
 
     fn locales(&self) -> &[Locale] {
         &self.locales
+    }
+
+    fn slug_mode(&self) -> Option<SlugMode> {
+        self.slugs
     }
 }
 
