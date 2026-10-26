@@ -2,10 +2,12 @@
 //! content files and the database; this crate only shapes them.
 
 mod admin_post;
+mod author;
 mod collection;
 mod post;
 
 pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
+pub use author::Author;
 pub use collection::Collection;
 pub use post::{Bodies, Post};
 

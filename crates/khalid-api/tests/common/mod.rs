@@ -2,8 +2,8 @@
 //! shared by the API tests.
 
 use chrono::{TimeZone, Utc};
-use khalid_api::content_store::MemoryContentStore;
-use khalid_api::resources::{Bodies, Collection, Post};
+use khalid_api::content_store::{MemoryContentStore, SiteResources};
+use khalid_api::resources::{Author, Bodies, Collection, Post};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 
 /// A demo post: slug, title, publish month and day in 2026, tags.
@@ -95,5 +95,24 @@ pub(crate) fn store() -> MemoryContentStore {
     let others = OTHERS
         .iter()
         .map(|(collection, slug, title)| (*collection, document(slug, title, (10, 1))));
-    MemoryContentStore::new(posts.chain(others).collect())
+    MemoryContentStore::new(posts.chain(others).collect()).with_site(site())
+}
+
+/// The demo site's authors in both languages.
+#[cfg(test)]
+fn site() -> SiteResources {
+    let (en, de) = (
+        Locale::try_new("en").unwrap(),
+        Locale::try_new("de").unwrap(),
+    );
+    let slug = |slug: &str| Slug::try_new(slug).unwrap();
+    let url = |url: &str| AbsoluteUrl::parse(url).unwrap();
+    SiteResources::default().with_authors(vec![
+        Author::new(slug("asif"), "Asif", en.clone())
+            .with_role("Founder of SerpDad")
+            .with_url(url("https://example.com/blog/authors/asif/"))
+            .with_same_as(vec![url("https://serpdad.com/")]),
+        Author::new(slug("lena-vogt"), "Lena Vogt", en),
+        Author::new(slug("asif"), "Asif", de).with_role("Head of SerpDad"),
+    ])
 }

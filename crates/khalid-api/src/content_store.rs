@@ -10,7 +10,9 @@ use crate::query::ListQuery;
 use crate::resources::{Collection, Post};
 
 mod memory;
+mod site_resources;
 pub use memory::MemoryContentStore;
+pub use site_resources::SiteResources;
 
 /// A future the store returns, boxed so routes can hold any store as a
 /// `dyn ContentStore`.
@@ -20,9 +22,10 @@ pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 /// entries in memory: `khalid serve` fills one from the content index in
 /// `khalid-db` after each change, and tests fill one by hand.
 ///
-/// A store applies the query's filter, order and page itself, so a
-/// database can do it in SQL. Fields named in the query have already been
-/// checked against [`Post::FILTER_FIELDS`].
+/// A store applies the query's filter, order and page to posts itself, so
+/// a database can do it in SQL. Fields named in the query have already been
+/// checked against [`Post::FILTER_FIELDS`]. The site's short lists come
+/// whole from [`ContentStore::site`], and the API pages those itself.
 pub trait ContentStore: Send + Sync {
     /// One page of the published entries of `collection` matching `query`,
     /// newest first unless `query` orders them, with the number that match
@@ -48,6 +51,13 @@ pub trait ContentStore: Send + Sync {
         collection: Collection,
         key: &'a PostKey,
     ) -> BoxFuture<'a, Result<Option<Post>, ContentStoreError>>;
+
+    /// The site's small lists, such as its authors, whole.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ContentStoreError`] when the content cannot be read.
+    fn site(&self) -> BoxFuture<'_, Result<SiteResources, ContentStoreError>>;
 }
 
 /// How one entry is asked for: `/posts/{id}/` or `/posts/slug/{slug}/`.

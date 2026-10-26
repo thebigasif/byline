@@ -3,7 +3,7 @@
 
 use std::cmp::Ordering;
 
-use super::{BoxFuture, ContentStore, ContentStoreError, Listed, PostKey};
+use super::{BoxFuture, ContentStore, ContentStoreError, Listed, PostKey, SiteResources};
 use crate::pagination::Meta;
 use crate::query::{Direction, FieldValues, Limit, ListQuery, Literal};
 use crate::resources::{Collection, Post};
@@ -13,12 +13,20 @@ use crate::resources::{Collection, Post};
 #[derive(Debug, Clone, Default)]
 pub struct MemoryContentStore {
     entries: Vec<(Collection, Post)>,
+    site: SiteResources,
 }
 
 impl MemoryContentStore {
-    /// A store holding `entries`, each in its collection.
+    /// A store holding `entries`, each in its collection, and no authors.
     pub fn new(entries: Vec<(Collection, Post)>) -> Self {
-        Self { entries }
+        let site = SiteResources::default();
+        Self { entries, site }
+    }
+
+    /// The same store with the site's small lists, such as its authors.
+    #[must_use]
+    pub fn with_site(self, site: SiteResources) -> Self {
+        Self { site, ..self }
     }
 
     fn in_collection(&self, collection: Collection) -> impl Iterator<Item = &Post> {
@@ -84,6 +92,10 @@ impl ContentStore for MemoryContentStore {
         key: &'a PostKey,
     ) -> BoxFuture<'a, Result<Option<Post>, ContentStoreError>> {
         Box::pin(std::future::ready(Ok(self.lookup(collection, key))))
+    }
+
+    fn site(&self) -> BoxFuture<'_, Result<SiteResources, ContentStoreError>> {
+        Box::pin(std::future::ready(Ok(self.site.clone())))
     }
 }
 
