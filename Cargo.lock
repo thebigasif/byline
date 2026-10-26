@@ -1626,6 +1626,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-mount"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "thiserror",
+]
+
+[[package]]
 name = "khalid-outbound"
 version = "0.0.0"
 dependencies = [
