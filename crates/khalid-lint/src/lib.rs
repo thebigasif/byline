@@ -32,13 +32,16 @@ mod site_links;
 mod snippet;
 mod structure;
 mod thresholds;
+mod topics;
 mod words;
 
 pub use catalogue::{Catalogue, Message};
 pub use finding::{Finding, Location};
 pub use lint_config::LintConfig;
 pub use lint_error::LintError;
-pub use lint_post::{Heading, HeadingLevel, Image, LinkKind, LintLink, LintPost};
+pub use lint_post::{
+    Cluster, ClusterRole, Heading, HeadingLevel, Image, LinkKind, LintLink, LintPost,
+};
 pub use lint_site::{GlossaryTerm, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};
 pub use rule::{Hit, Rule, RuleId, SiteRule};

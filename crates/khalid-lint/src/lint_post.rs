@@ -37,6 +37,8 @@ pub struct LintPost {
     /// The `translation` key from the header, shared by every language
     /// version of the same post.
     pub translation: Option<String>,
+    /// The topic group the post belongs to, and its role in it.
+    pub cluster: Option<Cluster>,
     /// The headings in the body, in order. The title is not one of them.
     #[serde(default)]
     pub headings: Vec<Heading>,
@@ -70,6 +72,7 @@ impl LintPost {
             updated: None,
             author: None,
             translation: None,
+            cluster: None,
             headings: Vec::new(),
             links: Vec::new(),
             images: Vec::new(),
@@ -78,6 +81,38 @@ impl LintPost {
             body_text: String::new(),
         }
     }
+}
+
+/// A topic group, often called a cluster: one main post, the pillar, and the
+/// posts around it that link to it.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct Cluster {
+    /// The group's name, the same on every post in it.
+    pub name: String,
+    /// Whether this post is the group's main post.
+    pub role: ClusterRole,
+}
+
+impl Cluster {
+    /// A place in the group `name` with `role`.
+    pub fn new(name: impl Into<String>, role: ClusterRole) -> Self {
+        Self {
+            name: name.into(),
+            role,
+        }
+    }
+}
+
+/// A post's role in its topic group, written `pillar` or `member`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ClusterRole {
+    /// The group's main post, which covers the topic as a whole.
+    Pillar,
+    /// A post on one part of the topic, which links to the pillar.
+    Member,
 }
 
 /// A heading in a post's body.

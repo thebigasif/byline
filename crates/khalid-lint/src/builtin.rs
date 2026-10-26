@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 
 use crate::{
     Rule, SiteRule, Thresholds, address, blocking, link_text, site_content, site_links, snippet,
-    structure, words,
+    structure, topics, words,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -47,6 +47,11 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         }),
         Box::new(address::SlugStopwords),
         Box::new(address::SlugDate),
+        Box::new(topics::NearDuplicate {
+            max_percent: thresholds.near_duplicate_percent,
+        }),
+        Box::new(topics::GlossaryTermNotLinked),
+        Box::new(topics::ClusterWithoutPillar),
     ]
 }
 

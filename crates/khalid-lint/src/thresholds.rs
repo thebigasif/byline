@@ -35,6 +35,10 @@ pub struct Thresholds {
     /// How many months a post may go without an update before it is stale.
     /// Default 12: most facts in a how-to post hold for about a year.
     pub stale_months: u32,
+    /// How much text, in percent, two posts may share before they count as
+    /// near copies, measured on runs of five words. Default 50: above that,
+    /// the posts read as one text with small edits.
+    pub near_duplicate_percent: usize,
 }
 
 impl Default for Thresholds {
@@ -48,6 +52,7 @@ impl Default for Thresholds {
             slug_max_chars: 60,
             max_clicks: 3,
             stale_months: 12,
+            near_duplicate_percent: 50,
         }
     }
 }

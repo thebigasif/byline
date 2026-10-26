@@ -177,3 +177,21 @@ what = "This post has not been updated for a long time."
 why = "Readers and Google trust recent information more, and old facts may now be wrong."
 fix = "Refresh this post: check its facts, update what changed and set `updated:` to today."
 guide = "refreshing-posts"
+
+[near-duplicate]
+what = "This post shares most of its text with another post on your site."
+why = "Google shows only one of two near copies, so the two posts compete and both lose."
+fix = "Merge the two posts into one, or rewrite this one to cover a different angle."
+guide = "duplicate-content"
+
+[glossary-term-not-linked]
+what = "This post uses a term your glossary explains, without linking to it."
+why = "A link to the definition helps new readers and shows Google how your pages relate."
+fix = "Link the first use of the term to its glossary entry."
+guide = "glossary"
+
+[cluster-without-pillar]
+what = "This post belongs to a topic group but does not link to the group's main post."
+why = "Links to the main post show Google which page covers the topic best."
+fix = "Add a link to the main post of this topic group."
+guide = "topic-clusters"

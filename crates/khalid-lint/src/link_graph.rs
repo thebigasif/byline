@@ -18,6 +18,18 @@ fn last_part(page: &str) -> &str {
     page.rsplit('/').next().unwrap_or_default()
 }
 
+/// Whether `from` has an internal link that opens `to`, by `to`'s path when
+/// it has one, or else by its slug in the same language.
+pub(crate) fn links_to(from: &LintPost, to: &LintPost) -> bool {
+    let internal = from.links.iter().filter(|l| l.kind == LinkKind::Internal);
+    internal
+        .map(|link| page_key(&link.target))
+        .any(|page| match &to.path {
+            Some(path) => page == page_key(path),
+            None => from.locale == to.locale && last_part(page) == to.slug.as_str(),
+        })
+}
+
 /// The internal links between posts, by position in `SiteView::posts`.
 ///
 /// A link finds its post by the post's `path` when the post has one, and
