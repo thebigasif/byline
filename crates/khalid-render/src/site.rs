@@ -30,6 +30,9 @@ pub struct RenderSite {
     pub share_image: Option<ShareImage>,
     /// The reader features that are on, from `[reader]` in `site.toml`.
     pub features: Features,
+    /// The address of the search page, such as `/blog/search/`, which the
+    /// header links to. `None` when the site has no search page.
+    pub search: Option<String>,
 }
 
 /// The site's menus. An empty menu renders nothing.

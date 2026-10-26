@@ -80,7 +80,7 @@ nav ul, .tags, .cards, .author-profiles, .letters ul, .people {
   padding: 0;
 }
 nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
-nav a, .tags a, .author-profiles a, .person a, .person-name a, .card-meta a, .site-name, .skip-link {
+nav a, .tags a, .author-profiles a, .person a, .person-name a, .card-meta a, .search-link, .site-name, .skip-link {
   display: inline-flex;
   align-items: center;
   min-block-size: 44px;

@@ -340,6 +340,7 @@ fn render_site(config: &Config, locale: &Locale) -> RenderSite {
         main_site: None,
         share_image: None,
         features: Features::all(),
+        search: None,
     }
 }
 

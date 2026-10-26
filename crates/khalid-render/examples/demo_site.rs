@@ -217,13 +217,15 @@ impl Demo {
             nav: Nav {
                 primary: vec![
                     link(lang.glossary, format!("{}glossary/", lang.prefix)),
-                    link(lang.search, format!("{}search/", lang.prefix)),
+                    link(lang.authors, format!("{}authors/", lang.prefix)),
+                    link(lang.archive, format!("{}archive/", lang.prefix)),
                 ],
                 footer: Vec::new(),
             },
             main_site: Some(link("example.com", format!("{ADDRESS}/"))),
             share_image: None,
             features: Features::all(),
+            search: Some(format!("{}search/", lang.prefix)),
         })
     }
 

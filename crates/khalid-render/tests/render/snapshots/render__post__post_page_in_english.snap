@@ -37,6 +37,7 @@ expression: page
 <li><a href="/blog/glossary/">Glossary</a></li>
 </ul>
 </nav>
+<a class="search-link" href="/blog/search/">Search</a>
 </header>
 <main id="main" tabindex="-1">
 

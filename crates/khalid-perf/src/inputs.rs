@@ -59,6 +59,7 @@ impl Prepared {
             main_site: None,
             share_image: None,
             features: Features::all(),
+            search: None,
         };
         let mut prepared = Self {
             site,

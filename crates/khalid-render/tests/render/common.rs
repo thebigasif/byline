@@ -37,6 +37,7 @@ pub(crate) fn demo_site(tag: &str) -> RenderSite {
         },
         main_site: Some(link("Back to example.com", "https://www.example.com/")),
         features: Features::all(),
+        search: Some(format!("{prefix}search/")),
         share_image: Some(ShareImage {
             url: url("https://www.example.com/blog/assets/share.png"),
             alt: "Field Notes on SEO, a blog about search".to_owned(),
