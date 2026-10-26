@@ -61,6 +61,12 @@ pub(crate) enum Command {
         #[arg(long, value_name = "CODE")]
         language: Option<Locale>,
     },
+    /// Render every page of the site as HTML into a folder
+    Build {
+        /// The folder to write the pages to [default: public in the site folder]
+        #[arg(long, value_name = "FOLDER")]
+        out: Option<PathBuf>,
+    },
     /// Check one post or the whole site against the SEO rules
     Lint {
         /// One post to check. Leave it out to check the whole site.
@@ -232,6 +238,7 @@ impl Command {
             Self::Init(_) => "init",
             Self::Serve => "serve",
             Self::New { .. } => "new",
+            Self::Build { .. } => "build",
             Self::Lint { .. } => "lint",
             Self::Publish { .. } => "publish",
             Self::Theme {

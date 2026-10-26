@@ -6,6 +6,9 @@
 //! which this binary calls the same way the API does.
 
 mod atomic;
+mod build;
+mod build_message;
+mod build_pages;
 mod cli;
 mod config_message;
 mod content_message;
@@ -75,9 +78,13 @@ fn run(cli: &Cli) -> Exit {
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(command @ (Command::Db { .. } | Command::New { .. })), None) => {
-            report::failure(cli.output, &needs_site(command), Exit::Usage)
+        (Some(Command::Build { out }), Some((folder, config))) => {
+            build::run(folder, config, out.as_deref(), cli.output)
         }
+        (
+            Some(command @ (Command::Db { .. } | Command::New { .. } | Command::Build { .. })),
+            None,
+        ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
 }

@@ -1631,6 +1631,7 @@ dependencies = [
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-render",
  "khalid-routes",
  "mimalloc",
  "serde",
