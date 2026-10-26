@@ -47,6 +47,7 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         }),
         Box::new(address::SlugStopwords),
         Box::new(address::SlugDate),
+        Box::new(address::UnicodeSlug),
         Box::new(topics::NearDuplicate {
             max_percent: thresholds.near_duplicate_percent,
         }),
