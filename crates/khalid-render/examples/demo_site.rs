@@ -276,6 +276,7 @@ impl Demo {
             robots,
             image: None,
             x_default: alternates.first().map(|first| first.href.clone()),
+            seo_head: None,
             alternates,
         };
         let html = self.renderer.render(&self.site(lang)?, &meta, body)?;

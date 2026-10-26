@@ -1870,6 +1870,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "clap",
+ "insta",
  "khalid-api",
  "khalid-content",
  "khalid-core",
@@ -1877,6 +1878,7 @@ dependencies = [
  "khalid-lint",
  "khalid-render",
  "khalid-routes",
+ "khalid-seo",
  "khalid-server",
  "mimalloc",
  "serde",

@@ -1,0 +1,42 @@
+---
+source: crates/khalid/tests/build_files.rs
+expression: "read(&built(), \"sitemaps/posts-en-1.xml\")"
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  <url>
+    <loc>https://www.example.com/blog/planning-a-topic-cluster/</loc>
+    <lastmod>2026-10-12T00:00:00Z</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.example.com/blog/planning-a-topic-cluster/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.example.com/blog/de/ein-themencluster-planen/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.example.com/blog/planning-a-topic-cluster/"/>
+  </url>
+  <url>
+    <loc>https://www.example.com/blog/fixing-slow-pages/</loc>
+    <lastmod>2026-10-05T00:00:00Z</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.example.com/blog/fixing-slow-pages/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.example.com/blog/de/langsame-seiten-schneller-machen/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.example.com/blog/fixing-slow-pages/"/>
+  </url>
+  <url>
+    <loc>https://www.example.com/blog/what-a-sitemap-does/</loc>
+    <lastmod>2026-09-28T00:00:00Z</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.example.com/blog/what-a-sitemap-does/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.example.com/blog/de/was-eine-sitemap-leistet/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.example.com/blog/what-a-sitemap-does/"/>
+  </url>
+  <url>
+    <loc>https://www.example.com/blog/how-to-write-a-title-tag/</loc>
+    <lastmod>2026-09-21T00:00:00Z</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.example.com/blog/how-to-write-a-title-tag/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.example.com/blog/de/so-schreiben-sie-einen-title-tag/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.example.com/blog/how-to-write-a-title-tag/"/>
+  </url>
+  <url>
+    <loc>https://www.example.com/blog/why-internal-links-matter/</loc>
+    <lastmod>2026-09-14T00:00:00Z</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.example.com/blog/why-internal-links-matter/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.example.com/blog/de/warum-interne-links-wichtig-sind/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.example.com/blog/why-internal-links-matter/"/>
+  </url>
+</urlset>

@@ -1,0 +1,8 @@
+---
+source: crates/khalid/tests/build_files.rs
+expression: "read(&built(), \"robots.txt\")"
+---
+User-agent: *
+Allow: /blog/
+
+Sitemap: https://www.example.com/blog/sitemap.xml
