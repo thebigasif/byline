@@ -10,13 +10,16 @@ use crate::{
 };
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 19] = [
-    "audio", "bookmark", "business", "button", "callout", "embed", "faq", "figure", "file",
+pub(crate) const BLOCKS: [&str; 20] = [
+    "audio", "bookmark", "business", "button", "callout", "embed", "faq", "figure", "file", "form",
     "gallery", "header", "howto", "html", "product", "recipe", "review", "toc", "toggle", "video",
 ];
 
 mod cards;
+mod forms;
 mod nested;
+
+pub(crate) use forms::TRAP;
 
 /// What to say after "there is no block called `name`": the nearest block
 /// name when one is a typing slip away, or where the names come from.
@@ -110,6 +113,7 @@ pub(crate) fn directive(
         "business" => cards::business(&attributes),
         "header" => cards::header(&attributes),
         "html" => cards::html(&attributes),
+        "form" => forms::form(&attributes, body),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),

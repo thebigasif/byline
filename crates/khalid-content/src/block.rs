@@ -5,7 +5,8 @@ use comrak::{Arena, Options, parse_document};
 use khalid_core::{AbsoluteUrl, ParseUrlError};
 
 use crate::{
-    BusinessBlock, HowToBlock, ProductBlock, Question, RecipeBlock, ReviewBlock, VideoBlock,
+    BusinessBlock, FormField, HowToBlock, ProductBlock, Question, RecipeBlock, ReviewBlock,
+    VideoBlock,
 };
 
 use crate::directive::{Form, directive, opening, unknown_hint};
@@ -151,6 +152,16 @@ pub enum BlockKind {
     SafeHtml {
         /// Who sees it.
         show: Visibility,
+    },
+    /// `:::form{id="..." button="..."}` with one field per line: a form that
+    /// posts to `/forms/{id}`.
+    Form {
+        /// The name its answers are kept under.
+        id: String,
+        /// The words on its button.
+        button: String,
+        /// Its fields, in order.
+        fields: Vec<FormField>,
     },
     /// `:::gallery` with one `![alt](src)` image per line: a grid of
     /// pictures.
