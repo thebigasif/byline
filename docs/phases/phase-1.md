@@ -139,7 +139,7 @@
 
 ### 1.18 Keys and the Admin API
 
-- Status: `doing`. Part 1 (this landing): integration keys and staff tokens as key kinds, with scopes and roles. Next: storing them as Argon2id, the Admin API routes with scope checks, post create and edit with a 409 on a stale `updated_at`, and `source=html`.
+- Status: `doing`. Part 1 (#147): integration keys and staff tokens as key kinds, with scopes and roles. Part 2 (this landing): stored as Argon2id, checked off the async runtime, and `authenticate` returns what the key may do (ADR 0011). Next: the Admin API routes with scope checks, post create and edit with a 409 on a stale `updated_at`, and `source=html`.
 - Integration keys and staff tokens with scopes, 256 random bits, stored hashed, compared in constant time. `khalid keys create` and `revoke`, showing a key once through hidden output. `/api/admin/v1/` creates and edits posts from markdown or HTML, with idempotency keys and a 409 on a stale `updated_at`. Writes are atomic.
 - Rules: BL-SEC-3, BL-API-7, BL-RUN-5, BL-RUN-9, BL-CLI-4.
 - Done when: HTTP tests cover success, validation failure, auth failure and a stale edit for each endpoint, and no key appears in any log or test output.

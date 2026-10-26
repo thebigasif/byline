@@ -55,7 +55,7 @@ fn the_secret_never_appears_in_debug_output() {
 #[tokio::test]
 async fn the_right_content_key_is_accepted() {
     let id = authenticate(&store(), &token("kc", ID, SECRET), KeyKind::Content).await;
-    assert_eq!(id.unwrap(), KeyId::try_new(ID).unwrap());
+    assert_eq!(id.unwrap().id(), &KeyId::try_new(ID).unwrap());
 }
 
 #[tokio::test]

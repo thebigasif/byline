@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use super::{KeyId, KeyKind, KeyToken, StoredKey};
+use super::{Access, KeyId, KeyKind, KeyToken, StoredKey};
 use crate::content_store::BoxFuture;
 
 /// The stored keys. `khalid-db` implements it in task 1.15;
@@ -34,8 +34,28 @@ impl KeyStoreError {
     }
 }
 
-/// Checks that `text` is a stored key of kind `want`, and returns its
-/// identity.
+/// Who a request comes from: a stored key and what it may do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Principal {
+    id: KeyId,
+    access: Access,
+}
+
+impl Principal {
+    /// The key's identity.
+    pub fn id(&self) -> &KeyId {
+        &self.id
+    }
+
+    /// What the key may do.
+    pub fn access(&self) -> &Access {
+        &self.access
+    }
+}
+
+/// Checks that `text` is a stored key of kind `want`, and returns who it
+/// belongs to and what it may do. The hash is checked on a blocking
+/// thread, because Argon2id is slow on purpose (RULES.md BL-RUN-7).
 ///
 /// # Errors
 ///
@@ -46,18 +66,25 @@ pub async fn authenticate(
     store: &dyn KeyStore,
     text: &str,
     want: KeyKind,
-) -> Result<KeyId, KeyError> {
+) -> Result<Principal, KeyError> {
     let token: KeyToken = text.parse().map_err(|_| KeyError::Rejected)?;
     if token.kind() != want {
         return Err(KeyError::Rejected);
     }
-    let stored = store
-        .find(token.id())
+    let unavailable = |source| KeyError::Unavailable { source };
+    let Some(stored) = store.find(token.id()).await.map_err(unavailable)? else {
+        return Err(KeyError::Rejected);
+    };
+    let checked = tokio::task::spawn_blocking(move || stored.matches(&token).then_some(stored));
+    match checked
         .await
-        .map_err(|source| KeyError::Unavailable { source })?;
-    match stored {
-        Some(stored) if stored.matches(&token) => Ok(token.id().clone()),
-        _ => Err(KeyError::Rejected),
+        .map_err(|error| unavailable(KeyStoreError::new(error)))?
+    {
+        Some(stored) => Ok(Principal {
+            id: stored.id().clone(),
+            access: stored.access().clone(),
+        }),
+        None => Err(KeyError::Rejected),
     }
 }
 
