@@ -6,6 +6,23 @@ use bytes::Bytes;
 use crate::compress::Compressed;
 use crate::{MediaType, PagePath, etag};
 
+/// Pages may be kept, but must be checked with their tag before reuse, so
+/// an edited post shows on the next visit.
+const REVALIDATE: HeaderValue = HeaderValue::from_static("no-cache");
+
+/// A file whose name changes with its content may be kept for a year, the
+/// most RFC 9111 advises, and is never checked again.
+const IMMUTABLE: HeaderValue = HeaderValue::from_static("public, max-age=31536000, immutable");
+
+/// How long a reader may keep a page before asking for it again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Caching {
+    /// Kept, but checked with its tag before each reuse.
+    Revalidate,
+    /// Kept for a year without a check, because its address names its content.
+    Immutable,
+}
+
 /// One rendered page or file, ready to send: its address, its kind, its
 /// bytes and the tag made from them. [`Pages`](crate::Pages) adds its
 /// Brotli copy.
@@ -16,6 +33,7 @@ pub struct Page {
     body: Bytes,
     etag: Option<HeaderValue>,
     brotli: Option<Compressed>,
+    caching: Caching,
 }
 
 impl Page {
@@ -29,6 +47,17 @@ impl Page {
             media_type,
             body,
             brotli: None,
+            caching: Caching::Revalidate,
+        }
+    }
+
+    /// A file at `path` whose name carries a hash of `body`, such as
+    /// `/blog/assets/site.3f2a9c1e.css`. Readers keep it for a year without
+    /// asking again, because a change to the file gives it a new name.
+    pub fn immutable(path: PagePath, media_type: MediaType, body: impl Into<Bytes>) -> Self {
+        Self {
+            caching: Caching::Immutable,
+            ..Self::new(path, media_type, body)
         }
     }
 
@@ -66,5 +95,13 @@ impl Page {
     /// The Brotli copy, if the page has one.
     pub(crate) fn brotli(&self) -> Option<&Compressed> {
         self.brotli.as_ref()
+    }
+
+    /// The `Cache-Control` header value.
+    pub(crate) fn cache_control(&self) -> HeaderValue {
+        match self.caching {
+            Caching::Revalidate => REVALIDATE,
+            Caching::Immutable => IMMUTABLE,
+        }
     }
 }

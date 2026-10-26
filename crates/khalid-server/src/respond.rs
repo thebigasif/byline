@@ -17,10 +17,6 @@ use crate::{LivePages, MediaType, Page, Pages, SecurityHeaders, etag};
 /// The methods a page answers.
 const ALLOW: HeaderValue = HeaderValue::from_static("GET, HEAD");
 
-/// Pages may be kept, but must be checked with their tag before reuse, so
-/// an edited post shows on the next visit.
-const REVALIDATE: HeaderValue = HeaderValue::from_static("no-cache");
-
 /// Tells caches that a page's bytes depend on `Accept-Encoding`.
 const ENCODING_VARIES: HeaderValue = HeaderValue::from_static("accept-encoding");
 
@@ -32,7 +28,8 @@ const BROTLI: HeaderValue = HeaderValue::from_static("br");
 /// `GET` and `HEAD` get the page, a redirect to its clean address, or the
 /// not-found page with status 404. A page carries an `ETag` made from its
 /// bytes, and a request whose `If-None-Match` names it gets 304 with no
-/// body. Any other method gets 405. Every response, whatever its status,
+/// body. A page is cached as `no-cache`, and a [`Page::immutable`] file for
+/// a year. Any other method gets 405. Every response, whatever its status,
 /// carries `security`.
 ///
 /// Each request reads the pages being served at that moment, so a
@@ -105,7 +102,7 @@ fn page_response(page: &Page, request: &HeaderMap, send: SendBody) -> Response<B
         file(StatusCode::OK, page.media_type(), body, send)
     };
     let headers = response.headers_mut();
-    headers.insert(header::CACHE_CONTROL, REVALIDATE);
+    headers.insert(header::CACHE_CONTROL, page.cache_control());
     headers.insert(header::VARY, ENCODING_VARIES);
     if let Some(tag) = tag {
         headers.insert(header::ETAG, tag.clone());
