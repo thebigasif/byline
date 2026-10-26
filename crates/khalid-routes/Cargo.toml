@@ -1,0 +1,17 @@
+[package]
+name = "khalid-routes"
+version = "0.0.0"
+description = "routes.toml: collections and their permalinks, channels, taxonomy prefixes, and the URLs they make."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+toml = "0.9"
+
+[lints]
+workspace = true
