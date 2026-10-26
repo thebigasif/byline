@@ -10,6 +10,7 @@ mod build;
 mod build_files;
 mod build_message;
 mod build_pages;
+mod build_redirects;
 mod build_seo;
 mod cli;
 mod config_message;
@@ -21,18 +22,23 @@ mod index;
 mod init;
 mod init_message;
 mod init_prompt;
+mod keys;
+mod keys_message;
 mod lint;
 mod lint_fix;
 mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
+mod post_text;
 mod repair;
 mod report;
 mod routes_message;
 mod serve;
 mod serve_message;
+mod site_content;
 mod site_pages;
+mod site_posts;
 mod slug_repair;
 
 use std::ffi::OsString;
@@ -87,7 +93,16 @@ fn run(cli: &Cli) -> Exit {
         },
         None => None,
     };
-    match (&cli.command, site) {
+    // The server renders its first pages from the checked content, then
+    // drops it, so it takes the content rather than borrowing it.
+    let site = match (&cli.command, site) {
+        (Some(Command::Serve { listen }), Some((folder, config, content))) => {
+            let look = look.unwrap_or_else(|| FolderLook::take(folder));
+            return serve::run(folder, &config, (content, look), *listen, cli.output);
+        }
+        (_, site) => site,
+    };
+    match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some((folder, ..))) => {
             db::run(folder, *command, cli.output)
@@ -101,19 +116,24 @@ fn run(cli: &Cli) -> Exit {
                 title,
                 language: language.as_ref(),
             };
-            new::run(folder, &config, post, &SystemClock, cli.output)
+            new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, content))) => {
-            build::run(folder, &config, &content, out.as_deref(), cli.output)
-        }
-        (Some(Command::Serve { listen }), Some((folder, config, content))) => {
-            let look = look.unwrap_or_else(|| FolderLook::take(folder));
-            serve::run(folder, &config, (content, look), *listen, cli.output)
+        (Some(Command::Build { out }), Some((folder, config, content))) => build::run(
+            folder,
+            config,
+            content,
+            out.as_deref(),
+            &SystemClock,
+            cli.output,
+        ),
+        (Some(Command::Keys { command }), Some((folder, ..))) => {
+            keys::run(folder, command, cli.output)
         }
         (
             Some(
                 command @ (Command::Db { .. }
                 | Command::Serve { .. }
+                | Command::Keys { .. }
                 | Command::Lint { .. }
                 | Command::New { .. }
                 | Command::Build { .. }),

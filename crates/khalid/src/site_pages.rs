@@ -8,9 +8,12 @@ use std::sync::Arc;
 
 use khalid_content::{ContentTree, SiteContent, read_content};
 use khalid_core::{Config, UserMessage};
+use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
+use tokio::runtime::Handle;
 
+use crate::site_content::{LiveContent, published};
 use crate::{build_message, build_pages, content_message};
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -25,17 +28,37 @@ struct Site {
     folder: PathBuf,
     config: Config,
     renderer: Renderer,
+    feed: Option<ContentFeed>,
+}
+
+/// Where each render also sends the published posts: the content index in
+/// the site's database, and the posts the Content API answers with.
+#[derive(Debug)]
+pub(crate) struct ContentFeed {
+    /// The runtime the database belongs to. Renders run off it, on the
+    /// main thread at start and on a blocking thread after, so they wait
+    /// for the database through it.
+    pub(crate) runtime: Handle,
+    pub(crate) db: Database,
+    pub(crate) site: SiteId,
+    pub(crate) live: LiveContent,
 }
 
 impl SitePages {
-    /// The pages of the site in `folder`, with its checked `config`.
-    pub(crate) fn new(folder: &Path, config: Config) -> Result<Self, UserMessage> {
+    /// The pages of the site in `folder`, with its checked `config`. With
+    /// a `feed`, each render also refreshes the index and the Content API.
+    pub(crate) fn new(
+        folder: &Path,
+        config: Config,
+        feed: Option<ContentFeed>,
+    ) -> Result<Self, UserMessage> {
         let renderer =
             Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
             renderer,
+            feed,
         })))
     }
 
@@ -51,15 +74,23 @@ impl SitePages {
     }
 
     /// Every page made from `content`, already read from the site folder,
-    /// and the not-found page. At start, `khalid serve` passes the content
-    /// it checked, so the folder is read once, not twice.
+    /// and the not-found page, refreshing the feed first when there is one.
+    /// At start, `khalid serve` passes the content it checked, so the folder
+    /// is read once, not twice.
     pub(crate) fn render_content(
         &self,
         content: &SiteContent,
     ) -> Result<(Vec<Page>, String), UserMessage> {
         let Site {
-            config, renderer, ..
+            folder,
+            config,
+            renderer,
+            feed,
         } = &*self.0;
+        if let Some(feed) = feed {
+            let fed = published(&feed.db, feed.site, folder, config, content);
+            feed.live.replace(feed.runtime.block_on(fed)?);
+        }
         let languages = build_pages::pages(config, content)?;
         let mut pages = Vec::new();
         let mut not_found = String::new();
@@ -116,7 +147,7 @@ mod tests {
         demo.push("../../fixtures/demo-site");
         let config = Config::load(&demo, &Environment::default()).unwrap();
         let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
-        let source = SitePages::new(&demo, config).unwrap();
+        let source = SitePages::new(&demo, config, None).unwrap();
         let (given, given_missing) = source.render_content(&content).unwrap();
         let (read, read_missing) = source.render_all().unwrap();
         assert!(given.len() > 10, "{} pages", given.len());
