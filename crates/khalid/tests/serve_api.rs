@@ -1,6 +1,7 @@
 //! The APIs on a running `khalid serve`: the Content API answers from the
-//! site's own index with a key made by `khalid keys create`, and shows a
-//! saved edit without a restart (KH-API-1, KH-API-2).
+//! site's own index with a key made by `khalid keys create` and shows a
+//! saved edit without a restart, and a post made and published through the
+//! Admin API is served, or refused by the linter (KH-API-1, KH-API-2).
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -175,4 +176,85 @@ fn the_content_api_lists_the_demo_posts_and_shows_an_edit() {
             .contains("What a sitemap is for")
     });
     assert!(shown, "the edit never reached the Content API");
+}
+
+/// The API wiring task's done line: on the demo site, list the posts
+/// through the Content API, create and publish a post through the Admin
+/// API with a key made by `khalid keys create`, and see its page served.
+#[test]
+fn a_post_created_and_published_through_the_admin_api_is_served() {
+    let site = demo_copy();
+    let content_key = new_key(site.path(), &["--kind", "content", "--name", "Web page"]);
+    let admin_key = new_key(
+        site.path(),
+        &["--name", "SerpDad", "--scope", "posts:write"],
+    );
+    let server = start(site.path());
+    let before = english_posts(&server, &content_key);
+    assert_eq!(before["meta"]["pagination"]["total"], 5, "{before}");
+
+    let authorization = format!("Khalid {admin_key}");
+    let auth = [("Authorization", authorization.as_str())];
+    let markdown = "Anchor text is the visible words of a link.\n\n\
+        Read [why internal links matter](/blog/why-internal-links-matter/) first.";
+    let new = serde_json::json!({"posts": [{
+        "title": "Choosing anchor text",
+        "author": "asif",
+        "markdown": markdown,
+    }]});
+    let (status, body) = request(&server, "POST", "/api/admin/v1/posts/", &auth, Some(&new));
+    assert_eq!(status, 201, "{body}");
+    let made: Value = serde_json::from_str(&body).unwrap();
+    let draft = &made["posts"][0];
+    assert_eq!(draft["id"], "en.choosing-anchor-text", "{made}");
+    assert_eq!(draft["status"], "draft", "{made}");
+    let (status, _) = request(&server, "GET", "/blog/choosing-anchor-text/", &[], None);
+    assert_eq!(status, 404, "a draft is never served");
+
+    let publish = serde_json::json!({"posts": [{
+        "status": "published",
+        "updated_at": draft["updated_at"],
+    }]});
+    let path = "/api/admin/v1/posts/en.choosing-anchor-text/";
+    let (status, body) = request(&server, "PUT", path, &auth, Some(&publish));
+    assert_eq!(status, 200, "{body}");
+    assert!(body.contains("\"status\":\"published\""), "{body}");
+
+    let page_shown = (0..TRIES).any(|_| {
+        thread::sleep(PAUSE);
+        let (status, page) = request(&server, "GET", "/blog/choosing-anchor-text/", &[], None);
+        status == 200 && page.contains("Choosing anchor text")
+    });
+    assert!(page_shown, "the published post was never served");
+    let after = english_posts(&server, &content_key);
+    assert_eq!(after["posts"][0]["slug"], "choosing-anchor-text", "{after}");
+    assert_eq!(after["meta"]["pagination"]["total"], 6, "{after}");
+}
+
+#[test]
+fn a_weak_post_is_refused_with_its_findings_and_never_served() {
+    let site = demo_copy();
+    let admin_key = new_key(
+        site.path(),
+        &["--name", "SerpDad", "--scope", "posts:write"],
+    );
+    let server = start(site.path());
+    let authorization = format!("Khalid {admin_key}");
+    let auth = [("Authorization", authorization.as_str())];
+    let new = serde_json::json!({"posts": [{"title": "A weak post", "markdown": "Short."}]});
+    let (status, body) = request(&server, "POST", "/api/admin/v1/posts/", &auth, Some(&new));
+    assert_eq!(status, 201, "{body}");
+    let made: Value = serde_json::from_str(&body).unwrap();
+    let publish = serde_json::json!({"posts": [{
+        "status": "published",
+        "updated_at": made["posts"][0]["updated_at"],
+    }]});
+    let path = "/api/admin/v1/posts/en.a-weak-post/";
+    let (status, body) = request(&server, "PUT", path, &auth, Some(&publish));
+    assert_eq!(status, 422, "{body}");
+    assert!(body.contains("no-author"), "{body}");
+    let (status, _) = request(&server, "GET", "/blog/a-weak-post/", &[], None);
+    assert_eq!(status, 404);
+    let (status, _) = request(&server, "POST", "/api/admin/v1/posts/", &[], Some(&new));
+    assert_eq!(status, 401, "no key, no post");
 }

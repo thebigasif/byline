@@ -23,13 +23,6 @@ pub(crate) fn create(folder: &Path, name: &str, text: &str) -> io::Result<()> {
 /// Writes `text` to the file at `path`, replacing it when it exists: first
 /// to a temporary file in the same folder, then flushed to disk, then
 /// renamed over the old one, so a reader sees the old text or the new.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "the Admin API's post store edits post files with it, later in this stack"
-    )
-)]
 pub(crate) fn replace(path: &Path, text: &str) -> io::Result<()> {
     let folder = path
         .parent()

@@ -27,13 +27,6 @@ mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "only the Admin API's post store uses it, and khalid serve mounts that in the next pull request"
-    )
-)]
 mod post_text;
 mod repair;
 mod report;
@@ -42,13 +35,6 @@ mod serve;
 mod serve_message;
 mod site_content;
 mod site_pages;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "khalid serve mounts the Admin API on it in the next pull request of this stack"
-    )
-)]
 mod site_posts;
 mod slug_repair;
 

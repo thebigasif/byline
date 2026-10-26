@@ -1,13 +1,14 @@
-//! `khalid serve`: the site answered over HTTP from rendered pages, and the
-//! Content API from the site's own index, both shown again after every
-//! saved edit, until Ctrl+C or a stop signal.
+//! `khalid serve`: the site answered over HTTP from rendered pages, the
+//! Content API from the site's own index, and the Admin API over its files,
+//! each showing every saved edit, published post or API write again after
+//! a moment, until Ctrl+C or a stop signal.
 
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use khalid_api::content_api;
+use khalid_api::api;
 use khalid_content::EMBED_PROVIDERS;
 use khalid_core::{Config, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, SiteId};
@@ -20,6 +21,7 @@ use crate::cli::Output;
 use crate::exit::Exit;
 use crate::site_content::LiveContent;
 use crate::site_pages::{ContentFeed, SitePages};
+use crate::site_posts::SitePosts;
 use crate::{db, db_message, report, serve_message};
 
 /// How often the site folder is checked for a saved edit (ADR "the server
@@ -96,7 +98,8 @@ fn serve_with(
         announce(output, config, &format!("http://{local}{}", config.mount()));
         let live = LivePages::new(pages);
         let watching = watch(site, &source, &live, WATCH_EVERY);
-        let (api, _) = content_api::router(Arc::new(content), Arc::new(keys));
+        let posts = SitePosts::new(site, config.clone(), SystemClock);
+        let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
         let app = api.merge(router(live, security));
         let stopped = khalid_server::serve(listener, app, stop(), GRACE).await;
         watching.stop().await;
