@@ -178,6 +178,89 @@ fn the_content_api_lists_the_demo_posts_and_shows_an_edit() {
     assert!(shown, "the edit never reached the Content API");
 }
 
+/// Brief B-API-1's done line: the demo authors, and the site's other lists,
+/// come back through `khalid serve` from the index.
+#[test]
+fn the_content_api_serves_the_demo_authors_and_the_site_lists() {
+    let site = demo_copy();
+    let key = new_key(site.path(), &["--kind", "content", "--name", "Web page"]);
+    let server = start(site.path());
+    let get = |resource: &str| {
+        let joint = if resource.contains('?') { '&' } else { '?' };
+        let path = format!("/api/content/v1/{resource}{joint}key={key}");
+        let (status, body) = request(&server, "GET", &path, &[], None);
+        assert_eq!(status, 200, "{resource}: {body}");
+        serde_json::from_str::<Value>(&body).unwrap()
+    };
+    let ids = |json: &Value, field: &str| -> Vec<String> {
+        let entries = json[field].as_array().unwrap();
+        entries.iter().map(|e| e["id"].to_string()).collect()
+    };
+
+    let authors = get("authors/?filter=language:en");
+    assert_eq!(
+        ids(&authors, "authors"),
+        ["\"en.asif\"", "\"en.lena-vogt\""]
+    );
+    let asif = &authors["authors"][0];
+    assert_eq!(asif["name"], "Asif");
+    assert_eq!(asif["role"], "Founder of SerpDad");
+    assert_eq!(asif["url"], "https://www.example.com/blog/authors/asif/");
+    assert_eq!(asif["same_as"][0], "https://serpdad.com/");
+    assert!(
+        asif["bio"].as_str().unwrap().starts_with("Asif writes"),
+        "{asif}"
+    );
+    let german = get("authors/de.asif/");
+    assert_eq!(
+        german["authors"][0]["url"],
+        "https://www.example.com/blog/de/authors/asif/"
+    );
+
+    let categories = get("categories/?filter=slug:on-page-seo");
+    assert_eq!(
+        ids(&categories, "categories"),
+        ["\"de.on-page-seo\"", "\"en.on-page-seo\""]
+    );
+    assert_eq!(categories["categories"][1]["name"], "On-page SEO");
+
+    let posts = get("collections/en.posts/");
+    assert_eq!(posts["collections"][0]["title"], "Field notes on SEO");
+    let english = get("collections/?filter=language:en&limit=all");
+    let slugs: Vec<&str> = english["collections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["slug"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        slugs,
+        ["posts", "pages", "glossary", "case-studies", "changelog"]
+    );
+
+    let settings = get("settings/");
+    assert_eq!(
+        settings["settings"][0],
+        serde_json::json!({
+            "title": "Field Notes on SEO",
+            "url": "https://www.example.com/blog/",
+            "default_language": "en",
+            "languages": ["en", "de"],
+        })
+    );
+    let menus = get("navigation/");
+    assert_eq!(
+        ids(&menus, "navigation"),
+        [
+            "\"en.primary\"",
+            "\"en.footer\"",
+            "\"de.primary\"",
+            "\"de.footer\""
+        ]
+    );
+    assert_eq!(get("tags/")["meta"]["pagination"]["total"], 0);
+}
+
 /// The API wiring task's done line: on the demo site, list the posts
 /// through the Content API, create and publish a post through the Admin
 /// API with a key made by `khalid keys create`, and see its page served.
