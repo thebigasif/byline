@@ -256,35 +256,6 @@ URLs are configured in `routes.toml`, the way Ghost does it in `routes.yaml`. Th
 - Every pattern knows the mount path and the language prefix, so `/de/guides/{slug}/` just works.
 - `khalid lint` warns when two collections could claim the same post.
 
-### 4.12 Reader features on the default templates
-
-Added 2026-10-27 after a page-by-page check of the Ahrefs blog, Appendix A.3. Each one works as plain HTML first and adds JavaScript only on top, per 4.10. Each one can be switched off in `site.toml`.
-
-**On the post page**
-
-- **Byline with photo and role.** Every author's avatar, name and job title from the author profile, linked to the author page. Several authors in a row.
-- **Reviewed by.** An optional `reviewed_by` field in front matter names one or more authors. The byline shows "Reviewed by" with their names, and the page's JSON-LD carries `reviewedBy`. It is an E-E-A-T signal, and the linter can require it per category, for example for health or money posts.
-- **Reading time.** "8 min read" next to the date, from the word count at about 230 words a minute. Languages written without spaces, such as Japanese and Chinese, count characters instead. The strings follow the page language.
-- **Table of contents.** Built from the post's H2 and H3 headings, on by default when a post has three or more H2s. On wide screens it sits in a sticky side column and marks the section being read; on phones it is a collapsible `details` block above the body. The `::toc` block still places one inside the body.
-- **A link on every heading.** Each H2 and H3 gets an anchor link, visible on keyboard focus and always reachable on touch. With JavaScript, a click copies the address and says so.
-- **Click to enlarge.** A body image that is shown smaller than its original links to its largest variant. With JavaScript, it opens in a native `dialog` with its caption, closes with Escape, and keeps focus correct.
-- **Author box at the end.** Photo, name, role, bio and profile links for each author, then the reviewer's name. Replaceable through the author-box snippet, 5.1.
-- **Related posts.** Three to five posts under the body, chosen at build time from shared category, shared tags and wikilinks in both directions, newest first on ties. Deterministic, so the same build gives the same list. A post can pin its own list in front matter.
-
-**On lists and the home page**
-
-- **Richer post cards.** Author name and avatar, date, primary category and title, in that order, on every list.
-- **Home page sections.** `site.toml` can list categories, collections or channels for the home page. Each gets a section with its newest posts and a "View all" link. The default stays one newest-first list.
-- **Topic links.** A row of links to every category, grouped the way the menu groups them, under the home page sections.
-
-**Site-wide**
-
-- **Authors page.** `/authors/` lists every author with photo, role and post count. Each author page ends with the other authors.
-- **Archive.** `/archive/` lists every published post across collections, newest first, with pagination. It is `noindex` when it repeats the home page exactly.
-- **Search shortcut.** A search link in the header goes to the search page. With JavaScript, `/` and `Ctrl+K` or `Cmd+K` open the search box from any page.
-
-Not added: the "linking websites" count Ahrefs prints on each post. It needs backlink data, which section 5.11 leaves to SerpDad, Ahrefs and Semrush. A SerpDad-connected site may show it in Phase 7.
-
 ---
 
 ## 5. Features at launch
@@ -582,7 +553,7 @@ Each phase ends with something the founder can see. Builds and tests run on `het
 Pick the name. Create the repository, licence, CLA bot, trademark note and code of conduct. Cargo workspace with the same toolchain, lints, `deny.toml` and CI as the SerpDad Rust workspace, plus the rule catalogue from the code-quality plan. An empty binary that prints help. **Shows:** a repo people could star.
 
 ### Phase 1. The engine and the API (3 weeks)
-Content model, markdown pipeline with a directive for every block, wikilinks, co-located assets, maths as MathML, semantic, responsive templates that work with scripts off, server, SQLite index, feeds, sitemaps, robots, schema, clean URLs, language folders, `routes.toml` with collections, channels, permalinks and aliases, the glossary, case studies and changelog collections, the reader features from 4.12, the Content API and Admin API with keys, webhooks with signing, the OpenAPI spec and the TypeScript SDK. `init`, `new`, `serve`, `build`, `keys`. **Shows:** the SerpDad blog served locally from markdown files, 100 on Lighthouse, and the same posts fetched through the Content API.
+Content model, markdown pipeline with a directive for every block, wikilinks, co-located assets, maths as MathML, semantic, responsive templates that work with scripts off, server, SQLite index, feeds, sitemaps, robots, schema, clean URLs, language folders, `routes.toml` with collections, channels, permalinks and aliases, the glossary, case studies and changelog collections, the Content API and Admin API with keys, webhooks with signing, the OpenAPI spec and the TypeScript SDK. `init`, `new`, `serve`, `build`, `keys`. **Shows:** the SerpDad blog served locally from markdown files, 100 on Lighthouse, and the same posts fetched through the Content API.
 
 ### Phase 2. The linter, schema and SEO defaults (3 weeks)
 Every rule in section 6 with tests and messages. `lint.toml`. The publish gate. The schema engine from section 5.9. Redirects, 404 log, IndexNow, hreflang, `doctor`, and the site audit from section 5.10. **Shows:** `khalid lint` blocks a post and explains itself, and `khalid audit` scores the demo site 100.
@@ -752,29 +723,6 @@ Checked 2026-10-26 against Rank Math's pricing comparison table, 199 rows; the A
 | Content briefs and on-page scoring against the SERP | Content Helper, Content Grader | SEO Content Template, SEO Writing Assistant, On Page SEO Checker | SerpDad |
 | AI visibility and brand monitoring | Brand Radar | AI Toolkit, Brand Monitoring | SerpDad |
 | Local listings, social, advertising | | Listing Management, Social and Advertising toolkits | Not the CMS |
-
-### A.3 The Ahrefs blog, page by page
-
-Checked 2026-10-27 on ahrefs.com/blog: the home page, a post, a category page, an author page, the archive, the feed and the Japanese and Spanish editions.
-
-| Ahrefs blog | In the CMS | Where |
-|---|---|---|
-| Byline with avatar and job title, "Reviewed by" | Yes, added | 4.12 |
-| Date and reading time | Yes, reading time added | 4.12 |
-| Linking websites count per post | No. Backlink data is SerpDad's | 4.12 |
-| Sticky table of contents | Yes, added | 4.12 |
-| Copy link on headings | Yes, added | 4.12 |
-| Click to enlarge images | Yes, added | 4.12 |
-| Glossary definitions on hover | Yes | 5.1, 5.13 |
-| Author box, related posts, newsletter at the end | Yes, author box and related posts made default | 4.12, 5.6 |
-| Cards with author, date and categories | Yes, added | 4.12 |
-| Home page sections per category, topic links | Yes, added | 4.12 |
-| Category and author pages with pagination | Yes | 4.11 |
-| Team list, full archive | Yes, added | 4.12 |
-| Grouped menu, search with a shortcut | Yes, shortcut added | 4.12, Phase 4 |
-| Language editions, RSS | Yes | 5.2, 5.4 |
-| Canonical, hreflang, Open Graph, Article schema, lazy images | Yes | 5.2, 5.9, 4.10 |
-| Rotating promo banner, video and podcast cards | Announcement bar and video block yes; rotation and podcast cards no | 5.6, Phase 8 |
 
 Sources: Rank Math pricing comparison, https://rankmath.com/pricing/ . Ahrefs Site Audit, https://ahrefs.com/site-audit and https://help.ahrefs.com/en/collections/1539899-issues . Semrush Site Audit issues list, https://www.semrush.com/kb/542-site-audit-issues-list .
 

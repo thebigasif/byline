@@ -34,7 +34,9 @@ struct ServeBody<'a> {
 pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Output) -> Exit {
     let started = SitePages::new(site, config.clone()).and_then(|source| {
         let (pages, not_found) = source.render_all()?;
-        let pages = Pages::new(pages, not_found).map_err(|_| serve_message::internal())?;
+        // Brotli copies are added once the server listens, so the first
+        // reader does not wait for them (docs/standards/performance.md).
+        let pages = Pages::plain(pages, not_found).map_err(|_| serve_message::internal())?;
         Ok((source, pages))
     });
     let (source, pages) = match started {
@@ -59,6 +61,15 @@ pub(crate) fn run(site: &Path, config: &Config, listen: SocketAddr, output: Outp
             .map_err(|_| (serve_message::internal(), Exit::Internal))?;
         announce(output, config, &format!("http://{local}{}", config.mount()));
         let live = LivePages::new(pages);
+        let compressing = live.clone();
+        tokio::spawn(async move {
+            if let Err(error) = compressing.compress().await {
+                tracing::warn!(
+                    ?error,
+                    "pages could not be compressed, so they are sent plain"
+                );
+            }
+        });
         let watching = watch(site, &source, &live, WATCH_EVERY);
         let stopped = khalid_server::serve(listener, router(live, security), stop(), GRACE).await;
         watching.stop().await;
