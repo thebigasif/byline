@@ -1,5 +1,6 @@
-//! The Content API's authors, tags and categories over HTTP: each lists,
-//! filters and reads one entry by identity or slug, like the posts.
+//! The Content API's authors, tags, categories, collections and menus over
+//! HTTP: each lists, filters and reads one entry by identity or slug, like
+//! the posts.
 
 mod common;
 
@@ -69,7 +70,32 @@ async fn the_authors_list_in_the_order_the_store_gives() {
 }
 
 #[tokio::test]
-async fn the_list_parameters_apply_to_authors_tags_and_categories() {
+async fn collections_and_menus_carry_their_own_fields() {
+    let (_, _, json) = get("/api/content/v1/collections/en.posts/").await;
+    let posts = &json["collections"][0];
+    assert_eq!(posts["slug"], "posts");
+    assert_eq!(posts["title"], "Field notes on SEO");
+    assert_eq!(posts["description"], "Plain posts on search.");
+    assert_eq!(json["collections"].as_array().map(Vec::len), Some(1));
+    let (_, _, json) = get("/api/content/v1/navigation/").await;
+    assert_eq!(
+        each(&json, "navigation", "id"),
+        ["en.primary", "en.footer", "de.primary"]
+    );
+    let primary = &json["navigation"][0];
+    assert_eq!(primary["links"][0]["label"], "About");
+    assert_eq!(primary["links"][0]["url"], "/blog/about/");
+    assert_eq!(json["navigation"][1]["links"], serde_json::json!([]));
+    let (status, _, json) = get("/api/content/v1/collections/?filter=name:posts").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json["fix"],
+        "Use one of these fields: id, slug, title, language."
+    );
+}
+
+#[tokio::test]
+async fn the_list_parameters_apply_to_every_site_list() {
     let cases = [
         ("authors/?filter=language:de", "authors", vec!["de.asif"]),
         (
@@ -87,6 +113,16 @@ async fn the_list_parameters_apply_to_authors_tags_and_categories() {
             "categories",
             vec!["en.on-page-seo", "de.on-page-seo"],
         ),
+        (
+            "collections/?filter=language:en",
+            "collections",
+            vec!["en.posts", "en.glossary"],
+        ),
+        (
+            "navigation/?filter=slug:footer",
+            "navigation",
+            vec!["en.footer"],
+        ),
     ];
     for (query, key, want) in cases {
         let (status, _, json) = get(&format!("/api/content/v1/{query}")).await;
@@ -102,6 +138,8 @@ async fn one_entry_by_identity_or_slug() {
         ("authors/de.asif/", "authors", "de.asif"),
         ("tags/slug/links/", "tags", "en.links"),
         ("categories/de.on-page-seo/", "categories", "de.on-page-seo"),
+        ("collections/slug/glossary/", "collections", "en.glossary"),
+        ("navigation/de.primary/", "navigation", "de.primary"),
     ];
     for (path, key, id) in cases {
         let (status, _, json) = get(&format!("/api/content/v1/{path}")).await;
@@ -117,6 +155,8 @@ async fn a_missing_entry_is_a_404_and_a_wrong_field_a_400() {
         "authors/slug/nobody/",
         "tags/en.nothing/",
         "categories/slug/Not%20A%20Slug/",
+        "collections/de.glossary/",
+        "navigation/slug/sidebar/",
     ] {
         let uri = format!("/api/content/v1/{path}");
         let (status, media, json) = get(&uri).await;

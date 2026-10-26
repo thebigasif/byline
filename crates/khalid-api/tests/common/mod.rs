@@ -3,7 +3,9 @@
 
 use chrono::{TimeZone, Utc};
 use khalid_api::content_store::{MemoryContentStore, SiteResources};
-use khalid_api::resources::{Author, Bodies, Collection, Post, Term};
+use khalid_api::resources::{
+    Author, Bodies, Collection, ContentCollection, Menu, MenuLink, Post, Term,
+};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 
 /// A demo post: slug, title, publish month and day in 2026, tags.
@@ -99,7 +101,7 @@ pub(crate) fn store() -> MemoryContentStore {
 }
 
 /// The demo site's authors in both languages, the tags the demo posts above
-/// carry, and two categories, one of them in both languages.
+/// carry, two categories, the collections, and a header and footer menu.
 #[cfg(test)]
 fn site() -> SiteResources {
     let (en, de) = (
@@ -124,7 +126,23 @@ fn site() -> SiteResources {
         .with_tags(tags)
         .with_categories(vec![
             Term::new(slug("on-page-seo"), "On-page SEO", en.clone()),
-            Term::new(slug("content-strategy"), "Content strategy", en),
-            Term::new(slug("on-page-seo"), "On-Page-SEO", de),
+            Term::new(slug("content-strategy"), "Content strategy", en.clone()),
+            Term::new(slug("on-page-seo"), "On-Page-SEO", de.clone()),
+        ])
+        .with_collections(vec![
+            ContentCollection::new(slug("posts"), en.clone())
+                .with_title("Field notes on SEO")
+                .with_description("Plain posts on search."),
+            ContentCollection::new(slug("glossary"), en.clone()),
+            ContentCollection::new(slug("posts"), de.clone()),
+        ])
+        .with_menus(vec![
+            Menu::new(slug("primary"), en.clone()).with_links(vec![
+                MenuLink::new("About", "/blog/about/"),
+                MenuLink::new("SerpDad", "https://serpdad.com/"),
+            ]),
+            Menu::new(slug("footer"), en),
+            Menu::new(slug("primary"), de)
+                .with_links(vec![MenuLink::new("Über uns", "/blog/de/ueber-uns/")]),
         ])
 }
