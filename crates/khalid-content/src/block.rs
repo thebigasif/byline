@@ -3,7 +3,7 @@
 use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 
-use crate::directive::{BLOCKS, directive, opening};
+use crate::directive::{BLOCKS, Form, directive, opening};
 
 /// One top-level block of a body, with its markdown exactly as written.
 ///
@@ -58,6 +58,21 @@ pub enum BlockKind {
         /// The text that describes the image.
         alt: String,
     },
+    /// `:::toggle{summary="..."}`: a body a reader opens by clicking the
+    /// summary. It works with scripts off.
+    Toggle {
+        /// The line a reader clicks.
+        summary: String,
+    },
+    /// `::toc`: a list of the body's headings, linked.
+    Toc,
+    /// `::button{href="..." label="..."}`: a link styled as a button.
+    Button {
+        /// Where it leads.
+        href: String,
+        /// The words on the button.
+        label: String,
+    },
 }
 
 /// The kinds of callout.
@@ -76,7 +91,7 @@ pub enum CalloutKind {
 #[non_exhaustive]
 pub enum BlockError {
     /// A directive name Khalid does not know.
-    #[error("line {line}: there is no block called {name}; the blocks are {}", BLOCKS.join(" and "))]
+    #[error("line {line}: there is no block called {name}; the blocks are {}", BLOCKS.join(", "))]
     UnknownBlock {
         /// The line of the opening `:::`.
         line: usize,
@@ -118,6 +133,25 @@ pub enum BlockError {
         line: usize,
         /// The kind as written.
         kind: String,
+    },
+    /// A block written as a container when it is a one-line leaf, or the
+    /// other way round.
+    #[error("line {line}: {problem}")]
+    Form {
+        /// The line of the block.
+        line: usize,
+        /// Which form to use instead, in a sentence.
+        problem: String,
+    },
+    /// A button whose link could run a script or leave the web.
+    #[error(
+        "line {line}: a button links to a page, a #section, https:, http: or mailto:, not {href}"
+    )]
+    Link {
+        /// The line of the block.
+        line: usize,
+        /// The link as written.
+        href: String,
     },
     /// An opening `:::` with no closing `:::`.
     #[error("line {line}: the {name} block opened here is never closed with a ::: line")]
@@ -161,6 +195,18 @@ pub fn parse_blocks(body: &str) -> Result<Vec<Block>, BlockError> {
                     .take_while(|&c| c == '`' || c == '~')
                     .collect(),
             );
+        } else if let Some(("::", rest)) = opening(line) {
+            blocks.extend(markdown_blocks(
+                lines.get(run_start..index).unwrap_or_default(),
+            ));
+            let kind = directive(index.saturating_add(1), rest, Form::Leaf)?;
+            blocks.push(Block {
+                kind,
+                source: line.trim_end().to_owned(),
+            });
+            index = index.saturating_add(1);
+            run_start = index;
+            continue;
         } else if let Some((colons, rest)) = opening(line) {
             blocks.extend(markdown_blocks(
                 lines.get(run_start..index).unwrap_or_default(),
@@ -178,7 +224,7 @@ pub fn parse_blocks(body: &str) -> Result<Vec<Block>, BlockError> {
                     name,
                 });
             };
-            let kind = directive(line_number, rest)?;
+            let kind = directive(line_number, rest, Form::Container)?;
             let source = lines.get(index..=close).unwrap_or_default().join("\n");
             blocks.push(Block { kind, source });
             index = close.saturating_add(1);

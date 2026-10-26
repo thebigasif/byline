@@ -96,7 +96,11 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
     for block in &blocks {
         if matches!(
             block.kind,
-            BlockKind::Callout { .. } | BlockKind::Figure { .. }
+            BlockKind::Callout { .. }
+                | BlockKind::Figure { .. }
+                | BlockKind::Toggle { .. }
+                | BlockKind::Toc
+                | BlockKind::Button { .. }
         ) {
             renderer.markdown(&run.join("\n\n"));
             run.clear();
@@ -111,8 +115,13 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
         .state
         .into_inner()
         .unwrap_or_else(PoisonError::into_inner);
+    let html = if renderer.html.contains(TOC_MARK) {
+        renderer.html.replace(TOC_MARK, &contents(&state.headings))
+    } else {
+        renderer.html
+    };
     Ok(Rendered {
-        html: renderer.html,
+        html,
         headings: state.headings,
         links: renderer.facts.links,
         images: renderer.facts.images,
@@ -157,6 +166,26 @@ impl Renderer {
                 self.markdown(&inside(&block.source));
                 self.html.push_str("</figcaption>\n</figure>\n");
             }
+            BlockKind::Toggle { summary } => {
+                self.push(&["<details>\n<summary>", &attribute(summary), "</summary>\n"]);
+                self.markdown(&inside(&block.source));
+                self.html.push_str("</details>\n");
+            }
+            BlockKind::Toc => self.html.push_str(TOC_MARK),
+            BlockKind::Button { href, label } => {
+                self.push(&[
+                    "<p><a class=\"button\" href=\"",
+                    &attribute(href),
+                    "\">",
+                    &attribute(label),
+                    "</a></p>\n",
+                ]);
+                self.facts.links.push(Link {
+                    internal: !href.contains(':'),
+                    href: href.clone(),
+                    text: label.clone(),
+                });
+            }
             _ => {}
         }
     }
@@ -196,6 +225,30 @@ impl Renderer {
             }
         }
     }
+}
+
+/// Where `::toc` goes until the headings are known. Raw HTML in markdown is
+/// escaped, so no post can write this comment itself.
+const TOC_MARK: &str = "<!--khalid-toc-->\n";
+
+/// The list of `headings`, linked, for `::toc`.
+fn contents(headings: &[Heading]) -> String {
+    let mut html = String::from("<nav class=\"toc\" aria-label=\"Contents\">\n<ol>\n");
+    for heading in headings {
+        for part in [
+            "<li class=\"toc-h",
+            &heading.level.to_string(),
+            "\"><a href=\"#",
+            &attribute(&heading.id),
+            "\">",
+            &attribute(&heading.text),
+            "</a></li>\n",
+        ] {
+            html.push_str(part);
+        }
+    }
+    html.push_str("</ol>\n</nav>\n");
+    html
 }
 
 /// The body of a directive: every line between its opening and closing `:::`.
