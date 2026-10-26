@@ -16,8 +16,14 @@ const READABLE: f64 = 4.5;
 /// Selectors whose rules set the page's own background and text colour.
 const PAGE: [&str; 3] = ["body", "html", ":root"];
 
-/// Selectors whose rules set the colour of links at rest.
-const LINKS: [&str; 3] = ["a", "a:link", "a:any-link"];
+/// Selectors whose rules set the colour of links at rest. The last is the
+/// one `WordPress` block themes print for every link that is not a button.
+const LINKS: [&str; 4] = [
+    "a",
+    "a:link",
+    "a:any-link",
+    "a:where(:not(.wp-element-button))",
+];
 
 /// Words in a property name that mark a variant, not the colour itself:
 /// `--link-hover`, `--primary-light`, `--bs-primary-rgb`.

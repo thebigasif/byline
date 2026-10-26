@@ -17,6 +17,7 @@ mod fonts;
 mod links;
 mod palette;
 mod properties;
+mod site_theme;
 mod split;
 
 pub use brand::Brand;
@@ -29,3 +30,4 @@ pub use fonts::{FontHost, FontSource, Typography};
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
 pub use palette::Palette;
 pub use properties::CustomProperties;
+pub use site_theme::SiteTheme;

@@ -189,7 +189,7 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 
 ### 3.2 Extract the tokens
 
-- Status: `doing`. Part 1: reading CSS colour values and their WCAG contrast. Part 2: the CSS reader and custom properties, light scheme only. Part 3: the four colours from rules, named properties and frequency. Part 4: the body and heading fonts and where each font comes from. Part 5 (this pull request): the name, logo, share image and icons. Next: all of it from one fetched site, with fixtures.
+- Status: `done` after this landing. Part 1: CSS colour values and WCAG contrast. Part 2: the CSS reader and custom properties, light scheme only. Part 3: the four colours from rules, named properties and frequency. Part 4: the body and heading fonts and where each comes from. Part 5: the name, logo, share image and icons. Part 6 (this pull request): all of it from one fetched site, end to end on three fixture sites.
 - CSS custom properties, `@font-face` rules and Google Fonts links; the background, text, link and accent colours by frequency and contrast; the logo from `og:image` and the header image; the icon links.
 - Done when: fixtures of saved real-world CSS each give the expected tokens.
 
