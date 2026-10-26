@@ -1,0 +1,38 @@
+---
+source: crates/khalid-seo/tests/feed_atom.rs
+expression: demo_feed().to_atom().unwrap()
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+  <title>Field Notes on SEO</title>
+  <subtitle>Plain advice on search for small teams</subtitle>
+  <id>https://www.example.com/blog/</id>
+  <link rel="alternate" type="text/html" href="https://www.example.com/blog/"/>
+  <link rel="self" type="application/atom+xml" href="https://www.example.com/blog/atom.xml"/>
+  <updated>2026-10-02T16:00:00Z</updated>
+  <author>
+    <name>Field Notes on SEO</name>
+  </author>
+  <entry>
+    <title>Warum interne Links wichtig sind</title>
+    <id>https://www.example.com/blog/warum-interne-links-wichtig-sind/</id>
+    <link rel="alternate" type="text/html" href="https://www.example.com/blog/warum-interne-links-wichtig-sind/"/>
+    <published>2026-09-21T08:00:00Z</published>
+    <updated>2026-09-21T08:00:00Z</updated>
+    <summary>Interne Links helfen Lesern und Suchmaschinen, den Rest Ihrer Website zu finden.</summary>
+    <content type="html"></content>
+  </entry>
+  <entry>
+    <title>Why internal links matter</title>
+    <id>https://www.example.com/blog/why-internal-links-matter/</id>
+    <link rel="alternate" type="text/html" href="https://www.example.com/blog/why-internal-links-matter/"/>
+    <published>2026-09-14T08:00:00Z</published>
+    <updated>2026-10-02T16:00:00Z</updated>
+    <author>
+      <name>Asif</name>
+    </author>
+    <category term="On-page SEO"/>
+    <summary>Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.</summary>
+    <content type="html">&lt;p&gt;Link from &lt;em&gt;old&lt;/em&gt; posts to new ones.&lt;/p&gt;</content>
+  </entry>
+</feed>

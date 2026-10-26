@@ -1,0 +1,12 @@
+---
+source: crates/khalid-seo/tests/html_sitemap.rs
+expression: outline(&sitemap)
+---
+Posts
+  anchor text, plainly <https://www.example.com/blog/anchor-text/>
+  Why internal links matter <https://www.example.com/blog/why-internal-links-matter/>
+Pages
+  About <https://www.example.com/blog/about/>
+  Field Notes on SEO <https://www.example.com/blog/>
+Archives
+  Links <https://www.example.com/blog/tag/links/>

@@ -1,0 +1,47 @@
+---
+source: crates/khalid-seo/tests/schema_site.rs
+expression: site_graph(&demo_company_site()).unwrap().to_json()
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://www.example.com/blog/#organization",
+      "name": "SerpDad",
+      "url": "https://www.example.com/blog/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://www.example.com/blog/media/logo.png",
+        "width": 512,
+        "height": 512,
+        "caption": "The SerpDad logo"
+      },
+      "sameAs": [
+        "https://www.linkedin.com/company/serpdad"
+      ],
+      "email": "hello@serpdad.com",
+      "telephone": "+44 20 7946 0000",
+      "foundingDate": "2024-05-01"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://www.example.com/blog/#website",
+      "name": "Field Notes on SEO",
+      "url": "https://www.example.com/blog/",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://www.example.com/blog/#organization"
+      },
+      "description": "Plain advice on search for small teams",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://www.example.com/blog/search/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+---
+source: crates/khalid-seo/tests/schema_video_review.rs
+expression: "SchemaGraph::new(blocks).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "VideoObject",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#video-1",
+      "name": "Internal links in five minutes",
+      "description": "A short walk through adding internal links to an older post.",
+      "thumbnailUrl": "https://www.example.com/blog/media/internal-links-thumb.jpg",
+      "uploadDate": "2026-09-12T10:00:00Z",
+      "duration": "PT5M12S",
+      "embedUrl": "https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ"
+    },
+    {
+      "@type": "Review",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#review-2",
+      "itemReviewed": {
+        "@type": "SoftwareApplication",
+        "name": "Screaming Frog SEO Spider",
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": 4.6,
+          "bestRating": 5.0,
+          "worstRating": 0,
+          "ratingCount": 212
+        }
+      },
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 4.5,
+        "bestRating": 5.0,
+        "worstRating": 0
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Asif"
+      },
+      "reviewBody": "Finds every orphan page in minutes. The interface takes a day to learn."
+    }
+  ]
+}

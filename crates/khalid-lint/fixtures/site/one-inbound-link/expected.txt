@@ -1,0 +1,2 @@
+de/anchor-text-basics: warn orphan-post
+en/anchor-text-basics: warn one-inbound-link: choosing-link-text
