@@ -1,0 +1,8 @@
+/* Shaped like a Bootstrap 5 build with the theme's own variables and an
+   Adobe Fonts family. */
+:root,[data-bs-theme=light]{--bs-blue:#0d6efd;--bs-pink:#d6336c;--bs-primary:#d6336c;--bs-primary-rgb:214,51,108;--bs-body-font-family:proxima-nova,"Helvetica Neue",Arial,sans-serif;--bs-body-color:#212529;--bs-body-bg:#fff;--bs-secondary-bg:#e9ecef;--bs-link-color:#c2255c;--bs-link-hover-color:#9b1e4a;--bs-border-radius:.375rem}
+[data-bs-theme=dark]{--bs-body-color:#dee2e6;--bs-body-bg:#212529}
+body{margin:0;font-family:var(--bs-body-font-family);color:var(--bs-body-color);background-color:var(--bs-body-bg)}
+a{color:var(--bs-link-color);text-decoration:underline}
+a:hover{color:var(--bs-link-hover-color)}
+.btn-primary{--bs-btn-bg:#d6336c;--bs-btn-color:#fff}

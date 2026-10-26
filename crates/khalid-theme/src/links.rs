@@ -59,9 +59,6 @@ pub enum SkipReason {
     Status(u16),
     /// The request did not complete.
     Unreachable,
-    /// It is for print, for a dark colour scheme, or an alternate style the
-    /// reader must pick, so its colours are not the ones a visitor sees.
-    NotForScreen,
 }
 
 /// Lists the stylesheet links and `<style>` elements of the page `html`,
@@ -69,9 +66,8 @@ pub enum SkipReason {
 ///
 /// Links resolve against `<base href>` when the page has one. A link is
 /// [`PageStyle::Linked`] only when it is an `http` or `https` address on the
-/// same site as `home` (ADR 0015) and is for the light screen view: not
-/// `rel="alternate"`, and with a `media` list a light screen matches.
-/// Every other link is [`PageStyle::Skipped`] with the reason.
+/// same site as `home` (ADR 0012); every other link is
+/// [`PageStyle::Skipped`] with the reason.
 pub fn page_styles(html: &str, home: &AbsoluteUrl) -> Vec<PageStyle> {
     let Ok(home) = Url::parse(home.as_str()) else {
         return Vec::new();
@@ -87,19 +83,8 @@ pub fn page_styles(html: &str, home: &AbsoluteUrl) -> Vec<PageStyle> {
             if element.value().name() == "style" {
                 return Some(PageStyle::Inline(element.text().collect()));
             }
-            let rel = element.attr("rel")?;
             let href = element.attr("href")?;
-            if !has_rel(rel, &["stylesheet"]) {
-                return None;
-            }
-            let shown =
-                !has_rel(rel, &["alternate"]) && element.attr("media").is_none_or(light_screen);
-            Some(match link(&home, &base, href) {
-                PageStyle::Linked(url) if !shown => {
-                    PageStyle::Skipped(Skipped::new(url.as_str(), SkipReason::NotForScreen))
-                }
-                style => style,
-            })
+            has_rel(element.attr("rel")?, &["stylesheet"]).then(|| link(&home, &base, href))
         })
         .collect()
 }
@@ -121,22 +106,6 @@ pub(crate) fn base_address(document: &Html, home: &Url) -> Url {
 pub(crate) fn has_rel(rel: &str, wanted: &[&str]) -> bool {
     rel.split_ascii_whitespace()
         .any(|token| wanted.iter().any(|w| token.eq_ignore_ascii_case(w)))
-}
-
-/// Whether a `media` list matches a light screen: one of its queries is not
-/// for print or speech and does not ask for a dark colour scheme.
-fn light_screen(media: &str) -> bool {
-    media.split(',').any(|query| {
-        let query: String = query
-            .chars()
-            .filter(|c| !c.is_whitespace())
-            .flat_map(char::to_lowercase)
-            .collect();
-        !(query.starts_with("print")
-            || query.starts_with("speech")
-            || query.starts_with("notscreen")
-            || query.contains("prefers-color-scheme:dark"))
-    })
 }
 
 /// Resolves one stylesheet link against the page's base address.

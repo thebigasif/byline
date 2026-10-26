@@ -2111,8 +2111,11 @@ dependencies = [
  "khalid-core",
  "khalid-outbound",
  "scraper",
+ "serde",
+ "tempfile",
  "thiserror",
  "tokio",
+ "toml",
  "url",
  "wiremock",
 ]
