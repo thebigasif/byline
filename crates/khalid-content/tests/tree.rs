@@ -1,6 +1,7 @@
 //! The content tree: language folders, collections, posts as files or as
 //! folders with their assets, `_index.md`, sorted order and content hashes.
 
+use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -141,6 +142,21 @@ fn the_hash_follows_the_text() {
     assert_eq!(hash(POST), hash(POST));
     assert_ne!(hash(POST), hash(b"---\ntitle: B\n---\nText.\n"));
     assert_eq!(hash(POST).to_string().len(), 64, "a hex SHA-256");
+}
+
+#[test]
+fn the_hash_bytes_match_its_hex_form() {
+    let dir = site(&[("content/en/posts/a.md", POST)]);
+    let hash = walk(dir.path()).languages()[0]
+        .collection("posts")
+        .unwrap()
+        .entries()[0]
+        .hash();
+    let mut hex = String::new();
+    for byte in hash.as_bytes() {
+        write!(hex, "{byte:02x}").unwrap();
+    }
+    assert_eq!(hex, hash.to_string());
 }
 
 #[test]
