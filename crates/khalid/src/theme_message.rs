@@ -81,6 +81,35 @@ pub(crate) fn tokens(error: &TokensError) -> UserMessage {
     }
 }
 
+/// Turns a failure to read the `theme/tokens.toml` already in the site into
+/// what, why and fix. A token that is missing or misspelt is a mistake on
+/// its line.
+pub(crate) fn read(error: &TokensError) -> UserMessage {
+    match error {
+        TokensError::Parse { line, source } => {
+            let at = line.map_or_else(String::new, |line| format!(" on line {line}"));
+            let detail = source.to_string();
+            let detail = detail.lines().rfind(|l| !l.trim().is_empty());
+            UserMessage::new(
+                format!(
+                    "theme/tokens.toml has a mistake{at}: {}.",
+                    detail.unwrap_or("a value the blog cannot read")
+                ),
+                "Each of the twelve tokens must be there with a value the blog can use, so Khalid changed nothing.",
+                "Fix that line, or delete the file to take every value from the main site again, then run it again.",
+            )
+        }
+        TokensError::Path {
+            source: SitePathError::EscapesRoot { .. },
+        } => tokens(error),
+        _ => UserMessage::new(
+            "Khalid could not read theme/tokens.toml.",
+            "It holds the values you set by hand, so Khalid changed nothing.",
+            "Check that theme in the site folder is a folder you can read and write, then run it again.",
+        ),
+    }
+}
+
 /// The message when the web client or the runtime cannot start.
 pub(crate) fn internal() -> UserMessage {
     UserMessage::new(

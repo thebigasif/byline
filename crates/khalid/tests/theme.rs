@@ -17,6 +17,9 @@ const HOME: &str = r#"<!doctype html><html><head><title>Northwind Bakery</title>
 /// A warm theme whose pale amber link is too faint to read on the page.
 const STYLE: &str = "body { background: #fbf8f3; color: #2b2118; }\na { color: #f0c040; }\n";
 
+/// The same site after a redesign: darker text and a blue link.
+const RESTYLED: &str = "body { background: #fbf8f3; color: #1b1b1f; }\na { color: #2255aa; }\n";
+
 /// The host name the binary resolves to the stand-in, through the test hook.
 const HOST: &str = "bakery.test";
 
@@ -229,8 +232,11 @@ async fn a_file_in_the_way_of_the_theme_folder_is_named() {
 
     assert_eq!(output.status.code(), Some(1));
     let said = text(&output.stderr);
-    assert!(said.contains("could not save the theme"), "{said}");
-    assert!(said.contains("keeps its old colours"), "{said}");
+    assert!(said.contains("could not read theme/tokens.toml"), "{said}");
+    assert!(
+        said.contains("is a folder you can read and write"),
+        "{said}"
+    );
 }
 
 #[cfg(unix)]
@@ -268,4 +274,87 @@ async fn sync_needs_a_site_folder_and_a_web_address() {
     assert_eq!(output.status.code(), Some(2));
     let what = json(&output)["error"]["what"].as_str().unwrap().to_owned();
     assert!(what.contains("needs a site folder"), "{what}");
+}
+
+/// Sets `colors.link` by hand in the site's tokens file and locks it.
+#[cfg(test)]
+fn lock_link(site: &Path, value: &str) {
+    let file = within(site, "theme/tokens.toml");
+    let text = fs::read_to_string(&file).unwrap();
+    let edited: Vec<String> = text
+        .lines()
+        .map(|line| {
+            if line.starts_with("link = ") {
+                format!("link = \"{value}\"")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect();
+    let locked = format!("locked = [\"colors.link\"]\n{}\n", edited.join("\n"));
+    fs::write(&file, locked).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_sync_keeps_the_locked_hand_edit_and_lists_what_changed() {
+    let site = site();
+    let (_before, home) = stand_in(HOME, Some(STYLE)).await;
+    let first = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+    assert_eq!(first.status.code(), Some(0), "{}", text(&first.stderr));
+    lock_link(site.path(), "#123456");
+    let (_after, home) = stand_in(HOME, Some(RESTYLED)).await;
+
+    let output = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(
+        said.contains("colors.text changed from #2b2118 to #1b1b1f."),
+        "{said}"
+    );
+    assert!(
+        said.contains(
+            "colors.link stays #123456, because it is locked. The site now uses #2255aa."
+        ),
+        "{said}"
+    );
+    let tokens = fs::read_to_string(within(site.path(), "theme/tokens.toml")).unwrap();
+    assert!(tokens.contains("link = \"#123456\""), "{tokens}");
+    assert!(tokens.contains("text = \"#1b1b1f\""), "{tokens}");
+    assert!(tokens.contains("locked = [\"colors.link\"]"), "{tokens}");
+
+    let args = ["--json", "theme", "sync", home.as_str()];
+    let again = json(&khalid(site.path(), &args, Names::StandIn).await);
+    let changes = again["changes"].as_array().unwrap();
+    assert_eq!(changes.len(), 1, "{again}");
+    assert_eq!(changes[0]["token"], "colors.link");
+    assert_eq!(changes[0]["kept"], true);
+    assert_eq!(changes[0]["file"], "#123456");
+    assert_eq!(changes[0]["site"], "#2255aa");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_tokens_file_with_a_token_missing_is_left_as_it_is() {
+    let site = site();
+    let (_server, home) = stand_in(HOME, Some(STYLE)).await;
+    let first = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+    assert_eq!(first.status.code(), Some(0), "{}", text(&first.stderr));
+    let file = within(site.path(), "theme/tokens.toml");
+    let text_before = fs::read_to_string(&file).unwrap();
+    let broken: Vec<&str> = text_before
+        .lines()
+        .filter(|line| !line.starts_with("link = "))
+        .collect();
+    fs::write(&file, broken.join("\n")).unwrap();
+
+    let output = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(
+        said.contains("theme/tokens.toml has a mistake on line"),
+        "{said}"
+    );
+    assert!(said.contains("link"), "{said}");
+    assert_eq!(fs::read_to_string(&file).unwrap(), broken.join("\n"));
 }
