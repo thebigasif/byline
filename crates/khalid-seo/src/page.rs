@@ -1,6 +1,6 @@
 //! [`SeoPage`]: what the SEO outputs need to know about one page.
 
-use khalid_core::Locale;
+use khalid_core::{AbsoluteUrl, Locale};
 
 use crate::{MetaTemplate, RobotsDirectives, UrlPath};
 
@@ -58,6 +58,8 @@ pub struct SeoPage {
     pub seo_title: Option<MetaTemplate>,
     /// A description template for this page alone.
     pub seo_description: Option<MetaTemplate>,
+    /// The canonical address when it is not this page, such as the original of a syndicated post.
+    pub canonical: Option<AbsoluteUrl>,
     /// Robots directives for this page alone, in place of the site's index policy.
     pub robots: Option<RobotsDirectives>,
     /// For an archive, how many posts it lists. A thin archive is not indexed.
@@ -77,6 +79,7 @@ impl SeoPage {
             author: None,
             seo_title: None,
             seo_description: None,
+            canonical: None,
             robots: None,
             item_count: None,
         }
