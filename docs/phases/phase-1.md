@@ -195,6 +195,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.1 The rule engine
 
+- Status: `done` after this landing. Part 1 (#106): the crate and its input model. Part 2 (#111): the message catalogue and the messages test. Part 3 (#112): severities, the rule trait and `lint.toml`. Part 4 (this landing): the engine, its findings and its report.
 - Status: `doing`. Part 1 (#106): the crate and its input model. Part 2 (#111): the message catalogue and the messages test. Part 3 (this landing): severities, the rule trait and `lint.toml`. Part 4: the engine, its findings and its report.
 - Status: `doing`. Part 1 (#106): the crate and its input model. Part 2 (this landing): the message catalogue and the messages test. Part 3: severities and `lint.toml`. Part 4: the rule trait and the engine.
 - Status: `doing`. Part 1 (this landing): the crate and its input model. Part 2: the message catalogue and the messages test. Part 3: severities and `lint.toml`. Part 4: the rule trait and the engine.
