@@ -1,0 +1,46 @@
+---
+source: crates/khalid-seo/tests/schema_howto.rs
+expression: "SchemaGraph::new(vec![node]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "HowTo",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#howto-1",
+      "name": "Add internal links to an old post",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "Find the post",
+          "text": "Open the post that gets the most visits."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "Pick three newer posts",
+          "text": "Choose posts on the same topic."
+        }
+      ],
+      "tool": [
+        {
+          "@type": "HowToTool",
+          "name": "A site search"
+        }
+      ],
+      "supply": [
+        {
+          "@type": "HowToSupply",
+          "name": "A list of your posts"
+        }
+      ],
+      "totalTime": "PT15M",
+      "estimatedCost": {
+        "@type": "MonetaryAmount",
+        "currency": "GBP",
+        "value": "0.00"
+      }
+    }
+  ]
+}

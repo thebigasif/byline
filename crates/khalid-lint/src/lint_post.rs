@@ -19,12 +19,26 @@ pub struct LintPost {
     pub locale: Locale,
     /// The last part of the post's address.
     pub slug: Slug,
+    /// The post's path on the site, such as `/blog/why-links-matter/`, when
+    /// the caller knows it. Links then find the post by path; without it,
+    /// by the last part of the link matching the slug.
+    pub path: Option<String>,
     /// The title from the header, which becomes the page's main headline.
     pub title: Option<String>,
+    /// The description from the header, which search results show under the
+    /// title.
+    pub description: Option<String>,
     /// The publish date from the header, written `2026-10-26` in JSON or TOML.
     pub date: Option<NaiveDate>,
+    /// The date of the last real update, from the header.
+    pub updated: Option<NaiveDate>,
     /// The author from the header.
     pub author: Option<String>,
+    /// The `translation` key from the header, shared by every language
+    /// version of the same post.
+    pub translation: Option<String>,
+    /// The topic group the post belongs to, and its role in it.
+    pub cluster: Option<Cluster>,
     /// The headings in the body, in order. The title is not one of them.
     #[serde(default)]
     pub headings: Vec<Heading>,
@@ -34,6 +48,9 @@ pub struct LintPost {
     /// The images in the body, in order.
     #[serde(default)]
     pub images: Vec<Image>,
+    /// The targets of the `[[slug]]` links in the body, as written, in order.
+    #[serde(default)]
+    pub wikilinks: Vec<String>,
     /// How many words the body holds.
     #[serde(default)]
     pub word_count: usize,
@@ -48,16 +65,54 @@ impl LintPost {
         Self {
             locale,
             slug,
+            path: None,
             title: None,
+            description: None,
             date: None,
+            updated: None,
             author: None,
+            translation: None,
+            cluster: None,
             headings: Vec::new(),
             links: Vec::new(),
             images: Vec::new(),
+            wikilinks: Vec::new(),
             word_count: 0,
             body_text: String::new(),
         }
     }
+}
+
+/// A topic group, often called a cluster: one main post, the pillar, and the
+/// posts around it that link to it.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct Cluster {
+    /// The group's name, the same on every post in it.
+    pub name: String,
+    /// Whether this post is the group's main post.
+    pub role: ClusterRole,
+}
+
+impl Cluster {
+    /// A place in the group `name` with `role`.
+    pub fn new(name: impl Into<String>, role: ClusterRole) -> Self {
+        Self {
+            name: name.into(),
+            role,
+        }
+    }
+}
+
+/// A post's role in its topic group, written `pillar` or `member`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ClusterRole {
+    /// The group's main post, which covers the topic as a whole.
+    Pillar,
+    /// A post on one part of the topic, which links to the pillar.
+    Member,
 }
 
 /// A heading in a post's body.
@@ -97,6 +152,20 @@ pub enum HeadingLevel {
     H5,
     /// `######`
     H6,
+}
+
+impl HeadingLevel {
+    /// The level as a number from 1 to 6, as in `h1` to `h6`.
+    pub const fn number(self) -> u8 {
+        match self {
+            Self::H1 => 1,
+            Self::H2 => 2,
+            Self::H3 => 3,
+            Self::H4 => 4,
+            Self::H5 => 5,
+            Self::H6 => 6,
+        }
+    }
 }
 
 /// Whether a link stays on this site, written `internal` or `external` in
