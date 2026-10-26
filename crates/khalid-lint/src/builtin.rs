@@ -1,6 +1,6 @@
 //! The list of rules this crate ships.
 
-use crate::{Rule, Thresholds, blocking, link_text, structure};
+use crate::{Rule, Thresholds, blocking, link_text, snippet, structure};
 
 /// Every built-in rule, measured against `thresholds`, in the order their
 /// findings are listed: the blocks first, then the warnings.
@@ -11,6 +11,15 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(blocking::NoDate),
         Box::new(blocking::NoAuthor),
         Box::new(blocking::NoInternalLink),
+        Box::new(snippet::LongTitle {
+            max: thresholds.title_max_chars,
+        }),
+        Box::new(snippet::DuplicateTitle),
+        Box::new(snippet::NoDescription),
+        Box::new(snippet::LongDescription {
+            max: thresholds.description_max_chars,
+        }),
+        Box::new(snippet::DuplicateDescription),
         Box::new(structure::HeadingOrder),
         Box::new(structure::MissingAlt),
         Box::new(structure::ThinPost {

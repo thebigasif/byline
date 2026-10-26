@@ -5,12 +5,45 @@
 //! by `: <subject>` when the finding names a link, image or phrase. An
 //! optional `site.toml` holds the rest of the site. Every rule in the
 //! catalogue must have at least one fixture.
+//!
+//! A `post.toml` with `extends = "clean"` starts from `fixtures/clean/` and
+//! writes only what differs: its keys replace the clean post's, and the keys
+//! listed in `unset` are removed.
 
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
 use khalid_lint::{Catalogue, Finding, LintConfig, LintPost, LintSite, Linter, Severity};
+use toml::Table;
+
+#[cfg(test)]
+fn fixture_file(folder: &Path, name: &str) -> std::io::Result<String> {
+    let mut path = folder.to_path_buf();
+    path.push(name);
+    fs::read_to_string(path)
+}
+
+/// The post in `folder`, with `extends` and `unset` applied.
+#[cfg(test)]
+fn post_table(folder: &Path) -> Table {
+    let mut own: Table = toml::from_str(&fixture_file(folder, "post.toml").unwrap()).unwrap();
+    let Some(base) = own.remove("extends") else {
+        return own;
+    };
+    let mut base_folder = folder.to_path_buf();
+    base_folder.pop();
+    base_folder.push(base.as_str().unwrap());
+    let mut post = post_table(&base_folder);
+    let unset = own
+        .remove("unset")
+        .map(|keys| keys.try_into::<Vec<String>>().unwrap());
+    for key in unset.unwrap_or_default() {
+        post.remove(&key);
+    }
+    post.extend(own);
+    post
+}
 
 #[cfg(test)]
 fn line(finding: &Finding) -> String {
@@ -27,12 +60,9 @@ fn line(finding: &Finding) -> String {
 
 #[cfg(test)]
 fn run(folder: &Path, linter: &Linter) -> (Vec<String>, Vec<String>) {
-    let read = |name: &str| {
-        let mut path = folder.to_path_buf();
-        path.push(name);
-        fs::read_to_string(path)
-    };
-    let post: LintPost = toml::from_str(&read("post.toml").unwrap())
+    let read = |name: &str| fixture_file(folder, name);
+    let post: LintPost = post_table(folder)
+        .try_into()
         .unwrap_or_else(|error| panic!("{}: {error}", folder.display()));
     let mut site: LintSite = read("site.toml")
         .map(|text| toml::from_str(&text).unwrap())

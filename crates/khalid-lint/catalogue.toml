@@ -87,3 +87,33 @@ what = "This post links to no other website."
 why = "Links to good sources show readers and Google where your facts come from."
 fix = "Add a link to a trusted source that backs up a claim in the post."
 guide = "citing-sources"
+
+[no-description]
+what = "This post has no description."
+why = "Search results show a description under the title, so without one Google picks any sentence."
+fix = "Add `description:` to the header with one sentence that sums up the post."
+guide = "descriptions"
+
+[long-title]
+what = "This post's title is longer than search results can show."
+why = "Google cuts long titles short, so readers may not see the end of yours."
+fix = "Shorten the title and keep the words that matter most at the start."
+guide = "post-titles"
+
+[long-description]
+what = "This post's description is longer than search results can show."
+why = "Google cuts long descriptions short, so the end of yours may never be read."
+fix = "Shorten the description to one or two short sentences."
+guide = "descriptions"
+
+[duplicate-title]
+what = "Another post on this site has the same title."
+why = "Google may show only one of the two, and readers cannot tell them apart."
+fix = "Change the title so it says what makes this post different."
+guide = "post-titles"
+
+[duplicate-description]
+what = "Another post on this site has the same description."
+why = "A shared description makes two posts look the same in search results."
+fix = "Rewrite the description so it sums up this post alone."
+guide = "descriptions"

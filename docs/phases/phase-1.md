@@ -202,7 +202,7 @@ The linter depends on nothing in progress, so it is built now, in parallel, from
 
 ### 2.4 The structure rules
 
-- Status: `doing`. Part 1 (#129): the `[thresholds]` table in `lint.toml`, starting with the link limit from 2.3. Part 2 (this landing, with `thin-post-words`): heading order, missing image descriptions, thin post, no outbound link. Part 3: title and description length and duplicates, keyword stuffing, slug hygiene, broken wikilinks.
+- Status: `doing`. Part 1 (#129): the `[thresholds]` table in `lint.toml`, starting with the link limit from 2.3. Part 2 (#131, with `thin-post-words`): heading order, missing image descriptions, thin post, no outbound link. Part 3 (this landing): a missing description, title and description length and duplicates in the same language. Part 4: keyword stuffing, slug hygiene, broken wikilinks.
 - Heading order, title and description length and duplicates, missing alt text, thin post, keyword stuffing, slug hygiene, no outbound link, broken wikilink.
 - Rules: BL-TST-4. KH-LNT-2.
 - Done when: one fixture per message, each with its expected findings.

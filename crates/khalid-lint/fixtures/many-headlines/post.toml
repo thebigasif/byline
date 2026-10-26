@@ -1,6 +1,7 @@
 # The title is the main headline, and the body adds two more with `#`.
 locale = "en"
 slug = "why-internal-links-matter"
+description = "Why links between your own posts help readers and search engines, and how to add them."
 title = "Why internal links matter"
 date = "2026-10-01"
 author = "Amira Haddad"

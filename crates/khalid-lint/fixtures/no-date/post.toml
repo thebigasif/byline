@@ -1,6 +1,7 @@
 # The header has no `date:`.
 locale = "en"
 slug = "why-internal-links-matter"
+description = "Why links between your own posts help readers and search engines, and how to add them."
 title = "Why internal links matter"
 author = "Amira Haddad"
 word_count = 640

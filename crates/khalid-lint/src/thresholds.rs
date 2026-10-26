@@ -17,6 +17,12 @@ pub struct Thresholds {
     /// before the next one is flagged. Default 3, which leaves room for a
     /// short series of posts.
     pub same_link_text_max: usize,
+    /// The longest title, in characters, before search results cut it.
+    /// Default 60, about what Google shows on a desktop result.
+    pub title_max_chars: usize,
+    /// The longest description, in characters, before search results cut it.
+    /// Default 160, about what Google shows on a desktop result.
+    pub description_max_chars: usize,
 }
 
 impl Default for Thresholds {
@@ -24,6 +30,8 @@ impl Default for Thresholds {
         Self {
             thin_post_words: 300,
             same_link_text_max: 3,
+            title_max_chars: 60,
+            description_max_chars: 160,
         }
     }
 }

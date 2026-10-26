@@ -2,6 +2,7 @@
 # because without a title it is the only main headline.
 locale = "en"
 slug = "why-internal-links-matter"
+description = "Why links between your own posts help readers and search engines, and how to add them."
 date = "2026-10-01"
 author = "Amira Haddad"
 word_count = 640

@@ -1,0 +1,3 @@
+# The clean post with its description left out.
+extends = "clean"
+unset = ["description"]

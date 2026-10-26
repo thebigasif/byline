@@ -21,6 +21,9 @@ pub struct LintPost {
     pub slug: Slug,
     /// The title from the header, which becomes the page's main headline.
     pub title: Option<String>,
+    /// The description from the header, which search results show under the
+    /// title.
+    pub description: Option<String>,
     /// The publish date from the header, written `2026-10-26` in JSON or TOML.
     pub date: Option<NaiveDate>,
     /// The author from the header.
@@ -49,6 +52,7 @@ impl LintPost {
             locale,
             slug,
             title: None,
+            description: None,
             date: None,
             author: None,
             headings: Vec::new(),
