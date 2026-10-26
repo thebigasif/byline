@@ -100,6 +100,22 @@ impl Rgb {
         0.2126 * red + 0.7152 * green + 0.0722 * blue
     }
 
+    /// This colour moved `amount` of the way toward `other`, from 0 for
+    /// this colour to 1 for `other`, channel by channel.
+    #[must_use]
+    pub fn mix(self, other: Self, amount: f64) -> Self {
+        let amount = amount.clamp(0.0, 1.0);
+        let step = |from: u8, to: u8| {
+            let from = f64::from(from);
+            channel(from + (f64::from(to) - from) * amount)
+        };
+        Self::new(
+            step(self.red, other.red),
+            step(self.green, other.green),
+            step(self.blue, other.blue),
+        )
+    }
+
     /// Whether the colour is strong enough to read as a brand colour: HSL
     /// saturation of at least 35% and lightness between 15% and 85%. Greys,
     /// near-whites and near-blacks are not.

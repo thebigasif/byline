@@ -19,6 +19,7 @@ url = "2"
 
 [dev-dependencies]
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
+tempfile = "3"
 tokio.workspace = true
 wiremock = "0.6"
 

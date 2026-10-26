@@ -195,7 +195,7 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 
 ### 3.3 Write `theme/tokens.toml` and a preview
 
-- Status: `doing`. Part 1 (this pull request): the file's shape, defaults and value rules, ADR 0013. Part 2: tokens from a synced site, written atomically. The preview page comes with the command in 3.8, because only the binary may use both this crate and the renderer.
+- Status: `doing`. Part 1: the file's shape, defaults and value rules, ADR 0013. Part 2 (this pull request): tokens from a synced site, written atomically. The preview page comes with the command in 3.8, because only the binary may use both this crate and the renderer.
 - The file in the shape the renderer loads, written atomically, and a preview page rendered through `khalid-render`.
 - Rules: BL-RUN-9, BL-SEC-4.
 - Done when: a synced file loads with the renderer's rules and the preview passes the HTML checks.

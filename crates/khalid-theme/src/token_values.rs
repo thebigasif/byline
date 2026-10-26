@@ -4,9 +4,24 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::Rgb;
+use crate::split::split_top;
 
 /// The longest font list a token may hold, as in the renderer.
 const MAX_FONT_LIST: usize = 300;
+
+/// Generic CSS families. A font list without one gets `sans-serif` added,
+/// so text always has a font to fall back to.
+const GENERIC: [&str; 9] = [
+    "serif",
+    "sans-serif",
+    "monospace",
+    "cursive",
+    "system-ui",
+    "ui-sans-serif",
+    "ui-serif",
+    "ui-monospace",
+    "math",
+];
 
 /// A CSS `font-family` list that cannot end its declaration: names,
 /// commas, spaces, hyphens and paired double quotes only.
@@ -29,6 +44,36 @@ impl FontStack {
     pub(crate) fn trusted(text: &str) -> Self {
         Self(text.to_owned())
     }
+
+    /// The safe part of a list found on a site: each name that keeps to the
+    /// allowed characters, with `sans-serif` added when no generic family
+    /// is left. `None` when no name is safe.
+    pub(crate) fn from_found(list: &str) -> Option<Self> {
+        let mut names: Vec<&str> = split_top(list, |c| c == ',')
+            .into_iter()
+            .filter(|name| is_safe_name(name))
+            .collect();
+        if names.is_empty() {
+            return None;
+        }
+        if !names.iter().any(|name| GENERIC.contains(name)) {
+            names.push("sans-serif");
+        }
+        Self::try_from(names.join(", ")).ok()
+    }
+}
+
+/// Whether one family name keeps to the allowed characters: a bare name, or
+/// one wrapped in a single pair of double quotes.
+fn is_safe_name(name: &str) -> bool {
+    let inner = name
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or(name);
+    !inner.is_empty()
+        && inner
+            .chars()
+            .all(|c| c.is_alphanumeric() || matches!(c, ' ' | '-'))
 }
 
 impl TryFrom<String> for FontStack {

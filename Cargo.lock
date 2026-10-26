@@ -1494,6 +1494,7 @@ dependencies = [
  "khalid-outbound",
  "scraper",
  "serde",
+ "tempfile",
  "thiserror",
  "tokio",
  "toml",
