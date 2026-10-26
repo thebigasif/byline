@@ -27,6 +27,14 @@ mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the Admin API's post store edits post files through it, in the next pull request of this stack"
+    )
+)]
+mod post_text;
 mod repair;
 mod report;
 mod routes_message;

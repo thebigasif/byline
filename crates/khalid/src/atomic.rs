@@ -20,6 +20,27 @@ pub(crate) fn create(folder: &Path, name: &str, text: &str) -> io::Result<()> {
     Ok(())
 }
 
+/// Writes `text` to the file at `path`, replacing it when it exists: first
+/// to a temporary file in the same folder, then flushed to disk, then
+/// renamed over the old one, so a reader sees the old text or the new.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the Admin API's post store edits post files with it, later in this stack"
+    )
+)]
+pub(crate) fn replace(path: &Path, text: &str) -> io::Result<()> {
+    let folder = path
+        .parent()
+        .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
+    let mut file = NamedTempFile::new_in(folder)?;
+    file.write_all(text.as_bytes())?;
+    file.as_file().sync_all()?;
+    file.persist(path).map_err(|error| error.error)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -46,5 +67,16 @@ mod tests {
         let mut path = temp.path().to_path_buf();
         path.push("post.md");
         assert_eq!(fs::read_to_string(path).unwrap(), "first");
+    }
+
+    #[test]
+    fn replace_swaps_the_text_and_leaves_no_temporary_file() {
+        let temp = tempfile::tempdir().unwrap();
+        create(temp.path(), "post.md", "first").unwrap();
+        let mut path = temp.path().to_path_buf();
+        path.push("post.md");
+        replace(&path, "second").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "second");
+        assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
     }
 }
