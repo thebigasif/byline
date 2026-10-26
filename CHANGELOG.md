@@ -6,6 +6,7 @@ What changed for people who use Khalid, one line per change, newest first. Group
 
 ### Added
 
+- `khalid --site <folder> db migrate` makes the site's database at `data/site.db`, or brings it up to date.
 - `khalid --help` lists every planned command: init, serve, new, lint, publish, theme, import, export, mcp, doctor, backup, audit, update, pull and keys.
 - Each command explains in three plain sentences that it is not built yet, and exits with code 3.
 - `--json` on every command prints the same message as JSON, for scripts and agents.

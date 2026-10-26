@@ -1165,9 +1165,12 @@ dependencies = [
  "clap",
  "khalid-content",
  "khalid-core",
+ "khalid-db",
  "mimalloc",
  "serde",
  "serde_json",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
