@@ -1,0 +1,1 @@
+en/pruning-old-posts: warn stale-post

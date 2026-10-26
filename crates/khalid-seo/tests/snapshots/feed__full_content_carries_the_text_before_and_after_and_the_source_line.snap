@@ -1,0 +1,5 @@
+---
+source: crates/khalid-seo/tests/feed.rs
+expression: "feed.items[2].content_html"
+---
+<p>New on Field Notes:</p><p>Link from old posts to new ones.</p><p>Thanks for reading &amp; sharing.</p><p><a href="https://www.example.com/blog/why-internal-links-matter/">Why internal links matter first appeared on Field Notes on SEO.</a></p>
