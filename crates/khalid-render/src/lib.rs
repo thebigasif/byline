@@ -14,6 +14,7 @@ mod author;
 mod dates;
 mod direction;
 mod escape;
+mod glossary;
 mod image;
 mod listing;
 mod page_body;
@@ -27,6 +28,7 @@ mod strings;
 mod templates;
 
 pub use author::{RenderAuthor, RenderPage};
+pub use glossary::{GlossaryGroup, GlossaryTerm, RenderGlossary, RenderSearch, SearchResult};
 pub use image::{ImageCandidate, ImageSet, Loading, RenderImage};
 pub use listing::{Pagination, PostCard, RenderListing};
 pub use page_body::PageBody;
