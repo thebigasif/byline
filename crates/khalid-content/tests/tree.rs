@@ -46,18 +46,27 @@ fn walks_the_demo_site() {
         .map(|l| l.locale().as_str())
         .collect();
     assert_eq!(languages, ["de", "en"]);
-    for language in tree.languages() {
-        let names: Vec<&str> = language
+    let names = |index: usize| -> Vec<&str> {
+        tree.languages()[index]
             .collections()
             .iter()
             .map(khalid_content::Collection::name)
-            .collect();
-        assert_eq!(
-            names,
-            ["authors", "glossary", "posts"],
-            "{}",
-            language.locale()
-        );
+            .collect()
+    };
+    assert_eq!(names(0), ["authors", "glossary", "pages", "posts"]);
+    assert_eq!(
+        names(1),
+        [
+            "authors",
+            "case-studies",
+            "changelog",
+            "glossary",
+            "pages",
+            "posts",
+            "snippets"
+        ]
+    );
+    for language in tree.languages() {
         let posts = language.collection("posts").unwrap();
         assert_eq!(posts.entries().len(), 5, "{}", language.locale());
     }

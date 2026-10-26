@@ -1,4 +1,4 @@
-//! Rebuilding the content index from the files (ADR 0001, ADR 0009).
+//! Rebuilding the content index from the files (ADR 0001, ADR 0010).
 
 use khalid_core::Slug;
 use sqlx::{Sqlite, Transaction};

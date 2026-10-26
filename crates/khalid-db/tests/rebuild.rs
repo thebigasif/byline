@@ -1,6 +1,6 @@
 //! The rebuild: a site's derived tables are emptied and filled again from the
 //! content index, its visitor tables are kept, and other sites are untouched
-//! (ADR 0001, ADR 0009).
+//! (ADR 0001, ADR 0010).
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

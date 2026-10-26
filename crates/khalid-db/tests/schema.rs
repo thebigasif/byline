@@ -1,5 +1,5 @@
 //! The schema: every table is listed in the README as derived or visitor, and
-//! every table belongs to a site (ADR 0009).
+//! every table belongs to a site (ADR 0010).
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
