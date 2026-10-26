@@ -25,15 +25,15 @@ pub(crate) fn block(path: &Path, error: &BlockError) -> UserMessage {
     )
 }
 
-/// The message when a post has neither a slug nor a title to make one from.
+/// The message when a post, page or author has no slug and nothing to make one from.
 pub(crate) fn no_slug(path: &Path) -> UserMessage {
     UserMessage::new(
         format!(
-            "{} has no slug and no title to make one from.",
+            "{} has no slug, and no title or name to make one from.",
             path.display()
         ),
-        "Every post needs an address, and its address ends in its slug.",
-        "Add a title or a slug to the front matter of that file.",
+        "Every page needs an address, and its address ends in its slug.",
+        "Add a slug to the front matter of that file.",
     )
 }
 

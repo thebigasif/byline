@@ -6,8 +6,8 @@ use std::cmp::Reverse;
 use khalid_content::{Document, PostFront, SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, PostCard, RenderListing, RenderPost,
-    RenderSite, Robots,
+    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, PostCard, RenderAuthor, RenderListing,
+    RenderPage, RenderPost, RenderSite, Robots,
 };
 
 use crate::build_message;
@@ -28,7 +28,8 @@ pub(crate) struct Page {
 }
 
 /// Every page of the site, per language in the order of `site.toml`: each
-/// dated post, the home page with the posts newest first, and the 404 page.
+/// dated post, each plain page, each author with their posts, the home page
+/// with the posts newest first, and the 404 page.
 pub(crate) fn pages(
     config: &Config,
     content: &SiteContent,
@@ -45,52 +46,13 @@ fn language_pages(
     content: &SiteContent,
     locale: &Locale,
 ) -> Result<LanguagePages, UserMessage> {
-    let mut dated: Vec<_> = content
-        .posts
-        .iter()
-        .filter(|doc| &doc.locale == locale)
-        .filter_map(|doc| doc.front.date.map(|date| (doc, date)))
-        .collect();
-    dated.sort_by_key(|&(_, date)| Reverse(date));
-    let mut pages = Vec::with_capacity(dated.len() + 2);
-    let mut cards = Vec::with_capacity(dated.len());
-    for (doc, date) in dated {
-        let (title, slug) = title_and_slug(config, doc)?;
-        let rest = format!("{slug}/");
-        let path = path_of(config, locale, &rest);
-        let rendered = render(&doc.body, locale, config.slugs())
-            .map_err(|error| build_message::block(&doc.path, &error))?;
-        let description = doc.front.description.clone().unwrap_or_default();
-        cards.push(PostCard {
-            title: title.clone(),
-            href: path.clone(),
-            date,
-            excerpt: description.clone(),
-            image: None,
-        });
-        let post = RenderPost {
-            title: title.clone(),
-            date,
-            updated: None,
-            authors: authors(config, content, doc),
-            category: None,
-            tags: Vec::new(),
-            image: None,
-            body: BodyHtml::from_sanitised(rendered.html),
-        };
-        let meta = meta(config, title, description, path, PageKind::Article)?;
-        pages.push(page(
-            locale,
-            config,
-            &rest,
-            meta,
-            PageBody::Post(Box::new(post)),
-        ));
-    }
+    let (mut pages, cards) = post_pages(config, content, locale)?;
+    pages.extend(plain_pages(config, content, locale)?);
+    pages.extend(author_pages(config, content, locale, &cards)?);
     let home = RenderListing {
         title: config.name().to_owned(),
         intro: None,
-        posts: cards,
+        posts: cards.into_iter().map(|(_, card)| card).collect(),
         pagination: None,
     };
     let home_meta = meta(
@@ -114,20 +76,156 @@ fn language_pages(
     })
 }
 
-/// The post's title, or its slug when it has none, and its slug, or one made
-/// from the title when it has none.
-fn title_and_slug(
+/// A post's card with the slug of its author, so author pages can list it.
+type Card<'a> = (Option<&'a Slug>, PostCard);
+
+/// The page of every dated post in `locale`, and their cards, newest first.
+fn post_pages<'a>(
     config: &Config,
-    doc: &Document<PostFront>,
+    content: &'a SiteContent,
+    locale: &Locale,
+) -> Result<(Vec<Page>, Vec<Card<'a>>), UserMessage> {
+    let mut dated: Vec<_> = content
+        .posts
+        .iter()
+        .filter(|doc| &doc.locale == locale)
+        .filter_map(|doc| doc.front.date.map(|date| (doc, date)))
+        .collect();
+    dated.sort_by_key(|&(_, date)| Reverse(date));
+    let mut pages = Vec::with_capacity(dated.len() + 2);
+    let mut cards = Vec::with_capacity(dated.len());
+    for (doc, date) in dated {
+        let front = &doc.front;
+        let (title, slug) = named(config, doc, front.slug.as_ref(), front.title.as_deref())?;
+        let rest = format!("{slug}/");
+        let path = path_of(config, locale, &rest);
+        let html = body_html(config, doc)?;
+        let description = front.description.clone().unwrap_or_default();
+        let card = PostCard {
+            title: title.clone(),
+            href: path.clone(),
+            date,
+            excerpt: description.clone(),
+            image: None,
+        };
+        cards.push((front.author.as_ref(), card));
+        let post = RenderPost {
+            title: title.clone(),
+            date,
+            updated: None,
+            authors: authors(config, content, doc),
+            category: None,
+            tags: Vec::new(),
+            image: None,
+            body: html,
+        };
+        let meta = meta(config, title, description, path, PageKind::Article)?;
+        pages.push(page(
+            locale,
+            config,
+            &rest,
+            meta,
+            PageBody::Post(Box::new(post)),
+        ));
+    }
+    Ok((pages, cards))
+}
+
+/// The page of every plain page in `locale`, such as About, at `/<slug>/`.
+fn plain_pages(
+    config: &Config,
+    content: &SiteContent,
+    locale: &Locale,
+) -> Result<Vec<Page>, UserMessage> {
+    let mut pages = Vec::new();
+    for doc in content.pages.iter().filter(|doc| &doc.locale == locale) {
+        let front = &doc.front;
+        let (title, slug) = named(config, doc, front.slug.as_ref(), front.title.as_deref())?;
+        let rest = format!("{slug}/");
+        let description = front.description.clone().unwrap_or_default();
+        let path = path_of(config, locale, &rest);
+        let meta = meta(config, title.clone(), description, path, PageKind::Website)?;
+        let body = RenderPage {
+            title,
+            updated: None,
+            body: body_html(config, doc)?,
+        };
+        pages.push(page(locale, config, &rest, meta, PageBody::Page(body)));
+    }
+    Ok(pages)
+}
+
+/// The page of every author in `locale`, at `/authors/<slug>/`, with the
+/// cards of their posts.
+fn author_pages(
+    config: &Config,
+    content: &SiteContent,
+    locale: &Locale,
+    cards: &[Card<'_>],
+) -> Result<Vec<Page>, UserMessage> {
+    let mut pages = Vec::new();
+    for doc in content.authors.iter().filter(|doc| &doc.locale == locale) {
+        let front = &doc.front;
+        let (name, slug) = named(config, doc, front.slug.as_ref(), front.name.as_deref())?;
+        let rest = format!("authors/{slug}/");
+        let path = path_of(config, locale, &rest);
+        let meta = meta(config, name.clone(), String::new(), path, PageKind::Website)?;
+        let profiles = front
+            .same_as
+            .iter()
+            .map(|url| Link {
+                name: url.host().to_owned(),
+                href: url.to_string(),
+            })
+            .collect();
+        let posts = cards
+            .iter()
+            .filter(|(author, _)| *author == Some(&slug))
+            .map(|(_, card)| card.clone())
+            .collect();
+        let author = RenderAuthor {
+            name,
+            role: front.role.clone(),
+            image: None,
+            bio: body_html(config, doc)?,
+            profiles,
+            posts,
+            pagination: None,
+        };
+        pages.push(page(
+            locale,
+            config,
+            &rest,
+            meta,
+            PageBody::Author(Box::new(author)),
+        ));
+    }
+    Ok(pages)
+}
+
+/// A document's title, or its slug when it has none, and its slug, or one
+/// made from the title when it has none.
+fn named<F>(
+    config: &Config,
+    doc: &Document<F>,
+    slug: Option<&Slug>,
+    title: Option<&str>,
 ) -> Result<(String, Slug), UserMessage> {
-    let slug = match (&doc.front.slug, &doc.front.title) {
+    let slug = match (slug, title) {
         (Some(slug), _) => slug.clone(),
         (None, Some(title)) => Slug::from_title(title, &doc.locale, config.slugs())
             .map_err(|_| build_message::no_slug(&doc.path))?,
         (None, None) => return Err(build_message::no_slug(&doc.path)),
     };
-    let title = doc.front.title.clone().unwrap_or_else(|| slug.to_string());
+    let title = title.map_or_else(|| slug.to_string(), str::to_owned);
     Ok((title, slug))
+}
+
+/// A document's body as HTML, with raw HTML escaped by `khalid_content::render`.
+fn body_html<F>(config: &Config, doc: &Document<F>) -> Result<BodyHtml, UserMessage> {
+    render(&doc.body, &doc.locale, config.slugs())
+        .map(|rendered| BodyHtml::from_sanitised(rendered.html))
+        .map_err(|error| build_message::block(&doc.path, &error))
 }
 
 /// The post's author, named as their file in the same language names them,

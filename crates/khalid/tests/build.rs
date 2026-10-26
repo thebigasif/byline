@@ -50,7 +50,7 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     assert!(
-        text(&output.stdout).contains("14 pages"),
+        text(&output.stdout).contains("20 pages"),
         "{}",
         text(&output.stdout)
     );
@@ -74,6 +74,28 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     assert!(page(out.path(), "de/index.html").contains("/blog/de/"));
     assert!(page(out.path(), "404.html").contains("<h1"));
     assert!(page(out.path(), "de/404.html").contains("lang=\"de\""));
+}
+
+#[test]
+fn build_writes_the_author_and_plain_pages_every_link_points_to() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+
+    let post = page(out.path(), "what-a-sitemap-does/index.html");
+    assert!(post.contains("/blog/authors/lena-vogt/"), "{post}");
+    let author = page(out.path(), "authors/lena-vogt/index.html");
+    assert!(author.contains("Lena Vogt</h1>"), "{author}");
+    assert!(author.contains("/blog/what-a-sitemap-does/"), "{author}");
+    assert!(
+        !author.contains("/blog/why-internal-links-matter/"),
+        "{author}"
+    );
+    assert!(page(out.path(), "de/authors/asif/index.html").contains("lang=\"de\""));
+
+    assert!(page(out.path(), "about/index.html").contains("About Field Notes</h1>"));
+    assert!(page(out.path(), "de/ueber-uns/index.html").contains("Über Field Notes</h1>"));
 }
 
 #[test]
