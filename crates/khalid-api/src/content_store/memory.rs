@@ -3,7 +3,7 @@
 
 use std::cmp::Ordering;
 
-use super::{BoxFuture, ContentStore, ContentStoreError, Listed, PostKey};
+use super::{BoxFuture, ContentStore, ContentStoreError, Listed, PostKey, SiteResources};
 use crate::pagination::Meta;
 use crate::query::{Direction, FieldValues, Limit, ListQuery, Literal};
 use crate::resources::{Collection, Post};
@@ -13,12 +13,20 @@ use crate::resources::{Collection, Post};
 #[derive(Debug, Clone, Default)]
 pub struct MemoryContentStore {
     entries: Vec<(Collection, Post)>,
+    site: SiteResources,
 }
 
 impl MemoryContentStore {
-    /// A store holding `entries`, each in its collection.
+    /// A store holding `entries`, each in its collection, and no authors.
     pub fn new(entries: Vec<(Collection, Post)>) -> Self {
-        Self { entries }
+        let site = SiteResources::default();
+        Self { entries, site }
+    }
+
+    /// The same store with the site's small lists, such as its authors.
+    #[must_use]
+    pub fn with_site(self, site: SiteResources) -> Self {
+        Self { site, ..self }
     }
 
     fn in_collection(&self, collection: Collection) -> impl Iterator<Item = &Post> {
@@ -26,36 +34,6 @@ impl MemoryContentStore {
             .iter()
             .filter(move |(of, _)| *of == collection)
             .map(|(_, post)| post)
-    }
-
-    fn select(&self, collection: Collection, query: &ListQuery) -> Listed<Post> {
-        let mut found: Vec<&Post> = self
-            .in_collection(collection)
-            .filter(|post| query.filter().is_none_or(|filter| filter.matches(*post)))
-            .collect();
-        found.sort_by(|a, b| {
-            if query.order().is_empty() {
-                return first(b, "published_at").cmp_with(&first(a, "published_at"));
-            }
-            query.order().iter().fold(Ordering::Equal, |sofar, key| {
-                sofar.then_with(|| {
-                    let order = first(a, key.field()).cmp_with(&first(b, key.field()));
-                    match key.direction() {
-                        Direction::Ascending => order,
-                        Direction::Descending => order.reverse(),
-                    }
-                })
-            })
-        });
-        let total = u64::try_from(found.len()).unwrap_or(u64::MAX);
-        let meta = Meta::new(query.page(), query.limit(), total);
-        let skip = usize::try_from(meta.pagination().offset()).unwrap_or(usize::MAX);
-        let take = match query.limit() {
-            Limit::Count(count) => usize::try_from(count).unwrap_or(usize::MAX),
-            Limit::All => usize::MAX,
-        };
-        let items = found.into_iter().skip(skip).take(take).cloned().collect();
-        Listed::new(items, total)
     }
 
     fn lookup(&self, collection: Collection, key: &PostKey) -> Option<Post> {
@@ -75,7 +53,8 @@ impl ContentStore for MemoryContentStore {
         collection: Collection,
         query: &'a ListQuery,
     ) -> BoxFuture<'a, Result<Listed<Post>, ContentStoreError>> {
-        Box::pin(std::future::ready(Ok(self.select(collection, query))))
+        let entries = self.in_collection(collection);
+        Box::pin(std::future::ready(Ok(select(entries, query))))
     }
 
     fn find<'a>(
@@ -85,11 +64,50 @@ impl ContentStore for MemoryContentStore {
     ) -> BoxFuture<'a, Result<Option<Post>, ContentStoreError>> {
         Box::pin(std::future::ready(Ok(self.lookup(collection, key))))
     }
+
+    fn site(&self) -> BoxFuture<'_, Result<SiteResources, ContentStoreError>> {
+        Box::pin(std::future::ready(Ok(self.site.clone())))
+    }
+}
+
+/// One page of the `items` that match `query`'s filter, in its order. With
+/// no order, the newest `published_at` comes first, and items without one
+/// keep the order they came in.
+pub(crate) fn select<'a, T: FieldValues + Clone + 'a>(
+    items: impl Iterator<Item = &'a T>,
+    query: &ListQuery,
+) -> Listed<T> {
+    let mut found: Vec<&T> = items
+        .filter(|item| query.filter().is_none_or(|filter| filter.matches(*item)))
+        .collect();
+    found.sort_by(|a, b| {
+        if query.order().is_empty() {
+            return first(*b, "published_at").cmp_with(&first(*a, "published_at"));
+        }
+        query.order().iter().fold(Ordering::Equal, |sofar, key| {
+            sofar.then_with(|| {
+                let order = first(*a, key.field()).cmp_with(&first(*b, key.field()));
+                match key.direction() {
+                    Direction::Ascending => order,
+                    Direction::Descending => order.reverse(),
+                }
+            })
+        })
+    });
+    let total = u64::try_from(found.len()).unwrap_or(u64::MAX);
+    let meta = Meta::new(query.page(), query.limit(), total);
+    let skip = usize::try_from(meta.pagination().offset()).unwrap_or(usize::MAX);
+    let take = match query.limit() {
+        Limit::Count(count) => usize::try_from(count).unwrap_or(usize::MAX),
+        Limit::All => usize::MAX,
+    };
+    let items = found.into_iter().skip(skip).take(take).cloned().collect();
+    Listed::new(items, total)
 }
 
 /// The first value of `field`, which a sort uses.
-fn first(post: &Post, field: &str) -> SortValue {
-    SortValue(post.values(field).into_iter().next())
+fn first(item: &impl FieldValues, field: &str) -> SortValue {
+    SortValue(item.values(field).into_iter().next())
 }
 
 /// A value to sort by. A missing value sorts first, and values of
