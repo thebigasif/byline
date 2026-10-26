@@ -7,6 +7,7 @@ mod collection;
 mod content_collection;
 mod menu;
 mod post;
+mod settings;
 mod term;
 
 pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
@@ -15,6 +16,7 @@ pub use collection::Collection;
 pub use content_collection::ContentCollection;
 pub use menu::{Menu, MenuLink};
 pub use post::{Bodies, Post};
+pub use settings::Settings;
 pub use term::Term;
 
 use std::fmt::Display;

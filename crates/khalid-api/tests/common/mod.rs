@@ -4,7 +4,7 @@
 use chrono::{TimeZone, Utc};
 use khalid_api::content_store::{MemoryContentStore, SiteResources};
 use khalid_api::resources::{
-    Author, Bodies, Collection, ContentCollection, Menu, MenuLink, Post, Term,
+    Author, Bodies, Collection, ContentCollection, Menu, MenuLink, Post, Settings, Term,
 };
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 
@@ -136,6 +136,12 @@ fn site() -> SiteResources {
             ContentCollection::new(slug("glossary"), en.clone()),
             ContentCollection::new(slug("posts"), de.clone()),
         ])
+        .with_settings(Settings::new(
+            "Field Notes on SEO",
+            url("https://example.com/blog/"),
+            en.clone(),
+            vec![en.clone(), de.clone()],
+        ))
         .with_menus(vec![
             Menu::new(slug("primary"), en.clone()).with_links(vec![
                 MenuLink::new("About", "/blog/about/"),
