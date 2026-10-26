@@ -56,7 +56,9 @@ pub use robots_meta::{
 pub use robots_txt::{
     BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,
 };
-pub use schema::{SchemaGraph, SchemaNode, SchemaValue};
+pub use schema::{
+    Publisher, PublisherKind, SchemaGraph, SchemaNode, SchemaValue, SiteSearch, site_graph,
+};
 pub use seo_error::SeoError;
 pub use site::SeoSite;
 pub use sitemap::{Sitemap, SitemapEntry};
