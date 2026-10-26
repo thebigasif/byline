@@ -5,9 +5,9 @@ use std::process::{Command, Output};
 
 use serde_json::Value;
 
-/// Every command in docs/plan.md section 4.1, with the arguments it needs.
+/// Every command in docs/plan.md section 4.1 that is not built yet, with the
+/// arguments it needs.
 const COMMANDS: &[&[&str]] = &[
-    &["init"],
     &["serve"],
     &["new", "Why internal links matter"],
     &["publish", "why-internal-links-matter"],
