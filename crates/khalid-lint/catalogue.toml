@@ -153,3 +153,15 @@ what = "No other post on your site links to this post."
 why = "Readers and Google find posts by following links, so this one is hard to find."
 fix = "Add a link to this post from one or two related posts."
 guide = "internal-links"
+
+[one-inbound-link]
+what = "Only one other post links to this post."
+why = "A post with few links pointing to it looks less important to Google."
+fix = "Link to this post from two or three more related posts."
+guide = "internal-links"
+
+[too-deep]
+what = "Readers need too many clicks to reach this post from your home page."
+why = "Google visits pages near the home page more often, and readers give up on long paths."
+fix = "Link to this post from your home page, a menu or a popular post."
+guide = "site-structure"

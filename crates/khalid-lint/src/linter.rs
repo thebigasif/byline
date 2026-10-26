@@ -31,8 +31,9 @@ impl Linter {
     /// Returns [`LintError::Catalogue`] or [`LintError::MissingMessage`] if
     /// the built-in catalogue is broken, which the crate's tests rule out.
     pub fn new(config: &LintConfig) -> Result<Self, LintError> {
-        Self::with_rules(config, builtin::rules(config.thresholds()))?
-            .with_site_rules(config, builtin::site_rules())
+        let thresholds = config.thresholds();
+        Self::with_rules(config, builtin::rules(thresholds))?
+            .with_site_rules(config, builtin::site_rules(thresholds))
     }
 
     /// A linter running the post rules `rules` with the severities in

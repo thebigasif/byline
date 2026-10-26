@@ -1,6 +1,6 @@
 //! Which posts link to which, built once per run for the site rules.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use khalid_core::Locale;
 
@@ -13,6 +13,11 @@ pub(crate) fn page_key(target: &str) -> &str {
     without_section.trim_end_matches('/')
 }
 
+/// The last part of a page key, which is a slug for most addresses.
+fn last_part(page: &str) -> &str {
+    page.rsplit('/').next().unwrap_or_default()
+}
+
 /// The internal links between posts, by position in `SiteView::posts`.
 ///
 /// A link finds its post by the post's `path` when the post has one, and
@@ -21,37 +26,61 @@ pub(crate) fn page_key(target: &str) -> &str {
 #[derive(Debug)]
 pub(crate) struct LinkGraph<'site> {
     posts: &'site [LintPost],
+    by_path: BTreeMap<&'site str, usize>,
+    by_slug: BTreeMap<(&'site Locale, &'site str), usize>,
     inbound: Vec<BTreeSet<usize>>,
+    outbound: Vec<BTreeSet<usize>>,
 }
 
 impl<'site> LinkGraph<'site> {
     pub(crate) fn new(site: &'site dyn SiteView) -> Self {
         let posts = site.posts();
-        let mut by_path: BTreeMap<&str, usize> = BTreeMap::new();
-        let mut by_slug: BTreeMap<(&Locale, &str), usize> = BTreeMap::new();
+        let mut graph = Self {
+            posts,
+            by_path: BTreeMap::new(),
+            by_slug: BTreeMap::new(),
+            inbound: vec![BTreeSet::new(); posts.len()],
+            outbound: vec![BTreeSet::new(); posts.len()],
+        };
         for (index, post) in posts.iter().enumerate() {
             match &post.path {
-                Some(path) => by_path.insert(page_key(path), index),
-                None => by_slug.insert((&post.locale, post.slug.as_str()), index),
+                Some(path) => graph.by_path.insert(page_key(path), index),
+                None => graph
+                    .by_slug
+                    .insert((&post.locale, post.slug.as_str()), index),
             };
         }
-        let resolve = |from: &LintPost, target: &str| {
-            let page = page_key(target);
-            by_path.get(page).copied().or_else(|| {
-                let last = page.rsplit('/').next().unwrap_or_default();
-                by_slug.get(&(&from.locale, last)).copied()
-            })
-        };
-        let mut inbound = vec![BTreeSet::new(); posts.len()];
         for (from, post) in posts.iter().enumerate() {
             let internal = post.links.iter().filter(|l| l.kind == LinkKind::Internal);
-            for to in internal.filter_map(|link| resolve(post, &link.target)) {
-                if let Some(sources) = inbound.get_mut(to).filter(|_| to != from) {
+            let targets: BTreeSet<usize> = internal
+                .filter_map(|link| graph.resolve(&link.target, Some(&post.locale)))
+                .filter(|&to| to != from)
+                .collect();
+            for &to in &targets {
+                if let Some(sources) = graph.inbound.get_mut(to) {
                     sources.insert(from);
                 }
             }
+            if let Some(slot) = graph.outbound.get_mut(from) {
+                *slot = targets;
+            }
         }
-        Self { posts, inbound }
+        graph
+    }
+
+    /// The post a link to `target` opens. Without a `locale`, a slug may
+    /// match a post in any language.
+    fn resolve(&self, target: &str, locale: Option<&Locale>) -> Option<usize> {
+        let page = page_key(target);
+        let slug = last_part(page);
+        self.by_path.get(page).copied().or_else(|| match locale {
+            Some(locale) => self.by_slug.get(&(locale, slug)).copied(),
+            None => self
+                .by_slug
+                .iter()
+                .find(|((_, candidate), _)| *candidate == slug)
+                .map(|(_, &index)| index),
+        })
     }
 
     /// Every post with the posts that link to it, in site order.
@@ -62,5 +91,33 @@ impl<'site> LinkGraph<'site> {
             let sources = sources.iter().filter_map(|&i| self.posts.get(i)).collect();
             (post, sources)
         })
+    }
+
+    /// Every post with the fewest clicks it takes to reach it from the home
+    /// page, whose links are `home_links`; `None` when no path reaches it.
+    pub(crate) fn posts_with_depth(
+        &self,
+        home_links: &[String],
+    ) -> impl Iterator<Item = (&'site LintPost, Option<usize>)> + '_ {
+        let mut depth: Vec<Option<usize>> = vec![None; self.posts.len()];
+        let mut queue = VecDeque::new();
+        for start in home_links
+            .iter()
+            .filter_map(|link| self.resolve(link, None))
+        {
+            if let Some(slot @ None) = depth.get_mut(start) {
+                *slot = Some(1);
+                queue.push_back((start, 1));
+            }
+        }
+        while let Some((from, clicks)) = queue.pop_front() {
+            for &to in self.outbound.get(from).into_iter().flatten() {
+                if let Some(slot @ None) = depth.get_mut(to) {
+                    *slot = Some(clicks + 1);
+                    queue.push_back((to, clicks + 1));
+                }
+            }
+        }
+        self.posts.iter().zip(depth)
     }
 }

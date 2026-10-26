@@ -24,3 +24,56 @@ impl SiteRule for OrphanPost {
             .collect()
     }
 }
+
+/// A post more clicks from the home page than the site allows, or one no
+/// path from the home page reaches. Skipped when the home links are unknown.
+#[derive(Debug)]
+pub(crate) struct TooDeep {
+    /// The most clicks allowed, from `Thresholds::max_clicks`.
+    pub(crate) max: usize,
+}
+
+impl SiteRule for TooDeep {
+    fn id(&self) -> RuleId {
+        RuleId::new("too-deep")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check<'site>(&self, site: &'site dyn SiteView) -> Vec<(&'site LintPost, Hit)> {
+        if site.home_links().is_empty() {
+            return Vec::new();
+        }
+        LinkGraph::new(site)
+            .posts_with_depth(site.home_links())
+            .filter(|(_, depth)| depth.is_none_or(|clicks| clicks > self.max))
+            .map(|(post, _)| (post, Hit::post()))
+            .collect()
+    }
+}
+
+/// A post exactly one other post links to, named in the finding.
+#[derive(Debug)]
+pub(crate) struct OneInboundLink;
+
+impl SiteRule for OneInboundLink {
+    fn id(&self) -> RuleId {
+        RuleId::new("one-inbound-link")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check<'site>(&self, site: &'site dyn SiteView) -> Vec<(&'site LintPost, Hit)> {
+        LinkGraph::new(site)
+            .posts_with_sources()
+            .filter_map(|(post, sources)| match sources.as_slice() {
+                [only] => Some((post, Hit::about(only.slug.as_str()))),
+                _ => None,
+            })
+            .collect()
+    }
+}

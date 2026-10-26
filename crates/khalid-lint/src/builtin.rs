@@ -48,6 +48,12 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
 }
 
 /// Every built-in site rule, in the order their findings are listed.
-pub(crate) fn site_rules() -> Vec<Box<dyn SiteRule>> {
-    vec![Box::new(site_links::OrphanPost)]
+pub(crate) fn site_rules(thresholds: Thresholds) -> Vec<Box<dyn SiteRule>> {
+    vec![
+        Box::new(site_links::OrphanPost),
+        Box::new(site_links::OneInboundLink),
+        Box::new(site_links::TooDeep {
+            max: thresholds.max_clicks,
+        }),
+    ]
 }

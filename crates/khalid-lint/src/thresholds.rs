@@ -29,6 +29,9 @@ pub struct Thresholds {
     /// The longest web address ending, in characters. Default 60, about ten
     /// short words.
     pub slug_max_chars: usize,
+    /// The most clicks from the home page to a post. Default 3, the plan's
+    /// limit: deeper pages are visited less by readers and by Google.
+    pub max_clicks: usize,
 }
 
 impl Default for Thresholds {
@@ -40,6 +43,7 @@ impl Default for Thresholds {
             description_max_chars: 160,
             keyword_density_percent: 3,
             slug_max_chars: 60,
+            max_clicks: 3,
         }
     }
 }
