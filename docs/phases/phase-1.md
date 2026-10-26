@@ -42,7 +42,7 @@
 
 ### 1.5 Front matter and the content tree
 
-- Status: `doing`. Parts 1 to 3 (#33 to #36). Part 4a (this landing): `read_content` with the page, author and glossary schemas. Part 4b: case studies, changelog, snippets and `_index.md`, the full demo-site parse test, closing 0.5.
+- Status: `done` (#33 to #37 and this landing). KH-CON-1 to KH-CON-4.
 - `crates/khalid-content`: typed front matter for posts, pages, authors, glossary terms, case studies, changelog entries and snippets, with errors that name the file, line and field. The content tree reads language folders, post folders with co-located assets, and the `translation` key that pairs language versions.
 - Rules: BL-FS-1, BL-FS-3, BL-TYP-3.
 - Done when: a test asserts `fixtures/demo-site` parses into five English posts, five German posts, two authors per language and one glossary term per language, which also closes task 0.5. Each invalid fixture produces its plain message.

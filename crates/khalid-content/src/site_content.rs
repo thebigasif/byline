@@ -7,7 +7,8 @@ use serde::de::DeserializeOwned;
 
 use crate::post::parse_front;
 use crate::{
-    AuthorFront, ContentError, ContentHash, ContentTree, Entry, GlossaryFront, PageFront, PostFront,
+    AuthorFront, CaseStudyFront, ChangelogFront, ContentError, ContentHash, ContentTree, Entry,
+    GlossaryFront, IndexFront, PageFront, PostFront, SnippetFront,
 };
 
 /// One content file with its typed front matter.
@@ -38,13 +39,19 @@ pub struct SiteContent {
     pub authors: Vec<Document<AuthorFront>>,
     /// Entries of `glossary/`.
     pub glossary: Vec<Document<GlossaryFront>>,
+    /// Entries of `case-studies/`.
+    pub case_studies: Vec<Document<CaseStudyFront>>,
+    /// Entries of `changelog/`.
+    pub changelog: Vec<Document<ChangelogFront>>,
+    /// Entries of `snippets/`.
+    pub snippets: Vec<Document<SnippetFront>>,
+    /// Every collection's `_index.md`.
+    pub indexes: Vec<Document<IndexFront>>,
 }
 
 /// Reads every file in `tree` with the schema its collection's folder name
 /// picks. A folder with any other name is a collection of posts, since
-/// collections own posts (plan section 4.11). Case studies, the changelog,
-/// snippets and `_index.md` files get their schemas next and are skipped
-/// until then, never half read.
+/// collections own posts (plan section 4.11).
 ///
 /// # Errors
 ///
@@ -54,13 +61,17 @@ pub fn read_content(tree: &ContentTree) -> Result<SiteContent, ContentError> {
     for language in tree.languages() {
         let locale = language.locale();
         for collection in language.collections() {
+            if let Some(index) = collection.index() {
+                content.indexes.push(read(locale, index)?);
+            }
             for entry in collection.entries() {
                 match collection.name() {
                     "pages" => content.pages.push(read(locale, entry)?),
                     "authors" => content.authors.push(read(locale, entry)?),
                     "glossary" => content.glossary.push(read(locale, entry)?),
-                    // Their schemas land next; until then they are skipped whole.
-                    "case-studies" | "changelog" | "snippets" => {}
+                    "case-studies" => content.case_studies.push(read(locale, entry)?),
+                    "changelog" => content.changelog.push(read(locale, entry)?),
+                    "snippets" => content.snippets.push(read(locale, entry)?),
                     _ => content.posts.push(read(locale, entry)?),
                 }
             }

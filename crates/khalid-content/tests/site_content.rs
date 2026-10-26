@@ -1,4 +1,4 @@
-//! Each content type is read with its own schema, and the demo site reads
+//! Every content type is read with its own schema, and the demo site reads
 //! with no errors (KH-CON-1).
 
 use std::fs;
@@ -19,14 +19,32 @@ fn the_demo_site_reads_with_every_type_typed() {
     assert_eq!(content.pages.len(), 2);
     assert_eq!(content.authors.len(), 4);
     assert_eq!(content.glossary.len(), 2);
+    assert_eq!(content.case_studies.len(), 1);
+    assert_eq!(content.changelog.len(), 1);
+    assert_eq!(content.snippets.len(), 1);
+    assert_eq!(content.indexes.len(), 1);
+
+    let study = &content.case_studies[0].front;
+    assert_eq!(study.client.as_deref(), Some("Northfield Bakery"));
+    assert_eq!(
+        study.date.map(|d| d.to_string()).as_deref(),
+        Some("2026-10-20")
+    );
     let asif = content
         .authors
         .iter()
         .find(|a| a.locale.as_str() == "en" && a.front.name.as_deref() == Some("Asif"))
         .unwrap();
     assert_eq!(asif.front.same_as[0].as_str(), "https://serpdad.com/");
+    assert_eq!(
+        content.changelog[0].front.version.as_deref(),
+        Some("2026.10")
+    );
+    assert_eq!(
+        content.indexes[0].front.title.as_deref(),
+        Some("Field notes on SEO")
+    );
     assert!(content.glossary.iter().all(|g| g.front.term.is_some()));
-    assert_eq!(content.pages[0].front.translation.as_deref(), Some("about"));
     assert_eq!(
         content.posts[0].locale.as_str(),
         "de",
@@ -59,9 +77,14 @@ fn each_type_refuses_fields_from_another_type() {
             "name",
         ),
         (
-            "content/en/pages/about.md",
-            "---\nauthor: asif\n---\n",
-            "author",
+            "content/en/changelog/2026-10.md",
+            "---\nclient: Acme\n---\n",
+            "client",
+        ),
+        (
+            "content/en/posts/_index.md",
+            "---\ndate: 2026-10-26\n---\n",
+            "date",
         ),
     ];
     for (path, text, field) in cases {
@@ -69,8 +92,10 @@ fn each_type_refuses_fields_from_another_type() {
         let error = read_content(&ContentTree::walk(dir.path()).unwrap())
             .unwrap_err()
             .to_string();
-        let start = format!("{path}, line 2, field \"{field}\": unknown field");
-        assert!(error.starts_with(&start), "{error}");
+        assert!(
+            error.starts_with(&format!("{path}, line 2, field \"{field}\": unknown field")),
+            "{error}"
+        );
     }
 }
 
@@ -101,5 +126,9 @@ fn an_author_profile_must_be_a_web_address() {
     let error = read_content(&ContentTree::walk(dir.path()).unwrap())
         .unwrap_err()
         .to_string();
+    assert!(
+        error.contains("field \"same_as\"") || error.contains("line 3"),
+        "{error}"
+    );
     assert!(error.contains("not a full URL"), "{error}");
 }
