@@ -1,10 +1,12 @@
-//! The HTML of the FAQ, how-to and review blocks, and their structured data.
+//! The HTML of the FAQ, how-to, review and product blocks, and their
+//! structured data.
 
 use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 
+use super::{Image, Link};
 use super::{Renderer, attribute};
-use crate::{HowToBlock, Question, ReviewBlock, Step, StructuredBlock};
+use crate::{HowToBlock, ProductBlock, Question, ReviewBlock, Step, StructuredBlock};
 
 impl Renderer {
     /// Writes each question as a summary a reader opens to see the answer,
@@ -50,6 +52,67 @@ impl Renderer {
             .push(StructuredBlock::Review(ReviewBlock {
                 body: plain(&review.body),
                 ..review.clone()
+            }));
+    }
+
+    /// Writes a product card: picture, name, score, price, description and
+    /// button.
+    pub(super) fn product(&mut self, product: &ProductBlock) {
+        let name = attribute(&product.name);
+        self.html.push_str("<section class=\"product\">\n");
+        if let Some(image) = &product.image {
+            self.push(&["<img src=\"", &attribute(image), "\" alt=\"", &name]);
+            self.html
+                .push_str("\" loading=\"lazy\" decoding=\"async\" />\n");
+            self.facts.images.push(Image {
+                src: image.clone(),
+                alt: Some(product.name.clone()),
+            });
+        }
+        self.push(&["<p class=\"product-name\">", &name, "</p>\n"]);
+        if let Some(rating) = &product.rating {
+            let best = attribute(&product.best);
+            self.push(&[
+                "<p class=\"product-rating\">",
+                &attribute(rating),
+                " / ",
+                &best,
+                "</p>\n",
+            ]);
+        }
+        if let (Some(price), Some(currency)) = (&product.price, &product.currency) {
+            let (price, currency) = (attribute(price), attribute(currency));
+            self.push(&[
+                "<p class=\"product-price\"><data value=\"",
+                &price,
+                "\">",
+                &currency,
+                " ",
+                &price,
+                "</data></p>\n",
+            ]);
+        }
+        self.markdown(&product.description);
+        if let (Some(href), Some(button)) = (&product.href, &product.button) {
+            self.push(&[
+                "<p><a class=\"button\" href=\"",
+                &attribute(href),
+                "\">",
+                &attribute(button),
+                "</a></p>\n",
+            ]);
+            self.facts.links.push(Link {
+                href: href.clone(),
+                text: button.clone(),
+                internal: !href.contains(':'),
+            });
+        }
+        self.html.push_str("</section>\n");
+        self.facts
+            .structured
+            .push(StructuredBlock::Product(ProductBlock {
+                description: plain(&product.description),
+                ..product.clone()
             }));
     }
 

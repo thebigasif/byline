@@ -13,6 +13,9 @@ pub enum StructuredBlock {
     Review(ReviewBlock),
     /// A recipe block, which becomes a `Recipe`.
     Recipe(RecipeBlock),
+    /// A product card, which becomes a `Product`. The description is plain
+    /// text.
+    Product(ProductBlock),
     /// An FAQ block, which becomes an `FAQPage`. Answers are plain text.
     Faq(Vec<Question>),
     /// A how-to block, which becomes a `HowTo`. Steps are plain text.
@@ -127,4 +130,27 @@ pub struct RecipeBlock {
     pub ingredients: Vec<String>,
     /// The steps in order, as plain text.
     pub steps: Vec<String>,
+}
+
+/// A product card, from `:::product{...}` with its description as the body.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProductBlock {
+    /// The product.
+    pub name: String,
+    /// Its picture: a path on this site or a full address.
+    pub image: Option<String>,
+    /// The price as written, such as `49.00`, always with a currency.
+    pub price: Option<String>,
+    /// The price's three-letter currency code, such as `USD`.
+    pub currency: Option<String>,
+    /// The writer's score, a number as written, such as `4.5`.
+    pub rating: Option<String>,
+    /// The best possible score; `5` when not given.
+    pub best: String,
+    /// Where to buy it: a path on this site or a full address.
+    pub href: Option<String>,
+    /// The words on the button, always with `href`.
+    pub button: Option<String>,
+    /// What it is: markdown in a block, plain text in structured data.
+    pub description: String,
 }

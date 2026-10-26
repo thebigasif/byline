@@ -5,13 +5,14 @@ use std::time::Duration;
 use khalid_core::AbsoluteUrl;
 
 use crate::{
-    BlockError, BlockKind, CalloutKind, GalleryImage, REVIEW_TYPES, ReviewBlock, VideoBlock,
+    BlockError, BlockKind, CalloutKind, GalleryImage, ProductBlock, REVIEW_TYPES, ReviewBlock,
+    VideoBlock,
 };
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 15] = [
+pub(crate) const BLOCKS: [&str; 16] = [
     "audio", "bookmark", "button", "callout", "embed", "faq", "figure", "file", "gallery", "howto",
-    "recipe", "review", "toc", "toggle", "video",
+    "product", "recipe", "review", "toc", "toggle", "video",
 ];
 
 mod nested;
@@ -104,6 +105,7 @@ pub(crate) fn directive(
         "howto" => nested::how_to(&attributes, body),
         "recipe" => nested::recipe(&attributes, body),
         "review" => review(&attributes, body),
+        "product" => product(&attributes, body),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
@@ -344,6 +346,69 @@ fn review(attributes: &Attributes, body: &[&str]) -> Result<BlockKind, BlockErro
         body: body.join("\n"),
     }))
 }
+
+fn product(attributes: &Attributes, body: &[&str]) -> Result<BlockKind, BlockError> {
+    attributes.only(
+        "product",
+        &PRODUCT_ATTRIBUTES,
+        "name, image, price, currency, rating, best, href and button",
+    )?;
+    let name = attributes.need("name", "a product needs name, what it is called")?;
+    let (price, currency) = (attributes.get("price"), attributes.get("currency"));
+    let money = match (&price, &currency) {
+        (Some(price), Some(code)) => {
+            let (units, cents) = price.split_once('.').unwrap_or((price, "00"));
+            units.parse::<u64>().is_ok()
+                && cents.len() == 2
+                && cents.parse::<u8>().is_ok()
+                && code.len() == 3
+                && code.bytes().all(|b| b.is_ascii_uppercase())
+        }
+        (None, None) => true,
+        _ => false,
+    };
+    let best = attributes.get("best").unwrap_or_else(|| "5".to_owned());
+    let rating = attributes.get("rating");
+    let rated = rating.as_deref().is_none_or(|rating| {
+        matches!((score(rating), score(&best)), (Some(value), Some(top)) if top > 0.0 && value <= top)
+    });
+    let problem = if !money {
+        "a product's price is a number such as 49.00 with a three-letter currency such as USD"
+    } else if !rated {
+        "a product's rating is a number from 0 to its best score, such as 4.5 out of 5"
+    } else if attributes.get("href").is_some() != attributes.get("button").is_some() {
+        "a product with href needs button, the words on its button"
+    } else {
+        ""
+    };
+    if !problem.is_empty() {
+        return Err(BlockError::Value {
+            line: attributes.line,
+            problem,
+        });
+    }
+    let address = |key: &'static str| {
+        attributes
+            .get(key)
+            .map(|text| attributes.media("product", key, text))
+            .transpose()
+    };
+    Ok(BlockKind::Product(ProductBlock {
+        name,
+        image: address("image")?,
+        price,
+        currency,
+        rating,
+        best,
+        href: address("href")?,
+        button: attributes.get("button"),
+        description: body.join("\n"),
+    }))
+}
+
+const PRODUCT_ATTRIBUTES: [&str; 8] = [
+    "name", "image", "price", "currency", "rating", "best", "href", "button",
+];
 
 /// Reads a score written with digits and at most one point, such as `4.5`.
 fn score(text: &str) -> Option<f64> {

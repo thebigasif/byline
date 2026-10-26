@@ -224,6 +224,7 @@ impl Renderer {
             BlockKind::HowTo(how_to) => self.how_to(how_to),
             BlockKind::Review(review) => self.review(review),
             BlockKind::Recipe(recipe) => self.recipe(recipe),
+            BlockKind::Product(product) => self.product(product),
             _ => {}
         }
     }
