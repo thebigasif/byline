@@ -1493,6 +1493,7 @@ dependencies = [
 name = "khalid-render"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "insta",
  "khalid-core",
  "minijinja",
