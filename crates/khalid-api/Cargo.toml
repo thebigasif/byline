@@ -20,6 +20,7 @@ chrono = { version = "0.4", default-features = false, features = ["alloc", "serd
 getrandom = "0.4"
 htmd = "0.5"
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
 serde.workspace = true
 sha2 = "0.11"
 subtle = "2"

@@ -6,7 +6,7 @@ mod key_store;
 mod key_token;
 mod stored_key;
 
-pub use access::{Access, ParseScopeError, Role, Scope};
+pub use access::{Access, ParseRoleError, ParseScopeError, Role, Scope};
 #[cfg(any(test, feature = "test-util"))]
 pub use key_store::MemoryKeyStore;
 pub use key_store::{CreateKeyError, KeyError, KeyStore, KeyStoreError, Principal, authenticate};

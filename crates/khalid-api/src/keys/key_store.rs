@@ -5,7 +5,7 @@ use std::error::Error;
 use super::{Access, KeyId, KeyKind, KeyToken, StoredKey};
 use crate::content_store::BoxFuture;
 
-/// The stored keys. `khalid-db` implements it in task 1.15;
+/// The stored keys. `khalid-db` implements it on SQLite as `KeyTable`;
 /// `MemoryKeyStore`, from the `test-util` feature, keeps them in memory.
 pub trait KeyStore: Send + Sync {
     /// The key with identity `id`, or `None`. Revoked keys are not found.
@@ -16,15 +16,20 @@ pub trait KeyStore: Send + Sync {
     fn find<'a>(&'a self, id: &'a KeyId)
     -> BoxFuture<'a, Result<Option<StoredKey>, KeyStoreError>>;
 
-    /// Stores a new key. `khalid keys create` calls it once the key is
-    /// hashed, so the store never sees the secret.
+    /// Stores a new key under `name`, which says who or what uses it, such
+    /// as `SerpDad`. `khalid keys create` calls it once the key is hashed,
+    /// so the store never sees the secret.
     ///
     /// # Errors
     ///
     /// Returns [`CreateKeyError::IdTaken`] when a key, revoked or not,
     /// already has its identity, and [`CreateKeyError::Unavailable`] when
     /// the keys cannot be written.
-    fn create(&self, key: StoredKey) -> BoxFuture<'_, Result<(), CreateKeyError>>;
+    fn create<'a>(
+        &'a self,
+        key: StoredKey,
+        name: &'a str,
+    ) -> BoxFuture<'a, Result<(), CreateKeyError>>;
 
     /// Revokes the key with identity `id`, so it is never found again.
     /// Returns whether a key that worked until now was revoked; `false`
@@ -197,7 +202,11 @@ mod memory {
             Box::pin(ready(Ok(found)))
         }
 
-        fn create(&self, key: StoredKey) -> BoxFuture<'_, Result<(), CreateKeyError>> {
+        fn create<'a>(
+            &'a self,
+            key: StoredKey,
+            _name: &'a str,
+        ) -> BoxFuture<'a, Result<(), CreateKeyError>> {
             let mut keys = self.keys();
             let taken = keys.revoked.contains(key.id())
                 || keys.working.iter().any(|stored| stored.id() == key.id());

@@ -44,4 +44,4 @@ pub use renderer::Renderer;
 pub use site::{Nav, NavLink, RenderSite};
 pub use stylesheet::stylesheet;
 pub use token_values::{Color, FontStack, Length, ParseTokenError};
-pub use tokens::{Colors, ContrastFailure, Fonts, Shape, Tokens};
+pub use tokens::{Colors, ContrastFailure, Fonts, Shape, TokenName, Tokens};

@@ -1,6 +1,6 @@
 //! A key as the store keeps it: never the secret, only its hash.
 
-use argon2::{Argon2, Params, PasswordHasher, PasswordVerifier};
+use argon2::{Argon2, PasswordHasher, PasswordVerifier};
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
@@ -35,8 +35,13 @@ impl KeyHashing {
     #[cfg(any(test, feature = "test-util"))]
     #[expect(clippy::expect_used, reason = "the minimums are always valid")]
     pub fn fast_for_tests() -> Self {
-        let params = Params::new(Params::MIN_M_COST, Params::MIN_T_COST, 1, None)
-            .expect("the minimum Argon2 parameters are valid");
+        let params = argon2::Params::new(
+            argon2::Params::MIN_M_COST,
+            argon2::Params::MIN_T_COST,
+            1,
+            None,
+        )
+        .expect("the minimum Argon2 parameters are valid");
         Self(Argon2::from(params))
     }
 }
@@ -110,6 +115,11 @@ impl StoredKey {
     /// What the key may do.
     pub fn access(&self) -> &Access {
         &self.access
+    }
+
+    /// The hash of its secret, for a store to write.
+    pub fn hash(&self) -> &KeyHash {
+        &self.hash
     }
 
     /// Whether `token` is this key: same identity, same kind, same secret.

@@ -62,7 +62,7 @@ async fn a_created_key_opens_until_it_is_revoked() {
         &KeyHashing::fast_for_tests(),
     )
     .unwrap();
-    store.create(stored).await.unwrap();
+    store.create(stored, "Zapier").await.unwrap();
     let id = token.id().clone();
     let text = token.reveal();
     let principal = authenticate(&store, text.expose(), KeyKind::Integration)
@@ -80,6 +80,6 @@ async fn a_created_key_opens_until_it_is_revoked() {
 async fn an_identity_already_stored_is_refused() {
     let store = MemoryKeyStore::default();
     let stored = StoredKey::for_token(&KeyToken::from_random(KeyKind::Content, BYTES));
-    store.create(stored.clone()).await.unwrap();
-    assert!(store.create(stored).await.is_err());
+    store.create(stored.clone(), "Zapier").await.unwrap();
+    assert!(store.create(stored, "Zapier").await.is_err());
 }
