@@ -20,12 +20,15 @@ mod init;
 mod init_message;
 mod init_prompt;
 mod lint;
+mod lint_fix;
 mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
+mod repair;
 mod report;
 mod routes_message;
+mod slug_repair;
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -39,6 +42,7 @@ use khalid_routes::Routes;
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
+use crate::lint::Mode;
 use crate::new::NewPost;
 
 #[global_allocator]
@@ -76,8 +80,9 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Db { command }), Some((folder, ..))) => {
             db::run(folder, *command, cli.output)
         }
-        (Some(Command::Lint { path }), Some((folder, ..))) => {
-            lint::run(folder, path.as_deref(), cli.output)
+        (Some(Command::Lint { path, fix }), Some((folder, ..))) => {
+            let mode = if *fix { Mode::Fix } else { Mode::Check };
+            lint::run(folder, path.as_deref(), mode, cli.output)
         }
         (Some(Command::New { title, language }), Some((folder, config, _))) => {
             let post = NewPost {
