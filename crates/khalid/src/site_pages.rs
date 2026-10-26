@@ -3,10 +3,11 @@
 
 use std::error::Error;
 use std::fmt;
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
-use khalid_content::{ContentTree, SiteContent, read_content};
+use khalid_content::{ContentTree, Document, SiteContent, parse_post, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
@@ -31,6 +32,9 @@ struct Site {
     renderer: Renderer,
     stylesheet: Page,
     feed: Option<ContentFeed>,
+    /// The posts and authors the last full render read, without bodies, so
+    /// a saved post's page can be rendered alone.
+    outline: Mutex<SiteContent>,
 }
 
 /// Where each render also sends the published posts: the content index in
@@ -64,6 +68,7 @@ impl SitePages {
             renderer,
             stylesheet,
             feed,
+            outline: Mutex::default(),
         })))
     }
 
@@ -89,19 +94,43 @@ impl SitePages {
         let Site {
             folder,
             config,
-            renderer,
-            stylesheet,
             feed,
+            outline,
+            ..
         } = &*self.0;
         if let Some(feed) = feed {
             let fed = published(&feed.db, feed.site, folder, config, content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
+        let rendered = self.render_of(content, Which::All)?;
+        *outline.lock().unwrap_or_else(PoisonError::into_inner) = outline_of(content);
+        Ok(rendered)
+    }
+
+    /// The `which` pages made from `content`, and the not-found page of the
+    /// default language when `which` is [`Which::All`].
+    fn render_of(
+        &self,
+        content: &SiteContent,
+        which: Which,
+    ) -> Result<(Vec<Page>, String), UserMessage> {
+        let Site {
+            config,
+            renderer,
+            stylesheet,
+            ..
+        } = &*self.0;
         let languages = build_pages::pages(config, content, stylesheet.path().as_str())?;
-        let mut pages = vec![stylesheet.clone()];
+        let mut pages = match which {
+            Which::All => vec![stylesheet.clone()],
+            Which::Posts => Vec::new(),
+        };
         let mut not_found = String::new();
         for language in &languages {
             for page in &language.pages {
+                if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
+                    continue;
+                }
                 let html = renderer
                     .render(&language.site, &page.meta, &page.body)
                     .map_err(|error| build_message::render(&error))?;
@@ -118,6 +147,61 @@ impl SitePages {
         }
         Ok((pages, not_found))
     }
+
+    /// The saved `files`, relative to the site folder, read again as posts,
+    /// with every author their pages may name. `None` when one of them is
+    /// not a post the last full render read, or cannot be read now: the
+    /// full render then shows it, or says what is wrong.
+    fn saved_posts(&self, files: &[PathBuf]) -> Option<SiteContent> {
+        let mut saved = SiteContent::default();
+        {
+            let outline = self
+                .0
+                .outline
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            for file in files {
+                saved
+                    .posts
+                    .push(outline.posts.iter().find(|doc| &doc.path == file)?.clone());
+            }
+            saved.authors.clone_from(&outline.authors);
+        }
+        for doc in &mut saved.posts {
+            let mut path = self.0.folder.clone();
+            path.push(&doc.path);
+            let text = fs::read_to_string(&path).ok()?;
+            let post = parse_post(&doc.path, &text).ok()?;
+            doc.front = post.front;
+            doc.body = post.body;
+        }
+        Some(saved)
+    }
+}
+
+/// Which pages a render makes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Which {
+    /// Every page, the stylesheet and the not-found page.
+    All,
+    /// Only the page of each dated post.
+    Posts,
+}
+
+/// The posts and authors of `content` without their bodies: what a saved
+/// post's page needs from the rest of the site, in a fraction of the
+/// memory the whole content takes.
+fn outline_of(content: &SiteContent) -> SiteContent {
+    let mut outline = SiteContent::default();
+    outline.posts = content.posts.iter().map(without_body).collect();
+    outline.authors = content.authors.iter().map(without_body).collect();
+    outline
+}
+
+fn without_body<F: Clone>(doc: &Document<F>) -> Document<F> {
+    let mut doc = doc.clone();
+    doc.body = String::new();
+    doc
 }
 
 impl Render for SitePages {
@@ -126,6 +210,17 @@ impl Render for SitePages {
     fn render(&self) -> Result<Rendered, Unrendered> {
         let (pages, not_found) = self.render_all().map_err(Unrendered)?;
         Ok(Rendered::new(pages, not_found))
+    }
+
+    /// A saved post's page alone: its own file read again, and the authors
+    /// as the last full render read them. Nothing else on a post's page
+    /// comes from other files, so it is the page the full render will make.
+    fn render_saved(&self, files: &[PathBuf]) -> Result<Option<Vec<Page>>, Unrendered> {
+        let Some(saved) = self.saved_posts(files) else {
+            return Ok(None);
+        };
+        let (pages, _) = self.render_of(&saved, Which::Posts).map_err(Unrendered)?;
+        Ok(Some(pages))
     }
 }
 
@@ -159,5 +254,40 @@ mod tests {
         assert!(given.len() > 10, "{} pages", given.len());
         assert_eq!(given, read);
         assert_eq!(given_missing, read_missing);
+    }
+
+    #[test]
+    fn a_saved_post_alone_renders_the_page_the_full_render_makes() {
+        let mut demo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        demo.push("../../fixtures/demo-site");
+        let config = Config::load(&demo, &Environment::default()).unwrap();
+        let source = SitePages::new(&demo, config, None).unwrap();
+        let unread = vec![PathBuf::from(
+            "content/en/posts/2026-09-28-what-a-sitemap-does.md",
+        )];
+        assert_eq!(
+            source.render_saved(&unread).unwrap(),
+            None,
+            "no full render yet"
+        );
+
+        let (all, _) = source.render_all().unwrap();
+        let posts: Vec<PathBuf> = source
+            .0
+            .outline
+            .lock()
+            .unwrap()
+            .posts
+            .iter()
+            .map(|doc| doc.path.clone())
+            .collect();
+        assert!(posts.len() >= 5, "{posts:?}");
+        let saved = source.render_saved(&posts).unwrap().unwrap();
+        assert_eq!(saved.len(), posts.len(), "one page per dated post");
+        for page in &saved {
+            assert!(all.contains(page), "{} differs", page.path().as_str());
+        }
+        let author = vec![PathBuf::from("content/en/authors/asif.md")];
+        assert_eq!(source.render_saved(&author).unwrap(), None);
     }
 }
