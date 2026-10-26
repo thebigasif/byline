@@ -27,6 +27,10 @@ pub(crate) struct Cli {
         value_parser = BoolValueParser::new().map(|json| if json { Output::Json } else { Output::Human }),
     )]
     pub(crate) output: Output,
+
+    /// The site folder, holding site.toml. Its settings are checked first.
+    #[arg(long, global = true, value_name = "FOLDER")]
+    pub(crate) site: Option<PathBuf>,
 }
 
 /// How a command prints its results and messages.

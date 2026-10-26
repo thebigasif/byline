@@ -1,0 +1,8 @@
+# Breaks one rule: mode must be server or static. The exact message
+# khalid --site prints for it is in expected.txt beside this file.
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+mode = "hybrid"
+default_language = "en"
+languages = ["en", "de"]

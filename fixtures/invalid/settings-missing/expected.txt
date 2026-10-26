@@ -1,0 +1,3 @@
+Khalid could not read fixtures/invalid/settings-missing/site.toml.
+Every site folder needs a site.toml that holds its settings.
+Check the folder given to --site, or run `khalid init` to make a site there.

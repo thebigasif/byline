@@ -6,6 +6,7 @@
 //! which this binary calls the same way the API does.
 
 mod cli;
+mod config_message;
 mod exit;
 mod report;
 
@@ -14,7 +15,7 @@ use std::process::ExitCode;
 
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser};
-use khalid_core::UserMessage;
+use khalid_core::{Config, Environment, UserMessage};
 
 use crate::cli::{Cli, Command, Output};
 use crate::exit::Exit;
@@ -31,8 +32,14 @@ fn main() -> ExitCode {
     exit.into()
 }
 
-/// Runs the command the person asked for.
+/// Runs the command the person asked for, after checking the site's settings
+/// when `--site` names a folder.
 fn run(cli: &Cli) -> Exit {
+    if let Some(site) = &cli.site
+        && let Err(error) = Config::load(site, &Environment::from_process())
+    {
+        return report::failure(cli.output, &config_message::of(&error), Exit::Failure);
+    }
     match &cli.command {
         None => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         Some(command) => report::failure(cli.output, &not_built(command), Exit::Internal),

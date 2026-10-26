@@ -1,0 +1,9 @@
+# Breaks one rule: no unknown fields. The exact message khalid --site prints
+# for it is in expected.txt beside this file.
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+mode = "server"
+colour = "blue"
+default_language = "en"
+languages = ["en", "de"]

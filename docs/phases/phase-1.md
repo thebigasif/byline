@@ -12,7 +12,7 @@
 
 ### 1.1 Settings from `site.toml`
 
-- Status: `doing`. Part 1 (#23): settings from `site.toml` with located errors. Part 2: the `KHALID_ADDRESS` override with the one `#[expect]`, and a named test per refusal. Part 3: the binary edge with `--site` and the what, why and fix message.
+- Status: `done` (#23, #24 and this landing). `khalid --site <folder>` checks the settings first; `fixtures/invalid/` holds one folder per mistake with its exact message.
 - `Config` reads `site.toml`, the environment and command-line flags once at start, in that order of precedence, into typed fields: address (`AbsoluteUrl`), mount path, languages (`Locale`), default language, mode (server or static), slug mode (ascii or unicode). The config module carries the one `#[expect(clippy::disallowed_methods)]` for reading the environment, which closes task 0.4's config part.
 - Rules: BL-RUN-2, BL-FS-3, BL-ERR-4, BL-TYP-3.
 - Done when: `fixtures/demo-site/site.toml` loads, and a file with a wrong field produces a message that names the file, the line and the field, in what, why and fix.
