@@ -7,7 +7,9 @@
 //! content, rendering or storage.
 
 mod address;
+mod outbound;
 mod resolver;
 
 pub use address::is_public;
+pub use outbound::{Fetched, Limits, Outbound, OutboundError};
 pub use resolver::{Reach, ResolveError, Resolver};

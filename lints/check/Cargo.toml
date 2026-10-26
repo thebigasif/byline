@@ -8,9 +8,10 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
-# Only the violations use chrono, to prove the chrono entries in clippy.toml.
+# Only the violations use chrono and reqwest, to prove their entries in clippy.toml.
 [target.'cfg(khalid_lint_check)'.dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+reqwest = { version = "0.13", default-features = false }
 
 # The table under test is the workspace one, so this crate is linted exactly
 # like every product crate.

@@ -14,12 +14,16 @@ publish.workspace = true
 test-util = []
 
 [dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "http2"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["net"] }
 
 [dev-dependencies]
 khalid-outbound = { path = ".", version = "0.0.0", features = ["test-util"] }
 tokio.workspace = true
+wiremock = "0.6"
 
 [lints]
 workspace = true
