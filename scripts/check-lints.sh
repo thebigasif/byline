@@ -1,137 +1,112 @@
 #!/usr/bin/env bash
-# Prove the skill's [lints] table fires: every // expect: lint in the check
-# crate must report on its marked line, nothing else may report, and the
-# table in lints/lints.toml must match the check crate's Cargo.toml. Clippy reads
-# lints/clippy.toml, the same file users copy next to their Cargo.toml.
+# Prove the lint table fires (RULES.md BL-LNT-3).
+#
+# lints/lints.toml is the table. The root Cargo.toml mirrors it under
+# [workspace.lints.*]. lints/check/src/violations.rs holds one deliberate
+# violation per entry, marked in the source:
+#   // expect: <lint>   the lint must fire on the marked line
+#   // quiet: <lint>    the table allows the lint, so the marked line stays silent
+# A marker on a line of its own applies to the next code line.
+#
+# The check fails when the two tables drift, when an entry has no marker or a
+# marker names no entry, when a marked lint stays silent, or when anything
+# unmarked fires. Clippy proves the rustc and clippy lints, rustdoc proves the
+# rustdoc lints. Both read the root clippy.toml, like every crate here.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TABLE="$ROOT/lints/lints.toml"
-CRATE="$ROOT/lints/check"
-SRC="$CRATE/src/lib.rs"
-MANIFEST="$CRATE/Cargo.toml"
+WORKSPACE="$ROOT/Cargo.toml"
+RULES="$ROOT/docs/standards/RULES.md"
+SRC="$ROOT/lints/check/src/violations.rs"
 
-if ! command -v cargo >/dev/null 2>&1; then
-  echo "check-lints: cargo not found on PATH" >&2
-  exit 1
-fi
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "check-lints: python3 not found on PATH" >&2
-  exit 1
-fi
-if ! cargo clippy --version >/dev/null 2>&1; then
-  echo "check-lints: cargo clippy is not available" >&2
-  exit 1
-fi
+for tool in cargo python3; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "check-lints: $tool is not on PATH. Install it, then run this script again." >&2
+    exit 1
+  fi
+done
 
-TARGET="$(mktemp -d "${TMPDIR:-/tmp}/lints-check.XXXXXX")"
-JSON="$(mktemp "${TMPDIR:-/tmp}/lints-check-json.XXXXXX")"
-trap 'rm -rf "$TARGET" "$JSON"' EXIT
+# A target directory of its own, so the cfg below never invalidates the normal
+# build cache. It is emptied each run so cached diagnostics cannot hide a change.
+TARGET="${CARGO_TARGET_DIR:-$ROOT/target}/lint-check"
+rm -rf "$TARGET"
+mkdir -p "$TARGET"
 
 export CARGO_TERM_COLOR=never
-export CLIPPY_CONF_DIR="$ROOT/lints"
+export CLIPPY_CONF_DIR="$ROOT"
+# Replaces any -D warnings from the caller: this script judges every diagnostic itself.
+export RUSTFLAGS="--cfg byline_lint_check"
+export RUSTDOCFLAGS="--cfg byline_lint_check"
+
 set +e
-cargo clippy --manifest-path "$MANIFEST" --target-dir "$TARGET" --message-format=json \
-  >"$JSON" 2>"$TARGET/clippy.err"
+cargo clippy --manifest-path "$WORKSPACE" -p lint-check --target-dir "$TARGET" \
+  --message-format=json >"$TARGET/clippy.json" 2>"$TARGET/clippy.err"
 CLIPPY_STATUS=$?
+cargo doc --manifest-path "$WORKSPACE" -p lint-check --no-deps --target-dir "$TARGET" \
+  --message-format=json >"$TARGET/doc.json" 2>"$TARGET/doc.err"
+DOC_STATUS=$?
 set -e
 
-python3 - "$TABLE" "$MANIFEST" "$SRC" "$JSON" "$CLIPPY_STATUS" "$TARGET/clippy.err" <<'PY'
+python3 - "$TABLE" "$WORKSPACE" "$RULES" "$SRC" "$TARGET" "$CLIPPY_STATUS" "$DOC_STATUS" <<'PY'
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 
-table_path, manifest_path, src_path, json_path, status_s, err_path = sys.argv[1:]
-clippy_status = int(status_s)
-
-table = Path(table_path).read_text()
-manifest = Path(manifest_path).read_text()
-src = Path(src_path).read_text()
-err = Path(err_path).read_text() if Path(err_path).exists() else ""
-
+table_path, workspace_path, rules_path, src_path, target, clippy_s, doc_s = sys.argv[1:]
+target = Path(target)
 failed = False
 
-if table not in manifest:
-    print("lints table drifted: lints/lints.toml is not byte-identical in the check crate Cargo.toml")
+
+def fail(text):
+    global failed
     failed = True
-
-rule_for = {}
-last_rule = ""
-in_table = False
-for line in table.splitlines():
-    stripped = line.strip()
-    if stripped.startswith("[lints"):
-        in_table, last_rule = True, ""
-        continue
-    if not in_table:
-        continue
-    if stripped.startswith("#"):
-        # A comment line heads the group of lints below it, e.g. "# Panics: ..."
-        last_rule = stripped.lstrip("#").strip().rstrip(".")
-        continue
-    if not stripped:
-        continue
-    m = re.match(r"^([A-Za-z0-9_]+)\s*=[^#]*(?:#\s*(.*))?$", stripped)
-    if m:
-        name, inline = m.group(1), (m.group(2) or "").strip()
-        rule = inline or last_rule
-        for key in (name, name.replace("_", "-"), f"clippy::{name}"):
-            rule_for[key] = rule
+    print(text)
 
 
-def hyphen_to_underscore(name: str) -> str:
-    if name.startswith("clippy::"):
-        return "clippy::" + name[len("clippy::") :].replace("-", "_")
-    return name.replace("-", "_")
+# ------------------------------------------------------------- the two tables
+
+PREFIX = {"rust": "", "rustdoc": "rustdoc::", "clippy": "clippy::"}
 
 
-def add_aliases(names: set[str], raw: str) -> None:
-    if not raw:
-        return
-    n = hyphen_to_underscore(raw)
-    names.add(n)
-    if n.startswith("clippy::"):
-        names.add(n[len("clippy::") :])
-    elif not n.startswith("E") and n[:1].isalpha():
-        names.add(f"clippy::{n}")
+def entries(lints):
+    """The table as an ordered list of (full lint name, level)."""
+    out = []
+    for tool, table in lints.items():
+        for name, value in table.items():
+            level = value["level"] if isinstance(value, dict) else value
+            out.append((PREFIX.get(tool, f"{tool}::") + name, level, json.dumps(value, sort_keys=True)))
+    return out
 
 
-W_NOTE = re.compile(r"-W ([A-Za-z0-9_:-]+)")
-EXPECT = re.compile(r"// expect:\s*(\S+)")
+table = entries(tomllib.loads(Path(table_path).read_text())["lints"])
+mirror = entries(tomllib.loads(Path(workspace_path).read_text())["workspace"]["lints"])
+if table != mirror:
+    fail("The lint table drifted: [workspace.lints] in Cargo.toml must list the same lints, levels and order as lints/lints.toml.")
+    for row in sorted(set(table) ^ set(mirror)):
+        side = "lints/lints.toml" if row in table else "Cargo.toml"
+        print(f"  only in {side}: {row[0]} = {row[1]}")
+level_of = {name: level for name, level, _ in table}
+
+# Rule IDs from the Enforced column of RULES.md, for the report.
+rule_of = {}
+for line in Path(rules_path).read_text().splitlines():
+    match = re.match(r"^\| (BL-[A-Z]+-\d+) \|", line)
+    if match:
+        for lint in re.findall(r"`([a-z0-9_:]+)`", line.rsplit("|", 2)[-2]):
+            rule_of.setdefault(lint.split("::")[-1], match.group(1))
+
+# ----------------------------------------------------------------- the markers
+
+MARKER = re.compile(r"(?:^|\s)// (expect|quiet): ([a-z0-9_:]+)\s*$")
+src_lines = Path(src_path).read_text().splitlines()
 
 
-def collect_lint_names(message: dict) -> set[str]:
-    names: set[str] = set()
-    code = message.get("code")
-    code_str = code.get("code") if isinstance(code, dict) else code
-    if isinstance(code_str, str) and not re.fullmatch(r"E\d+", code_str):
-        add_aliases(names, code_str)
-    blobs = [message.get("message") or "", message.get("rendered") or ""]
-    for child in message.get("children") or []:
-        blobs.append(child.get("message") or "")
-        blobs.append(child.get("rendered") or "")
-    for blob in blobs:
-        for match in W_NOTE.finditer(blob):
-            add_aliases(names, match.group(1))
-    return names
-
-
-def primary_span(message: dict) -> dict:
-    spans = message.get("spans") or []
-    for span in spans:
-        if span.get("is_primary"):
-            return span
-    return spans[0] if spans else {}
-
-
-src_lines = src.splitlines()
-
-
-def marked_line(line_no: int) -> int:
-    """Same-line expects mark that line; a comment-only expect marks the next code line."""
-    code = EXPECT.sub("", src_lines[line_no - 1]).strip()
-    if code:
+def marked_line(line_no):
+    """A marker after code marks its own line; a marker alone marks the next code line."""
+    if MARKER.sub("", src_lines[line_no - 1]).strip():
         return line_no
     for j in range(line_no, len(src_lines)):
         stripped = src_lines[j].strip()
@@ -140,100 +115,101 @@ def marked_line(line_no: int) -> int:
     return line_no
 
 
-expects: list[tuple[int, str]] = []
+markers = []
 for i, line in enumerate(src_lines, start=1):
-    match = EXPECT.search(line)
+    match = MARKER.search(line)
     if match:
-        expects.append((marked_line(i), match.group(1)))
+        markers.append((marked_line(i), match.group(1), match.group(2)))
 
-if not expects:
-    print("no // expect: comments found in the check crate")
-    failed = True
+for _, kind, lint in markers:
+    level = level_of.get(lint)
+    if level is None:
+        fail(f"The marker `{kind}: {lint}` names a lint that is not in lints/lints.toml.")
+    elif (kind == "quiet") != (level == "allow"):
+        fail(f"The marker `{kind}: {lint}` does not match the table, which sets it to {level}.")
+for name, level, _ in table:
+    want = "quiet" if level == "allow" else "expect"
+    if not any(kind == want and lint == name for _, kind, lint in markers):
+        fail(f"The table entry {name} = {level} has no `// {want}: {name}` marker in lints/check.")
 
-fired: list[tuple[int, set[str], str, str]] = []
-for line in Path(json_path).read_text().splitlines():
-    if not line.strip():
-        continue
-    try:
-        obj = json.loads(line)
-    except json.JSONDecodeError:
-        continue
-    if obj.get("reason") != "compiler-message":
-        continue
-    message = obj.get("message") or {}
-    level = message.get("level")
-    if level not in ("warning", "error"):
-        continue
-    span = primary_span(message)
-    file_name = span.get("file_name") or ""
-    if file_name and Path(file_name).name != "lib.rs":
-        continue
-    line_no = span.get("line_start")
-    names = collect_lint_names(message)
-    text = (message.get("message") or "").split("\n")[0]
-    fired.append((line_no, names, level, text))
+# ----------------------------------------------------------- the diagnostics
 
-if clippy_status != 0 and not any(level == "error" for _, _, level, _ in fired):
-    print(f"cargo clippy exited {clippy_status} without compiler diagnostics")
-    if err.strip():
-        print(err.strip())
-    failed = True
+W_NOTE = re.compile(r"-[WDF] ([A-Za-z0-9_:-]+)")
+ATTR_NOTE = re.compile(r"#\[(?:warn|deny|forbid)\(([A-Za-z0-9_:]+)\)\]")
+SUMMARY = re.compile(r"^(\d+ warnings? emitted|aborting due to|could not (compile|document)|warning: build failed)")
 
-unmatched_expects = []
-matched_fired = set()
-rows = []
 
-for line_no, expected in expects:
-    want = set()
-    add_aliases(want, expected)
-    hit = None
-    for idx, (fline, names, level, text) in enumerate(fired):
-        if idx in matched_fired:
+def names_of(message):
+    """Every lint name a diagnostic answers to, including the group that enabled it."""
+    raw = [(message.get("code") or {}).get("code") or ""]
+    for child in message.get("children") or []:
+        note = child.get("message") or ""
+        raw += W_NOTE.findall(note) + ATTR_NOTE.findall(note)
+    return {name.replace("-", "_") for name in raw if name and not re.fullmatch(r"E\d+", name)}
+
+
+def diagnostics(path):
+    out = []
+    for line in path.read_text().splitlines():
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
             continue
-        if fline == line_no and (names & want):
-            hit = (idx, names, text)
-            break
-    rule = rule_for.get(expected) or rule_for.get(expected.split("::")[-1]) or ""
+        if obj.get("reason") != "compiler-message":
+            continue
+        message = obj.get("message") or {}
+        if message.get("level") not in ("warning", "error"):
+            continue
+        text = (message.get("message") or "").split("\n")[0]
+        spans = message.get("spans") or []
+        span = next((s for s in spans if s.get("is_primary")), spans[0] if spans else {})
+        if not span and SUMMARY.match(text):
+            continue
+        out.append((Path(span.get("file_name") or "?").name, span.get("line_start"), names_of(message), text))
+    return out
+
+
+clippy = [d for d in diagnostics(target / "clippy.json") if not any(n.startswith("rustdoc::") for n in d[2])]
+rustdoc = [d for d in diagnostics(target / "doc.json") if any(n.startswith("rustdoc::") for n in d[2])]
+
+for status, name, found in ((int(clippy_s), "clippy", clippy), (int(doc_s), "doc", rustdoc)):
+    if status != 0 and not any(text for *_, text in found):
+        fail(f"cargo {name} failed without a diagnostic:")
+        print((target / f"{name}.err").read_text().strip())
+
+fired = clippy + rustdoc
+used = set()
+rows = []
+for line_no, kind, lint in markers:
+    if kind != "expect":
+        continue
+    hit = next(
+        (i for i, (file, at, names, _) in enumerate(fired)
+         if i not in used and file == "violations.rs" and at == line_no and lint in names),
+        None,
+    )
     if hit is None:
-        unmatched_expects.append((line_no, expected))
-        rows.append((rule, expected, "MISSING"))
+        rows.append((lint, f"MISSING on violations.rs:{line_no}"))
         failed = True
     else:
-        matched_fired.add(hit[0])
-        rows.append((rule, expected, "fired"))
+        used.add(hit)
+        rows.append((lint, "fired"))
 
-unexpected = []
-for idx, (fline, names, level, text) in enumerate(fired):
-    if idx in matched_fired:
-        continue
-    label = sorted(names)[0] if names else (level or "unknown")
-    unexpected.append((fline, label, text))
-    failed = True
+width = max(len(lint) for lint, _ in rows) if rows else 4
+print(f"{'rule':<10}  {'lint':<{width}}  status")
+print(f"{'-' * 10}  {'-' * width}  ------")
+for lint, status in rows:
+    print(f"{rule_of.get(lint.split('::')[-1], ''):<10}  {lint:<{width}}  {status}")
 
-width_rule = max((len(r[0]) for r in rows), default=4)
-width_lint = max((len(r[1]) for r in rows), default=4)
-width_rule = max(width_rule, 4)
-width_lint = max(width_lint, 4)
-print(f"{'rule'.ljust(width_rule)}  {'lint'.ljust(width_lint)}  status")
-print(f"{'-' * width_rule}  {'-' * width_lint}  ------")
-for rule, lint, status in rows:
-    print(f"{rule.ljust(width_rule)}  {lint.ljust(width_lint)}  {status}")
-
-if unmatched_expects:
-    print()
-    print("expected lints that did not fire on their marked line:")
-    for line_no, expected in unmatched_expects:
-        print(f"  src/lib.rs:{line_no}: {expected}")
-
+unexpected = [d for i, d in enumerate(fired) if i not in used]
 if unexpected:
-    print()
-    print("unexpected diagnostics:")
-    for fline, label, text in unexpected:
-        print(f"  src/lib.rs:{fline}: {label}: {text}")
+    fail("\nDiagnostics with no marker:")
+    for file, at, names, text in unexpected:
+        print(f"  {file}:{at}: {', '.join(sorted(names)) or 'no lint name'}: {text}")
 
 if failed:
+    print("\nThe lint table is not proven. Fix the table or the markers in lints/check, then run this script again.")
     sys.exit(1)
-
-print()
-print(f"{len(rows)} expected lints fired; table matches {table_path}")
+quiet = sum(1 for _, kind, _ in markers if kind == "quiet")
+print(f"\n{len(rows)} expected lints fired, {quiet} allowed lints stayed quiet, and the table matches Cargo.toml.")
 PY

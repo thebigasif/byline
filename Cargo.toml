@@ -2,10 +2,10 @@
 # shared from here. Each crate sets `[lints] workspace = true`.
 [workspace]
 resolver = "3"
-members = ["crates/*"]
-# Task 0.3 adds "lints/check" here. check-reference is BeautifulRust's copy and
-# is full of deliberate violations, so it is never a member.
-exclude = ["lints/check-reference"]
+# lints/check proves the lint table fires. Its violations compile only when
+# scripts/check-lints.sh sets the byline_lint_check cfg. The first product crate
+# adds "crates/*" here: cargo refuses a glob that matches nothing.
+members = ["lints/check"]
 
 [workspace.package]
 edition = "2024"

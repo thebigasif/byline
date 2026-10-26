@@ -32,6 +32,10 @@ deny:
 lints:
     ./scripts/check-lints.sh
 
+# Prove that removing any one lint from the table makes `just lints` fail.
+prove-lints:
+    ./scripts/prove-lint-table.sh
+
 # Benchmarks against the baseline.
 bench:
     ./scripts/perf.sh

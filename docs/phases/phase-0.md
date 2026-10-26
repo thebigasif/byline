@@ -22,7 +22,7 @@
 
 ### 0.3 The lint proof crate
 
-- Status: `todo`
+- Status: `doing`
 - `lints/check` with one deliberate violation per lint in `lints/lints.toml` set to warn, marked `// expect: <lint>`, following `lints/check-reference/`. Adapt `scripts/check-lints.sh` to the workspace layout. Delete `lints/check-reference/`.
 - Done when: `./scripts/check-lints.sh` passes, and removing any one lint from the table makes it fail.
 
@@ -56,4 +56,4 @@ None open.
 
 ## Order
 
-0.2 first, since everything else needs a crate. Then 0.3 and 0.4 together, then 0.6, 0.5, 0.7. 0.1 runs in parallel and does not block anything.
+0.3 first, then 0.2. CI runs `scripts/check-lints.sh` as soon as the first crate exists, so the lint proof crate has to land before the first product crate for CI to go green. Then 0.4, then 0.6, 0.5, 0.7. 0.1 runs in parallel and does not block anything.
