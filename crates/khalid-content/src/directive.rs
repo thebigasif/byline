@@ -2,11 +2,13 @@
 
 use khalid_core::AbsoluteUrl;
 
-use crate::{BlockError, BlockKind, CalloutKind};
+use std::time::Duration;
+
+use crate::{BlockError, BlockKind, CalloutKind, VideoBlock};
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 7] = [
-    "bookmark", "button", "callout", "embed", "figure", "toc", "toggle",
+pub(crate) const BLOCKS: [&str; 8] = [
+    "bookmark", "button", "callout", "embed", "figure", "toc", "toggle", "video",
 ];
 
 /// What to say after "there is no block called `name`": the nearest block
@@ -47,7 +49,7 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// Blocks with no body, written on one line as `::name{...}`. Every other
 /// block opens with `:::name{...}` and closes with `:::`.
-const LEAVES: [&str; 4] = ["bookmark", "button", "embed", "toc"];
+const LEAVES: [&str; 5] = ["bookmark", "button", "embed", "toc", "video"];
 
 /// How a block was written.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -90,6 +92,7 @@ pub(crate) fn directive(line: usize, rest: &str, form: Form) -> Result<BlockKind
         "button" => button(&attributes),
         "bookmark" => bookmark(&attributes),
         "embed" => embed(&attributes),
+        "video" => video(&attributes),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
@@ -196,6 +199,54 @@ fn embed(attributes: &Attributes) -> Result<BlockKind, BlockError> {
     })
 }
 
+fn video(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only(
+        "video",
+        &["src", "title", "poster", "description", "duration"],
+        "src, title, poster, description and duration",
+    )?;
+    let src = attributes.need("src", "a video needs src, the video file")?;
+    let title = attributes.need("title", "a video needs title, the video's name")?;
+    let poster = attributes.need(
+        "poster",
+        "a video needs poster, the still picture shown before it plays",
+    )?;
+    let duration = attributes
+        .get("duration")
+        .map(|text| {
+            clock(&text).ok_or(BlockError::Value {
+                line: attributes.line,
+                problem: "a video's duration is written as minutes:seconds, such as 2:05, or hours:minutes:seconds",
+            })
+        })
+        .transpose()?;
+    Ok(BlockKind::Video(VideoBlock {
+        src: attributes.media("video", "src", src)?,
+        title,
+        poster: attributes.media("video", "poster", poster)?,
+        description: attributes.get("description"),
+        duration,
+    }))
+}
+
+/// Reads `m:ss` or `h:mm:ss` as a duration.
+fn clock(text: &str) -> Option<Duration> {
+    let parts = text
+        .split(':')
+        .map(|part| part.parse::<u64>().ok())
+        .collect::<Option<Vec<u64>>>()?;
+    let (hours, minutes, seconds) = match parts.as_slice() {
+        [minutes, seconds] => (0, *minutes, *seconds),
+        [hours, minutes, seconds] if *minutes < 60 => (*hours, *minutes, *seconds),
+        _ => return None,
+    };
+    let total = hours
+        .checked_mul(3600)?
+        .checked_add(minutes.checked_mul(60)?)?
+        .checked_add(seconds)?;
+    (seconds < 60).then(|| Duration::from_secs(total))
+}
+
 /// A directive's attributes, with the line they are on for messages.
 struct Attributes {
     line: usize,
@@ -245,6 +296,20 @@ impl Attributes {
             attribute,
             source,
         })
+    }
+
+    /// `text`, the value of `attribute`, as a path on this site or a full
+    /// web address.
+    fn media(
+        &self,
+        block: &'static str,
+        attribute: &'static str,
+        text: String,
+    ) -> Result<String, BlockError> {
+        if text.contains(':') {
+            self.address(block, attribute, &text)?;
+        }
+        Ok(text)
     }
 
     /// The value of `key`, or `problem` as the error when it is missing.

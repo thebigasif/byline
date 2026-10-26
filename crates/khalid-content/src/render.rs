@@ -11,7 +11,9 @@ use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
 use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
-use crate::{Block, BlockError, BlockKind, CalloutKind, embed, parse_blocks};
+use crate::{Block, BlockError, BlockKind, CalloutKind, StructuredBlock, embed, parse_blocks};
+
+mod media;
 
 /// A body rendered to HTML.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,6 +29,9 @@ pub struct Rendered {
     pub images: Vec<Image>,
     /// The words a reader reads, for reading time and thin-post checks.
     pub words: usize,
+    /// The blocks search engines read as schema, in order, for the schema
+    /// builders.
+    pub structured: Vec<StructuredBlock>,
 }
 
 /// One heading of a rendered body.
@@ -119,6 +124,7 @@ pub fn render(body: &str, locale: &Locale, slugs: SlugMode) -> Result<Rendered, 
         links: renderer.facts.links,
         images: renderer.facts.images,
         words: renderer.facts.words,
+        structured: renderer.facts.structured,
     })
 }
 
@@ -208,6 +214,7 @@ impl Renderer {
                 image.as_ref(),
             ),
             BlockKind::Embed { src, title } => self.embed(src, title),
+            BlockKind::Video(video) => self.video(video),
             _ => {}
         }
     }
@@ -412,6 +419,7 @@ struct Facts {
     links: Vec<Link>,
     images: Vec<Image>,
     words: usize,
+    structured: Vec<StructuredBlock>,
 }
 
 impl Facts {

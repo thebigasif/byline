@@ -16,6 +16,7 @@ mod post;
 mod render;
 mod schemas;
 mod site_content;
+mod structured;
 mod tree;
 
 pub use block::{Block, BlockError, BlockKind, CalloutKind, parse_blocks, print_blocks};
@@ -28,4 +29,5 @@ pub use schemas::{
     AuthorFront, CaseStudyFront, ChangelogFront, GlossaryFront, IndexFront, PageFront, SnippetFront,
 };
 pub use site_content::{Document, SiteContent, read_content};
+pub use structured::{StructuredBlock, VideoBlock};
 pub use tree::{Collection, ContentTree, Entry, Language};

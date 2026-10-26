@@ -4,6 +4,8 @@ use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
 use khalid_core::{AbsoluteUrl, ParseUrlError};
 
+use crate::VideoBlock;
+
 use crate::directive::{Form, directive, opening, unknown_hint};
 
 /// One top-level block of a body, with its markdown exactly as written.
@@ -96,6 +98,9 @@ pub enum BlockKind {
         /// The name a screen reader says for the player.
         title: String,
     },
+    /// `::video{src="..." title="..." poster="..."}`: a video file with
+    /// controls, which search engines read as a `VideoObject`.
+    Video(VideoBlock),
 }
 
 /// The kinds of callout.
@@ -169,6 +174,14 @@ pub enum BlockError {
         /// Which form to use instead, in a sentence.
         problem: String,
     },
+    /// An attribute's value is not written the way the block needs it.
+    #[error("line {line}: {problem}")]
+    Value {
+        /// The line of the block or of the wrong line in its body.
+        line: usize,
+        /// How to write it, in a sentence.
+        problem: &'static str,
+    },
     /// A button whose link could run a script or leave the web.
     #[error(
         "line {line}: a button links to a page, a #section, https:, http: or mailto:, not {href}"
@@ -215,6 +228,7 @@ impl BlockError {
             | Self::Form { line, .. }
             | Self::Link { line, .. }
             | Self::Address { line, .. }
+            | Self::Value { line, .. }
             | Self::Unclosed { line, .. } => *line,
         }
     }
