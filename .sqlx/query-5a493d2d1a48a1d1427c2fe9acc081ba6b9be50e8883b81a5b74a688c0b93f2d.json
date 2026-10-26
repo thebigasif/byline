@@ -1,0 +1,134 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT d.id AS \"id!\", d.webhook_id, d.event, d.url, d.body, d.first_at,\n                      a.number AS \"number?\", a.at AS \"at?\", a.status AS \"status?\", a.reason AS \"reason?\"\n               FROM webhook_deliveries d\n               LEFT JOIN webhook_attempts a ON a.delivery_id = d.id\n               WHERE d.site_id = ?1 AND d.state = 'pending' AND d.state_at <= ?2\n               ORDER BY d.state_at, d.id, a.number",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "webhook_deliveries",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "webhook_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "webhook_deliveries",
+            "name": "webhook_id"
+          }
+        }
+      },
+      {
+        "name": "event",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "webhook_deliveries",
+            "name": "event"
+          }
+        }
+      },
+      {
+        "name": "url",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "webhook_deliveries",
+            "name": "url"
+          }
+        }
+      },
+      {
+        "name": "body",
+        "ordinal": 4,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "webhook_deliveries",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "name": "first_at",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "webhook_deliveries",
+            "name": "first_at"
+          }
+        }
+      },
+      {
+        "name": "number?",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "webhook_attempts",
+            "name": "number"
+          }
+        }
+      },
+      {
+        "name": "at?",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "webhook_attempts",
+            "name": "at"
+          }
+        }
+      },
+      {
+        "name": "status?",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "webhook_attempts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "reason?",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "webhook_attempts",
+            "name": "reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "5a493d2d1a48a1d1427c2fe9acc081ba6b9be50e8883b81a5b74a688c0b93f2d"
+}
