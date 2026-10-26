@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM authors WHERE site_id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "9fba17aba78f9ac599717048ad1144e85e50d8385e7909a2a48f196ce2c54015"
+}

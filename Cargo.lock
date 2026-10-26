@@ -1442,6 +1442,7 @@ dependencies = [
 name = "khalid-db"
 version = "0.0.0"
 dependencies = [
+ "khalid-core",
  "sqlx",
  "tempfile",
  "thiserror",
@@ -1489,8 +1490,12 @@ dependencies = [
 name = "khalid-webhooks"
 version = "0.0.0"
 dependencies = [
+ "chrono",
+ "hmac",
+ "khalid-core",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "thiserror",
 ]
 

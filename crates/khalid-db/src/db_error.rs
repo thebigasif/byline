@@ -24,4 +24,8 @@ pub enum DbError {
         #[source]
         source: sqlx::migrate::MigrateError,
     },
+    /// A query failed: the file is locked for longer than the busy timeout,
+    /// the disk is full, or a row breaks a rule of the schema.
+    #[error("a database query failed")]
+    Query(#[from] sqlx::Error),
 }
