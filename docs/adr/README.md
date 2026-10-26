@@ -22,5 +22,6 @@ One file per decision the plan does not already make. Numbered, never edited aft
 | 0012 | Blocks beyond markdown are fenced directives | Accepted |
 | 0013 | SEO outputs are built from their own input types | Accepted |
 | 0014 | Webhook event names and signatures | Accepted |
+| 0016 | The share image is drawn in pure Rust, in its own crate | Accepted |
 | 0017 | Proxy rules live in their own crate and keep the mount path | Accepted |
 | 0015 | Theme sync reads the site it is given, and only that site | Accepted |
