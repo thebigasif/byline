@@ -20,8 +20,9 @@ mod key_table;
 mod posts;
 mod rebuild;
 mod site_id;
+mod site_lists;
 
-pub use content_index::{ContentIndex, IndexedPost};
+pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;
 pub use db_error::DbError;
 pub use delivery_log::DeliveryLog;

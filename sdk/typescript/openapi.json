@@ -313,6 +313,264 @@
         ]
       }
     },
+    "/api/content/v1/authors/": {
+      "get": {
+        "tags": [
+          "authors"
+        ],
+        "operationId": "browse_authors",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=tag:news+featured:true`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`include=authors,tags`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "`fields=title,slug`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=published_at desc,title`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formats",
+            "in": "query",
+            "description": "`formats=html,plaintext`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15` or `limit=all`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of published entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Authors"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/authors/slug/{slug}/": {
+      "get": {
+        "tags": [
+          "authors"
+        ],
+        "operationId": "read_author_by_slug",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "The entry's slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Authors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/authors/{id}/": {
+      "get": {
+        "tags": [
+          "authors"
+        ],
+        "operationId": "read_author",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The entry's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Authors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/case-studies/": {
       "get": {
         "tags": [
@@ -536,6 +794,264 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CaseStudies"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/categories/": {
+      "get": {
+        "tags": [
+          "categories"
+        ],
+        "operationId": "browse_categories",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=tag:news+featured:true`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`include=authors,tags`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "`fields=title,slug`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=published_at desc,title`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formats",
+            "in": "query",
+            "description": "`formats=html,plaintext`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15` or `limit=all`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of published entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Categories"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/categories/slug/{slug}/": {
+      "get": {
+        "tags": [
+          "categories"
+        ],
+        "operationId": "read_category_by_slug",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "The entry's slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Categories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/categories/{id}/": {
+      "get": {
+        "tags": [
+          "categories"
+        ],
+        "operationId": "read_category",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The entry's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Categories"
                 }
               }
             }
@@ -829,6 +1345,264 @@
         ]
       }
     },
+    "/api/content/v1/collections/": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "operationId": "browse_collections",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=tag:news+featured:true`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`include=authors,tags`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "`fields=title,slug`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=published_at desc,title`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formats",
+            "in": "query",
+            "description": "`formats=html,plaintext`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15` or `limit=all`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of published entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collections"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/collections/slug/{slug}/": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "operationId": "read_collection_by_slug",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "The entry's slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collections"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/collections/{id}/": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "operationId": "read_collection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The entry's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collections"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/glossary/": {
       "get": {
         "tags": [
@@ -1052,6 +1826,264 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GlossaryTerms"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/navigation/": {
+      "get": {
+        "tags": [
+          "navigation"
+        ],
+        "operationId": "browse_navigation",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=tag:news+featured:true`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`include=authors,tags`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "`fields=title,slug`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=published_at desc,title`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formats",
+            "in": "query",
+            "description": "`formats=html,plaintext`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15` or `limit=all`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of published entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Navigation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/navigation/slug/{slug}/": {
+      "get": {
+        "tags": [
+          "navigation"
+        ],
+        "operationId": "read_menu_by_slug",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "The entry's slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Navigation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/navigation/{id}/": {
+      "get": {
+        "tags": [
+          "navigation"
+        ],
+        "operationId": "read_menu",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The entry's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Navigation"
                 }
               }
             }
@@ -1602,6 +2634,324 @@
           }
         ]
       }
+    },
+    "/api/content/v1/settings/": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Reads the site's public settings: its name, address and languages.",
+        "operationId": "read_settings",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The site has no settings to show yet",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/tags/": {
+      "get": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "browse_tags",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=tag:news+featured:true`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`include=authors,tags`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "`fields=title,slug`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=published_at desc,title`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formats",
+            "in": "query",
+            "description": "`formats=html,plaintext`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15` or `limit=all`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of published entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tags"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/tags/slug/{slug}/": {
+      "get": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "read_tag_by_slug",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "The entry's slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tags"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
+    },
+    "/api/content/v1/tags/{id}/": {
+      "get": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "read_tag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The entry's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tags"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid content key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published entry has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "content_key": []
+          },
+          {
+            "content_key_query": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1685,6 +3035,92 @@
           }
         }
       },
+      "Author": {
+        "type": "object",
+        "description": "An author in one language, in API shape.",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "language",
+          "same_as"
+        ],
+        "properties": {
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The introduction from the author's file, in markdown."
+          },
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.asif`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en` or `de`.",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name readers see."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the author does, such as `Founder of SerpDad`."
+          },
+          "same_as": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The author's profiles elsewhere, in the order the file gives them."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts name the author by.",
+            "example": "asif"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The author's page on the blog, when it has one.",
+            "example": "https://example.com/blog/authors/asif/"
+          }
+        }
+      },
+      "Authors": {
+        "type": "object",
+        "required": [
+          "authors"
+        ],
+        "properties": {
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Author"
+            },
+            "description": "The entries on this page, or the one entry asked for."
+          },
+          "meta": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Meta",
+                "description": "Pagination, on lists only."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
       "Bodies": {
         "type": "object",
         "description": "A post's body in each format. A format left out of `formats` is absent.",
@@ -1738,6 +3174,32 @@
           }
         }
       },
+      "Categories": {
+        "type": "object",
+        "required": [
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "description": "The entries on this page, or the one entry asked for."
+          },
+          "meta": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Meta",
+                "description": "Pagination, on lists only."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
       "ChangelogEntries": {
         "type": "object",
         "required": [
@@ -1761,6 +3223,71 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "Collections": {
+        "type": "object",
+        "required": [
+          "collections"
+        ],
+        "properties": {
+          "collections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentCollection"
+            },
+            "description": "The entries on this page, or the one entry asked for."
+          },
+          "meta": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Meta",
+                "description": "Pagination, on lists only."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "ContentCollection": {
+        "type": "object",
+        "description": "A collection in one language, in API shape: the folder's name and the\ntitle and description its `_index.md` gives, when it has one.",
+        "required": [
+          "id",
+          "slug",
+          "language"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The summary of its list page."
+          },
+          "id": {
+            "type": "string",
+            "description": "The language and the folder, such as `en.posts`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en` or `de`.",
+            "example": "en"
+          },
+          "slug": {
+            "type": "string",
+            "description": "The folder's name, such as `posts` or `case-studies`.",
+            "example": "posts"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The heading of its list page."
           }
         }
       },
@@ -1807,6 +3334,58 @@
           }
         }
       },
+      "Menu": {
+        "type": "object",
+        "description": "One menu in one language, in API shape, such as the header menu\n`primary` or the `footer` menu. An empty menu shows nothing.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "links"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The language and the menu, such as `en.primary`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en` or `de`.",
+            "example": "en"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenuLink"
+            },
+            "description": "The links, in the order readers see them."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Which menu, such as `primary` or `footer`.",
+            "example": "primary"
+          }
+        }
+      },
+      "MenuLink": {
+        "type": "object",
+        "description": "One link in a menu.",
+        "required": [
+          "label",
+          "url"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The words readers see."
+          },
+          "url": {
+            "type": "string",
+            "description": "Where it goes: a path on the site, such as `/blog/about/`, or a full\naddress.",
+            "example": "/blog/about/"
+          }
+        }
+      },
       "Meta": {
         "type": "object",
         "description": "The `meta` object beside every list (`docs/standards/api.md`).",
@@ -1816,6 +3395,32 @@
         "properties": {
           "pagination": {
             "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "Navigation": {
+        "type": "object",
+        "required": [
+          "navigation"
+        ],
+        "properties": {
+          "meta": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Meta",
+                "description": "Pagination, on lists only."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "navigation": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Menu"
+            },
+            "description": "The entries on this page, or the one entry asked for."
           }
         }
       },
@@ -2177,6 +3782,115 @@
             "type": "string",
             "description": "A link to the page that explains this kind of problem.",
             "example": "https://khalid.dev/problems/not-found"
+          }
+        }
+      },
+      "Settings": {
+        "type": "object",
+        "description": "The public settings of the site, in API shape: its name, where it lives\nand its languages. Nothing secret is ever part of it.",
+        "required": [
+          "title",
+          "url",
+          "default_language",
+          "languages"
+        ],
+        "properties": {
+          "default_language": {
+            "type": "string",
+            "description": "The language a reader gets first, such as `en`.",
+            "example": "en"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every language the site is written in, the default among them.",
+            "example": [
+              "en",
+              "de"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "The site's name."
+          },
+          "url": {
+            "type": "string",
+            "description": "The address of the blog's front page in the default language.",
+            "example": "https://example.com/blog/"
+          }
+        }
+      },
+      "SiteSettings": {
+        "type": "object",
+        "description": "The site's settings, as every response wraps them: a list of one.",
+        "required": [
+          "settings"
+        ],
+        "properties": {
+          "settings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Settings"
+            },
+            "description": "The settings."
+          }
+        }
+      },
+      "Tags": {
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "meta": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Meta",
+                "description": "Pagination, on lists only."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "description": "The entries on this page, or the one entry asked for."
+          }
+        }
+      },
+      "Term": {
+        "type": "object",
+        "description": "A tag or a category in one language, in API shape. Both are a name for\na group of posts, so they share one shape.",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "language"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.on-page-seo`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en` or `de`.",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name readers see in this language."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts name it by.",
+            "example": "on-page-seo"
           }
         }
       }

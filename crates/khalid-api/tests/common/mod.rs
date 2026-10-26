@@ -2,8 +2,10 @@
 //! shared by the API tests.
 
 use chrono::{TimeZone, Utc};
-use khalid_api::content_store::MemoryContentStore;
-use khalid_api::resources::{Bodies, Collection, Post};
+use khalid_api::content_store::{MemoryContentStore, SiteResources};
+use khalid_api::resources::{
+    Author, Bodies, Collection, ContentCollection, Menu, MenuLink, Post, Settings, Term,
+};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 
 /// A demo post: slug, title, publish month and day in 2026, tags.
@@ -95,5 +97,58 @@ pub(crate) fn store() -> MemoryContentStore {
     let others = OTHERS
         .iter()
         .map(|(collection, slug, title)| (*collection, document(slug, title, (10, 1))));
-    MemoryContentStore::new(posts.chain(others).collect())
+    MemoryContentStore::new(posts.chain(others).collect()).with_site(site())
+}
+
+/// The demo site's authors in both languages, the tags the demo posts above
+/// carry, two categories, the collections, and a header and footer menu.
+#[cfg(test)]
+fn site() -> SiteResources {
+    let (en, de) = (
+        Locale::try_new("en").unwrap(),
+        Locale::try_new("de").unwrap(),
+    );
+    let slug = |slug: &str| Slug::try_new(slug).unwrap();
+    let url = |url: &str| AbsoluteUrl::parse(url).unwrap();
+    let tags = ["seo", "links", "speed"]
+        .iter()
+        .map(|tag| Term::new(slug(tag), &tag.to_uppercase(), en.clone()))
+        .collect();
+    SiteResources::default()
+        .with_authors(vec![
+            Author::new(slug("asif"), "Asif", en.clone())
+                .with_role("Founder of SerpDad")
+                .with_url(url("https://example.com/blog/authors/asif/"))
+                .with_same_as(vec![url("https://serpdad.com/")]),
+            Author::new(slug("lena-vogt"), "Lena Vogt", en.clone()),
+            Author::new(slug("asif"), "Asif", de.clone()).with_role("Head of SerpDad"),
+        ])
+        .with_tags(tags)
+        .with_categories(vec![
+            Term::new(slug("on-page-seo"), "On-page SEO", en.clone()),
+            Term::new(slug("content-strategy"), "Content strategy", en.clone()),
+            Term::new(slug("on-page-seo"), "On-Page-SEO", de.clone()),
+        ])
+        .with_collections(vec![
+            ContentCollection::new(slug("posts"), en.clone())
+                .with_title("Field notes on SEO")
+                .with_description("Plain posts on search."),
+            ContentCollection::new(slug("glossary"), en.clone()),
+            ContentCollection::new(slug("posts"), de.clone()),
+        ])
+        .with_settings(Settings::new(
+            "Field Notes on SEO",
+            url("https://example.com/blog/"),
+            en.clone(),
+            vec![en.clone(), de.clone()],
+        ))
+        .with_menus(vec![
+            Menu::new(slug("primary"), en.clone()).with_links(vec![
+                MenuLink::new("About", "/blog/about/"),
+                MenuLink::new("SerpDad", "https://serpdad.com/"),
+            ]),
+            Menu::new(slug("footer"), en),
+            Menu::new(slug("primary"), de)
+                .with_links(vec![MenuLink::new("Über uns", "/blog/de/ueber-uns/")]),
+        ])
 }

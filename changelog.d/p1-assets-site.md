@@ -1,0 +1,2 @@
+Fixed
+Blog pages are styled again. `khalid build` writes the stylesheet to `assets/site.<hash>.css` in the output folder, with `.br` and `.gz` copies beside it, and `khalid serve` answers it as `text/css` with Brotli and a one-year immutable cache. Every page links the hashed name, so a changed stylesheet reaches readers at once. Values in `theme/tokens.toml`, when a site has the file, become CSS custom properties at the top of the stylesheet; a mistake in that file stops the build with the line to fix (BL-WEB-7, BL-PERF-2, KH-WEB-6, KH-WEB-8).

@@ -40,6 +40,11 @@ prove-lints:
 bench:
     ./scripts/perf.sh
 
+# The demo site through the validator, Lighthouse and axe at six widths, with
+# scripts on and off. Runs on a server or in CI, never on a laptop.
+demo-check:
+    ./scripts/demo-check.sh
+
 # Line coverage against the floor.
 coverage:
     cargo llvm-cov nextest --workspace --all-features --summary-only

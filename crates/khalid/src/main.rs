@@ -5,13 +5,16 @@
 //! read. It must not know business rules. Those live in the library crates,
 //! which this binary calls the same way the API does.
 
+mod assets;
 mod atomic;
 mod build;
 mod build_files;
+mod build_gate;
 mod build_message;
 mod build_pages;
 mod build_redirects;
 mod build_seo;
+mod categories;
 mod cli;
 mod config_message;
 mod content_message;
@@ -30,6 +33,7 @@ mod lint_input;
 mod lint_message;
 mod new;
 mod new_message;
+mod outbound;
 mod post_files;
 mod post_images;
 mod post_text;
@@ -39,9 +43,21 @@ mod routes_message;
 mod serve;
 mod serve_message;
 mod site_content;
+mod site_lists;
 mod site_pages;
 mod site_posts;
 mod slug_repair;
+mod theme_check;
+mod theme_message;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "khalid theme sync renders the preview, in task 3.8"
+    )
+)]
+mod theme_preview;
+mod theme_sync;
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -52,8 +68,9 @@ use clap::{CommandFactory, Parser};
 use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
 use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
+use khalid_server::FolderLook;
 
-use crate::cli::{Cli, Command, Output};
+use crate::cli::{Cli, Command, Output, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
@@ -81,12 +98,27 @@ fn run(cli: &Cli) -> Exit {
             .unwrap_or(Path::new("."));
         return init::run(folder, args, cli.output);
     }
+    // The server's watch starts from a look taken before the content is
+    // read, so a post saved while the server starts still shows.
+    let look = match (&cli.command, cli.site.as_deref()) {
+        (Some(Command::Serve { .. }), Some(folder)) => Some(FolderLook::take(folder)),
+        _ => None,
+    };
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder) {
             Ok((config, content)) => Some((folder, config, content)),
             Err(message) => return report::failure(cli.output, &message, Exit::Failure),
         },
         None => None,
+    };
+    // The server renders its first pages from the checked content, then
+    // drops it, so it takes the content rather than borrowing it.
+    let site = match (&cli.command, site) {
+        (Some(Command::Serve { listen }), Some((folder, config, content))) => {
+            let look = look.unwrap_or_else(|| FolderLook::take(folder));
+            return serve::run(folder, &config, (content, look), *listen, cli.output);
+        }
+        (_, site) => site,
     };
     match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
@@ -115,12 +147,22 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Keys { command }), Some((folder, ..))) => {
             keys::run(folder, command, cli.output)
         }
-        (Some(Command::Serve { listen }), Some((folder, config, _))) => {
-            serve::run(folder, config, *listen, cli.output)
-        }
+        (
+            Some(Command::Theme {
+                command: ThemeCommand::Sync { url },
+            }),
+            Some((folder, ..)),
+        ) => theme_sync::run(folder, url, cli),
+        (
+            Some(Command::Theme {
+                command: ThemeCommand::Check { url },
+            }),
+            Some((folder, config, _)),
+        ) => theme_check::run(folder, url.as_ref().unwrap_or(config.address()), cli),
         (
             Some(
                 command @ (Command::Db { .. }
+                | Command::Theme { .. }
                 | Command::Serve { .. }
                 | Command::Keys { .. }
                 | Command::Lint { .. }

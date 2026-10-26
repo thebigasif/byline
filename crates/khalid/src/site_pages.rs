@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, fs};
 
-use khalid_content::{ContentTree, read_content};
+use khalid_content::{ContentTree, SiteContent, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
@@ -15,12 +15,13 @@ use tokio::runtime::Handle;
 
 use crate::build_pages::LanguagePages;
 use crate::site_content::{LiveContent, published};
-use crate::{build_message, build_pages, content_message, post_files, post_images};
+use crate::{assets, build_message, build_pages, content_message, post_files, post_images};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
-/// The settings and the theme are read once, when `khalid serve` starts.
-/// The content is read again on each render, so an edited post shows.
+/// The settings and the theme, with the stylesheet built from it, are read
+/// once, when `khalid serve` starts. The content is read again on each
+/// render, so an edited post shows.
 #[derive(Debug, Clone)]
 pub(crate) struct SitePages(Arc<Site>);
 
@@ -29,6 +30,7 @@ struct Site {
     folder: PathBuf,
     config: Config,
     renderer: Renderer,
+    stylesheet: Page,
     feed: Option<ContentFeed>,
 }
 
@@ -55,33 +57,66 @@ impl SitePages {
     ) -> Result<Self, UserMessage> {
         let renderer =
             Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
+        let css = assets::site_stylesheet(folder)?;
+        let stylesheet = assets::stylesheet_page(&config, &css)?;
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
             renderer,
+            stylesheet,
             feed,
         })))
     }
 
-    /// Every page of the site at its address, and the not-found page of the
-    /// default language. Reads files and renders, so it runs off the async
-    /// runtime (RULES.md BL-RUN-7).
+    /// Every page of the site at its address, the stylesheet they link, and
+    /// the not-found page of the default language. Reads files and renders,
+    /// so it runs off the async runtime (RULES.md BL-RUN-7).
     pub(crate) fn render_all(&self) -> Result<(Vec<Page>, String), UserMessage> {
+        let tree = self.tree()?;
+        let folder = &self.0.folder;
+        let content = read_content(&tree).map_err(|error| content_message::of(folder, &error))?;
+        self.render_from(&tree, &content)
+    }
+
+    /// Every page made from `content`, already read from the site folder,
+    /// and the not-found page, refreshing the feed first when there is one.
+    /// At start, `khalid serve` passes the content it checked, so the posts
+    /// are read once, not twice. The folder is only listed again, for the
+    /// files beside folder posts.
+    pub(crate) fn render_content(
+        &self,
+        content: &SiteContent,
+    ) -> Result<(Vec<Page>, String), UserMessage> {
+        self.render_from(&self.tree()?, content)
+    }
+
+    /// The list of the site's content files, as found on disk now.
+    fn tree(&self) -> Result<ContentTree, UserMessage> {
+        let folder = &self.0.folder;
+        ContentTree::walk(folder).map_err(|error| content_message::of(folder, &error))
+    }
+
+    /// Every page made from `content`, with the files `tree` holds beside
+    /// folder posts, and the not-found page.
+    fn render_from(
+        &self,
+        tree: &ContentTree,
+        content: &SiteContent,
+    ) -> Result<(Vec<Page>, String), UserMessage> {
         let Site {
             folder,
             config,
             renderer,
+            stylesheet,
             feed,
         } = &*self.0;
-        let tree =
-            ContentTree::walk(folder).map_err(|error| content_message::of(folder, &error))?;
-        let content = read_content(&tree).map_err(|error| content_message::of(folder, &error))?;
         if let Some(feed) = feed {
-            let fed = published(&feed.db, feed.site, folder, config, &content);
+            let fed = published(&feed.db, feed.site, folder, config, content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
-        let mut languages = build_pages::pages(config, &content)?;
-        let mut pages = files(folder, config, &tree, &mut languages)?;
+        let mut languages = build_pages::pages(config, content, stylesheet.path().as_str())?;
+        let mut pages = vec![stylesheet.clone()];
+        pages.extend(files(folder, config, tree, &mut languages)?);
         let mut not_found = String::new();
         for language in &languages {
             for page in &language.pages {
@@ -148,3 +183,24 @@ impl fmt::Display for Unrendered {
 }
 
 impl Error for Unrendered {}
+
+#[cfg(test)]
+mod tests {
+    use khalid_core::Environment;
+
+    use super::*;
+
+    #[test]
+    fn the_checked_content_renders_the_same_pages_as_the_folder() {
+        let mut demo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        demo.push("../../fixtures/demo-site");
+        let config = Config::load(&demo, &Environment::default()).unwrap();
+        let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
+        let source = SitePages::new(&demo, config, None).unwrap();
+        let (given, given_missing) = source.render_content(&content).unwrap();
+        let (read, read_missing) = source.render_all().unwrap();
+        assert!(given.len() > 10, "{} pages", given.len());
+        assert_eq!(given, read);
+        assert_eq!(given_missing, read_missing);
+    }
+}

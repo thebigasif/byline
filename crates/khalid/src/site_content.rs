@@ -1,13 +1,14 @@
 //! What the Content API answers with on a running site: the published posts
-//! of the content index in `data/site.db`, with their bodies, held in memory
-//! and replaced as a whole after each change, like the pages.
+//! of the content index in `data/site.db`, with their bodies, and the site's
+//! lists, held in memory and replaced as a whole after each change, like the
+//! pages.
 
 use std::path::Path;
 use std::sync::{Arc, PoisonError, RwLock};
 
 use chrono::{DateTime, NaiveTime, Utc};
 use khalid_api::content_store::{
-    BoxFuture, ContentStore, ContentStoreError, Listed, MemoryContentStore, PostKey,
+    BoxFuture, ContentStore, ContentStoreError, Listed, MemoryContentStore, PostKey, SiteResources,
 };
 use khalid_api::query::ListQuery;
 use khalid_api::resources::{Bodies, Collection, Post};
@@ -15,7 +16,7 @@ use khalid_content::{SiteContent, render};
 use khalid_core::{AbsoluteUrl, Config, UserMessage};
 use khalid_db::{Database, SiteId};
 
-use crate::{build_message, build_pages, db_message, index};
+use crate::{build_message, build_pages, db_message, index, site_lists};
 
 /// The collection the index keeps posts under.
 const POSTS: &str = "posts";
@@ -57,12 +58,17 @@ impl ContentStore for LiveContent {
         let current = self.current();
         Box::pin(async move { current.find(collection, key).await })
     }
+
+    fn site(&self) -> BoxFuture<'_, Result<SiteResources, ContentStoreError>> {
+        let current = self.current();
+        Box::pin(async move { current.site().await })
+    }
 }
 
 /// Writes the index of `site` in `db` again from the files in `folder`,
 /// then reads its published posts back, in every language, with the bodies
-/// from `content`. A post is published when it has a date, as on the
-/// public site.
+/// from `content`, and the site's lists. A post is published when it has a
+/// date, as on the public site.
 ///
 /// # Errors
 ///
@@ -119,7 +125,8 @@ pub(crate) async fn published(
             entries.push((Collection::Posts, post));
         }
     }
-    Ok(MemoryContentStore::new(entries))
+    let lists = site_lists::of(db, site, folder, config, content).await?;
+    Ok(MemoryContentStore::new(entries).with_site(lists))
 }
 
 /// `html` with its tags removed, the common entities read back, and runs

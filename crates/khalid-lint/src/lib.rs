@@ -39,7 +39,7 @@ mod words;
 pub use address::flags_slug_part;
 pub use catalogue::{Catalogue, Message};
 pub use finding::{Finding, Location};
-pub use gate::Verdict;
+pub use gate::{PublishGate, Verdict};
 pub use lint_config::LintConfig;
 pub use lint_error::LintError;
 pub use lint_post::{

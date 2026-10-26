@@ -9,8 +9,6 @@ use serde_json::Value;
 /// arguments it needs.
 const COMMANDS: &[&[&str]] = &[
     &["publish", "why-internal-links-matter"],
-    &["theme", "sync", "https://serpdad.com"],
-    &["theme", "check"],
     &["import", "wordpress"],
     &["export"],
     &["mcp"],

@@ -156,6 +156,93 @@ fn serve_answers_every_page_type_with_a_csp_and_shows_an_edit_without_a_restart(
     assert!(shown, "the edit never showed");
 }
 
+/// Asks for `path` with Brotli and returns the head, lowercased, and the body size.
+#[cfg(test)]
+fn head_of(server: &Server, path: &str) -> (String, usize) {
+    let host = &server.host;
+    let mut stream = TcpStream::connect(host).unwrap();
+    let request = format!(
+        "GET {path} HTTP/1.1\r\nHost: {host}\r\nAccept-Encoding: br\r\nConnection: close\r\n\r\n"
+    );
+    stream.write_all(request.as_bytes()).unwrap();
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).unwrap();
+    let end = raw.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
+    let head = String::from_utf8_lossy(&raw[..end]).to_ascii_lowercase();
+    (head, raw.len() - end - 4)
+}
+
+#[test]
+fn serve_answers_the_stylesheet_the_home_page_links() {
+    let site = demo_copy();
+    let server = start(site.path());
+    let home = get(&server, "/blog/").body;
+    let (_, rest) = home.split_once(r#"<link rel="stylesheet" href=""#).unwrap();
+    let (href, _) = rest.split_once('"').unwrap();
+    let hash = href
+        .strip_prefix("/blog/assets/site.")
+        .and_then(|rest| rest.strip_suffix(".css"))
+        .unwrap_or_else(|| panic!("{href}"));
+    assert!(
+        hash.len() == 8 && hash.bytes().all(|b| b.is_ascii_hexdigit()),
+        "{href}"
+    );
+
+    let css = get(&server, href);
+    assert_eq!(css.status, 200, "{href}");
+    assert!(css.body.contains("--color-link:"), "{}", css.body);
+    // Pages answer plain at once and get their Brotli copies in the
+    // background, so look again until the copy is there.
+    let mut answer = head_of(&server, href);
+    for _ in 0..TRIES {
+        if answer.0.contains("content-encoding: br") {
+            break;
+        }
+        thread::sleep(PAUSE);
+        answer = head_of(&server, href);
+    }
+    let (head, brotli_bytes) = answer;
+    assert!(head.contains("content-type: text/css"), "{head}");
+    assert!(head.contains("content-encoding: br"), "{head}");
+    assert!(head.contains("max-age=31536000, immutable"), "{head}");
+    assert!(brotli_bytes < css.body.len() / 2, "{brotli_bytes} bytes");
+}
+
+#[test]
+fn serve_puts_the_site_tokens_into_the_stylesheet() {
+    let site = demo_copy();
+    let mut theme = site.path().to_path_buf();
+    theme.push("theme");
+    fs::create_dir_all(&theme).unwrap();
+    theme.push("tokens.toml");
+    fs::write(&theme, "[colors]\nlink = \"#b3261e\"\n").unwrap();
+    let server = start(site.path());
+    let home = get(&server, "/blog/").body;
+    let (_, rest) = home.split_once(r#"<link rel="stylesheet" href=""#).unwrap();
+    let (href, _) = rest.split_once('"').unwrap();
+    let css = get(&server, href).body;
+    assert!(css.contains("--color-link: #b3261e;"), "{css}");
+}
+
+#[test]
+fn serve_refuses_tokens_it_cannot_read_and_names_the_file() {
+    let site = demo_copy();
+    let mut theme = site.path().to_path_buf();
+    theme.push("theme");
+    fs::create_dir_all(&theme).unwrap();
+    theme.push("tokens.toml");
+    fs::write(&theme, "[colors]\nlink = \"red-ish\"\n").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.path().to_str().unwrap(), "serve"])
+        .args(["--listen", "127.0.0.1:0"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let said = String::from_utf8_lossy(&output.stderr);
+    assert!(said.contains("theme/tokens.toml"), "{said}");
+    assert!(said.contains("line 2"), "{said}");
+}
+
 #[test]
 fn serve_answers_the_home_page_then_stops_gracefully_when_told_to() {
     let site = demo_copy();

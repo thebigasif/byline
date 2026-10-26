@@ -1,10 +1,11 @@
 //! The content store contract, shown on the in-memory store with the demo
-//! site's five English posts: filter, order, pages and lookups.
+//! site's five English posts and its authors: filter, order, pages, lookups
+//! and the site's small lists.
 
 mod common;
 
 use common::store;
-use khalid_api::content_store::{ContentStore, PostKey};
+use khalid_api::content_store::{ContentStore, MemoryContentStore, PostKey, SiteResources};
 use khalid_api::query::{ListQuery, RawListQuery};
 use khalid_api::resources::Collection;
 use khalid_core::Slug;
@@ -126,6 +127,8 @@ async fn each_collection_keeps_its_own_entries() {
     assert_eq!((slugs, pages.total()), (vec!["about".to_owned()], 1));
     let about = PostKey::Slug(Slug::try_new("about").unwrap());
     assert_eq!(store.find(Collection::Posts, &about).await.unwrap(), None);
+    let fresh = MemoryContentStore::new(Vec::new());
+    assert_eq!(fresh.site().await.unwrap(), SiteResources::default());
     assert!(
         store
             .find(Collection::Pages, &about)
@@ -133,4 +136,32 @@ async fn each_collection_keeps_its_own_entries() {
             .unwrap()
             .is_some()
     );
+}
+
+#[tokio::test]
+async fn the_site_lists_come_whole_in_api_shape() {
+    let site = store().site().await.unwrap();
+    let authors = serde_json::to_value(site.authors()).unwrap();
+    let ids: Vec<&str> = authors
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|author| author["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["en.asif", "en.lena-vogt", "de.asif"]);
+    assert_eq!(
+        authors[0],
+        serde_json::json!({
+            "id": "en.asif",
+            "slug": "asif",
+            "name": "Asif",
+            "language": "en",
+            "role": "Founder of SerpDad",
+            "bio": null,
+            "url": "https://example.com/blog/authors/asif/",
+            "same_as": ["https://serpdad.com/"],
+        })
+    );
+    assert_eq!(authors[1]["role"], serde_json::Value::Null);
+    assert_eq!(authors[1]["same_as"], serde_json::json!([]));
 }
