@@ -8,4 +8,6 @@ mod html_check;
 #[cfg(test)]
 mod pages;
 #[cfg(test)]
+mod sandbox;
+#[cfg(test)]
 mod validity;

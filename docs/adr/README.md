@@ -16,3 +16,4 @@ One file per decision the plan does not already make. Numbered, never edited aft
 | 0010 | The database: derived tables, visitor tables, one writer | Accepted |
 | 0010 | Webhook event names and signatures | Accepted |
 | 0012 | Blocks beyond markdown are fenced directives | Accepted |
+| 0011 | The lint engine reads its own input model and one message catalogue | Accepted |
