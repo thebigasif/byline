@@ -11,6 +11,8 @@ serpdad = "serpdad"
 khalid = "khalid"
 hreflang = "hreflang"
 minijinja = "minijinja"
+# The German transliteration of ü, as in "ueber" for "über" (slugs, task 1.3).
+ue = "ue"
 
 [files]
 # typos knows English only. German content is checked by its writer, not by
