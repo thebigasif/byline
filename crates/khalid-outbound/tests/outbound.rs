@@ -99,15 +99,70 @@ async fn a_slow_server_times_out() {
 }
 
 #[tokio::test]
-async fn a_redirect_is_returned_not_followed() {
+async fn a_redirect_to_a_public_page_is_followed() {
     let server = MockServer::start().await;
+    let target = format!("{}/moved", server.uri());
     Mock::given(path("/"))
-        .respond_with(ResponseTemplate::new(302).insert_header("location", "http://10.0.0.1/"))
+        .respond_with(ResponseTemplate::new(301).insert_header("location", target.as_str()))
+        .mount(&server)
+        .await;
+    Mock::given(path("/moved"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("here"))
         .mount(&server)
         .await;
     let outbound = client(Limits::default(), &[], Reach::PublicAndLoopback);
-    assert_eq!(
-        outbound.get(&url(&server.uri())).await.unwrap().status(),
-        302
+    let page = outbound.get(&url(&server.uri())).await.unwrap();
+    assert_eq!((page.status(), page.body()), (200, &b"here"[..]));
+}
+
+#[tokio::test]
+async fn too_many_redirects_are_refused() {
+    let server = MockServer::start().await;
+    let again = format!("{}/", server.uri());
+    Mock::given(path("/"))
+        .respond_with(ResponseTemplate::new(302).insert_header("location", again.as_str()))
+        .mount(&server)
+        .await;
+    let outbound = client(Limits::default(), &[], Reach::PublicAndLoopback);
+    let error = outbound.get(&url(&server.uri())).await.unwrap_err();
+    assert!(
+        matches!(error, OutboundError::TooManyRedirects { limit: 5 }),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_redirect_to_a_literal_inward_address_is_refused() {
+    let server = MockServer::start().await;
+    Mock::given(path("/"))
+        .respond_with(ResponseTemplate::new(302).insert_header("location", "http://10.0.0.1/admin"))
+        .mount(&server)
+        .await;
+    let outbound = client(Limits::default(), &[], Reach::PublicAndLoopback);
+    let error = outbound.get(&url(&server.uri())).await.unwrap_err();
+    assert!(
+        matches!(&error, OutboundError::Blocked { host, .. } if host == "10.0.0.1"),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_redirect_to_a_name_that_resolves_inward_is_refused() {
+    let server = MockServer::start().await;
+    Mock::given(path("/"))
+        .respond_with(
+            ResponseTemplate::new(302).insert_header("location", "http://router.example/"),
+        )
+        .mount(&server)
+        .await;
+    let outbound = client(
+        Limits::default(),
+        &[("router.example", "192.168.1.1")],
+        Reach::PublicAndLoopback,
+    );
+    let error = outbound.get(&url(&server.uri())).await.unwrap_err();
+    assert!(
+        matches!(&error, OutboundError::Blocked { host, .. } if host == "router.example"),
+        "{error:?}"
     );
 }
