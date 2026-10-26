@@ -16,6 +16,7 @@ test-util = []
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 serde.workspace = true
 thiserror.workspace = true
+toml = "0.9"
 url = "2"
 
 [dev-dependencies]

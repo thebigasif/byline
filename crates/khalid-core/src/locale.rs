@@ -115,6 +115,13 @@ impl FromStr for Locale {
     }
 }
 
+impl<'de> serde::Deserialize<'de> for Locale {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        Self::try_new(&text).map_err(serde::de::Error::custom)
+    }
+}
+
 impl fmt::Display for Locale {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)

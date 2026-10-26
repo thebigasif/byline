@@ -1,0 +1,17 @@
+# The demo site's categories, with a name per language. Categories are
+# content, read with the content tree (task 1.5), not settings.
+
+[[categories]]
+slug = "on-page-seo"
+en = "On-page SEO"
+de = "Onpage-SEO"
+
+[[categories]]
+slug = "technical-seo"
+en = "Technical SEO"
+de = "Technisches SEO"
+
+[[categories]]
+slug = "content-strategy"
+en = "Content strategy"
+de = "Content-Strategie"

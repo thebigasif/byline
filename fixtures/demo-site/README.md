@@ -4,7 +4,8 @@ The fixture every benchmark, snapshot and end-to-end test uses from Phase 1 (tas
 
 | What | Where |
 |---|---|
-| Site settings, three categories | `site.toml` |
+| Site settings | `site.toml` |
+| Three categories, named in both languages | `categories.toml` |
 | Five posts, English and German | `content/en/posts/`, `content/de/posts/` |
 | Two authors | `content/<language>/authors/` |
 | One glossary term | `content/<language>/glossary/` |

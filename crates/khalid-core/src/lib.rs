@@ -19,7 +19,7 @@ pub use absolute_url::{AbsoluteUrl, ParseUrlError};
 #[cfg(any(test, feature = "test-util"))]
 pub use clock::FixedClock;
 pub use clock::{Clock, SystemClock};
-pub use config::Config;
+pub use config::{Config, ConfigError, Mode, SlugMode};
 pub use locale::{Locale, ParseLocaleError};
 pub use secret::Secret;
 pub use site_path::{SitePath, SitePathError};
