@@ -77,6 +77,15 @@ pub(crate) fn render(error: &RenderError) -> UserMessage {
     )
 }
 
+/// The message when `theme/tokens.toml` cannot be read or has a mistake.
+pub(crate) fn tokens(error: &RenderError) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid could not build the stylesheet: {error}."),
+        "Every page takes its colours, fonts and corners from theme/tokens.toml.",
+        "Correct theme/tokens.toml, or delete it to use the default light theme, then try again.",
+    )
+}
+
 /// The message when a page cannot be written.
 pub(crate) fn write(file: &Path, error: &io::Error) -> UserMessage {
     UserMessage::new(
