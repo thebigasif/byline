@@ -8,10 +8,13 @@
 //! Every request goes through `khalid_outbound::Outbound` (RULES.md
 //! BL-RUN-8). The crate must not know about content, posts or the database.
 
+mod color;
 mod fetch;
 mod fetch_error;
 mod links;
+mod split;
 
+pub use color::Rgb;
 pub use fetch::{
     MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_STYLESHEETS, Origin, SiteSource, Stylesheet, fetch_site,
 };
