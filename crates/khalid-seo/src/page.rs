@@ -153,6 +153,9 @@ pub struct SeoPage {
     pub content_html: String,
     /// The steps between the home page and this page, such as its category.
     pub breadcrumbs: Vec<Crumb>,
+    /// CSS selectors of the parts a voice assistant may read aloud, such as
+    /// the summary, for schema.org `speakable`.
+    pub speakable: Vec<String>,
 }
 
 impl SeoPage {
@@ -183,6 +186,7 @@ impl SeoPage {
             videos: Vec::new(),
             content_html: String::new(),
             breadcrumbs: Vec::new(),
+            speakable: Vec::new(),
         }
     }
 }

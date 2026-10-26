@@ -58,7 +58,7 @@ pub use robots_txt::{
 };
 pub use schema::{
     Publisher, PublisherKind, SchemaGraph, SchemaNode, SchemaValue, SiteSearch, breadcrumb_list,
-    site_graph,
+    page_graph, site_graph,
 };
 pub use seo_error::SeoError;
 pub use site::SeoSite;
