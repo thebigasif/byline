@@ -182,7 +182,7 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 
 ### 3.1 Fetch the site
 
-- Status: `doing`. Part 1 (this pull request): the crate, and finding a page's stylesheets in page order. Part 2: fetching them through `Outbound` within the caps.
+- Status: `done` after this landing. Part 1: the crate, and finding a page's stylesheets in page order. Part 2 (this pull request): fetching them through `Outbound` within the caps.
 - Read the home page and its same-site stylesheets through `Outbound`, with a cap on the page, on the CSS in all and on the number of stylesheets. Keep the raw CSS. A stylesheet that fails is listed with the reason; only the home page can stop a sync.
 - Rules: BL-RUN-8, BL-TST-3.
 - Done when: `wiremock` tests cover each cap, a link to another site that is never fetched, a failing stylesheet, a private address and an unreachable name.

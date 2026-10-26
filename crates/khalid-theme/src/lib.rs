@@ -8,6 +8,12 @@
 //! Every request goes through `khalid_outbound::Outbound` (RULES.md
 //! BL-RUN-8). The crate must not know about content, posts or the database.
 
+mod fetch;
+mod fetch_error;
 mod links;
 
+pub use fetch::{
+    MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_STYLESHEETS, Origin, SiteSource, Stylesheet, fetch_site,
+};
+pub use fetch_error::FetchError;
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};

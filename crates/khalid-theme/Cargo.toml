@@ -10,8 +10,15 @@ publish.workspace = true
 
 [dependencies]
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 scraper = "0.29"
+thiserror.workspace = true
 url = "2"
+
+[dev-dependencies]
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
+tokio.workspace = true
+wiremock = "0.6"
 
 [lints]
 workspace = true
