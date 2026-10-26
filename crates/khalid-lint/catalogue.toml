@@ -33,3 +33,165 @@ what = "This post has more than one main headline."
 why = "A page needs exactly one headline, so readers and Google know its topic."
 fix = "Change each extra `#` headline in the text to a `##` subheading."
 guide = "post-titles"
+
+[reused-link-text]
+what = "These link words already point to a different page on your site."
+why = "Google reads link words as a label, and one label should mean one page."
+fix = "Change the link words, or point the link at the same page as before."
+guide = "link-text"
+
+[repeated-link-text]
+what = "Too many links to this page use these exact words."
+why = "Varied link words tell Google more about what the page covers."
+fix = "Rewrite these link words to fit what this post says about the page."
+guide = "link-text"
+
+[vague-link-text]
+what = "This link uses vague words such as \"click here\" or \"read more\"."
+why = "Readers and Google use the link words to know where a link goes."
+fix = "Rewrite the link so its words name the page it opens."
+guide = "link-text"
+
+[same-target-twice]
+what = "This post links to the same page more than once."
+why = "Google counts only the first link to a page, so the others add nothing."
+fix = "Remove the extra link, or point it at another useful page."
+guide = "internal-links"
+
+[empty-link-text]
+what = "This link has no words a reader can see or hear."
+why = "People using screen readers and Google cannot tell where it goes."
+fix = "Add words to the link, or describe the image inside it."
+guide = "link-text"
+
+[heading-order]
+what = "This heading skips a level, such as a `####` right after a `##`."
+why = "Screen readers and Google follow headings like a table of contents."
+fix = "Change this heading to one level below the heading before it."
+guide = "headings"
+
+[missing-alt]
+what = "This image has no description."
+why = "People who cannot see the image, and Google, rely on the description to know what it shows."
+fix = "Add a short description of what the image shows."
+guide = "image-descriptions"
+
+[thin-post]
+what = "This post is shorter than the minimum this site sets."
+why = "Short posts rarely answer a question fully, so Google seldom shows them."
+fix = "Add the details, examples or steps a reader needs to act on the topic."
+guide = "post-length"
+
+[no-outbound-link]
+what = "This post links to no other website."
+why = "Links to good sources show readers and Google where your facts come from."
+fix = "Add a link to a trusted source that backs up a claim in the post."
+guide = "citing-sources"
+
+[no-description]
+what = "This post has no description."
+why = "Search results show a description under the title, so without one Google picks any sentence."
+fix = "Add `description:` to the header with one sentence that sums up the post."
+guide = "descriptions"
+
+[long-title]
+what = "This post's title is longer than search results can show."
+why = "Google cuts long titles short, so readers may not see the end of yours."
+fix = "Shorten the title and keep the words that matter most at the start."
+guide = "post-titles"
+
+[long-description]
+what = "This post's description is longer than search results can show."
+why = "Google cuts long descriptions short, so the end of yours may never be read."
+fix = "Shorten the description to one or two short sentences."
+guide = "descriptions"
+
+[duplicate-title]
+what = "Another post on this site has the same title."
+why = "Google may show only one of the two, and readers cannot tell them apart."
+fix = "Change the title so it says what makes this post different."
+guide = "post-titles"
+
+[duplicate-description]
+what = "Another post on this site has the same description."
+why = "A shared description makes two posts look the same in search results."
+fix = "Rewrite the description so it sums up this post alone."
+guide = "descriptions"
+
+[keyword-stuffing]
+what = "One phrase appears so often that the post reads as if written for machines."
+why = "Google treats heavy repetition as spam and may show the post less."
+fix = "Rewrite some of those sentences with other words, or cut the repeats."
+guide = "keyword-stuffing"
+
+[long-slug]
+what = "This post's web address is long."
+why = "Short addresses are easier to read, share and remember."
+fix = "Shorten `slug:` to the few words that name the topic, before you publish."
+guide = "web-addresses"
+
+[slug-stopwords]
+what = "This post's web address holds filler words such as \"the\" or \"of\"."
+why = "Filler words make the address longer without telling readers or Google anything."
+fix = "Remove the filler words from `slug:` before you publish."
+guide = "web-addresses"
+
+[slug-date]
+what = "This post's web address holds a year."
+why = "A year in the address makes the post look old once that year has passed."
+fix = "Remove the year from `slug:` before you publish."
+guide = "web-addresses"
+
+[broken-wikilink]
+what = "This `[[link]]` matches no post, page or glossary term in this language."
+why = "Readers who follow it land on a page that does not exist."
+fix = "Change it to the address of an existing page, or remove the brackets."
+guide = "wikilinks"
+
+[orphan-post]
+what = "No other post on your site links to this post."
+why = "Readers and Google find posts by following links, so this one is hard to find."
+fix = "Add a link to this post from one or two related posts."
+guide = "internal-links"
+
+[one-inbound-link]
+what = "Only one other post links to this post."
+why = "A post with few links pointing to it looks less important to Google."
+fix = "Link to this post from two or three more related posts."
+guide = "internal-links"
+
+[too-deep]
+what = "Readers need too many clicks to reach this post from your home page."
+why = "Google visits pages near the home page more often, and readers give up on long paths."
+fix = "Link to this post from your home page, a menu or a popular post."
+guide = "site-structure"
+
+[missing-translation]
+what = "This post has no version in one of your site's languages."
+why = "Readers of that language cannot find this post, and Google cannot point them to it."
+fix = "Write the translation and give both versions the same `translation:` key."
+guide = "translations"
+
+[stale-post]
+what = "This post has not been updated for a long time."
+why = "Readers and Google trust recent information more, and old facts may now be wrong."
+fix = "Refresh this post: check its facts, update what changed and set `updated:` to today."
+guide = "refreshing-posts"
+
+[near-duplicate]
+what = "This post shares most of its text with another post on your site."
+why = "Google shows only one of two near copies, so the two posts compete and both lose."
+fix = "Merge the two posts into one, or rewrite this one to cover a different angle."
+guide = "duplicate-content"
+
+[glossary-term-not-linked]
+what = "This post uses a term your glossary explains, without linking to it."
+why = "A link to the definition helps new readers and shows Google how your pages relate."
+fix = "Link the first use of the term to its glossary entry."
+guide = "glossary"
+
+[cluster-without-pillar]
+what = "This post belongs to a topic group but does not link to the group's main post."
+why = "Links to the main post show Google which page covers the topic best."
+fix = "Add a link to the main post of this topic group."
+guide = "topic-clusters"

@@ -1,0 +1,38 @@
+---
+source: crates/khalid-seo/tests/schema_page.rs
+expression: "SchemaGraph::new(vec![page_node.clone()]).to_json()"
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#webpage",
+      "name": "Why internal links matter",
+      "url": "https://www.example.com/blog/why-internal-links-matter/",
+      "isPartOf": {
+        "@id": "https://www.example.com/blog/#website"
+      },
+      "inLanguage": "en",
+      "breadcrumb": {
+        "@id": "https://www.example.com/blog/why-internal-links-matter/#breadcrumb"
+      },
+      "description": "Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.",
+      "primaryImageOfPage": {
+        "@type": "ImageObject",
+        "url": "https://www.example.com/blog/media/internal-links.png",
+        "width": 1200,
+        "height": 630,
+        "caption": "A site map with arrows between pages"
+      },
+      "datePublished": "2026-09-14T08:00:00Z",
+      "dateModified": "2026-10-02T16:00:00Z",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": [
+          ".post-summary"
+        ]
+      }
+    }
+  ]
+}
