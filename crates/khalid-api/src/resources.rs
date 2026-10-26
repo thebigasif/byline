@@ -1,9 +1,11 @@
 //! The resources as the API sends them. Other crates fill them from
 //! content files and the database; this crate only shapes them.
 
+mod admin_post;
 mod collection;
 mod post;
 
+pub use admin_post::{AdminPost, PostStatus};
 pub use collection::Collection;
 pub use post::{Bodies, Post};
 
