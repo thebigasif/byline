@@ -10,7 +10,7 @@
 //! deliberately small reader, enough for the demo's plain markdown. The real
 //! reader is `khalid-content`, which task 1.15 wires in.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt::Write as _;
 use std::fs;
@@ -19,8 +19,9 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use khalid_core::{AbsoluteUrl, Locale};
 use khalid_render::{
-    Alternate, BodyHtml, Link, Nav, NavLink, PageBody, PageKind, PageMeta, PostCard, RenderListing,
-    RenderPost, RenderSite, Renderer, Robots, Tokens, stylesheet,
+    Alternate, BodyHtml, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink, PageBody, PageKind,
+    PageMeta, PostCard, RenderAuthor, RenderGlossary, RenderListing, RenderPage, RenderPost,
+    RenderSearch, RenderSite, Renderer, Robots, Tokens, stylesheet,
 };
 
 type Fallible<T> = Result<T, Box<dyn Error>>;
@@ -170,6 +171,29 @@ struct Demo {
     pages: usize,
     /// Each `translation` key's path in every language that has it.
     translations: BTreeMap<String, BTreeMap<&'static str, String>>,
+    /// Category names by `language/slug`, from `categories.toml`.
+    categories: BTreeMap<String, String>,
+}
+
+/// The category names in every language, from `categories.toml`.
+fn category_names(fixture: &Path) -> Fallible<BTreeMap<String, String>> {
+    let mut path = fixture.to_path_buf();
+    path.push("categories.toml");
+    let table: toml::Table = toml::from_str(&fs::read_to_string(path)?)?;
+    let list = table.get("categories").and_then(toml::Value::as_array);
+    let mut names = BTreeMap::new();
+    for entry in list.ok_or("categories.toml has no categories")? {
+        let slug = entry
+            .get("slug")
+            .and_then(toml::Value::as_str)
+            .unwrap_or_default();
+        for lang in &LANGUAGES {
+            if let Some(name) = entry.get(lang.tag).and_then(toml::Value::as_str) {
+                names.insert(format!("{}/{slug}", lang.tag), name.to_owned());
+            }
+        }
+    }
+    Ok(names)
 }
 
 impl Demo {
@@ -279,26 +303,138 @@ impl Demo {
         posts.sort_by_key(|post| std::cmp::Reverse(post.field("date")));
         let mut cards = Vec::new();
         for post in &posts {
-            cards.push(self.post(lang, post, &authors)?);
+            let card = self.post(lang, post, &authors)?;
+            cards.push((post.field("author"), post.field("category"), card));
         }
-        let home = RenderListing {
-            title: "Field Notes on SEO".to_owned(),
+        let pick = |title: &str, keep: &dyn Fn(&str, &str) -> bool| RenderListing {
+            title: title.to_owned(),
             intro: None,
-            posts: cards,
+            posts: cards
+                .iter()
+                .filter(|(author, category, _)| keep(author, category))
+                .map(|(_, _, card)| card.clone())
+                .collect(),
             pagination: None,
         };
-        let title = home.title.clone();
-        self.page(lang, (lang.prefix, None), &title, &PageBody::Home(home))
+        let home = PageBody::Home(pick("Field Notes on SEO", &|_, _| true));
+        self.page(lang, (lang.prefix, None), "Field Notes on SEO", &home)?;
+        for author in &authors {
+            let slug = author.field("slug");
+            let page = RenderAuthor {
+                name: author.field("name"),
+                role: Some(author.field("role")),
+                image: None,
+                bio: markdown(&author.body, &format!("{}glossary/", lang.prefix)),
+                profiles: Vec::new(),
+                posts: pick("", &|by, _| by == slug).posts,
+                pagination: None,
+            };
+            let (path, name) = (format!("{}authors/{slug}/", lang.prefix), page.name.clone());
+            self.page(
+                lang,
+                (&path, None),
+                &name,
+                &PageBody::Author(Box::new(page)),
+            )?;
+        }
+        let used: BTreeSet<String> = cards
+            .iter()
+            .map(|(_, category, _)| category.clone())
+            .collect();
+        for slug in used {
+            let name = self.category_name(lang, &slug);
+            let path = format!("{}category/{slug}/", lang.prefix);
+            let body = PageBody::Category(pick(&name, &|_, category| category == slug));
+            self.page(lang, (&path, None), &name, &body)?;
+        }
+        self.glossary_and_search(lang)
+    }
+
+    fn category_name(&self, lang: &Lang, slug: &str) -> String {
+        let key = format!("{}/{slug}", lang.tag);
+        self.categories
+            .get(&key)
+            .cloned()
+            .unwrap_or_else(|| slug.to_owned())
+    }
+
+    /// The glossary from A to Z, a page per term, the search page and the 404 page.
+    fn glossary_and_search(&mut self, lang: &Lang) -> Fallible<()> {
+        let glossary = format!("{}glossary/", lang.prefix);
+        let mut terms = Vec::new();
+        for term in self.content(lang, "glossary")? {
+            let path = format!("{glossary}{}/", term.field("slug"));
+            let page = RenderPage {
+                title: term.field("term"),
+                updated: None,
+                body: markdown(&term.body, &glossary),
+            };
+            let key = term.field("translation");
+            self.page(
+                lang,
+                (&path, Some(&key)),
+                &term.field("term"),
+                &PageBody::Page(page),
+            )?;
+            let first = term
+                .body
+                .split(". ")
+                .next()
+                .unwrap_or_default()
+                .trim()
+                .to_owned();
+            terms.push(GlossaryTerm {
+                term: term.field("term"),
+                href: path,
+                summary: format!("{first}."),
+            });
+        }
+        let letter = terms
+            .first()
+            .and_then(|t| t.term.chars().next())
+            .unwrap_or('A');
+        let group = GlossaryGroup {
+            letter: letter.to_string(),
+            anchor: letter.to_lowercase().to_string(),
+            terms,
+        };
+        let page = RenderGlossary {
+            title: lang.glossary.to_owned(),
+            intro: None,
+            groups: vec![group],
+        };
+        self.page(
+            lang,
+            (&glossary, None),
+            lang.glossary,
+            &PageBody::Glossary(page),
+        )?;
+        let path = format!("{}search/", lang.prefix);
+        let search = RenderSearch {
+            title: lang.search.to_owned(),
+            action: path.clone(),
+            query: None,
+            results: Vec::new(),
+        };
+        self.page(lang, (&path, None), lang.search, &PageBody::Search(search))?;
+        self.page(
+            lang,
+            (&format!("{}404.html", lang.prefix), None),
+            "404",
+            &PageBody::NotFound,
+        )
     }
 
     /// Notes every post's path under its `translation` key, so each post
     /// can link to its versions in other languages.
     fn pair_translations(&mut self) -> Fallible<()> {
         for lang in &LANGUAGES {
-            for post in self.content(lang, "posts")? {
-                let path = format!("{}{}/", lang.prefix, post.field("slug"));
-                let versions = self.translations.entry(post.field("translation"));
-                versions.or_default().insert(lang.tag, path);
+            for (folder, prefix) in [("posts", ""), ("glossary", "glossary/")] {
+                for doc in self.content(lang, folder)? {
+                    let path = format!("{}{prefix}{}/", lang.prefix, doc.field("slug"));
+                    let versions = self.translations.entry(doc.field("translation"));
+                    versions.or_default().insert(lang.tag, path);
+                }
             }
         }
         Ok(())
@@ -320,7 +456,10 @@ impl Demo {
                 name,
                 href: format!("{}authors/{author}/", lang.prefix),
             }],
-            category: None,
+            category: Some(Link {
+                name: self.category_name(lang, &post.field("category")),
+                href: format!("{}category/{}/", lang.prefix, post.field("category")),
+            }),
             tags: Vec::new(),
             image: None,
             body: markdown(&post.body, &format!("{}glossary/", lang.prefix)),
@@ -361,6 +500,7 @@ fn main() -> Fallible<()> {
         stylesheet: format!("/blog/assets/{}", css.name()),
         pages: 0,
         translations: BTreeMap::new(),
+        categories: category_names(&fixture)?,
         fixture,
     };
     demo.pair_translations()?;
