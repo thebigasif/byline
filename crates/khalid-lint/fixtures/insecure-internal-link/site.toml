@@ -1,0 +1,2 @@
+# The site's own host, from its public address.
+host = "example.com"

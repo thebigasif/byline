@@ -95,3 +95,25 @@ impl Rule for NoOutboundLink {
         (!cites).then(Hit::post).into_iter().collect()
     }
 }
+
+/// A form whose answers go to no email address and no webhook.
+#[derive(Debug)]
+pub(crate) struct FormWithoutDestination;
+
+impl Rule for FormWithoutDestination {
+    fn id(&self) -> RuleId {
+        RuleId::new("form-without-destination")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        post.forms
+            .iter()
+            .filter(|form| form.destinations.is_empty())
+            .map(|form| Hit::about(form.id.clone()))
+            .collect()
+    }
+}

@@ -11,6 +11,12 @@ pub(crate) const STOPWORDS: &[&str] = &[
     "von", "was", "wenn", "wie", "wir", "wird", "zu", "zum", "zur",
 ];
 
+/// Short forms that end with a full stop inside a sentence, in lowercase.
+pub(crate) const ABBREVIATIONS: &[&str] = &[
+    "z.", "b.", "z.b.", "d.h.", "u.a.", "usw.", "bzw.", "ca.", "dr.", "nr.", "vgl.", "evtl.",
+    "ggf.", "inkl.", "s.",
+];
+
 /// German sentences whose only repeated phrase is grammar, for the tests.
 #[cfg(test)]
 pub(crate) const GRAMMAR_ONLY: &str =

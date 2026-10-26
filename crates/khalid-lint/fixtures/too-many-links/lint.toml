@@ -1,0 +1,3 @@
+# A low limit, so three links are one too many.
+[thresholds]
+max-links = 2

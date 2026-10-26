@@ -1,0 +1,2 @@
+warn insecure-internal-link: http://example.com/blog/pruning-old-posts/
+warn insecure-internal-link: HTTP://www.Example.com/blog/link-audits/
