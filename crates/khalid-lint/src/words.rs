@@ -10,8 +10,10 @@ const STOPWORDS: &[(&str, &[&str])] = &[
     (
         "en",
         &[
-            "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "is", "it", "of",
-            "on", "or", "that", "the", "this", "to", "was", "with", "you", "your",
+            "a", "about", "an", "and", "are", "as", "at", "be", "but", "by", "can", "do", "does",
+            "for", "from", "has", "have", "if", "in", "into", "is", "it", "its", "not", "of", "on",
+            "or", "our", "so", "than", "that", "the", "then", "they", "this", "to", "was", "we",
+            "will", "with", "you", "your",
         ],
     ),
     ("de", german::STOPWORDS),
@@ -72,5 +74,27 @@ impl Rule for KeywordStuffing {
             .map(|(_, phrase)| Hit::about(phrase))
             .into_iter()
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use khalid_core::{Locale, Slug};
+
+    use super::*;
+    use crate::LintSite;
+
+    fn stuffed(language: &str, body: &str) -> Vec<Hit> {
+        let locale = Locale::try_new(language).unwrap();
+        let mut post = LintPost::new(locale, Slug::try_new("a-post").unwrap());
+        post.body_text = body.to_owned();
+        KeywordStuffing { max_percent: 3 }.check(&post, &LintSite::default())
+    }
+
+    #[test]
+    fn grammar_phrases_never_count_as_stuffing() {
+        let english = "It does not load. It does not help. It does not rank. Fix it.";
+        assert_eq!(stuffed("en", english), []);
+        assert_eq!(stuffed("de", german::GRAMMAR_ONLY), []);
     }
 }
