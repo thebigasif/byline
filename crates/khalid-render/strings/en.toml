@@ -19,6 +19,8 @@ pagination = "Pages"
 page_of = "Page {current} of {total}"
 newer_posts = "Newer posts"
 older_posts = "Older posts"
+# {name} is filled in.
+posts_by = "Posts by {name}"
 # How a date reads. {day}, {month} and {year} are filled in.
 date_format = "{day} {month} {year}"
 month_1 = "January"
