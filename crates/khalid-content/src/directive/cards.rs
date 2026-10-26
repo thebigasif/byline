@@ -1,7 +1,7 @@
 //! Cards: blocks drawn as a box from their attributes.
 
 use super::Attributes;
-use crate::{BlockError, BlockKind, BusinessBlock};
+use crate::{BlockError, BlockKind, BusinessBlock, Visibility};
 
 /// Reads a business card: the name and postal address, and how to reach it.
 pub(super) fn business(attributes: &Attributes) -> Result<BlockKind, BlockError> {
@@ -77,4 +77,21 @@ pub(super) fn header(attributes: &Attributes) -> Result<BlockKind, BlockError> {
         });
     }
     Ok(BlockKind::Header { image, alt })
+}
+
+/// Reads an HTML block: who sees it, everyone when not written.
+pub(super) fn html(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only("html", &["show"], "show")?;
+    let show = match attributes.get("show").as_deref() {
+        None | Some("everyone") => Visibility::Everyone,
+        Some("visitors") => Visibility::Visitors,
+        Some("members") => Visibility::Members,
+        Some(_) => {
+            return Err(BlockError::Value {
+                line: attributes.line,
+                problem: "an HTML block's show is everyone, visitors or members",
+            });
+        }
+    };
+    Ok(BlockKind::SafeHtml { show })
 }

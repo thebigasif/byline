@@ -1,7 +1,7 @@
-//! The HTML of the business card and header blocks.
+//! The HTML of the business card, header and HTML blocks.
 
 use super::{Image, Link, Renderer, attribute, inside};
-use crate::Block;
+use crate::{Block, Visibility};
 use crate::{BusinessBlock, StructuredBlock};
 
 impl Renderer {
@@ -56,6 +56,18 @@ impl Renderer {
         }
         self.markdown(&inside(&block.source));
         self.html.push_str("</header>\n");
+    }
+
+    /// Writes a writer's own HTML once `ammonia` has removed scripts, event
+    /// handlers, frames and script links (RULES.md BL-SEC-1). Members-only
+    /// HTML is left out until readers can sign in.
+    pub(super) fn safe_html(&mut self, block: &Block, show: Visibility) {
+        if show == Visibility::Members {
+            return;
+        }
+        let clean = ammonia::clean(&inside(&block.source));
+        self.html.push_str(clean.trim_end());
+        self.html.push('\n');
     }
 }
 

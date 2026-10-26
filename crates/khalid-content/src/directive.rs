@@ -10,9 +10,9 @@ use crate::{
 };
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 18] = [
+pub(crate) const BLOCKS: [&str; 19] = [
     "audio", "bookmark", "business", "button", "callout", "embed", "faq", "figure", "file",
-    "gallery", "header", "howto", "product", "recipe", "review", "toc", "toggle", "video",
+    "gallery", "header", "howto", "html", "product", "recipe", "review", "toc", "toggle", "video",
 ];
 
 mod cards;
@@ -109,6 +109,7 @@ pub(crate) fn directive(
         "product" => product(&attributes, body),
         "business" => cards::business(&attributes),
         "header" => cards::header(&attributes),
+        "html" => cards::html(&attributes),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),

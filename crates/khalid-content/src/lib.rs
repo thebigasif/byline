@@ -20,7 +20,7 @@ mod structured;
 mod tree;
 
 pub use block::{
-    Block, BlockError, BlockKind, CalloutKind, GalleryImage, parse_blocks, print_blocks,
+    Block, BlockError, BlockKind, CalloutKind, GalleryImage, Visibility, parse_blocks, print_blocks,
 };
 pub use content_error::ContentError;
 pub use content_hash::ContentHash;

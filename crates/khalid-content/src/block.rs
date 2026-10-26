@@ -146,6 +146,12 @@ pub enum BlockKind {
         /// The text that describes the picture, always with `image`.
         alt: Option<String>,
     },
+    /// `:::html{show="..."}`: a writer's own HTML, sanitised with `ammonia`
+    /// against an allowlist so it cannot run a script (RULES.md BL-SEC-1).
+    SafeHtml {
+        /// Who sees it.
+        show: Visibility,
+    },
     /// `:::gallery` with one `![alt](src)` image per line: a grid of
     /// pictures.
     Gallery {
@@ -161,6 +167,17 @@ pub struct GalleryImage {
     pub src: String,
     /// The text that describes the image.
     pub alt: String,
+}
+
+/// Who sees an HTML block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Visibility {
+    /// Every reader.
+    Everyone,
+    /// Readers who are not signed in.
+    Visitors,
+    /// Signed-in members. Until readers can sign in, nobody sees it.
+    Members,
 }
 
 /// The kinds of callout.
