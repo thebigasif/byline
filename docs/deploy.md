@@ -4,6 +4,28 @@ Khalid is one file. Put it on a machine, point it at a site folder, and it serve
 
 A site folder is the folder that holds `site.toml`, `content/` and `theme/`. Khalid keeps what it works out from those files, such as its database and image sizes, in `data/` inside the same folder. Back up the site folder and you have backed up the blog.
 
+## Install with one line
+
+On Linux or a Mac with Apple silicon:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sh
+```
+
+The script downloads the newest release for your machine and checks it against the release's list of checksums, `SHA256SUMS`. A checksum is a fingerprint of a file: if the download was damaged or changed, the fingerprints differ and the script stops without installing anything. As root it installs to `/usr/local/bin`, otherwise to `~/.local/bin`.
+
+Options, written after `sh -s --`:
+
+- `--version v0.1.0` installs that release instead of the newest.
+- `--dir FOLDER` installs into another folder.
+- `--systemd`, as root, also sets up the service described below.
+
+For example, to install and set up the service on a server:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sudo sh -s -- --systemd
+```
+
 ## systemd on a Linux machine
 
 systemd is the program most Linux systems use to start services at boot. Khalid ships a unit file for it, `packaging/systemd/khalid.service`, and a user file, `packaging/systemd/khalid.sysusers`.
