@@ -15,6 +15,7 @@
 //! content files. `khalid-db` implements the store and the binary renders
 //! the comments.
 
+mod api_moderation;
 mod comment;
 mod comment_form;
 mod comment_store;
@@ -27,7 +28,9 @@ mod memory_store;
 mod rate_limits;
 mod refusal_page;
 mod thread;
+mod webhook_events;
 
+pub use api_moderation::{ApiModeration, Audience, api_shape};
 pub use comment::{Comment, CommentAuthor, CommentId, CommentStatus, ParseStatusError, PostFile};
 pub use comment_form::{CommentForm, FormComment, Reading};
 pub use comment_store::{CommentStore, CommentStoreError, NewComment};
@@ -40,3 +43,4 @@ pub use memory_store::MemoryCommentStore;
 pub use rate_limits::{RateLimitError, RateLimits};
 pub use refusal_page::{LoadWordsError, Refusal, RefusalPages};
 pub use thread::{Thread, threads};
+pub use webhook_events::WebhookEvents;

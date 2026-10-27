@@ -2054,15 +2054,20 @@ dependencies = [
  "axum",
  "chrono",
  "getrandom 0.4.3",
+ "khalid-api",
  "khalid-comments",
  "khalid-core",
+ "khalid-outbound",
+ "khalid-webhooks",
  "serde",
+ "serde_json",
  "sha2 0.11.1",
  "thiserror",
  "tokio",
  "toml",
  "tower",
  "tracing",
+ "wiremock",
 ]
 
 [[package]]
