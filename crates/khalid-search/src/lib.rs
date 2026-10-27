@@ -8,7 +8,8 @@
 //! what the index in the database stores, built at publish time (plan
 //! section 7, KH-WEB-2). A [`Query`] looks its terms up there, and [`rank`]
 //! orders the pages found, the title counting most, then the headings, then
-//! the body.
+//! the body. A [`Snippet`] shows each result's text around what matched,
+//! with the matching words marked as they were written.
 //!
 //! This crate must not know about the database, HTTP, templates or files.
 //! It works on the text it is given.
@@ -19,6 +20,7 @@ mod indexed_text;
 mod language;
 mod query;
 mod rank;
+mod snippet;
 mod term;
 
 pub use analyzer::{Analyzer, Word};
@@ -27,4 +29,5 @@ pub use indexed_text::IndexedText;
 pub use language::Language;
 pub use query::{Completion, Query, QueryTerm};
 pub use rank::{Corpus, Posting, rank};
+pub use snippet::{Snippet, SnippetPart};
 pub use term::Term;
