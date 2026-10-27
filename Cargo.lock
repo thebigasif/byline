@@ -1888,6 +1888,7 @@ dependencies = [
 name = "khalid"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
  "clap",
  "image",
@@ -1899,6 +1900,7 @@ dependencies = [
  "khalid-lint",
  "khalid-mcp",
  "khalid-media",
+ "khalid-newsletter",
  "khalid-outbound",
  "khalid-render",
  "khalid-routes",

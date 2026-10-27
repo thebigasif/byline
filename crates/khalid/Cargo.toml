@@ -19,10 +19,12 @@ khalid-mcp = { path = "../khalid-mcp", version = "0.0.0" }
 khalid-media = { path = "../khalid-media", version = "0.0.0" }
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
+khalid-newsletter = { path = "../khalid-newsletter", version = "0.0.0" }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
 khalid-static = { path = "../khalid-static", version = "0.0.0" }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 khalid-theme = { path = "../khalid-theme", version = "0.0.0" }
+axum = { version = "0.8", default-features = false }
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4", features = ["derive"] }
 mimalloc = "0.1"
