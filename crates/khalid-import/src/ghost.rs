@@ -4,6 +4,7 @@ mod blocks;
 mod body;
 mod cards;
 mod export;
+mod held;
 mod html;
 mod lexical;
 mod mobiledoc;
@@ -15,5 +16,7 @@ pub use body::BodyError;
 pub use export::{
     Author, Body, CodeInjection, Export, Post, PostKind, PostStatus, Seo, Tag, Visibility,
 };
-pub use plan::{FailedPost, ImportedPost, LeftPost, LeftReason, Plan, PostError, plan};
+pub use plan::{
+    Dropped, FailedPost, Held, ImportedPost, LeftPost, LeftReason, Plan, PostError, ShareCard, plan,
+};
 pub use read::{ExportError, read_export};

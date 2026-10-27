@@ -4,6 +4,7 @@
 
 use std::path::PathBuf;
 
+use chrono::NaiveDateTime;
 use khalid_content::ContentError;
 use khalid_core::{AbsoluteUrl, Config, ParseSlugError, Slug};
 use khalid_routes::{AddressError, Routes};
@@ -44,6 +45,61 @@ pub struct ImportedPost {
     pub slug_origin: SlugOrigin,
     /// Where its file went.
     pub place: Place,
+    /// What it had that Khalid's front matter cannot hold yet, in a fixed
+    /// order, so the report can say so.
+    pub held: Vec<Held>,
+    /// What it had that an import never carries.
+    pub dropped: Vec<Dropped>,
+}
+
+/// Something a post had that its file does not hold yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Held {
+    /// The title for search results, when it differs from the headline.
+    SearchTitle(String),
+    /// The slugs of the authors after the main one.
+    MoreAuthors(Vec<String>),
+    /// The slugs of its public tags, the primary one first. Internal tags,
+    /// whose names start with `#`, are not listed.
+    Tags(Vec<String>),
+    /// The image shown with it in lists and share cards.
+    FeatureImage(AbsoluteUrl),
+    /// Its own Open Graph card, for Facebook and most other sites.
+    OpenGraph(ShareCard),
+    /// Its own card on X, formerly Twitter.
+    Twitter(ShareCard),
+    /// The time a scheduled post was due to go live; it waits in drafts.
+    Scheduled(NaiveDateTime),
+    /// Who could read it, for a post kept in drafts because it was for
+    /// members only.
+    MembersOnly(Visibility),
+    /// A page's canonical address, which page front matter cannot hold.
+    Canonical(AbsoluteUrl),
+}
+
+/// A share card's own fields, each set only when Ghost had one. A card has
+/// these three and no more, so the fields are open.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ShareCard {
+    /// The card's title.
+    pub title: Option<String>,
+    /// The card's description.
+    pub description: Option<String>,
+    /// The card's image.
+    pub image: Option<AbsoluteUrl>,
+}
+
+/// Something a post had that an import never carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Dropped {
+    /// HTML the post added to its own page, often analytics, which would
+    /// run on the new site.
+    CodeInjection,
+    /// The kinds of cards with no place in Khalid, such as `signup`, each
+    /// once, in the order they first appear.
+    Cards(Vec<String>),
 }
 
 /// A post that stays behind.
@@ -115,6 +171,8 @@ pub enum PostError {
 /// site lived, so `old_site` fills in Ghost's `__GHOST_URL__`.
 pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Routes) -> Plan {
     let from = Source {
+        export,
+        old_site,
         origin: old_site.as_str().trim_end_matches('/'),
         site,
         routes,

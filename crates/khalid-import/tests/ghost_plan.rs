@@ -38,6 +38,7 @@ fn a_published_post_becomes_a_dated_file_that_reads_back() {
          title: \"How to keep a starter alive\"\n\
          slug: \"keep-a-starter-alive\"\n\
          date: \"2024-03-12\"\n\
+         author: \"mara\"\n\
          description: \"How to feed a sourdough starter so it stays strong.\"\n\
          featured: true\n\
          ---\n\
