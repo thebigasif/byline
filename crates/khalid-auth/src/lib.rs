@@ -17,7 +17,9 @@ mod limiter;
 mod memory;
 mod password;
 mod permission;
+mod routes;
 mod session;
+mod session_door;
 
 pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
@@ -31,6 +33,7 @@ pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
 pub use permission::{ParsePermissionError, Permission, may_assign, may_manage};
+pub use routes::staff_routes;
 pub use session::{
     CLEAR_COOKIE, COOKIE, CSRF_HEADER, CsrfToken, IDLE, LIFETIME, SessionError, SessionHash,
     SessionStore, SessionStoreError, SessionToken, StoredSession,

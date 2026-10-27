@@ -1948,15 +1948,21 @@ name = "khalid-auth"
 version = "0.0.0"
 dependencies = [
  "argon2",
+ "axum",
  "chrono",
  "getrandom 0.4.3",
  "khalid-api",
  "khalid-auth",
  "khalid-core",
+ "serde",
+ "serde_json",
  "sha2 0.11.1",
  "subtle",
  "thiserror",
  "tokio",
+ "tower",
+ "utoipa",
+ "utoipa-axum",
 ]
 
 [[package]]
