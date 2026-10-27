@@ -1,0 +1,25 @@
+---
+source: crates/khalid-render/tests/render/lists.rs
+expression: main_of(&page)
+---
+ id="main" tabindex="-1">
+
+<h1>Sitemap</h1>
+<section>
+<h2>Posts</h2>
+<ul>
+<li><a href="/blog/title-tags/">How to write a title tag</a></li>
+</ul>
+</section>
+<section>
+<h2>Pages</h2>
+<ul>
+<li><a href="/blog/about/">About</a></li>
+</ul>
+</section>
+<section>
+<h2>Topics and archives</h2>
+<ul>
+<li><a href="/blog/category/technical-seo/">Technical SEO</a></li>
+</ul>
+</section>

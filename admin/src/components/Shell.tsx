@@ -28,8 +28,16 @@ export function Shell() {
           <ul>
             <li>
               <Link to="/" activeOptions={{ exact: true }}>
-                {en.nav.home}
+                {en.nav.dashboard}
               </Link>
+            </li>
+            <li>
+              <Link to="/posts" search={{}} activeOptions={{ includeSearch: false }}>
+                {en.nav.posts}
+              </Link>
+            </li>
+            <li>
+              <Link to="/redirects">{en.nav.redirects}</Link>
             </li>
           </ul>
         </nav>

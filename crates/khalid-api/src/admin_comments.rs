@@ -13,10 +13,10 @@ use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::admin_key::{require, require_admin_key};
+use crate::admin_key::{AdminDoor, require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, ModerationError};
-use crate::keys::{KeyStore, Principal, Scope};
+use crate::keys::{Principal, Scope};
 use crate::problem::{Problem, ProblemType};
 use crate::resources::{AdminComment, CommentReply, CommentStatus};
 
@@ -31,14 +31,14 @@ const MAX_LIMIT: u32 = 100;
 
 /// The comment routes, under the Admin API's base. Each needs an
 /// integration key or staff token with `posts:write`: whoever may change
-/// the posts moderates the comments on them.
-pub(crate) fn routes(comments: Moderation, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
+/// the posts moderates the comments on them, by key or staff session.
+pub(crate) fn routes(comments: Moderation, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_comments))
         .routes(routes!(approve_comment))
         .routes(routes!(reply_to_comment))
         .routes(routes!(delete_comment))
-        .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
+        .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(comments)
 }
