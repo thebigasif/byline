@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::{TimeZone, Utc};
 use khalid_api::post_store::{CreatePostError, PostStore, UpdatePostError};
-use khalid_api::resources::{PostDraft, PostStatus};
+use khalid_api::resources::{AdminPost, PostDraft, PostStatus};
 use khalid_core::{Environment, FixedClock};
 use serde_json::{Value, json};
 
@@ -258,4 +258,146 @@ async fn status_draft_takes_a_live_post_back_into_drafts() {
     assert!(text.unwrap().contains("\nAn internal link is a link"));
     let read = posts.get(post.id()).await.unwrap().unwrap();
     assert_eq!(read.status(), PostStatus::Draft);
+}
+
+/// The list `filter` and `order` ask for, every row on one page.
+fn query(filter: Option<&str>, order: &str) -> ListQuery {
+    let mut raw = khalid_api::query::RawListQuery::default();
+    raw.filter = filter.map(str::to_owned);
+    raw.order = Some(order.to_owned());
+    raw.limit = Some("all".to_owned());
+    ListQuery::try_from(&raw).unwrap()
+}
+
+#[tokio::test]
+async fn the_list_holds_drafts_and_live_posts_with_their_lint_counts() {
+    let (_site, posts) = demo();
+    let weak = PostDraft::new("A weak post", None, "No link and no author.");
+    posts.create(weak, "k", None).await.unwrap();
+    posts.create(good_draft(), "k", None).await.unwrap();
+    let all = posts.list(&query(None, "id")).await.unwrap();
+    let json = serde_json::to_value(all.items()).unwrap();
+    let rows = json.as_array().unwrap();
+    let row = |id: &str| rows.iter().find(|row| row["id"] == id).unwrap().clone();
+    let weak = row("en.a-weak-post");
+    assert_eq!(weak["status"], "draft", "{weak}");
+    assert_eq!(weak["index_status"], "not_live");
+    assert_eq!(weak["gate"], "refuses", "{weak}");
+    assert!(weak["lint"]["blocks"].as_u64().unwrap() >= 2, "{weak}");
+    let good = row("en.choosing-anchor-text");
+    assert_eq!(good["lint"]["blocks"], 0, "a good draft would pass: {good}");
+    let live = row("en.why-internal-links-matter");
+    assert_eq!(live["status"], "published", "{live}");
+    assert_eq!(live["lint"]["blocks"], 0, "{live}");
+    assert_eq!(live["index_status"], "indexable", "{live}");
+    let live_count = rows
+        .iter()
+        .filter(|row| row["status"] == "published")
+        .count();
+    assert_eq!(all.total(), u64::try_from(live_count + 2).unwrap());
+
+    let blocked = posts
+        .list(&query(Some("gate:refuses"), "id"))
+        .await
+        .unwrap();
+    let ids: Vec<&str> = blocked.items().iter().map(PostRow::id).collect();
+    assert_eq!(ids, ["en.a-weak-post"]);
+}
+
+/// The draft made from [`good_draft`], edited with `fields`.
+async fn edited_draft(posts: &SitePosts, mut fields: Value) -> Result<AdminPost, UpdatePostError> {
+    let made = posts.create(good_draft(), "k", None).await.unwrap();
+    fields["updated_at"] = json!(made.updated_at());
+    posts.update(made.id(), edit(fields), "k").await
+}
+
+#[tokio::test]
+async fn settings_go_into_the_front_matter_and_read_back() {
+    let (site, posts) = demo();
+    let settings = json!({
+        "date": "2026-11-02",
+        "excerpt": "Words that say where a link goes.",
+        "featured": true,
+        "robots": "noindex",
+        "canonical": "https://example.com/anchor-text/",
+        "aliases": ["/2019/05/anchor-text/", "/old/"],
+    });
+    let saved = edited_draft(&posts, json!({"author": "mira", "settings": settings})).await;
+    let saved = saved.unwrap();
+    let text = fs::read_to_string(within(site.path(), "drafts/en/choosing-anchor-text.md"));
+    let text = text.unwrap();
+    for line in [
+        "author: mira\n",
+        "date: 2026-11-02\n",
+        "description: \"Words that say where a link goes.\"\n",
+        "featured: true\n",
+        "robots: \"noindex, follow\"\n",
+        "canonical: \"https://example.com/anchor-text/\"\n",
+        "aliases: [\"/2019/05/anchor-text/\", \"/old/\"]\n",
+    ] {
+        assert!(text.contains(line), "{line} in {text}");
+    }
+    let read = posts.get(saved.id()).await.unwrap().unwrap();
+    assert_eq!(read.settings(), saved.settings());
+    assert_eq!(
+        serde_json::to_value(read.settings()).unwrap()["featured"],
+        true
+    );
+}
+
+#[tokio::test]
+async fn a_setting_the_files_cannot_hold_is_refused_and_nothing_changes() {
+    let (site, posts) = demo();
+    let draft = within(site.path(), "drafts/en/choosing-anchor-text.md");
+    for settings in [
+        json!({"co_authors": ["mira"], "featured": true}),
+        json!({"review_state": "ready"}),
+        json!({"feature_image": {"src": "/media/a.jpg", "alt": "A link"}}),
+        json!({"share_cards": {"x": {"title": "Anchor text"}}}),
+    ] {
+        let refused = edited_draft(&posts, json!({"settings": settings})).await;
+        assert!(
+            matches!(refused, Err(UpdatePostError::Unsupported { .. })),
+            "{refused:?}"
+        );
+        assert!(!fs::read_to_string(&draft).unwrap().contains("featured"));
+        fs::remove_file(&draft).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn a_new_slug_moves_a_draft_but_not_a_live_post() {
+    let (site, posts) = demo();
+    let moved = edited_draft(&posts, json!({"slug": "anchor-text-guide"})).await;
+    let moved = moved.unwrap();
+    assert_eq!(moved.id(), "en.anchor-text-guide");
+    assert!(!within(site.path(), "drafts/en/choosing-anchor-text.md").exists());
+    let text = fs::read_to_string(within(site.path(), "drafts/en/anchor-text-guide.md"));
+    assert!(text.unwrap().contains("\nslug: anchor-text-guide\n"));
+
+    let taken = edited_draft(&posts, json!({"slug": "anchor-text-guide"})).await;
+    assert!(
+        matches!(taken, Err(UpdatePostError::SlugTaken(_))),
+        "{taken:?}"
+    );
+    let live = posts
+        .get("en.why-internal-links-matter")
+        .await
+        .unwrap()
+        .unwrap();
+    let change = edit(json!({"slug": "internal-links", "updated_at": live.updated_at()}));
+    let refused = posts.update(live.id(), change, "k").await;
+    let Err(UpdatePostError::Unsupported { setting, .. }) = refused else {
+        panic!("moved a live post: {refused:?}");
+    };
+    assert_eq!(setting, "slug");
+    let change = edit(json!({"settings": {"date": null}, "updated_at": live.updated_at()}));
+    let refused = posts.update(live.id(), change, "k").await;
+    assert!(matches!(
+        refused,
+        Err(UpdatePostError::Unsupported {
+            setting: "date",
+            ..
+        })
+    ));
 }

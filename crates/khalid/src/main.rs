@@ -67,6 +67,7 @@ mod search_static;
 mod serve;
 mod serve_https;
 mod serve_message;
+mod settings_text;
 mod site_content;
 mod site_files;
 mod site_lists;

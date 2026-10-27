@@ -6,9 +6,10 @@ use chrono::{DateTime, Utc};
 use khalid_core::Slug;
 use khalid_lint::Report;
 
-use crate::content_store::BoxFuture;
+use crate::content_store::{BoxFuture, Listed};
 use crate::publish_door::ScheduleError;
-use crate::resources::{AdminPost, PostDraft, PostEdit};
+use crate::query::ListQuery;
+use crate::resources::{AdminPost, PostDraft, PostEdit, PostRow};
 
 /// Posts in every status, for the Admin API. Task 1.15 implements it on
 /// the content files and the index, writing each file atomically
@@ -22,6 +23,21 @@ pub trait PostStore: Send + Sync {
     /// Returns [`PostStoreError`] when the posts cannot be read.
     fn get<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<AdminPost>, PostStoreError>>;
 
+    /// One page of the posts, in every status, as rows of the admin's
+    /// posts table with their lint counts, filtered and ordered as `query`
+    /// says. The caller has checked the query's fields against
+    /// [`PostRow`]'s; [`select`](crate::content_store::select) does the
+    /// rest for a store that reads every post.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PostStoreError`] when the posts or the lint settings
+    /// cannot be read.
+    fn list<'a>(
+        &'a self,
+        query: &'a ListQuery,
+    ) -> BoxFuture<'a, Result<Listed<PostRow>, PostStoreError>>;
+
     /// Applies `edit`, made by `by`, to post `id`, but only when the post
     /// has not changed since the copy the edit was made on (BL-API-7). The
     /// check and the write happen together. When the edit publishes the
@@ -31,7 +47,9 @@ pub trait PostStore: Send + Sync {
     /// # Errors
     ///
     /// Returns [`UpdatePostError::Stale`] naming the last change when the
-    /// post changed after that copy, [`UpdatePostError::NotFound`] when no
+    /// post changed after that copy, [`UpdatePostError::SlugTaken`] when
+    /// the edit's new slug is another post's, [`UpdatePostError::Unsupported`]
+    /// when the store cannot keep a change, [`UpdatePostError::NotFound`] when no
     /// post has that identity, [`UpdatePostError::Refused`] with the lint
     /// report when the gate refuses, and [`UpdatePostError::Store`] when the
     /// posts cannot be read or written.
@@ -91,6 +109,18 @@ pub enum UpdatePostError {
         /// Who changed it, if known.
         updated_by: Option<String>,
     },
+    /// The edit gives the post a slug another post has.
+    #[error("another post has the slug {0}")]
+    SlugTaken(Slug),
+    /// The store cannot keep one of the edit's changes, such as a setting
+    /// its files have no field for yet. Nothing was saved.
+    #[error("the store cannot keep {setting}: {why}")]
+    Unsupported {
+        /// The field or setting, as the edit names it, such as `co_authors`.
+        setting: &'static str,
+        /// Why, in one plain sentence for the person who sent it.
+        why: &'static str,
+    },
     /// The edit publishes the post, and the lint publish gate refused it.
     /// The post stays as it was.
     #[error("the linter refused to publish the post")]
@@ -131,16 +161,20 @@ mod memory {
     use khalid_core::{Clock, Locale, Slug, SlugMode, SystemClock};
 
     use super::{
-        AdminPost, BoxFuture, CreatePostError, PostDraft, PostEdit, PostStore, PostStoreError,
-        UpdatePostError,
+        AdminPost, BoxFuture, CreatePostError, ListQuery, Listed, PostDraft, PostEdit, PostRow,
+        PostStore, PostStoreError, UpdatePostError,
     };
+    use crate::content_store::select;
+    use crate::resources::LintCounts;
 
     /// Posts held in memory, for tests. It runs no publish gate: an edit
-    /// that publishes always goes live.
+    /// that publishes always goes live, and a post's lint counts are
+    /// whatever [`MemoryPostStore::with_lint`] gave it, or none.
     #[derive(Debug)]
     pub struct MemoryPostStore {
         posts: Mutex<Vec<AdminPost>>,
         seen: Mutex<BTreeMap<String, String>>,
+        lint: BTreeMap<String, LintCounts>,
         clock: Box<dyn Clock>,
     }
 
@@ -156,8 +190,28 @@ mod memory {
             Self {
                 posts: Mutex::new(posts),
                 seen: Mutex::new(BTreeMap::new()),
+                lint: BTreeMap::new(),
                 clock: Box::new(SystemClock),
             }
+        }
+
+        /// The same store, listing post `id` with `counts` lint findings.
+        #[must_use]
+        pub fn with_lint(mut self, id: &str, counts: LintCounts) -> Self {
+            self.lint.insert(id.to_owned(), counts);
+            self
+        }
+
+        fn rows(&self, query: &ListQuery) -> Listed<PostRow> {
+            let rows: Vec<PostRow> = self
+                .posts()
+                .iter()
+                .map(|post| {
+                    let counts = self.lint.get(post.id()).copied().unwrap_or_default();
+                    PostRow::new(post, counts.gate()).with_lint(counts)
+                })
+                .collect();
+            select(rows.iter(), query)
         }
 
         /// The same store, stamping edits with `clock`.
@@ -175,6 +229,10 @@ mod memory {
 
         fn apply(&self, id: &str, edit: PostEdit, by: &str) -> Result<AdminPost, UpdatePostError> {
             let mut posts = self.posts();
+            let taken = |slug: &Slug| posts.iter().any(|p| p.id() != id && p.slug() == slug);
+            if let Some(slug) = edit.slug().filter(|slug| taken(slug)) {
+                return Err(UpdatePostError::SlugTaken(slug.clone()));
+            }
             let post = posts
                 .iter_mut()
                 .find(|post| post.id() == id)
@@ -239,6 +297,13 @@ mod memory {
         ) -> BoxFuture<'a, Result<Option<AdminPost>, PostStoreError>> {
             let found = self.posts().iter().find(|post| post.id() == id).cloned();
             Box::pin(std::future::ready(Ok(found)))
+        }
+
+        fn list<'a>(
+            &'a self,
+            query: &'a ListQuery,
+        ) -> BoxFuture<'a, Result<Listed<PostRow>, PostStoreError>> {
+            Box::pin(std::future::ready(Ok(self.rows(query))))
         }
 
         fn update<'a>(

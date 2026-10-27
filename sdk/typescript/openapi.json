@@ -342,6 +342,107 @@
       }
     },
     "/api/admin/v1/posts/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Lists posts in every status as rows of the admin's posts table, with\nthe shared query grammar (RULES.md BL-API-5); any field but `lint` may\nbe filtered and ordered by. A page holds at most 100 rows, because\neach row's findings are counted. Needs `posts:write`.",
+        "operationId": "browse_admin_posts",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=gate:refuses+status:draft`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=updated_at desc`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15`, from 1 to 100",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of posts in every status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostRows"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read, names a field rows do not have, is not one the list takes, or is limit=all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "admin posts"
@@ -617,7 +718,7 @@
             }
           },
           "409": {
-            "description": "The post changed after the copy the edit was made on",
+            "description": "The post changed after the copy the edit was made on, or another post has the new slug",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -627,7 +728,7 @@
             }
           },
           "422": {
-            "description": "The body could not be read, the schedule cannot be kept, or the linter refused to publish the post",
+            "description": "The body could not be read, a setting is not valid, the schedule cannot be kept, or the linter refused to publish the post",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3459,7 +3560,8 @@
           "title",
           "status",
           "markdown",
-          "updated_at"
+          "updated_at",
+          "settings"
         ],
         "properties": {
           "author": {
@@ -3485,6 +3587,10 @@
             ],
             "format": "date-time",
             "description": "When it went or goes live; empty for a draft."
+          },
+          "settings": {
+            "$ref": "#/components/schemas/PostSettings",
+            "description": "The settings beside the title and body, as the admin's settings\npanel shows them."
           },
           "slug": {
             "type": "string",
@@ -3536,6 +3642,11 @@
             "description": "The post or posts."
           }
         }
+      },
+      "Alias": {
+        "type": "string",
+        "description": "An old address on this site that redirects to the post, such as\n`/2019/05/old-title/`, so a moved post keeps its links.",
+        "example": "/2019/05/old-title/"
       },
       "Author": {
         "type": "object",
@@ -3866,6 +3977,44 @@
         },
         "additionalProperties": false
       },
+      "FeatureImage": {
+        "type": "object",
+        "description": "The image at the top of a post and on its cards. The alt text is\nrequired, as for every image (plan section 4.6).",
+        "required": [
+          "src",
+          "alt"
+        ],
+        "properties": {
+          "alt": {
+            "$ref": "#/components/schemas/NonBlank",
+            "description": "What the image shows, for readers who cannot see it."
+          },
+          "caption": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "The line shown under the image, if any."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "src": {
+            "$ref": "#/components/schemas/NonBlank",
+            "description": "A media path such as `/media/anchor-text.jpg`, or a full address."
+          }
+        },
+        "additionalProperties": false
+      },
+      "Gate": {
+        "type": "string",
+        "description": "The lint publish gate's answer for a post as it stands.",
+        "enum": [
+          "passes",
+          "refuses"
+        ]
+      },
       "GlossaryTerms": {
         "type": "object",
         "required": [
@@ -3889,6 +4038,38 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "IndexStatus": {
+        "type": "string",
+        "description": "Whether search engines may list a post, as far as the site itself\nsays. Google's own answer comes with the Search Console connection\n(plan section 5.11).",
+        "enum": [
+          "indexable",
+          "noindex",
+          "canonical_elsewhere",
+          "not_live"
+        ]
+      },
+      "LintCounts": {
+        "type": "object",
+        "description": "How many lint findings a post has, by severity. A post with any\n`blocks` cannot be published.",
+        "required": [
+          "blocks",
+          "warnings"
+        ],
+        "properties": {
+          "blocks": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Findings that stop the post from going live.",
+            "minimum": 0
+          },
+          "warnings": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Findings the writer should see, which do not stop it.",
+            "minimum": 0
           }
         }
       },
@@ -4040,6 +4221,10 @@
           }
         },
         "additionalProperties": false
+      },
+      "NonBlank": {
+        "type": "string",
+        "description": "Text with something in it other than spaces."
       },
       "Pages": {
         "type": "object",
@@ -4216,11 +4401,19 @@
       },
       "PostEdit": {
         "type": "object",
-        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through;\n`scheduled` with a future `published_at` publishes it then, and\n`draft` takes a scheduled post off its schedule and a live post down.",
+        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value, and `null`\nclears one that may be empty. A `status` of `published` publishes a\ndraft, once the linter lets it through; `scheduled` with a future\n`published_at` publishes it then, and `draft` takes a scheduled post\noff its schedule and a live post down.",
         "required": [
           "updated_at"
         ],
         "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new author's slug, or `null` for none.",
+            "example": "asif"
+          },
           "markdown": {
             "type": [
               "string",
@@ -4235,6 +4428,25 @@
             ],
             "format": "date-time",
             "description": "When a `scheduled` post goes live: a time to come, with its offset,\nsuch as `2026-11-03T09:00:00+01:00`."
+          },
+          "settings": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SettingsEdit",
+                "description": "New values for some settings; the rest keep theirs."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new slug. No other post may have it.",
+            "example": "how-to-choose-anchor-text"
           },
           "status": {
             "type": [
@@ -4266,6 +4478,199 @@
           }
         },
         "additionalProperties": false
+      },
+      "PostRow": {
+        "type": "object",
+        "description": "One row of the admin's posts table.",
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "status",
+          "review_state",
+          "featured",
+          "updated_at",
+          "gate",
+          "lint",
+          "index_status"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The author's slug, if any.",
+            "example": "asif"
+          },
+          "featured": {
+            "type": "boolean",
+            "description": "Whether the post is featured."
+          },
+          "gate": {
+            "$ref": "#/components/schemas/Gate",
+            "description": "Whether the lint publish gate lets it go live. A list filters by\nthis, such as `gate:refuses`."
+          },
+          "id": {
+            "type": "string",
+            "description": "The post's identity, as in `/posts/{id}/`."
+          },
+          "index_status": {
+            "$ref": "#/components/schemas/IndexStatus",
+            "description": "Whether search engines may list it."
+          },
+          "lint": {
+            "$ref": "#/components/schemas/LintCounts",
+            "description": "Its lint findings, counted. Counting takes every rule, so a list\ncounts only the rows on the page it sends, and cannot filter or\norder by the counts."
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it went or goes live; empty for a draft."
+          },
+          "review_state": {
+            "$ref": "#/components/schemas/ReviewState",
+            "description": "Draft, in review or ready."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The last part of its address.",
+            "example": "choosing-anchor-text"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PostStatus",
+            "description": "Draft, published or scheduled."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it last changed."
+          },
+          "updated_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Who made the last change."
+          }
+        }
+      },
+      "PostRows": {
+        "type": "object",
+        "description": "One page of the admin's posts table, as every list is wrapped.",
+        "required": [
+          "posts",
+          "meta"
+        ],
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/Meta",
+            "description": "Pagination."
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostRow"
+            },
+            "description": "The rows on this page."
+          }
+        }
+      },
+      "PostSettings": {
+        "type": "object",
+        "description": "A post's settings beside its title and body. Every setting has a\nvalue: empty lists, `false`, `draft` and `null` when never set.",
+        "required": [
+          "co_authors",
+          "featured",
+          "review_state",
+          "share_cards",
+          "aliases"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Alias"
+            },
+            "description": "Old addresses that redirect here."
+          },
+          "canonical": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The address search engines should credit instead of this post.",
+            "example": "https://example.com/original/"
+          },
+          "co_authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The other authors' slugs, after the author.",
+            "example": [
+              "mira"
+            ]
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The day the post is dated, as shown to readers.",
+            "example": "2026-11-02"
+          },
+          "excerpt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "The summary for cards, feeds and search results."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feature_image": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FeatureImage",
+                "description": "The image at the top of the post."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "featured": {
+            "type": "boolean",
+            "description": "Whether the post is featured in lists and the featured channel."
+          },
+          "review_state": {
+            "$ref": "#/components/schemas/ReviewState",
+            "description": "Where the post stands in review."
+          },
+          "robots": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The post's own robots directives, in place of the site's.",
+            "example": "noindex, nofollow"
+          },
+          "share_cards": {
+            "$ref": "#/components/schemas/ShareCards",
+            "description": "How the post looks when shared on X and Facebook."
+          }
+        }
       },
       "PostStatus": {
         "type": "string",
@@ -4394,6 +4799,15 @@
           }
         }
       },
+      "ReviewState": {
+        "type": "string",
+        "description": "Where a post stands in review, before it is published (KH-EDT-4).",
+        "enum": [
+          "draft",
+          "in_review",
+          "ready"
+        ]
+      },
       "Settings": {
         "type": "object",
         "description": "The public settings of the site, in API shape: its name, where it lives\nand its languages. Nothing secret is ever part of it.",
@@ -4430,6 +4844,180 @@
             "example": "https://example.com/blog/"
           }
         }
+      },
+      "SettingsEdit": {
+        "type": "object",
+        "description": "New values for some of a post's settings. A setting left out keeps\nits value, and `null` clears one that may be empty.",
+        "properties": {
+          "aliases": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Every old address that redirects here.",
+            "example": [
+              "/2019/05/old-title/"
+            ]
+          },
+          "canonical": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new canonical address, or `null` for the post's own.",
+            "example": "https://example.com/original/"
+          },
+          "co_authors": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The other authors' slugs, all of them.",
+            "example": [
+              "mira"
+            ]
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "A new date, as `YYYY-MM-DD`, or `null` for none.",
+            "example": "2026-11-02"
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new excerpt, or `null` for none."
+          },
+          "feature_image": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FeatureImage",
+                "description": "A new feature image, or `null` for none."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "featured": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the post is featured."
+          },
+          "review_state": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewState",
+                "description": "`draft`, `in_review` or `ready`."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "robots": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New robots directives, or `null` for the site's.",
+            "example": "noindex, nofollow"
+          },
+          "share_cards": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ShareCards",
+                "description": "Both share cards; a card left out uses the post's own title,\nexcerpt and image."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShareCard": {
+        "type": "object",
+        "description": "How a post looks when shared on one network. Anything left out comes\nfrom the post's title, excerpt and feature image.",
+        "properties": {
+          "description": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "The line under the headline."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "A media path or address, in place of the feature image."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "The headline on the card."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShareCards": {
+        "type": "object",
+        "description": "The share cards for X and Facebook (plan section 4.6).",
+        "properties": {
+          "facebook": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ShareCard",
+                "description": "The card on Facebook, and on other sites that read Open Graph."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "x": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ShareCard",
+                "description": "The card on X."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "SiteSettings": {
         "type": "object",
