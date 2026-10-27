@@ -1,7 +1,7 @@
 //! Subscribers on SQLite: an address waits for its confirmation, a link
-//! works once and expires, a second email waits ten minutes, the file holds
-//! hashes only, and each site sees only its own subscribers (task 5.5,
-//! RULES.md BL-SEC-3).
+//! works once and expires, a second email waits ten minutes, one click
+//! unsubscribes from everything, the file holds hashes only, and each site
+//! sees only its own subscribers (task 5.5, RULES.md BL-SEC-3).
 
 use std::path::PathBuf;
 
@@ -10,6 +10,7 @@ use khalid_core::Slug;
 use khalid_db::{Database, SubscriberTable};
 use khalid_newsletter::{
     Confirmed, EmailAddress, SignUp, SignedUp, SubscriberId, SubscriberStore, SubscriberToken,
+    Unsubscribed,
 };
 use sqlx::SqlitePool;
 
@@ -157,4 +158,86 @@ async fn a_site_sees_only_its_own_subscribers() {
     assert_eq!(open(&db.other, &token, nine()).await, Confirmed::Unknown);
     let (same, _) = sign_up("grace@example.com", "main", nine());
     due(&db.other, &same).await;
+}
+
+/// Gives subscriber `id` of `table` a new unsubscribe link, as a send would.
+#[cfg(test)]
+async fn leave_link(table: &SubscriberTable, id: SubscriberId) -> SubscriberToken {
+    let token = SubscriberToken::generate().unwrap();
+    table
+        .add_unsubscribe(id, &token.hash(), nine())
+        .await
+        .unwrap();
+    token
+}
+
+#[cfg(test)]
+async fn leave(
+    table: &SubscriberTable,
+    token: &SubscriberToken,
+    at: DateTime<Utc>,
+) -> Unsubscribed {
+    table.unsubscribe(&token.hash(), at).await.unwrap()
+}
+
+#[tokio::test]
+async fn one_click_unsubscribes_from_everything_and_a_second_click_changes_nothing() {
+    let db = opened().await;
+    let (asked, token) = sign_up("grace@example.com", "main", nine());
+    let id = due(&db.demo, &asked).await;
+    open(&db.demo, &token, nine()).await;
+    let (more, _) = sign_up("grace@example.com", "releases", nine());
+    db.demo.sign_up(&more).await.unwrap();
+    let link = leave_link(&db.demo, id).await;
+    let much_later = nine() + TimeDelta::days(400);
+    assert_eq!(leave(&db.demo, &link, much_later).await, Unsubscribed::Done);
+    assert_eq!(status(&db.file).await, "unsubscribed");
+    let lists: i64 = sqlx::query_scalar("SELECT count(*) FROM subscriber_lists")
+        .fetch_one(&db.file)
+        .await
+        .unwrap();
+    assert_eq!(lists, 0);
+    assert_eq!(leave(&db.demo, &link, much_later).await, Unsubscribed::Done);
+}
+
+#[tokio::test]
+async fn after_unsubscribing_an_old_link_confirms_nobody_and_a_new_sign_up_asks_again() {
+    let db = opened().await;
+    let (first, old) = sign_up("grace@example.com", "main", nine());
+    let id = due(&db.demo, &first).await;
+    let link = leave_link(&db.demo, id).await;
+    leave(&db.demo, &link, nine()).await;
+    assert_eq!(open(&db.demo, &old, nine()).await, Confirmed::Unknown);
+    let (back, token) = sign_up("grace@example.com", "main", nine());
+    assert_eq!(due(&db.demo, &back).await, id);
+    assert_eq!(status(&db.file).await, "pending");
+    assert_eq!(open(&db.demo, &token, nine()).await, Confirmed::Now(id));
+}
+
+#[tokio::test]
+async fn a_link_that_was_never_sent_unsubscribes_nobody() {
+    let db = opened().await;
+    let (asked, token) = sign_up("grace@example.com", "main", nine());
+    due(&db.demo, &asked).await;
+    // A confirmation token is not an unsubscribe link.
+    assert_eq!(leave(&db.demo, &token, nine()).await, Unsubscribed::Unknown);
+    let stranger = SubscriberToken::generate().unwrap();
+    assert_eq!(
+        leave(&db.demo, &stranger, nine()).await,
+        Unsubscribed::Unknown
+    );
+    assert_eq!(status(&db.file).await, "pending");
+}
+
+#[tokio::test]
+async fn a_site_cannot_unsubscribe_or_link_another_site_s_subscriber() {
+    let db = opened().await;
+    let (asked, _) = sign_up("grace@example.com", "main", nine());
+    let id = due(&db.demo, &asked).await;
+    let link = leave_link(&db.demo, id).await;
+    assert_eq!(leave(&db.other, &link, nine()).await, Unsubscribed::Unknown);
+    let token = SubscriberToken::generate().unwrap();
+    let added = db.other.add_unsubscribe(id, &token.hash(), nine()).await;
+    assert!(added.is_err(), "{added:?}");
+    assert_eq!(status(&db.file).await, "pending");
 }

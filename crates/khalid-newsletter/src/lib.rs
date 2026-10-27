@@ -17,6 +17,6 @@ mod token;
 
 pub use email_address::{EmailAddress, ParseEmailError};
 pub use store::{
-    BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore,
+    BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, Unsubscribed,
 };
 pub use token::{GenerateTokenError, ParseTokenError, SubscriberToken, TokenHash};

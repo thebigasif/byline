@@ -3,6 +3,7 @@
 use chrono::{DateTime, SecondsFormat, Utc};
 use khalid_newsletter::{
     BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, TokenHash,
+    Unsubscribed,
 };
 use sqlx::{Sqlite, Transaction};
 
@@ -151,6 +152,71 @@ impl SubscriberTable {
         tx.commit().await?;
         Ok(confirmed)
     }
+
+    async fn add_unsubscribe_now(
+        &self,
+        subscriber: SubscriberId,
+        token: &TokenHash,
+        at: DateTime<Utc>,
+    ) -> Result<(), DbError> {
+        let added = sqlx::query(
+            "INSERT INTO subscriber_tokens \
+             (site_id, subscriber_id, purpose, token_hash, created_at) \
+             SELECT site_id, id, 'unsubscribe', ?3, ?4 FROM subscribers \
+             WHERE site_id = ?1 AND id = ?2",
+        )
+        .bind(self.site.as_row())
+        .bind(subscriber.as_row())
+        .bind(token.as_bytes().as_slice())
+        .bind(stamp(at))
+        .execute(&self.db.writer)
+        .await?;
+        if added.rows_affected() == 1 {
+            Ok(())
+        } else {
+            Err(DbError::NoSuchSubscriber {
+                id: subscriber.as_row(),
+            })
+        }
+    }
+
+    async fn unsubscribe_now(
+        &self,
+        token: &TokenHash,
+        at: DateTime<Utc>,
+    ) -> Result<Unsubscribed, DbError> {
+        let at = stamp(at);
+        let mut tx = self.db.writer.begin().await?;
+        let row: Option<i64> = sqlx::query_scalar(
+            "SELECT subscriber_id FROM subscriber_tokens \
+             WHERE site_id = ?1 AND token_hash = ?2 AND purpose = 'unsubscribe'",
+        )
+        .bind(self.site.as_row())
+        .bind(token.as_bytes().as_slice())
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some(row) = row else {
+            return Ok(Unsubscribed::Unknown);
+        };
+        let steps = [
+            "UPDATE subscribers SET status = 'unsubscribed', unsubscribed_at = ?2 \
+             WHERE id = ?1 AND status != 'unsubscribed'",
+            "DELETE FROM subscriber_lists WHERE subscriber_id = ?1",
+            "DELETE FROM subscriber_tokens \
+             WHERE subscriber_id = ?1 AND purpose = 'confirm' AND used_at IS NULL",
+            "UPDATE subscriber_tokens SET used_at = ?2 \
+             WHERE subscriber_id = ?1 AND purpose = 'unsubscribe' AND used_at IS NULL",
+        ];
+        for step in steps {
+            sqlx::query(step)
+                .bind(row)
+                .bind(&at)
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        Ok(Unsubscribed::Done)
+    }
 }
 
 impl SubscriberStore for SubscriberTable {
@@ -164,6 +230,31 @@ impl SubscriberStore for SubscriberTable {
         at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<Confirmed, StoreError>> {
         Box::pin(async move { self.confirm_now(token, at).await.map_err(StoreError::new) })
+    }
+
+    fn add_unsubscribe<'a>(
+        &'a self,
+        subscriber: SubscriberId,
+        token: &'a TokenHash,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<(), StoreError>> {
+        Box::pin(async move {
+            self.add_unsubscribe_now(subscriber, token, at)
+                .await
+                .map_err(StoreError::new)
+        })
+    }
+
+    fn unsubscribe<'a>(
+        &'a self,
+        token: &'a TokenHash,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<Unsubscribed, StoreError>> {
+        Box::pin(async move {
+            self.unsubscribe_now(token, at)
+                .await
+                .map_err(StoreError::new)
+        })
     }
 }
 
