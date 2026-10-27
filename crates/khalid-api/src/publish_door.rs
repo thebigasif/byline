@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use khalid_core::{Clock, SystemClock};
+use khalid_lint::Report;
 use tokio::sync::Mutex;
 
 use crate::content_store::Listed;
@@ -32,6 +33,18 @@ pub trait Announce: Send + Sync {
 
     /// `post` was live and was just taken down. Nobody is told by default.
     fn unpublished(&self, _post: &AdminPost) {}
+
+    /// `post` is live and an edit just changed it. Nobody is told by
+    /// default.
+    fn edited(&self, _post: &AdminPost) {}
+
+    /// The linter refused to publish `post`, with the findings in
+    /// `report`. The post stays as it was. Nobody is told by default.
+    fn blocked(&self, _post: &AdminPost, _report: &Report) {}
+
+    /// `post`, as it was last, was just deleted. A live post is told as
+    /// taken down first. Nobody is told by default.
+    fn deleted(&self, _post: &AdminPost) {}
 }
 
 /// Tells nobody, for a site with nowhere to send, and for tests.
@@ -205,7 +218,13 @@ impl PublishDoor {
             (Some(schedules), false) => Some(schedules),
             (None, false) => return Err(UpdatePostError::Schedule(ScheduleError::NoSchedules)),
         };
-        let post = self.posts.update(id, edit.without_schedule(), by).await?;
+        let post = match self.posts.update(id, edit.without_schedule(), by).await {
+            Err(UpdatePostError::Refused(report)) => {
+                self.announce.blocked(&before, &report);
+                return Err(UpdatePostError::Refused(report));
+            }
+            saved => saved?,
+        };
         if let Some(schedules) = schedules {
             schedules.set(id, next).await.map_err(PostStoreError::new)?;
         }
@@ -217,13 +236,15 @@ impl PublishDoor {
             self.announce.unpublished(&post);
         } else if next.publish_at().is_some() && next.publish_at() != current.publish_at() {
             self.announce.scheduled(&post);
+        } else if was_live && !post.reads_as(&before.with_schedule(&current)) {
+            self.announce.edited(&post);
         }
         Ok(post)
     }
 
     /// Removes post `id` when it has not changed since `updated_at`, as
     /// [`PostStore::delete`] does, and drops its schedule. A post that was
-    /// live is announced as taken down.
+    /// live is announced as taken down, then every post as deleted.
     ///
     /// # Errors
     ///
@@ -243,6 +264,7 @@ impl PublishDoor {
         if post.status() == PostStatus::Published {
             self.announce.unpublished(&post);
         }
+        self.announce.deleted(&post);
         Ok(post)
     }
 

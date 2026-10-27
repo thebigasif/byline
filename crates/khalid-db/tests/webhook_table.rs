@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
+use khalid_api::webhook_store::{StoredWebhook, WebhookStore};
 use khalid_core::{AbsoluteUrl, FixedClock, Slug};
 use khalid_db::{Database, WebhookTable};
 use khalid_webhooks::{Event, SigningKey, Webhook, sign};
@@ -93,4 +94,31 @@ async fn each_site_lists_only_its_own_webhooks() {
     let (_dir, demo, other) = opened().await;
     demo.create(&hook(), Event::PostPublished).await.unwrap();
     assert!(other.list().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn the_store_lists_adds_and_switches_off_webhooks_without_their_secrets() {
+    let (_dir, demo, other) = opened().await;
+    let store: &dyn WebhookStore = &demo;
+    let (added, secret) = store.add(&hook(), Event::CommentAdded).await.unwrap();
+    assert_eq!(secret.expose().len(), 64);
+    let at = Utc.with_ymd_and_hms(2026, 10, 27, 9, 0, 0).unwrap();
+    let want = StoredWebhook::new(added.id, Event::CommentAdded, hook(), at);
+    assert_eq!(store.list().await.unwrap(), [want]);
+
+    let theirs: &dyn WebhookStore = &other;
+    assert!(
+        !theirs.remove(added.id).await.unwrap(),
+        "a site cannot switch off another site's webhook"
+    );
+    assert!(store.remove(added.id).await.unwrap());
+    assert_eq!(store.list().await.unwrap(), Vec::new());
+    assert!(
+        demo.list().await.unwrap().is_empty(),
+        "nothing is sent to it"
+    );
+    assert!(
+        !store.remove(added.id).await.unwrap(),
+        "already switched off"
+    );
 }

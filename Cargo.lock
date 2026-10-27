@@ -2103,6 +2103,7 @@ dependencies = [
  "khalid-lint",
  "khalid-media",
  "khalid-seo",
+ "khalid-webhooks",
  "proptest",
  "serde",
  "serde_json",
