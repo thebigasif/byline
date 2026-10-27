@@ -136,7 +136,8 @@ fn serve_with(
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         let posts = SitePosts::new(site, config.clone(), SystemClock);
         let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
-        let app = api.merge(router(live, security));
+        let admin = khalid_admin::router(khalid_admin::built());
+        let app = api.merge(admin).merge(router(live, security));
         let stopped = khalid_server::serve(listener, app, stop(), GRACE).await;
         watching.stop().await;
         stopped

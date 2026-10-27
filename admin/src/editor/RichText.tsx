@@ -14,6 +14,8 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
     extensions,
     content: markdown,
     contentType: "markdown",
+    // The admin's policy allows only its own stylesheet, so no style tag.
+    injectCSS: false,
     editorProps: {
       attributes: {
         class: "text",
