@@ -16,6 +16,8 @@ pub(crate) struct ListedPost {
     pub(crate) locale: Locale,
     /// The collection folder it sits in, such as `posts`, whose page lists it.
     pub(crate) collection: String,
+    /// Whether its front matter says `featured: true`, which channels read.
+    pub(crate) featured: bool,
     pub(crate) topics: PostTopics,
     pub(crate) card: PostCard,
     pub(crate) author: Option<Slug>,

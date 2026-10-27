@@ -1,16 +1,18 @@
 //! The list pages of each language (audit brief G12): each collection's
-//! page where `routes.toml` puts it, the archive of every dated post and
+//! page where `routes.toml` puts it, each category, tag and channel under
+//! the prefixes and paths it gives them, the archive of every dated post and
 //! the page of every author, as `[reader]` in `site.toml` switches the last
 //! two on. A long list is split into pages of [`PER_PAGE`] posts, the first
 //! at the list's own address and the rest at `page/2/` and on.
 
 use khalid_content::{SiteContent, Wikilinks};
 use khalid_core::{Config, Indexing, Locale, RobotsDirectives, UserMessage};
+use khalid_db::IndexedTerm;
 use khalid_render::{
     AuthorEntry, BodyHtml, PageBody, PageKind, Pagination, Person, PostCard, RenderAuthors,
     RenderListing, Renderer,
 };
-use khalid_routes::Routes;
+use khalid_routes::{ChannelFilter, Routes};
 use khalid_seo::PageKind as SeoKind;
 
 use crate::build_pages::{self, LanguagePages, Page};
@@ -45,8 +47,9 @@ struct List {
 
 /// Adds the list pages to each of `languages`, titled in its language by
 /// `renderer`'s strings: each collection's page where `routes` puts it,
-/// with its `_index.md` from `content`, then the archive and the authors
-/// page, unless `[reader]` turns them off.
+/// with its `_index.md` from `content`, each category named as
+/// `categories` names it, each tag and each channel, then the archive and
+/// the authors page, unless `[reader]` turns them off.
 ///
 /// # Errors
 ///
@@ -55,13 +58,15 @@ struct List {
 pub(crate) fn add(
     (config, routes): (&Config, &Routes),
     renderer: &Renderer,
-    content: &SiteContent,
+    (content, categories): (&SiteContent, &[IndexedTerm]),
     languages: &mut [LanguagePages],
 ) -> Result<(), UserMessage> {
     let reader = config.reader();
     for language in languages.iter_mut() {
         let locale = language.site.locale.clone();
-        let mut lists = collections((config, routes), content, &locale, &language.listed)?;
+        let listed = &language.listed;
+        let mut lists = collections((config, routes), content, &locale, listed)?;
+        lists.extend(terms(routes, categories, &locale, listed));
         if reader.archive {
             lists.push(List {
                 rest: "archive/".to_owned(),
@@ -277,6 +282,117 @@ fn collection_rest(routes: &Routes, collection: &str) -> Option<String> {
     (!rest.is_empty()).then(|| format!("{rest}/"))
 }
 
+/// The list of each category, tag and channel of `listed`, in `locale`:
+/// categories and tags under the prefixes `routes` gives them, named as
+/// `categories` names them, and every channel `routes.toml` declares, even
+/// one no post matches yet.
+fn terms(
+    routes: &Routes,
+    categories: &[IndexedTerm],
+    locale: &Locale,
+    listed: &[ListedPost],
+) -> Vec<List> {
+    let mut lists: Vec<List> = Vec::new();
+    for post in listed {
+        if let Some(slug) = &post.topics.category {
+            let rest = format!("{}/{slug}/", routes.category_prefix());
+            add_card(&mut lists, rest, &post.card, || {
+                let name = categories
+                    .iter()
+                    .find(|term| &term.locale == locale && term.slug.as_str() == slug)
+                    .map_or_else(|| slug.clone(), |term| term.name.clone());
+                let key = format!("category {slug}");
+                term_list(name, key, SeoKind::Category, PageBody::Category)
+            });
+        }
+        for tag in &post.topics.tags {
+            let rest = format!("{}/{tag}/", routes.tag_prefix());
+            add_card(&mut lists, rest, &post.card, || {
+                term_list(
+                    tag.clone(),
+                    format!("tag {tag}"),
+                    SeoKind::Tag,
+                    PageBody::Tag,
+                )
+            });
+        }
+    }
+    for channel in routes.channels() {
+        let mut list = term_list(
+            readable(channel.name()),
+            format!("channel {}", channel.name()),
+            SeoKind::Collection,
+            PageBody::Channel,
+        );
+        channel
+            .path()
+            .trim_start_matches('/')
+            .clone_into(&mut list.rest);
+        let filter = channel.filter();
+        list.cards = listed
+            .iter()
+            .filter(|post| matches(filter, post))
+            .map(|post| post.card.clone())
+            .collect();
+        lists.push(list);
+    }
+    lists
+}
+
+/// Whether `post` matches every field `filter` sets.
+fn matches(filter: &ChannelFilter, post: &ListedPost) -> bool {
+    let topics = &post.topics;
+    let author = filter.author.as_ref();
+    let tag = filter.tag.as_ref();
+    let category = filter.category.as_ref();
+    author.is_none_or(|author| post.author.as_ref() == Some(author))
+        && tag.is_none_or(|tag| topics.tags.iter().any(|own| own == tag.as_str()))
+        && category.is_none_or(|category| topics.category.as_deref() == Some(category.as_str()))
+        && (filter.collection.as_ref()).is_none_or(|collection| &post.collection == collection)
+        && (filter.featured).is_none_or(|featured| post.featured == featured)
+}
+
+/// Adds `card` to the list at `rest`, made by `new` when there is none yet.
+fn add_card(lists: &mut Vec<List>, rest: String, card: &PostCard, new: impl FnOnce() -> List) {
+    if let Some(list) = lists.iter_mut().find(|list| list.rest == rest) {
+        list.cards.push(card.clone());
+        return;
+    }
+    let mut list = new();
+    list.rest = rest;
+    list.cards.push(card.clone());
+    lists.push(list);
+}
+
+/// A list titled `title` with no posts yet, no intro and no description.
+fn term_list(
+    title: String,
+    translation: String,
+    kind: SeoKind,
+    body: fn(RenderListing) -> PageBody,
+) -> List {
+    List {
+        rest: String::new(),
+        title,
+        description: String::new(),
+        intro: None,
+        translation,
+        kind,
+        robots: None,
+        body,
+        cards: Vec::new(),
+    }
+}
+
+/// A channel's key as a heading: `from-the-founder` reads "From the founder".
+fn readable(name: &str) -> String {
+    let spaced = name.replace(['-', '_'], " ");
+    let mut chars = spaced.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
+}
+
 /// The text `key` of the strings file for `locale`.
 fn text(renderer: &Renderer, locale: &Locale, key: &str) -> Result<String, UserMessage> {
     renderer
@@ -290,4 +406,63 @@ fn no_index() -> RobotsDirectives {
     let mut directives = RobotsDirectives::default();
     directives.indexing = Indexing::NoIndex;
     directives
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use chrono::NaiveDate;
+    use khalid_render::PostTopics;
+
+    use super::*;
+
+    /// A post with `tags`, which front matter cannot give yet (G13).
+    fn tagged(slug: &str, tags: &[&str]) -> ListedPost {
+        let date = NaiveDate::from_ymd_opt(2026, 9, 1).unwrap();
+        ListedPost {
+            path: format!("content/en/posts/{slug}.md").into(),
+            locale: Locale::try_new("en").unwrap(),
+            collection: "posts".to_owned(),
+            featured: false,
+            topics: PostTopics {
+                slug: slug.to_owned(),
+                date,
+                category: None,
+                tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
+                links: Vec::new(),
+            },
+            card: PostCard {
+                title: slug.to_owned(),
+                href: format!("/blog/{slug}/"),
+                date,
+                excerpt: String::new(),
+                image: None,
+                author: None,
+                category: None,
+            },
+            author: None,
+        }
+    }
+
+    #[test]
+    fn each_tag_lists_its_posts_under_the_tag_prefix_and_a_channel_can_pick_one() {
+        let text = "[taxonomies]\ntag = \"topic\"\n\n\
+                    [channels.need-for-speed]\npath = \"/fast/\"\nfilter = { tag = \"speed\" }\n";
+        let routes = Routes::from_toml(Path::new("routes.toml"), text).unwrap();
+        let posts = [tagged("a", &["links"]), tagged("b", &["links", "speed"])];
+        let english = Locale::try_new("en").unwrap();
+        let shown: Vec<String> = terms(&routes, &[], &english, &posts)
+            .iter()
+            .map(|list| format!("{} {} {}", list.rest, list.title, list.cards.len()))
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                "topic/links/ links 2",
+                "topic/speed/ speed 1",
+                "fast/ Need for speed 1"
+            ]
+        );
+    }
 }

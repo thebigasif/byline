@@ -25,8 +25,8 @@ use crate::post_files::Assets;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::{
-    assets, build_home, build_lists, build_message, build_pages, build_seo, content_message,
-    post_files, search_page, serve_message, site_files,
+    assets, build_home, build_lists, build_message, build_pages, build_seo, categories,
+    content_message, post_files, search_page, serve_message, site_files,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -345,7 +345,9 @@ impl SitePages {
             // A saved post's page alone needs no list, and its content
             // holds too few posts to make one.
             if which == Which::All {
-                build_lists::add((config, routes), &theme.renderer, content, &mut languages)?;
+                let categories = categories::of(folder)?;
+                let sources = (content, categories.as_slice());
+                build_lists::add((config, routes), &theme.renderer, sources, &mut languages)?;
             }
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);

@@ -50,7 +50,7 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     assert!(
-        text(&output.stdout).contains("28 pages"),
+        text(&output.stdout).contains("34 pages"),
         "{}",
         text(&output.stdout)
     );

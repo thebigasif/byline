@@ -181,3 +181,35 @@ fn a_collection_routes_toml_does_not_name_has_its_page_at_its_folder() {
     assert!(notes.contains("<h1>notes</h1>"), "{notes}");
     assert!(notes.contains(r#"href="/blog/notes/a-note/""#), "{notes}");
 }
+
+#[test]
+fn categories_and_channels_sit_where_routes_toml_puts_them() {
+    let site = site(2, "");
+    put(
+        site.path(),
+        "routes.toml",
+        "[taxonomies]\ncategory = \"topic\"\n\n\
+         [channels.featured]\npath = \"/featured/\"\nfilter = { featured = true }\n\n\
+         [channels.from-lena]\npath = \"/from-lena/\"\nfilter = { author = \"lena\" }\n",
+    );
+    put(
+        site.path(),
+        "categories.toml",
+        "[[categories]]\nslug = \"links\"\nen = \"Links\"\n",
+    );
+    put(
+        site.path(),
+        "content/en/posts/linked.md",
+        "---\ntitle: Linked\nslug: linked\ndate: 2026-09-20\nauthor: asif\ncategory: links\n\
+         featured: true\n---\n\nLinked points to [the home page](/blog/).\n",
+    );
+    build(&site);
+    let topic = page(&site, "topic/links/index.html").unwrap();
+    assert!(topic.contains("<h1>Links</h1>"), "{topic}");
+    assert_eq!(topic.matches(r#"<article class="card">"#).count(), 1);
+    assert_eq!(page(&site, "category/links/index.html"), None);
+    let quiet = page(&site, "from-lena/index.html").unwrap();
+    assert!(quiet.contains("There are no posts here yet."), "{quiet}");
+    let featured = page(&site, "featured/index.html").unwrap();
+    insta::assert_snapshot!(main_of(&featured));
+}

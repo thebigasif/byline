@@ -256,6 +256,7 @@ fn listed(
         path: draft.doc.path.clone(),
         locale: locale.clone(),
         collection: draft.doc.collection.clone(),
+        featured: front.featured,
         topics: build_reader::topics(&draft.slug, draft.date, front, &draft.rendered, slugs),
         card,
         author: front.author.clone(),
