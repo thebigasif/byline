@@ -11,6 +11,9 @@ pub(crate) enum Piece {
     Html(String),
     /// A markdown card's text, rendered and then cleaned like HTML.
     Markdown(String),
+    /// Markdown this module built itself from checked values, such as a
+    /// gallery, kept as it is.
+    Lines(String),
     /// Code, written as a fenced block exactly as it is.
     Code {
         /// The language, letters, digits, `+`, `#` and `-` only.
@@ -64,6 +67,12 @@ impl Html {
     pub(crate) fn markdown(&mut self, markdown: &str) {
         self.flush();
         self.pieces.push(Piece::Markdown(markdown.to_owned()));
+    }
+
+    /// Adds markdown built from checked values, kept as it is.
+    pub(crate) fn lines(&mut self, markdown: String) {
+        self.flush();
+        self.pieces.push(Piece::Lines(markdown));
     }
 
     /// Adds `code`, in `language` when it names one.

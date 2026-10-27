@@ -71,6 +71,7 @@ pub(crate) fn converted(
                     code.trim_end_matches('\n')
                 )
             }
+            Piece::Lines(markdown) => markdown,
             Piece::Block { line, body: None } => line,
             Piece::Block {
                 line,

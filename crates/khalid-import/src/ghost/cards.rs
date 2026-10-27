@@ -4,6 +4,7 @@
 
 use serde_json::Value;
 
+use crate::ghost::blocks::block_card;
 use crate::ghost::html::Html;
 use crate::markdown::is_safe;
 
@@ -33,7 +34,7 @@ pub(crate) fn card(kind: &str, card: &Value, html: &mut Html) -> bool {
         // The converter cleans it with `ammonia` like any other HTML.
         "html" => html.tag(field("html").unwrap_or_default()),
         "horizontalrule" | "hr" => html.tag("<hr>"),
-        _ => return false,
+        _ => return block_card(kind, card, html),
     }
     true
 }

@@ -1,5 +1,6 @@
 //! Ghost: the JSON file that Settings, Import/Export writes.
 
+mod blocks;
 mod body;
 mod cards;
 mod export;
