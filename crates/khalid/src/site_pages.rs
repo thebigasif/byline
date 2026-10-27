@@ -33,8 +33,8 @@ struct Site {
     renderer: Renderer,
     stylesheet: Page,
     feed: Option<ContentFeed>,
-    /// The posts and authors the last full render read, without bodies, so
-    /// a saved post's page can be rendered alone.
+    /// The posts the last full render read, without bodies, and its
+    /// authors, so a saved post's page can be rendered alone.
     outline: Mutex<SiteContent>,
     /// The content files the last full render listed, so a saved post's
     /// page finds the files beside it without listing the folder again.
@@ -291,9 +291,10 @@ impl Render for SitePages {
         Ok(Rendered::new(pages, not_found))
     }
 
-    /// A saved post's page alone: its own file read again, and the authors
-    /// as the last full render read them. Nothing else on a post's page
-    /// comes from other files, so it is the page the full render will make.
+    /// A saved post's page alone: its own file read again, with the authors
+    /// and the files beside it as the last full render read them. Only
+    /// when nothing else can reach the page (see `saved_posts`), so it is
+    /// the page the full render will make.
     fn render_saved(&self, files: &[PathBuf]) -> Result<Option<Vec<Page>>, Unrendered> {
         let listed = self
             .0
