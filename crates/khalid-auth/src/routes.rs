@@ -1,6 +1,7 @@
 //! The staff routes `khalid-auth` adds to the Admin API under
 //! `/api/admin/v1/`: signing in and out, and managing staff (BL-API-4).
 
+mod links;
 mod staff;
 mod staff_changes;
 mod take_back;
@@ -28,6 +29,8 @@ pub fn staff_routes(accounts: Accounts) -> StaffRoutes {
     StaffRoutes {
         open: OpenApiRouter::new()
             .routes(routes!(sign_in))
+            .routes(routes!(links::send_link))
+            .routes(routes!(links::redeem_link))
             .with_state(accounts.clone()),
         signed_in: OpenApiRouter::new()
             .routes(routes!(current_session, take_back::sign_out))
