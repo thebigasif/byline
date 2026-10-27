@@ -50,6 +50,22 @@ fn absent_parts_are_left_out() {
     assert_eq!(json["status"], 404);
 }
 
+#[test]
+fn too_many_attempts_is_a_429() {
+    let message = UserMessage::new(
+        "There were too many failed sign-ins.",
+        "Waiting stops people guessing passwords.",
+        "Try again in 15 minutes.",
+    );
+    let json = serde_json::to_value(Problem::new(ProblemType::TooManyRequests, &message)).unwrap();
+    assert_eq!(json["status"], 429);
+    assert_eq!(
+        json["type"],
+        "https://khalid.dev/problems/too-many-requests"
+    );
+    assert_eq!(json["title"], "Too many attempts");
+}
+
 #[tokio::test]
 async fn a_problem_is_a_response_with_its_status_and_media_type() {
     let response = no_author().into_response();

@@ -831,6 +831,972 @@
         ]
       }
     },
+    "/api/admin/v1/session/": {
+      "get": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Who the session cookie signs in, with its CSRF token again, for an\nadmin page that was reloaded. Needs the session cookie.",
+        "operationId": "current_session",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The signed-in account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionAnswer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Signs in with an email and password. The answer sets the session\ncookie and holds the CSRF token. Needs no key.",
+        "operationId": "sign_in",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in; the cookie is set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionAnswer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The email and password do not match an account",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed sign-ins; Retry-After says when to try again",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Signs out: ends this session and clears the cookie.",
+        "operationId": "sign_out",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Signed out; the cookie is cleared"
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/session/link/": {
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Mails a sign-in link to an email that has an account. The answer is\nthe same whether it has one or not. Needs no key.",
+        "operationId": "send_link",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "If the email has an account, a link is on its way"
+          },
+          "404": {
+            "description": "This site cannot send sign-in links",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many links asked for; Retry-After says when to try again",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/session/link/redeem/": {
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Signs in with the token from a sign-in link. The answer sets the\nsession cookie, like signing in with a password. Needs no key.",
+        "operationId": "redeem_link",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkRedeem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in; the cookie is set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionAnswer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The link was used, has expired or is unknown",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This site cannot send sign-in links",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/session/passkey/": {
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Signs in with a passkey. The answer sets the session cookie. Needs no\nkey.",
+        "operationId": "passkey_sign_in",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeySignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in; the cookie is set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionAnswer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The passkey was not accepted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/session/passkey/options/": {
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Starts a passkey sign-in. Needs no key.",
+        "operationId": "sign_in_options",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What to pass to navigator.credentials.get",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetOptions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This site has no passkeys",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/session/passkeys/": {
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Adds the passkey the browser made to the signed-in account. Needs the\nsession cookie.",
+        "operationId": "add_passkey",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewPasskey"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The passkey is added"
+          },
+          "401": {
+            "description": "No live session, or the request was used or too old",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The passkey's answer was refused; detail says why",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/session/passkeys/options/": {
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Starts adding a passkey to the signed-in account. Needs the session\ncookie.",
+        "operationId": "passkey_options",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What to pass to navigator.credentials.create",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOptions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This site has no passkeys",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/session/password/": {
+      "put": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Changes the password of the signed-in account and ends its other\nsessions. An account with no password may set its first one only in\nthe 15 minutes after signing in.",
+        "operationId": "change_password",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Changed; other sessions ended"
+          },
+          "401": {
+            "description": "No live session, or the current password is wrong",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The new password is too short or too long",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/sessions/": {
+      "delete": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Signs out everywhere: ends every session of this account, this one\ntoo, for a lost laptop or a stolen cookie.",
+        "operationId": "sign_out_everywhere",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every session ended; the cookie is cleared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ended"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/staff/": {
+      "get": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Lists every staff account. Needs a role that manages staff.",
+        "operationId": "list_staff",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every staff account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid key or session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This role does not manage staff",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          },
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Invites a person with a role the caller may manage. They have no\npassword until they choose one.",
+        "operationId": "invite",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Invite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid key or session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This role cannot give that role",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An account already has this email",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          },
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/staff/{id}/": {
+      "put": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Gives an account another role. The caller must manage both its old\nrole and the new one.",
+        "operationId": "change_role",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The account's number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The account with its new role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This role cannot make that change",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No account has this number",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          },
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Removes an account, with its sessions and passkeys. The caller must\nmanage its role.",
+        "operationId": "remove_staff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The account's number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "403": {
+            "description": "This role cannot remove that account",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No account has this number",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          },
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/staff/{id}/owner/": {
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Hands the site to another account: it becomes the owner and the owner\nuntil now becomes an admin. Only the owner, signed in with the session\ncookie, may do this; no key can.",
+        "operationId": "transfer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The account that becomes the owner",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only the signed-in owner may hand the site over",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No other account has this number",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/authors/": {
       "get": {
         "tags": [
@@ -3960,6 +4926,52 @@
           }
         }
       },
+      "CreateOptions": {
+        "type": "object",
+        "description": "What the admin passes to `navigator.credentials.create`.",
+        "required": [
+          "challenge",
+          "rp_id",
+          "user_id",
+          "exclude",
+          "algorithms",
+          "timeout_ms"
+        ],
+        "properties": {
+          "algorithms": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "The key algorithms Khalid accepts, by their `WebAuthn` numbers:\nES256, then `EdDSA`."
+          },
+          "challenge": {
+            "type": "string",
+            "description": "The challenge to sign."
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Passkeys the account already has."
+          },
+          "rp_id": {
+            "type": "string",
+            "description": "The site's host name."
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How long the browser may wait, in milliseconds."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The account's handle for authenticators."
+          }
+        }
+      },
       "EditPosts": {
         "type": "object",
         "description": "An edit, wrapped the way the Admin API wraps posts: exactly one.",
@@ -3976,6 +4988,21 @@
           }
         },
         "additionalProperties": false
+      },
+      "Ended": {
+        "type": "object",
+        "description": "How many sessions signing out everywhere ended.",
+        "required": [
+          "ended"
+        ],
+        "properties": {
+          "ended": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Sessions ended, this one included.",
+            "minimum": 0
+          }
+        }
       },
       "FeatureImage": {
         "type": "object",
@@ -4015,6 +5042,30 @@
           "refuses"
         ]
       },
+      "GetOptions": {
+        "type": "object",
+        "description": "What the admin passes to `navigator.credentials.get`.",
+        "required": [
+          "challenge",
+          "rp_id",
+          "timeout_ms"
+        ],
+        "properties": {
+          "challenge": {
+            "type": "string",
+            "description": "The challenge to sign."
+          },
+          "rp_id": {
+            "type": "string",
+            "description": "The site's host name."
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How long the browser may wait, in milliseconds."
+          }
+        }
+      },
       "GlossaryTerms": {
         "type": "object",
         "required": [
@@ -4050,6 +5101,58 @@
           "canonical_elsewhere",
           "not_live"
         ]
+      },
+      "Invite": {
+        "type": "object",
+        "description": "A person to invite: they sign in by a link sent to their email, then\nchoose a password or add a passkey.",
+        "required": [
+          "email",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Their email address."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name the admin shows."
+          },
+          "role": {
+            "type": "string",
+            "description": "`admin`, `editor`, `writer` or `contributor`."
+          }
+        },
+        "additionalProperties": false
+      },
+      "LinkRedeem": {
+        "type": "object",
+        "description": "The token from a sign-in link, which the admin's sign-in page reads\nafter the `#` and posts here.",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The token."
+          }
+        },
+        "additionalProperties": false
+      },
+      "LinkRequest": {
+        "type": "object",
+        "description": "The email to send a sign-in link to.",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The address the account signs in with."
+          }
+        },
+        "additionalProperties": false
       },
       "LintCounts": {
         "type": "object",
@@ -4162,6 +5265,30 @@
             "description": "The entries on this page, or the one entry asked for."
           }
         }
+      },
+      "NewPasskey": {
+        "type": "object",
+        "description": "A new passkey, as `navigator.credentials.create` returned it.",
+        "required": [
+          "name",
+          "client_data",
+          "attestation_object"
+        ],
+        "properties": {
+          "attestation_object": {
+            "type": "string",
+            "description": "`attestationObject`."
+          },
+          "client_data": {
+            "type": "string",
+            "description": "`clientDataJSON`."
+          },
+          "name": {
+            "type": "string",
+            "description": "A name to tell it apart, such as \"Work laptop\"."
+          }
+        },
+        "additionalProperties": false
       },
       "NewPost": {
         "type": "object",
@@ -4314,6 +5441,56 @@
             "minimum": 0
           }
         }
+      },
+      "PasskeySignIn": {
+        "type": "object",
+        "description": "A sign-in, as `navigator.credentials.get` returned it.",
+        "required": [
+          "credential_id",
+          "client_data",
+          "authenticator_data",
+          "signature"
+        ],
+        "properties": {
+          "authenticator_data": {
+            "type": "string",
+            "description": "`authenticatorData`."
+          },
+          "client_data": {
+            "type": "string",
+            "description": "`clientDataJSON`."
+          },
+          "credential_id": {
+            "type": "string",
+            "description": "The credential's `rawId`."
+          },
+          "signature": {
+            "type": "string",
+            "description": "`signature`."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PasswordChange": {
+        "type": "object",
+        "description": "A new password, with the current one when the account has one.",
+        "required": [
+          "new"
+        ],
+        "properties": {
+          "current": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The password now; leave it out only to set a first password."
+          },
+          "new": {
+            "type": "string",
+            "description": "The new password: at least 12 characters."
+          }
+        },
+        "additionalProperties": false
       },
       "Post": {
         "allOf": [
@@ -4838,6 +6015,38 @@
           "ready"
         ]
       },
+      "RoleChange": {
+        "type": "object",
+        "description": "A new role for an account.",
+        "required": [
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "`admin`, `editor`, `writer` or `contributor`."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SessionAnswer": {
+        "type": "object",
+        "description": "A signed-in session: who it is, and the CSRF token every request with\nthe cookie sends in `x-khalid-csrf`.",
+        "required": [
+          "account",
+          "csrf"
+        ],
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/StaffAccount",
+            "description": "Who signed in."
+          },
+          "csrf": {
+            "type": "string",
+            "description": "The session's CSRF token."
+          }
+        }
+      },
       "Settings": {
         "type": "object",
         "description": "The public settings of the site, in API shape: its name, where it lives\nand its languages. Nothing secret is ever part of it.",
@@ -5081,6 +6290,25 @@
         },
         "additionalProperties": false
       },
+      "SignInBody": {
+        "type": "object",
+        "description": "An email and password to sign in with.",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The address the account signs in with."
+          },
+          "password": {
+            "type": "string",
+            "description": "The account's password."
+          }
+        },
+        "additionalProperties": false
+      },
       "SiteSettings": {
         "type": "object",
         "description": "The site's settings, as every response wraps them: a list of one.",
@@ -5094,6 +6322,51 @@
               "$ref": "#/components/schemas/Settings"
             },
             "description": "The settings."
+          }
+        }
+      },
+      "StaffAccount": {
+        "type": "object",
+        "description": "A staff account as the Admin API shows it.",
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The address they sign in with."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The account's number on this site."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name the admin shows."
+          },
+          "role": {
+            "type": "string",
+            "description": "`owner`, `admin`, `editor`, `writer` or `contributor`."
+          }
+        }
+      },
+      "StaffList": {
+        "type": "object",
+        "description": "Staff accounts, as the Admin API wraps them.",
+        "required": [
+          "staff"
+        ],
+        "properties": {
+          "staff": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffAccount"
+            },
+            "description": "The accounts, by email."
           }
         }
       },
@@ -5172,6 +6445,12 @@
         "in": "query",
         "name": "key",
         "description": "The site's content key."
+      },
+      "staff_session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-khalid-session",
+        "description": "A signed-in staff session. Every request with it also sends the session's CSRF token in the x-khalid-csrf header."
       }
     }
   }

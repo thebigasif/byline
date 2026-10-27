@@ -31,7 +31,7 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, newsletter, preview, report, scheduler, search_route,
-    serve_message, unlock,
+    serve_message, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -143,22 +143,23 @@ fn serve_with(
         let (door, announcing) = publish_door((site, config), (database, id), outbound).await?;
         let scheduling = scheduler::start(Arc::clone(&door));
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
+        let accounts = staff::accounts(database, id, config);
+        let staff = khalid_auth::staff_routes(accounts.clone());
         let stores = (Arc::new(content), door, Arc::new(keys));
-        let (api, _) = api::router_with_door_and_comments(stores.0, stores.1, stores.2, moderation);
-        let searches = search_route::router(config, search);
-        let admin = khalid_admin::router(khalid_admin::built());
-        let signer = unlock_signer((site, config), (database, id)).await?;
-        let pages = unlock::router(
-            config,
-            source.gate(),
-            signer,
-            router(live, security),
-            SystemClock,
+        let (api, _) = api::router_with_door_comments_and_staff(
+            stores.0,
+            stores.1,
+            stores.2,
+            moderation,
+            staff,
+            Arc::new(accounts),
         );
+        let shown_pages = router(live, security);
+        let pages = unlocking((site, config), (database, id), &source, shown_pages).await?;
         let app = api
             .merge(previews)
-            .merge(searches)
-            .merge(admin)
+            .merge(search_route::router(config, search))
+            .merge(khalid_admin::router(khalid_admin::built()))
             .merge(comments)
             .merge(newsletters)
             .merge(pages);
@@ -205,13 +206,16 @@ async fn publish_door(
     Ok((Arc::new(door), announcing))
 }
 
-/// The signer of the cookies that open password posts, keyed with the
-/// site's preview key under its own label, and marked `Secure` when the
+/// `pages`, the site's page router, with the password form and the cookie
+/// check of `source`'s password posts. The cookies are signed with the
+/// site's preview key under their own label, and marked `Secure` when the
 /// site's address is `https`.
-async fn unlock_signer(
+async fn unlocking(
     (site, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
-) -> Result<UnlockSigner, (UserMessage, Exit)> {
+    source: &SitePages,
+    pages: axum::Router,
+) -> Result<axum::Router, (UserMessage, Exit)> {
     let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
     let key = database.preview_key(id, &SystemClock).await;
     let key = key.map_err(|error| (db_message::of(&file, &error), Exit::Failure))?;
@@ -220,7 +224,14 @@ async fn unlock_signer(
     } else {
         Transport::Http
     };
-    Ok(UnlockSigner::new(&key, transport, SystemClock))
+    let signer = UnlockSigner::new(&key, transport, SystemClock);
+    Ok(unlock::router(
+        config,
+        source.gate(),
+        signer,
+        pages,
+        SystemClock,
+    ))
 }
 
 /// Renders every page from the `checked` content on a blocking thread
