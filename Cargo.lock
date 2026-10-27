@@ -1974,6 +1974,7 @@ dependencies = [
 name = "khalid-import"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "khalid-core",
  "roxmltree 0.20.0",
  "thiserror",

@@ -2,7 +2,9 @@
 
 use std::fs;
 
-use khalid_import::wordpress::{WxrError, read_wxr};
+use chrono::NaiveDate;
+use khalid_core::AbsoluteUrl;
+use khalid_import::wordpress::{ItemKind, ItemStatus, WxrError, read_wxr};
 
 #[cfg(test)]
 fn fixture(name: &str) -> String {
@@ -88,7 +90,99 @@ fn names_the_line_of_a_bad_address() {
     );
     let error = read_wxr(&text).unwrap_err();
     assert!(
-        matches!(&error, WxrError::BadValue { field, line: 6, .. } if field == "link"),
+        matches!(&error, WxrError::BadValue { field, line: 9, .. } if field == "link"),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn reads_every_item_in_file_order() {
+    let export = read_wxr(&fixture("basic.xml")).unwrap();
+    let items: Vec<(u64, &ItemKind, &ItemStatus)> = export
+        .items
+        .iter()
+        .map(|item| (item.id, &item.kind, &item.status))
+        .collect();
+    let menu = ItemKind::Other("nav_menu_item".to_owned());
+    assert_eq!(
+        items,
+        [
+            (10, &ItemKind::Post, &ItemStatus::Publish),
+            (11, &ItemKind::Page, &ItemStatus::Publish),
+            (12, &ItemKind::Attachment, &ItemStatus::Inherit),
+            (13, &ItemKind::Post, &ItemStatus::Draft),
+            (14, &menu, &ItemStatus::Publish),
+        ]
+    );
+}
+
+#[test]
+fn reads_a_post_with_its_terms_and_meta() {
+    let export = read_wxr(&fixture("basic.xml")).unwrap();
+    let post = &export.items[0];
+    assert_eq!(post.title, "How to keep a starter alive");
+    assert_eq!(post.name, "keep-a-starter-alive");
+    assert_eq!(
+        post.link.as_ref().map(AbsoluteUrl::as_str),
+        Some("https://northfield.example.com/2024/03/keep-a-starter-alive/")
+    );
+    assert_eq!(post.creator, "mara");
+    let local = NaiveDate::from_ymd_opt(2024, 3, 12).and_then(|day| day.and_hms_opt(9, 30, 0));
+    assert_eq!(post.published, local, "the site's own time, not GMT");
+    assert!(post.content.contains("<strong>every day</strong>"));
+    assert_eq!(post.excerpt, "A starter needs food, warmth and time.");
+    assert!(post.sticky);
+    assert_eq!(post.categories, ["sourdough"]);
+    assert_eq!(post.tags, ["rye"]);
+    assert_eq!(post.meta("_thumbnail_id"), Some("12"));
+    assert_eq!(post.parent, None);
+    assert!(!export.items[1].sticky);
+}
+
+#[test]
+fn reads_an_attachment_and_a_draft() {
+    let export = read_wxr(&fixture("basic.xml")).unwrap();
+    let image = export.item(12).unwrap();
+    assert_eq!(image.parent, Some(10));
+    assert_eq!(
+        image.attachment_url.as_ref().map(AbsoluteUrl::as_str),
+        Some("https://northfield.example.com/wp-content/uploads/2024/03/starter-jar.jpg")
+    );
+    assert_eq!(
+        image.meta("_wp_attachment_image_alt"),
+        Some("A bubbling starter in a glass jar")
+    );
+    let draft = export.item(13).unwrap();
+    assert_eq!(draft.published, None, "WordPress writes zeros for no date");
+    assert_eq!(draft.name, "");
+    assert_eq!(draft.categories, ["baking"]);
+    assert!(export.item(99).is_none());
+}
+
+#[test]
+fn names_the_line_of_a_bad_post_id() {
+    let text = fixture("basic.xml").replace(
+        "<wp:post_id>11</wp:post_id>",
+        "<wp:post_id>eleven</wp:post_id>",
+    );
+    let error = read_wxr(&text).unwrap_err();
+    let WxrError::BadValue { line, field, value } = &error else {
+        panic!("{error:?}");
+    };
+    assert_eq!((field.as_str(), value.as_str()), ("wp:post_id", "eleven"));
+    let expected = text.lines().position(|row| row.contains("eleven")).unwrap() + 1;
+    assert_eq!(*line, expected);
+}
+
+#[test]
+fn names_the_field_of_a_bad_date() {
+    let text = fixture("basic.xml").replace(
+        "2023-01-05 12:00:00]]></wp:post_date>",
+        "yesterday]]></wp:post_date>",
+    );
+    let error = read_wxr(&text).unwrap_err();
+    assert!(
+        matches!(&error, WxrError::BadValue { field, value, .. } if field == "wp:post_date" && value == "yesterday"),
         "{error:?}"
     );
 }

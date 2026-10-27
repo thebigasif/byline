@@ -3,11 +3,13 @@
 //!
 //! Text is kept as `WordPress` wrote it: slugs may be percent-encoded and
 //! names may hold HTML entities. Turning them into Khalid's types is a later
-//! step, so this model loses nothing the file says about people and terms.
+//! step, so this model loses nothing the file says about people, terms and items.
 //! Authors' email addresses are personal data the blog never shows, so they
 //! are not read (RULES.md BL-RUN-5).
 
 use khalid_core::AbsoluteUrl;
+
+use crate::wordpress::Item;
 
 /// Everything read from one export file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,6 +23,16 @@ pub struct Export {
     pub categories: Vec<Term>,
     /// The tags, in file order.
     pub tags: Vec<Term>,
+    /// Posts, pages, attachments and every other item, in file order.
+    pub items: Vec<Item>,
+}
+
+impl Export {
+    /// The item whose id is `id`, such as the image a post's
+    /// `_thumbnail_id` names.
+    pub fn item(&self, id: u64) -> Option<&Item> {
+        self.items.iter().find(|item| item.id == id)
+    }
 }
 
 /// The site the export came from.

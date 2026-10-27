@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 roxmltree = "0.20"
 thiserror.workspace = true
