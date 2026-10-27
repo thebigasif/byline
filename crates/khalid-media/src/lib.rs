@@ -15,6 +15,7 @@
 //! render crate shows what this crate made; the wiring code connects them.
 
 mod content_key;
+mod crop;
 mod derive;
 mod file_name;
 mod focal_point;
@@ -27,6 +28,7 @@ mod original;
 mod variant;
 
 pub use content_key::ContentKey;
+pub use crop::Crop;
 pub use derive::{DerivedFile, DerivedImage, derive, derive_in_background};
 pub use file_name::{FileName, ParseFileNameError};
 pub use focal_point::{FocalPoint, ParseFocalPointError};
