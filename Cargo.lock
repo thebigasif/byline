@@ -1977,6 +1977,8 @@ dependencies = [
  "chrono",
  "khalid-core",
  "roxmltree 0.20.0",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

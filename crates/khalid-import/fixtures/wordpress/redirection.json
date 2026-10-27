@@ -1,0 +1,22 @@
+{
+  "plugin": { "version": "5.5.0", "date": "Tue, 01 Oct 2024 10:00:00 +0000" },
+  "groups": [
+    { "id": 1, "name": "Redirections", "redirects": 11, "module_id": 1, "moduleName": "WordPress", "enabled": true },
+    { "id": 2, "name": "Old shop", "redirects": 1, "module_id": 1, "moduleName": "WordPress", "enabled": false }
+  ],
+  "redirects": [
+    { "id": 1, "url": "/bread-recipes/", "match_url": "/bread-recipes", "match_data": { "source": { "flag_query": "exact", "flag_case": false, "flag_trailing": false, "flag_regex": false } }, "action_code": 301, "action_type": "url", "action_data": { "url": "/recipes/" }, "match_type": "url", "title": "", "hits": 12, "regex": false, "group_id": 1, "position": 0, "last_access": "-", "enabled": true },
+    { "id": 2, "url": "^/(\\d{4})/(\\d{2})/(.*)$", "action_code": 301, "action_type": "url", "action_data": { "url": "/blog/$3" }, "match_type": "url", "regex": true, "group_id": 1, "enabled": true },
+    { "id": 3, "url": "/summer-sale/", "action_code": 302, "action_type": "url", "action_data": { "url": "/offers/" }, "match_type": "url", "regex": false, "group_id": 1, "enabled": true },
+    { "id": 4, "url": "/opening-hours/", "action_code": 307, "action_type": "url", "action_data": { "url": "https://northfield.example.com/visit/" }, "match_type": "url", "regex": false, "group_id": 1, "enabled": true },
+    { "id": 5, "url": "/rye/", "action_code": 308, "action_type": "url", "action_data": { "url": "/rye-bread/" }, "match_type": "url", "regex": false, "group_id": 1, "enabled": true },
+    { "id": 6, "url": "/gluten-free-myths/", "action_code": 410, "action_type": "error", "action_data": [], "match_type": "url", "regex": false, "group_id": 1, "enabled": true },
+    { "id": 7, "url": "/court-order/", "action_code": 451, "action_type": "error", "match_type": "url", "regex": false, "group_id": 1, "enabled": true },
+    { "id": 8, "url": "/old-menu/", "action_code": 404, "action_type": "error", "match_type": "url", "regex": false, "group_id": 1, "enabled": true },
+    { "id": 9, "url": "/members/", "action_code": 301, "action_type": "url", "action_data": { "logged_in": "/account/", "logged_out": "/login/" }, "match_type": "login", "regex": false, "group_id": 1, "enabled": true },
+    { "id": 10, "url": "/draft-page/", "action_code": 301, "action_type": "url", "action_data": { "url": "/" }, "match_type": "url", "regex": false, "group_id": 1, "enabled": false },
+    { "id": 11, "url": "/shop/", "action_code": 301, "action_type": "url", "action_data": { "url": "/" }, "match_type": "url", "regex": false, "group_id": 2, "enabled": true },
+    { "id": 12, "url": "/ping/", "action_code": 200, "action_type": "nothing", "match_type": "url", "regex": false, "group_id": 1, "enabled": true },
+    { "id": 13, "url": "/flour-guide/", "action_code": "301", "action_type": "url", "action_data": { "url": "/flour/" }, "match_type": "url", "regex": false, "group_id": 1, "enabled": true }
+  ]
+}
