@@ -19,6 +19,7 @@ mod build_redirects;
 mod build_seo;
 mod categories;
 mod cli;
+mod comment_pages;
 mod config_message;
 mod content_feed;
 mod content_message;

@@ -1992,11 +1992,13 @@ dependencies = [
 name = "khalid"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
  "clap",
  "image",
  "insta",
  "khalid-api",
+ "khalid-comments",
  "khalid-content",
  "khalid-core",
  "khalid-db",

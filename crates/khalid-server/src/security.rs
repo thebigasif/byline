@@ -87,8 +87,10 @@ impl SecurityHeaders {
         })
     }
 
-    /// Sets every security header on `headers`, with a new nonce.
-    pub(crate) fn apply(&self, headers: &mut HeaderMap) {
+    /// Sets every security header on `headers`, with a new nonce, for a
+    /// response made outside [`router`](crate::router), such as a page of
+    /// search results.
+    pub fn apply(&self, headers: &mut HeaderMap) {
         for (name, value) in &FIXED {
             headers.insert(name.clone(), value.clone());
         }

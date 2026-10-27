@@ -27,7 +27,7 @@ use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{db, db_message, report, serve_message};
+use crate::{comment_pages, db, db_message, report, serve_message};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -125,13 +125,17 @@ fn serve_with(
             .map_err(|_| (serve_message::internal(), Exit::Internal))?;
         announce(output, config, &format!("http://{local}{}", config.mount()));
         let live = LivePages::new(first);
+        let shown = (&source, &live);
+        let (comments, moderation) =
+            comment_pages::start(config, (database, id), shown, security.clone()).await;
         let (failed, failure) = oneshot::channel();
         let rest = (source.clone(), live.clone());
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         let posts = SitePosts::new(site, config.clone(), SystemClock);
-        let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
-        let app = api.merge(router(live, security));
+        let stores = (Arc::new(content), Arc::new(posts), Arc::new(keys));
+        let (api, _) = api::router_with_comments(stores.0, stores.1, stores.2, moderation);
+        let app = api.merge(comments).merge(router(live, security));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;

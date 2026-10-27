@@ -16,6 +16,7 @@ use khalid_routes::Routes;
 use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
 
 use crate::build_pages::LanguagePages;
+use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
 use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
@@ -49,6 +50,8 @@ struct Site {
     /// a saved post's page finds them without listing the folder again.
     /// `None` before the first full render.
     assets: Mutex<Option<Assets>>,
+    /// The comments post pages show, or `None` when the site takes none.
+    comments: Option<ShownComments>,
 }
 
 /// What a saved post's page needs from the rest of the site, in a fraction
@@ -100,6 +103,8 @@ impl SitePages {
         } else {
             None
         };
+        let comments =
+            (theme.is_some() && comment_pages::taken(config.mode())).then(ShownComments::default);
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
@@ -108,7 +113,18 @@ impl SitePages {
             feed,
             outline: Mutex::default(),
             assets: Mutex::default(),
+            comments,
         })))
+    }
+
+    /// The comments the post pages show, or `None` when the site takes none.
+    pub(crate) fn comments(&self) -> Option<ShownComments> {
+        self.0.comments.clone()
+    }
+
+    /// The address of the stylesheet every page links; `None` when headless.
+    pub(crate) fn stylesheet(&self) -> Option<String> {
+        (self.0.theme.as_ref()).map(|theme| theme.stylesheet.path().as_str().to_owned())
     }
 
     /// Every page of the site at its address, the stylesheet they link, the
@@ -218,6 +234,7 @@ impl SitePages {
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
         let mut languages = build_pages::pages(config, routes, (content, others), href)?;
+        comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
         let beside = post_files::served(folder, config, assets, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
