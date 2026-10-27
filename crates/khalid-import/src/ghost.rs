@@ -6,6 +6,7 @@ mod cards;
 mod export;
 mod html;
 mod lexical;
+mod mobiledoc;
 mod read;
 
 pub use body::BodyError;

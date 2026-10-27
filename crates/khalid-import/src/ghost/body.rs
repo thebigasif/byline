@@ -76,7 +76,10 @@ pub(crate) fn converted(
             Piece::Block {
                 line,
                 body: Some(body),
-            } => format!("{line}\n{}\n:::", clean(&body)?),
+            } => match clean(&body)? {
+                inside if inside.is_empty() => format!("{line}\n:::"),
+                inside => format!("{line}\n{inside}\n:::"),
+            },
         };
         if !part.trim().is_empty() {
             parts.push(part);
