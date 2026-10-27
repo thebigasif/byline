@@ -503,10 +503,7 @@ fn html_pages(
             if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
                 continue;
             }
-            let html = theme
-                .renderer
-                .render(&language.site, &page.meta, &page.body)
-                .map_err(|error| build_message::render(&error))?;
+            let html = page.rendered(&theme.renderer, &language.site)?;
             if matches!(page.body, PageBody::NotFound) {
                 if &language.site.locale == config.default_language() {
                     not_found = html;

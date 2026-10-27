@@ -71,6 +71,7 @@ mod settings_text;
 mod site_content;
 mod site_files;
 mod site_lists;
+mod site_page;
 mod site_pages;
 mod site_posts;
 mod slug_repair;

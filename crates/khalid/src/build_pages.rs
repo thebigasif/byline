@@ -3,7 +3,7 @@
 
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::{Document, PostFront, Rendered, SiteContent, Wikilinks, render_linked};
@@ -16,6 +16,7 @@ use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
 use crate::listed_post::ListedPost;
+pub(crate) use crate::site_page::Page;
 use crate::{build_home, build_message, build_reader, build_seo};
 
 /// The pages of one language, and the site as they show it.
@@ -25,30 +26,6 @@ pub(crate) struct LanguagePages {
     pub(crate) pages: Vec<Page>,
     /// The dated posts the pages were made from, newest first.
     pub(crate) listed: Vec<ListedPost>,
-}
-
-/// One page and the file it goes to, relative to the output folder.
-#[derive(Debug)]
-pub(crate) struct Page {
-    pub(crate) file: String,
-    pub(crate) meta: PageMeta,
-    pub(crate) body: PageBody,
-    /// The page as the SEO outputs read it, before its language versions
-    /// are linked by `build_seo::heads`.
-    pub(crate) seo: SeoPage,
-    /// The content file it was made from, relative to the site folder, so
-    /// `post_files` can find the files beside it. `None` for lists.
-    pub(crate) source: Option<PathBuf>,
-}
-
-impl Page {
-    /// The page, made from the content file at `path`.
-    fn made_from(self, path: &Path) -> Self {
-        Self {
-            source: Some(path.to_path_buf()),
-            ..self
-        }
-    }
 }
 
 /// Every page of the site, per language in the order of `site.toml`: each
@@ -108,6 +85,7 @@ fn language_pages(
         body: PageBody::NotFound,
         seo: missing_seo,
         source: None,
+        template: None,
     });
     Ok(LanguagePages {
         site: render_site(config, locale, stylesheet),
@@ -313,7 +291,9 @@ fn post_page(
     seo.author = post.authors.first().map(|author| author.name.clone());
     let meta = meta(config, title, description, path, PageKind::Article)?;
     let body = PageBody::Post(Box::new(post));
-    Ok(page(locale, config, &rest, meta, body, seo).made_from(&doc.path))
+    let mut page = page(locale, config, &rest, meta, body, seo).made_from(&doc.path);
+    page.template.clone_from(&front.template);
+    Ok(page)
 }
 
 /// The page of every plain page in `locale`, such as About, at `/<slug>/`.
@@ -550,6 +530,7 @@ fn page(
         body,
         seo,
         source: None,
+        template: None,
     }
 }
 

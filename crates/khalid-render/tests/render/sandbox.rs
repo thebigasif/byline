@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use khalid_core::TemplateName;
 use khalid_render::{PageBody, PageKind, RenderError, Renderer};
 
 use crate::common::{demo_site, meta};
@@ -48,11 +49,40 @@ fn a_theme_template_replaces_the_default_of_the_same_name() {
 
 #[test]
 fn a_theme_file_that_replaces_nothing_is_refused() {
-    let site = site_with_theme(&[("missing_page.html", "a name no default has")]);
-    let error = render_with(site.path()).unwrap_err();
+    for name in [
+        "missing_page.html",
+        "post-Wide.html",
+        "post-.html",
+        "post-wide.txt",
+    ] {
+        let site = site_with_theme(&[(name, "a name no default has")]);
+        let error = render_with(site.path()).unwrap_err();
+        assert!(
+            matches!(&error, RenderError::UnknownTemplate { name: got } if got == name),
+            "{error:?}"
+        );
+    }
+}
+
+#[test]
+fn a_post_template_draws_the_page_a_post_asks_for() {
+    let wide = r#"{% extends "base.html" %}{% block main %}<h1 class="wide">{{ site.name }}</h1>{% endblock %}"#;
+    let site = site_with_theme(&[("post-wide.html", wide)]);
+    let renderer = Renderer::with_theme(site.path()).unwrap();
+    let meta = meta("Notes", "/blog/notes/", PageKind::Article);
+    let name = TemplateName::try_new("wide").unwrap();
+    assert!(renderer.has_template(&name));
+    let page = renderer.render_as(&name, &demo_site("en"), &meta, &PageBody::NotFound);
     assert!(
-        matches!(&error, RenderError::UnknownTemplate { name } if name == "missing_page.html"),
-        "{error:?}"
+        page.unwrap()
+            .contains("<h1 class=\"wide\">Field Notes on SEO</h1>")
+    );
+    let narrow = TemplateName::try_new("narrow").unwrap();
+    assert!(!renderer.has_template(&narrow));
+    let missing = renderer.render_as(&narrow, &demo_site("en"), &meta, &PageBody::NotFound);
+    assert!(
+        matches!(&missing, Err(RenderError::Render { name, .. }) if name == "post-narrow.html"),
+        "{missing:?}"
     );
 }
 

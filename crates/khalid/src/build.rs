@@ -112,9 +112,7 @@ fn build(
         write_asset(out, css)?;
         for language in &languages {
             for page in &language.pages {
-                let html = renderer
-                    .render(&language.site, &page.meta, &page.body)
-                    .map_err(|error| build_message::render(&error))?;
+                let html = page.rendered(renderer, &language.site)?;
                 let html =
                     static_mode::lock(locks.as_ref(), html, &language.site.locale, &page.file)?;
                 write(out, &page.file, &html)?;

@@ -66,6 +66,7 @@ pub(crate) fn add(
             body,
             seo,
             source: None,
+            template: None,
         });
     }
     link(config, languages);
