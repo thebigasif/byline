@@ -9,6 +9,7 @@
 //! site cannot read.
 
 mod front_matter;
+pub mod ghost;
 mod markdown;
 mod redirects;
 mod slug;
