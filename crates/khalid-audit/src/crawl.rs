@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use khalid_core::AbsoluteUrl;
 use url::Url;
 
-use crate::{Outcome, SiteFiles, Source, Visit};
+use crate::{Headers, Outcome, SiteFiles, Source, Visit};
 
 /// How far a crawl may go.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,9 +37,15 @@ pub struct Crawl {
     outside: BTreeSet<AbsoluteUrl>,
     stopped_at_limit: bool,
     files: SiteFiles,
+    headers: Headers,
 }
 
 impl Crawl {
+    /// Whether the answers carried a web server's headers.
+    pub fn headers(&self) -> Headers {
+        self.headers
+    }
+
     /// The `robots.txt`, `llms.txt` and sitemaps read before the pages.
     pub fn files(&self) -> &SiteFiles {
         &self.files
@@ -89,6 +95,7 @@ pub async fn crawl<S: Source>(source: &S, home: &AbsoluteUrl, limit: Limit) -> C
         index: BTreeMap::new(),
         outside: BTreeSet::new(),
         stopped_at_limit: false,
+        headers: S::HEADERS,
         files: SiteFiles::read(source, home).await,
     };
     let mut queue = VecDeque::from([(home.clone(), Some(0))]);

@@ -1,6 +1,7 @@
 //! `khalid --site <folder> audit`: build the site into `data/audit/site/`,
-//! crawl it the way Ahrefs and Semrush do, and print its health score out
-//! of 100 with every issue and its fix. It keeps each run's score in
+//! or ask a running server with `--server`, crawl it the way Ahrefs and
+//! Semrush do, and print its health score out of 100 with every issue and
+//! its fix. It keeps each run's score in
 //! `data/audit/runs.jsonl` for the trend, and writes the issues and the
 //! internal linking report as CSV beside it. It exits with 1 when it finds
 //! an error.
@@ -9,9 +10,12 @@ use std::fs::{self, OpenOptions};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use khalid_audit::{Folder, Limit, LinkReport, Report, Run, Severity, Thresholds, crawl, history};
+use khalid_audit::{
+    Folder, Limit, LinkReport, Report, Run, Server, Severity, Thresholds, crawl, history,
+};
 use khalid_content::SiteContent;
 use khalid_core::{AbsoluteUrl, Clock, Config};
+use khalid_outbound::{Limits, Outbound, Resolver};
 use khalid_routes::Routes;
 
 use crate::cli::Output;
@@ -21,37 +25,39 @@ use crate::{audit_message, build, report};
 /// The folder in `data/` the audit keeps its files in.
 const FOLDER: &str = "data/audit";
 
-/// Builds, crawls and audits the checked site in `site`.
+/// Audits the checked site in `site`: the running `server` when one is
+/// given, or else the site built into `data/audit/site/`.
 pub(crate) fn run(
     site: &Path,
     checked: (&Config, &Routes, &SiteContent),
+    server: Option<&AbsoluteUrl>,
     clock: &dyn Clock,
     output: Output,
 ) -> Exit {
     let folder = within(site, FOLDER);
-    let built = within(&folder, "site");
-    // A page left from an earlier build would be audited as if it were
-    // still there, so the folder is made again each time.
-    if built.exists()
-        && let Err(error) = fs::remove_dir_all(&built)
-    {
-        return report::failure(output, &audit_message::write(&built, &error), Exit::Failure);
-    }
-    if let Err(exit) = build::into_folder(site, checked, &built, clock, output) {
-        return exit;
-    }
-    let home = match home(checked.0) {
-        Ok(home) => home,
-        Err(message) => return report::failure(output, &message, Exit::Internal),
-    };
-    let source = match Folder::open(&built, &home) {
-        Ok(source) => source,
-        Err(error) => return report::failure(output, &audit_message::of(&error), Exit::Internal),
-    };
-    let Ok(runtime) = tokio::runtime::Builder::new_current_thread().build() else {
+    let config = checked.0;
+    let (Ok(home), Ok(runtime)) = (
+        home(config),
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build(),
+    ) else {
         return report::failure(output, &audit_message::internal(), Exit::Internal);
     };
-    let crawled = runtime.block_on(crawl(&source, &home, Limit::default()));
+    let crawled = if let Some(server) = server {
+        let limits = Limits::default().with_redirects(0);
+        let Ok(outbound) = Outbound::with_resolver(limits, Resolver::for_site_under_audit()) else {
+            return report::failure(output, &audit_message::internal(), Exit::Internal);
+        };
+        let source = Server::new(outbound, config.address(), server);
+        runtime.block_on(crawl(&source, &home, Limit::default()))
+    } else {
+        let source = match built(site, checked, &folder, clock, output) {
+            Ok(built) => built,
+            Err(exit) => return exit,
+        };
+        runtime.block_on(crawl(&source, &home, Limit::default()))
+    };
     let audit = Report::of(&crawled, Thresholds::default());
     let links = LinkReport::of(&crawled);
     let trend = match keep(&folder, &audit, &links, clock) {
@@ -69,11 +75,35 @@ pub(crate) fn run(
     }
 }
 
+/// Builds the site into `site/` in `folder` and opens it as a crawl
+/// source. A page left from an earlier build would be audited as if it
+/// were still there, so the folder is made again each time. A failure is
+/// printed in `output` and comes back as its exit.
+fn built(
+    site: &Path,
+    checked: (&Config, &Routes, &SiteContent),
+    folder: &Path,
+    clock: &dyn Clock,
+    output: Output,
+) -> Result<Folder, Exit> {
+    let built = within(folder, "site");
+    if built.exists()
+        && let Err(error) = fs::remove_dir_all(&built)
+    {
+        let message = audit_message::write(&built, &error);
+        return Err(report::failure(output, &message, Exit::Failure));
+    }
+    build::into_folder(site, checked, &built, clock, output)?;
+    let home = home(checked.0)
+        .map_err(|()| report::failure(output, &audit_message::internal(), Exit::Internal))?;
+    Folder::open(&built, &home)
+        .map_err(|error| report::failure(output, &audit_message::of(&error), Exit::Internal))
+}
+
 /// The blog's home page: the site's address with its mount.
-fn home(config: &Config) -> Result<AbsoluteUrl, khalid_core::UserMessage> {
+fn home(config: &Config) -> Result<AbsoluteUrl, ()> {
     let address = config.address().as_str().trim_end_matches('/');
-    AbsoluteUrl::parse(&format!("{address}{}", config.mount()))
-        .map_err(|_| audit_message::internal())
+    AbsoluteUrl::parse(&format!("{address}{}", config.mount())).map_err(drop)
 }
 
 /// Writes the issues and the link report as CSV into `folder`, adds this
@@ -84,6 +114,7 @@ fn keep(
     links: &LinkReport,
     clock: &dyn Clock,
 ) -> Result<Vec<Run>, khalid_core::UserMessage> {
+    fs::create_dir_all(folder).map_err(|error| audit_message::write(folder, &error))?;
     let write = |name: &str, text: &str| {
         let file = within(folder, name);
         fs::write(&file, text).map_err(|error| audit_message::write(&file, &error))

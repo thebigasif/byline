@@ -2123,7 +2123,9 @@ name = "khalid-audit"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "http",
  "khalid-core",
+ "khalid-outbound",
  "percent-encoding",
  "roxmltree 0.20.0",
  "scraper",

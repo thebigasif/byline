@@ -202,8 +202,9 @@ fn run(cli: &Cli) -> Exit {
             &SystemClock,
             cli.output,
         ),
-        (Some(Command::Audit), Some((folder, config, routes, (content, _)))) => {
-            site_audit::run(folder, (config, routes, content), &SystemClock, cli.output)
+        (Some(Command::Audit { server }), Some((folder, config, routes, (content, _)))) => {
+            let checked = (config, routes, content);
+            site_audit::run(folder, checked, server.as_ref(), &SystemClock, cli.output)
         }
         (
             Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
@@ -224,7 +225,7 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Lint { .. }
                 | Command::New { .. }
                 | Command::Build { .. }
-                | Command::Audit),
+                | Command::Audit { .. }),
             ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),

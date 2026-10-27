@@ -312,4 +312,7 @@ checks! {
     /// The blog's `llms.txt` does not start with a `#` title.
     LlmsFormat => "llms-format", AiSearch, Warning, "llms.txt format is not valid",
         "Start llms.txt with a line that begins with # and names the site.";
+    /// An HTTPS page comes without a `Strict-Transport-Security` header.
+    HstsMissing => "hsts-missing", Https, Notice, "No HSTS support",
+        "Send the Strict-Transport-Security header from the server or the proxy in front of the blog, so browsers always use HTTPS.";
 }

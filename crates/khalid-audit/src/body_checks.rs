@@ -4,7 +4,7 @@
 use khalid_core::AbsoluteUrl;
 
 use crate::page_checks::{Found, robots};
-use crate::{Check, Crawl, Page, Thresholds, Visit};
+use crate::{Check, Crawl, Headers, Page, Thresholds, Visit};
 
 /// Fewer words than this is a thin page.
 const FEWEST_WORDS: usize = 200;
@@ -25,6 +25,13 @@ pub(crate) fn body_issues(
     text(visit, page, found);
     links(crawl, page, thresholds, found);
     extras(page, found);
+    let https = found.url.as_str().starts_with("https://");
+    if https
+        && crawl.headers() == Headers::Sent
+        && visit.header("strict-transport-security").is_none()
+    {
+        found.add(Check::HstsMissing, "");
+    }
 }
 
 /// The amount of text, against the page's size.
