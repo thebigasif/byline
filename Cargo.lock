@@ -2015,6 +2015,7 @@ dependencies = [
  "khalid-theme",
  "khalid-webhooks",
  "mimalloc",
+ "percent-encoding",
  "scraper",
  "serde",
  "serde_json",

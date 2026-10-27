@@ -13,6 +13,7 @@ use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::site_addresses::{self, LiveAddresses};
 use crate::site_content::{Catalog, LiveContent, Published};
 use crate::{db_message, search_index};
 
@@ -41,6 +42,8 @@ pub(crate) struct Destination {
     pub(crate) db: Database,
     pub(crate) site: SiteId,
     pub(crate) live: LiveContent,
+    /// The address of each page, for the redirect routes.
+    pub(crate) addresses: LiveAddresses,
 }
 
 /// Starts the background task on `runtime`. Await the handle after the
@@ -88,6 +91,8 @@ async fn apply(to: &Arc<Destination>, catalog: Arc<Catalog>, applied: &mut Appli
         .map(|post| (post.path.clone(), post.content_hash))
         .collect();
     let hashes = Arc::new(hashes);
+    to.addresses
+        .replace(&site_addresses::of(&to.config, &catalog.index));
     let since = applied.published.clone().zip(applied.served.as_ref());
     let since = since.map(|(published, served)| (published, changes(served, &hashes)));
     let building = {
@@ -189,6 +194,7 @@ mod tests {
             db: db.clone(),
             site,
             live: live.clone(),
+            addresses: LiveAddresses::default(),
         };
         let (feed, task) = start(&Handle::current(), to);
 

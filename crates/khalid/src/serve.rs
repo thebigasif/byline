@@ -26,10 +26,14 @@ use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
 use crate::post_files::Assets;
+use crate::site_addresses::LiveAddresses;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{announce, db, db_message, preview, report, scheduler, search_route, serve_message};
+use crate::{
+    announce, db, db_message, preview, redirect_route, report, scheduler, search_route,
+    serve_message,
+};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -97,12 +101,14 @@ fn serve_with(
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
     let content = LiveContent::default();
+    let addresses = LiveAddresses::default();
     let to = Destination {
         folder: site.to_path_buf(),
         config: config.clone(),
         db: database.clone(),
         site: id,
         live: content.clone(),
+        addresses: addresses.clone(),
     };
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
@@ -151,14 +157,12 @@ fn serve_with(
         let door = Arc::new(door);
         let scheduling = scheduler::start(Arc::clone(&door));
         let shown = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
-        let (api, _) = api::router_with_door(Arc::new(content), door, Arc::new(keys));
+        let pages = (router(live.clone(), security), live, config.mount());
+        let (desk, pages) = redirect_route::start((database, id), pages, addresses).await;
+        let (api, _) = api::router_with_redirects(Arc::new(content), door, Arc::new(keys), desk);
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
-        let app = api
-            .merge(shown)
-            .merge(searches)
-            .merge(admin)
-            .merge(router(live, security));
+        let app = api.merge(shown).merge(searches).merge(admin).merge(pages);
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
