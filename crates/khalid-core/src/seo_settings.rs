@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::Indexing;
+use crate::{AbsoluteUrl, IndexNowKey, Indexing};
 
 /// The SEO settings. Every one has a default, so the table may be left out:
 ///
@@ -10,6 +10,9 @@ use crate::Indexing;
 /// [seo.index]
 /// tags = "noindex"
 /// thin_archives_below = 5
+///
+/// [seo.indexnow]
+/// key = "3f9c0b5e2a8d4c71"
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -17,6 +20,40 @@ use crate::Indexing;
 pub struct SeoSettings {
     /// Which archive pages search engines may list, from `[seo.index]`.
     pub index: ArchiveIndex,
+    /// Where changed pages are sent, from `[seo.indexnow]`. `None`, the
+    /// default, sends nothing.
+    pub indexnow: Option<IndexNowSettings>,
+}
+
+/// `IndexNow`, switched on by its table in `site.toml`.
+///
+/// `IndexNow` tells Bing, Yandex, Seznam, Naver and Yep about a changed page at
+/// once, instead of waiting for their next crawl. The key is required; the
+/// endpoint defaults to the shared one, which passes each request on to every
+/// search engine that takes part.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct IndexNowSettings {
+    /// The key the site serves in its key file.
+    pub key: IndexNowKey,
+    /// Where the changed addresses are sent. `None` for
+    /// [`IndexNowSettings::SHARED_ENDPOINT`].
+    #[serde(default)]
+    pub endpoint: Option<AbsoluteUrl>,
+}
+
+impl IndexNowSettings {
+    /// The shared `IndexNow` endpoint, used when `endpoint` is left out.
+    pub const SHARED_ENDPOINT: &str = "https://api.indexnow.org/indexnow";
+
+    /// `IndexNow` with `key`, sending to the shared endpoint.
+    pub fn new(key: IndexNowKey) -> Self {
+        Self {
+            key,
+            endpoint: None,
+        }
+    }
 }
 
 /// Whether search engines may list each kind of archive page: `"index"` or

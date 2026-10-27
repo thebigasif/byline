@@ -3,13 +3,15 @@
 //! This crate owns the types the other crates agree on: the message a person
 //! reads ([`UserMessage`]), validated identifiers such as [`Slug`], [`Locale`]
 //! and [`AbsoluteUrl`], the [`Clock`], the [`Config`], the [`Secret`] wrapper,
-//! [`SitePath`], and [`RobotsDirectives`], which front matter and the SEO
-//! outputs share. It must not know about HTTP or SQL. It depends on no other Khalid crate, and its only
+//! [`SitePath`], [`RobotsDirectives`], which front matter and the SEO
+//! outputs share, and the [`IndexNowKey`] that settings and the SEO pings
+//! share. It must not know about HTTP or SQL. It depends on no other Khalid crate, and its only
 //! I/O is reading the system clock and resolving a [`SitePath`] on disk.
 
 mod absolute_url;
 mod clock;
 mod config;
+mod indexnow_key;
 mod locale;
 mod robots;
 mod secret;
@@ -25,13 +27,14 @@ pub use absolute_url::{AbsoluteUrl, ParseUrlError};
 pub use clock::FixedClock;
 pub use clock::{Clock, SystemClock};
 pub use config::{Config, ConfigError, Environment, Mode, SlugMode};
+pub use indexnow_key::{IndexNowKey, ParseIndexNowKeyError};
 pub use locale::{Locale, ParseLocaleError};
 pub use robots::{
     Following, ImagePreview, Indexing, ParseRobotsError, PreviewLimit, Restriction,
     RobotsDirectives,
 };
 pub use secret::Secret;
-pub use seo_settings::{ArchiveIndex, SeoSettings};
+pub use seo_settings::{ArchiveIndex, IndexNowSettings, SeoSettings};
 pub use site_path::{SitePath, SitePathError};
 pub use slug::{ParseSlugError, Slug};
 pub use user_message::UserMessage;
