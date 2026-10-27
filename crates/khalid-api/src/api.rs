@@ -15,7 +15,9 @@ use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
-use crate::{admin_api, admin_redirect_csv, admin_redirects, api_version, content_api};
+use crate::{
+    admin_api, admin_not_found, admin_redirect_csv, admin_redirects, api_version, content_api,
+};
 
 /// The document's title, the schemas every route shares and the ways a
 /// key may be sent.
@@ -98,6 +100,10 @@ pub fn router_with_redirects(
     redirects: RedirectDesk,
 ) -> (Router, Document) {
     let admin = admin_api::routes(door, Arc::clone(&keys))
+        .merge(admin_not_found::routes(
+            redirects.clone(),
+            Arc::clone(&keys),
+        ))
         .merge(admin_redirect_csv::routes(
             redirects.clone(),
             Arc::clone(&keys),

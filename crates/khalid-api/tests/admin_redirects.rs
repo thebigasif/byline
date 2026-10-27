@@ -10,7 +10,7 @@ use axum::http::{Request, StatusCode};
 use chrono::{TimeZone, Utc};
 use khalid_api::api;
 use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
-use khalid_api::not_found_log::MemoryNotFoundLog;
+use khalid_api::not_found_log::{MemoryNotFoundLog, NotFoundLog};
 use khalid_api::post_store::MemoryPostStore;
 use khalid_api::publish_door::{PublishDoor, Silent};
 use khalid_api::redirect_desk::{RedirectDesk, StaticPages};
@@ -26,13 +26,22 @@ const SETTINGS: &str =
 const POSTS_ONLY: &str =
     "ki_5555666677778888_0000111122223333444455556666777788889999aaaabbbbccccddddeeeeffff";
 
-/// A site with the redirects in `csv` stored by hand at nine o'clock.
+/// A site with the redirects in `csv` stored by hand at nine o'clock, and
+/// three requests that found nothing.
 #[cfg(test)]
 async fn desk(csv: &str) -> RedirectDesk {
     let store = MemoryRedirectStore::default();
     let at = Utc.with_ymd_and_hms(2026, 11, 3, 9, 0, 0).unwrap();
     let entries = read_redirects_csv(&format!("from,to,status,match\n{csv}")).unwrap();
     store.add(entries, Origin::Manual, at).await.unwrap();
+    let log = MemoryNotFoundLog::default();
+    for path in [
+        "/blog/internal-links/",
+        "/blog/wp-login.php",
+        "/blog/internal-links/",
+    ] {
+        log.record(path, at).await.unwrap();
+    }
     let pages = [
         "/blog/",
         "/blog/why-internal-links-matter/",
@@ -40,7 +49,7 @@ async fn desk(csv: &str) -> RedirectDesk {
     ];
     RedirectDesk::new(
         Arc::new(store),
-        Arc::new(MemoryNotFoundLog::default()),
+        Arc::new(log),
         Arc::new(StaticPages::new(&pages).unwrap()),
         Arc::new(FixedClock::new(at)),
     )
@@ -357,4 +366,30 @@ async fn a_list_with_a_bad_row_a_loop_or_a_taken_address_stores_nothing() {
         let (_, json) = send(desk, SETTINGS, get("/api/admin/v1/redirects/")).await;
         assert_eq!(json["redirects"].as_array().unwrap().len(), 1, "{csv}");
     }
+}
+
+#[tokio::test]
+async fn the_log_lists_misses_most_hit_first_with_the_nearest_page() {
+    let (status, json) = send(desk("").await, SETTINGS, get("/api/admin/v1/not-found/")).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    let first = &json["misses"][0];
+    assert_eq!(first["path"], "/blog/internal-links/");
+    assert_eq!(first["hits"], 2);
+    assert_eq!(first["last_seen"], "2026-11-03T09:00:00Z");
+    assert_eq!(first["nearest"], "/blog/why-internal-links-matter/");
+    assert_eq!(json["misses"][1]["nearest"], Value::Null);
+    let (_, json) = send(
+        desk("").await,
+        SETTINGS,
+        get("/api/admin/v1/not-found/?limit=1"),
+    )
+    .await;
+    assert_eq!(json["misses"].as_array().unwrap().len(), 1);
+    let (status, json) = send(
+        desk("").await,
+        SETTINGS,
+        get("/api/admin/v1/not-found/?limit=0"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{json}");
 }

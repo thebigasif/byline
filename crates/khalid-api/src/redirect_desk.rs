@@ -63,13 +63,6 @@ impl PageAddresses for StaticPages {
 
 /// Everything the redirect routes need. Cloning shares it.
 #[derive(Clone)]
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "the redirect routes in the next parts of this stack read these fields"
-    )
-)]
 pub struct RedirectDesk {
     pub(crate) store: Arc<dyn RedirectStore>,
     pub(crate) log: Arc<dyn NotFoundLog>,

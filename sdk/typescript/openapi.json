@@ -10,6 +10,87 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/not-found/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Lists the addresses that answered 404, most requested first, each with\nthe nearest page. Needs `settings:write`.",
+        "operationId": "list_misses",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "path",
+            "description": "From 1 to 1,000; 100 when left out.",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The logged addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMisses"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The limit is not from 1 to 1,000",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "post": {
         "tags": [
@@ -3476,6 +3557,63 @@
   },
   "components": {
     "schemas": {
+      "AdminMiss": {
+        "type": "object",
+        "description": "An address that answered 404, as the Admin API shows it.",
+        "required": [
+          "path",
+          "hits",
+          "first_seen",
+          "last_seen"
+        ],
+        "properties": {
+          "first_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The first request."
+          },
+          "hits": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many requests it answered.",
+            "minimum": 0
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The latest request."
+          },
+          "nearest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page \"redirect this\" would send it to, or null when no page is\nnear enough to guess.",
+            "example": "/blog/why-internal-links-matter/"
+          },
+          "path": {
+            "type": "string",
+            "description": "The address as requested.",
+            "example": "/blog/internal-links/"
+          }
+        }
+      },
+      "AdminMisses": {
+        "type": "object",
+        "description": "The 404 log as the Admin API wraps it.",
+        "required": [
+          "misses"
+        ],
+        "properties": {
+          "misses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMiss"
+            },
+            "description": "The addresses, most requested first."
+          }
+        }
+      },
       "AdminPost": {
         "type": "object",
         "description": "A post in Admin API shape: any status, with its markdown source and\nthe `updated_at` an edit must send back (RULES.md BL-API-7).",
