@@ -18,7 +18,9 @@ export function Editor() {
   const answer = post.data;
   if (answer === undefined || !("post" in answer)) {
     const message =
-      answer !== undefined && answer.status === 404 ? en.problems.notFound : en.problems.unreachable;
+      answer !== undefined && answer.status === 404
+        ? en.problems.notFound
+        : en.problems.unreachable;
     return (
       <>
         <h1>{message.what}</h1>

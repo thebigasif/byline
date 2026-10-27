@@ -37,7 +37,8 @@ export const en = {
     published: "Published",
     blocked: "Fix what stops publishing, then publish again.",
     checks: "Checks",
-    noChecks: "Khalid checks the post when you publish. Anything that stops it, or could make it better, shows here.",
+    noChecks:
+      "Khalid checks the post when you publish. Anything that stops it, or could make it better, shows here.",
     blockTag: "Stops publishing",
     warnTag: "Warning, you can still publish",
     here: "Here:",
