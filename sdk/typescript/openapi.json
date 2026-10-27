@@ -11,6 +11,107 @@
   },
   "paths": {
     "/api/admin/v1/posts/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Lists posts in every status as rows of the admin's posts table, with\nthe shared query grammar (RULES.md BL-API-5); any field but `lint` may\nbe filtered and ordered by. Needs `posts:write`.",
+        "operationId": "browse_admin_posts",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=gate:refuses+status:draft`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=updated_at desc`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15`, from 1 to 100",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of posts in every status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostRows"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read, or names a field rows do not have",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "admin posts"
@@ -3348,6 +3449,14 @@
         },
         "additionalProperties": false
       },
+      "Gate": {
+        "type": "string",
+        "description": "The lint publish gate's answer for a post as it stands.",
+        "enum": [
+          "passes",
+          "refuses"
+        ]
+      },
       "GlossaryTerms": {
         "type": "object",
         "required": [
@@ -3371,6 +3480,38 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "IndexStatus": {
+        "type": "string",
+        "description": "Whether search engines may list a post, as far as the site itself\nsays. Google's own answer comes with the Search Console connection\n(plan section 5.11).",
+        "enum": [
+          "indexable",
+          "noindex",
+          "canonical_elsewhere",
+          "not_live"
+        ]
+      },
+      "LintCounts": {
+        "type": "object",
+        "description": "How many lint findings a post has, by severity. A post with any\n`blocks` cannot be published.",
+        "required": [
+          "blocks",
+          "warnings"
+        ],
+        "properties": {
+          "blocks": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Findings that stop the post from going live.",
+            "minimum": 0
+          },
+          "warnings": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Findings the writer should see, which do not stop it.",
+            "minimum": 0
           }
         }
       },
@@ -3763,6 +3904,110 @@
           }
         },
         "additionalProperties": false
+      },
+      "PostRow": {
+        "type": "object",
+        "description": "One row of the admin's posts table.",
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "status",
+          "review_state",
+          "featured",
+          "updated_at",
+          "gate",
+          "lint",
+          "index_status"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The author's slug, if any.",
+            "example": "asif"
+          },
+          "featured": {
+            "type": "boolean",
+            "description": "Whether the post is featured."
+          },
+          "gate": {
+            "$ref": "#/components/schemas/Gate",
+            "description": "Whether the lint publish gate lets it go live. A list filters by\nthis, such as `gate:refuses`."
+          },
+          "id": {
+            "type": "string",
+            "description": "The post's identity, as in `/posts/{id}/`."
+          },
+          "index_status": {
+            "$ref": "#/components/schemas/IndexStatus",
+            "description": "Whether search engines may list it."
+          },
+          "lint": {
+            "$ref": "#/components/schemas/LintCounts",
+            "description": "Its lint findings, counted. Counting takes every rule, so a list\ncounts only the rows on the page it sends, and cannot filter or\norder by the counts."
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it went or goes live; empty for a draft."
+          },
+          "review_state": {
+            "$ref": "#/components/schemas/ReviewState",
+            "description": "Draft, in review or ready."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The last part of its address.",
+            "example": "choosing-anchor-text"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PostStatus",
+            "description": "Draft, published or scheduled."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it last changed."
+          },
+          "updated_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Who made the last change."
+          }
+        }
+      },
+      "PostRows": {
+        "type": "object",
+        "description": "One page of the admin's posts table, as every list is wrapped.",
+        "required": [
+          "posts",
+          "meta"
+        ],
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/Meta",
+            "description": "Pagination."
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostRow"
+            },
+            "description": "The rows on this page."
+          }
+        }
       },
       "PostSettings": {
         "type": "object",
