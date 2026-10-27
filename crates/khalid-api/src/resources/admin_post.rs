@@ -226,6 +226,19 @@ pub struct PostEdit {
 }
 
 impl PostEdit {
+    /// An edit that only sets `status`, made on the copy last changed at
+    /// `updated_at`, as the scheduler sends.
+    pub fn status_only(status: PostStatus, updated_at: DateTime<Utc>) -> Self {
+        Self {
+            title: None,
+            markdown: None,
+            status: Some(status),
+            published_at: None,
+            unpublish_at: None,
+            updated_at,
+        }
+    }
+
     /// The `updated_at` of the copy the edit was made on.
     pub fn updated_at(&self) -> DateTime<Utc> {
         self.updated_at

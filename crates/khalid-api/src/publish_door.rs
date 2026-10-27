@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 
 use crate::post_store::{PostStore, PostStoreError, UpdatePostError};
 use crate::resources::{AdminPost, PostEdit, PostStatus};
-use crate::schedule_store::{Schedule, ScheduleStore};
+use crate::schedule_store::{Due, Schedule, ScheduleStore};
 
 /// Tells the site's receivers what happened to a post: the webhooks that
 /// asked for the event and, where it is switched on, `IndexNow`.
@@ -61,6 +61,27 @@ pub enum ScheduleError {
     /// The door was made without a [`ScheduleStore`].
     #[error("this site keeps no schedules")]
     NoSchedules,
+}
+
+/// Who the scheduler's edits are made by, as `updated_by` shows.
+pub const SCHEDULER: &str = "scheduler";
+
+/// What [`PublishDoor::run_due`] did about one post whose time had come.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Ran {
+    /// The post went live.
+    Published(String),
+    /// The post came down.
+    Unpublished(String),
+    /// The linter refused to publish the post. It stays a draft, and its
+    /// publish time is dropped.
+    Refused(String),
+    /// The post changed while it was read, so it is tried next run.
+    Waiting(String),
+    /// Nothing was left to do: the post was live or down already, or is
+    /// gone. Its time is cleared.
+    Settled(String),
 }
 
 /// The posts, their schedules, and who to tell when one goes live.
@@ -170,6 +191,72 @@ impl PublishDoor {
             self.announce.scheduled(&post);
         }
         Ok(post)
+    }
+
+    /// Acts on every time that has come, oldest first: publishes or takes
+    /// down each post through [`PublishDoor::edit`], as [`SCHEDULER`], so
+    /// the receivers are told as for any edit. A time is cleared only once
+    /// its post is live or down, so running again after a restart does
+    /// nothing twice. A post the linter refuses stays a draft, and its
+    /// time is dropped rather than tried every round.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PostStoreError`] when the posts or the schedules cannot be
+    /// read or written; times not reached yet wait for the next run.
+    pub async fn run_due(&self) -> Result<Vec<Ran>, PostStoreError> {
+        let Some(schedules) = &self.schedules else {
+            return Ok(Vec::new());
+        };
+        let due = schedules.due(self.clock.now()).await;
+        let mut ran = Vec::new();
+        for (id, what) in due.map_err(PostStoreError::new)? {
+            ran.push(self.run_one(id, what).await?);
+        }
+        Ok(ran)
+    }
+
+    /// Publishes post `id` or takes it down, as `what` asks.
+    async fn run_one(&self, id: String, what: Due) -> Result<Ran, PostStoreError> {
+        let Some(before) = self.posts.get(&id).await? else {
+            self.drop_time(&id, what).await?;
+            return Ok(Ran::Settled(id));
+        };
+        let status = match what {
+            Due::Publish => PostStatus::Published,
+            Due::Unpublish => PostStatus::Draft,
+        };
+        let edit = PostEdit::status_only(status, before.updated_at());
+        match self.edit(&id, edit, SCHEDULER).await {
+            Ok(after) if before.status() == after.status() => Ok(Ran::Settled(id)),
+            Ok(_) if status == PostStatus::Published => Ok(Ran::Published(id)),
+            Ok(_) => Ok(Ran::Unpublished(id)),
+            Err(UpdatePostError::Refused(_)) => {
+                self.drop_time(&id, what).await?;
+                Ok(Ran::Refused(id))
+            }
+            Err(UpdatePostError::Stale { .. }) => Ok(Ran::Waiting(id)),
+            Err(UpdatePostError::Store(error)) => Err(error),
+            Err(_) => {
+                self.drop_time(&id, what).await?;
+                Ok(Ran::Settled(id))
+            }
+        }
+    }
+
+    /// Clears the `what` time of post `id`, keeping the other.
+    async fn drop_time(&self, id: &str, what: Due) -> Result<(), PostStoreError> {
+        let Some(schedules) = &self.schedules else {
+            return Ok(());
+        };
+        let current = schedules.get(id).await.map_err(PostStoreError::new)?;
+        let empty = Schedule::default();
+        let kept = match what {
+            Due::Publish => current.unpublish_at().map(|at| empty.unpublishing_at(at)),
+            Due::Unpublish => current.publish_at().map(|at| empty.publishing_at(at)),
+        };
+        let next = kept.unwrap_or_default();
+        schedules.set(id, next).await.map_err(PostStoreError::new)
     }
 
     /// The schedule of post `id`, empty when the door keeps none.

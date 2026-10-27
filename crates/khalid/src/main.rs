@@ -53,6 +53,7 @@ mod post_text;
 mod repair;
 mod report;
 mod routes_message;
+mod scheduler;
 mod serve;
 mod serve_message;
 mod site_content;

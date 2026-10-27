@@ -10,7 +10,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
-use khalid_core::{AbsoluteUrl, Secret, Slug, SystemClock};
+use chrono::TimeDelta;
+use khalid_core::{AbsoluteUrl, Clock, Secret, Slug, SystemClock};
 use khalid_db::{Database, WebhookTable};
 use khalid_webhooks::{Event, SIGNATURE_HEADER, SigningKey, Verifier};
 use serde_json::{Value, json};
@@ -187,4 +188,38 @@ async fn a_post_published_through_the_api_fires_the_webhook_and_indexnow() {
         search["urlList"],
         json!(["https://www.example.com/blog/choosing-anchor-text/"])
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_post_scheduled_through_the_api_goes_live_at_its_time() {
+    let receiver = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&receiver)
+        .await;
+    let (site, _) = demo_site(&receiver).await;
+    let key = writer_key(site.path());
+    let server = start(site.path());
+    let new = json!({"posts": [{"title": "Choosing anchor text", "author": "asif",
+        "markdown": "Anchor text is the visible words of a link.\n\n\
+        Read [why internal links matter](/blog/why-internal-links-matter/) first."}]});
+    let (_, made) = send(&server, &key, "POST", "/api/admin/v1/posts/", &new);
+
+    let soon = SystemClock.now() + TimeDelta::seconds(2);
+    let schedule = json!({"posts": [{"status": "scheduled", "published_at": soon,
+        "updated_at": made["posts"][0]["updated_at"]}]});
+    let route = "/api/admin/v1/posts/en.choosing-anchor-text/";
+    let (status, scheduled) = send(&server, &key, "PUT", route, &schedule);
+    assert_eq!(status, 200, "{scheduled}");
+    let page = "/blog/choosing-anchor-text/";
+
+    let hooks = received(&receiver, "/khalid").await;
+    assert_eq!(hooks.len(), 1, "post.published fires once, at its time");
+    let body: Value = serde_json::from_slice(&hooks[0].body).unwrap();
+    assert_eq!(body["post"]["updated_by"], "scheduler", "{body}");
+    let shown = (0..200).any(|_| {
+        std::thread::sleep(Duration::from_millis(100));
+        send(&server, &key, "GET", page, &Value::Null).0 == 200
+    });
+    assert!(shown, "the scheduled post was never served");
 }

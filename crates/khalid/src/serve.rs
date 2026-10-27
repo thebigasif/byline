@@ -27,7 +27,7 @@ use crate::exit::Exit;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{announce, db, db_message, report, serve_message};
+use crate::{announce, db, db_message, report, scheduler, serve_message};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -45,7 +45,7 @@ struct ServeBody<'a> {
 
 /// Serves the `site` folder, whose `config`, `routes` and content were
 /// checked, on `listen`. The database opens first and closes last, after
-/// every request, the watch and the announcing have stopped. Webhooks and
+/// every request, the watch, the scheduler and the announcing have stopped. Webhooks and
 /// `IndexNow` are sent through `outbound`, the one shared client.
 ///
 /// `start` holds the checked content and a look at the folder taken before
@@ -145,10 +145,13 @@ fn serve_with(
         let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
         let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
             .with_schedules(schedules, SystemClock);
-        let (api, _) = api::router_with_door(Arc::new(content), Arc::new(door), Arc::new(keys));
+        let door = Arc::new(door);
+        let scheduling = scheduler::start(Arc::clone(&door));
+        let (api, _) = api::router_with_door(Arc::new(content), door, Arc::new(keys));
         let app = api.merge(router(live, security));
         let stopped = khalid_server::serve(listener, app, stop(), GRACE).await;
         watching.stop().await;
+        scheduling.stop().await;
         announcing.stop().await;
         stopped
             .map(|_| ())
