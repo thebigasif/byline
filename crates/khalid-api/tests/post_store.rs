@@ -2,7 +2,7 @@
 //! sends them in.
 
 use chrono::{TimeZone, Utc};
-use khalid_api::post_store::{MemoryPostStore, PostStore};
+use khalid_api::post_store::{DeletePostError, MemoryPostStore, PostStore};
 use khalid_api::query::{ListQuery, RawListQuery};
 use khalid_api::resources::{AdminPost, LintCounts, PostSettings, PostStatus, ReviewState};
 use khalid_core::Slug;
@@ -89,6 +89,30 @@ async fn the_store_finds_a_post_by_identity_or_nothing() {
     let store = MemoryPostStore::new(vec![draft()]);
     assert_eq!(store.get("anchor-text-draft").await.unwrap(), Some(draft()));
     assert_eq!(store.get("no-such-post").await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn the_store_deletes_a_post_only_on_its_latest_copy() {
+    let store = MemoryPostStore::new(vec![draft()]);
+    let older = Utc.with_ymd_and_hms(2026, 10, 19, 12, 0, 0).unwrap();
+    let stale = store.delete("anchor-text-draft", older).await;
+    assert!(
+        matches!(stale, Err(DeletePostError::Stale { updated_at, .. }) if updated_at == draft().updated_at()),
+        "{stale:?}"
+    );
+    assert_eq!(store.get("anchor-text-draft").await.unwrap(), Some(draft()));
+    let gone = store
+        .delete("anchor-text-draft", draft().updated_at())
+        .await;
+    assert_eq!(gone.unwrap(), draft());
+    assert_eq!(store.get("anchor-text-draft").await.unwrap(), None);
+    let missing = store
+        .delete("anchor-text-draft", draft().updated_at())
+        .await;
+    assert!(
+        matches!(missing, Err(DeletePostError::NotFound)),
+        "{missing:?}"
+    );
 }
 
 #[tokio::test]

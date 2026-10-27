@@ -12,7 +12,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use chrono::{DateTime, NaiveTime, Utc};
 use khalid_api::content_store::{BoxFuture, Listed};
-use khalid_api::post_store::{CreatePostError, PostStore, PostStoreError, UpdatePostError};
+use khalid_api::post_store::{
+    CreatePostError, DeletePostError, PostStore, PostStoreError, UpdatePostError,
+};
 use khalid_api::query::ListQuery;
 use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostRow, PostStatus};
 use khalid_content::{ContentTree, SiteContent, parse_post, read_content};
@@ -433,6 +435,36 @@ impl Site {
         Ok(Self::admin_post(&found)?.with_updated_by(by))
     }
 
+    /// Removes post `id` when its file has not changed since `seen`. A post
+    /// kept as a folder, `index.md` with its images beside it, goes with
+    /// the whole folder.
+    fn delete_now(&self, id: &str, seen: DateTime<Utc>) -> Result<AdminPost, DeletePostError> {
+        let _writing = self.seen.lock().unwrap_or_else(PoisonError::into_inner);
+        let found = self.find(id)?.ok_or(DeletePostError::NotFound)?;
+        let post = Self::admin_post(&found)?;
+        if post.updated_at() != seen {
+            let updated_at = post.updated_at();
+            return Err(DeletePostError::Stale {
+                updated_at,
+                updated_by: None,
+            });
+        }
+        let index = found
+            .path
+            .file_name()
+            .is_some_and(|name| name == "index.md");
+        let folder = found.path.parent().filter(|folder| {
+            let collection = folder.parent().and_then(Path::file_name);
+            found.status == PostStatus::Published && index && collection == Some("posts".as_ref())
+        });
+        match folder {
+            Some(folder) => fs::remove_dir_all(folder),
+            None => fs::remove_file(&found.path),
+        }
+        .map_err(PostStoreError::new)?;
+        Ok(post)
+    }
+
     fn draft_path(&self, locale: &Locale, slug: &Slug) -> PathBuf {
         let mut path = self.folder.clone();
         path.push(format!("{DRAFTS}/{locale}/{slug}.md"));
@@ -511,6 +543,17 @@ impl PostStore for SitePosts {
         let (by, key) = (by.to_owned(), key.map(str::to_owned));
         Box::pin(blocking(&self.0, move |site| {
             site.create_now(&draft, &by, key.as_deref())
+        }))
+    }
+
+    fn delete<'a>(
+        &'a self,
+        id: &'a str,
+        updated_at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>> {
+        let id = id.to_owned();
+        Box::pin(blocking(&self.0, move |site| {
+            site.delete_now(&id, updated_at)
         }))
     }
 }

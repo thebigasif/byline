@@ -77,6 +77,42 @@ pub trait PostStore: Send + Sync {
         by: &'a str,
         idempotency: Option<&'a str>,
     ) -> BoxFuture<'a, Result<AdminPost, CreatePostError>>;
+
+    /// Removes post `id`, in any status, but only when it has not changed
+    /// since `updated_at`, the copy the caller saw (BL-API-7). The check and
+    /// the removal happen together. Returns the post as it was.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DeletePostError::NotFound`] when no post has that identity,
+    /// [`DeletePostError::Stale`] naming the last change when the post
+    /// changed after that copy, and [`DeletePostError::Store`] when the posts
+    /// cannot be read or written.
+    fn delete<'a>(
+        &'a self,
+        id: &'a str,
+        updated_at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>>;
+}
+
+/// Why a post was not deleted.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum DeletePostError {
+    /// No post has that identity.
+    #[error("no post has that identity")]
+    NotFound,
+    /// The post changed after the copy the caller saw.
+    #[error("the post changed after the copy the delete was made on")]
+    Stale {
+        /// When the post last changed.
+        updated_at: DateTime<Utc>,
+        /// Who changed it, if known.
+        updated_by: Option<String>,
+    },
+    /// The posts could not be read or written.
+    #[error(transparent)]
+    Store(#[from] PostStoreError),
 }
 
 /// Why a new post was not saved.
@@ -160,9 +196,11 @@ mod memory {
 
     use khalid_core::{Clock, Locale, Slug, SlugMode, SystemClock};
 
+    use chrono::{DateTime, Utc};
+
     use super::{
-        AdminPost, BoxFuture, CreatePostError, ListQuery, Listed, PostDraft, PostEdit, PostRow,
-        PostStore, PostStoreError, UpdatePostError,
+        AdminPost, BoxFuture, CreatePostError, DeletePostError, ListQuery, Listed, PostDraft,
+        PostEdit, PostRow, PostStore, PostStoreError, UpdatePostError,
     };
     use crate::content_store::select;
     use crate::resources::LintCounts;
@@ -247,6 +285,24 @@ mod memory {
             Ok(post.clone())
         }
 
+        fn remove(&self, id: &str, seen: DateTime<Utc>) -> Result<AdminPost, DeletePostError> {
+            let mut posts = self.posts();
+            let at = posts
+                .iter()
+                .position(|post| post.id() == id)
+                .ok_or(DeletePostError::NotFound)?;
+            let post = posts.remove(at);
+            if post.updated_at() != seen {
+                let stale = DeletePostError::Stale {
+                    updated_at: post.updated_at(),
+                    updated_by: post.updated_by().map(str::to_owned),
+                };
+                posts.insert(at, post);
+                return Err(stale);
+            }
+            Ok(post)
+        }
+
         /// Adds a draft, making slugs in English ASCII as a site with the
         /// default settings would.
         fn add(
@@ -322,6 +378,14 @@ mod memory {
             idempotency: Option<&'a str>,
         ) -> BoxFuture<'a, Result<AdminPost, CreatePostError>> {
             Box::pin(std::future::ready(self.add(&draft, by, idempotency)))
+        }
+
+        fn delete<'a>(
+            &'a self,
+            id: &'a str,
+            updated_at: DateTime<Utc>,
+        ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>> {
+            Box::pin(std::future::ready(self.remove(id, updated_at)))
         }
     }
 }

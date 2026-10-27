@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use chrono::{DateTime, TimeZone, Utc};
 use khalid_api::content_store::{BoxFuture, Listed};
 use khalid_api::post_store::{
-    CreatePostError, MemoryPostStore, PostStore, PostStoreError, UpdatePostError,
+    CreatePostError, DeletePostError, MemoryPostStore, PostStore, PostStoreError, UpdatePostError,
 };
 use khalid_api::publish_door::{Announce, PublishDoor, Ran};
 use khalid_api::query::ListQuery;
@@ -166,6 +166,14 @@ impl PostStore for Refusing {
         key: Option<&'a str>,
     ) -> BoxFuture<'a, Result<AdminPost, CreatePostError>> {
         self.0.create(draft, by, key)
+    }
+
+    fn delete<'a>(
+        &'a self,
+        id: &'a str,
+        updated_at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>> {
+        self.0.delete(id, updated_at)
     }
 }
 
