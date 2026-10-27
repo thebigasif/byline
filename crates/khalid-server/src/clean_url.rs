@@ -2,7 +2,7 @@
 
 use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};
 
-use crate::{Page, Pages};
+use crate::{Page, PagePath, Pages};
 
 /// The characters encoded when a decoded path goes back into a `Location`
 /// header: controls, the space, characters that end a path, and everything
@@ -27,6 +27,8 @@ pub(crate) enum Resolved<'p> {
     /// A page lives at the clean form of the address, given here encoded
     /// and with the query kept.
     Redirect(String),
+    /// The address moved for good to this one, encoded, with the query kept.
+    Moved(String),
     /// Nothing lives there.
     NotFound,
 }
@@ -44,6 +46,9 @@ pub(crate) fn resolve<'p>(pages: &'p Pages, path: &str, query: Option<&str>) -> 
     if let Some(page) = pages.get(&decoded) {
         return Resolved::Page(page);
     }
+    if let Some(to) = pages.moved(&decoded) {
+        return Resolved::Moved(location(to, query));
+    }
     let clean = match decoded.strip_suffix("index.html") {
         Some(folder) if folder.ends_with('/') => folder.to_owned(),
         Some(_) => return Resolved::NotFound,
@@ -53,10 +58,15 @@ pub(crate) fn resolve<'p>(pages: &'p Pages, path: &str, query: Option<&str>) -> 
     let Some(page) = pages.get(&clean) else {
         return Resolved::NotFound;
     };
-    let mut location = utf8_percent_encode(page.path().as_str(), PATH).to_string();
+    Resolved::Redirect(location(page.path(), query))
+}
+
+/// `path` encoded for a `Location` header, with `query` kept.
+fn location(path: &PagePath, query: Option<&str>) -> String {
+    let mut location = utf8_percent_encode(path.as_str(), PATH).to_string();
     if let Some(query) = query {
         location.push('?');
         location.push_str(query);
     }
-    Resolved::Redirect(location)
+    location
 }

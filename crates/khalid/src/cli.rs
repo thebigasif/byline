@@ -73,7 +73,8 @@ pub(crate) enum Command {
         #[arg(long, value_name = "CODE")]
         language: Option<Locale>,
     },
-    /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked
+    /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked.
+    /// A headless site gets its feeds, sitemaps and redirects and no HTML
     Build {
         /// The folder to write the pages to [default: public in the site folder]
         #[arg(long, value_name = "FOLDER")]

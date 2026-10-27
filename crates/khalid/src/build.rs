@@ -2,13 +2,14 @@
 //! folder, `public/` in the site folder unless `--out` names another, with
 //! the stylesheet every page links in `assets/`, the site's sitemaps,
 //! `robots.txt`, `llms.txt` and feeds beside them, and each folder post's
-//! files in its page's folder.
+//! files in its page's folder. A headless site gets those files and no
+//! HTML.
 
 use std::fs;
 use std::path::{self, Path, PathBuf};
 
 use khalid_content::{ContentTree, SiteContent};
-use khalid_core::{Clock, Config, UserMessage};
+use khalid_core::{Clock, Config, Mode, UserMessage};
 use khalid_lint::Linter;
 use khalid_render::{Asset, Renderer};
 use khalid_routes::Routes;
@@ -57,13 +58,15 @@ pub(crate) fn run(
         return build_gate::refuse(output, &refused);
     }
     match build(site, config, routes, content, &out, clock) {
-        Ok(written) => success(output, &out, written),
+        Ok(written) => success(output, &out, written, config.mode()),
         Err(message) => report::failure(output, &message, Exit::Failure),
     }
 }
 
 /// Renders every page into `out`, then writes the stylesheet they link and
-/// the site's files beside them, and says how many pages were written.
+/// the site's files beside them, and says how many pages were written. A
+/// headless site gets the files only, and its theme is never read (ADR
+/// "headless is a mode").
 fn build(
     site: &Path,
     config: &Config,
@@ -72,10 +75,19 @@ fn build(
     out: &Path,
     clock: &dyn Clock,
 ) -> Result<usize, UserMessage> {
-    let renderer = Renderer::with_theme(site).map_err(|error| build_message::render(&error))?;
-    let css = assets::site_stylesheet(site)?;
-    let mut languages = build_pages::pages(config, routes, content, &assets::href(config, &css))?;
-    // The checked content keeps no assets, so the tree is read again for them.
+    let theme = if config.mode().has_pages() {
+        let renderer = Renderer::with_theme(site).map_err(|error| build_message::render(&error))?;
+        Some((renderer, assets::site_stylesheet(site)?))
+    } else {
+        None
+    };
+    let href = theme
+        .as_ref()
+        .map(|(_, css)| assets::href(config, css))
+        .unwrap_or_default();
+    let mut languages = build_pages::pages(config, routes, content, &href)?;
+    // The checked content keeps no assets, so the tree is read again for
+    // them. A headless site gets them too: its feeds point at them.
     let tree = ContentTree::walk(site).map_err(|error| content_message::of(site, &error))?;
     let beside = post_files::attach(&tree, &mut languages);
     for file in &beside {
@@ -86,15 +98,17 @@ fn build(
     }
     let seo_site = build_seo::site(config)?;
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
-    write_asset(out, &css)?;
     let mut written = 0;
-    for language in &languages {
-        for page in &language.pages {
-            let html = renderer
-                .render(&language.site, &page.meta, &page.body)
-                .map_err(|error| build_message::render(&error))?;
-            write(out, &page.file, &html)?;
-            written += 1;
+    if let Some((renderer, css)) = &theme {
+        write_asset(out, css)?;
+        for language in &languages {
+            for page in &language.pages {
+                let html = renderer
+                    .render(&language.site, &page.meta, &page.body)
+                    .map_err(|error| build_message::render(&error))?;
+                write(out, &page.file, &html)?;
+                written += 1;
+            }
         }
     }
     let redirects = build_redirects::file(config, content)?;
@@ -156,11 +170,19 @@ fn inside(path: &Path, folder: &Path) -> bool {
     }
 }
 
-/// Says how many pages were written and where.
-fn success(output: Output, out: &Path, pages: usize) -> Exit {
+/// Says how many pages were written and where, or for a headless site that
+/// only its files were.
+fn success(output: Output, out: &Path, pages: usize, mode: Mode) -> Exit {
     let shown = out.display().to_string();
+    let said = if mode.has_pages() {
+        format!("Built {pages} pages in {shown}.\n")
+    } else {
+        format!(
+            "Built the feeds, sitemaps and redirects in {shown}. The site is headless, so Khalid writes no pages.\n"
+        )
+    };
     match output {
-        Output::Human => report::text(&format!("Built {pages} pages in {shown}.\n"), Exit::Success),
+        Output::Human => report::text(&said, Exit::Success),
         Output::Json => report::json(&BuildBody { out: shown, pages }, Exit::Success),
     }
 }

@@ -5,14 +5,15 @@ use std::collections::btree_map::Entry;
 
 use bytes::Bytes;
 
-use crate::{Page, Rendered, ServerError};
+use crate::{Moved, Page, PagePath, Rendered, ServerError};
 
-/// Every rendered page of one site by its path, and the page for an address
-/// with nothing behind it.
+/// Every rendered page of one site by its path, the page for an address
+/// with nothing behind it, and where each moved address went.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pages {
     by_path: BTreeMap<String, Page>,
     not_found: Bytes,
+    moved: BTreeMap<String, PagePath>,
 }
 
 impl Pages {
@@ -55,7 +56,19 @@ impl Pages {
         Ok(Self {
             by_path,
             not_found: not_found.into(),
+            moved: BTreeMap::new(),
         })
+    }
+
+    /// The same pages, with each of `moves` answered by 301 where no page
+    /// sits. A later move from the same address wins.
+    #[must_use]
+    pub fn with_moves(mut self, moves: Vec<Moved>) -> Self {
+        self.moved = moves
+            .into_iter()
+            .map(|moved| (moved.from().as_str().to_owned(), moved.to().clone()))
+            .collect();
+        self
     }
 
     /// The same pages, each with its Brotli copy. A page that has one
@@ -73,6 +86,7 @@ impl Pages {
         Self {
             by_path,
             not_found: self.not_found.clone(),
+            moved: self.moved.clone(),
         }
     }
 
@@ -89,6 +103,7 @@ impl Pages {
         Self {
             by_path,
             not_found: self.not_found.clone(),
+            moved: self.moved.clone(),
         }
     }
 
@@ -100,8 +115,8 @@ impl Pages {
         rendered: Rendered,
         previous: Option<&Self>,
     ) -> Result<Self, ServerError> {
-        let (pages, not_found) = rendered.into_parts();
-        let mut plain = Self::plain(pages, not_found)?;
+        let (pages, not_found, moves) = rendered.into_parts();
+        let mut plain = Self::plain(pages, not_found)?.with_moves(moves);
         for (path, page) in &mut plain.by_path {
             let old = previous.and_then(|pages| pages.get(path));
             *page = page.clone().compressed_like(old);
@@ -118,12 +133,17 @@ impl Pages {
     pub fn not_found(&self) -> &Bytes {
         &self.not_found
     }
+
+    /// Where the address `path` moved to, once percent-encoding is undone.
+    pub fn moved(&self, path: &str) -> Option<&PagePath> {
+        self.moved.get(path)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{MediaType, PagePath};
+    use crate::{MediaType, Moved, PagePath};
 
     fn post(body: &str) -> Page {
         let path = PagePath::try_new("/blog/what-a-sitemap-does/").unwrap();
@@ -165,5 +185,21 @@ mod tests {
             kept.brotli().is_none(),
             "the next full render compresses it"
         );
+    }
+
+    #[test]
+    fn rendered_moves_reach_the_pages() {
+        let path = |text: &str| PagePath::try_new(text).unwrap();
+        let moved = Moved::new(path("/blog/old/"), path("/blog/what-a-sitemap-does/"));
+        let rendered = Rendered::new(vec![post("<p>A sitemap.</p>")], "").with_moves(vec![moved]);
+        let pages = Pages::from_rendered(rendered, None).unwrap();
+        let to = pages.moved("/blog/old/").map(PagePath::as_str);
+        assert_eq!(to, Some("/blog/what-a-sitemap-does/"));
+        assert_eq!(
+            pages.compressed().moved("/blog/old/"),
+            pages.moved("/blog/old/")
+        );
+        let saved = pages.with_saved(vec![post("<p>A sitemap, saved.</p>")]);
+        assert_eq!(saved.moved("/blog/old/"), pages.moved("/blog/old/"));
     }
 }

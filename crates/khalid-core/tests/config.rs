@@ -78,10 +78,20 @@ fn refuses_a_language_that_is_not_a_language_tag() {
 }
 
 #[test]
+fn reads_the_headless_mode() {
+    let text = DEMO.replacen("\"server\"", "\"headless\"", 1);
+    let config = Config::from_toml(Path::new("site.toml"), &text, &Environment::empty()).unwrap();
+    assert_eq!(config.mode(), Mode::Headless);
+    assert!(!config.mode().has_pages());
+    assert!(Mode::Server.has_pages());
+    assert!(Mode::Static.has_pages());
+}
+
+#[test]
 fn refuses_an_unknown_mode() {
     assert_eq!(
         message_with("\"server\"", "\"hybrid\""),
-        "site.toml, line 4, field \"mode\": unknown variant `hybrid`, expected `server` or `static`"
+        "site.toml, line 4, field \"mode\": unknown variant `hybrid`, expected one of `server`, `static`, `headless`"
     );
 }
 
