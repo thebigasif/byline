@@ -16,8 +16,8 @@ ignore = [
   # the embedded DejaVu face offline at publish time. No font from a user
   # runs through them and neither is vulnerable, only without a maintainer.
   # Review again 2027-04-26, or sooner if a maintained fork appears.
-  { id = "RUSTSEC-2025-0124", reason = "ttf-parser: reads only the one face Khalid embeds, parsed at first draw; no untrusted font data reaches it" },
-  { id = "RUSTSEC-2025-0123", reason = "rustybuzz: shapes only titles and site names from the site's own content; the same engine resvg shipped before" },
+  { id = "RUSTSEC-2026-0192", reason = "ttf-parser: reads only the one face Khalid embeds, parsed at first draw; no untrusted font data reaches it" },
+  { id = "RUSTSEC-2026-0206", reason = "rustybuzz: shapes only titles and site names from the site's own content; the same engine resvg shipped before" },
 ]
 
 [licenses]
