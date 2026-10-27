@@ -28,4 +28,5 @@ workspace = true
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 proptest = "1"
 serde-saphyr = "2"
+tempfile = "3"
 toml = "0.9"

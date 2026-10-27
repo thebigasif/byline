@@ -15,6 +15,7 @@ mod seo_meta;
 mod seo_plugins;
 mod seo_text;
 mod site_files;
+mod write;
 mod wxr;
 mod wxr_error;
 
@@ -32,5 +33,6 @@ pub use redirection::{
 };
 pub use report::Report;
 pub use seo_meta::{SeoMeta, SeoPlugin, UnreadField};
+pub use write::WriteError;
 pub use wxr::read_wxr;
 pub use wxr_error::WxrError;
