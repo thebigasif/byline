@@ -10,6 +10,45 @@ export const en = {
     label: "Admin",
     dashboard: "Dashboard",
     posts: "Posts",
+    redirects: "Redirects",
+  },
+  redirects: {
+    title: "Redirects",
+    lede: "A redirect sends visitors and Google from an old web address to a new one. When you rename a post, a redirect keeps old links working and keeps the post's place in search results.",
+    kept: {
+      title: "Redirects Khalid keeps",
+      lede: "Redirects you imported, made from the list above, or that Khalid made when a post's address changed. Khalid follows chains for you: if an old address points to another old address, visitors still go straight to the page in one step.",
+      after:
+        "Old addresses kept in a post's own file are not listed here. Each post shows them under More settings.",
+      loading: "Reading your redirects",
+      none: "Khalid keeps no redirects yet. Old addresses you add to a post are kept in its file.",
+      from: "Old address",
+      to: "Opens",
+      kind: "Kind",
+      origin: "Made by",
+      action: "Action",
+      nothing: "Nothing",
+      remove: (from: string) => `Remove the redirect from ${from}`,
+      removeText: "Remove",
+      removed: (from: string) => `Removed. ${from} no longer redirects.`,
+    },
+    // What a visitor gets, by the status the redirect answers.
+    kind: (status: number, pattern: boolean) => {
+      const kinds: Record<number, string> = {
+        301: "Moved for good (301)",
+        302: "Moved for now (302)",
+        307: "Moved for now (307)",
+        410: "Gone for good (410)",
+        451: "Removed for legal reasons (451)",
+      };
+      const kind = kinds[status] ?? `Answers ${status}`;
+      return pattern ? `${kind}, a pattern` : kind;
+    },
+    origins: {
+      manual: "You",
+      import: "Imported",
+      slug_change: "A post's new address",
+    },
   },
   dashboard: {
     title: "Your blog today",

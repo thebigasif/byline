@@ -36,6 +36,9 @@ export function Shell() {
                 {en.nav.posts}
               </Link>
             </li>
+            <li>
+              <Link to="/redirects">{en.nav.redirects}</Link>
+            </li>
           </ul>
         </nav>
         <main id="main" className="page">
