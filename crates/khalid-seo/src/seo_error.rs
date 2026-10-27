@@ -104,6 +104,42 @@ pub enum SeoError {
         /// The destination, as given.
         template: String,
     },
+    /// A redirect leads to an address that is neither a path nor a valid
+    /// `http` or `https` address.
+    #[error("the redirect destination {address:?} is not a path or a web address")]
+    RedirectAddress {
+        /// The destination, as given.
+        address: String,
+        /// Why it was refused.
+        #[source]
+        source: ParseUrlError,
+    },
+    /// A redirect's status and destination do not fit together.
+    #[error("the redirect from {from:?} {problem}")]
+    RedirectColumns {
+        /// The path or pattern the redirect starts from.
+        from: String,
+        /// What is wrong with it.
+        problem: &'static str,
+    },
+    /// A row of a redirect list has the wrong shape.
+    #[error("line {line} of the redirect list {problem}")]
+    RedirectCsvRow {
+        /// The line the row starts on, counting from 1.
+        line: usize,
+        /// What is wrong with it.
+        problem: &'static str,
+    },
+    /// A row of a redirect list holds a path, address or pattern that is
+    /// refused.
+    #[error("line {line} of the redirect list holds a value that is refused")]
+    RedirectCsvValue {
+        /// The line the row starts on, counting from 1.
+        line: usize,
+        /// Why the value was refused.
+        #[source]
+        source: Box<SeoError>,
+    },
     /// A domain in the link policy is not a plain domain name.
     #[error("{domain:?} is not a plain domain name such as example.com")]
     Domain {
