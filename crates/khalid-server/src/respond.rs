@@ -1,7 +1,6 @@
 //! The router, and the response each request gets.
 
 use std::convert::Infallible;
-use std::future::{Ready, ready};
 use std::sync::Arc;
 
 use axum::Router;
@@ -33,24 +32,37 @@ const BROTLI: HeaderValue = HeaderValue::from_static("br");
 /// carries `security`.
 ///
 /// Each request reads the pages being served at that moment, so a
-/// [`LivePages`] replaced after an edit shows the edit at once.
+/// [`LivePages`] replaced after an edit shows the edit at once. While a
+/// starting server serves its [`Pages::first`], a request for an address
+/// they lack waits for the whole site rather than getting a 404.
 pub fn router(pages: impl Into<LivePages>, security: SecurityHeaders) -> Router {
     let site = Arc::new((pages.into(), security));
     Router::new().fallback_service(service_fn(move |request: Request<Body>| {
-        let (live, security) = &*site;
-        answer(&live.current(), security, &request)
+        let site = Arc::clone(&site);
+        async move {
+            let (live, security) = &*site;
+            let mut pages = live.current();
+            if waits(&pages, &request) {
+                pages = live.whole().await;
+            }
+            Ok::<_, Infallible>(answer(&pages, security, &request))
+        }
     }))
 }
 
-/// Answers at once: every page is already in memory.
-fn answer(
-    pages: &Pages,
-    security: &SecurityHeaders,
-    request: &Request<Body>,
-) -> Ready<Result<Response<Body>, Infallible>> {
+/// Whether `request` asks a set of first pages for an address it lacks.
+fn waits(pages: &Pages, request: &Request<Body>) -> bool {
+    let uri = request.uri();
+    !pages.is_whole()
+        && matches!(*request.method(), Method::GET | Method::HEAD)
+        && matches!(resolve(pages, uri.path(), uri.query()), Resolved::NotFound)
+}
+
+/// Answers at once from `pages`, already in memory.
+fn answer(pages: &Pages, security: &SecurityHeaders, request: &Request<Body>) -> Response<Body> {
     let mut response = respond(pages, request);
     security.apply(response.headers_mut());
-    ready(Ok(response))
+    response
 }
 
 fn respond(pages: &Pages, request: &Request<Body>) -> Response<Body> {
