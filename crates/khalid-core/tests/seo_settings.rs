@@ -1,9 +1,12 @@
 //! The `[seo]` table of `site.toml`: which archive pages search engines may
-//! list (KH-SEO-9).
+//! list (KH-SEO-9), and whether changed pages are sent to `IndexNow`
+//! (KH-SEO-11).
 
 use std::path::Path;
 
-use khalid_core::{ArchiveIndex, Config, Environment, Indexing};
+use khalid_core::{
+    AbsoluteUrl, ArchiveIndex, Config, Environment, IndexNowKey, IndexNowSettings, Indexing,
+};
 
 const SITE: &str = r#"name = "Field Notes on SEO"
 address = "https://www.example.com"
@@ -70,6 +73,72 @@ fn refuses_a_value_that_is_not_index_or_noindex() {
         read("\n[seo.index]\ntags = \"hidden\"\n").unwrap_err(),
         "site.toml, line 8, field \"tags\": unknown variant `hidden`, expected `index` or `noindex`"
     );
+}
+
+#[test]
+fn indexnow_is_off_without_its_table() {
+    let config = read("").unwrap();
+    assert_eq!(config.seo().indexnow, None);
+}
+
+#[test]
+fn the_indexnow_table_switches_it_on_with_the_shared_endpoint() {
+    let config = read("\n[seo.indexnow]\nkey = \"3f9c0b5e2a8d4c71\"\n").unwrap();
+    let indexnow = config.seo().indexnow.as_ref().unwrap();
+    assert_eq!(indexnow.key.as_str(), "3f9c0b5e2a8d4c71");
+    assert_eq!(indexnow.endpoint, None);
+    assert_eq!(
+        AbsoluteUrl::parse(IndexNowSettings::SHARED_ENDPOINT)
+            .unwrap()
+            .as_str(),
+        "https://api.indexnow.org/indexnow"
+    );
+}
+
+#[test]
+fn reads_another_indexnow_endpoint() {
+    let config = read(
+        "\n[seo.indexnow]\nkey = \"3f9c0b5e2a8d4c71\"\nendpoint = \"https://www.bing.com/indexnow\"\n",
+    )
+    .unwrap();
+    let indexnow = config.seo().indexnow.as_ref().unwrap();
+    assert_eq!(
+        indexnow.endpoint.as_ref().unwrap().as_str(),
+        "https://www.bing.com/indexnow"
+    );
+}
+
+#[test]
+fn refuses_an_indexnow_key_with_a_character_search_engines_refuse() {
+    assert_eq!(
+        read("\n[seo.indexnow]\nkey = \"3f9c 0b5e\"\n").unwrap_err(),
+        "site.toml, line 8, field \"key\": the IndexNow key holds a character that is not allowed, expected a key of 8 to 128 letters, digits and hyphens"
+    );
+}
+
+#[test]
+fn refuses_an_indexnow_table_without_a_key() {
+    assert_eq!(
+        read("\n[seo.indexnow]\nendpoint = \"https://www.bing.com/indexnow\"\n").unwrap_err(),
+        "site.toml, line 7, field \"key\": missing field `key`"
+    );
+}
+
+#[test]
+fn indexnow_keys_are_eight_to_128_letters_digits_and_hyphens() {
+    for good in ["abcdefgh", "3F9C-0b5e-2a8d-4c71", &"a".repeat(128)] {
+        assert!(IndexNowKey::try_new(good).is_ok(), "{good:?}");
+    }
+    for bad in [
+        "",
+        "abcdefg",
+        &"a".repeat(129),
+        "abc_defgh",
+        "abcdéfgh",
+        "../../etc",
+    ] {
+        assert!(IndexNowKey::try_new(bad).is_err(), "{bad:?}");
+    }
 }
 
 #[test]

@@ -2094,6 +2094,7 @@ dependencies = [
  "chrono",
  "insta",
  "khalid-core",
+ "khalid-outbound",
  "regex",
  "robotstxt",
  "roxmltree 0.20.0",
@@ -2101,6 +2102,8 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
+ "wiremock",
 ]
 
 [[package]]
