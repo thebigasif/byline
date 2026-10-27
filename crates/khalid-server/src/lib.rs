@@ -35,7 +35,7 @@ mod watch;
 mod watch_events;
 
 pub use background::Background;
-pub use live_pages::LivePages;
+pub use live_pages::{LivePages, Replacements};
 pub use media_type::MediaType;
 pub use moved::Moved;
 pub use page::Page;

@@ -13,6 +13,7 @@ use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::memory::HandBack;
 use crate::site_content::{Catalog, LiveContent, Published};
 use crate::{db_message, search_index};
 
@@ -41,6 +42,8 @@ pub(crate) struct Destination {
     pub(crate) db: Database,
     pub(crate) site: SiteId,
     pub(crate) live: LiveContent,
+    /// Told after each catalog is served and written.
+    pub(crate) hand_back: HandBack,
 }
 
 /// Starts the background task on `runtime`. Await the handle after the
@@ -72,6 +75,7 @@ async fn take_catalogs(mut catalogs: mpsc::UnboundedReceiver<Catalog>, to: Arc<D
             catalog = later;
         }
         apply(&to, Arc::new(catalog), &mut applied).await;
+        to.hand_back.after_work();
     }
 }
 
@@ -189,6 +193,7 @@ mod tests {
             db: db.clone(),
             site,
             live: live.clone(),
+            hand_back: HandBack::default(),
         };
         let (feed, task) = start(&Handle::current(), to);
 

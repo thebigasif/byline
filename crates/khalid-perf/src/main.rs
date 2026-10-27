@@ -23,6 +23,9 @@ const USAGE: &str = "Usage: khalid-perf fixture POSTS FOLDER\n       \
 /// 99th percentile of a 1,000-post site rests on 40 renders.
 const ROUNDS: usize = 5;
 
+/// Where Linux says when it gives a program transparent huge pages.
+const THP_MODE: &str = "/sys/kernel/mm/transparent_hugepage/enabled";
+
 /// Starts of `khalid serve`, and edits to one post, behind each median.
 const SERVE_ROUNDS: usize = 5;
 
@@ -80,6 +83,10 @@ fn render(site: &Path, out: &Path) -> Result<(), String> {
         .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
 }
 
+#[expect(
+    clippy::print_stdout,
+    reason = "the CI log shows where an idle server holds its memory"
+)]
 fn serve(khalid: &Path, posts: &str, site: &Path, out: &Path) -> Result<(), String> {
     let explain = |what: String| {
         format!(
@@ -93,6 +100,14 @@ fn serve(khalid: &Path, posts: &str, site: &Path, out: &Path) -> Result<(), Stri
     })?;
     let times = ServeTimes::measure(khalid, (site, fixture), SERVE_ROUNDS, &SystemClock)
         .map_err(|error| explain(format!("Serving {} failed: {error}.", site.display())))?;
+    if let Some(idle) = times.idle_memory() {
+        print!("{posts} posts. {idle}");
+    }
+    // Whether the system hands out 2 MB pages unasked ("always") or only
+    // where a program asks ("madvise") decides what the allocator can avoid.
+    if let Ok(mode) = fs::read_to_string(THP_MODE) {
+        println!("Transparent huge pages on this system: {}", mode.trim());
+    }
     fs::write(out, times.to_json())
         .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
 }

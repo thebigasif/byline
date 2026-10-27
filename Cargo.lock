@@ -2064,6 +2064,7 @@ dependencies = [
  "khalid-webhooks",
  "mimalloc",
  "rcgen",
+ "rustix",
  "scraper",
  "serde",
  "serde_json",

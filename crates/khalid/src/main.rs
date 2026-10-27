@@ -48,6 +48,7 @@ mod mcp;
 mod mcp_content;
 mod mcp_message;
 mod mcp_tools;
+mod memory;
 mod new;
 mod new_message;
 mod newsletter;
@@ -119,6 +120,14 @@ fn main() -> ExitCode {
     exit.into()
 }
 
+/// Readies the process for serving the site in `folder`, before anything
+/// is read: small memory pages only, and a look at the folder for the
+/// watch.
+fn serving(folder: &Path) -> FolderLook {
+    memory::small_pages_only();
+    FolderLook::take(folder)
+}
+
 /// Runs the command the person asked for, after checking the site's settings
 /// and reading its content when `--site` names a folder.
 fn run(cli: &Cli) -> Exit {
@@ -129,7 +138,7 @@ fn run(cli: &Cli) -> Exit {
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
     let look = match (&cli.command, cli.site.as_deref()) {
-        (Some(Command::Serve(_)), Some(folder)) => Some(FolderLook::take(folder)),
+        (Some(Command::Serve(_)), Some(folder)) => Some(serving(folder)),
         _ => None,
     };
     let site = match cli.site.as_deref() {

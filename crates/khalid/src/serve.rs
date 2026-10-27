@@ -23,6 +23,7 @@ use tokio::sync::oneshot;
 use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
+use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
@@ -66,6 +67,7 @@ pub(crate) fn run(
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
+        .thread_keep_alive(Duration::from_secs(1))
         .build();
     let (Ok(runtime), Ok(outbound)) = (built, outbound) else {
         return report::failure(output, &serve_message::internal(), Exit::Internal);
@@ -98,13 +100,14 @@ fn serve_with(
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
-    let content = LiveContent::default();
+    let (content, hand_back) = (LiveContent::default(), HandBack::default());
     let to = Destination {
         folder: site.to_path_buf(),
         config: config.clone(),
         db: database.clone(),
         site: id,
         live: content.clone(),
+        hand_back: hand_back.clone(),
     };
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
@@ -132,6 +135,7 @@ fn serve_with(
         let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
         let live = LivePages::new(first);
+        hand_back.start(live.replacements());
         let shown = (&source, &live);
         let (comments, moderation) =
             comment_pages::start(config, (database, id), shown, security.clone()).await;
