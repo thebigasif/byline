@@ -366,7 +366,7 @@ pub(crate) struct ImportArgs {
 
     #[arg(
         value_name = "EXPORT",
-        help = "The export: a WordPress or Ghost file, or the unpacked Medium folder"
+        help = "The export: a WordPress or Ghost file, or the unpacked Medium or Substack folder"
     )]
     pub(crate) export: PathBuf,
 
@@ -377,7 +377,7 @@ pub(crate) struct ImportArgs {
     #[arg(
         long,
         value_name = "URL",
-        help = "Where the Ghost blog lived, such as https://old.example.com [default: the address in site.toml]"
+        help = "Where the Ghost or Substack blog lived, such as https://rye.substack.com [default: the address in site.toml]"
     )]
     pub(crate) old_site: Option<AbsoluteUrl>,
 

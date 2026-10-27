@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use khalid_core::{AbsoluteUrl, Config, Environment};
-use khalid_import::substack::{LeftReason, Plan, plan, read_export};
-use khalid_import::{Place, SlugOrigin};
+use khalid_import::substack::{LeftReason, MapEntry, Plan, REDIRECTS_CSV, plan, read_export};
+use khalid_import::{MapTarget, MoveStatus, Place, SlugOrigin};
 use khalid_routes::Routes;
 
 const POSTS_CSV: &str = "post_id,post_date,is_published,type,audience,title,subtitle\n\
@@ -127,4 +127,68 @@ fn every_planned_file_is_written_and_none_twice() {
     let written = plan.write(site.path()).unwrap();
     assert_eq!(written.len(), plan.files.len());
     assert!(plan.write(site.path()).is_err());
+}
+
+#[test]
+fn every_published_post_maps_its_old_address_and_the_csv_holds_the_moves() {
+    let plan = planned("https://rye.substack.com");
+    let map: Vec<(&str, &MapTarget)> = plan
+        .redirects
+        .iter()
+        .map(|entry| (entry.from.as_str(), &entry.to))
+        .collect();
+    let to = |path: &str| MapTarget::Moved {
+        to: format!("https://northfield.example.com{path}"),
+        status: MoveStatus::Permanent,
+    };
+    assert_eq!(
+        map,
+        [
+            ("https://rye.substack.com/p/why-rye", &to("/blog/why-rye/")),
+            (
+                "https://rye.substack.com/p/members-loaf",
+                &to("/blog/members-loaf/")
+            ),
+            (
+                "https://rye.substack.com/p/about",
+                &to("/blog/pages/about/")
+            ),
+        ]
+    );
+    assert!(plan.redirects.iter().all(MapEntry::on_substack));
+    let csv = plan.files.last().unwrap();
+    assert_eq!(csv.path, Path::new(REDIRECTS_CSV));
+    assert!(
+        csv.text.starts_with("from,to,status,match\nhttps://rye.substack.com/p/why-rye,https://northfield.example.com/blog/why-rye/,301,exact\n"),
+        "{}",
+        csv.text
+    );
+}
+
+#[test]
+fn an_old_address_on_the_new_host_is_written_as_a_path() {
+    let plan = planned("https://northfield.example.com");
+    let csv = &plan.files.last().unwrap().text;
+    assert!(
+        csv.contains("\n/p/why-rye,https://northfield.example.com/blog/why-rye/,301,exact\n"),
+        "{csv}"
+    );
+}
+
+#[test]
+fn the_report_counts_what_comes_in_and_names_what_stays_behind() {
+    let report = planned("https://rye.substack.com").report().to_string();
+    assert_eq!(
+        report,
+        "This is a dry run: nothing was written.\n\
+         Coming in: 2 posts, 1 page and 1 draft.\n\
+         For signed-in members only, as on Substack: 1.\n\
+         Slugs kept: 4.\n\
+         Old addresses mapped: 3, of which 3 move and 0 stay the same.\n\
+         Old addresses on substack.com: 3. Substack cannot redirect them, so link each post there to its new home.\n\
+         Content with no place in Khalid, left out: subscribe box (1 post).\n\
+         Posts left behind: 140062715, a discussion thread, which lives in Substack's comments; 140062717, the export has no text for it.\n\
+         Posts that could not come in: 0.\n\
+         Rows of posts.csv that could not be read: 0.\n"
+    );
 }

@@ -142,6 +142,35 @@ fn a_medium_import_keeps_addresses_on_medium_in_the_file_only() {
 }
 
 #[test]
+fn a_substack_import_moves_old_addresses_on_the_same_host() {
+    let site = site();
+    let posts = file(site.path(), "substack/posts");
+    fs::create_dir_all(&posts).unwrap();
+    fs::write(
+        file(&posts, "140062712.why-rye.html"),
+        "<p>Rye needs time.</p>",
+    )
+    .unwrap();
+    let list = "post_id,post_date,is_published,type,audience,title,subtitle\n\
+        140062712.why-rye,2024-03-12T09:30:44.123Z,true,newsletter,only_paid,Why rye,\n";
+    fs::write(file(site.path(), "substack/posts.csv"), list).unwrap();
+    let export = file(site.path(), "substack");
+    let (code, printed) = khalid(
+        site.path(),
+        &["import", "substack", export.to_str().unwrap()],
+    );
+    assert_eq!(code, 0, "{printed}");
+    assert!(
+        printed.starts_with("Wrote 2 files and stored 1 redirects."),
+        "{printed}"
+    );
+    let post = fs::read_to_string(file(site.path(), "content/en/posts/2024-03-12-why-rye.md"));
+    assert!(post.unwrap().contains("access: \"members\""));
+    let (_, explained) = khalid(site.path(), &["redirects", "explain", "/p/why-rye"]);
+    assert!(explained.contains("/blog/why-rye/"), "{explained}");
+}
+
+#[test]
 fn redirects_that_clash_with_stored_ones_are_named() {
     let site = site();
     let clash = file(site.path(), "clash.csv");

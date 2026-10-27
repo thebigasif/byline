@@ -1,4 +1,4 @@
-//! `khalid import`: brings a blog from `WordPress`, Ghost or Medium into the
+//! `khalid import`: brings a blog from `WordPress`, Ghost, Medium or Substack into the
 //! site through `khalid-import`, keeping every slug, and stores the
 //! redirect map in `data/site.db` through the redirect desk (plan section
 //! 5.7, KH-API-7, KH-SEO-8).
@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use khalid_api::redirect_store::Origin;
 use khalid_core::{Config, UserMessage};
-use khalid_import::{PlannedFile, WriteError, ghost, medium, wordpress};
+use khalid_import::{PlannedFile, WriteError, ghost, medium, substack, wordpress};
 use khalid_routes::Routes;
 use khalid_seo::read_redirects_csv;
 use serde::Serialize;
@@ -32,6 +32,7 @@ enum Plan {
     Wordpress(wordpress::Plan),
     Ghost(ghost::Plan),
     Medium(medium::Plan),
+    Substack(substack::Plan),
 }
 
 impl Plan {
@@ -41,6 +42,7 @@ impl Plan {
             Self::Wordpress(plan) => plan.report().to_string(),
             Self::Ghost(plan) => plan.report().to_string(),
             Self::Medium(plan) => plan.report().to_string(),
+            Self::Substack(plan) => plan.report().to_string(),
         }
     }
 
@@ -49,6 +51,7 @@ impl Plan {
             Self::Wordpress(plan) => &plan.files,
             Self::Ghost(plan) => &plan.files,
             Self::Medium(plan) => &plan.files,
+            Self::Substack(plan) => &plan.files,
         }
     }
 
@@ -57,6 +60,7 @@ impl Plan {
             Self::Wordpress(plan) => plan.write(site),
             Self::Ghost(plan) => plan.write(site),
             Self::Medium(plan) => plan.write(site),
+            Self::Substack(plan) => plan.write(site),
         }
     }
 
@@ -66,6 +70,7 @@ impl Plan {
             Self::Wordpress(_) => wordpress::REDIRECTS_CSV,
             Self::Ghost(_) => ghost::REDIRECTS_CSV,
             Self::Medium(_) => medium::REDIRECTS_CSV,
+            Self::Substack(_) => substack::REDIRECTS_CSV,
         }
     }
 }
@@ -211,10 +216,20 @@ fn planned(
             let read = medium::read_export(files).map_err(|e| unreadable(export, &e))?;
             Ok(Plan::Medium(medium::plan(&read, config, routes)))
         }
-        ImportSource::Substack | ImportSource::Markdown => Err((
+        ImportSource::Substack => {
+            let mut list = export.to_path_buf();
+            list.push("posts.csv");
+            let read = substack::read_export(&read(&list)?, posts_folder(export)?)
+                .map_err(|e| unreadable(export, &e))?;
+            let old_site = args.old_site.as_ref().unwrap_or(config.address());
+            Ok(Plan::Substack(substack::plan(
+                &read, old_site, config, routes,
+            )))
+        }
+        ImportSource::Markdown => Err((
             UserMessage::new(
                 "That source cannot be imported yet.",
-                "Khalid reads WordPress, Ghost and Medium exports so far.",
+                "Khalid reads WordPress, Ghost, Medium and Substack exports so far.",
                 "Run `khalid import --help` to see the sources that work.",
             ),
             Exit::Internal,
@@ -222,8 +237,8 @@ fn planned(
     }
 }
 
-/// Every file in a Medium export's `posts/` folder, by name. `folder` may
-/// be the unpacked export or its `posts/` folder.
+/// Every file in a Medium or Substack export's `posts/` folder, by name.
+/// `folder` may be the unpacked export or its `posts/` folder.
 fn posts_folder(folder: &Path) -> Result<Vec<(String, String)>, (UserMessage, Exit)> {
     let mut posts = folder.to_path_buf();
     posts.push("posts");

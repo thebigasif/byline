@@ -271,15 +271,9 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
         }),
-        Some(asked @ Command::Import(args))
-            if matches!(args.source, ImportSource::Substack | ImportSource::Markdown) =>
-        {
-            Some(report::failure(
-                cli.output,
-                &not_built(asked),
-                Exit::Internal,
-            ))
-        }
+        Some(asked @ Command::Import(args)) if args.source == ImportSource::Markdown => Some(
+            report::failure(cli.output, &not_built(asked), Exit::Internal),
+        ),
         Some(asked @ Command::Redirects { command }) => Some(match cli.site.as_deref() {
             Some(folder) => redirects::run(folder, command, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),

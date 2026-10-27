@@ -12,6 +12,7 @@ use crate::front_matter::FrontMatter;
 use crate::redirects::path_of;
 use crate::slug::{PostSlug, post_slug};
 use crate::substack::body::substack_body;
+use crate::substack::redirect_map::{MapEntry, REDIRECTS_CSV, redirect_map, substack_csv};
 use crate::substack::{Audience, BodyError, Export, Post, PostKind, UnreadRow};
 use crate::write::write_files;
 use crate::{Place, PlannedFile, SlugOrigin, WriteError};
@@ -31,6 +32,9 @@ pub struct Plan {
     pub left_behind: Vec<LeftPost>,
     /// Each row of `posts.csv` that could not be read, with the reason.
     pub unread: Vec<UnreadRow>,
+    /// Where the old address of every published post leads.
+    /// [`REDIRECTS_CSV`] holds every entry that moves.
+    pub redirects: Vec<MapEntry>,
 }
 
 /// A post that came in.
@@ -119,7 +123,8 @@ pub enum PostError {
 /// Published posts and pages go under `content/<lang>/`, the rest under
 /// `drafts/<lang>/`, each with the slug of its address, `/p/<slug>`. The
 /// subtitle becomes the description; a post for subscribers only gets
-/// `access: members`. An old address inside the new blog becomes an alias.
+/// `access: members`. An old address inside the new blog becomes an alias,
+/// and every move is in [`REDIRECTS_CSV`].
 pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Routes) -> Plan {
     let mut plan = Plan {
         unread: export.unread.clone(),
@@ -152,6 +157,11 @@ pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Rou
             }),
         }
     }
+    plan.redirects = redirect_map(&plan.posts, site);
+    plan.files.push(PlannedFile {
+        path: PathBuf::from(REDIRECTS_CSV),
+        text: substack_csv(&plan.redirects, site),
+    });
     plan
 }
 
