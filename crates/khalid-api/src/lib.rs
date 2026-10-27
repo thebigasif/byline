@@ -28,3 +28,4 @@ pub mod query;
 pub mod redirect_store;
 pub mod resources;
 pub mod schedule_store;
+pub mod session_check;

@@ -2,11 +2,11 @@ import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { createPost, problemMessage, requestKey } from "../api/posts";
-import { Problem } from "../components/Problem";
 import { en, type UserMessage } from "../strings/en";
+import { Problem } from "./Problem";
 
-/** The first screen after signing in: start a post. */
-export function Home() {
+/** Starts a draft from a working title and opens it in the editor. */
+export function StartPost() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [problem, setProblem] = useState<UserMessage | null>(null);
@@ -30,8 +30,6 @@ export function Home() {
 
   return (
     <>
-      <h1>{en.home.title}</h1>
-      <p className="lede">{en.home.lede}</p>
       {problem === null ? null : <Problem message={problem} />}
       <form className="focus" onSubmit={submit}>
         <h2 className="mt-0">{en.start.title}</h2>
