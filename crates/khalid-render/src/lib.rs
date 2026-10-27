@@ -45,7 +45,9 @@ pub use asset::Asset;
 pub use author::{AuthorEntry, RenderAuthor, RenderAuthors, RenderPage};
 pub use contents::{Contents, ContentsHeading, HeadingLevel};
 pub use features::{Feature, Features};
-pub use glossary::{GlossaryGroup, GlossaryTerm, RenderGlossary, RenderSearch, SearchResult};
+pub use glossary::{
+    GlossaryGroup, GlossaryTerm, Highlight, RenderGlossary, RenderSearch, SearchMode, SearchResult,
+};
 pub use home::{HomeSectionPosts, RenderHome, TopicGroup};
 pub use image::{ImageCandidate, ImageSet, Loading, RenderImage};
 pub use listing::{Pagination, PostCard, RenderListing};

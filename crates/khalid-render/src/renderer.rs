@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use khalid_core::Locale;
 use minijinja::value::Serde;
 use minijinja::{AutoEscape, Environment, UndefinedBehavior, context};
 
@@ -103,5 +104,15 @@ impl Renderer {
         template
             .render(context)
             .map_err(|error| RenderError::render(name, error))
+    }
+
+    /// The text `key` of the strings file for `locale`, as templates read it
+    /// under `t`, such as `search_link` for the search page's title. `None`
+    /// for a key the strings file does not have.
+    pub fn text(&self, locale: &Locale, key: &str) -> Option<&str> {
+        self.strings
+            .for_locale(locale)
+            .and_then(|strings| strings.get(key))
+            .map(String::as_str)
     }
 }

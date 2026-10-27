@@ -59,6 +59,10 @@ search_link = "Search"
 # {query} is filled in with what the reader typed.
 search_results = "Results for “{query}”"
 search_nothing = "Nothing matched. Try fewer words, or a different word for the same thing."
+# The lock card a static site shows instead of the search form.
+search_locked_title = "Search needs a running server"
+search_locked_why = "This blog is served as plain files, and plain files cannot look up words."
+search_locked_fix = "To turn search on, the site owner runs Khalid as a server:"
 # How a date reads. {day}, {month} and {year} are filled in.
 date_format = "{day} {month} {year}"
 month_1 = "January"
