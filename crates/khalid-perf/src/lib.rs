@@ -8,6 +8,7 @@
 
 mod fixture;
 mod fixture_error;
+mod idle_memory;
 mod inputs;
 mod prepare_error;
 mod render_times;
@@ -19,6 +20,7 @@ mod words;
 
 pub use fixture::Fixture;
 pub use fixture_error::FixtureError;
+pub use idle_memory::{IdleMemory, MemorySplit};
 pub use inputs::{Page, Prepared};
 pub use prepare_error::PrepareError;
 pub use render_times::{RenderTimes, percentile};

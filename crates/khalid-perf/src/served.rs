@@ -12,7 +12,8 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use khalid_core::Clock;
 
-use crate::ServeError;
+use crate::idle_memory::field_mb;
+use crate::{MemorySplit, ServeError};
 
 /// How long a request may wait for the server before it counts as failed.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -79,6 +80,17 @@ impl Served {
         let status = fs::read_to_string(format!("/proc/{}/status", self.child.id()))
             .map_err(|_| ServeError::NoMemoryReport)?;
         resident_mb(&status).ok_or(ServeError::NoMemoryReport)
+    }
+
+    /// Where the process's resident memory sits now. `None` where `/proc`
+    /// does not say.
+    pub fn memory_split(&self) -> Option<MemorySplit> {
+        let read = |name: &str| fs::read_to_string(format!("/proc/{}/{name}", self.child.id()));
+        let (status, rollup) = (
+            read("status").ok()?,
+            read("smaps_rollup").unwrap_or_default(),
+        );
+        MemorySplit::parse(&status, &rollup)
     }
 
     /// The whole response to a request for `address`, headers and body.
@@ -178,9 +190,7 @@ pub fn announced(line: &str) -> Option<(String, String)> {
 /// The resident memory in megabytes from the text of `/proc/<pid>/status`,
 /// whose `VmRSS` line counts kilobytes.
 pub fn resident_mb(status: &str) -> Option<f64> {
-    let line = status.lines().find(|line| line.starts_with("VmRSS:"))?;
-    let kilobytes: u32 = line.split_whitespace().nth(1)?.parse().ok()?;
-    Some(f64::from(kilobytes) / 1024.0)
+    field_mb(status, "VmRSS:")
 }
 
 /// Milliseconds from `start` to now on `clock`.

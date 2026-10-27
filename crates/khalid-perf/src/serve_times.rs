@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use khalid_core::Clock;
 
-use crate::{Fixture, ServeError, Served, percentile};
+use crate::{Fixture, IdleMemory, ServeError, Served, percentile};
 
 /// How long after its first answer, with no traffic in between, the
 /// server's memory counts as idle (CTO answers 2026-10-27, section 2).
@@ -24,6 +24,7 @@ pub struct ServeTimes {
     first_byte_ms: f64,
     idle_memory_mb: f64,
     rebuild_ms: f64,
+    idle: Option<IdleMemory>,
 }
 
 impl ServeTimes {
@@ -34,6 +35,7 @@ impl ServeTimes {
             first_byte_ms,
             idle_memory_mb,
             rebuild_ms,
+            idle: None,
         }
     }
 
@@ -60,15 +62,20 @@ impl ServeTimes {
             last = Some(served);
         }
         let served = last.ok_or(ServeError::NoAddress)?;
-        // The start's first byte was the server's first answer.
-        thread::sleep(IDLE);
-        let idle_memory_mb = served.resident_mb()?;
+        let idle = idle_memory(&served)?;
         let rebuilds = edit_rounds(&served, site, fixture, rounds, clock)?;
         Ok(Self {
             first_byte_ms: median(starts),
-            idle_memory_mb,
+            idle_memory_mb: idle.resident_mb().ok_or(ServeError::NoMemoryReport)?,
             rebuild_ms: median(rebuilds),
+            idle: Some(idle),
         })
+    }
+
+    /// The memory readings behind the idle measure, when it was measured
+    /// here rather than given to [`ServeTimes::new`].
+    pub fn idle_memory(&self) -> Option<&IdleMemory> {
+        self.idle.as_ref()
     }
 
     /// The median cold start to the first byte of the home page.
@@ -119,6 +126,18 @@ fn edit_rounds(
     }
     fs::write(&file, original).map_err(|source| ServeError::Io { path: file, source })?;
     Ok(times)
+}
+
+/// Reads the resident memory of `served` each second for [`IDLE`] after
+/// its first answer, which was the start's first byte, with no request in
+/// between. Reading `/proc` from here touches nothing in the server.
+fn idle_memory(served: &Served) -> Result<IdleMemory, ServeError> {
+    let mut each_second = Vec::new();
+    for _ in 0..IDLE.as_secs() {
+        thread::sleep(Duration::from_secs(1));
+        each_second.push(served.resident_mb()?);
+    }
+    Ok(IdleMemory::new(each_second, served.memory_split()))
 }
 
 /// The middle value of `values` by nearest rank.

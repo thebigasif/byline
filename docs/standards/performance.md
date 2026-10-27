@@ -83,6 +83,8 @@ Measured with `khalid-perf serve`, release build, generated 1,000-post site, the
 
 Main measured 51.43 to 81.49 MB in eight runs. Reading the content on its own thread made no difference and was dropped. Neither did mimalloc's `no_thp` (55.0, 57.6 and 57.2 MB, against 49.8, 53.2 and 68.5 MB without it), so it stays off, although one run without it had 12 MB in huge pages at idle.
 
+`khalid-perf serve` prints, beside its measures and so in CI's log, the resident memory each second of the 15-second wait and the split at its end: anonymous memory, the part of it in huge pages, and code and mapped files.
+
 What a settled server holds, from `/proc/<pid>/smaps` at 51 MB: 27 MB in mimalloc's arena, 16.4 MB of the binary's code, 5.3 MB in the C allocator's heap, where SQLite keeps its page caches, and 1.4 MB of the C library.
 
 ## Fast to build

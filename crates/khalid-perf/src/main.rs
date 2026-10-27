@@ -80,6 +80,10 @@ fn render(site: &Path, out: &Path) -> Result<(), String> {
         .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
 }
 
+#[expect(
+    clippy::print_stdout,
+    reason = "the CI log shows where an idle server holds its memory"
+)]
 fn serve(khalid: &Path, posts: &str, site: &Path, out: &Path) -> Result<(), String> {
     let explain = |what: String| {
         format!(
@@ -93,6 +97,9 @@ fn serve(khalid: &Path, posts: &str, site: &Path, out: &Path) -> Result<(), Stri
     })?;
     let times = ServeTimes::measure(khalid, (site, fixture), SERVE_ROUNDS, &SystemClock)
         .map_err(|error| explain(format!("Serving {} failed: {error}.", site.display())))?;
+    if let Some(idle) = times.idle_memory() {
+        print!("{posts} posts. {idle}");
+    }
     fs::write(out, times.to_json())
         .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
 }
