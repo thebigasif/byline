@@ -2071,6 +2071,7 @@ dependencies = [
 name = "khalid-outbound"
 version = "0.0.0"
 dependencies = [
+ "http",
  "khalid-core",
  "khalid-outbound",
  "reqwest",
