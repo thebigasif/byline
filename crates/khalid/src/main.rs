@@ -9,6 +9,7 @@ mod agents;
 mod announce;
 mod assets;
 mod atomic;
+mod audit_message;
 mod build;
 mod build_files;
 mod build_gate;
@@ -81,6 +82,7 @@ mod serve_https;
 mod serve_message;
 mod settings_text;
 mod site_addresses;
+mod site_audit;
 mod site_content;
 mod site_files;
 mod site_lists;
@@ -200,6 +202,9 @@ fn run(cli: &Cli) -> Exit {
             &SystemClock,
             cli.output,
         ),
+        (Some(Command::Audit), Some((folder, config, routes, (content, _)))) => {
+            site_audit::run(folder, (config, routes, content), &SystemClock, cli.output)
+        }
         (
             Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
             Some((folder, config, ..)),
@@ -218,7 +223,8 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Mcp
                 | Command::Lint { .. }
                 | Command::New { .. }
-                | Command::Build { .. }),
+                | Command::Build { .. }
+                | Command::Audit),
             ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),

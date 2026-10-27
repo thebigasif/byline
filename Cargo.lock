@@ -2043,6 +2043,7 @@ dependencies = [
  "insta",
  "khalid-admin",
  "khalid-api",
+ "khalid-audit",
  "khalid-auth",
  "khalid-comments",
  "khalid-content",

@@ -125,7 +125,8 @@ pub(crate) enum Command {
     },
     /// Write one archive of the site folder
     Backup,
-    /// Crawl the site the way SEO tools do and score it
+    /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
+    /// health out of 100. Exits with 1 on any error
     Audit,
     /// Update the binary, or go back to the previous version
     Update {
