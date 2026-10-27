@@ -5,6 +5,7 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde::Deserialize;
 
@@ -28,6 +29,7 @@ pub struct Config {
     languages: Vec<Locale>,
     seo: SeoSettings,
     reader: Reader,
+    preview_link_lifetime: Duration,
 }
 
 /// Whether Khalid runs a server, writes plain HTML, or leaves the pages to
@@ -84,10 +86,41 @@ struct SiteFile {
     seo: SeoSettings,
     #[serde(default)]
     reader: Reader,
+    preview_link_days: Option<u64>,
+    preview_link_hours: Option<u64>,
 }
 
 fn root_mount() -> String {
     "/".to_owned()
+}
+
+/// An hour, the shortest a preview link may work and its unit.
+const HOUR: u64 = 3600;
+
+/// The longest a preview link may work, 30 days, in hours.
+const MOST_HOURS: u64 = 30 * 24;
+
+/// How long a preview link works when `site.toml` does not say, 7 days.
+const DEFAULT_HOURS: u64 = 7 * 24;
+
+/// The preview link lifetime `file` sets, or the key it is set under and
+/// what is wrong with it.
+fn preview_lifetime(file: &SiteFile) -> Result<Duration, (&'static str, &'static str)> {
+    const RANGE: &str =
+        "a preview link works for 1 hour to 30 days, so use 1 to 30 days or 1 to 720 hours";
+    let (key, hours) = match (file.preview_link_days, file.preview_link_hours) {
+        (Some(_), Some(_)) => {
+            let both = "set preview_link_days or preview_link_hours, not both";
+            return Err(("preview_link_hours", both));
+        }
+        (Some(days), None) => ("preview_link_days", days.saturating_mul(24)),
+        (None, Some(hours)) => ("preview_link_hours", hours),
+        (None, None) => ("", DEFAULT_HOURS),
+    };
+    if !(1..=MOST_HOURS).contains(&hours) {
+        return Err((key, RANGE));
+    }
+    Ok(Duration::from_secs(hours.saturating_mul(HOUR)))
 }
 
 impl Config {
@@ -147,6 +180,8 @@ impl Config {
                 "the default language must be one of languages",
             ));
         }
+        let preview_link_lifetime =
+            preview_lifetime(&file).map_err(|(key, problem)| field(key, problem))?;
         let address = match env.get(Environment::ADDRESS) {
             Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
                 variable: Environment::ADDRESS.to_owned(),
@@ -164,7 +199,14 @@ impl Config {
             languages: file.languages,
             seo: file.seo,
             reader: file.reader,
+            preview_link_lifetime,
         })
+    }
+
+    /// How long a new preview link works: 7 days unless `site.toml` sets
+    /// `preview_link_days` or `preview_link_hours`, from 1 hour to 30 days.
+    pub fn preview_link_lifetime(&self) -> Duration {
+        self.preview_link_lifetime
     }
 
     /// The site's name, shown in titles and feeds.
