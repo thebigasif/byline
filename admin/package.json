@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "postinstall": "npm run api-types",
-    "api-types": "openapi-typescript ../sdk/typescript/openapi.json --output src/api/schema.d.ts",
+    "api-types": "openapi-typescript ../sdk/typescript/openapi.json --empty-objects-unknown --output src/api/schema.d.ts",
     "dev": "vite",
     "build": "vite build",
     "check": "biome ci . && tsc --noEmit && vitest run",

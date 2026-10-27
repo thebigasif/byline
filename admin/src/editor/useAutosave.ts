@@ -35,10 +35,14 @@ export function useAutosave(post: AdminPost) {
   const stopped = useRef(false);
   latest.current = draft;
 
-  const save = useCallback(async () => {
+  // True once the server holds the draft as it stands.
+  const save = useCallback(async (): Promise<boolean> => {
     const sending = latest.current;
-    if (same(sending, saved.current) || inFlight.current || stopped.current) {
-      return;
+    if (inFlight.current || stopped.current) {
+      return false;
+    }
+    if (same(sending, saved.current)) {
+      return true;
     }
     inFlight.current = true;
     setState({ kind: "saving" });
@@ -53,10 +57,11 @@ export function useAutosave(post: AdminPost) {
         // Typed while saving: wait for a pause, then save that too.
         setDraft({ ...latest.current });
       }
-      return;
+      return true;
     }
     stopped.current = answer.status === 409;
     setState({ kind: "failed", message: problemMessage(answer.problem, en.problems.notSaved) });
+    return false;
   }, [post.id]);
 
   useEffect(() => {
@@ -68,5 +73,5 @@ export function useAutosave(post: AdminPost) {
   }, [draft, save]);
 
   const dirty = !same(draft, saved.current);
-  return { draft, setDraft, dirty, state, save };
+  return { draft, setDraft, dirty, state, save, updatedAt };
 }
