@@ -1,7 +1,8 @@
-//! `khalid serve`: the site answered over HTTP from rendered pages, the
-//! Content API from the site's own index, and the Admin API over its files,
-//! each showing every saved edit, published post or API write again after
-//! a moment, until Ctrl+C or a stop signal.
+//! `khalid serve`: the site answered over HTTP from rendered pages with its
+//! sitemaps, feeds and moved addresses, the Content API from the site's own
+//! index, and the Admin API over its files, each showing every saved edit,
+//! published post or API write again after a moment, until Ctrl+C or a stop
+//! signal. A headless site has no pages, and every page address answers 404.
 
 use std::net::SocketAddr;
 use std::path::Path;
@@ -97,11 +98,13 @@ fn serve_with(
     };
     let (source, pages) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
         .and_then(|source| {
-            let (pages, not_found) = source.render_content(&checked)?;
+            let served = source.render_content(&checked)?;
             drop(checked);
             // Brotli copies are added once the server listens, so the first
             // reader does not wait for them (docs/standards/performance.md).
-            let pages = Pages::plain(pages, not_found).map_err(|_| serve_message::internal())?;
+            let pages = Pages::plain(served.pages, served.not_found)
+                .map_err(|_| serve_message::internal())?
+                .with_moves(served.moves);
             Ok((source, pages))
         })
         .map_err(|message| (message, Exit::Failure))?;

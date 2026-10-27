@@ -249,6 +249,22 @@ fn serve_refuses_tokens_it_cannot_read_and_names_the_file() {
 }
 
 #[test]
+fn serve_answers_the_sitemaps_and_feeds_beside_the_pages() {
+    let site = demo_copy();
+    let server = start(site.path());
+    for (path, text) in [
+        ("/blog/sitemap.xml", "<sitemapindex"),
+        ("/blog/feed.xml", "<rss"),
+        ("/blog/de/atom.xml", "<feed"),
+        ("/blog/robots.txt", "Sitemap:"),
+    ] {
+        let answer = get(&server, path);
+        assert_eq!(answer.status, 200, "{path}");
+        assert!(answer.body.contains(text), "{path}:\n{}", answer.body);
+    }
+}
+
+#[test]
 fn serve_answers_the_home_page_then_stops_gracefully_when_told_to() {
     let site = demo_copy();
     let mut server = start(site.path());
