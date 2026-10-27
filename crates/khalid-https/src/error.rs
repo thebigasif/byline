@@ -28,6 +28,13 @@ pub enum HttpsError {
         #[source]
         source: rustls::Error,
     },
+    /// The certificate answering a TLS-ALPN-01 check could not be made.
+    #[error("the answer to Let's Encrypt's TLS check could not be made")]
+    Challenge {
+        /// What the certificate maker reported.
+        #[source]
+        source: rcgen::Error,
+    },
     /// The TLS settings could not be built.
     #[error("TLS could not be set up")]
     Tls {

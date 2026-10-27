@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["tokio"] }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
+rcgen = { version = "0.14", default-features = false, features = ["ring"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rustls-pki-types = { version = "1", features = ["std"] }
 thiserror.workspace = true

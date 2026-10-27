@@ -13,6 +13,7 @@ use tokio::task::JoinSet;
 use tokio_rustls::TlsAcceptor;
 use tokio_rustls::server::TlsStream;
 
+use crate::challenges::ACME_TLS;
 use crate::{Certificates, HttpsError};
 
 /// How long a client may take to finish the TLS handshake before its
@@ -64,7 +65,7 @@ impl TlsListener {
             .map_err(|source| HttpsError::Tls { source })?
             .with_no_client_auth()
             .with_cert_resolver(Arc::new(certificates));
-        config.alpn_protocols = vec![HTTP_1_1.to_vec()];
+        config.alpn_protocols = vec![HTTP_1_1.to_vec(), ACME_TLS.to_vec()];
         Ok(Self {
             tcp,
             acceptor: TlsAcceptor::from(Arc::new(config)),
@@ -113,6 +114,9 @@ async fn handshake(
     address: SocketAddr,
 ) -> Option<(TlsStream<TcpStream>, SocketAddr)> {
     match tokio::time::timeout(HANDSHAKE, acceptor.accept(stream)).await {
+        // A TLS-ALPN-01 check ends with the handshake and never reaches
+        // the site (RFC 8737).
+        Ok(Ok(tls)) if tls.get_ref().1.alpn_protocol() == Some(ACME_TLS) => None,
         Ok(Ok(tls)) => Some((tls, address)),
         Ok(Err(error)) => {
             tracing::debug!(%address, %error, "a TLS handshake failed");
