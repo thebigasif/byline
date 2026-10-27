@@ -2118,6 +2118,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-audit"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "scraper",
+ "url",
+]
+
+[[package]]
 name = "khalid-auth"
 version = "0.0.0"
 dependencies = [
