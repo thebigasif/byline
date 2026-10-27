@@ -4,7 +4,8 @@
 //! fills in, each checked once when it is read ([`AuthorName`],
 //! [`ReaderEmail`], [`CommentText`]), how a posted form is read into one
 //! ([`CommentForm`]) with its honeypot, and how approved comments are
-//! shown one level deep ([`threads`]). Comments are visitor data: they
+//! shown one level deep ([`threads`]). [`RateLimits`] keeps one network
+//! address from sending many, without keeping the address. Comments are visitor data: they
 //! live in the site database, never in `content/`, and name their post by
 //! its file ([`PostFile`]) so they survive a rebuild.
 //!
@@ -15,10 +16,12 @@ mod comment;
 mod comment_form;
 mod field_problem;
 mod fields;
+mod rate_limits;
 mod thread;
 
 pub use comment::{Comment, CommentAuthor, CommentId, CommentStatus, ParseStatusError, PostFile};
 pub use comment_form::{CommentForm, FormComment, Reading};
 pub use field_problem::FieldProblem;
 pub use fields::{AuthorName, CommentText, ReaderEmail};
+pub use rate_limits::{RateLimitError, RateLimits};
 pub use thread::{Thread, threads};

@@ -2052,7 +2052,10 @@ name = "khalid-comments"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "getrandom 0.4.3",
+ "khalid-core",
  "serde",
+ "sha2 0.11.1",
  "thiserror",
 ]
 
