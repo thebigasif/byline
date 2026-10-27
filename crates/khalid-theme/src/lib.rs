@@ -41,5 +41,5 @@ pub use resync::{ThemeDiff, TokenChange};
 pub use site_theme::SiteTheme;
 pub use token_name::TokenName;
 pub use token_values::{FontStack, Length};
-pub use tokens::{Colors, Fonts, Shape, ThemeTokens};
+pub use tokens::{BrandImages, Colors, Fonts, Shape, ThemeTokens};
 pub use tokens_error::TokensError;

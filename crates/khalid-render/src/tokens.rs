@@ -5,7 +5,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use khalid_core::SitePath;
+use khalid_core::{AbsoluteUrl, SitePath};
 use serde::Deserialize;
 
 use crate::token_values::{Color, FontStack, Length};
@@ -17,7 +17,7 @@ const TOKENS_FILE: &str = "theme/tokens.toml";
 /// WCAG 2.2 AA asks body text for at least this contrast against its background.
 const MINIMUM_CONTRAST: f64 = 4.5;
 
-/// The site's colours, fonts and shape. Theme sync writes the file; a person
+/// The site's colours, fonts, shape and brand. Theme sync writes the file; a person
 /// may edit it. Every field has a light default, so a missing file or a
 /// missing field still gives a readable site.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
@@ -33,6 +33,19 @@ pub struct Tokens {
     pub fonts: Fonts,
     /// Corners and line length.
     pub shape: Shape,
+    /// The main site's logo and icon.
+    pub brand: Brand,
+}
+
+/// The main site's logo and icon, as full web addresses. Theme sync fills
+/// them when it finds them; either may be left out.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Brand {
+    /// The logo, such as `https://example.com/logo.svg`.
+    pub logo: Option<AbsoluteUrl>,
+    /// The small icon browsers show in a tab.
+    pub icon: Option<AbsoluteUrl>,
 }
 
 /// The name of one token, as `table.field`, such as `colors.link`.
@@ -75,6 +88,12 @@ pub enum TokenName {
     /// `shape.measure`.
     #[serde(rename = "shape.measure")]
     Measure,
+    /// `brand.logo`.
+    #[serde(rename = "brand.logo")]
+    Logo,
+    /// `brand.icon`.
+    #[serde(rename = "brand.icon")]
+    Icon,
 }
 
 /// The colours, each a `#rrggbb` or `#rgb` value.

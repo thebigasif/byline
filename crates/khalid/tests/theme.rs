@@ -10,9 +10,12 @@ use serde_json::Value;
 use wiremock::matchers::path;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-/// A home page that links one stylesheet on its own site.
+/// A home page that links one stylesheet on its own site, with a logo and
+/// an icon.
 const HOME: &str = r#"<!doctype html><html><head><title>Northwind Bakery</title>
-<link rel="stylesheet" href="/style.css"></head><body><h1>Bread</h1></body></html>"#;
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/style.css"></head><body>
+<header><img src="/logo.svg" alt="Northwind"></header><h1>Bread</h1></body></html>"#;
 
 /// A warm theme whose pale amber link is too faint to read on the page.
 const STYLE: &str = "body { background: #fbf8f3; color: #2b2118; }\na { color: #f0c040; }\n";
@@ -117,6 +120,8 @@ async fn sync_writes_the_tokens_says_where_and_explains_each_contrast_fix() {
     let tokens = fs::read_to_string(&file).unwrap();
     assert!(tokens.contains("background = \"#fbf8f3\""), "{tokens}");
     assert!(!tokens.contains("#f0c040"), "{tokens}");
+    let brand = format!("[brand]\nlogo = \"{home}logo.svg\"\nicon = \"{home}favicon.ico\"\n");
+    assert!(tokens.ends_with(&brand), "{tokens}");
 }
 
 #[tokio::test(flavor = "multi_thread")]
