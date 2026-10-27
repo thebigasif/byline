@@ -19,15 +19,16 @@ use crate::admin_key::{require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::html_source::markdown_from_html;
 use crate::keys::{KeyStore, Principal, Scope};
-use crate::post_store::{CreatePostError, PostStore, UpdatePostError};
+use crate::post_store::{CreatePostError, UpdatePostError};
 use crate::problem::{Problem, ProblemType};
+use crate::publish_door::PublishDoor;
 use crate::resources::{AdminPost, NewPost, PostDraft, PostEdit};
 
 /// Where the Admin API lives.
 pub(crate) const BASE: &str = "/api/admin/v1";
 
-/// The store every post route reads and writes.
-type Posts = Arc<dyn PostStore>;
+/// The door every post route reads and writes through.
+type Posts = Arc<PublishDoor>;
 
 /// The Admin API routes, each declared with `utoipa::path` and registered
 /// through `routes!` (RULES.md BL-API-4). Every route needs an
@@ -68,6 +69,7 @@ async fn read_admin_post(
 ) -> Result<Json<AdminPosts>, Problem> {
     require(&principal, Scope::PostsWrite)?;
     let post = posts
+        .posts()
         .get(&id)
         .await
         .map_err(|error| Problem::internal(&error))?;
@@ -112,7 +114,7 @@ async fn edit_admin_post(
     let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
     let [edit] = <[PostEdit; 1]>::try_from(body.posts)
         .map_err(|_| invalid_body("posts must hold exactly one post"))?;
-    match posts.update(&id, edit, principal.id().as_str()).await {
+    match posts.edit(&id, edit, principal.id().as_str()).await {
         Ok(post) => Ok(Json(AdminPosts { posts: vec![post] })),
         Err(UpdatePostError::NotFound) => Err(missing(uri.path())),
         Err(UpdatePostError::Stale {
@@ -198,6 +200,7 @@ async fn create_admin_post(
     let idempotency = idempotency_key(&headers)?;
     let draft = checked(new, options.source.unwrap_or_default()).await?;
     let made = posts
+        .posts()
         .create(draft, principal.id().as_str(), idempotency)
         .await;
     let post = made.map_err(|error| match error {

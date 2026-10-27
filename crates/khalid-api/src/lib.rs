@@ -19,5 +19,6 @@ pub mod keys;
 pub mod pagination;
 pub mod post_store;
 pub mod problem;
+pub mod publish_door;
 pub mod query;
 pub mod resources;
