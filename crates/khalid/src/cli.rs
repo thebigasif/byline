@@ -108,7 +108,7 @@ pub(crate) enum Command {
     Export,
     /// Speak the Model Context Protocol on stdin and stdout, for agents
     Mcp,
-    /// Check the install: DNS, HTTPS, proxy rule, sitemap, robots and more
+    /// Check the site's settings, routes and content, and say how to fix each problem
     Doctor,
     /// Write one archive of the site folder
     Backup,
