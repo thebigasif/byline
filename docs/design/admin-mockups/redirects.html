@@ -86,21 +86,44 @@ td code{background:var(--surface)}
     </form>
   </section>
 
-  <h2>Redirects on this blog</h2>
-  <p class="muted">Khalid follows chains for you: if an old address points to another old address, visitors still go straight to the post in one step.</p>
+  <p role="status">Added. <code>/blog/sitemaps-explained/</code> now opens <a href="editor.html">What a sitemap does, and what it does not</a>. You find it in that post under More settings, Old addresses.</p>
+
+  <h2>Addresses that found nothing</h2>
+  <p class="muted">These addresses on your blog answered "page not found" (a 404). Visitors and Google gave up on them. Send each one to the page Khalid suggests, or leave it.</p>
   <div class="scroll">
   <table>
-    <thead><tr><th scope="col">Old address</th><th scope="col">Opens</th><th scope="col">Kept in</th><th scope="col"><span class="muted">Action</span></th></tr></thead>
+    <thead><tr><th scope="col">Address</th><th scope="col">Visits</th><th scope="col">Last visit</th><th scope="col">Suggested page</th><th scope="col"><span class="muted">Action</span></th></tr></thead>
     <tbody>
-      <tr><td data-label="Old address"><code>/blog/title-tags/</code></td><td data-label="Opens">How to write a title tag</td><td data-label="Kept in"><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
-      <tr><td data-label="Old address"><code>/blog/internal-linking/</code></td><td data-label="Opens">Why internal links matter</td><td data-label="Kept in"><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
-      <tr><td data-label="Old address"><code>/blog/page-speed/</code></td><td data-label="Opens">Fixing slow pages, starting with the biggest win</td><td data-label="Kept in"><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
+      <tr><td data-label="Address"><code>/blog/internal-links/</code></td><td data-label="Visits">42</td><td data-label="Last visit">27 Oct 2026</td><td data-label="Suggested page"><code>/blog/why-internal-links-matter/</code></td><td><button class="btn" type="button">Redirect it there</button></td></tr>
+      <tr><td data-label="Address"><code>/blog/title-tag/</code></td><td data-label="Visits">9</td><td data-label="Last visit">26 Oct 2026</td><td data-label="Suggested page"><code>/blog/how-to-write-a-title-tag/</code></td><td><button class="btn" type="button">Redirect it there</button></td></tr>
+      <tr><td data-label="Address"><code>/wp-login.php</code></td><td data-label="Visits">3</td><td data-label="Last visit">25 Oct 2026</td><td data-label="Suggested page"><span class="muted">None near enough to guess</span></td><td></td></tr>
     </tbody>
   </table>
   </div>
-  <p class="muted">When you build the blog as plain files, Khalid also writes these into a <code>_redirects</code> file that Netlify and Cloudflare Pages read on their own.</p>
 
-  <p class="note">Mockup for the founder's review. Nothing on this page saves. The demo posts have no old addresses yet, so these three redirects are examples. <a href="index.html">All mockups</a></p>
+  <h2>Redirects Khalid keeps</h2>
+  <p class="muted">Redirects you imported, made from the list above, or that Khalid made when a post's address changed. Khalid follows chains for you: if an old address points to another old address, visitors still go straight to the page in one step.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th scope="col">Old address</th><th scope="col">Opens</th><th scope="col">Kind</th><th scope="col">Made by</th><th scope="col"><span class="muted">Action</span></th></tr></thead>
+    <tbody>
+      <tr><td data-label="Old address"><code>/blog/internal-linking/</code></td><td data-label="Opens"><code>/blog/why-internal-links-matter/</code></td><td data-label="Kind">Moved for good (301)</td><td data-label="Made by"><span class="pill quiet">A post's new address</span></td><td><button class="btn" type="button">Remove</button></td></tr>
+      <tr><td data-label="Old address"><code>^/2019/(.*)$</code></td><td data-label="Opens"><code>/blog/$1</code></td><td data-label="Kind">Moved for good (301), a pattern</td><td data-label="Made by"><span class="pill quiet">Imported</span></td><td><button class="btn" type="button">Remove</button></td></tr>
+      <tr><td data-label="Old address"><code>/blog/old-offer/</code></td><td data-label="Opens"><span class="muted">Nothing</span></td><td data-label="Kind">Gone for good (410)</td><td data-label="Made by"><span class="pill quiet">You</span></td><td><button class="btn" type="button">Remove</button></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="muted">Old addresses kept in a post's own file are not listed here. Each post shows them under More settings. When you build the blog as plain files, Khalid also writes every redirect into a <code>_redirects</code> file that Netlify and Cloudflare Pages read on their own.</p>
+
+  <h2>Many redirects at once</h2>
+  <p class="muted">A CSV file is a spreadsheet saved as plain text. Each row is one redirect, with the columns <code>from</code>, <code>to</code>, <code>status</code> and <code>match</code>. Khalid stores the whole file or nothing, so a mistake in one row never leaves half a list.</p>
+  <p><a class="btn" href="redirects.html" download="redirects.csv">Download every redirect as CSV</a></p>
+  <form action="redirects.html" method="post">
+    <div class="field"><label for="csv">Add redirects from a CSV file</label><span class="hint" id="csv-hint">From a spreadsheet, another blog or the download above.</span><input id="csv" type="file" accept=".csv,text/csv" aria-describedby="csv-hint"></div>
+    <button class="btn" type="submit">Add these redirects</button>
+  </form>
+
+  <p class="note">Mockup for the founder's review. Nothing on this page saves. The demo blog has no redirects or 404s yet, so every row here is an example. <a href="index.html">All mockups</a></p>
 </main>
 </div>
 </body>

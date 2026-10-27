@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type AdminPost, problemMessage, savePost } from "../api/posts";
 import { en, type UserMessage } from "../strings/en";
+import { type SettingsDraft, sameSettings, settingsDraft, settingsEdit } from "./settings";
 
-/** The words of a post a writer changes in the editor. */
-export type Draft = { title: string; markdown: string };
+/** What a writer changes in the editor: the words and the settings beside them. */
+export type Draft = { title: string; markdown: string; settings: SettingsDraft };
 
 /** Where saving stands, as the status line says it. */
 export type SaveState =
@@ -17,7 +18,7 @@ export const AUTOSAVE_MS = 3000;
 const UNREACHABLE = { problem: null, status: 0 } as const;
 
 function same(a: Draft, b: Draft): boolean {
-  return a.title === b.title && a.markdown === b.markdown;
+  return a.title === b.title && a.markdown === b.markdown && sameSettings(a.settings, b.settings);
 }
 
 /**
@@ -26,7 +27,11 @@ function same(a: Draft, b: Draft): boolean {
  * 409 stops autosaving, so a change made elsewhere is never overwritten.
  */
 export function useAutosave(post: AdminPost) {
-  const [draft, setDraft] = useState<Draft>({ title: post.title, markdown: post.markdown });
+  const [draft, setDraft] = useState<Draft>(() => ({
+    title: post.title,
+    markdown: post.markdown,
+    settings: settingsDraft(post),
+  }));
   const [state, setState] = useState<SaveState>({ kind: "saved" });
   const saved = useRef<Draft>(draft);
   const latest = useRef<Draft>(draft);
@@ -46,7 +51,13 @@ export function useAutosave(post: AdminPost) {
     }
     inFlight.current = true;
     setState({ kind: "saving" });
-    const edit = { updated_at: updatedAt.current, ...sending };
+    // Settings go only when changed, so an edit never touches one the writer left alone.
+    const edit = {
+      ...settingsEdit(saved.current.settings, sending.settings),
+      updated_at: updatedAt.current,
+      title: sending.title,
+      markdown: sending.markdown,
+    };
     const answer = await savePost(post.id, edit).catch(() => UNREACHABLE);
     inFlight.current = false;
     if ("post" in answer) {
