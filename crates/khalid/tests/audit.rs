@@ -40,7 +40,7 @@ fn copy_dir(from: &Path, into: &Path) {
 #[cfg(test)]
 fn audit(site: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_khalid"))
-        .args(["--site", site.to_str().unwrap(), "audit"])
+        .args(["--site", site.to_str().unwrap(), "audit", "--offline"])
         .args(args)
         .output()
         .unwrap()

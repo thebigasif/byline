@@ -202,9 +202,8 @@ fn run(cli: &Cli) -> Exit {
             &SystemClock,
             cli.output,
         ),
-        (Some(Command::Audit { server }), Some((folder, config, routes, (content, _)))) => {
-            let checked = (config, routes, content);
-            site_audit::run(folder, checked, server.as_ref(), &SystemClock, cli.output)
+        (Some(asked @ Command::Audit { .. }), Some((folder, config, routes, (content, _)))) => {
+            audit(folder, (config, routes, content), asked, cli)
         }
         (
             Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
@@ -230,6 +229,25 @@ fn run(cli: &Cli) -> Exit {
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs `audit` on a checked site, from a build or the server it names.
+fn audit(
+    folder: &Path,
+    checked: (&Config, &Routes, &SiteContent),
+    asked: &Command,
+    cli: &Cli,
+) -> Exit {
+    match asked {
+        Command::Audit { server, network } => site_audit::run(
+            folder,
+            checked,
+            (server.as_ref(), *network),
+            &SystemClock,
+            cli,
+        ),
+        _ => report::failure(cli.output, &not_built(asked), Exit::Internal),
     }
 }
 
