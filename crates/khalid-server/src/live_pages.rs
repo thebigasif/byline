@@ -23,6 +23,12 @@ impl LivePages {
         Arc::clone(&self.0.borrow())
     }
 
+    /// Each time the pages are replaced from now on, for work that follows
+    /// a render, such as handing freed memory back.
+    pub fn replacements(&self) -> Replacements {
+        Replacements(self.0.subscribe())
+    }
+
     /// The pages being served once they are every page of the site: at
     /// once, unless the server started with [`Pages::first`] and the rest
     /// is still being rendered.
@@ -105,6 +111,23 @@ impl LivePages {
             *served = Arc::new(pages);
             true
         })
+    }
+}
+
+/// The replacements of a [`LivePages`] set, one at a time, from
+/// [`LivePages::replacements`]. It holds no pages itself.
+#[derive(Debug)]
+pub struct Replacements(watch::Receiver<Arc<Pages>>);
+
+impl Replacements {
+    /// Completes once the pages were replaced since the last call, or since
+    /// this was made; several replacements in between count as one. Once
+    /// every [`LivePages`] is gone no replacement can come, and it never
+    /// completes.
+    pub async fn next(&mut self) {
+        if self.0.changed().await.is_err() {
+            std::future::pending::<()>().await;
+        }
     }
 }
 

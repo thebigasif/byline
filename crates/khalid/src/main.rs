@@ -46,6 +46,7 @@ mod mcp;
 mod mcp_content;
 mod mcp_message;
 mod mcp_tools;
+mod memory;
 mod new;
 mod new_message;
 mod outbound;

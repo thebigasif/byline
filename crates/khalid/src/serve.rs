@@ -25,6 +25,7 @@ use tokio::sync::oneshot;
 use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
+use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
@@ -64,6 +65,7 @@ pub(crate) fn run(
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
+        .thread_keep_alive(Duration::from_secs(1))
         .build();
     let (Ok(runtime), Ok(outbound)) = (built, outbound) else {
         return report::failure(output, &serve_message::internal(), Exit::Internal);
@@ -96,13 +98,14 @@ fn serve_with(
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
-    let content = LiveContent::default();
+    let (content, hand_back) = (LiveContent::default(), HandBack::default());
     let to = Destination {
         folder: site.to_path_buf(),
         config: config.clone(),
         db: database.clone(),
         site: id,
         live: content.clone(),
+        hand_back: hand_back.clone(),
     };
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
@@ -134,6 +137,7 @@ fn serve_with(
             .map_err(|_| (serve_message::internal(), Exit::Internal))?;
         announce(output, config, &format!("http://{local}{}", config.mount()));
         let live = LivePages::new(first);
+        hand_back.start(live.replacements());
         let (failed, failure) = oneshot::channel();
         let rest = (source.clone(), live.clone());
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));

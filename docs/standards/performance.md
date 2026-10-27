@@ -32,7 +32,7 @@ Fast is a feature. These numbers are gates, not goals. CI measures them on every
 - **SQLite tuned.** WAL, `synchronous=NORMAL`, prepared statements, one writer, a read pool, indexes checked with `EXPLAIN QUERY PLAN` in tests for every list query.
 - **Precompressed assets.** Brotli and gzip at build, served with immutable cache headers and hashed names.
 - **No surprises in the hot path.** No network, no disk except cache miss, no locks across awaits, no allocation storms. The render benchmark counts allocations and fails on a 10% rise.
-- **mimalloc** in the binary, with its default settings. See "Allocator settings" below for why none is changed.
+- **mimalloc** in the binary, with its default settings. `khalid serve` lets it hand freed memory back once its work is done. See "Allocator settings" below.
 - **Profiles before guesses.** `cargo flamegraph` or `samply` before any optimisation. The pull request shows the before and after numbers.
 
 ## Allocator settings
@@ -63,6 +63,27 @@ Measured again on 2026-10-27 (perf track, task 1.21), with the server answering 
 | two tokio worker threads, on top of one copy per page | 63.98 MB, 70.94 MB, against 65.82 MB |
 
 None of them changes idle memory beyond the noise between runs, so still no setting is changed. A `dhat` heap profile of the running server, 14 s after start, holds 26.8 MB live, about half of it each page's plain bytes beside its Brotli copy; `khalid-server` now keeps one copy per page. Brotli's own buffers are the other large cost: below a 128 KB window the `brotli` crate set up a 32 MB table for each page.
+
+### Handing freed memory back (task 1.21, 2026-10-27)
+
+Why idle memory moved by 30 MB between runs of one binary: mimalloc returns a freed page to the system one second after it is freed, and only when a thread later frees a page or ends. A server with no visitors does neither. A trace of resident memory every half second showed it at 70 to 80 MB from the end of the start's render until tokio's idle blocking threads ended, 10 s after their last task, and then falling to 51 to 62 MB. Whether that fall came before the reading at 15 s decided the number. A `dhat` profile at 14 s held 16.5 MB of live data.
+
+`khalid serve` now does two things (ADR "khalid serve hands freed memory back once its work is done"):
+
+- Its blocking threads end 1 s after their last task instead of 10 s.
+- 2 s after its pages are replaced or the Content API's feed finishes a catalog, with nothing else in between, it ends one short-lived thread, which makes mimalloc return everything freed by then.
+
+Measured with `khalid-perf serve`, release build, generated 1,000-post site, the three settings run in turn three times on a busy server (load average about 65 on 16 cores):
+
+| Setting | Idle memory, 1,000 posts |
+|---|---|
+| The thread ended after work, alone | 64.35 MB, 58.61 MB, 63.91 MB |
+| With blocking threads kept 1 s | 56.07 MB, 52.48 MB, 51.36 MB |
+| With that, and the content read on a thread that ends | 56.34 MB, 52.00 MB, 59.45 MB |
+
+Main measured 51.43 to 81.49 MB in eight runs. Reading the content on its own thread made no difference and was dropped. Neither did mimalloc's `no_thp` (55.0, 57.6 and 57.2 MB, against 49.8, 53.2 and 68.5 MB without it), so it stays off, although one run without it had 12 MB in huge pages at idle.
+
+What a settled server holds, from `/proc/<pid>/smaps` at 51 MB: 27 MB in mimalloc's arena, 16.4 MB of the binary's code, 5.3 MB in the C allocator's heap, where SQLite keeps its page caches, and 1.4 MB of the C library.
 
 ## Fast to build
 
