@@ -1902,6 +1902,7 @@ dependencies = [
  "khalid-outbound",
  "khalid-render",
  "khalid-routes",
+ "khalid-search",
  "khalid-seo",
  "khalid-server",
  "khalid-theme",

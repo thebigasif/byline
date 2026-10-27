@@ -52,6 +52,7 @@ mod post_text;
 mod repair;
 mod report;
 mod routes_message;
+mod search_index;
 mod serve;
 mod serve_message;
 mod site_content;

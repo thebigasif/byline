@@ -1,6 +1,7 @@
 //! The background task that turns each render's catalog into the Content
-//! API's store and the index in `data/site.db`, so pages never wait for
-//! either (`docs/decisions/2026-10-27-cto-answers.md`, section 3).
+//! API's store and the index in `data/site.db`, with its search index, so
+//! pages never wait for either (`docs/decisions/2026-10-27-cto-answers.md`,
+//! section 3).
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -12,8 +13,8 @@ use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use crate::db_message;
 use crate::site_content::{Catalog, LiveContent, Published};
+use crate::{db_message, search_index};
 
 /// Hands the catalog of each render to the background task. When every
 /// feed is dropped, the task finishes what it is doing and stops.
@@ -106,15 +107,28 @@ async fn apply(to: &Arc<Destination>, catalog: Arc<Catalog>, applied: &mut Appli
         Ok(Err(message)) => kept(to, &mut applied.served, &message),
         Err(error) => kept(to, &mut applied.served, &error),
     }
-    let written = match &applied.written {
-        Some(before) => {
-            let changes = changes(before, &hashes);
-            to.db.update(to.site, &catalog.index, &changes).await
-        }
+    let index_changes = applied
+        .written
+        .as_ref()
+        .map(|before| changes(before, &hashes));
+    let written = match &index_changes {
+        Some(changes) => to.db.update(to.site, &catalog.index, changes).await,
         None => to.db.rebuild(to.site, &catalog.index).await,
     };
+    let which = match &index_changes {
+        Some(changes) => search_index::Which::Changed {
+            written: &changes.written,
+            removed: &changes.removed,
+        },
+        None => search_index::Which::All,
+    };
+    let at = (&to.db, to.site);
+    let written = match written {
+        Ok(_) => search_index::write(at, &to.folder, &to.config, &catalog, which).await,
+        Err(error) => Err(error),
+    };
     match written {
-        Ok(_) => applied.written = Some(hashes),
+        Ok(()) => applied.written = Some(hashes),
         Err(error) => {
             applied.written = None;
             let message = db_message::of(&to.folder, &error);
