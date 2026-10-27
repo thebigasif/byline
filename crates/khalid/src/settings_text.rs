@@ -4,6 +4,7 @@
 use khalid_api::post_store::UpdatePostError;
 use khalid_api::resources::{Alias, NonBlank, PostSettings, PostStatus};
 use khalid_content::PostFront;
+use khalid_core::PostAccess;
 
 use crate::post_text::{PostText, quoted};
 
@@ -21,6 +22,10 @@ pub(crate) fn settings_of(front: &PostFront) -> PostSettings {
     settings.canonical.clone_from(&front.canonical);
     let aliases = front.aliases.iter().filter_map(|path| Alias::try_new(path));
     settings.aliases = aliases.collect();
+    settings.access = front.access;
+    settings.password.clone_from(&front.password_hash);
+    settings.template.clone_from(&front.template);
+    settings.head_code.clone_from(&front.head_code);
     settings
 }
 
@@ -83,7 +88,48 @@ pub(crate) fn write_settings(
         let list = (!paths.is_empty()).then(|| format!("[{}]", paths.join(", ")));
         put(text, "aliases", list);
     }
+    write_access(text, before, after);
     Ok(())
+}
+
+/// Writes the access, password hash, template and head code that differ
+/// between `before` and `after`. Public access is the default, so it is
+/// written as no line at all.
+fn write_access(text: &mut PostText, before: &PostSettings, after: &PostSettings) {
+    if after.access != before.access {
+        let access = (after.access != PostAccess::Public).then(|| after.access.to_string());
+        put(text, "access", access);
+    }
+    if after.password != before.password {
+        let hash = after.password.as_ref().map(|hash| quoted(hash.as_str()));
+        put(text, "password_hash", hash);
+    }
+    if after.template != before.template {
+        put(
+            text,
+            "template",
+            after.template.as_ref().map(ToString::to_string),
+        );
+    }
+    if after.head_code != before.head_code {
+        let code = after
+            .head_code
+            .as_ref()
+            .map(|code| lines_quoted(&code.to_string()));
+        put(text, "head_code", code);
+    }
+}
+
+/// `text` as a double-quoted YAML string on one line, keeping its line
+/// breaks as `\n`, because a line break can matter inside a script.
+fn lines_quoted(text: &str) -> String {
+    let escaped = text
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\r', "")
+        .replace('\n', "\\n")
+        .replace('\t', "\\t");
+    format!("\"{escaped}\"")
 }
 
 /// Sets the field `key` to `value`, or removes it when there is none.
