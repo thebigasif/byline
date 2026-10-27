@@ -60,6 +60,15 @@ impl Challenge {
     pub fn to_base64(&self) -> String {
         URL_SAFE_NO_PAD.encode(self.0)
     }
+
+    /// The challenge `client_data` says it answers, so Khalid can find the
+    /// request it belongs to before checking the rest.
+    #[must_use]
+    pub fn answered_in(client_data: &[u8]) -> Option<Self> {
+        let data: ClientData = serde_json::from_slice(client_data).ok()?;
+        let bytes = URL_SAFE_NO_PAD.decode(data.challenge).ok()?;
+        bytes.try_into().ok().map(Self)
+    }
 }
 
 /// A passkey as registration made it, for the store to keep.

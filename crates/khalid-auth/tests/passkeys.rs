@@ -1,12 +1,18 @@
 //! Passkeys, registered and used by a software authenticator built on
 //! `ring`, the way a phone or laptop would, and every way a passkey answer
-//! can be refused.
+//! can be refused, first alone and then through a site's accounts.
 
+use std::sync::{Arc, Mutex};
+
+use chrono::{DateTime, TimeZone, Utc};
 use ciborium::Value;
+use khalid_api::keys::Role;
 use khalid_auth::{
-    Challenge, PasskeyError, PublicKey, Registration, RelyingParty, verify_assertion,
-    verify_registration,
+    Account, AccountStore, Accounts, CEREMONY, Challenge, MemoryAccounts, MemoryPasskeys,
+    MemorySessions, PasskeyError, Passkeys, PasswordHashing, PublicKey, Registration, RelyingParty,
+    SessionToken, SignInError, verify_assertion, verify_registration,
 };
+use khalid_core::Clock;
 use ring::rand::SystemRandom;
 use ring::signature::{ECDSA_P256_SHA256_ASN1_SIGNING, EcdsaKeyPair, Ed25519KeyPair, KeyPair};
 use sha2::{Digest, Sha256};
@@ -264,4 +270,123 @@ fn a_counter_that_stays_at_zero_is_a_synced_passkey_and_allowed() {
     let key = register(&soft, ORIGIN, None).unwrap().public_key;
     assert_eq!(sign_in(&mut soft, &key, 0), Ok(0));
     assert_eq!(sign_in(&mut soft, &key, 0), Ok(0));
+}
+
+/// A clock the test moves by hand.
+#[derive(Debug)]
+struct Hands(Mutex<DateTime<Utc>>);
+
+impl Clock for Hands {
+    #[expect(clippy::expect_used, reason = "a test clock")]
+    fn now(&self) -> DateTime<Utc> {
+        *self.0.lock().expect("lock poisoned")
+    }
+}
+
+/// A site with passkeys, its clock, and Asif, the owner, signed in.
+#[cfg(test)]
+async fn site() -> (Accounts, Arc<Hands>, Account, SessionToken) {
+    let start = Utc.with_ymd_and_hms(2026, 10, 27, 9, 0, 0).unwrap();
+    let clock = Arc::new(Hands(Mutex::new(start)));
+    let store = Arc::new(MemoryAccounts::new());
+    let email = "asif@example.com".parse().unwrap();
+    let asif = store
+        .create(&email, "Asif", Role::Owner, start)
+        .await
+        .unwrap();
+    let shared: Arc<dyn Clock> = Arc::<Hands>::clone(&clock);
+    let hashing = PasswordHashing::fast_for_tests();
+    let accounts = Accounts::new(store, Arc::new(MemorySessions::new()), hashing, shared)
+        .with_passkeys(Passkeys::new(Arc::new(MemoryPasskeys::new()), party()));
+    let token = accounts.begin(&asif).await.unwrap();
+    (accounts, clock, asif, token)
+}
+
+#[tokio::test]
+async fn an_owner_adds_a_passkey_and_signs_in_with_it_once_per_challenge() {
+    let (accounts, _, asif, token) = site().await;
+    let mut soft = Soft::es256();
+    let request = accounts.begin_registration(&token).await.unwrap();
+    assert_eq!((request.rp_id.as_str(), request.exclude.len()), (RP, 0));
+    let (client, object) = soft.register(&request.challenge, ORIGIN);
+    accounts
+        .finish_registration(&token, (&client, &object), "Laptop")
+        .await
+        .unwrap();
+    let request = accounts.begin_registration(&token).await.unwrap();
+    assert_eq!(
+        request.exclude,
+        [soft.id.clone()],
+        "the browser is told not to add it twice"
+    );
+    let (challenge, _) = accounts.begin_sign_in().unwrap();
+    let (client, data, signature) = soft.sign_in(&challenge, ORIGIN);
+    let answer = (client.as_slice(), data.as_slice(), signature.as_slice());
+    let (session, signed_in) = accounts.finish_sign_in(&soft.id, answer).await.unwrap();
+    assert_eq!(signed_in.account, asif);
+    assert!(accounts.session(&session).await.is_ok());
+    let again = accounts.finish_sign_in(&soft.id, answer).await;
+    assert!(
+        matches!(again, Err(SignInError::Refused)),
+        "a challenge is used once: {again:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_registration_answers_only_its_own_fresh_challenge() {
+    let (accounts, clock, _, token) = site().await;
+    let soft = Soft::es256();
+    let request = accounts.begin_registration(&token).await.unwrap();
+    let (client, object) = soft.register(&request.challenge, "https://evil.example");
+    let refused = accounts
+        .finish_registration(&token, (&client, &object), "Laptop")
+        .await;
+    assert!(
+        matches!(
+            refused,
+            Err(SignInError::Passkey(PasskeyError::WrongOrigin))
+        ),
+        "{refused:?}"
+    );
+    let (sign_in, _) = accounts.begin_sign_in().unwrap();
+    let (client, object) = soft.register(&sign_in, ORIGIN);
+    let refused = accounts
+        .finish_registration(&token, (&client, &object), "Laptop")
+        .await;
+    assert!(
+        matches!(refused, Err(SignInError::Refused)),
+        "a sign-in challenge: {refused:?}"
+    );
+    let request = accounts.begin_registration(&token).await.unwrap();
+    *clock.0.lock().unwrap() += CEREMONY;
+    let (client, object) = soft.register(&request.challenge, ORIGIN);
+    let late = accounts
+        .finish_registration(&token, (&client, &object), "Laptop")
+        .await;
+    assert!(
+        matches!(late, Err(SignInError::Refused)),
+        "too late: {late:?}"
+    );
+}
+
+#[tokio::test]
+async fn an_unknown_passkey_or_a_site_without_passkeys_signs_nobody_in() {
+    let (accounts, _, _, _) = site().await;
+    let mut soft = Soft::es256();
+    let (challenge, _) = accounts.begin_sign_in().unwrap();
+    let (client, data, signature) = soft.sign_in(&challenge, ORIGIN);
+    let answer = (client.as_slice(), data.as_slice(), signature.as_slice());
+    let unknown = accounts.finish_sign_in(&soft.id, answer).await;
+    assert!(matches!(unknown, Err(SignInError::Refused)), "{unknown:?}");
+    let start = Utc.with_ymd_and_hms(2026, 10, 27, 9, 0, 0).unwrap();
+    let plain = Accounts::new(
+        Arc::new(MemoryAccounts::new()),
+        Arc::new(MemorySessions::new()),
+        PasswordHashing::fast_for_tests(),
+        Arc::new(khalid_core::FixedClock::new(start)),
+    );
+    assert!(matches!(
+        plain.begin_sign_in(),
+        Err(SignInError::PasskeysOff)
+    ));
 }

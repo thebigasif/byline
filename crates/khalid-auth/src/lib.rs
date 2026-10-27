@@ -27,7 +27,9 @@ mod session_door;
 pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
 };
-pub use accounts::{Accounts, FRESH, Links, SignInError, SignedIn};
+pub use accounts::{
+    Accounts, CEREMONY, FRESH, Links, Passkeys, RegistrationRequest, SignInError, SignedIn,
+};
 pub use email::{Email, ParseEmailError};
 pub use limiter::{MAX_FAILURES, SignInLimiter, WINDOW};
 pub use magic_link::{

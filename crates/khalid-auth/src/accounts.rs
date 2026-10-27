@@ -9,15 +9,17 @@ use chrono::{DateTime, TimeDelta, Utc};
 use khalid_core::Clock;
 
 mod links;
+mod passkeys;
 mod take_back;
 
 pub use links::Links;
+pub use passkeys::{CEREMONY, Passkeys, RegistrationRequest};
 pub use take_back::FRESH;
 
 use crate::{
-    Account, AccountStore, AccountStoreError, CsrfToken, Email, LinkStoreError, Password,
-    PasswordError, PasswordHashing, SendLinkError, SessionError, SessionStore, SessionStoreError,
-    SessionToken, SignInLimiter,
+    Account, AccountStore, AccountStoreError, CsrfToken, Email, LinkStoreError, PasskeyError,
+    PasskeyStoreError, Password, PasswordError, PasswordHashing, SendLinkError, SessionError,
+    SessionStore, SessionStoreError, SessionToken, SignInLimiter,
 };
 
 /// A signed-in session, new or checked: whose it is, and its CSRF token.
@@ -41,6 +43,7 @@ pub struct Accounts {
     clock: Arc<dyn Clock>,
     limiter: Arc<SignInLimiter>,
     links: Option<Links>,
+    passkeys: Option<Passkeys>,
 }
 
 impl fmt::Debug for Accounts {
@@ -67,6 +70,7 @@ impl Accounts {
             clock,
             limiter: Arc::new(SignInLimiter::new()),
             links: None,
+            passkeys: None,
         }
     }
 
@@ -190,6 +194,12 @@ pub enum SignInError {
     /// This site cannot send sign-in links: it has no mail sender.
     #[error("this site cannot send sign-in links")]
     LinksOff,
+    /// This site has no passkeys set up.
+    #[error("this site has no passkey sign-in")]
+    PasskeysOff,
+    /// A passkey answer was refused, for this reason.
+    #[error("the passkey was refused: {0}")]
+    Passkey(#[source] PasskeyError),
     /// A store, the random source or the password check failed.
     #[error("the sign-in could not be checked")]
     Unavailable {
@@ -224,5 +234,7 @@ unavailable_from!(
     PasswordError,
     SessionError,
     LinkStoreError,
-    SendLinkError
+    SendLinkError,
+    PasskeyError,
+    PasskeyStoreError
 );
