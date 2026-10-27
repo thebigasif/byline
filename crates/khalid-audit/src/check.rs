@@ -255,4 +255,28 @@ checks! {
     /// A stylesheet or script a page loads is broken.
     ResourceBroken => "resource-broken", Resources, Error, "CSS or JavaScript file broken",
         "Build the site again, so every file a page loads is there.";
+    /// A page's canonical points at a broken page.
+    CanonicalBroken => "canonical-broken", Indexability, Error, "Canonical points to 4XX or 5XX page",
+        "Point the canonical at a page that answers, usually the page itself.";
+    /// A page's canonical points at a redirect.
+    CanonicalRedirect => "canonical-redirect", Indexability, Error, "Canonical points to redirect",
+        "Point the canonical at the address the redirect leads to.";
+    /// Two listed pages share a title.
+    TitleDuplicate => "title-duplicate", Titles, Warning, "Duplicate title tags",
+        "Give each page its own title, so search engines can tell them apart.";
+    /// Two listed pages share a meta description.
+    DescriptionDuplicate => "description-duplicate", Titles, Warning, "Duplicate meta descriptions",
+        "Write a description for each page that says what that page offers.";
+    /// A page names translations but not itself.
+    HreflangNoSelf => "hreflang-no-self", Localization, Warning, "Missing self-referencing hreflang",
+        "Keep the default head, which names the page itself among its translations.";
+    /// A translation a page names is broken.
+    HreflangBroken => "hreflang-broken", Localization, Error, "Hreflang to broken page",
+        "Point the hreflang at the translation's address, or remove it.";
+    /// A translation a page names redirects.
+    HreflangRedirect => "hreflang-redirect", Localization, Warning, "Hreflang to redirect",
+        "Point the hreflang at the address the redirect leads to.";
+    /// A translation does not name the page back.
+    HreflangNoReturn => "hreflang-no-return", Localization, Warning, "Missing reciprocal hreflang",
+        "Name each translation on every other one, so the pair points both ways.";
 }

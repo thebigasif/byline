@@ -98,8 +98,12 @@ pub async fn crawl<S: Source>(source: &S, home: &AbsoluteUrl, limit: Limit) -> C
             next.push((to.clone(), depth));
         }
         if let Some(page) = visit.page() {
+            // Search engines follow the canonical and the translations a
+            // head names, as well as the links and files.
             let links = page.links().iter().map(crate::Link::to);
-            for to in links.chain(page.resources()) {
+            let named = page.alternates().iter().map(crate::Alternate::to);
+            let named = named.chain(page.canonical());
+            for to in links.chain(page.resources()).chain(named) {
                 next.push((to.clone(), depth.saturating_add(1)));
             }
         }

@@ -63,15 +63,20 @@ async fn noindex_from_a_tag_or_a_header_is_named() {
 async fn a_canonical_elsewhere_is_named_and_one_to_itself_is_not() {
     let own = format!(r#"{GOOD_HEAD}<link rel="canonical" href="{HOME}">"#);
     assert_eq!(issues(&own, "<h1>Links</h1>").await, []);
-    let other =
-        format!(r#"{GOOD_HEAD}<link rel="canonical" href="https://www.example.com/blog/other/">"#);
-    assert_eq!(
-        issues(&other, "<h1>Links</h1>").await,
-        [(
-            Check::NonCanonical,
-            "https://www.example.com/blog/other/".to_owned()
-        )]
-    );
+    let other = "https://www.example.com/blog/other/";
+    let pointing = format!(r#"{GOOD_HEAD}<link rel="canonical" href="{other}">"#);
+    let crawl = crawled(&[
+        (HOME, page(&pointing, "<h1>Links</h1>")),
+        (other, page("<title>Other</title>", "<h1>Other</h1>")),
+    ])
+    .await;
+    let issues = audit(&crawl);
+    let found: Vec<(Check, &str, &str)> = issues
+        .iter()
+        .filter(|issue| issue.url().as_str() == HOME)
+        .map(|issue| (issue.check(), issue.url().as_str(), issue.detail()))
+        .collect();
+    assert_eq!(found, [(Check::NonCanonical, HOME, other)]);
 }
 
 #[tokio::test]

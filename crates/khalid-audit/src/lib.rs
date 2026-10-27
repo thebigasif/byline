@@ -14,6 +14,7 @@ mod audit;
 mod body_checks;
 mod check;
 mod crawl;
+mod head_link_checks;
 mod issue;
 mod link;
 mod link_checks;
