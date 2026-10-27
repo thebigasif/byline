@@ -81,7 +81,9 @@ Measured with `khalid-perf serve`, release build, generated 1,000-post site, the
 | With blocking threads kept 1 s | 56.07 MB, 52.48 MB, 51.36 MB |
 | With that, and the content read on a thread that ends | 56.34 MB, 52.00 MB, 59.45 MB |
 
-Main measured 51.43 to 81.49 MB in eight runs. Reading the content on its own thread made no difference and was dropped. Neither did mimalloc's `no_thp` (55.0, 57.6 and 57.2 MB, against 49.8, 53.2 and 68.5 MB without it), so it stays off, although one run without it had 12 MB in huge pages at idle.
+Main measured 51.43 to 81.49 MB in eight runs. Reading the content on its own thread made no difference and was dropped. Neither did mimalloc's `no_thp` here (55.0, 57.6 and 57.2 MB, against 49.8, 53.2 and 68.5 MB without it), although one run without it had 12 MB in huge pages at idle.
+
+CI's runner tells another story. With the hand-back, its trace (run 40470523235) fell to 60.22 MB six seconds after the first answer, then rose to 71.82 MB at eleven seconds and stayed there, with 24.00 MB of the 51.07 MB of anonymous memory in 2 MB huge pages. On the 10,000-post site, 172 MB of 270.50 MB was. mimalloc asks Linux for huge pages over its whole arena, and the kernel's background collapser, which looks every ten seconds, then fills whole 2 MB pages around the little memory still in use there. So the binary now builds mimalloc with `no_thp`, which stops it asking; `khalid-perf serve` prints the system's huge-page mode beside the trace to show whether that is enough.
 
 `khalid-perf serve` prints, beside its measures and so in CI's log, the resident memory each second of the 15-second wait and the split at its end: anonymous memory, the part of it in huge pages, and code and mapped files.
 
