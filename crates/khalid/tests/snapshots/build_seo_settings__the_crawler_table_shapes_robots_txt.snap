@@ -1,0 +1,17 @@
+---
+source: crates/khalid/tests/build_seo_settings.rs
+expression: "fs::read_to_string(at(out.path(), \"robots.txt\")).unwrap()"
+---
+User-agent: *
+Disallow: /blog/drafts/
+Allow: /blog/
+
+User-agent: Googlebot
+Disallow: /blog/drafts/
+Allow: /blog/
+
+User-agent: CCBot
+User-agent: GPTBot
+Disallow: /blog/
+
+Sitemap: https://www.example.com/blog/sitemap.xml

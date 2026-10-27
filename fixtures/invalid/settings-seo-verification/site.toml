@@ -1,0 +1,14 @@
+# Breaks one rule: a verification file may not take the name of a file the
+# site writes itself. The exact message khalid --site prints for it is in
+# expected.txt beside this file.
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+default_language = "en"
+languages = ["en", "de"]
+
+[seo.verification]
+google = "aBc123"
+
+[seo.verification.files]
+"robots.txt" = "User-agent: *"
