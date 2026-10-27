@@ -9,22 +9,53 @@ not_found_title = "This page does not exist"
 not_found_text = "The address may be mistyped, or the page may have moved."
 not_found_home = "Go to the blog's front page"
 by = "By"
+# Names the list of a post's authors for screen readers.
+written_by = "Written by"
+# Comes before the names of the people who checked a post.
+reviewed_by = "Reviewed by"
+# The heading of the box about the writer at the end of a post.
+about_the_author = "About the author"
+about_the_authors = "About the authors"
 published = "Published"
 updated = "Updated"
+# How long a post takes to read. {minutes} is filled in.
+reading_time = "{minutes} min read"
 in_category = "Filed under"
 tags = "Tags"
+# The heading of a post's table of contents.
+contents = "Contents"
+# The heading of the posts shown under a post.
+related_posts = "Related posts"
+# Names the # link beside each heading for screen readers.
+heading_link = "Link to this section"
+# Said and shown for a moment after a heading's address is copied.
+link_copied = "Link copied"
+# The button that closes an enlarged image.
+close = "Close"
 no_posts = "There are no posts here yet."
 pagination = "Pages"
 # {current} and {total} are filled in.
 page_of = "Page {current} of {total}"
 newer_posts = "Newer posts"
 older_posts = "Older posts"
+# The link under a home page section. {name} is the section's name.
+view_all = "View all posts in {name}"
+# The heading and label of the row of topic links on the home page.
+topics = "Topics"
 # {name} is filled in.
 posts_by = "Posts by {name}"
+# The heading of the other authors at the end of an author page.
+other_authors = "Other authors"
+# How many posts an author wrote, on the authors page. {count} is filled in.
+post_count_one = "1 post"
+post_count = "{count} posts"
+no_authors = "This blog has no authors yet."
 glossary_letters = "Jump to a letter"
 no_terms = "The glossary has no terms yet."
 search_label = "Search this blog"
 search_button = "Search"
+# The search link in the header of every page.
+search_link = "Search"
 # {query} is filled in with what the reader typed.
 search_results = "Results for “{query}”"
 search_nothing = "Nothing matched. Try fewer words, or a different word for the same thing."

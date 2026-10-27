@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+base64 = "0.22"
 brotli = "9"
 flate2 = "1"
 sha2 = "0.11"

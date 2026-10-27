@@ -1,0 +1,27 @@
+---
+source: crates/khalid-render/tests/render/authors.rs
+expression: main_of(&page)
+---
+ id="main" tabindex="-1">
+
+<h1>Authors</h1>
+<ul class="people-list" role="list">
+<li class="person-card">
+<picture>
+<source type="image/avif" srcset="/blog/media/lena-vogt-800.avif 800w, /blog/media/lena-vogt-1600.avif 1600w" sizes="2.75rem">
+<img class="avatar" src="/blog/media/lena-vogt-1600.jpg" srcset="/blog/media/lena-vogt-800.jpg 800w, /blog/media/lena-vogt-1600.jpg 1600w" sizes="2.75rem" width="1600" height="1600" alt="" loading="lazy" decoding="async">
+</picture>
+<div>
+<p class="person-name"><a href="/blog/authors/lena-vogt/">Lena Vogt</a></p>
+<p class="person-role">Technical SEO editor</p>
+<p>12 posts</p>
+</div>
+</li>
+<li class="person-card">
+<div>
+<p class="person-name"><a href="/blog/authors/asif/">Asif</a></p>
+<p class="person-role">Founder, SerpDad</p>
+<p>1 post</p>
+</div>
+</li>
+</ul>

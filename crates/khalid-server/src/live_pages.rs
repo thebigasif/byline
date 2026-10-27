@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, PoisonError, RwLock};
 
-use crate::{Pages, Render, ServerError, render_pages};
+use crate::{Page, Pages, Render, ServerError, render_pages};
 
 /// The pages being served, shared by every request and replaced as a whole
 /// after a change, so a reader never sees half a rebuild. Cloning shares
@@ -37,6 +37,31 @@ impl LivePages {
         let mut slot = self.0.write().unwrap_or_else(PoisonError::into_inner);
         *slot = Arc::new(pages);
         Ok(())
+    }
+
+    /// Serves the `saved` pages in place of the pages at their addresses,
+    /// and every other page as it is (see [`Pages::with_saved`]).
+    pub fn show_saved(&self, saved: Vec<Page>) {
+        let mut slot = self.0.write().unwrap_or_else(PoisonError::into_inner);
+        *slot = Arc::new(slot.with_saved(saved));
+    }
+
+    /// Renders the site again with `renderer`, like [`LivePages::refresh`],
+    /// but serves the new pages only when nothing replaced the pages while
+    /// it rendered, such as [`LivePages::show_saved`] after a newer save.
+    /// Says whether the new pages are served.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`render_pages`]; the pages being served do
+    /// not change.
+    pub async fn refresh_unless_replaced<R: Render + Clone>(
+        &self,
+        renderer: &R,
+    ) -> Result<bool, ServerError> {
+        let before = self.current();
+        let pages = render_pages(renderer, Some(Arc::clone(&before))).await?;
+        Ok(self.replace_if_current(&before, pages))
     }
 
     /// Adds a Brotli copy to every page being served, on a blocking thread,

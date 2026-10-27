@@ -7,6 +7,7 @@ use crate::schema::article::{article_nodes, person_node};
 use crate::schema::blocks::block_nodes;
 use crate::schema::glossary::{term_node, term_set_node};
 use crate::schema::local_business::business_nodes;
+use crate::schema::reviewer::reviewers;
 use crate::schema::template::template_nodes;
 use crate::schema::{image_node, node_id, site_home};
 use crate::{
@@ -120,8 +121,13 @@ fn page_node(site: &SeoSite, page: &SeoPage) -> Result<SchemaNode, SeoError> {
 pub fn page_graph(site: &SeoSite, page: &SeoPage) -> Result<SchemaGraph, SeoError> {
     let mut graph = site_graph(site)?;
     graph.push(breadcrumb_list(site, page)?);
-    graph.push(page_node(site, page)?);
-    let extra = match page.kind {
+    let (reviewed_by, reviewers) = reviewers(page, &site.url_for(&page.language, &page.path)?)?;
+    let mut node = page_node(site, page)?;
+    if let Some(reviewed_by) = reviewed_by {
+        node.set("reviewedBy", reviewed_by);
+    }
+    graph.push(node);
+    let mut extra = match page.kind {
         PageKind::Post => article_nodes(site, page, page_id(site, page)?)?,
         PageKind::GlossaryTerm => vec![term_node(site, page)?],
         PageKind::GlossaryIndex => vec![term_set_node(site, page)?],
@@ -129,6 +135,12 @@ pub fn page_graph(site: &SeoSite, page: &SeoPage) -> Result<SchemaGraph, SeoErro
         PageKind::Author => vec![profile_person(site, page)?],
         _ => Vec::new(),
     };
+    // An author who also reviewed the post is already one Person node.
+    for person in reviewers {
+        if !extra.iter().any(|node| node.id() == person.id()) {
+            extra.push(person);
+        }
+    }
     let blocks = block_nodes(site, page)?;
     for node in extra
         .into_iter()

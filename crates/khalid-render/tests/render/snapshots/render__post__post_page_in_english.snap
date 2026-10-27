@@ -37,6 +37,7 @@ expression: page
 <li><a href="/blog/glossary/">Glossary</a></li>
 </ul>
 </nav>
+<a class="search-link" href="/blog/search/">Search</a>
 </header>
 <main id="main" tabindex="-1">
 
@@ -44,8 +45,13 @@ expression: page
 <header class="post-header">
 <h1>What a sitemap does, and what it does not</h1>
 <div class="post-meta">
-<address>By <a rel="author" href="/blog/authors/lena-vogt/">Lena Vogt</a></address>
+<address>
+<ul class="people" role="list" aria-label="Written by">
+<li class="person"><span><a rel="author" href="/blog/authors/lena-vogt/">Lena Vogt</a><span class="person-role">Technical SEO editor</span></span></li>
+</ul>
+</address>
 <p>Published <time datetime="2026-09-28">28 September 2026</time></p>
+<p class="reading-time"><time datetime="PT1M">1 min read</time></p>
 <p>Filed under <a href="/blog/category/technical-seo/">Technical SEO</a></p>
 </div>
 </header>
@@ -60,6 +66,15 @@ expression: page
 <li><a href="/blog/tag/sitemaps/" rel="tag">Sitemaps</a></li>
 </ul>
 </footer>
+<section class="author-box">
+<h2>About the author</h2>
+<div class="person-card">
+<div>
+<p class="person-name"><a href="/blog/authors/lena-vogt/">Lena Vogt</a></p>
+<p class="person-role">Technical SEO editor</p>
+</div>
+</div>
+</section>
 </article>
 
 </main>

@@ -3,20 +3,37 @@
 
 use chrono::NaiveDate;
 use khalid_render::{
-    BodyHtml, Loading, PageBody, PageKind, Pagination, PostCard, RenderListing, Renderer,
+    BodyHtml, Loading, PageBody, PageKind, Pagination, PostCard, RenderHome, RenderListing,
+    Renderer,
 };
 
 use crate::common::{demo_site, meta};
 use crate::html_check::assert_valid_page;
 use crate::image::sitemap_image;
+use crate::post::{link, person};
 
-fn card(title: &str, slug: &str, day: u32, excerpt: &str) -> PostCard {
+pub(crate) fn card(title: &str, slug: &str, day: u32, excerpt: &str) -> PostCard {
     PostCard {
         title: title.to_owned(),
         href: format!("/blog/{slug}/"),
         date: NaiveDate::from_ymd_opt(2026, 9, day).unwrap(),
         excerpt: excerpt.to_owned(),
         image: None,
+        author: Some(person(
+            "Lena Vogt",
+            "lena-vogt",
+            Some("Technical SEO editor"),
+        )),
+        category: Some(link("Technical SEO", "/blog/category/technical-seo/")),
+    }
+}
+
+/// The front page showing `listing`, with no sections and no topics.
+pub(crate) fn home(listing: RenderListing) -> RenderHome {
+    RenderHome {
+        listing,
+        sections: Vec::new(),
+        topics: Vec::new(),
     }
 }
 
@@ -67,7 +84,7 @@ pub(crate) fn main_of(page: &str) -> &str {
 
 #[test]
 fn home_page_in_english() {
-    let page = render(&PageBody::Home(first_page()));
+    let page = render(&PageBody::Home(home(first_page())));
     assert_valid_page(&page);
     insta::assert_snapshot!(main_of(&page));
 }
@@ -111,7 +128,7 @@ fn card_images_are_always_lazy() {
     for post in &mut listing.posts {
         post.image = Some(sitemap_image(Loading::Lazy));
     }
-    let page = render(&PageBody::Home(listing));
+    let page = render(&PageBody::Home(home(listing)));
     assert_valid_page(&page);
     assert_eq!(page.matches(r#"loading="lazy""#).count(), 2);
 }

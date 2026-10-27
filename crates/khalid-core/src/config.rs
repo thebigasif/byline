@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::toml_location::{field_of, line_of, line_of_key};
-use crate::{AbsoluteUrl, Locale, ParseUrlError, SeoSettings};
+use crate::{AbsoluteUrl, Locale, ParseUrlError, Reader, SeoSettings};
 
 /// Every setting Khalid reads, checked once at start and then passed by
 /// reference (RULES.md BL-RUN-2).
@@ -26,9 +26,11 @@ pub struct Config {
     default_language: Locale,
     languages: Vec<Locale>,
     seo: SeoSettings,
+    reader: Reader,
 }
 
-/// Whether Khalid runs a server or writes plain HTML.
+/// Whether Khalid runs a server, writes plain HTML, or leaves the pages to
+/// another app (ADR "headless is a mode").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
@@ -37,6 +39,19 @@ pub enum Mode {
     Server,
     /// Khalid writes plain HTML to `public/`, and server features are locked.
     Static,
+    /// Another app renders the pages from the Content API. Khalid serves the
+    /// API, feeds, sitemaps and redirects, and makes no HTML page.
+    Headless,
+}
+
+impl Mode {
+    /// Whether Khalid renders the site's HTML pages with its theme.
+    pub fn has_pages(self) -> bool {
+        match self {
+            Self::Server | Self::Static => true,
+            Self::Headless => false,
+        }
+    }
 }
 
 /// How slugs are written (`docs/decisions/2026-10-26-cto-answers.md`, section 2).
@@ -66,6 +81,8 @@ struct SiteFile {
     languages: Vec<Locale>,
     #[serde(default)]
     seo: SeoSettings,
+    #[serde(default)]
+    reader: Reader,
 }
 
 fn root_mount() -> String {
@@ -145,6 +162,7 @@ impl Config {
             default_language: file.default_language,
             languages: file.languages,
             seo: file.seo,
+            reader: file.reader,
         })
     }
 
@@ -163,7 +181,7 @@ impl Config {
         &self.mount
     }
 
-    /// Server or static.
+    /// Server, static or headless.
     pub fn mode(&self) -> Mode {
         self.mode
     }
@@ -186,6 +204,11 @@ impl Config {
     /// The SEO settings, from `[seo]`.
     pub fn seo(&self) -> &SeoSettings {
         &self.seo
+    }
+
+    /// Which reader features the default templates show, from `[reader]`.
+    pub fn reader(&self) -> &Reader {
+        &self.reader
     }
 }
 

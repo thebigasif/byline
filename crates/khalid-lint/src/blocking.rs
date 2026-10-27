@@ -1,4 +1,4 @@
-//! The five rules that block publishing by default (plan section 6).
+//! The six rules that block publishing by default (plan section 6).
 
 use std::cmp::Reverse;
 use std::collections::BTreeSet;
@@ -112,6 +112,29 @@ impl Rule for NoInternalLink {
             return Vec::new();
         }
         vec![Hit::post().suggesting(related_posts(post, site))]
+    }
+}
+
+/// A post whose structured data lacks a property Google needs, one hit per
+/// missing property (plan D-9). The caller runs `khalid-seo`'s check and
+/// passes what it found in [`LintPost::structured_data_gaps`].
+#[derive(Debug)]
+pub(crate) struct InvalidStructuredData;
+
+impl Rule for InvalidStructuredData {
+    fn id(&self) -> RuleId {
+        RuleId::new("invalid-structured-data")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Block
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        post.structured_data_gaps
+            .iter()
+            .map(|gap| Hit::about(format!("{} needs {}", gap.kind, gap.property)))
+            .collect()
     }
 }
 

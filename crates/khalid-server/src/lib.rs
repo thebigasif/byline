@@ -3,7 +3,8 @@
 //! This crate owns answering HTTP. It holds the rendered pages in memory
 //! ([`Pages`]), each at a clean [`PagePath`] with its [`MediaType`], and the
 //! [`router`] serves them, redirecting the addresses that differ only by a
-//! trailing slash or `index.html`. Every response carries the
+//! trailing slash or `index.html`, and sending each [`Moved`] address on
+//! with 301. Every response carries the
 //! [`SecurityHeaders`], with a Content Security Policy whose nonce is new
 //! for each request (BL-SEC-2). [`serve`] answers until told to stop, then
 //! stops gracefully (BL-RUN-10). Beside the requests it runs two
@@ -20,6 +21,7 @@ mod compress;
 mod etag;
 mod live_pages;
 mod media_type;
+mod moved;
 mod page;
 mod page_path;
 mod pages;
@@ -30,10 +32,12 @@ mod security;
 mod serve;
 mod server_error;
 mod watch;
+mod watch_events;
 
 pub use background::Background;
 pub use live_pages::LivePages;
 pub use media_type::MediaType;
+pub use moved::Moved;
 pub use page::Page;
 pub use page_path::{PagePath, ParsePagePathError};
 pub use pages::Pages;
@@ -43,4 +47,4 @@ pub use retry::retry_deliveries;
 pub use security::SecurityHeaders;
 pub use serve::{Stopped, serve};
 pub use server_error::ServerError;
-pub use watch::{FolderLook, watch};
+pub use watch::{FolderLook, poll, watch};
