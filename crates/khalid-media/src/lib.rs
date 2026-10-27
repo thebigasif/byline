@@ -15,6 +15,7 @@ mod content_key;
 mod derive;
 mod media_cache;
 mod media_error;
+mod media_type;
 mod original;
 mod variant;
 
@@ -22,5 +23,6 @@ pub use content_key::ContentKey;
 pub use derive::{DerivedFile, DerivedImage, derive, derive_in_background};
 pub use media_cache::MediaCache;
 pub use media_error::MediaError;
+pub use media_type::{Kind, MediaType, ParseMediaTypeError, Refusal};
 pub use original::Original;
 pub use variant::{Format, Variant, widths};
