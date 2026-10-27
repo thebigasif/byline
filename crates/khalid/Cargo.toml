@@ -18,6 +18,7 @@ khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 khalid-db = { path = "../khalid-db", version = "0.0.0" }
 khalid-https = { path = "../khalid-https", version = "0.0.0" }
+khalid-import = { path = "../khalid-import", version = "0.0.0" }
 khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
 khalid-mcp = { path = "../khalid-mcp", version = "0.0.0" }
 khalid-media = { path = "../khalid-media", version = "0.0.0" }

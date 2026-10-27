@@ -37,6 +37,7 @@ mod doctor_folder;
 mod doctor_robots;
 mod exit;
 mod https_message;
+mod import;
 mod index;
 mod init;
 mod init_message;
@@ -118,7 +119,7 @@ use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 use khalid_server::FolderLook;
 
-use crate::cli::{Cli, Command, Output, ThemeCommand};
+use crate::cli::{Cli, Command, ImportSource, Output, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
@@ -208,9 +209,13 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Theme { command }), Some((folder, config, ..))) => {
             theme(folder, config, command, cli)
         }
+        (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
+            import::run(folder, (config, routes), args, cli.output)
+        }
         (
             Some(
                 command @ (Command::Db { .. }
+                | Command::Import(_)
                 | Command::Theme { .. }
                 | Command::Serve(_)
                 | Command::Keys { .. }
@@ -266,6 +271,15 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
         }),
+        Some(asked @ Command::Import(args))
+            if !matches!(args.source, ImportSource::Wordpress | ImportSource::Ghost) =>
+        {
+            Some(report::failure(
+                cli.output,
+                &not_built(asked),
+                Exit::Internal,
+            ))
+        }
         Some(asked @ Command::Redirects { command }) => Some(match cli.site.as_deref() {
             Some(folder) => redirects::run(folder, command, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),

@@ -100,11 +100,9 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: ThemeCommand,
     },
-    /// Bring in a blog from another platform
-    Import {
-        /// Where the blog comes from
-        source: ImportSource,
-    },
+    /// Bring in a blog from another platform, keeping every slug and
+    /// mapping each address that moves to its new one
+    Import(ImportArgs),
     /// Write the site as plain HTML to public/, for static mode
     Export,
     /// Speak the Model Context Protocol on stdin and stdout, for agents.
@@ -360,6 +358,44 @@ pub(crate) enum ThemeCommand {
     },
 }
 
+/// What `khalid import` takes.
+#[derive(Debug, Args)]
+pub(crate) struct ImportArgs {
+    /// Where the blog comes from
+    pub(crate) source: ImportSource,
+
+    #[arg(
+        value_name = "EXPORT",
+        help = "The export file from WordPress or Ghost"
+    )]
+    pub(crate) export: PathBuf,
+
+    /// Say what would come in and what would stay behind, and write nothing
+    #[arg(long = "dry-run", action = ArgAction::SetTrue, value_parser = BoolValueParser::new().map(|dry| if dry { Run::Dry } else { Run::Write }))]
+    pub(crate) run: Run,
+
+    #[arg(
+        long,
+        value_name = "URL",
+        help = "Where the Ghost blog lived, such as https://old.example.com [default: the address in site.toml]"
+    )]
+    pub(crate) old_site: Option<AbsoluteUrl>,
+
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "The Redirection plugin's JSON export, whose rules come in with a WordPress export"
+    )]
+    pub(crate) redirection: Option<PathBuf>,
+}
+
+/// Whether `khalid import` writes, or only says what it would write.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Run {
+    Dry,
+    Write,
+}
+
 /// The platforms `khalid import` reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub(crate) enum ImportSource {
@@ -410,7 +446,7 @@ impl Command {
             Self::Theme {
                 command: ThemeCommand::Check { .. },
             } => "theme check",
-            Self::Import { .. } => "import",
+            Self::Import(_) => "import",
             Self::Export => "export",
             Self::Mcp => "mcp",
             Self::Agents => "agents",
