@@ -157,4 +157,31 @@ checks! {
     /// A page names another page as its canonical.
     NonCanonical => "non-canonical", Indexability, Notice, "Non-canonical page",
         "Link to the canonical address instead, so readers and search engines land on one page.";
+    /// A page has no title, or an empty one.
+    TitleMissing => "title-missing", Titles, Error, "Title tag missing or empty",
+        "Give the page a title that says what it is about.";
+    /// A page has more than one title.
+    TitleMultiple => "title-multiple", Titles, Warning, "Multiple title tags",
+        "Remove the extra title from the template override, so the page has one.";
+    /// A page's title is longer than search results show.
+    TitleTooLong => "title-too-long", Titles, Notice, "Title too long",
+        "Shorten the title to 70 characters or fewer, so search results show all of it.";
+    /// A page has no meta description, or an empty one.
+    DescriptionMissing => "description-missing", Titles, Warning, "Meta description tag missing or empty",
+        "Write a description of one or two sentences that says what the reader gets.";
+    /// A page has more than one meta description.
+    DescriptionMultiple => "description-multiple", Titles, Warning, "Multiple meta description tags",
+        "Remove the extra description from the template override, so the page has one.";
+    /// A page's meta description is longer than search results show.
+    DescriptionTooLong => "description-too-long", Titles, Notice, "Meta description too long",
+        "Shorten the description to 160 characters or fewer, so search results show all of it.";
+    /// A page has no `h1`, or an empty one.
+    HeadingMissing => "h1-missing", Headings, Warning, "H1 tag missing or empty",
+        "Give the page one main heading that says what it is about.";
+    /// A page has more than one `h1`.
+    HeadingMultiple => "h1-multiple", Headings, Notice, "Multiple H1 tags",
+        "Keep one main heading and make the others subheadings.";
+    /// A page does not say which language it is in.
+    LanguageMissing => "language-missing", Localization, Warning, "Language not declared",
+        "Set the lang attribute on the html element in the template override.";
 }

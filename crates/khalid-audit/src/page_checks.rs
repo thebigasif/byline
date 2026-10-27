@@ -4,6 +4,11 @@ use khalid_core::AbsoluteUrl;
 
 use crate::{Check, Crawl, Issue, Page, Robots, Visit};
 
+/// The longest title search results show in full, in characters.
+const TITLE_CHARS: usize = 70;
+/// The longest description search results show in full, in characters.
+const DESCRIPTION_CHARS: usize = 160;
+
 /// Runs every page check on every page the crawl read.
 pub(crate) fn page_issues(crawl: &Crawl, issues: &mut Vec<Issue>) {
     for visit in crawl.visits() {
@@ -13,6 +18,7 @@ pub(crate) fn page_issues(crawl: &Crawl, issues: &mut Vec<Issue>) {
                 issues: &mut *issues,
             };
             indexing(visit, page, &mut found);
+            head(page, &mut found);
         }
     }
 }
@@ -49,5 +55,49 @@ fn indexing(visit: &Visit, page: &Page, found: &mut Found<'_>) {
         && canonical != visit.url()
     {
         found.add(Check::NonCanonical, canonical.as_str());
+    }
+}
+
+/// The title, the description, the main heading and the language.
+fn head(page: &Page, found: &mut Found<'_>) {
+    let texts = [
+        (page.titles(), Check::TitleMissing, Check::TitleMultiple),
+        (
+            page.descriptions(),
+            Check::DescriptionMissing,
+            Check::DescriptionMultiple,
+        ),
+        (
+            page.headings(),
+            Check::HeadingMissing,
+            Check::HeadingMultiple,
+        ),
+    ];
+    for (texts, missing, multiple) in texts {
+        if texts.iter().all(|text| text.trim().is_empty()) {
+            found.add(missing, "");
+        } else if texts.len() > 1 {
+            found.add(multiple, texts.len().to_string());
+        }
+    }
+    let longest = [
+        (page.titles(), TITLE_CHARS, Check::TitleTooLong),
+        (
+            page.descriptions(),
+            DESCRIPTION_CHARS,
+            Check::DescriptionTooLong,
+        ),
+    ];
+    for (texts, most, check) in longest {
+        let length = texts.first().map_or(0, |text| text.chars().count());
+        if length > most {
+            found.add(check, format!("{length} characters"));
+        }
+    }
+    if page
+        .language()
+        .is_none_or(|language| language.trim().is_empty())
+    {
+        found.add(Check::LanguageMissing, "");
     }
 }

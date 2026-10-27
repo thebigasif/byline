@@ -2,7 +2,7 @@
 
 pub mod support;
 
-use khalid_audit::{Check, Severity, audit};
+use khalid_audit::{Answer, Check, Issue, Severity, audit};
 use support::{HOME, crawled, page};
 
 const GOOD_HEAD: &str = r#"<title>Why internal links matter</title>
@@ -56,6 +56,56 @@ async fn a_canonical_elsewhere_is_named_and_one_to_itself_is_not() {
             "https://www.example.com/blog/other/".to_owned()
         )]
     );
+}
+
+#[tokio::test]
+async fn a_missing_title_description_and_heading_are_each_named() {
+    assert_eq!(
+        issues("<title> </title>", "<h1></h1>").await,
+        [
+            (Check::TitleMissing, String::new()),
+            (Check::DescriptionMissing, String::new()),
+            (Check::HeadingMissing, String::new()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn two_of_each_are_named_with_the_count() {
+    let head = format!("{GOOD_HEAD}{GOOD_HEAD}");
+    assert_eq!(
+        issues(&head, "<h1>One</h1><h1>Two</h1>").await,
+        [
+            (Check::TitleMultiple, "2".to_owned()),
+            (Check::DescriptionMultiple, "2".to_owned()),
+            (Check::HeadingMultiple, "2".to_owned()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_long_title_and_description_say_their_length() {
+    let title = "word ".repeat(15);
+    let description = "word ".repeat(40);
+    let head =
+        format!(r#"<title>{title}</title><meta name="description" content="{description}">"#);
+    assert_eq!(
+        issues(&head, "<h1>Links</h1>").await,
+        [
+            (Check::TitleTooLong, "74 characters".to_owned()),
+            (Check::DescriptionTooLong, "199 characters".to_owned()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_page_without_a_language_is_named() {
+    let html =
+        format!("<!doctype html><html><head>{GOOD_HEAD}</head><body><h1>Links</h1></body></html>");
+    let answer = Answer::new(200, html.into_bytes()).with_header("content-type", "text/html");
+    let crawl = crawled(&[(HOME, answer)]).await;
+    let checks: Vec<Check> = audit(&crawl).iter().map(Issue::check).collect();
+    assert_eq!(checks, [Check::LanguageMissing]);
 }
 
 #[test]
