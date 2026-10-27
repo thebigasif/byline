@@ -151,3 +151,67 @@ async fn needs_a_key_with_media_write_and_a_library() {
         "{detail}"
     );
 }
+
+/// The body of an edit of the copy changed at `updated_at`, with `fields`.
+#[cfg(test)]
+fn edit(updated_at: &Value, fields: &Value) -> Vec<u8> {
+    let mut one = fields.clone();
+    one["updated_at"] = updated_at.clone();
+    serde_json::to_vec(&serde_json::json!({ "media": [one] })).unwrap()
+}
+
+/// Uploads the PDF and returns the item and its address in the API.
+#[cfg(test)]
+async fn uploaded(app: &Router) -> (Value, String) {
+    let (_, body) = post(app, UPLOAD, UPLOADER, PDF).await;
+    let item = body["media"][0].clone();
+    let uri = format!("/api/admin/v1/media/{}/", item["id"].as_str().unwrap());
+    (item, uri)
+}
+
+#[tokio::test]
+async fn an_item_is_edited_and_an_edit_of_an_old_copy_is_refused() {
+    let site = tempfile::tempdir().unwrap();
+    let app = app(Some(site.path())).await;
+    let (item, uri) = uploaded(&app).await;
+    let fields = serde_json::json!({
+        "alt": "A one-page checklist of questions for a CRM vendor",
+        "focal_point": { "x": 250, "y": 100 },
+        "folder": "guides/crm"
+    });
+    let change = edit(&item["updated_at"], &fields);
+    let (status, saved) = send(&app, "PUT", &uri, UPLOADER, &change).await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    let saved = &saved["media"][0];
+    assert_eq!(saved["alt"], fields["alt"]);
+    assert_eq!(saved["focal_point"], fields["focal_point"]);
+    assert_eq!(saved["folder"], fields["folder"]);
+    assert_eq!(
+        saved["url"], item["url"],
+        "moving folders keeps the address"
+    );
+    let (status, body) = send(&app, "PUT", &uri, UPLOADER, &change).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["rule"], "updated_at");
+}
+
+#[tokio::test]
+async fn refuses_an_edit_it_cannot_make() {
+    let site = tempfile::tempdir().unwrap();
+    let app = app(Some(site.path())).await;
+    let (item, uri) = uploaded(&app).await;
+    let at = &item["updated_at"];
+    let wrong = [
+        serde_json::json!({ "focal_point": { "x": 1001, "y": 0 } }),
+        serde_json::json!({ "folder": "../up" }),
+        serde_json::json!({ "alt": "word ".repeat(201) }),
+        serde_json::json!({ "colour": "blue" }),
+    ];
+    for fields in wrong {
+        let (status, _) = send(&app, "PUT", &uri, UPLOADER, &edit(at, &fields)).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{fields}");
+    }
+    let unknown = "/api/admin/v1/media/0000000000000000/";
+    let (status, _) = send(&app, "PUT", unknown, UPLOADER, &edit(at, &Value::Null)).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

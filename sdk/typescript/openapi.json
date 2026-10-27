@@ -205,6 +205,110 @@
             "admin_key": []
           }
         ]
+      },
+      "put": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Changes an item's alt text, caption, focal point or folder; a field left\nout stays. The edit carries the `updated_at` of the copy it was made on,\nand is a 409 when the item changed since (RULES.md BL-API-7). Needs\n`media:write`.",
+        "operationId": "edit_media",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The item's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The item as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No item has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The item changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/posts/": {
@@ -3768,6 +3872,70 @@
             ]
           }
         }
+      },
+      "MediaEditBody": {
+        "type": "object",
+        "description": "A change to an item's details. A field left out stays as it is.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "alt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New alt text, up to 1000 characters; empty clears it."
+          },
+          "caption": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new caption, up to 2000 characters; empty clears it."
+          },
+          "focal_point": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FocalPointBody",
+                "description": "A new focal point."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new folder, such as `guides/2026`, or empty for the top."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy the edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "MediaEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps resources: exactly one.",
+        "required": [
+          "media"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaEditBody"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
       },
       "MediaItems": {
         "type": "object",

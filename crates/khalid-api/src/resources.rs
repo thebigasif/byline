@@ -15,7 +15,7 @@ pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
 pub use author::Author;
 pub use collection::Collection;
 pub use content_collection::ContentCollection;
-pub use media::{AdminMedia, FocalPointBody, MediaItems};
+pub use media::{AdminMedia, FocalPointBody, MediaEditBody, MediaEdits, MediaItems};
 pub use menu::{Menu, MenuLink};
 pub use post::{Bodies, Post};
 pub use settings::Settings;

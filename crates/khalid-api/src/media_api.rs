@@ -3,14 +3,16 @@
 use std::sync::Arc;
 
 use axum::body::Body;
-use axum::extract::rejection::QueryRejection;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{OriginalUri, Path, Query, State};
 use axum::http::header::LOCATION;
 use axum::http::{HeaderName, StatusCode};
 use axum::{Extension, Json, middleware};
+use chrono::{DateTime, Utc};
 use khalid_core::UserMessage;
 use khalid_media::{
-    ContentKey, Folder, Kind, Library, MediaItem, Refusal, Upload, UploadMediaError, Uploaded,
+    ContentKey, EditMediaError, FocalPoint, Folder, Kind, Library, MediaEdit, MediaItem, Refusal,
+    Upload, UploadMediaError, Uploaded,
 };
 use serde::Deserialize;
 use utoipa::IntoParams;
@@ -22,7 +24,7 @@ use crate::admin_key::{require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::keys::{KeyStore, Principal, Scope};
 use crate::problem::{Problem, ProblemType};
-use crate::resources::{AdminMedia, MediaItems};
+use crate::resources::{AdminMedia, MediaEditBody, MediaEdits, MediaItems};
 
 /// A site's media library, and the address its own files are served under.
 #[derive(Debug, Clone)]
@@ -54,7 +56,7 @@ type Media = Option<MediaLibrary>;
 pub(crate) fn routes(media: Media, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(upload_media))
-        .routes(routes!(read_media))
+        .routes(routes!(read_media, edit_media))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(media)
@@ -142,6 +144,95 @@ async fn read_media(
         .ok_or_else(|| missing(uri.path()))?;
     let media = vec![media.shown(&item)];
     Ok(Json(MediaItems { media }))
+}
+
+/// Changes an item's alt text, caption, focal point or folder; a field left
+/// out stays. The edit carries the `updated_at` of the copy it was made on,
+/// and is a 409 when the item changed since (RULES.md BL-API-7). Needs
+/// `media:write`.
+#[utoipa::path(
+    put, path = "/media/{id}/", tag = "admin media",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The item's identity")),
+    request_body = MediaEdits,
+    responses(
+        (status = 200, description = "The item as saved", body = MediaItems),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks media:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No item has this identity", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The item changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn edit_media(
+    State(media): State<Media>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Json<MediaEdits>, JsonRejection>,
+) -> Result<Json<MediaItems>, Problem> {
+    require(&principal, Scope::MediaWrite)?;
+    let media = media.ok_or_else(no_library)?;
+    let Json(body) = body.map_err(|rejection| invalid(&rejection.body_text()))?;
+    let [edit] = <[MediaEditBody; 1]>::try_from(body.media)
+        .map_err(|_| invalid("media must hold exactly one edit"))?;
+    let edit = checked(edit)?;
+    let id = ContentKey::parse(&id).ok_or_else(|| missing(uri.path()))?;
+    let by = principal.id().as_str();
+    let item = match media.library.edit(&id, edit, by).await {
+        Ok(item) => item,
+        Err(EditMediaError::NotFound) => return Err(missing(uri.path())),
+        Err(EditMediaError::Stale {
+            updated_at,
+            updated_by,
+        }) => return Err(stale(updated_at, &updated_by)),
+        Err(EditMediaError::TooLong { field, limit }) => {
+            return Err(invalid(&format!(
+                "{field} is longer than {limit} characters"
+            )));
+        }
+        Err(error) => return Err(Problem::internal(&error)),
+    };
+    let media = vec![media.shown(&item)];
+    Ok(Json(MediaItems { media }))
+}
+
+/// The edit `body` asks for, with its folder and focal point checked.
+fn checked(body: MediaEditBody) -> Result<MediaEdit, Problem> {
+    let mut edit = MediaEdit::new(body.updated_at);
+    edit.alt = body.alt;
+    edit.caption = body.caption;
+    edit.folder = body
+        .folder
+        .as_deref()
+        .map(Folder::try_new)
+        .transpose()
+        .map_err(|_| invalid("folder must be up to five slugs joined by /"))?;
+    edit.focal_point = body
+        .focal_point
+        .map(|point| FocalPoint::try_new(point.x, point.y))
+        .transpose()
+        .map_err(|_| invalid("focal_point x and y must each be 0 to 1000"))?;
+    Ok(edit)
+}
+
+fn invalid(reason: &str) -> Problem {
+    let message = UserMessage::new(
+        format!("The edit could not be read: {reason}."),
+        "Nothing was changed.",
+        "Send JSON shaped like the example in /api/openapi.json, with updated_at.",
+    );
+    Problem::new(ProblemType::InvalidBody, &message)
+}
+
+fn stale(updated_at: DateTime<Utc>, updated_by: &str) -> Problem {
+    let when = updated_at.format("%Y-%m-%d %H:%M UTC");
+    let message = UserMessage::new(
+        format!("{updated_by} changed this item at {when}, after the copy you edited."),
+        "Saving your copy would undo their change.",
+        "Fetch the item again, make your change to it, and send its new updated_at.",
+    );
+    Problem::new(ProblemType::Conflict, &message).with_rule("updated_at")
 }
 
 fn missing(path: &str) -> Problem {

@@ -72,6 +72,30 @@ pub struct AdminMedia {
     pub updated_by: String,
 }
 
+/// A change to an item's details. A field left out stays as it is.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MediaEditBody {
+    /// The `updated_at` of the copy the edit was made on.
+    pub updated_at: DateTime<Utc>,
+    /// New alt text, up to 1000 characters; empty clears it.
+    pub alt: Option<String>,
+    /// A new caption, up to 2000 characters; empty clears it.
+    pub caption: Option<String>,
+    /// A new focal point.
+    pub focal_point: Option<FocalPointBody>,
+    /// A new folder, such as `guides/2026`, or empty for the top.
+    pub folder: Option<String>,
+}
+
+/// An edit, wrapped the way the Admin API wraps resources: exactly one.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MediaEdits {
+    /// The one edit.
+    pub media: Vec<MediaEditBody>,
+}
+
 /// Media items, wrapped the way the Admin API wraps resources.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct MediaItems {

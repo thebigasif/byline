@@ -195,7 +195,13 @@ impl Library {
     ) -> Result<MediaItem, EditMediaError> {
         let _one_at_a_time = self.editing.lock().await;
         let item = self.get(id).ok_or(EditMediaError::NotFound)?;
-        let edited = edit.applied(&item, by, self.clock.now())?;
+        // Always later than the last change, even within one clock tick, so
+        // an edit of the old copy can never match the new one.
+        let now = self
+            .clock
+            .now()
+            .max(item.updated_at + chrono::TimeDelta::milliseconds(1));
+        let edited = edit.applied(&item, by, now)?;
         self.save(&edited).await?;
         Ok(edited)
     }
