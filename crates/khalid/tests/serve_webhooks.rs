@@ -123,18 +123,43 @@ fn send(
     (status, body.to_owned())
 }
 
-/// A key that may write and publish posts, made by `khalid keys create`.
+/// A key with `scopes`, made by `khalid keys create`.
 #[cfg(test)]
-fn writer_key(site: &Path) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+fn new_key(site: &Path, scopes: &[&str]) -> String {
+    let mut create = Command::new(env!("CARGO_BIN_EXE_khalid"));
+    create
         .args(["--site", site.to_str().unwrap(), "keys", "create", "--json"])
-        .args(["--name", "SerpDad", "--scope", "posts:write"])
-        .args(["--scope", "posts:publish"])
-        .output()
-        .unwrap();
+        .args(["--name", "SerpDad"]);
+    for scope in scopes {
+        create.args(["--scope", scope]);
+    }
+    let output = create.output().unwrap();
     assert_eq!(output.status.code(), Some(0));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     json["key"].as_str().unwrap().to_owned()
+}
+
+/// A key that may write and publish posts.
+#[cfg(test)]
+fn writer_key(site: &Path) -> String {
+    new_key(site, &["posts:write", "posts:publish"])
+}
+
+/// Leaves a comment under a post with the plain form, once the post page
+/// shows the form; returns the status.
+#[cfg(test)]
+async fn leave_comment(server: &Server) -> u16 {
+    for _ in 0..200 {
+        let (_, page) = send(server, ("GET", "/blog/what-a-sitemap-does/"), &[], "");
+        if page.contains("<form class=\"comment-form\"") {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let form = "Content-Type: application/x-www-form-urlencoded";
+    let fields = "page=%2Fblog%2Fwhat-a-sitemap-does%2F&name=Lena\
+        &email=lena%40example.com&comment=Very+clear%2C+thanks.&website=";
+    send(server, ("POST", "/blog/comments/"), &[form], fields).0
 }
 
 /// Sends `body` as JSON to the Admin API at `path` with `key`; returns the
@@ -185,19 +210,7 @@ async fn a_reader_comment_fires_comment_added_without_their_email() {
     let receiver = receiver().await;
     let (site, secret) = demo_site(&receiver, Event::CommentAdded).await;
     let server = start(site.path());
-    for _ in 0..200 {
-        let (_, page) = send(&server, ("GET", "/blog/what-a-sitemap-does/"), &[], "");
-        if page.contains("<form class=\"comment-form\"") {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-
-    let form = "Content-Type: application/x-www-form-urlencoded";
-    let fields = "page=%2Fblog%2Fwhat-a-sitemap-does%2F&name=Lena\
-        &email=lena%40example.com&comment=Very+clear%2C+thanks.&website=";
-    let (status, page) = send(&server, ("POST", "/blog/comments/"), &[form], fields);
-    assert_eq!(status, 303, "{page}");
+    assert_eq!(leave_comment(&server).await, 303);
 
     let body = the_delivery(&receiver, Event::CommentAdded, &secret).await;
     assert_eq!(body["comment"]["text"], "Very clear, thanks.", "{body}");
@@ -206,6 +219,40 @@ async fn a_reader_comment_fires_comment_added_without_their_email() {
         !body.to_string().contains("lena@example.com"),
         "the reader's email stays private: {body}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_webhook_added_through_the_api_fires_on_the_running_site() {
+    let receiver = receiver().await;
+    let (site, _) = demo_site(&receiver, Event::PostDeleted).await;
+    let key = new_key(site.path(), &["webhooks:manage"]);
+    let server = start(site.path());
+
+    let port = receiver.address().port();
+    let url = format!("http://hooks.test:{port}/comment.added");
+    let new = json!({"webhooks": [{"event": "comment.added", "url": url}]});
+    let (status, added) = api(&server, &key, ("POST", "/api/admin/v1/webhooks/"), &new);
+    assert_eq!(status, 201, "{added}");
+    let secret = Secret::new(added["webhooks"][0]["secret"].as_str().unwrap().to_owned());
+    assert_eq!(leave_comment(&server).await, 303);
+    let body = the_delivery(&receiver, Event::CommentAdded, &secret).await;
+    assert_eq!(body["comment"]["text"], "Very clear, thanks.", "{body}");
+
+    let (status, listed) = api(
+        &server,
+        &key,
+        ("GET", "/api/admin/v1/webhooks/"),
+        &Value::Null,
+    );
+    assert_eq!(status, 200, "{listed}");
+    assert_eq!(
+        listed["webhooks"].as_array().map(Vec::len),
+        Some(2),
+        "{listed}"
+    );
+    let id = &added["webhooks"][0]["id"];
+    let off = format!("/api/admin/v1/webhooks/{id}/");
+    assert_eq!(api(&server, &key, ("DELETE", &off), &Value::Null).0, 204);
 }
 
 #[tokio::test(flavor = "multi_thread")]

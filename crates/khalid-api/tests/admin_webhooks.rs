@@ -128,5 +128,73 @@ async fn the_document_lists_the_webhook_routes() {
     let served: Value = serde_json::from_slice(&bytes.unwrap()).unwrap();
     let paths = &served["paths"];
     assert!(paths["/api/admin/v1/webhooks/"]["get"].is_object());
+    assert!(paths["/api/admin/v1/webhooks/"]["post"].is_object());
     assert!(paths["/api/admin/v1/webhooks/{id}/"]["delete"].is_object());
+}
+
+/// Adds the webhooks in `body` with `key`; answers the status and the
+/// body as JSON.
+#[cfg(test)]
+async fn add(router: &axum::Router, key: &str, body: &Value) -> (StatusCode, Value) {
+    let request = Request::post("/api/admin/v1/webhooks/")
+        .header("authorization", format!("Khalid {key}"))
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap();
+    let response = router.clone().oneshot(request).await.unwrap();
+    let status = response.status();
+    let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    )
+}
+
+#[cfg(test)]
+fn new(event: &str, url: &str) -> Value {
+    json!({"webhooks": [{"event": event, "url": url}]})
+}
+
+#[tokio::test]
+async fn a_webhook_is_added_with_its_secret_shown_once() {
+    let router = router(store().await);
+    let body = new("post.published", "https://hooks.example.com/published");
+    let (status, made) = add(&router, MANAGER, &body).await;
+    assert_eq!(status, StatusCode::CREATED, "{made}");
+    let added = &made["webhooks"][0];
+    assert_eq!(added["id"], 2);
+    assert_eq!(added["event"], "post.published");
+    assert_eq!(added["url"], "https://hooks.example.com/published");
+    assert_eq!(added["secret"].as_str().map(str::len), Some(64), "{made}");
+
+    let (_, json) = send(&router, MANAGER, ("GET", "/webhooks/")).await;
+    let listed = &json["webhooks"][1];
+    assert_eq!(listed["event"], "post.published", "{json}");
+    assert_eq!(listed.get("secret"), None, "the secret is shown only once");
+}
+
+#[tokio::test]
+async fn an_unknown_event_or_a_bad_address_is_refused_in_plain_words() {
+    let router = router(store().await);
+    let cases = [
+        (new("post.liked", "https://hooks.example.com/"), "event"),
+        (new("post.published", "hooks.example.com"), "url"),
+        (
+            new("post.published", "https://me:hunter2@hooks.example.com/"),
+            "url",
+        ),
+        (json!({"webhooks": []}), "webhooks"),
+    ];
+    for (body, rule) in cases {
+        let (status, json) = add(&router, MANAGER, &body).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}: {json}");
+        assert_eq!(json["rule"], rule, "{body}: {json}");
+        assert!(!json.to_string().contains("hunter2"), "{json}");
+    }
+    let (_, json) = send(&router, MANAGER, ("GET", "/webhooks/")).await;
+    assert_eq!(json["webhooks"].as_array().map(Vec::len), Some(1));
+
+    let body = new("post.published", "https://hooks.example.com/");
+    let (status, _) = add(&router, POSTS_ONLY, &body).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
 }
