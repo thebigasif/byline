@@ -3,5 +3,5 @@
 mod export;
 mod read;
 
-pub use export::{Body, Export, Post, PostKind, PostStatus, Visibility};
+pub use export::{Body, CodeInjection, Export, Post, PostKind, PostStatus, Seo, Visibility};
 pub use read::{ExportError, read_export};

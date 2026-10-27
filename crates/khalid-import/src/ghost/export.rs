@@ -34,6 +34,19 @@ pub struct Post {
     pub published: Option<NaiveDateTime>,
     /// The body, in the editor's own format.
     pub body: Body,
+    /// The hand-written summary.
+    pub excerpt: Option<String>,
+    /// The image shown with it in lists and share cards. Ghost writes the
+    /// site's own address as `__GHOST_URL__`.
+    pub feature_image: Option<String>,
+    /// Whether it was marked featured.
+    pub featured: bool,
+    /// The address search engines should credit instead.
+    pub canonical_url: Option<String>,
+    /// Its fields for search results and share cards.
+    pub seo: Seo,
+    /// The HTML it added to its own page, which an import never carries.
+    pub code_injection: CodeInjection,
 }
 
 /// Whether an entry is a post or a page.
@@ -115,4 +128,39 @@ pub enum Body {
     Html(String),
     /// No body at all.
     Empty,
+}
+
+/// A post's fields for search results and share cards. Each is none when
+/// Ghost left it blank, so its default applies.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub struct Seo {
+    /// The title for search results.
+    pub meta_title: Option<String>,
+    /// The description for search results.
+    pub meta_description: Option<String>,
+    /// The Open Graph title, for Facebook and most other share cards.
+    pub og_title: Option<String>,
+    /// The Open Graph description.
+    pub og_description: Option<String>,
+    /// The Open Graph image.
+    pub og_image: Option<String>,
+    /// The title on X, formerly Twitter.
+    pub twitter_title: Option<String>,
+    /// The description on X.
+    pub twitter_description: Option<String>,
+    /// The image on X.
+    pub twitter_image: Option<String>,
+}
+
+/// HTML a post added to its own page, in the head or before the end of the
+/// body, often for analytics. An import notes it and never carries it,
+/// because it would run on the new site.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub struct CodeInjection {
+    /// What it added to the head.
+    pub head: Option<String>,
+    /// What it added before the end of the body.
+    pub foot: Option<String>,
 }
