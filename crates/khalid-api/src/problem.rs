@@ -37,6 +37,8 @@ pub enum ProblemType {
     InvalidVersion,
     /// `Accept-Version` asks for a version this server does not serve.
     VersionNotSupported,
+    /// Too many attempts in a short time; the answer says when to retry.
+    TooManyRequests,
 }
 
 impl ProblemType {
@@ -52,6 +54,7 @@ impl ProblemType {
             Self::Conflict => "conflict",
             Self::InvalidVersion => "invalid-version",
             Self::VersionNotSupported => "version-not-supported",
+            Self::TooManyRequests => "too-many-requests",
         }
     }
 
@@ -65,6 +68,7 @@ impl ProblemType {
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::Conflict => StatusCode::CONFLICT,
             Self::VersionNotSupported => StatusCode::NOT_ACCEPTABLE,
+            Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
         }
     }
 
@@ -80,6 +84,7 @@ impl ProblemType {
             Self::Conflict => "Someone else changed this first",
             Self::InvalidVersion => "The version could not be read",
             Self::VersionNotSupported => "This version is not served here",
+            Self::TooManyRequests => "Too many attempts",
         }
     }
 }

@@ -112,6 +112,14 @@
 - Rules: plan section 5.9.
 - Done when: each graph has a snapshot and passes a JSON-LD structure test against the types Google's Rich Results Test accepts.
 
+### 1.23 Reader features
+
+- Status: `todo`
+- Every item in plan section 4.12 on the default templates in `crates/khalid-render`: byline with avatar and role, `reviewed_by` with `reviewedBy` in the JSON-LD, reading time, the automatic table of contents with its sticky column, heading anchors, click to enlarge, the author box, related posts, richer cards, home page sections, topic links, `/authors/`, `/archive/` and the search shortcut. The front matter fields go in `khalid-content`, the related-posts choice at build time, the `reviewedBy` node in `khalid-seo`.
+- Land it in parts after 1.11 and 1.14, one part per feature. Plain HTML first; any script is one small deferred file allowed by the CSP nonce, and every page still reads completely with it blocked.
+- Rules: BL-WEB-1 to BL-WEB-6, BL-PERF-5, BL-TXT-3, `FRONTEND.md`.
+- Done when: each feature has an `insta` snapshot on the demo site, passes the HTML validator, works with scripts off, and the stylesheet stays under its 20 KB budget.
+
 ## Serving
 
 ### 1.15 The server and `khalid serve`
@@ -319,7 +327,8 @@ The importers depend only on the content types, so the WordPress importer starts
 - **The schedule form needs a mockup (task 5.2, for the founder).** Context: the editor mockup in `docs/design/admin-mockups/editor.html` lists scheduled unpublish among the post settings, but no screen shows picking a publish time or making a preview link. Why it matters: admin screens are built only after the founder says yes to a mockup. The plan: the scheduling track ships the timer, the API fields and the preview page first, which need no admin screen, and adds the two forms to the editor mockup for a yes.
 
 - **What a reader sees where a form was, on a static site (Phase 5, static mode, KH-OPS-1).** Context: a static host only sends files, so a sign-up form, a contact form or a search box on a static site would lead the reader to an error page. Khalid now replaces each one with one plain sentence, such as "Signing up by email is not open on this site.", and tells you, the owner, in `khalid build` and `khalid doctor` which features are off and how to turn them on. Why it matters: the reader sees no broken form, and the plan's grey lock card with a command is written for you, not for readers, so it stays out of public pages. The choice: keep the sentence, show nothing at all where the form was, or show the full lock card to readers too. Each is one small change.
+- **The dashboard cannot yet name posts that are hard to find (Phase 4 admin, for the CTO session and the API track).** Context: the approved dashboard mockup makes "three posts are hard to find", posts no other post links to, its focus point. That comes from the linter's site health, and the Admin API has no route for it; its posts list counts findings only for the rows on one page. Why it matters: until a route exists, the dashboard shows the posts that are blocked from publishing as its focus, or the "Start a post" form when none is, and it leaves out the site-wide warning count. The choice: the API track adds `GET /api/admin/v1/site-health/` with the orphan posts and the warning total, and the admin then shows them as the mockup does; or the dashboard keeps its current focus.
 
 ## Order
 
-1.1 to 1.4 first, since everything else depends on them. Then 1.5 to 1.10 for content, 1.11 to 1.14 for output, 1.15 and 1.16 for serving, 1.17 to 1.20 for the API, and 1.21 and 1.22 to prove it. 1.4 can move later if a content task is blocked, because only webhooks need it before 1.21.
+1.1 to 1.4 first, since everything else depends on them. Then 1.5 to 1.10 for content, 1.11 to 1.14 for output, then 1.23 on top of them, 1.15 and 1.16 for serving, 1.17 to 1.20 for the API, and 1.21 and 1.22 to prove it. 1.4 can move later if a content task is blocked, because only webhooks need it before 1.21.

@@ -30,7 +30,7 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, newsletter, preview, report, scheduler, search_route,
-    serve_message,
+    serve_message, staff,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -142,8 +142,17 @@ fn serve_with(
         let (door, announcing) = publish_door((site, config), (database, id), outbound).await?;
         let scheduling = scheduler::start(Arc::clone(&door));
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
+        let accounts = staff::accounts(database, id, config);
+        let staff = khalid_auth::staff_routes(accounts.clone());
         let stores = (Arc::new(content), door, Arc::new(keys));
-        let (api, _) = api::router_with_door_and_comments(stores.0, stores.1, stores.2, moderation);
+        let (api, _) = api::router_with_door_comments_and_staff(
+            stores.0,
+            stores.1,
+            stores.2,
+            moderation,
+            staff,
+            Arc::new(accounts),
+        );
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
         let app = api

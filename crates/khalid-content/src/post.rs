@@ -8,6 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
 use crate::front_matter::{Fence, split};
+use crate::post_fields::{self, LeadImage, Sitemap};
 use crate::{ContentError, parse_blocks};
 
 /// What a post's front matter may say.
@@ -64,6 +65,18 @@ pub struct PostFront {
     /// such as "link text". At most [`MAX_SECONDARY_KEYWORDS`].
     #[serde(default, deserialize_with = "secondary_keywords")]
     pub secondary_keywords: Vec<String>,
+    /// The image at the top of the post and on its cards.
+    pub image: Option<LeadImage>,
+    /// The title for search results and the browser tab, in place of the
+    /// headline, such as "Internal links, a guide for 2026".
+    #[serde(default, deserialize_with = "post_fields::seo_title")]
+    pub seo_title: Option<String>,
+    /// The tags' names, such as "internal links", in the order written.
+    #[serde(default, deserialize_with = "post_fields::tags")]
+    pub tags: Vec<String>,
+    /// Whether the post is listed in the XML sitemap.
+    #[serde(default)]
+    pub sitemap: Sitemap,
 }
 
 /// The most related posts a post shows, and so the most it may pin.
@@ -138,14 +151,23 @@ fn located(path: &Path, yaml: &str, source: serde_saphyr::Error) -> ContentError
         .and_then(|location| usize::try_from(location.line()).ok())
         .unwrap_or(1);
     // The key on the error's line, or, for an item of a list such as
-    // `  - old-title`, the nearest key above it that starts a line.
+    // `  - old-title` or a key inside a group such as `  alt:`, the nearest
+    // key above it that starts a line.
     let lines: Vec<&str> = yaml.lines().take(yaml_line).collect();
     let own = lines
         .last()
         .and_then(|line| line.split_once(':'))
         .map(|(key, _)| key);
+    let above = lines
+        .iter()
+        .rev()
+        .skip(1)
+        .find(|line| !line.starts_with([' ', '-']) && line.contains(':'))
+        .and_then(|line| line.split_once(':'));
+    let in_group = above.is_some_and(|(_, value)| value.trim().is_empty());
     let field = own
         .filter(|key| !key.trim_start().starts_with('-'))
+        .filter(|key| !(in_group && key.starts_with(' ')))
         .or_else(|| {
             lines
                 .iter()
@@ -206,13 +228,19 @@ enum OneOrMany {
     Many(Vec<String>),
 }
 
-/// Reads one slug or a list of slugs, with a message a writer understands.
-fn slugs<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Slug>, D::Error> {
-    let texts = match OneOrMany::deserialize(deserializer)? {
+/// Reads one text or a list of them, as a list.
+pub(crate) fn one_or_many<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<String>, D::Error> {
+    Ok(match OneOrMany::deserialize(deserializer)? {
         OneOrMany::One(text) => vec![text],
         OneOrMany::Many(texts) => texts,
-    };
-    texts
+    })
+}
+
+/// Reads one slug or a list of slugs, with a message a writer understands.
+fn slugs<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Slug>, D::Error> {
+    one_or_many(deserializer)?
         .iter()
         .map(|text| {
             Slug::try_new(text).map_err(|_| {
@@ -255,10 +283,7 @@ fn focus_keyword<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<St
 /// Reads the secondary keywords: one phrase or a list, each with at least
 /// one word, at most [`MAX_SECONDARY_KEYWORDS`].
 fn secondary_keywords<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<String>, D::Error> {
-    let texts = match OneOrMany::deserialize(deserializer)? {
-        OneOrMany::One(text) => vec![text],
-        OneOrMany::Many(texts) => texts,
-    };
+    let texts = one_or_many(deserializer)?;
     if texts.len() > MAX_SECONDARY_KEYWORDS {
         return Err(serde::de::Error::custom(format!(
             "a post has at most {MAX_SECONDARY_KEYWORDS} secondary keywords, and this lists {}; keep the {MAX_SECONDARY_KEYWORDS} closest to the focus keyword",

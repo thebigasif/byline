@@ -10,7 +10,11 @@ import {
 import { readKey } from "../auth/session";
 import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
-import { Home } from "./Home";
+import { postSearch } from "../posts/filters";
+import { Dashboard } from "./Dashboard";
+import { NewPost } from "./NewPost";
+import { Posts } from "./Posts";
+import { Redirects } from "./Redirects";
 import { SignIn } from "./SignIn";
 
 const root = createRootRoute({ errorComponent: RouteError });
@@ -30,7 +34,21 @@ const signedIn = createRoute({
   errorComponent: RouteError,
 });
 
-const home = createRoute({ getParentRoute: () => signedIn, path: "/", component: Home });
+const dashboard = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/",
+  component: Dashboard,
+});
+
+// The filters live in the address, so a filtered list can be bookmarked and shared.
+const posts = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/posts",
+  validateSearch: postSearch,
+  component: Posts,
+});
+
+const newPost = createRoute({ getParentRoute: () => signedIn, path: "/new", component: NewPost });
 
 // The editor carries Tiptap, so it loads only when a post is opened.
 const editor = createRoute({
@@ -39,7 +57,16 @@ const editor = createRoute({
   component: lazyRouteComponent(() => import("./Editor"), "Editor"),
 });
 
-const routeTree = root.addChildren([signIn, signedIn.addChildren([home, editor])]);
+const redirects = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/redirects",
+  component: Redirects,
+});
+
+const routeTree = root.addChildren([
+  signIn,
+  signedIn.addChildren([dashboard, posts, newPost, editor, redirects]),
+]);
 
 /** Makes the admin's router; a test passes a memory history. */
 export function makeRouter(history: RouterHistory = createBrowserHistory()) {

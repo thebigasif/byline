@@ -1,0 +1,249 @@
+//! Passkeys: registering one and signing in with it, checked the way
+//! `WebAuthn` Level 2 asks (sections 7.1 and 7.2), with no attestation.
+
+mod authenticator_data;
+mod public_key;
+
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use ciborium::Value;
+use khalid_core::AbsoluteUrl;
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
+
+pub use authenticator_data::AuthenticatorData;
+pub use public_key::PublicKey;
+
+/// The longest credential identity `WebAuthn` allows (section 5.8.3).
+const MAX_CREDENTIAL_ID: usize = 1023;
+
+/// The site passkeys belong to: its host name, and the origin pages that
+/// ask for a passkey are served from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelyingParty {
+    id: String,
+    origin: String,
+}
+
+impl RelyingParty {
+    /// The relying party for a site at `origin`, such as
+    /// `https://blog.example.com`, whose host name `id` is.
+    #[must_use]
+    pub fn new(id: String, origin: String) -> Self {
+        Self { id, origin }
+    }
+
+    /// The relying party for the site at `address`, the address in
+    /// `site.toml`: its host name, and its scheme, host and port as the
+    /// origin. A blog under a folder, such as `/blog/`, has the origin of
+    /// the whole host, as browsers do.
+    #[must_use]
+    pub fn for_address(address: &AbsoluteUrl) -> Self {
+        let text = address.as_str();
+        let after_scheme = text.find("://").map_or(0, |at| at + 3);
+        let end = text
+            .get(after_scheme..)
+            .and_then(|rest| rest.find('/'))
+            .map_or(text.len(), |at| after_scheme + at);
+        let origin = text.get(..end).unwrap_or(text).to_owned();
+        Self::new(address.host().to_owned(), origin)
+    }
+
+    /// The host name, which the browser checks passkeys against.
+    #[must_use]
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+}
+
+/// 256 random bits the browser must sign, used once.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Challenge([u8; 32]);
+
+impl Challenge {
+    /// A new challenge from the system's random source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PasskeyError::Random`] when there is no random source.
+    pub fn generate() -> Result<Self, PasskeyError> {
+        let mut bytes = [0_u8; 32];
+        getrandom::fill(&mut bytes).map_err(|_| PasskeyError::Random)?;
+        Ok(Self(bytes))
+    }
+
+    /// The challenge as the browser gets it: base64url, unpadded.
+    #[must_use]
+    pub fn to_base64(&self) -> String {
+        URL_SAFE_NO_PAD.encode(self.0)
+    }
+
+    /// The challenge `client_data` says it answers, so Khalid can find the
+    /// request it belongs to before checking the rest.
+    #[must_use]
+    pub fn answered_in(client_data: &[u8]) -> Option<Self> {
+        let data: ClientData = serde_json::from_slice(client_data).ok()?;
+        let bytes = URL_SAFE_NO_PAD.decode(data.challenge).ok()?;
+        bytes.try_into().ok().map(Self)
+    }
+}
+
+/// A passkey as registration made it, for the store to keep.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Registration {
+    /// The authenticator's name for the credential.
+    pub credential_id: Vec<u8>,
+    /// Its public key.
+    pub public_key: PublicKey,
+    /// Its signature counter so far.
+    pub sign_count: u32,
+}
+
+/// Checks a new passkey: `client_data` and `attestation_object` are the
+/// bytes `navigator.credentials.create` returned for `challenge`.
+///
+/// # Errors
+///
+/// Returns a [`PasskeyError`] naming the first check that failed.
+pub fn verify_registration(
+    party: &RelyingParty,
+    challenge: &Challenge,
+    client_data: &[u8],
+    attestation_object: &[u8],
+) -> Result<Registration, PasskeyError> {
+    check_client_data(party, challenge, client_data, "webauthn.create")?;
+    let object: Value =
+        ciborium::from_reader(attestation_object).map_err(|_| PasskeyError::Malformed)?;
+    let auth_data = object
+        .as_map()
+        .and_then(|map| {
+            map.iter()
+                .find(|(key, _)| key.as_text() == Some("authData"))
+        })
+        .and_then(|(_, value)| value.as_bytes())
+        .ok_or(PasskeyError::Malformed)?;
+    let data = check_authenticator_data(party, auth_data)?;
+    let sign_count = data.sign_count();
+    let (credential_id, public_key) = data.into_credential().ok_or(PasskeyError::Malformed)?;
+    if credential_id.is_empty() || credential_id.len() > MAX_CREDENTIAL_ID {
+        return Err(PasskeyError::Malformed);
+    }
+    Ok(Registration {
+        credential_id,
+        public_key,
+        sign_count,
+    })
+}
+
+/// Checks a sign-in with a stored passkey whose key is `key` and whose
+/// counter stands at `stored_count`, and returns the new counter. The
+/// bytes are what `navigator.credentials.get` returned for `challenge`.
+///
+/// # Errors
+///
+/// Returns a [`PasskeyError`] naming the first check that failed;
+/// [`PasskeyError::Replayed`] when the counter did not move forward,
+/// which means the passkey may have been copied.
+pub fn verify_assertion(
+    party: &RelyingParty,
+    challenge: &Challenge,
+    client_data: &[u8],
+    authenticator_data: &[u8],
+    signature: &[u8],
+    stored: (&PublicKey, u32),
+) -> Result<u32, PasskeyError> {
+    let (key, stored_count) = stored;
+    check_client_data(party, challenge, client_data, "webauthn.get")?;
+    let data = check_authenticator_data(party, authenticator_data)?;
+    let signed = [authenticator_data, Sha256::digest(client_data).as_slice()].concat();
+    if !key.verifies(&signed, signature) {
+        return Err(PasskeyError::BadSignature);
+    }
+    // A counter of zero on both sides means the passkey does not count,
+    // as synced passkeys do not.
+    let count = data.sign_count();
+    if (count != 0 || stored_count != 0) && count <= stored_count {
+        return Err(PasskeyError::Replayed);
+    }
+    Ok(count)
+}
+
+/// What the browser says it was asked, in `clientDataJSON`.
+#[derive(Debug, Deserialize)]
+struct ClientData {
+    #[serde(rename = "type")]
+    kind: String,
+    challenge: String,
+    origin: String,
+    #[serde(default, rename = "crossOrigin")]
+    cross_origin: bool,
+}
+
+fn check_client_data(
+    party: &RelyingParty,
+    challenge: &Challenge,
+    bytes: &[u8],
+    kind: &str,
+) -> Result<(), PasskeyError> {
+    let data: ClientData = serde_json::from_slice(bytes).map_err(|_| PasskeyError::Malformed)?;
+    if data.kind != kind {
+        return Err(PasskeyError::WrongCeremony);
+    }
+    if data.challenge != challenge.to_base64() {
+        return Err(PasskeyError::WrongChallenge);
+    }
+    if data.origin != party.origin || data.cross_origin {
+        return Err(PasskeyError::WrongOrigin);
+    }
+    Ok(())
+}
+
+fn check_authenticator_data(
+    party: &RelyingParty,
+    bytes: &[u8],
+) -> Result<AuthenticatorData, PasskeyError> {
+    let data = AuthenticatorData::parse(bytes)?;
+    if *data.rp_id_hash() != <[u8; 32]>::from(Sha256::digest(party.id.as_bytes())) {
+        return Err(PasskeyError::WrongRelyingParty);
+    }
+    if !data.user_verified() {
+        return Err(PasskeyError::NotVerified);
+    }
+    Ok(data)
+}
+
+/// A passkey was refused, or could not be checked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum PasskeyError {
+    /// The bytes are not what `WebAuthn` describes.
+    #[error("the passkey answer cannot be read")]
+    Malformed,
+    /// The key is not ES256 or Ed25519.
+    #[error("this kind of passkey is not supported")]
+    UnsupportedKey,
+    /// A registration was sent to sign in, or the other way round.
+    #[error("the passkey answered a different request")]
+    WrongCeremony,
+    /// The challenge is not the one Khalid sent, or it was used already.
+    #[error("the passkey answered an old or unknown challenge")]
+    WrongChallenge,
+    /// The page that asked was on another site.
+    #[error("the passkey was asked for by another site")]
+    WrongOrigin,
+    /// The passkey belongs to another site.
+    #[error("the passkey belongs to another site")]
+    WrongRelyingParty,
+    /// Nobody unlocked the passkey with a fingerprint, face or PIN.
+    #[error("the passkey was not unlocked by its owner")]
+    NotVerified,
+    /// The signature does not match the stored key.
+    #[error("the passkey's signature does not match")]
+    BadSignature,
+    /// The counter went back, so the passkey may have been copied.
+    #[error("the passkey's counter went back")]
+    Replayed,
+    /// The system has no random source.
+    #[error("the system's random source is not available")]
+    Random,
+}
