@@ -16,6 +16,7 @@ mod form;
 mod front_matter;
 mod maths;
 mod post;
+mod post_fields;
 mod render;
 mod schemas;
 mod site_content;
@@ -32,6 +33,7 @@ pub use content_hash::ContentHash;
 pub use embed::{EMBED_PROVIDERS, EmbedProvider};
 pub use form::{FieldKind, FormField};
 pub use post::{MAX_RELATED, MAX_SECONDARY_KEYWORDS, Post, PostFront, parse_post};
+pub use post_fields::{LeadImage, Sitemap};
 pub use render::{Heading, Image, Link, Rendered, render, render_linked};
 pub use schemas::{
     AuthorFront, CaseStudyFront, ChangelogFront, GlossaryFront, IndexFront, PageFront, SnippetFront,
