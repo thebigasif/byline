@@ -4,47 +4,86 @@
 use std::sync::Arc;
 
 use axum::extract::{Request, State};
-use axum::http::HeaderValue;
-use axum::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
+use axum::http::header::{AUTHORIZATION, COOKIE, WWW_AUTHENTICATE};
+use axum::http::{HeaderMap, HeaderValue};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use khalid_core::UserMessage;
 
-use crate::keys::{KeyError, KeyKind, KeyStore, KeyToken, Principal, Scope, authenticate};
+use crate::keys::{
+    KeyError, KeyKind, KeyStore, KeyStoreError, KeyToken, Principal, Scope, authenticate,
+};
 use crate::problem::{Problem, ProblemType};
+use crate::session_check::{CSRF_HEADER, SessionCheck};
 
 /// The `Authorization` scheme for integration keys and staff tokens.
 const SCHEME: &str = "Khalid";
 
+/// What lets a request into the Admin API: the stored keys, and staff
+/// sessions when the site has accounts.
+#[derive(Clone)]
+pub(crate) struct AdminDoor {
+    pub(crate) keys: Arc<dyn KeyStore>,
+    pub(crate) sessions: Option<Arc<dyn SessionCheck>>,
+}
+
 /// Lets a request through only with a stored integration key or staff
-/// token in `Authorization: Khalid <key>`, and hands the routes the
-/// [`Principal`] it belongs to.
+/// token in `Authorization: Khalid <key>`, or, with no `Authorization`
+/// header, a staff session cookie with its CSRF token (RULES.md BL-SEC-9),
+/// and hands the routes the [`Principal`] it belongs to.
 pub(crate) async fn require_admin_key(
-    State(keys): State<Arc<dyn KeyStore>>,
+    State(door): State<AdminDoor>,
     mut request: Request,
     next: Next,
 ) -> Response {
-    let Some(text) = presented(&request) else {
-        return refused();
+    let principal = if request.headers().contains_key(AUTHORIZATION) {
+        by_key(door.keys.as_ref(), request.headers()).await
+    } else {
+        by_session(door.sessions.as_deref(), request.headers()).await
+    };
+    match principal {
+        Ok(Some(principal)) => {
+            request.extensions_mut().insert(principal);
+            next.run(request).await
+        }
+        Ok(None) => refused(),
+        Err(source) => Problem::internal(&source).into_response(),
+    }
+}
+
+async fn by_key(
+    keys: &dyn KeyStore,
+    headers: &HeaderMap,
+) -> Result<Option<Principal>, KeyStoreError> {
+    let Some(text) = presented(headers) else {
+        return Ok(None);
     };
     let Ok(kind @ (KeyKind::Integration | KeyKind::Staff)) =
         text.parse::<KeyToken>().map(|token| token.kind())
     else {
-        return refused();
+        return Ok(None);
     };
-    match authenticate(keys.as_ref(), &text, kind).await {
-        Ok(principal) => {
-            request.extensions_mut().insert(principal);
-            next.run(request).await
-        }
-        Err(KeyError::Unavailable { source }) => Problem::internal(&source).into_response(),
-        Err(_) => refused(),
+    match authenticate(keys, &text, kind).await {
+        Ok(principal) => Ok(Some(principal)),
+        Err(KeyError::Unavailable { source }) => Err(source),
+        Err(_) => Ok(None),
+    }
+}
+
+async fn by_session(
+    sessions: Option<&dyn SessionCheck>,
+    headers: &HeaderMap,
+) -> Result<Option<Principal>, KeyStoreError> {
+    let header = |name: &str| headers.get(name).and_then(|value| value.to_str().ok());
+    match (sessions, header(COOKIE.as_str())) {
+        (Some(sessions), Some(cookies)) => sessions.check(cookies, header(CSRF_HEADER)).await,
+        _ => Ok(None),
     }
 }
 
 /// The key from `Authorization: Khalid <key>`. Another scheme is no key.
-fn presented(request: &Request) -> Option<String> {
-    let value = request.headers().get(AUTHORIZATION)?.to_str().ok()?;
+fn presented(headers: &HeaderMap) -> Option<String> {
+    let value = headers.get(AUTHORIZATION)?.to_str().ok()?;
     value
         .strip_prefix(SCHEME)?
         .strip_prefix(' ')

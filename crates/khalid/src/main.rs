@@ -74,6 +74,9 @@ mod site_lists;
 mod site_pages;
 mod site_posts;
 mod slug_repair;
+mod staff;
+mod staff_message;
+mod staff_owner;
 mod static_mode;
 mod theme_check;
 mod theme_message;
@@ -171,28 +174,21 @@ fn run(cli: &Cli) -> Exit {
             &SystemClock,
             cli.output,
         ),
-        (Some(Command::Keys { command }), Some((folder, ..))) => {
-            keys::run(folder, command, cli.output)
-        }
-        (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
         (
-            Some(Command::Theme {
-                command: ThemeCommand::Sync { url },
-            }),
-            Some((folder, ..)),
-        ) => theme_sync::run(folder, url, cli),
-        (
-            Some(Command::Theme {
-                command: ThemeCommand::Check { url },
-            }),
+            Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
             Some((folder, config, ..)),
-        ) => theme_check::run(folder, url.as_ref().unwrap_or(config.address()), cli),
+        ) => access(folder, config, command, cli.output),
+        (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
+        (Some(Command::Theme { command }), Some((folder, config, ..))) => {
+            theme(folder, config, command, cli)
+        }
         (
             Some(
                 command @ (Command::Db { .. }
                 | Command::Theme { .. }
                 | Command::Serve(_)
                 | Command::Keys { .. }
+                | Command::Staff { .. }
                 | Command::Mcp
                 | Command::Lint { .. }
                 | Command::New { .. }
@@ -201,6 +197,26 @@ fn run(cli: &Cli) -> Exit {
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs `theme sync` and `theme check` on a checked site.
+fn theme(folder: &Path, config: &Config, command: &ThemeCommand, cli: &Cli) -> Exit {
+    match command {
+        ThemeCommand::Sync { url } => theme_sync::run(folder, url, cli),
+        ThemeCommand::Check { url } => {
+            theme_check::run(folder, url.as_ref().unwrap_or(config.address()), cli)
+        }
+    }
+}
+
+/// Runs the commands that decide who may reach the site: `keys` and
+/// `staff`.
+fn access(folder: &Path, config: &Config, command: &Command, output: Output) -> Exit {
+    match command {
+        Command::Keys { command } => keys::run(folder, command, output),
+        Command::Staff { command } => staff_owner::run(folder, config, command, output),
+        _ => report::failure(output, &not_built(command), Exit::Internal),
     }
 }
 
