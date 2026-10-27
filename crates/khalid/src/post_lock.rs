@@ -51,19 +51,58 @@ pub(crate) fn lock(
     languages: &mut [LanguagePages],
 ) {
     for language in languages.iter_mut() {
-        let locale = language.site.locale.clone();
-        for page in &mut language.pages {
+        let LanguagePages {
+            site,
+            pages,
+            unlocked,
+            ..
+        } = language;
+        for page in pages.iter_mut() {
             let front = content
                 .posts
                 .iter()
                 .find(|doc| page.source.as_ref() == Some(&doc.path))
                 .map(|doc| &doc.front);
             if let Some(lock) = front.and_then(Lock::of) {
+                if let Lock::Password(hash) = &lock {
+                    let (page, hash) = (page.clone(), hash.clone());
+                    unlocked.push(Unlocked { page, hash });
+                }
                 let words = Words {
                     renderer,
-                    locale: &locale,
+                    locale: &site.locale,
                 };
                 lock_page(config, page, &lock, &words);
+            }
+        }
+    }
+}
+
+/// The full page of a password post, kept for a reader who gave the
+/// password, with the hash of that password.
+#[derive(Debug, Clone)]
+pub(crate) struct Unlocked {
+    pub(crate) page: Page,
+    pub(crate) hash: PasswordHash,
+}
+
+/// The folder at the site's root that holds the full pages of password
+/// posts. A request from outside for anything in it gets 404.
+pub(crate) const UNLOCKED_FOLDER: &str = "_unlocked";
+
+/// The hidden address of the full page of the post at `path`.
+pub(crate) fn hidden(path: &str) -> String {
+    format!("/{UNLOCKED_FOLDER}{path}")
+}
+
+/// Gives each full page of `languages` the head of its locked page, made
+/// by `build_seo::heads`, so both tell search engines not to list it.
+pub(crate) fn share_heads(languages: &mut [LanguagePages]) {
+    for language in languages.iter_mut() {
+        for unlocked in &mut language.unlocked {
+            let path = &unlocked.page.meta.path;
+            if let Some(locked) = language.pages.iter().find(|page| &page.meta.path == path) {
+                unlocked.page.meta = locked.meta.clone();
             }
         }
     }

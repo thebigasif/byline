@@ -88,6 +88,7 @@ mod theme_message;
 )]
 mod theme_preview;
 mod theme_sync;
+mod unlock;
 
 use std::ffi::OsString;
 use std::path::Path;

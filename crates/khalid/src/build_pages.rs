@@ -16,6 +16,7 @@ use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
 use crate::listed_post::ListedPost;
+use crate::post_lock::Unlocked;
 pub(crate) use crate::site_page::Page;
 use crate::{build_home, build_message, build_reader, build_seo};
 
@@ -24,6 +25,9 @@ use crate::{build_home, build_message, build_reader, build_seo};
 pub(crate) struct LanguagePages {
     pub(crate) site: RenderSite,
     pub(crate) pages: Vec<Page>,
+    /// The full pages of the password posts, which only `khalid serve`
+    /// sends, to a reader who gave the password.
+    pub(crate) unlocked: Vec<Unlocked>,
     /// The dated posts the pages were made from, newest first.
     pub(crate) listed: Vec<ListedPost>,
 }
@@ -92,6 +96,7 @@ fn language_pages(
         site: render_site(config, locale, stylesheet),
         pages,
         listed,
+        unlocked: Vec::new(),
     })
 }
 

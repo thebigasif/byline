@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use khalid_api::api;
 use khalid_api::publish_door::PublishDoor;
+use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
@@ -30,7 +31,7 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, newsletter, preview, report, scheduler, search_route,
-    serve_message,
+    serve_message, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -146,13 +147,21 @@ fn serve_with(
         let (api, _) = api::router_with_door_and_comments(stores.0, stores.1, stores.2, moderation);
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
+        let signer = unlock_signer((site, config), (database, id)).await?;
+        let pages = unlock::router(
+            config,
+            source.gate(),
+            signer,
+            router(live, security),
+            SystemClock,
+        );
         let app = api
             .merge(previews)
             .merge(searches)
             .merge(admin)
             .merge(comments)
             .merge(newsletters)
-            .merge(router(live, security));
+            .merge(pages);
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
@@ -194,6 +203,24 @@ async fn publish_door(
         .with_schedules(schedules, SystemClock)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
     Ok((Arc::new(door), announcing))
+}
+
+/// The signer of the cookies that open password posts, keyed with the
+/// site's preview key under its own label, and marked `Secure` when the
+/// site's address is `https`.
+async fn unlock_signer(
+    (site, config): (&Path, &Config),
+    (database, id): (&Database, SiteId),
+) -> Result<UnlockSigner, (UserMessage, Exit)> {
+    let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
+    let key = database.preview_key(id, &SystemClock).await;
+    let key = key.map_err(|error| (db_message::of(&file, &error), Exit::Failure))?;
+    let transport = if config.address().as_str().starts_with("https://") {
+        Transport::Https
+    } else {
+        Transport::Http
+    };
+    Ok(UnlockSigner::new(&key, transport, SystemClock))
 }
 
 /// Renders every page from the `checked` content on a blocking thread

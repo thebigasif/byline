@@ -47,6 +47,7 @@ pub(crate) fn home_pages(
             site: build_pages::render_site(config, locale, stylesheet),
             pages: vec![build_pages::home_page(config, locale, cards)?],
             listed: Vec::new(),
+            unlocked: Vec::new(),
         });
     }
     Ok(languages)

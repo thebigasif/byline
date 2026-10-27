@@ -10,7 +10,7 @@ use khalid_server::NONCE_SLOT;
 use crate::build_message;
 
 /// One page and the file it goes to, relative to the output folder.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Page {
     pub(crate) file: String,
     pub(crate) meta: PageMeta,
