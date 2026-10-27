@@ -8,6 +8,7 @@
 
 mod admin_api;
 mod admin_key;
+mod admin_redirects;
 pub mod api;
 mod api_version;
 pub mod content_api;

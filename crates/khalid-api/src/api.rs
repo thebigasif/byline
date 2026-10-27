@@ -14,7 +14,8 @@ use crate::keys::KeyStore;
 use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
-use crate::{admin_api, api_version, content_api};
+use crate::redirect_desk::RedirectDesk;
+use crate::{admin_api, admin_redirects, api_version, content_api};
 
 /// The document's title, the schemas every route shares and the ways a
 /// key may be sent.
@@ -79,17 +80,28 @@ pub fn router(
 
 /// The same router, publishing through `door`, which `khalid serve` shares
 /// with its scheduler so every post that goes live is announced.
+/// Its redirect routes keep nothing; see [`router_with_redirects`].
 pub fn router_with_door(
     content: Arc<dyn ContentStore>,
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
 ) -> (Router, Document) {
+    router_with_redirects(content, door, keys, RedirectDesk::none())
+}
+
+/// The same router, with the redirect routes under
+/// `/api/admin/v1/redirects/` reading and writing through `redirects`.
+pub fn router_with_redirects(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    redirects: RedirectDesk,
+) -> (Router, Document) {
+    let admin = admin_api::routes(door, Arc::clone(&keys))
+        .merge(admin_redirects::routes(redirects, Arc::clone(&keys)));
     let api = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest(
-            content_api::BASE,
-            content_api::routes(content, Arc::clone(&keys)),
-        )
-        .nest(admin_api::BASE, admin_api::routes(door, keys));
+        .nest(content_api::BASE, content_api::routes(content, keys))
+        .nest(admin_api::BASE, admin);
     finish(api)
 }
 

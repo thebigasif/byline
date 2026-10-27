@@ -399,6 +399,63 @@
         ]
       }
     },
+    "/api/admin/v1/redirects/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Lists every stored redirect, oldest first. Aliases in front matter are\nnot listed; they live in their posts. Needs `settings:write`.",
+        "operationId": "list_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/authors/": {
       "get": {
         "tags": [
@@ -3126,6 +3183,77 @@
               "$ref": "#/components/schemas/AdminPost"
             },
             "description": "The post or posts."
+          }
+        }
+      },
+      "AdminRedirect": {
+        "type": "object",
+        "description": "A stored redirect as the Admin API shows it.",
+        "required": [
+          "id",
+          "from",
+          "status",
+          "match",
+          "origin",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made."
+          },
+          "from": {
+            "type": "string",
+            "description": "The path it starts from, or a regular expression over the path.",
+            "example": "/blog/old-links/"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The identity to remove it by.",
+            "example": 12
+          },
+          "match": {
+            "type": "string",
+            "description": "`exact` or `regex`.",
+            "example": "exact"
+          },
+          "origin": {
+            "type": "string",
+            "description": "`manual`, `import` or `slug_change`.",
+            "example": "manual"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "301, 302, 307, 410 or 451.",
+            "example": 301,
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a move leads: a path, a web address, or a pattern's template\nwith `$1` for its first group. Empty for 410 and 451.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        }
+      },
+      "AdminRedirects": {
+        "type": "object",
+        "description": "Redirects as the Admin API wraps them.",
+        "required": [
+          "redirects"
+        ],
+        "properties": {
+          "redirects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminRedirect"
+            },
+            "description": "The redirects, oldest first."
           }
         }
       },
