@@ -1,16 +1,20 @@
-//! The list pages of each language (audit brief G12): the archive of every
-//! dated post and the page of every author, as `[reader]` in `site.toml`
-//! switches them on. A long list is split into pages of [`PER_PAGE`] posts,
-//! the first at the list's own address and the rest at `page/2/` and on.
+//! The list pages of each language (audit brief G12): each collection's
+//! page where `routes.toml` puts it, the archive of every dated post and
+//! the page of every author, as `[reader]` in `site.toml` switches the last
+//! two on. A long list is split into pages of [`PER_PAGE`] posts, the first
+//! at the list's own address and the rest at `page/2/` and on.
 
+use khalid_content::{SiteContent, Wikilinks};
 use khalid_core::{Config, Indexing, Locale, RobotsDirectives, UserMessage};
 use khalid_render::{
-    AuthorEntry, PageBody, PageKind, Pagination, Person, PostCard, RenderAuthors, RenderListing,
-    Renderer,
+    AuthorEntry, BodyHtml, PageBody, PageKind, Pagination, Person, PostCard, RenderAuthors,
+    RenderListing, Renderer,
 };
+use khalid_routes::Routes;
 use khalid_seo::PageKind as SeoKind;
 
 use crate::build_pages::{self, LanguagePages, Page};
+use crate::listed_post::ListedPost;
 use crate::{build_seo, serve_message};
 
 /// How many posts one page of a list shows: enough to scan in one go, few
@@ -23,6 +27,10 @@ struct List {
     /// language prefix, such as `archive/`.
     rest: String,
     title: String,
+    /// The summary for search results, empty when it has none.
+    description: String,
+    /// Text above the first page's posts, such as a collection's `_index.md`.
+    intro: Option<BodyHtml>,
     /// The key its versions in other languages share. Page 2 and on add
     /// their number.
     translation: String,
@@ -36,26 +44,30 @@ struct List {
 }
 
 /// Adds the list pages to each of `languages`, titled in its language by
-/// `renderer`'s strings: the archive and the authors page, unless
-/// `[reader]` turns them off.
+/// `renderer`'s strings: each collection's page where `routes` puts it,
+/// with its `_index.md` from `content`, then the archive and the authors
+/// page, unless `[reader]` turns them off.
 ///
 /// # Errors
 ///
 /// Returns what, why and fix when a page's address cannot be made from the
-/// site's settings.
+/// site's settings, or an `_index.md` body cannot be rendered.
 pub(crate) fn add(
-    config: &Config,
+    (config, routes): (&Config, &Routes),
     renderer: &Renderer,
+    content: &SiteContent,
     languages: &mut [LanguagePages],
 ) -> Result<(), UserMessage> {
     let reader = config.reader();
     for language in languages.iter_mut() {
         let locale = language.site.locale.clone();
-        let mut lists = Vec::new();
+        let mut lists = collections((config, routes), content, &locale, &language.listed)?;
         if reader.archive {
             lists.push(List {
                 rest: "archive/".to_owned(),
                 title: text(renderer, &locale, "archive_title")?,
+                description: String::new(),
+                intro: None,
                 translation: "archive".to_owned(),
                 kind: SeoKind::Collection,
                 // The home page already lists every post, newest first.
@@ -114,20 +126,22 @@ fn paged(
                 .replace("{current}", &number.to_string());
             (title, format!("{} {number}", list.translation))
         };
+        let description = list.description.clone();
         let meta = build_pages::meta(
             config,
             title.clone(),
-            String::new(),
+            description.clone(),
             path.clone(),
             PageKind::Website,
         )?;
         let mut seo = build_seo::page(list.kind, locale, rest, &title)?;
+        seo.excerpt = description;
         seo.item_count = total;
         seo.robots.clone_from(&list.robots);
         seo.translation = build_seo::translation(Some(&translation))?;
         let body = (list.body)(RenderListing {
             title,
-            intro: None,
+            intro: list.intro.clone().filter(|_| number == 1),
             posts,
             pagination: Pagination::new(paths.clone(), number),
         });
@@ -189,6 +203,78 @@ fn authors(
         seo,
         source: None,
     })
+}
+
+/// The address pattern of a collection `routes.toml` does not name, the
+/// one `khalid_routes::Routes::address` falls back to.
+const UNNAMED: &str = "/{collection}/{slug}/";
+
+/// The list of each collection of `listed` that has a page of its own, in
+/// the order of its newest post, with the title, description and body of
+/// its `_index.md` in `locale`. Collections whose pages would sit at the
+/// same address share one list.
+fn collections(
+    (config, routes): (&Config, &Routes),
+    content: &SiteContent,
+    locale: &Locale,
+    listed: &[ListedPost],
+) -> Result<Vec<List>, UserMessage> {
+    let mut lists: Vec<List> = Vec::new();
+    let mut links = None;
+    for post in listed {
+        let Some(rest) = collection_rest(routes, &post.collection) else {
+            continue;
+        };
+        if let Some(list) = lists.iter_mut().find(|list| list.rest == rest) {
+            list.cards.push(post.card.clone());
+            continue;
+        }
+        let index = content
+            .indexes
+            .iter()
+            .find(|doc| &doc.locale == locale && doc.collection == post.collection);
+        let front = index.map(|doc| &doc.front);
+        let intro = match index.filter(|doc| !doc.body.trim().is_empty()) {
+            Some(doc) => {
+                let links = links.get_or_insert_with(|| {
+                    Wikilinks::for_language(content, config, routes, locale)
+                });
+                Some(build_pages::body_html(config, links, doc)?)
+            }
+            None => None,
+        };
+        lists.push(List {
+            rest,
+            title: front
+                .and_then(|front| front.title.clone())
+                .unwrap_or_else(|| post.collection.clone()),
+            description: front
+                .and_then(|front| front.description.clone())
+                .unwrap_or_default(),
+            intro,
+            translation: format!("collection {}", post.collection),
+            kind: SeoKind::Collection,
+            robots: None,
+            body: PageBody::Collection,
+            cards: vec![post.card.clone()],
+        });
+    }
+    Ok(lists)
+}
+
+/// Where the page of `collection` sits, after the mount and the language
+/// prefix: the folders of its address pattern before the first placeholder
+/// other than `{collection}`, such as `guides/` for `/guides/{slug}/`.
+/// `None` when that is the home page, which lists every post already.
+fn collection_rest(routes: &Routes, collection: &str) -> Option<String> {
+    let pattern = routes
+        .collection(collection)
+        .map_or(UNNAMED, |found| found.permalink().as_str());
+    let filled = pattern.replace("{collection}", collection);
+    let fixed = filled.split('{').next().unwrap_or_default();
+    let folders = fixed.rsplit_once('/').map_or("", |(folders, _)| folders);
+    let rest = folders.trim_start_matches('/');
+    (!rest.is_empty()).then(|| format!("{rest}/"))
 }
 
 /// The text `key` of the strings file for `locale`.

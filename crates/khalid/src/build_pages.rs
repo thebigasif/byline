@@ -255,6 +255,7 @@ fn listed(
     ListedPost {
         path: draft.doc.path.clone(),
         locale: locale.clone(),
+        collection: draft.doc.collection.clone(),
         topics: build_reader::topics(&draft.slug, draft.date, front, &draft.rendered, slugs),
         card,
         author: front.author.clone(),

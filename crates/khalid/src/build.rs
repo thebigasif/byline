@@ -93,7 +93,7 @@ fn build(
     let mut languages = build_pages::pages(config, routes, (content, &[]), &href)?;
     if let Some((renderer, _)) = &theme {
         search_page::add(config, renderer, &mut languages)?;
-        build_lists::add(config, renderer, &mut languages)?;
+        build_lists::add((config, routes), renderer, content, &mut languages)?;
     }
     // The checked content keeps no assets, so the tree is read again for
     // them. A headless site gets them too: its feeds point at them.

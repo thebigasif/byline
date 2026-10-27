@@ -14,6 +14,8 @@ pub(crate) struct ListedPost {
     /// The content file, relative to the site folder.
     pub(crate) path: PathBuf,
     pub(crate) locale: Locale,
+    /// The collection folder it sits in, such as `posts`, whose page lists it.
+    pub(crate) collection: String,
     pub(crate) topics: PostTopics,
     pub(crate) card: PostCard,
     pub(crate) author: Option<Slug>,

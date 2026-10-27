@@ -115,3 +115,69 @@ fn a_site_can_turn_the_archive_and_the_authors_page_off() {
     assert_eq!(page(&site, "authors/index.html"), None);
     assert!(page(&site, "authors/asif/index.html").is_some());
 }
+
+/// Puts the guides collection at `/guides/{slug}/` with two guides and an
+/// `_index.md` that introduces it.
+#[cfg(test)]
+fn with_guides(site: &TempDir) {
+    put(
+        site.path(),
+        "routes.toml",
+        "[collections.guides]\npermalink = \"/guides/{slug}/\"\n",
+    );
+    put(
+        site.path(),
+        "content/en/guides/_index.md",
+        "---\ntitle: Guides\ndescription: Step-by-step guides for small teams.\n---\n\n\
+         Start with [the newest post](/blog/post-1/), then work down.\n",
+    );
+    for day in [10, 12] {
+        let text = format!(
+            "---\ntitle: Guide {day}\nslug: guide-{day}\ndate: 2026-09-{day}\nauthor: asif\n---\n\n\
+             Guide {day} links to [the home page](/blog/).\n"
+        );
+        put(
+            site.path(),
+            &format!("content/en/guides/guide-{day}.md"),
+            &text,
+        );
+    }
+}
+
+#[test]
+fn a_collection_page_shows_its_index_intro_above_its_posts() {
+    let site = site(1, "");
+    with_guides(&site);
+    build(&site);
+    let guides = page(&site, "guides/index.html").unwrap();
+    assert!(
+        guides.contains(
+            r#"<meta name="description" content="Step-by-step guides for small teams.">"#
+        ),
+        "{guides}"
+    );
+    insta::assert_snapshot!(main_of(&guides));
+}
+
+#[test]
+fn posts_at_the_mount_have_no_collection_page_but_the_home_page() {
+    let site = site(1, "");
+    build(&site);
+    assert_eq!(page(&site, "posts/index.html"), None);
+    assert!(page(&site, "index.html").unwrap().contains("Post 1</a>"));
+}
+
+#[test]
+fn a_collection_routes_toml_does_not_name_has_its_page_at_its_folder() {
+    let site = site(1, "");
+    put(
+        site.path(),
+        "content/en/notes/a-note.md",
+        "---\ntitle: A note\nslug: a-note\ndate: 2026-09-05\nauthor: asif\n---\n\n\
+         A note on [the home page](/blog/).\n",
+    );
+    build(&site);
+    let notes = page(&site, "notes/index.html").unwrap();
+    assert!(notes.contains("<h1>notes</h1>"), "{notes}");
+    assert!(notes.contains(r#"href="/blog/notes/a-note/""#), "{notes}");
+}
