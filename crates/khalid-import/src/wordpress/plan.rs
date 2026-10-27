@@ -3,10 +3,12 @@
 
 use std::path::PathBuf;
 
+use chrono::NaiveDateTime;
 use khalid_content::ContentError;
-use khalid_core::{AbsoluteUrl, Config, ParseSlugError, Slug};
+use khalid_core::{AbsoluteUrl, Config, ParseSlugError, RobotsDirectives, Slug};
 
-use crate::wordpress::post_file::post_file;
+use crate::wordpress::item_file::{Place, item_file};
+use crate::wordpress::site_files::{author_files, categories_file};
 use crate::wordpress::{Export, ItemKind, ItemStatus, SlugOrigin, UnreadField};
 
 /// Everything an import of one export would write.
@@ -66,6 +68,12 @@ pub enum Held {
     Shortcodes(Vec<String>),
     /// An SEO field that could not be carried as it was.
     Unread(UnreadField),
+    /// The time a scheduled post was due to go live; it waits in drafts.
+    Scheduled(NaiveDateTime),
+    /// A page's robots directives, which page front matter cannot hold.
+    Robots(RobotsDirectives),
+    /// A page's canonical address, which page front matter cannot hold.
+    Canonical(AbsoluteUrl),
 }
 
 /// An item that could not come in.
@@ -100,13 +108,23 @@ pub enum ItemError {
 /// Nothing is written; every file is read back with `khalid-content` first,
 /// and an item whose file does not read back is listed in
 /// [`Plan::failed`].
+///
+/// Published posts go under `content/<lang>/posts/`, drafts, posts waiting
+/// for review and scheduled posts under `drafts/<lang>/`, and published
+/// pages under `content/<lang>/pages/`. Each author gets a file, and the
+/// categories go into `categories.toml`.
 pub fn plan(export: &Export, site: &Config) -> Plan {
     let mut plan = Plan::default();
     for item in &export.items {
-        if item.kind != ItemKind::Post || item.status != ItemStatus::Publish {
-            continue;
-        }
-        match post_file(item, export, site) {
+        let place = match (&item.kind, &item.status) {
+            (ItemKind::Post, ItemStatus::Publish) => Place::Post,
+            (ItemKind::Post, ItemStatus::Draft | ItemStatus::Pending | ItemStatus::Future) => {
+                Place::Draft
+            }
+            (ItemKind::Page, ItemStatus::Publish) => Place::Page,
+            _ => continue,
+        };
+        match item_file(item, export, site, place) {
             Ok((file, imported)) => {
                 plan.files.push(file);
                 plan.items.push(imported);
@@ -114,5 +132,7 @@ pub fn plan(export: &Export, site: &Config) -> Plan {
             Err(error) => plan.failed.push(FailedItem { id: item.id, error }),
         }
     }
+    plan.files.extend(author_files(export, site));
+    plan.files.extend(categories_file(export, site));
     plan
 }

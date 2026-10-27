@@ -2,14 +2,17 @@
 
 mod export;
 mod item;
+mod item_file;
+mod names;
 mod php;
 mod plan;
-mod post_file;
+
 mod post_slug;
 mod redirection;
 mod seo_meta;
 mod seo_plugins;
 mod seo_text;
+mod site_files;
 mod wxr;
 mod wxr_error;
 

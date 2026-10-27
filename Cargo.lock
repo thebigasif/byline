@@ -1983,8 +1983,10 @@ dependencies = [
  "proptest",
  "roxmltree 0.20.0",
  "serde",
+ "serde-saphyr",
  "serde_json",
  "thiserror",
+ "toml",
 ]
 
 [[package]]

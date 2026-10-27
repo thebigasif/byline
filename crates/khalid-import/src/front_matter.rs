@@ -65,7 +65,7 @@ impl FrontMatter {
 
 /// `value` in double quotes, with every character YAML could misread
 /// escaped the way JSON escapes it.
-fn quoted(value: &str) -> String {
+pub(crate) fn quoted(value: &str) -> String {
     let mut quoted = String::with_capacity(value.len().saturating_add(2));
     quoted.push('"');
     for c in value.chars() {
