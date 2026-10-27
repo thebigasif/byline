@@ -103,3 +103,59 @@ fn two_posts_claiming_one_alias_stop_the_build() {
     let message = String::from_utf8_lossy(&output.stderr);
     assert!(message.contains("/links/"), "{message}");
 }
+
+/// The stored redirects of `site`, brought in with `khalid redirects import`.
+#[cfg(test)]
+fn import(site: &TempDir, csv: &str) {
+    let file = at(site.path(), "redirects.csv");
+    fs::write(&file, csv).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .arg("--site")
+        .arg(site.path())
+        .args(["redirects", "import"])
+        .arg(&file)
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
+fn stored_moves_join_the_aliases_in_one_step_and_the_rest_stay_on_the_server() {
+    let site = site(&[("why-links-matter", &["/blog/links/"])]);
+    import(
+        &site,
+        "from,to,status,match\n\
+         /blog/sale/,/blog/offers/,302,exact\n\
+         /blog/older-links/,/blog/links/,301,exact\n\
+         /blog/serpdad/,https://serpdad.com/,307,exact\n\
+         /blog/retired-tool/,,410,exact\n\
+         /blog/\\d{4}/(.+),/blog/$1,301,regex\n",
+    );
+    let output = build(&site);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let redirects = fs::read_to_string(at(site.path(), "public/_redirects")).unwrap();
+    assert_eq!(
+        redirects,
+        "/blog/links/ /blog/why-links-matter/ 301\n\
+         /blog/sale/ /blog/offers/ 302\n\
+         /blog/older-links/ /blog/why-links-matter/ 301\n\
+         /blog/serpdad/ https://serpdad.com/ 307\n"
+    );
+}
+
+#[test]
+fn a_build_never_makes_a_database() {
+    let site = site(&[("why-links-matter", &["/blog/links/"])]);
+    assert_eq!(build(&site).status.code(), Some(0));
+    assert!(!at(site.path(), "data/site.db").exists());
+}

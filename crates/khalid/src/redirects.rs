@@ -173,7 +173,7 @@ fn refused(refusal: &StoreRefusal) -> UserMessage {
 
 /// Opens `data/site.db` in `site`, runs `work` with the main site's
 /// redirect desk, and closes it.
-fn on_desk<T>(
+pub(crate) fn on_desk<T>(
     site: &Path,
     work: impl AsyncFnOnce(&RedirectDesk) -> T,
 ) -> Result<T, (UserMessage, Exit)> {

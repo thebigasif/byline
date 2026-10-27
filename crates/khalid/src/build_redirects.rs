@@ -1,14 +1,17 @@
 //! The `_redirects` file `khalid build` writes from the `aliases` in post
-//! front matter, so a moved post keeps its links on a static host (KH-SEO-8,
-//! ADR "the build writes its redirects as a `_redirects` file").
+//! front matter and the moves stored in `data/site.db`, so a moved post
+//! keeps its links on a static host (KH-SEO-8, ADR "the build writes its
+//! redirects as a `_redirects` file").
+
+use std::path::Path;
 
 use khalid_content::SiteContent;
 use khalid_core::{Config, UserMessage};
 use khalid_seo::{Destination, Move, Redirect, RedirectRule, RedirectTable, UrlPath};
 
 use crate::build_files::SiteFile;
-use crate::build_message;
 use crate::build_pages::{named, prefix};
+use crate::{build_message, db, redirects};
 
 /// One alias and the address it ends at, each from the site root, mount
 /// folder included. Every alias is a permanent move.
@@ -16,25 +19,62 @@ use crate::build_pages::{named, prefix};
 pub(crate) struct Hop {
     pub(crate) from: String,
     pub(crate) to: String,
-    status: String,
 }
 
-/// The redirects file, or `None` when no post has an alias.
+/// The redirects file, or `None` when there is nothing to redirect: one
+/// line per alias, then one per move stored in the `site` folder's
+/// database, if it has one, each chain followed to its end. Stored 410,
+/// 451 and regex rules have no line a static host reads, so they stay
+/// with `khalid serve`.
 pub(crate) fn file(
+    site: &Path,
     config: &Config,
     content: &SiteContent,
 ) -> Result<Option<SiteFile>, UserMessage> {
-    let hops = hops(config, content)?;
-    if hops.is_empty() {
+    let mut rules = Vec::new();
+    for hop in hops(config, content)? {
+        let to = Destination::Path(path(&hop.to)?);
+        let redirect = Redirect::Move {
+            kind: Move::Permanent,
+            to,
+        };
+        rules.push(RedirectRule::new(path(&hop.from)?, redirect));
+    }
+    rules.extend(stored_moves(site)?);
+    if rules.is_empty() {
         return Ok(None);
     }
+    let table = RedirectTable::new(rules).map_err(|error| build_message::seo(&error))?;
+    let lines = table.rules().iter().filter_map(|rule| {
+        let hit = table.resolve(&rule.from)?;
+        let to = hit.location()?;
+        Some(format!("{} {to} {}\n", rule.from, hit.status()))
+    });
     Ok(Some(SiteFile {
         file: "_redirects".to_owned(),
-        text: hops
-            .iter()
-            .map(|hop| [&hop.from, " ", &hop.to, " ", &hop.status, "\n"].concat())
-            .collect(),
+        text: lines.collect(),
     }))
+}
+
+/// The exact moves stored in `data/site.db` in `site`, or none when the
+/// site has no database; a build never makes one.
+fn stored_moves(site: &Path) -> Result<Vec<RedirectRule>, UserMessage> {
+    if !db::data_file(site)?.exists() {
+        return Ok(Vec::new());
+    }
+    let read = redirects::on_desk(site, async |desk| desk.table().await);
+    let table = read.map_err(|(message, _)| message)?.map_err(|refusal| {
+        UserMessage::new(
+            format!("The stored redirects cannot be written to _redirects: {refusal}."),
+            "A static host would send readers round in a loop or nowhere.",
+            "Run khalid redirects export to see them, fix the list, and import it again.",
+        )
+    })?;
+    let moves = table
+        .rules()
+        .iter()
+        .filter(|rule| rule.redirect.location().is_some());
+    Ok(moves.cloned().collect())
 }
 
 /// Every alias of a dated post, with each chain followed to its end, in
@@ -85,7 +125,6 @@ fn followed(config: &Config, table: &RedirectTable) -> Vec<Hop> {
             Some(Hop {
                 from: format!("{mount}{}", rule.from),
                 to,
-                status: answer.status().to_string(),
             })
         })
         .collect()
