@@ -14,7 +14,7 @@ use khalid_api::content_store::BoxFuture;
 use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
 use khalid_api::post_store::MemoryPostStore;
 use khalid_api::resources::{AdminComment, CommentReply, CommentStatus, CommentWriter};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 /// Keys made up for these tests. They open nothing real.
@@ -158,19 +158,39 @@ async fn an_unknown_status_is_a_problem_naming_the_choices() {
 }
 
 #[tokio::test]
-async fn approving_answers_with_the_comment_or_a_problem() {
+async fn approving_and_deleting_answer_with_the_comment_or_nothing() {
     let approve = ("POST", "/api/admin/v1/comments/1/approve/");
     let (status, body) = call(Arc::default(), approve, (WRITER, None)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["comments"][0]["status"], "approved");
-    for uri in [
-        "/api/admin/v1/comments/9/approve/",
-        "/api/admin/v1/comments/x/approve/",
+    let delete = ("DELETE", "/api/admin/v1/comments/1/");
+    assert_eq!(
+        call(Arc::default(), delete, (WRITER, None)).await.0,
+        StatusCode::NO_CONTENT
+    );
+    for (method, uri) in [
+        ("POST", "/api/admin/v1/comments/9/approve/"),
+        ("DELETE", "/api/admin/v1/comments/x/"),
     ] {
-        let (status, body) = call(Arc::default(), ("POST", uri), (WRITER, None)).await;
-        assert_eq!(status, StatusCode::NOT_FOUND, "{uri}");
+        let (status, body) = call(Arc::default(), (method, uri), (WRITER, None)).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{method} {uri}");
         assert_eq!(body["instance"], uri);
     }
+}
+
+#[tokio::test]
+async fn a_staff_reply_is_created_and_an_empty_one_is_refused() {
+    let reply = ("POST", "/api/admin/v1/comments/1/replies/");
+    let body = json!({"comments": [{"author_name": "Asif", "text": "Thanks, Lena."}]});
+    let (status, answer) = call(Arc::default(), reply, (WRITER, Some(body))).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(answer["comments"][0]["author_kind"], "staff");
+    assert_eq!(answer["comments"][0]["parent"], 1);
+    assert!(answer["comments"][0].get("author_email").is_none());
+    let empty = json!({"comments": [{"author_name": "Asif", "text": " "}]});
+    let (status, answer) = call(Arc::default(), reply, (WRITER, Some(empty))).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(answer["rule"], "text");
 }
 
 #[tokio::test]

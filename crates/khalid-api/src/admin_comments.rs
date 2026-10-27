@@ -1,11 +1,11 @@
-//! The Admin API's comment routes: the moderation queue and approve
-//! (plan Phase 5, task 5.4).
+//! The Admin API's comment routes: the moderation queue, approve, reply
+//! and delete (plan Phase 5, task 5.4).
 
 use std::sync::Arc;
 
-use axum::extract::rejection::QueryRejection;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{OriginalUri, Path, Query, State};
-
+use axum::http::StatusCode;
 use axum::{Extension, Json, middleware};
 use khalid_core::UserMessage;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, ModerationError};
 use crate::keys::{KeyStore, Principal, Scope};
 use crate::problem::{Problem, ProblemType};
-use crate::resources::{AdminComment, CommentStatus};
+use crate::resources::{AdminComment, CommentReply, CommentStatus};
 
 /// The moderation every comment route calls.
 type Moderation = Arc<dyn CommentModeration>;
@@ -36,6 +36,8 @@ pub(crate) fn routes(comments: Moderation, keys: Arc<dyn KeyStore>) -> OpenApiRo
     OpenApiRouter::new()
         .routes(routes!(list_comments))
         .routes(routes!(approve_comment))
+        .routes(routes!(reply_to_comment))
+        .routes(routes!(delete_comment))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(comments)
@@ -46,6 +48,14 @@ pub(crate) fn routes(comments: Moderation, keys: Arc<dyn KeyStore>) -> OpenApiRo
 pub(crate) struct AdminComments {
     /// The comment or comments.
     comments: Vec<AdminComment>,
+}
+
+/// A reply, wrapped the way the Admin API wraps comments: exactly one.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CommentReplies {
+    /// The one reply.
+    comments: Vec<CommentReply>,
 }
 
 /// What a comment list asks for.
@@ -109,6 +119,64 @@ async fn approve_comment(
     Ok(Json(AdminComments {
         comments: vec![comment],
     }))
+}
+
+/// Answers a comment as staff. The reply shows at once, and the comment
+/// it answers is approved. Needs `posts:write`.
+#[utoipa::path(
+    post, path = "/comments/{id}/replies/", tag = "admin comments",
+    security(("admin_key" = [])),
+    params(("id" = i64, Path, description = "The identity of the comment answered")),
+    request_body = CommentReplies,
+    responses(
+        (status = 201, description = "The reply as stored", body = AdminComments),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No comment has this identity", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, or its name or text cannot be kept", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn reply_to_comment(
+    State(comments): State<Moderation>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Json<CommentReplies>, JsonRejection>,
+) -> Result<(StatusCode, Json<AdminComments>), Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let id = id.parse().map_err(|_| missing(uri.path()))?;
+    let Json(body) = body.map_err(|rejection| invalid(&rejection.body_text(), None))?;
+    let [reply] = <[CommentReply; 1]>::try_from(body.comments)
+        .map_err(|_| invalid("comments must hold exactly one reply", None))?;
+    let reply = comments.reply(id, reply).await;
+    let reply = reply.map_err(|error| problem(error, uri.path()))?;
+    let comments = vec![reply];
+    Ok((StatusCode::CREATED, Json(AdminComments { comments })))
+}
+
+/// Removes a comment and every reply to it. Needs `posts:write`.
+#[utoipa::path(
+    delete, path = "/comments/{id}/", tag = "admin comments",
+    security(("admin_key" = [])),
+    params(("id" = i64, Path, description = "The comment's identity")),
+    responses(
+        (status = 204, description = "The comment and its replies are gone"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No comment has this identity", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn delete_comment(
+    State(comments): State<Moderation>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<StatusCode, Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let id = id.parse().map_err(|_| missing(uri.path()))?;
+    let deleted = comments.delete(id).await;
+    deleted.map_err(|error| problem(error, uri.path()))?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// The problem a moderation error at `path` answers with.

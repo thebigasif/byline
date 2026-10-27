@@ -97,6 +97,76 @@
         ]
       }
     },
+    "/api/admin/v1/comments/{id}/": {
+      "delete": {
+        "tags": [
+          "admin comments"
+        ],
+        "summary": "Removes a comment and every reply to it. Needs `posts:write`.",
+        "operationId": "delete_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The comment's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The comment and its replies are gone"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No comment has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/comments/{id}/approve/": {
       "post": {
         "tags": [
@@ -158,6 +228,103 @@
           },
           "404": {
             "description": "No comment has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/comments/{id}/replies/": {
+      "post": {
+        "tags": [
+          "admin comments"
+        ],
+        "summary": "Answers a comment as staff. The reply shows at once, and the comment\nit answers is approved. Needs `posts:write`.",
+        "operationId": "reply_to_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The identity of the comment answered",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentReplies"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The reply as stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminComments"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No comment has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or its name or text cannot be kept",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3492,6 +3659,44 @@
             ]
           }
         }
+      },
+      "CommentReplies": {
+        "type": "object",
+        "description": "A reply, wrapped the way the Admin API wraps comments: exactly one.",
+        "required": [
+          "comments"
+        ],
+        "properties": {
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentReply"
+            },
+            "description": "The one reply."
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommentReply": {
+        "type": "object",
+        "description": "A staff reply to a comment.",
+        "required": [
+          "author_name",
+          "text"
+        ],
+        "properties": {
+          "author_name": {
+            "type": "string",
+            "description": "The name shown with the reply, such as the writer's own.",
+            "example": "Asif"
+          },
+          "text": {
+            "type": "string",
+            "description": "What the reply says, as plain text.",
+            "example": "Thanks, Lena. The follow-up post is out next week."
+          }
+        },
+        "additionalProperties": false
       },
       "CommentStatus": {
         "type": "string",
