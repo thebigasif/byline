@@ -18,8 +18,9 @@ use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostRow, PostStatus}
 use khalid_content::{ContentTree, SiteContent, parse_post, read_content};
 use khalid_core::{Clock, Config, Locale, Slug};
 use khalid_lint::{LintPost, LintSite, Linter, Report, Verdict};
+use khalid_routes::Routes;
 
-use crate::lint_input::{PostParts, lint_parts, lint_site};
+use crate::lint_input::{LintInput, PostParts, lint_parts, lint_site};
 use crate::post_text::{PostText, quoted};
 use crate::settings_text::{put, settings_of, write_settings};
 use crate::{atomic, lint};
@@ -45,6 +46,7 @@ struct Site {
 struct Judge {
     linter: Linter,
     site: LintSite,
+    input: LintInput,
 }
 
 /// A post file found by its identity.
@@ -304,11 +306,17 @@ impl Site {
     /// The linter and the view of `content` every post is judged against,
     /// made once for a whole list.
     fn judge(&self, content: &SiteContent) -> Result<Judge, PostStoreError> {
-        let (site, _) = lint_site(content, &self.config);
+        let routes = Routes::load(&self.folder).map_err(PostStoreError::new)?;
+        let input = LintInput::new(content, &self.config, routes);
+        let (site, _) = lint_site(content, &self.config, &input);
         let settings =
             lint::lint_settings(&self.folder).map_err(|message| failure(&message.to_string()))?;
         let linter = Linter::new(&settings, self.clock.as_ref()).map_err(PostStoreError::new)?;
-        Ok(Judge { linter, site })
+        Ok(Judge {
+            linter,
+            site,
+            input,
+        })
     }
 
     /// [`Site::gate`] with a `judge` already made.
@@ -319,31 +327,36 @@ impl Site {
         text: &PostText,
         relative: &Path,
     ) -> Result<Verdict, PostStoreError> {
-        let candidate = self.candidate(found, text, relative)?;
+        let candidate = self.candidate(judge, found, text, relative)?;
         Ok(judge.linter.gate(&candidate, &judge.site))
     }
 
-    /// `text` as the linter reads the post at `relative`.
+    /// `text` as the linter reads the post at `relative`, a path such as
+    /// `content/en/posts/2026-10-27-a-post.md`, whose third folder is the
+    /// post's collection.
     fn candidate(
         &self,
+        judge: &Judge,
         found: &Found,
         text: &PostText,
         relative: &Path,
     ) -> Result<LintPost, PostStoreError> {
         let post = parse_post(relative, &text.to_text()).map_err(PostStoreError::new)?;
+        let collection = relative.iter().nth(2).and_then(|part| part.to_str());
         let parts = PostParts {
             locale: &found.locale,
             path: relative,
+            collection: collection.unwrap_or("posts"),
             front: &post.front,
             body: &post.body,
         };
-        lint_parts(&parts, &self.config)
+        lint_parts(&parts, &self.config, &judge.input)
             .ok_or_else(|| failure("the post cannot be read for linting"))
     }
 
     /// `found` as the linter judges it now: a draft as it would go live
     /// today, a published post as it is.
-    fn candidate_now(&self, found: &Found) -> Result<LintPost, PostStoreError> {
+    fn candidate_now(&self, judge: &Judge, found: &Found) -> Result<LintPost, PostStoreError> {
         let mut text = found.text.clone();
         let relative = match found.status {
             PostStatus::Draft => self.dated(found, &mut text).1,
@@ -353,12 +366,12 @@ impl Site {
                 .map_err(PostStoreError::new)?
                 .to_path_buf(),
         };
-        self.candidate(found, &text, &relative)
+        self.candidate(judge, found, &text, &relative)
     }
 
     /// What the publish gate finds in `found` now, writing nothing.
     fn report(&self, judge: &Judge, found: &Found) -> Result<Report, PostStoreError> {
-        let candidate = self.candidate_now(found)?;
+        let candidate = self.candidate_now(judge, found)?;
         let (Verdict::Publish { report } | Verdict::Refuse { report }) =
             judge.linter.gate(&candidate, &judge.site);
         Ok(report)

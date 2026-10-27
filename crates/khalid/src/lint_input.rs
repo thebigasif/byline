@@ -1,46 +1,105 @@
 //! Turns the content files into the linter's own model (ADR 0019).
 //!
 //! The lint crate never reads files, so this binary maps parsed posts and
-//! their rendered output to `LintPost` and `LintSite`. Wikilinks (task 1.8),
-//! post paths (task 1.9) and the home page's links are not known yet, so the
-//! rules that need them use their fallbacks or skip.
+//! their rendered output to `LintPost` and `LintSite`, as the built page has
+//! them: the slug and address `khalid build` gives each post, its body
+//! rendered with its wikilinks linked, the wikilinks as written, its forms,
+//! focus keywords and collection, the site's collections, and the links of
+//! each home page, which lists every dated post (audit 2, G5).
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::NaiveDate;
-use khalid_content::{Document, PostFront, SiteContent, render};
+use khalid_content::{
+    BlockKind, Document, PostFront, SiteContent, Wikilinks, parse_blocks, render_linked,
+};
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
-    GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintLink, LintPost, LintSite, PageRef,
+    GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection, LintForm, LintLink,
+    LintPost, LintSite, PageRef, StructuredDataGap,
 };
+use khalid_routes::{PostAddress, Routes};
+use khalid_seo::SeoSite;
+
+use crate::build_pages::routed;
+use crate::build_seo;
+
+/// What a post is linted against besides itself: the site's routes, the
+/// pages a wikilink reaches in each language, and the site as the SEO
+/// outputs read it, or `None` when `site.toml` cannot give one, in which
+/// case `khalid build` stops with its own message.
+pub(crate) struct LintInput {
+    routes: Routes,
+    links: BTreeMap<Locale, Wikilinks>,
+    seo: Option<SeoSite>,
+}
+
+impl LintInput {
+    /// The input for the posts of `content` on the site `config` describes,
+    /// whose addresses follow `routes`.
+    pub(crate) fn new(content: &SiteContent, config: &Config, routes: Routes) -> Self {
+        let links = config
+            .languages()
+            .iter()
+            .map(|locale| {
+                let links = Wikilinks::for_language(content, config, &routes, locale);
+                (locale.clone(), links)
+            })
+            .collect();
+        let seo = build_seo::site(config).ok();
+        Self { routes, links, seo }
+    }
+}
 
 /// The site's posts, pages and glossary in the lint model, and the document
 /// each post came from, in the same order.
 pub(crate) fn lint_site<'c>(
     content: &'c SiteContent,
     config: &Config,
+    input: &LintInput,
 ) -> (LintSite, Vec<&'c Document<PostFront>>) {
     let mut site = LintSite::default();
     let mut documents = Vec::new();
     for document in &content.posts {
-        if let Some(post) = lint_post(document, config) {
+        if let Some(post) = lint_post(document, config, input) {
             site.posts.push(post);
             documents.push(document);
         }
     }
+    // Each home page lists every dated post of its language.
+    site.home_links = site
+        .posts
+        .iter()
+        .filter(|post| post.date.is_some())
+        .filter_map(|post| post.path.clone())
+        .collect();
+    let used: BTreeSet<&str> = content
+        .posts
+        .iter()
+        .map(|d| d.collection.as_str())
+        .collect();
+    site.collections = used
+        .into_iter()
+        .filter_map(|name| {
+            let collection = input.routes.collection(name)?;
+            Some(LintCollection::new(name, collection.permalink().as_str()))
+        })
+        .collect();
     for page in &content.pages {
-        if let Some(slug) = slug_of(page.front.slug.as_ref(), &page.path, &page.locale, config) {
+        let front = &page.front;
+        let named = (front.slug.as_ref(), front.title.as_deref());
+        if let Some(slug) = slug_of(named, &page.path, &page.locale, config) {
             site.pages.push(PageRef::new(page.locale.clone(), slug));
         }
     }
     for entry in &content.glossary {
-        let slug = slug_of(
-            entry.front.slug.as_ref(),
-            &entry.path,
-            &entry.locale,
-            config,
-        );
-        if let (Some(term), Some(slug)) = (&entry.front.term, slug) {
+        let front = &entry.front;
+        let named = (front.slug.as_ref(), front.term.as_deref());
+        if let (Some(term), Some(slug)) = (
+            &front.term,
+            slug_of(named, &entry.path, &entry.locale, config),
+        ) {
             site.glossary
                 .push(GlossaryTerm::new(entry.locale.clone(), term, slug));
         }
@@ -55,33 +114,55 @@ pub(crate) fn lint_site<'c>(
 /// One post in the lint model, or `None` when no slug can be made for it or
 /// its body does not render. Reading the site already refuses a broken
 /// block, so a post that got this far renders.
-fn lint_post(document: &Document<PostFront>, config: &Config) -> Option<LintPost> {
+fn lint_post(
+    document: &Document<PostFront>,
+    config: &Config,
+    input: &LintInput,
+) -> Option<LintPost> {
     let parts = PostParts {
         locale: &document.locale,
         path: &document.path,
+        collection: &document.collection,
         front: &document.front,
         body: &document.body,
     };
-    lint_parts(&parts, config)
+    lint_parts(&parts, config, input)
 }
 
 /// A post that may not be a file under `content/` yet, such as a draft
-/// about to be published: its language, where it is or will be, its front
-/// matter and its markdown body.
+/// about to be published: its language, where it is or will be, the
+/// collection it is or will be in, its front matter and its markdown body.
 pub(crate) struct PostParts<'a> {
     pub(crate) locale: &'a Locale,
     pub(crate) path: &'a Path,
+    pub(crate) collection: &'a str,
     pub(crate) front: &'a PostFront,
     pub(crate) body: &'a str,
 }
 
 /// The post made of `parts` in the lint model, or `None` as for
-/// [`lint_post`].
-pub(crate) fn lint_parts(parts: &PostParts<'_>, config: &Config) -> Option<LintPost> {
+/// [`lint_post`]. Its slug and address are the ones `khalid build` gives
+/// its page, and its body is rendered with its wikilinks linked, so its
+/// links are the page's links.
+pub(crate) fn lint_parts(
+    parts: &PostParts<'_>,
+    config: &Config,
+    input: &LintInput,
+) -> Option<LintPost> {
     let front = parts.front;
-    let slug = slug_of(front.slug.as_ref(), parts.path, parts.locale, config)?;
-    let rendered = render(parts.body, parts.locale, config.slugs()).ok()?;
+    let named = (front.slug.as_ref(), front.title.as_deref());
+    let slug = slug_of(named, parts.path, parts.locale, config)?;
+    let none = Wikilinks::new();
+    let links = input.links.get(parts.locale).unwrap_or(&none);
+    let rendered = render_linked(parts.body, parts.locale, config.slugs(), links).ok()?;
+    let address = PostAddress::new(parts.collection, parts.locale, &slug, front.date);
+    let path = input.routes.address(config, &address).ok();
+    let rest = routed(config, &input.routes, parts.locale, &address, parts.path).ok();
+    let gaps = rest.map(|rest| gaps(parts, input, &rest, &slug));
     let mut post = LintPost::new(parts.locale.clone(), slug);
+    post.structured_data_gaps = gaps.unwrap_or_default();
+    post.path = path;
+    post.collection = Some(parts.collection.to_owned());
     post.title.clone_from(&front.title);
     post.description.clone_from(&front.description);
     post.date = front.date;
@@ -91,6 +172,11 @@ pub(crate) fn lint_parts(parts: &PostParts<'_>, config: &Config) -> Option<LintP
         .map(|author| author.as_str().to_owned());
     post.translation.clone_from(&front.translation);
     post.aliases.clone_from(&front.aliases);
+    post.focus_keyword.clone_from(&front.focus_keyword);
+    post.secondary_keywords
+        .clone_from(&front.secondary_keywords);
+    post.wikilinks = wikilinks(parts.body);
+    post.forms = forms(parts.body);
     post.headings = rendered
         .headings
         .iter()
@@ -118,11 +204,42 @@ pub(crate) fn lint_parts(parts: &PostParts<'_>, config: &Config) -> Option<LintP
     Some(post)
 }
 
-/// The slug from the header, or else from the file name: `index.md` takes
+/// The properties Google needs that the schema graph of the page `parts`
+/// becomes lacks, its address ending in `rest` and its slug `slug`, as
+/// `khalid-seo` checks the graph. A post with no date has no page yet, and
+/// so no gaps.
+fn gaps(
+    parts: &PostParts<'_>,
+    input: &LintInput,
+    rest: &str,
+    slug: &Slug,
+) -> Vec<StructuredDataGap> {
+    let (Some(site), Some(date)) = (&input.seo, parts.front.date) else {
+        return Vec::new();
+    };
+    let front = parts.front;
+    let title = front.title.clone().unwrap_or_else(|| slug.to_string());
+    let Ok(mut page) = build_seo::post(parts.locale, (rest, &title), front, date) else {
+        return Vec::new();
+    };
+    page.author = front.author.as_ref().map(Slug::to_string);
+    build_seo::structured_data_gaps(site, &page)
+}
+
+/// The slug a page is built at: from the header, or else from the title,
+/// as `khalid build` names it, or else from the file name: `index.md` takes
 /// its folder's name, and a leading `2026-09-14-` date is dropped.
-fn slug_of(front: Option<&Slug>, path: &Path, locale: &Locale, config: &Config) -> Option<Slug> {
-    if let Some(slug) = front {
+fn slug_of(
+    (slug, title): (Option<&Slug>, Option<&str>),
+    path: &Path,
+    locale: &Locale,
+    config: &Config,
+) -> Option<Slug> {
+    if let Some(slug) = slug {
         return Some(slug.clone());
+    }
+    if let Some(slug) = title.and_then(|t| Slug::from_title(t, locale, config.slugs()).ok()) {
+        return Some(slug);
     }
     let stem = path.file_stem()?.to_str()?;
     let stem = if stem == "index" {
@@ -139,6 +256,52 @@ fn slug_of(front: Option<&Slug>, path: &Path, locale: &Locale, config: &Config) 
         _ => stem,
     };
     Slug::from_title(undated, locale, config.slugs()).ok()
+}
+
+/// The forms of `body`, in order. No setting sends a form's answers
+/// anywhere yet, so none has a destination.
+fn forms(body: &str) -> Vec<LintForm> {
+    let blocks = parse_blocks(body).unwrap_or_default();
+    blocks
+        .into_iter()
+        .filter_map(|block| match block.kind {
+            BlockKind::Form { id, .. } => Some(LintForm::new(id, Vec::new())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// The target of each `[[target]]` and `[[target|text]]` in `body`, as
+/// written, in order. Code, fenced or inline, holds none.
+fn wikilinks(body: &str) -> Vec<String> {
+    let mut targets = Vec::new();
+    let mut fence: Option<&str> = None;
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        let marker = ["```", "~~~"].into_iter().find(|m| trimmed.starts_with(m));
+        match (fence, marker) {
+            (None, Some(marker)) => fence = Some(marker),
+            (Some(open), Some(marker)) if open == marker => fence = None,
+            (None, None) => {
+                // Text between backticks is inline code: every other piece.
+                for prose in line.split('`').step_by(2) {
+                    let mut rest = prose;
+                    while let Some((_, after)) = rest.split_once("[[") {
+                        let Some((inside, tail)) = after.split_once("]]") else {
+                            break;
+                        };
+                        let target = inside.split('|').next().unwrap_or_default().trim();
+                        if !target.is_empty() {
+                            targets.push(target.to_owned());
+                        }
+                        rest = tail;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    targets
 }
 
 /// The lint model's heading level for an HTML level from 1 to 6.
@@ -235,5 +398,13 @@ mod tests {
             .filter(|line| !line.is_empty())
             .collect();
         assert_eq!(lines, ["Why links", "One link", "Two", "three"]);
+    }
+
+    #[test]
+    fn wikilinks_are_read_as_written_outside_code() {
+        let body = "See [[why-links]] and [[link-text|good link text]].\n\n\
+                    Write `[[not-a-link]]` like this.\n\n```\n[[in-a-fence]]\n```\n\n\
+                    ~~~\n```\n[[still-fenced]]\n~~~\n\nLast [[ seo ]] and [[]] and [[open";
+        assert_eq!(wikilinks(body), ["why-links", "link-text", "seo"]);
     }
 }

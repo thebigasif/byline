@@ -29,7 +29,7 @@ impl Site {
             let post = Self::admin_post(&found)?;
             let gate = if judge
                 .linter
-                .refuses(&self.candidate_now(&found)?, &judge.site)
+                .refuses(&self.candidate_now(&judge, &found)?, &judge.site)
             {
                 Gate::Refuses
             } else {

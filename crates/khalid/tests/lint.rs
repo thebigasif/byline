@@ -107,6 +107,45 @@ fn lint_json_prints_the_report_and_still_exits_1() {
 }
 
 #[test]
+fn lint_prints_each_post_below_100_with_its_score() {
+    let site = site(&[
+        ("2026-09-14-why-internal-links-matter.md", GOOD),
+        ("choosing-link-text.md", UNDATED),
+    ]);
+    let output = khalid(site.path(), &["lint"]);
+    let said = text(&output.stdout);
+    assert!(said.contains("Scores out of 100:"), "{said}");
+    assert!(said.contains("  en/choosing-link-text: 40\n"), "{said}");
+    let one = "content/en/posts/choosing-link-text.md";
+    let said = text(&khalid(site.path(), &["lint", one]).stdout);
+    assert!(said.contains("Score: 40 out of 100.\n"), "{said}");
+    assert!(!said.contains("Scores out of 100:"), "{said}");
+}
+
+#[test]
+fn lint_json_scores_every_post_and_one_post_alone() {
+    let site = site(&[
+        ("2026-09-14-why-internal-links-matter.md", GOOD),
+        ("choosing-link-text.md", UNDATED),
+    ]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let scores = json["scores"].as_array().unwrap();
+    assert_eq!(scores.len(), 2, "{json}");
+    let undated = scores.iter().find(|s| s["slug"] == "choosing-link-text");
+    let undated = undated.unwrap();
+    assert_eq!(undated["locale"], "en");
+    assert_eq!(undated["value"], 40);
+    assert_eq!(undated["lost"][0]["rule"], "no-date");
+
+    let one = "content/en/posts/choosing-link-text.md";
+    let output = khalid(site.path(), &["lint", one, "--json"]);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    assert_eq!(json["score"]["value"], 40, "{json}");
+    assert_eq!(json.get("scores"), None);
+}
+
+#[test]
 fn lint_checks_only_the_post_it_is_given() {
     let site = site(&[
         ("2026-09-14-why-internal-links-matter.md", GOOD),
@@ -292,7 +331,7 @@ fn lint_toml_turns_a_block_into_a_warning() {
 /// A post whose `####` heading skips a level, with the two blank lines
 /// before `## Setup` that a repair must leave as they are.
 const JUMPY: &str = "---
-title: Setting up a blog
+title: Setting up
 date: 2026-09-14
 author: asif
 ---
@@ -345,7 +384,7 @@ fn lint_fix_puts_headings_in_order_and_leaves_the_rest() {
 
 /// A post with a figure that has a caption but no description.
 const BARE_FIGURE: &str = "---
-title: A door in Lisbon
+title: Lisbon door
 date: 2026-09-14
 author: asif
 ---
@@ -375,10 +414,10 @@ fn lint_fix_describes_an_image_with_its_caption() {
     );
 }
 
-/// A post with no `slug:`, so its address comes from a file name full of
+/// A post with no `slug:`, so its address comes from a title full of
 /// filler words and a year.
 const WORDY: &str = "---
-title: Start a blog
+title: Start a blog in 2026
 date: 2026-09-14
 author: asif
 ---
@@ -433,7 +472,11 @@ fn lint_fix_adds_to_aliases_and_replaces_the_slug_as_written() {
 
 #[test]
 fn lint_fix_leaves_an_address_another_post_already_has() {
-    let site = site(&[("start-a-blog-in-2026.md", WORDY), ("start-blog.md", WORDY)]);
+    let taken = WORDY.replace("Start a blog in 2026", "Start blog");
+    let site = site(&[
+        ("start-a-blog-in-2026.md", WORDY),
+        ("start-blog.md", &taken),
+    ]);
     let output = khalid(site.path(), &["lint", "--fix", "--json"]);
     let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
     assert_eq!(json["fixed"], Value::Array(Vec::new()), "{json}");

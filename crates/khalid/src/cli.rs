@@ -79,7 +79,8 @@ pub(crate) enum Command {
         #[arg(long, value_name = "FOLDER")]
         out: Option<PathBuf>,
     },
-    /// Check one post or the whole site against the SEO rules
+    /// Check one post or the whole site against the SEO rules, and score
+    /// each post out of 100
     Lint {
         /// One post to check. Leave it out to check the whole site.
         path: Option<PathBuf>,

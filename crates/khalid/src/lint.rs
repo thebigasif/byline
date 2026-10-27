@@ -7,13 +7,17 @@ use std::path::Path;
 
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, Environment, SitePath, SystemClock, UserMessage};
-use khalid_lint::{Finding, LintConfig, Linter, Report, Severity};
+use khalid_lint::{Finding, LintConfig, LintPost, Linter, Report, Score, Severity};
+use khalid_routes::Routes;
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::lint_fix::Repair;
-use crate::{config_message, content_message, lint_fix, lint_input, lint_message, report};
+use crate::lint_input::LintInput;
+use crate::{
+    config_message, content_message, lint_fix, lint_input, lint_message, report, routes_message,
+};
 
 /// Whether `khalid lint` only reports, or makes the safe repairs first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,14 +28,28 @@ pub(crate) enum Mode {
     Fix,
 }
 
-/// A run's report, with the repairs `--fix` made. In JSON it is the report
-/// with a `fixed` list beside `blocks` and `findings`.
+/// A run's report, with the repairs `--fix` made and, for a whole site, each
+/// post's score. In JSON it is the report with a `fixed` list and a
+/// `scores` list beside `blocks` and `findings`; a run on one post has the
+/// report's own `score` instead.
 #[derive(Serialize)]
 struct Outcome {
     #[serde(skip_serializing_if = "Option::is_none")]
     fixed: Option<Vec<Repair>>,
     #[serde(flatten)]
     report: Report,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scores: Option<Vec<PostScore>>,
+}
+
+/// One post's score out of 100, in JSON `{"locale": "en", "slug": "...",
+/// "value": 85, "lost": [...]}`.
+#[derive(Serialize)]
+struct PostScore {
+    locale: String,
+    slug: String,
+    #[serde(flatten)]
+    score: Score,
 }
 
 /// Lints the site in `site`, or only the post file `post` inside it, and
@@ -50,7 +68,8 @@ pub(crate) fn run(site: &Path, post: Option<&Path>, mode: Mode, output: Output) 
     match output {
         Output::Json => report::json(&outcome, exit),
         Output::Human => {
-            let text = sentences(&outcome.report, outcome.fixed.as_deref());
+            let mut text = sentences(&outcome.report, outcome.fixed.as_deref());
+            write_scores(&mut text, &outcome);
             report::text(&text, exit)
         }
     }
@@ -67,34 +86,56 @@ fn check(site: &Path, post: Option<&Path>, mode: Mode) -> Result<Outcome, (UserM
     let settings = lint_settings(site).map_err(|message| (message, Exit::Failure))?;
     let linter = Linter::new(&settings, &SystemClock)
         .map_err(|error| (lint_message::of(&error), Exit::Internal))?;
-    let (lint_site, documents) = lint_input::lint_site(&content, &config);
-    let report = match post {
-        None => linter.lint_site(&lint_site),
+    let routes = Routes::load(site).map_err(|error| (routes_message::of(&error), Exit::Failure))?;
+    let input = LintInput::new(&content, &config, routes);
+    let (lint_site, documents) = lint_input::lint_site(&content, &config, &input);
+    let (report, scores) = match post {
+        None => {
+            let report = linter.lint_site(&lint_site);
+            let scores = scores(&report, &lint_site.posts);
+            (report, Some(scores))
+        }
         Some(wanted) => {
             let index = documents.iter().position(|d| d.path.ends_with(wanted));
             match index.and_then(|i| lint_site.posts.get(i)) {
-                Some(found) => linter.lint_post(found, &lint_site),
+                Some(found) => (linter.lint_post(found, &lint_site), None),
                 None => return Err((no_such_post(wanted), Exit::Failure)),
             }
         }
     };
+    let checked = Outcome {
+        fixed: None,
+        report,
+        scores,
+    };
     if mode == Mode::Check {
-        return Ok(Outcome {
-            fixed: None,
-            report,
-        });
+        return Ok(checked);
     }
-    let fixed = lint_fix::repair(site, &lint_site, &documents, report.findings(), &config)
+    let findings = checked.report.findings();
+    let fixed = lint_fix::repair(site, &lint_site, &documents, findings, &config)
         .map_err(|message| (message, Exit::Failure))?;
-    let report = if fixed.is_empty() {
-        report
+    let outcome = if fixed.is_empty() {
+        checked
     } else {
-        check(site, post, Mode::Check)?.report
+        check(site, post, Mode::Check)?
     };
     Ok(Outcome {
         fixed: Some(fixed),
-        report,
+        ..outcome
     })
+}
+
+/// The score of each of `posts`, in their order.
+fn scores(report: &Report, posts: &[LintPost]) -> Vec<PostScore> {
+    report
+        .scores(posts)
+        .into_iter()
+        .map(|(post, score)| PostScore {
+            locale: post.locale.to_string(),
+            slug: post.slug.to_string(),
+            score,
+        })
+        .collect()
 }
 
 /// The settings in the site's `lint.toml`, or the defaults when it has none.
@@ -155,6 +196,28 @@ fn sentences(report: &Report, fixed: Option<&[Repair]>) -> String {
         None => {}
     }
     text
+}
+
+/// The score out of 100 of the one post checked, or of each post of the
+/// site that lost points, in site order.
+fn write_scores(text: &mut String, outcome: &Outcome) {
+    if let Some(score) = outcome.report.post_score() {
+        let _ = writeln!(text, "Score: {} out of 100.", score.value());
+    }
+    let Some(scores) = &outcome.scores else {
+        return;
+    };
+    let mut below = scores.iter().filter(|post| post.score.value() < 100);
+    match below.next() {
+        None => text.push_str("Every post scores 100 out of 100.\n"),
+        Some(first) => {
+            text.push_str("Scores out of 100:\n");
+            for post in std::iter::once(first).chain(below) {
+                let value = post.score.value();
+                let _ = writeln!(text, "  {}/{}: {value}", post.locale, post.slug);
+            }
+        }
+    }
 }
 
 /// One finding as its post, its severity and its three sentences, then its

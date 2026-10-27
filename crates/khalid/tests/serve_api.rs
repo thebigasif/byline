@@ -482,6 +482,14 @@ fn a_weak_post_is_refused_with_its_findings_and_never_served() {
     let (status, body) = request(&server, "PUT", path, &auth, Some(&publish));
     assert_eq!(status, 422, "{body}");
     assert!(body.contains("no-author"), "{body}");
+    let refused: Value = serde_json::from_str(&body).unwrap();
+    let score = &refused["lint"]["score"];
+    assert!(score["value"].as_u64().is_some_and(|v| v <= 40), "{body}");
+    assert!(
+        score["lost"]
+            .as_array()
+            .is_some_and(|lost| !lost.is_empty())
+    );
     let (status, _) = request(&server, "GET", "/blog/a-weak-post/", &[], None);
     assert_eq!(status, 404);
     let (status, _) = request(&server, "POST", "/api/admin/v1/posts/", &[], Some(&new));
