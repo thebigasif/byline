@@ -2012,6 +2012,7 @@ dependencies = [
  "khalid-static",
  "khalid-theme",
  "mimalloc",
+ "rcgen",
  "scraper",
  "serde",
  "serde_json",
