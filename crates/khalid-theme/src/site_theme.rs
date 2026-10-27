@@ -36,6 +36,17 @@ impl SiteTheme {
             brand: Brand::from_html(source.html(), source.home()),
         }
     }
+
+    /// Finds the colours and fonts in `css` alone, such as the custom
+    /// properties a person copied from a site that draws its pages with
+    /// JavaScript. There is no page, so the brand is empty.
+    pub fn from_css(css: &str) -> Self {
+        Self {
+            palette: Palette::from_css(&[css]),
+            typography: Typography::from_css(&[css], &[]),
+            brand: Brand::default(),
+        }
+    }
 }
 
 /// The page's `style` attributes as one stylesheet, one rule each. An

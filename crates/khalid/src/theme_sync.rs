@@ -3,12 +3,15 @@
 //! token the file locks, and draw a preview page (task 3.8, plan 4.9).
 
 use std::fmt::Write as _;
+use std::fs;
+use std::io::{self, Read as _};
 use std::path::{Path, PathBuf};
 
 use khalid_core::{AbsoluteUrl, Locale, UserMessage};
 use khalid_render::Renderer;
 use khalid_theme::{
-    ContrastFix, SiteSource, SiteTheme, ThemeDiff, ThemeTokens, TokenChange, fetch_site,
+    ContrastFix, MAX_CSS_BYTES, SiteSource, SiteTheme, ThemeDiff, ThemeTokens, TokenChange,
+    fetch_site,
 };
 use serde::Serialize;
 
@@ -26,6 +29,10 @@ struct SyncBody<'a> {
     preview: String,
     /// The address the theme was read from.
     site: &'a str,
+    /// The CSS file the colours and fonts came from, when `--from-css`
+    /// was given.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    from_css: Option<String>,
     /// Each colour the contrast pass changed, in file order.
     contrast_fixes: Vec<FixBody>,
     /// Each token that differed from the file already there, in file
@@ -99,9 +106,10 @@ impl ChangeBody {
 }
 
 /// What one sync wrote.
-struct Synced {
+struct Synced<'a> {
     path: PathBuf,
     preview: PathBuf,
+    from_css: Option<&'a Path>,
     fixes: Vec<ContrastFix>,
     diff: Option<ThemeDiff>,
 }
@@ -116,15 +124,39 @@ pub(crate) struct FromSite {
     pub(crate) name: Option<String>,
 }
 
+impl FromSite {
+    /// The tokens for `theme`, after the contrast pass.
+    fn of(theme: SiteTheme) -> Self {
+        let mut tokens = ThemeTokens::from_theme(&theme);
+        let fixes = tokens.fix_contrast();
+        Self {
+            tokens,
+            fixes,
+            name: theme.brand.name,
+        }
+    }
+}
+
 /// Syncs the theme of the main site at `url` into the `site` folder, and
-/// draws the preview in `locale`, the blog's own language.
-pub(crate) fn run(site: &Path, url: &AbsoluteUrl, locale: &Locale, cli: &Cli) -> Exit {
+/// draws the preview in `locale`, the blog's own language. With `from_css`,
+/// the colours and fonts come from that file and nothing is fetched.
+pub(crate) fn run(
+    site: &Path,
+    url: &AbsoluteUrl,
+    from_css: Option<&Path>,
+    locale: &Locale,
+    cli: &Cli,
+) -> Exit {
     let output = cli.output;
+    let found = match from_css {
+        Some(file) => css_tokens(file),
+        None => site_tokens(cli, url),
+    };
     let FromSite {
         tokens: fresh,
         mut fixes,
         name,
-    } = match site_tokens(cli, url) {
+    } = match found {
         Ok(found) => found,
         Err((message, exit)) => return report::failure(output, &message, exit),
     };
@@ -155,6 +187,7 @@ pub(crate) fn run(site: &Path, url: &AbsoluteUrl, locale: &Locale, cli: &Cli) ->
             &Synced {
                 path,
                 preview,
+                from_css,
                 fixes,
                 diff,
             },
@@ -178,14 +211,25 @@ pub(crate) fn site_tokens(cli: &Cli, url: &AbsoluteUrl) -> Result<FromSite, (Use
         let message = theme_message::no_stylesheet(url, source.skipped().len());
         return Err((message, Exit::Failure));
     }
-    let theme = SiteTheme::from_source(&source);
-    let mut tokens = ThemeTokens::from_theme(&theme);
-    let fixes = tokens.fix_contrast();
-    Ok(FromSite {
-        tokens,
-        fixes,
-        name: theme.brand.name,
-    })
+    Ok(FromSite::of(SiteTheme::from_source(&source)))
+}
+
+/// The tokens the CSS in `file` gives, after the contrast pass. The file
+/// is read up to the cap one fetched stylesheet has.
+fn css_tokens(file: &Path) -> Result<FromSite, (UserMessage, Exit)> {
+    let read = || -> io::Result<String> {
+        let mut css = String::new();
+        let cap = u64::try_from(MAX_CSS_BYTES).unwrap_or(u64::MAX);
+        fs::File::open(file)?
+            .take(cap.saturating_add(1))
+            .read_to_string(&mut css)?;
+        if css.len() > MAX_CSS_BYTES {
+            return Err(io::ErrorKind::FileTooLarge.into());
+        }
+        Ok(css)
+    };
+    let css = read().map_err(|error| (theme_message::css_file(file, &error), Exit::Failure))?;
+    Ok(FromSite::of(SiteTheme::from_css(&css)))
 }
 
 /// Reads the home page at `url` and its stylesheets, on a runtime of its own.
@@ -203,12 +247,16 @@ fn read(cli: &Cli, url: &AbsoluteUrl) -> Result<SiteSource, (UserMessage, Exit)>
 
 /// Says where the tokens went, what the contrast pass changed and, on a
 /// sync after the first, what changed in the file.
-fn success(output: Output, url: &AbsoluteUrl, synced: &Synced) -> Exit {
+fn success(output: Output, url: &AbsoluteUrl, synced: &Synced<'_>) -> Exit {
     let path = synced.path.display();
     let preview = synced.preview.display();
     match output {
         Output::Human => {
-            let mut said = format!("Synced the theme from {url} into {path}.\n");
+            let from = synced.from_css.map_or_else(
+                || url.to_string(),
+                |file| format!("the CSS in {}", file.display()),
+            );
+            let mut said = format!("Synced the theme from {from} into {path}.\n");
             for fix in &synced.fixes {
                 let _ = writeln!(said, "{fix}");
             }
@@ -226,6 +274,7 @@ fn success(output: Output, url: &AbsoluteUrl, synced: &Synced) -> Exit {
                 tokens: path.to_string(),
                 preview: preview.to_string(),
                 site: url.as_str(),
+                from_css: synced.from_css.map(|file| file.display().to_string()),
                 contrast_fixes: synced.fixes.iter().map(FixBody::from).collect(),
                 changes: synced.diff.as_ref().map(ChangeBody::all),
             },

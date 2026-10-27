@@ -219,7 +219,13 @@ fn run(cli: &Cli) -> Exit {
 /// Runs `theme sync` and `theme check` on a checked site.
 fn theme(folder: &Path, config: &Config, command: &ThemeCommand, cli: &Cli) -> Exit {
     match command {
-        ThemeCommand::Sync { url } => theme_sync::run(folder, url, config.default_language(), cli),
+        ThemeCommand::Sync { url, from_css } => theme_sync::run(
+            folder,
+            url,
+            from_css.as_deref(),
+            config.default_language(),
+            cli,
+        ),
         ThemeCommand::Check { url } => {
             theme_check::run(folder, url.as_ref().unwrap_or(config.address()), cli)
         }

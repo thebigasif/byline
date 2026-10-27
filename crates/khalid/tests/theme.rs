@@ -254,6 +254,53 @@ async fn a_file_in_the_way_of_the_theme_folder_is_named() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn from_css_reads_pasted_variables_and_never_fetches_the_site() {
+    let site = site();
+    let pasted = within(site.path(), "pasted.css");
+    let variables = ":root { --color-background: #fdfcfa; --color-text: #1e2a3a; }\n";
+    fs::write(&pasted, variables).unwrap();
+    let css = pasted.display().to_string();
+    let home = "https://northwind.invalid/";
+
+    let args = ["theme", "sync", home, "--from-css", &css];
+    let output = khalid(site.path(), &args, Names::Real).await;
+
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(
+        said.contains(&format!("from the CSS in {css} into")),
+        "{said}"
+    );
+    let tokens = fs::read_to_string(within(site.path(), "theme/tokens.toml")).unwrap();
+    assert!(tokens.contains("background = \"#fdfcfa\""), "{tokens}");
+    assert!(tokens.contains("text = \"#1e2a3a\""), "{tokens}");
+    let page = within(site.path(), "data/theme-preview/index.html");
+    let page = fs::read_to_string(page).unwrap();
+    assert!(page.contains("How northwind.invalid will look"), "{page}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn from_css_with_a_missing_file_names_it_and_writes_nothing() {
+    let site = site();
+    let missing = within(site.path(), "nothing-here.css");
+    let css = missing.display().to_string();
+
+    let args = [
+        "theme",
+        "sync",
+        "https://northwind.invalid/",
+        "--from-css",
+        &css,
+    ];
+    let output = khalid(site.path(), &args, Names::Real).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains(&format!("could not read {css}")), "{said}");
+    assert!(!within(site.path(), "theme/tokens.toml").exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_preview_that_cannot_be_written_says_the_tokens_were_saved() {
     let site = site();
     fs::write(within(site.path(), "data"), "not a folder").unwrap();

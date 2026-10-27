@@ -1,8 +1,11 @@
 //! What a person reads when theme sync cannot finish (RULES.md BL-ERR-4).
 
+use std::io;
+use std::path::Path;
+
 use khalid_core::{AbsoluteUrl, SitePathError, UserMessage};
 use khalid_outbound::OutboundError;
-use khalid_theme::{FetchError, TokensError};
+use khalid_theme::{FetchError, MAX_CSS_BYTES, TokensError};
 
 /// Turns a failure to read the main site's home page at `url` into what, why
 /// and fix.
@@ -55,6 +58,24 @@ pub(crate) fn no_stylesheet(url: &AbsoluteUrl, skipped: usize) -> UserMessage {
         format!("Khalid found no stylesheet on {url}."),
         why,
         "Give the address of a page on the main site that shows its usual colours, such as the home page.",
+    )
+}
+
+/// The message when the CSS file given with `--from-css` cannot be read.
+pub(crate) fn css_file(file: &Path, error: &io::Error) -> UserMessage {
+    let what = if error.kind() == io::ErrorKind::FileTooLarge {
+        format!(
+            "Khalid did not read {}, because it is larger than the {} MiB theme sync reads.",
+            file.display(),
+            MAX_CSS_BYTES / (1024 * 1024)
+        )
+    } else {
+        format!("Khalid could not read {}: {error}.", file.display())
+    };
+    UserMessage::new(
+        what,
+        "Theme sync takes the colours and fonts from that file, so nothing has changed.",
+        "Save the site's CSS variables as a plain text file, check the path, then run it again.",
     )
 }
 
