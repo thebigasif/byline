@@ -1,0 +1,13 @@
+# What a reader reads in the newsletter's emails. Every language file has
+# exactly these keys. {site} is the site's name; {confirm} and {remove} are
+# the links, written out in full.
+confirm_subject = "Confirm your email for {site}"
+confirm_text = """
+Someone asked to get {site} by email at this address. We hope it was you.
+
+To say yes, open this link within two days:
+{confirm}
+
+Not you? Ignore this email and nothing more is sent. To remove this address now, open this link:
+{remove}
+"""

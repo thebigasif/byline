@@ -1,0 +1,12 @@
+# What a German reader reads in the newsletter's emails. The same keys as
+# en.toml.
+confirm_subject = "Bitte bestätigen Sie Ihre E-Mail-Adresse für {site}"
+confirm_text = """
+Jemand möchte {site} per E-Mail an diese Adresse bekommen. Wir hoffen, Sie waren es.
+
+Um zuzustimmen, öffnen Sie innerhalb von zwei Tagen diesen Link:
+{confirm}
+
+Sie waren es nicht? Dann ignorieren Sie diese E-Mail, und es kommt nichts mehr. Um diese Adresse sofort zu entfernen, öffnen Sie diesen Link:
+{remove}
+"""

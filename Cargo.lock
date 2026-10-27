@@ -2075,8 +2075,12 @@ dependencies = [
  "chrono",
  "getrandom 0.4.3",
  "khalid-core",
+ "khalid-newsletter",
+ "serde",
  "sha2 0.11.1",
  "thiserror",
+ "tokio",
+ "toml",
 ]
 
 [[package]]
