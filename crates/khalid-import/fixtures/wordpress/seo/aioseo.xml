@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- A post with the custom fields All in One SEO 4 writes, and one with the
+     fields of version 3. Version 4 keeps robots and canonical in its own
+     table, which the export leaves out. -->
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/">
+<channel>
+	<title>Northfield Bakery Blog</title>
+	<link>https://northfield.example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<item>
+		<title><![CDATA[A cold first rise]]></title>
+		<excerpt:encoded><![CDATA[Cold flour, warm water, and a slow first rise.]]></excerpt:encoded>
+		<wp:post_id>40</wp:post_id>
+		<wp:postmeta><wp:meta_key><![CDATA[_aioseo_title]]></wp:meta_key><wp:meta_value><![CDATA[#post_title #separator_sa #site_title]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_aioseo_description]]></wp:meta_key><wp:meta_value><![CDATA[#post_excerpt]]></wp:meta_value></wp:postmeta>
+	</item>
+	<item>
+		<title><![CDATA[Baking with spelt]]></title>
+		<wp:post_id>41</wp:post_id>
+		<wp:postmeta><wp:meta_key><![CDATA[_aioseop_title]]></wp:meta_key><wp:meta_value><![CDATA[Baking with spelt, #current_year edition]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_aioseop_description]]></wp:meta_key><wp:meta_value><![CDATA[Why spelt is our #1 flour for flavour.]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_aioseop_custom_link]]></wp:meta_key><wp:meta_value><![CDATA[https://northfield.example.com/spelt/]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_aioseop_noindex]]></wp:meta_key><wp:meta_value><![CDATA[on]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_aioseop_nofollow]]></wp:meta_key><wp:meta_value><![CDATA[on]]></wp:meta_value></wp:postmeta>
+	</item>
+</channel>
+</rss>

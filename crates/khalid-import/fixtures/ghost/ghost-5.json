@@ -1,0 +1,122 @@
+{
+  "db": [
+    {
+      "meta": { "exported_on": 1730000000000, "version": "5.96.0" },
+      "data": {
+        "posts": [
+          {
+            "id": "6650a1f2c3d4e5f6a7b8c901",
+            "uuid": "0e3c1a2b-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "title": "How to keep a starter alive",
+            "slug": "keep-a-starter-alive",
+            "lexical": "{\"root\":{\"children\":[{\"children\":[{\"detail\":0,\"format\":1,\"mode\":\"normal\",\"style\":\"\",\"text\":\"Feed it every day.\",\"type\":\"extended-text\",\"version\":1}],\"direction\":\"ltr\",\"format\":\"\",\"indent\":0,\"type\":\"paragraph\",\"version\":1}],\"direction\":\"ltr\",\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+            "mobiledoc": null,
+            "html": "<p><strong>Feed it every day.</strong></p>",
+            "feature_image": "__GHOST_URL__/content/images/2024/03/starter-jar.jpg",
+            "featured": true,
+            "type": "post",
+            "status": "published",
+            "visibility": "public",
+            "published_at": "2024-03-12T09:30:00.000Z",
+            "custom_excerpt": "A starter needs food, warmth and time.",
+            "codeinjection_head": "<script src=\"https://stats.example.net/a.js\"></script>",
+            "codeinjection_foot": null,
+            "canonical_url": null
+          },
+          {
+            "id": "6650a1f2c3d4e5f6a7b8c902",
+            "title": "About the bakery",
+            "slug": "about",
+            "lexical": null,
+            "mobiledoc": "{\"version\":\"0.3.1\",\"atoms\":[],\"cards\":[],\"markups\":[],\"sections\":[[1,\"p\",[[0,[],0,\"We bake rye.\"]]]]}",
+            "type": "page",
+            "status": "published",
+            "visibility": "public",
+            "published_at": "2023-01-05T08:00:00.000Z",
+            "featured": false,
+            "canonical_url": "https://northfield.example.com/about-us/"
+          },
+          {
+            "id": "6650a1f2c3d4e5f6a7b8c903",
+            "title": "Rye, slowly",
+            "slug": "rye-slowly",
+            "html": "<p>Not finished.</p>",
+            "type": "post",
+            "status": "draft",
+            "visibility": "public",
+            "published_at": null,
+            "custom_excerpt": "  "
+          },
+          {
+            "id": "6650a1f2c3d4e5f6a7b8c904",
+            "title": "Spring flour",
+            "slug": "spring-flour",
+            "lexical": "{\"root\":{\"children\":[],\"type\":\"root\",\"version\":1}}",
+            "type": "post",
+            "status": "scheduled",
+            "visibility": "public",
+            "published_at": "2026-11-02T07:00:00.000Z"
+          },
+          {
+            "id": "6650a1f2c3d4e5f6a7b8c905",
+            "title": "The members' loaf",
+            "slug": "members-loaf",
+            "lexical": "{\"root\":{\"children\":[],\"type\":\"root\",\"version\":1}}",
+            "type": "post",
+            "status": "published",
+            "visibility": "paid",
+            "published_at": "2024-06-01T12:00:00.000Z"
+          }
+        ],
+        "posts_meta": [
+          {
+            "id": "6650a1f2c3d4e5f6a7b8d001",
+            "post_id": "6650a1f2c3d4e5f6a7b8c901",
+            "og_image": "__GHOST_URL__/content/images/2024/03/starter-og.jpg",
+            "og_title": "Keep your starter alive",
+            "og_description": "Food, warmth and time.",
+            "twitter_image": null,
+            "twitter_title": "A starter that lives",
+            "twitter_description": "",
+            "meta_title": "Keep a sourdough starter alive | Northfield",
+            "meta_description": "How to feed a sourdough starter so it stays strong.",
+            "email_subject": null
+          }
+        ],
+        "users": [
+          {
+            "id": "1",
+            "name": "Mara Lind",
+            "slug": "mara",
+            "email": "mara@northfield.example.com",
+            "bio": "Mara bakes the rye.",
+            "website": "https://maralind.example.org",
+            "twitter": "@maralind",
+            "facebook": "maralind.bakes",
+            "status": "active"
+          },
+          { "id": "6650a1f2c3d4e5f6a7b8f002", "name": "Jonas Berg", "slug": "jonas", "bio": "", "status": "active" }
+        ],
+        "tags": [
+          { "id": "6650a1f2c3d4e5f6a7b8a001", "name": "Sourdough", "slug": "sourdough", "description": "Wild yeast, slowly.", "visibility": "public" },
+          { "id": "6650a1f2c3d4e5f6a7b8a002", "name": "Rye", "slug": "rye", "description": null, "visibility": "public" },
+          { "id": "6650a1f2c3d4e5f6a7b8a003", "name": "#newsletter", "slug": "hash-newsletter", "visibility": "internal" }
+        ],
+        "posts_tags": [
+          { "id": "t1", "post_id": "6650a1f2c3d4e5f6a7b8c901", "tag_id": "6650a1f2c3d4e5f6a7b8a002", "sort_order": 1 },
+          { "id": "t2", "post_id": "6650a1f2c3d4e5f6a7b8c901", "tag_id": "6650a1f2c3d4e5f6a7b8a003", "sort_order": 2 },
+          { "id": "t3", "post_id": "6650a1f2c3d4e5f6a7b8c901", "tag_id": "6650a1f2c3d4e5f6a7b8a001", "sort_order": 0 }
+        ],
+        "posts_authors": [
+          { "id": "p1", "post_id": "6650a1f2c3d4e5f6a7b8c901", "author_id": "6650a1f2c3d4e5f6a7b8f002", "sort_order": 1 },
+          { "id": "p2", "post_id": "6650a1f2c3d4e5f6a7b8c901", "author_id": "1", "sort_order": 0 },
+          { "id": "p3", "post_id": "6650a1f2c3d4e5f6a7b8c902", "author_id": "1", "sort_order": 0 }
+        ],
+        "settings": [
+          { "id": "6650a1f2c3d4e5f6a7b8e001", "key": "title", "value": "Northfield Bakery" },
+          { "id": "6650a1f2c3d4e5f6a7b8e002", "key": "codeinjection_head", "value": "" }
+        ]
+      }
+    }
+  ]
+}

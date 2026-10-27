@@ -6,7 +6,7 @@ use serde::ser::{Serialize, SerializeStruct, Serializer};
 use crate::builtin;
 use crate::{
     Catalogue, Finding, Hit, LintConfig, LintError, LintPost, Location, Message, Rule, RuleId,
-    Severity, SiteRule, SiteView,
+    Score, Severity, SiteRule, SiteView,
 };
 
 /// The configured rules, each with its severity and message.
@@ -184,6 +184,12 @@ impl Report {
     /// Every finding, blocks and warnings together.
     pub fn findings(&self) -> &[Finding] {
         &self.findings
+    }
+
+    /// The score out of 100 of `post`, from this report's findings about
+    /// it. A post the report holds nothing about scores 100.
+    pub fn score(&self, post: &LintPost) -> Score {
+        Score::of(post, &self.findings)
     }
 
     /// Whether any finding stops the post from being published.

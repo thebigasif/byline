@@ -15,6 +15,7 @@ khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 khalid-db = { path = "../khalid-db", version = "0.0.0" }
 khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
+khalid-mcp = { path = "../khalid-mcp", version = "0.0.0" }
 khalid-media = { path = "../khalid-media", version = "0.0.0" }
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
@@ -27,7 +28,7 @@ mimalloc = "0.1"
 serde.workspace = true
 serde_json.workspace = true
 tempfile = "3"
-tokio = { workspace = true, features = ["rt", "net", "sync"] }
+tokio = { workspace = true, features = ["rt", "net", "sync", "io-std", "io-util"] }
 toml = "0.9"
 tracing.workspace = true
 

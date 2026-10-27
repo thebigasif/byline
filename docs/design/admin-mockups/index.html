@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin mockups · Khalid</title>
+<style>
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--tint:#eef4fe;--radius:.375rem}
+html{background:var(--bg);color:var(--text);font:400 1rem/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;overflow-wrap:break-word}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+main{max-width:52rem;margin:0 auto;padding:2rem 1.25rem 3rem}
+h1{font-size:clamp(1.75rem,1.4rem + 1.5vw,2.25rem);line-height:1.2;margin:0 0 .5rem}
+h2{font-size:1.25rem;margin:2rem 0 .75rem}
+p{margin:0 0 1rem}
+.lede{color:var(--muted);font-size:1.0625rem;max-width:68ch}
+.start{display:inline-flex;align-items:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);background:var(--link);color:#fff;font-weight:600;text-decoration:none}
+ol{list-style:none;margin:0;padding:0;counter-reset:s}
+ol li{counter-increment:s;border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem 1rem 3.25rem;margin:0 0 .75rem;position:relative}
+ol li::before{content:counter(s);position:absolute;left:1.1rem;top:1rem;font-weight:700;color:var(--link)}
+ol a{font-weight:600;font-size:1.0625rem}
+ol p{margin:.25rem 0 0;color:var(--muted)}
+ul.rules{padding-left:1.25rem}
+ul.rules li{margin:0 0 .4rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Khalid admin: mockups for your yes</h1>
+  <p class="lede">Seven screens of the admin, drawn before any of it is built. Each one opens in your browser with no internet and no setup. Click around: the menus link to each other, but nothing saves.</p>
+  <p><a class="start" href="dashboard.html">Start with the dashboard</a></p>
+
+  <h2>The screens, and what to look at</h2>
+  <ol>
+    <li><a href="dashboard.html">Dashboard</a><p>Does the one blue box tell you the most useful thing to do today? Everything else on the page is quieter on purpose.</p></li>
+    <li><a href="posts.html">Posts</a><p>Filters for checks, review stage and whether Google has the page. Are the three column names clear without help?</p></li>
+    <li><a href="editor.html">Editor</a><p>Writing on the left with the slash menu open. Checks on the right: one problem stops publishing, two only warn. Post settings fold away until you open them.</p></li>
+    <li><a href="design.html">Design</a><p>The colours and fonts theme sync copied from your main site, each with its readability score and a tick box to keep it the next time you sync.</p></li>
+    <li><a href="redirects.html">Redirects</a><p>Sending an old address to a post. The page explains what a redirect is before it asks for anything.</p></li>
+    <li><a href="api-keys.html">API keys</a><p>The three kinds of key in plain words, the warning that a key is shown only once, and what switching one off does.</p></li>
+    <li><a href="settings.html">Settings</a><p>Name, address, how visitors get the pages, and languages. The warning about changing the address sits right next to the fields.</p></li>
+  </ol>
+
+  <h2>House rules every screen follows</h2>
+  <ul class="rules">
+    <li>Light theme only. There is no dark mode.</li>
+    <li>One blue button per screen: the main thing to do there.</li>
+    <li>A screen that asks for a decision explains it first, and says what happens next.</li>
+    <li>Real posts, authors and messages from the demo site, never filler text. Each page's footer says where an example stands in for real data.</li>
+    <li>Text in Inter when your computer has it, the system font otherwise. Every colour pair passes WCAG AA, the web's standard for readable pages.</li>
+    <li>Works at phone width, by keyboard alone, and with no scripts at all.</li>
+  </ul>
+</main>
+</body>
+</html>

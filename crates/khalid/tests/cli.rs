@@ -11,7 +11,6 @@ const COMMANDS: &[&[&str]] = &[
     &["publish", "why-internal-links-matter"],
     &["import", "wordpress"],
     &["export"],
-    &["mcp"],
     &["backup"],
     &["audit"],
     &["update"],

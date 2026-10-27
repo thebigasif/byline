@@ -46,6 +46,14 @@ pub struct Thresholds {
     /// reach. Default 60, where LIX calls a text very hard in English and
     /// German alike.
     pub hard_reading_index: usize,
+    /// The fewest times per thousand words the focus keyword should appear
+    /// in a post of 100 words or more. Default 5, Rank Math's floor of half
+    /// a percent: about once every 200 words.
+    pub focus_min_per_thousand_words: usize,
+    /// The most times per thousand words the focus keyword may appear
+    /// before it reads as stuffing. Default 25, Rank Math's ceiling of two
+    /// and a half percent.
+    pub focus_max_per_thousand_words: usize,
 }
 
 impl Default for Thresholds {
@@ -62,6 +70,8 @@ impl Default for Thresholds {
             near_duplicate_percent: 50,
             max_links: 100,
             hard_reading_index: 60,
+            focus_min_per_thousand_words: 5,
+            focus_max_per_thousand_words: 25,
         }
     }
 }

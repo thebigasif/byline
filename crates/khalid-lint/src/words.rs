@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::{Hit, LintPost, Rule, RuleId, Severity, SiteView, german};
+use crate::{Hit, LintPost, Rule, RuleId, Severity, SiteView, focus, german};
 
 /// Small words that carry no topic, by language. Short on purpose: a word
 /// belongs here only if it never names what a post is about.
@@ -31,7 +31,8 @@ pub(crate) fn is_stopword(language: &str, word: &str) -> bool {
 /// post where every phrase is a large share is not flagged.
 const MIN_REPEATS: usize = 3;
 
-/// One phrase of two or three words filling too large a share of the post.
+/// One phrase of two or three words filling too large a share of the post,
+/// other than the focus keyword, which `FocusTooOften` judges.
 #[derive(Debug)]
 pub(crate) struct KeywordStuffing {
     /// The largest share in percent, from `Thresholds::keyword_density_percent`.
@@ -63,10 +64,15 @@ impl Rule for KeywordStuffing {
                 *repeats.entry(window.join(" ")).or_default() += 1;
             }
         }
+        // The focus keyword has its own warning with its own band.
+        let focus = post
+            .focus_keyword
+            .as_deref()
+            .map(|keyword| focus::words(keyword).join(" "));
         // A phrase's share of the post: its repeats times its length in words.
         let worst = repeats
             .into_iter()
-            .filter(|&(_, count)| count >= MIN_REPEATS)
+            .filter(|(phrase, count)| *count >= MIN_REPEATS && focus.as_ref() != Some(phrase))
             .map(|(phrase, count)| (count * phrase.split(' ').count(), phrase))
             .filter(|&(filled, _)| filled * 100 > self.max_percent * words.len())
             .max_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1)));

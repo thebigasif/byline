@@ -1,6 +1,7 @@
 //! Settings, read once when Khalid starts.
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -8,7 +9,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::toml_location::{field_of, line_of, line_of_key};
-use crate::{AbsoluteUrl, Locale, ParseUrlError, Reader, SeoSettings};
+use crate::{AbsoluteUrl, Locale, ParseUrlError, Reader, Secret, SeoSettings};
 
 /// Every setting Khalid reads, checked once at start and then passed by
 /// reference (RULES.md BL-RUN-2).
@@ -212,16 +213,21 @@ impl Config {
     }
 }
 
-/// The environment variables Khalid reads, captured once at start.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// The environment variables Khalid reads, captured once at start. `Debug`
+/// names the variables and hides the key's value (RULES.md BL-RUN-5).
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct Environment(BTreeMap<String, String>);
 
 impl Environment {
     /// Overrides `address` in `site.toml`, for deploys that move the site.
     pub const ADDRESS: &str = "KHALID_ADDRESS";
 
+    /// The integration key or staff token `khalid mcp` acts with. An agent's
+    /// settings set it, so the key never appears on a command line.
+    pub const KEY: &str = "KHALID_KEY";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 1] = [Self::ADDRESS];
+    const ALL: [&str; 2] = [Self::ADDRESS, Self::KEY];
 
     /// Reads Khalid's variables from this process's environment.
     pub fn from_process() -> Self {
@@ -254,8 +260,30 @@ impl Environment {
         )
     }
 
+    /// The key in [`Environment::KEY`], or `None` when it is unset or blank.
+    pub fn key(&self) -> Option<Secret<String>> {
+        self.get(Self::KEY)
+            .map(str::trim)
+            .filter(|key| !key.is_empty())
+            .map(|key| Secret::new(key.to_owned()))
+    }
+
     fn get(&self, name: &str) -> Option<&str> {
         self.0.get(name).map(String::as_str)
+    }
+}
+
+impl fmt::Debug for Environment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let shown = self.0.iter().map(|(name, value)| {
+            let value: &dyn fmt::Debug = if name == Self::KEY {
+                &"[redacted]"
+            } else {
+                value
+            };
+            (name, value)
+        });
+        f.debug_map().entries(shown).finish()
     }
 }
 

@@ -5,6 +5,7 @@
 //! read. It must not know business rules. Those live in the library crates,
 //! which this binary calls the same way the API does.
 
+mod agents;
 mod assets;
 mod atomic;
 mod build;
@@ -40,6 +41,10 @@ mod lint_fix;
 mod lint_input;
 mod lint_message;
 mod listed_post;
+mod mcp;
+mod mcp_content;
+mod mcp_message;
+mod mcp_tools;
 mod new;
 mod new_message;
 mod outbound;
@@ -104,6 +109,7 @@ fn run(cli: &Cli) -> Exit {
     if let Some(exit) = run_unchecked(cli) {
         return exit;
     }
+    let environment = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
     let look = match (&cli.command, cli.site.as_deref()) {
@@ -111,7 +117,7 @@ fn run(cli: &Cli) -> Exit {
         _ => None,
     };
     let site = match cli.site.as_deref() {
-        Some(folder) => match check(folder) {
+        Some(folder) => match check(folder, &environment) {
             Ok((config, routes, content, assets)) => {
                 Some((folder, config, routes, (content, assets)))
             }
@@ -156,6 +162,7 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Keys { command }), Some((folder, ..))) => {
             keys::run(folder, command, cli.output)
         }
+        (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
         (
             Some(Command::Theme {
                 command: ThemeCommand::Sync { url },
@@ -174,6 +181,7 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Theme { .. }
                 | Command::Serve { .. }
                 | Command::Keys { .. }
+                | Command::Mcp
                 | Command::Lint { .. }
                 | Command::New { .. }
                 | Command::Build { .. }),
@@ -185,9 +193,10 @@ fn run(cli: &Cli) -> Exit {
 }
 
 /// Runs the commands that do not start from a checked site: `init`, which
-/// makes the site, and `doctor`, which checks the settings, routes and
-/// content itself so it can list every problem instead of stopping at the
-/// first. Returns `None` for every other command.
+/// makes the site, `agents`, which needs none, and `doctor`, which checks
+/// the settings, routes and content itself so it can list every problem
+/// instead of stopping at the first. Returns `None` for every other
+/// command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -198,6 +207,7 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
                 .unwrap_or(Path::new("."));
             Some(init::run(folder, args, cli.output))
         }
+        Some(Command::Agents) => Some(agents::run(cli.output)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
@@ -213,9 +223,8 @@ type Checked = (Config, Routes, SiteContent, Assets);
 /// Checks the settings, the routes and the content of the `site` folder, and
 /// returns them with the files beside folder posts. The folder is walked
 /// once, and no file's text is kept beyond the content.
-fn check(site: &Path) -> Result<Checked, UserMessage> {
-    let config =
-        Config::load(site, &Environment::from_process()).map_err(|e| config_message::of(&e))?;
+fn check(site: &Path, environment: &Environment) -> Result<Checked, UserMessage> {
+    let config = Config::load(site, environment).map_err(|e| config_message::of(&e))?;
     let routes = Routes::load(site).map_err(|error| routes_message::of(&error))?;
     let (content, assets) = ContentTree::walk(site)
         .and_then(|tree| Ok((read_content(&tree)?, Assets::of(&tree))))

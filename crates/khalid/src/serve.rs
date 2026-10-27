@@ -208,7 +208,7 @@ async fn stop_or_fail(
 
 /// Opens `data/site.db` in the site folder, making it when it is missing,
 /// brings it up to date, and finds the site's row.
-fn open(site: &Path, runtime: &Runtime) -> Result<(Database, SiteId), UserMessage> {
+pub(crate) fn open(site: &Path, runtime: &Runtime) -> Result<(Database, SiteId), UserMessage> {
     let path = db::data_file(site)?;
     let main = Slug::try_new(db::MAIN).map_err(|_| db_message::internal())?;
     runtime.block_on(async {

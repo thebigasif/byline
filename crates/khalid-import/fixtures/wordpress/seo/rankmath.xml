@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Two posts with the custom fields Rank Math writes. The second still has
+     the Yoast fields Rank Math imported when the site switched. -->
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+	<title>Northfield Bakery Blog</title>
+	<link>https://northfield.example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<item>
+		<title><![CDATA[Feeding a sourdough starter]]></title>
+		<wp:post_id>30</wp:post_id>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_title]]></wp:meta_key><wp:meta_value><![CDATA[%title% %sep% %sitename%]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_description]]></wp:meta_key><wp:meta_value><![CDATA[How much flour and water a starter needs, and how often.]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_canonical_url]]></wp:meta_key><wp:meta_value><![CDATA[https://northfield.example.com/starters/]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_robots]]></wp:meta_key><wp:meta_value><![CDATA[a:3:{i:0;s:7:"noindex";i:1;s:8:"nofollow";i:2;s:12:"noimageindex";}]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_advanced_robots]]></wp:meta_key><wp:meta_value><![CDATA[a:3:{s:11:"max-snippet";s:3:"160";s:17:"max-video-preview";s:2:"-1";s:17:"max-image-preview";s:5:"large";}]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_focus_keyword]]></wp:meta_key><wp:meta_value><![CDATA[sourdough starter,levain, feeding schedule]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_primary_category]]></wp:meta_key><wp:meta_value><![CDATA[3]]></wp:meta_value></wp:postmeta>
+	</item>
+	<item>
+		<title><![CDATA[More rise from the same flour]]></title>
+		<wp:post_id>31</wp:post_id>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_title]]></wp:meta_key><wp:meta_value><![CDATA[Old title from Yoast]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_focuskw]]></wp:meta_key><wp:meta_value><![CDATA[rise]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_title]]></wp:meta_key><wp:meta_value><![CDATA[%title% %sep% Northfield]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_description]]></wp:meta_key><wp:meta_value><![CDATA[Get 50% more rise with a warmer proof.]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_robots]]></wp:meta_key><wp:meta_value><![CDATA[a:1:{i:0;s:5:"index";}]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[rank_math_advanced_robots]]></wp:meta_key><wp:meta_value><![CDATA[a:1:{s:11:"max-snippet";s:3:"160"]]></wp:meta_value></wp:postmeta>
+	</item>
+</channel>
+</rss>

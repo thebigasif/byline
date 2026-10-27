@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Posts · Khalid admin mockup</title>
+<style>
+/* Shared admin styles. Each mockup carries its own copy so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--block:#b42318;--block-bg:#fef3f2;--warn:#8a4b00;--warn-bg:#fff8eb;--ok:#1a7f37;--ok-bg:#eefbf1;--radius:.375rem}
+html{background:var(--bg);color:var(--text);font:400 1rem/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;overflow-wrap:break-word}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.skip{position:absolute;left:-100vw}.skip:focus{left:1rem;top:.5rem;background:var(--bg);padding:.5rem 1rem}
+.top{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.brand{font-weight:700}.brand span{color:var(--muted);font-weight:400}
+.shell{display:grid;grid-template-columns:minmax(0,1fr)}
+@media (min-width:60em){.shell{grid-template-columns:13rem minmax(0,1fr)}.side{border-right:1px solid var(--border);min-height:calc(100vh - 3.6rem)}.side ul{flex-direction:column}}
+.side ul{list-style:none;margin:0;padding:.75rem;display:flex;flex-wrap:wrap;gap:.25rem}
+.side a{display:flex;align-items:center;min-height:44px;padding:.5rem .75rem;border-radius:var(--radius);color:var(--text);text-decoration:none}
+.side a:hover{background:var(--surface)}
+.side a[aria-current]{background:var(--tint);color:var(--link);font-weight:600}
+main{padding:1.5rem 1.25rem 3rem;max-width:72rem}
+h1{font-size:clamp(1.5rem,1.2rem + 1.2vw,2rem);line-height:1.2;margin:0 0 .5rem}
+h2{font-size:1.25rem;line-height:1.3;margin:2rem 0 .5rem}
+h3{font-size:1.0625rem;margin:0 0 .25rem}
+p{margin:0 0 1rem}
+.lede{color:var(--muted);max-width:68ch;font-size:1.0625rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);color:var(--text);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.btn:disabled{color:var(--muted);background:var(--surface);border-color:var(--border);cursor:not-allowed}
+.card{border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.focus{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.5rem}
+.focus>h2:first-child{margin-top:0}
+.pill{display:inline-block;padding:.1rem .6rem;border-radius:999px;font-size:.875rem;font-weight:600;white-space:nowrap}
+.pill.block{color:var(--block);background:var(--block-bg)}.pill.warn{color:var(--warn);background:var(--warn-bg)}.pill.ok{color:var(--ok);background:var(--ok-bg)}.pill.quiet{color:var(--muted);background:var(--surface)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:.7rem .75rem;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:.875rem;color:var(--muted);font-weight:600}
+label,legend{display:block;font-weight:600;margin:0 0 .25rem}
+fieldset{border:0;margin:0 0 1.25rem;padding:0}
+.hint{display:block;color:var(--muted);font-weight:400;font-size:.9375rem;margin:0 0 .4rem}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--field);border-radius:var(--radius);padding:.5rem .7rem;min-height:44px;width:100%}
+input[type=checkbox],input[type=radio]{width:1.25rem;min-height:1.25rem;margin:.15rem .6rem 0 0;accent-color:var(--link);flex:none}
+.choice{display:flex;align-items:flex-start;font-weight:400;margin:0 0 .6rem}
+.field{margin:0 0 1.25rem;max-width:36rem}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.muted{color:var(--muted)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface);padding:.05rem .3rem;border-radius:.25rem}
+.note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
+/* This screen */
+.heading{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:flex-start}
+.terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:.25rem 2rem;margin:0 0 1.5rem;font-size:.9375rem}
+.terms dt{font-weight:600}.terms dd{margin:0 0 .5rem;color:var(--muted)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1rem;align-items:end;background:var(--surface);border-radius:var(--radius);padding:1rem;margin:0 0 1rem}
+.filters .field{margin:0}
+table{min-width:50rem}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the main content</a>
+<header class="top">
+  <div class="brand">Khalid <span>· Field Notes on SEO</span></div>
+  <div class="row"><a href="https://www.example.com/blog/">View the blog</a><span class="muted">Asif, owner</span></div>
+</header>
+<div class="shell">
+<nav class="side" aria-label="Admin">
+  <ul>
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="posts.html" aria-current="page">Posts</a></li>
+    <li><a href="design.html">Design</a></li>
+    <li><a href="redirects.html">Redirects</a></li>
+    <li><a href="api-keys.html">API keys</a></li>
+    <li><a href="settings.html">Settings</a></li>
+  </ul>
+</nav>
+<main id="main">
+  <div class="heading">
+    <div>
+      <h1>Posts</h1>
+      <p class="lede">Every post on the blog, newest first. Pick a title to open it in the editor.</p>
+    </div>
+    <a class="btn primary" href="editor.html">Write a new post</a>
+  </div>
+
+  <dl class="terms">
+    <div><dt>Checks</dt><dd>Khalid reads every post for problems before it goes live. A block stops publishing. A warning does not.</dd></div>
+    <div><dt>Review</dt><dd>Where the post is on its way to readers: draft, in review, approved, scheduled or live.</dd></div>
+    <div><dt>In Google</dt><dd>Whether Google has added the page to its search results, read from Search Console.</dd></div>
+  </dl>
+
+  <form class="filters" action="posts.html" method="get" aria-label="Filter posts">
+    <div class="field"><label for="lint">Checks</label>
+      <select id="lint" name="lint"><option>Any result</option><option>Blocked from publishing</option><option selected>Has warnings</option><option>No problems</option></select></div>
+    <div class="field"><label for="review">Review</label>
+      <select id="review" name="review"><option selected>Any stage</option><option>Draft</option><option>In review</option><option>Approved</option><option>Scheduled</option><option>Live</option></select></div>
+    <div class="field"><label for="index">In Google</label>
+      <select id="index" name="index"><option selected>Any status</option><option>In Google</option><option>Found, not added yet</option><option>Not checked yet</option></select></div>
+    <div class="field"><label for="language">Language</label>
+      <select id="language" name="language"><option selected>English</option><option>German</option></select></div>
+    <button class="btn" type="submit">Show posts</button>
+  </form>
+
+  <p role="status"><strong>5 English posts have warnings.</strong> <span class="muted">None is blocked from publishing.</span></p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th scope="col">Title</th><th scope="col">Author</th><th scope="col">Checks</th><th scope="col">Review</th><th scope="col">In Google</th><th scope="col">Date</th></tr></thead>
+    <tbody>
+      <tr><td><a href="editor.html">Planning a topic cluster in an afternoon</a><br><span class="muted">Content strategy</span></td><td>Asif</td><td><span class="pill warn">3 warnings</span><br><span class="muted">No post links here. No source links. A filler word in the address.</span></td><td><span class="pill ok">Live</span></td><td><span class="pill quiet">Found, not added yet</span></td><td><time datetime="2026-10-12">12 Oct 2026</time></td></tr>
+      <tr><td><a href="editor.html">Fixing slow pages, starting with the biggest win</a><br><span class="muted">Technical SEO</span></td><td>Lena Vogt</td><td><span class="pill warn">2 warnings</span><br><span class="muted">No post links here. No source links.</span></td><td><span class="pill ok">Live</span></td><td><span class="pill ok">In Google</span></td><td><time datetime="2026-10-05">5 Oct 2026</time></td></tr>
+      <tr><td><a href="editor.html">What a sitemap does, and what it does not</a><br><span class="muted">Technical SEO</span></td><td>Lena Vogt</td><td><span class="pill warn">3 warnings</span><br><span class="muted">No post links here. No source links. Filler words in the address.</span></td><td><span class="pill ok">Live</span></td><td><span class="pill ok">In Google</span></td><td><time datetime="2026-09-28">28 Sep 2026</time></td></tr>
+      <tr><td><a href="editor.html">How to write a title tag</a><br><span class="muted">On-page SEO</span></td><td>Asif</td><td><span class="pill warn">3 warnings</span><br><span class="muted">Only one post links here. No source links. Filler words in the address.</span></td><td><span class="pill ok">Live</span></td><td><span class="pill ok">In Google</span></td><td><time datetime="2026-09-21">21 Sep 2026</time></td></tr>
+      <tr><td><a href="editor.html">Why internal links matter</a><br><span class="muted">On-page SEO</span></td><td>Asif</td><td><span class="pill warn">1 warning</span><br><span class="muted">No source links.</span></td><td><span class="pill ok">Live</span></td><td><span class="pill ok">In Google</span></td><td><time datetime="2026-09-14">14 Sep 2026</time></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="note">Mockup for the founder's review. Nothing on this page saves. Titles and authors are the demo site's real ones. The warnings come from reading Khalid's rules against the demo posts; a real lint run may find a few more. The demo has no Search Console connection, so the "In Google" column is an example. <a href="index.html">All mockups</a></p>
+</main>
+</div>
+</body>
+</html>

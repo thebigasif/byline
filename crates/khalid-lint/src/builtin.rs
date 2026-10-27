@@ -2,7 +2,7 @@
 
 use chrono::NaiveDate;
 
-use crate::focus::{FocusNotIn, Place};
+use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
     Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
     link_text, reading, site_content, site_links, snippet, structure, topics, words,
@@ -57,6 +57,13 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(FocusNotIn(Place::Subheading)),
         Box::new(FocusNotIn(Place::Address)),
         Box::new(FocusNotIn(Place::ImageAlt)),
+        Box::new(FocusTooRare {
+            min: thresholds.focus_min_per_thousand_words,
+        }),
+        Box::new(FocusTooOften {
+            max: thresholds.focus_max_per_thousand_words,
+        }),
+        Box::new(SecondaryKeywordUnused),
         Box::new(collections::OverlappingCollections),
         Box::new(address::BrokenWikilink),
         Box::new(words::KeywordStuffing {
