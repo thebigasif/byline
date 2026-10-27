@@ -98,6 +98,24 @@ export const en = {
     review: "Review",
     reviewHint: "Where the post is on its way to readers. Ready means someone has checked it.",
   },
+  goLive: {
+    title: "When it goes live",
+    hint: "At the time you pick, Khalid publishes the post just as if you had pressed Publish. The checks must still pass.",
+    now: "As soon as I press Publish",
+    later: "At a time I pick",
+    at: "Date and time",
+    atHint: "In your own time zone. This is also the date readers see on the post.",
+  },
+  preview: {
+    title: "Show it before it goes live",
+    hint: "A preview link lets someone read this draft without signing in. Search engines are told not to list it.",
+    make: "Copy preview link",
+    label: "Preview link",
+    until: (copied: boolean, until: string) =>
+      copied
+        ? `Copied. Anyone with it can read the draft until ${until}.`
+        : `Copy it from this field. Anyone with it can read the draft until ${until}.`,
+  },
   filters: {
     label: "Filter posts",
     anyChecks: "Any result",
@@ -151,6 +169,9 @@ export const en = {
     publish: "Publish",
     publishing: "Publishing",
     published: "Published",
+    schedule: "Schedule",
+    scheduling: "Scheduling",
+    scheduled: "Scheduled to go live",
     blocked: "Fix what stops publishing, then publish again.",
     checks: "Checks",
     noChecks:
@@ -195,6 +216,11 @@ export const en = {
       what: "The last change was not saved.",
       why: "The blog did not answer, so the change is only in this tab.",
       fix: "Keep this tab open; the admin tries again with your next change.",
+    },
+    badTime: {
+      what: "The time to go live is not complete.",
+      why: "Khalid needs a whole date and time to schedule the post.",
+      fix: "Fill in the date and the time, or pick As soon as I press Publish.",
     },
     page: {
       what: "This screen stopped working.",

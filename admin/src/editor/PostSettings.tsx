@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { en } from "../strings/en";
 import { SettingField } from "./SettingField";
 import { REVIEW_STATES, type SettingsDraft, type TextSetting } from "./settings";
@@ -7,12 +7,14 @@ type Props = {
   settings: SettingsDraft;
   onSetting: <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) => void;
   onBlur: () => void;
+  /** Settings that are not saved with the text, shown after the rest. */
+  children?: ReactNode;
 };
 
 type Typed = ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
 
 /** The post's settings beside the text, each saved with it. */
-export function PostSettings({ settings, onSetting, onBlur }: Props) {
+export function PostSettings({ settings, onSetting, onBlur, children }: Props) {
   const text = (key: TextSetting) => ({
     id: `setting-${key}`,
     value: settings[key],
@@ -66,6 +68,7 @@ export function PostSettings({ settings, onSetting, onBlur }: Props) {
             ))}
           </select>
         </SettingField>
+        {children}
       </div>
     </details>
   );

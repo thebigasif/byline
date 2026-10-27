@@ -69,6 +69,23 @@ export async function createPost(title: string, key: string): Promise<Answer> {
   return answer(data, error, response);
 }
 
+/** A link that shows a draft to anyone who has it, and when it stops working. */
+export type PreviewLink = components["schemas"]["PreviewLink"];
+
+/** Makes a preview link for one post. */
+export async function makePreviewLink(
+  id: string,
+): Promise<{ link: PreviewLink } | { problem: Problem | null; status: number }> {
+  const { data, error, response } = await api.POST("/api/admin/v1/posts/{id}/preview-link/", {
+    params: { path: { id } },
+  });
+  const link = data?.preview_links[0];
+  if (link !== undefined) {
+    return { link };
+  }
+  return { problem: isProblem(error) ? error : null, status: response.status };
+}
+
 /** Saves an edit made on the copy that `edit.updated_at` names. */
 export async function savePost(id: string, edit: PostEdit): Promise<Answer> {
   const { data, error, response } = await api.PUT("/api/admin/v1/posts/{id}/", {
