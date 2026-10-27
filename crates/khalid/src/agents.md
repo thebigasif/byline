@@ -19,7 +19,7 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 - `khalid lint [post]` checks one post or the whole site. `--fix` makes the safe repairs.
 - `khalid build` writes the site as HTML, and writes nothing when a dated post is blocked. With `mode = "static"` in `site.toml`, every form that would send to the site becomes a short note, and the output lists the features a static site has off, under `off` with `--json`.
 - `khalid serve` runs the blog and the APIs.
-- `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it.
+- `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it, and on a static site which features are off.
 
 **The MCP server.** `khalid --site <folder> mcp` speaks the Model Context Protocol on stdin and stdout. Each tool sends the request the HTTP API would get, so it obeys the same rules, keys and checks.
 
