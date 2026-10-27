@@ -2,15 +2,22 @@
 //!
 //! This crate owns who may sign in and what each person may do: the
 //! [`Permission`] table for the five roles, which roles each role may
-//! manage, and the [`Password`] a person signs in with. The
-//! roles themselves are [`khalid_api::keys::Role`], so a staff token and a
-//! signed-in account with the same role may do the same. It must not know
-//! about content files, templates or SQL; `khalid-db` stores the accounts
-//! behind the traits this crate defines.
+//! manage, the [`Account`] with its [`Email`] and [`Password`], and the
+//! [`AccountStore`] that keeps accounts. The roles themselves are
+//! [`khalid_api::keys::Role`], so a staff token and a signed-in account
+//! with the same role may do the same. It must not know about content
+//! files, templates or SQL; `khalid-db` stores the accounts behind the
+//! traits this crate defines.
 
+mod account;
+mod email;
 mod password;
 mod permission;
 
+pub use account::{
+    Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
+};
+pub use email::{Email, ParseEmailError};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };

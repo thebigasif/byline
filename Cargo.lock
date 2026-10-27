@@ -1948,6 +1948,7 @@ name = "khalid-auth"
 version = "0.0.0"
 dependencies = [
  "argon2",
+ "chrono",
  "khalid-api",
  "khalid-auth",
  "khalid-core",
