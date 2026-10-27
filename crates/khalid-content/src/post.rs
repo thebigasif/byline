@@ -3,7 +3,9 @@
 use std::path::Path;
 
 use chrono::NaiveDate;
-use khalid_core::{AbsoluteUrl, RobotsDirectives, Slug};
+use khalid_core::{
+    AbsoluteUrl, HeadCode, PasswordHash, PostAccess, RobotsDirectives, Slug, TemplateName,
+};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
@@ -64,6 +66,18 @@ pub struct PostFront {
     /// such as "link text". At most [`MAX_SECONDARY_KEYWORDS`].
     #[serde(default, deserialize_with = "secondary_keywords")]
     pub secondary_keywords: Vec<String>,
+    /// Who may read the body: `public`, the default, or `members`. Anyone
+    /// else sees the title, the description and a note.
+    #[serde(default)]
+    pub access: PostAccess,
+    /// A theme template to show the post with, such as `wide` for
+    /// `theme/templates/post-wide.html`, in place of `post.html`.
+    pub template: Option<TemplateName>,
+    /// The Argon2id hash of the password a reader must give to read the
+    /// body. Set through the Admin API, which never writes the password.
+    pub password_hash: Option<PasswordHash>,
+    /// Checked HTML for this post's page head, such as an analytics tag.
+    pub head_code: Option<HeadCode>,
 }
 
 /// The most related posts a post shows, and so the most it may pin.
