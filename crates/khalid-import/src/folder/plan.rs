@@ -11,8 +11,10 @@ use khalid_routes::{AddressError, PostAddress, Routes};
 
 use crate::folder::body::folder_body;
 use crate::folder::read::date_of;
+use crate::folder::redirect_map::{MapEntry, REDIRECTS_CSV, folder_csv, redirect_map};
 use crate::folder::{BodyError, Export, SourceFile, UnreadFile};
 use crate::front_matter::FrontMatter;
+use crate::redirects::alias;
 use crate::slug::{PostSlug, post_slug};
 use crate::write::write_files;
 use crate::{Place, PlannedFile, SlugOrigin, WriteError};
@@ -29,6 +31,8 @@ pub struct Plan {
     pub failed: Vec<FailedPost>,
     /// Each markdown file that could not be read, with the reason.
     pub unread: Vec<UnreadFile>,
+    /// Where every old address leads. [`REDIRECTS_CSV`] holds every move.
+    pub redirects: Vec<MapEntry>,
 }
 
 /// A file that came in.
@@ -94,7 +98,7 @@ type Source<'a> = (&'a AbsoluteUrl, &'a Config, &'a Routes);
 /// folder's name. The old address is the front matter's `permalink` or
 /// `url`, else the one the generator gives: `/<y>/<m>/<d>/<slug>.html`
 /// under `_posts/`, else the file's path without `content/`, `src/pages/`
-/// or `src/content/`.
+/// or `src/content/`. Old addresses inside the new blog become aliases.
 pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Routes) -> Plan {
     let mut plan = Plan {
         unread: export.unread.clone(),
@@ -113,6 +117,11 @@ pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Rou
             }),
         }
     }
+    plan.redirects = redirect_map(&plan.posts, site);
+    plan.files.push(PlannedFile {
+        path: PathBuf::from(REDIRECTS_CSV),
+        text: folder_csv(&plan.redirects, site),
+    });
     plan
 }
 
@@ -239,11 +248,16 @@ fn post_file(
     let old: Vec<AbsoluteUrl> = old_paths
         .filter_map(|path| AbsoluteUrl::parse(&format!("{origin_url}{path}")).ok())
         .collect();
-    let address = match &new {
-        Some(new) => Some(routes.address(site, new).map_err(PostError::Address)?),
-        None => None,
+    let (address, aliases) = match &new {
+        Some(new) => {
+            let address = routes.address(site, new).map_err(PostError::Address)?;
+            let aliases = old.iter().filter_map(|old| alias(old, site, routes, new));
+            (Some(address), aliases.collect())
+        }
+        None => (None, Vec::new()),
     };
-    out.maybe("description", front.description.as_ref());
+    out.maybe("description", front.description.as_ref())
+        .list("aliases", &aliases);
     for (field, values) in [("tags", &front.tags), ("categories", &front.categories)] {
         if !values.is_empty() {
             left.push(field.to_owned());

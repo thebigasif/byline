@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use khalid_core::{AbsoluteUrl, Config, Environment};
-use khalid_import::folder::{Plan, plan, read_folder};
-use khalid_import::{Place, SlugOrigin};
+use khalid_import::folder::{Plan, REDIRECTS_CSV, plan, read_folder};
+use khalid_import::{MapTarget, Place, SlugOrigin};
 use khalid_routes::Routes;
 
 const FILES: [(&str, &str); 6] = [
@@ -113,4 +113,46 @@ fn old_addresses_follow_each_generator() {
             vec!["https://rye.example.org/blog/rye-again/"],
         ]
     );
+}
+
+#[test]
+fn only_old_addresses_inside_the_new_blog_become_aliases() {
+    let plan = planned("https://northfield.example.com");
+    let same = &plan.files[5].text;
+    assert!(
+        !same.contains("aliases"),
+        "the same address needs no alias: {same}"
+    );
+    let starters = &plan.files[3].text;
+    let alias = "aliases:\n  - \"/blog/old-starters/\"\n";
+    assert!(
+        starters.contains(alias),
+        "only the alias inside /blog/ is kept: {starters}"
+    );
+    assert_eq!(plan.redirects[5].to, MapTarget::Kept);
+}
+
+#[test]
+fn the_map_moves_each_old_address_and_the_report_counts_it() {
+    let plan = planned("https://rye.example.org");
+    let csv = plan.files.last().unwrap();
+    assert_eq!(csv.path, Path::new(REDIRECTS_CSV));
+    let first = "https://rye.example.org/2024/03/12/why-rye.html,https://northfield.example.com/blog/why-rye/,301,exact\n";
+    assert!(
+        csv.text
+            .starts_with(&format!("from,to,status,match\n{first}")),
+        "{}",
+        csv.text
+    );
+    assert_eq!(csv.text.lines().count(), 7);
+    let report = plan.report().to_string();
+    let want = concat!(
+        "This is a dry run: nothing was written.\n",
+        "Coming in: 4 posts, 1 page and 1 draft.\n",
+        "Slugs kept: 5.\n",
+        "Slugs changed: why-rye to content-posts-why-rye-md.\n",
+        "Old addresses mapped: 6, of which 6 move and 0 stay the same.\n",
+        "Left out: tags (1 file).\n",
+    );
+    assert!(report.starts_with(want), "{report}");
 }

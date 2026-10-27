@@ -171,6 +171,42 @@ fn a_substack_import_moves_old_addresses_on_the_same_host() {
 }
 
 #[test]
+fn a_jekyll_folder_comes_in_and_skips_built_folders() {
+    let site = site();
+    for folder in ["jekyll/_posts", "jekyll/_site/2024"] {
+        fs::create_dir_all(file(site.path(), folder)).unwrap();
+    }
+    let post = "---\ntitle: Why rye\n---\n{% include ad.html %}\nRye needs time.\n";
+    fs::write(
+        file(site.path(), "jekyll/_posts/2024-03-12-why-rye.md"),
+        post,
+    )
+    .unwrap();
+    fs::write(file(site.path(), "jekyll/_site/2024/copy.md"), "Built.\n").unwrap();
+    let export = file(site.path(), "jekyll");
+    let args = ["import", "markdown", export.to_str().unwrap(), "--dry-run"];
+    let (code, printed) = khalid(site.path(), &args);
+    assert_eq!(code, 0, "{printed}");
+    assert!(
+        printed.contains("Coming in: 1 post, 0 pages and 0 drafts."),
+        "{printed}"
+    );
+    assert!(
+        printed.contains("Left out: include tag (1 file)."),
+        "{printed}"
+    );
+    let (code, printed) = khalid(site.path(), &args[..3]);
+    assert_eq!(code, 0, "{printed}");
+    assert!(
+        printed.starts_with("Wrote 2 files and stored 1 redirects."),
+        "{printed}"
+    );
+    let old = "/2024/03/12/why-rye.html";
+    let (_, explained) = khalid(site.path(), &["redirects", "explain", old]);
+    assert!(explained.contains("/blog/why-rye/"), "{explained}");
+}
+
+#[test]
 fn redirects_that_clash_with_stored_ones_are_named() {
     let site = site();
     let clash = file(site.path(), "clash.csv");

@@ -9,7 +9,6 @@ use serde_json::Value;
 /// arguments it needs.
 const COMMANDS: &[&[&str]] = &[
     &["publish", "why-internal-links-matter"],
-    &["import", "markdown", "export"],
     &["export"],
     &["backup"],
     &["audit"],

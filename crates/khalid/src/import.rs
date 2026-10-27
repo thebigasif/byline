@@ -1,4 +1,4 @@
-//! `khalid import`: brings a blog from `WordPress`, Ghost, Medium or Substack into the
+//! `khalid import`: brings a blog from `WordPress`, Ghost, Medium, Substack or a markdown folder into the
 //! site through `khalid-import`, keeping every slug, and stores the
 //! redirect map in `data/site.db` through the redirect desk (plan section
 //! 5.7, KH-API-7, KH-SEO-8).
@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use khalid_api::redirect_store::Origin;
 use khalid_core::{Config, UserMessage};
-use khalid_import::{PlannedFile, WriteError, ghost, medium, substack, wordpress};
+use khalid_import::{PlannedFile, WriteError, folder, ghost, medium, substack, wordpress};
 use khalid_routes::Routes;
 use khalid_seo::read_redirects_csv;
 use serde::Serialize;
@@ -33,6 +33,7 @@ enum Plan {
     Ghost(ghost::Plan),
     Medium(medium::Plan),
     Substack(substack::Plan),
+    Folder(folder::Plan),
 }
 
 impl Plan {
@@ -43,6 +44,7 @@ impl Plan {
             Self::Ghost(plan) => plan.report().to_string(),
             Self::Medium(plan) => plan.report().to_string(),
             Self::Substack(plan) => plan.report().to_string(),
+            Self::Folder(plan) => plan.report().to_string(),
         }
     }
 
@@ -52,6 +54,7 @@ impl Plan {
             Self::Ghost(plan) => &plan.files,
             Self::Medium(plan) => &plan.files,
             Self::Substack(plan) => &plan.files,
+            Self::Folder(plan) => &plan.files,
         }
     }
 
@@ -61,6 +64,7 @@ impl Plan {
             Self::Ghost(plan) => plan.write(site),
             Self::Medium(plan) => plan.write(site),
             Self::Substack(plan) => plan.write(site),
+            Self::Folder(plan) => plan.write(site),
         }
     }
 
@@ -71,6 +75,7 @@ impl Plan {
             Self::Ghost(_) => ghost::REDIRECTS_CSV,
             Self::Medium(_) => medium::REDIRECTS_CSV,
             Self::Substack(_) => substack::REDIRECTS_CSV,
+            Self::Folder(_) => folder::REDIRECTS_CSV,
         }
     }
 }
@@ -226,15 +231,44 @@ fn planned(
                 &read, old_site, config, routes,
             )))
         }
-        ImportSource::Markdown => Err((
-            UserMessage::new(
-                "That source cannot be imported yet.",
-                "Khalid reads WordPress, Ghost, Medium and Substack exports so far.",
-                "Run `khalid import --help` to see the sources that work.",
-            ),
-            Exit::Internal,
-        )),
+        ImportSource::Markdown => {
+            let mut files = Vec::new();
+            markdown_files(export, "", &mut files)?;
+            let read = folder::read_folder(files).map_err(|e| unreadable(export, &e))?;
+            let old_site = args.old_site.as_ref().unwrap_or(config.address());
+            Ok(Plan::Folder(folder::plan(&read, old_site, config, routes)))
+        }
     }
+}
+
+/// Folders a generator builds into or fills with packages, which hold no
+/// posts of their own.
+const BUILT: [&str; 4] = ["node_modules", "public", "_site", "resources"];
+
+/// Adds every markdown file under `folder`, with its path from the top
+/// starting `inside`, to `files`. Hidden and built folders are skipped.
+fn markdown_files(
+    folder: &Path,
+    inside: &str,
+    files: &mut Vec<(String, String)>,
+) -> Result<(), (UserMessage, Exit)> {
+    let entries = fs::read_dir(folder).map_err(|error| not_read(folder, &error))?;
+    for entry in entries {
+        let path = entry.map_err(|error| not_read(folder, &error))?.path();
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned());
+        let name = name.unwrap_or_default();
+        let at = format!("{inside}{name}");
+        if path.is_dir() && !name.starts_with('.') && !BUILT.contains(&name.as_str()) {
+            markdown_files(&path, &format!("{at}/"), files)?;
+        } else if [".md", ".markdown", ".mdx"]
+            .iter()
+            .any(|ext| name.ends_with(ext))
+        {
+            let text = fs::read(&path).map_err(|error| not_read(&path, &error))?;
+            files.push((at, String::from_utf8_lossy(&text).into_owned()));
+        }
+    }
+    Ok(())
 }
 
 /// Every file in a Medium or Substack export's `posts/` folder, by name.

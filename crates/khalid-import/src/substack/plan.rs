@@ -9,7 +9,7 @@ use khalid_core::{AbsoluteUrl, Config, ParseSlugError, Slug};
 use khalid_routes::{AddressError, PostAddress, Routes};
 
 use crate::front_matter::FrontMatter;
-use crate::redirects::path_of;
+use crate::redirects::alias;
 use crate::slug::{PostSlug, post_slug};
 use crate::substack::body::substack_body;
 use crate::substack::redirect_map::{MapEntry, REDIRECTS_CSV, redirect_map, substack_csv};
@@ -248,19 +248,4 @@ fn post_file(
         left: converted.left,
     };
     Ok((PlannedFile { path, text }, imported))
-}
-
-/// The old address as an alias of `new`, when it lived on the new site's
-/// host and its path lies inside the blog.
-fn alias(
-    old: &AbsoluteUrl,
-    site: &Config,
-    routes: &Routes,
-    new: &PostAddress<'_>,
-) -> Option<String> {
-    if old.host() != site.address().host() {
-        return None;
-    }
-    let redirect = routes.redirect(site, path_of(old), new).ok()?;
-    Some(redirect.from().to_owned())
 }

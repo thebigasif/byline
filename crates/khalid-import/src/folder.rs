@@ -5,8 +5,12 @@ mod body;
 mod export;
 mod plan;
 mod read;
+mod redirect_map;
+mod report;
 
 pub use body::BodyError;
 pub use export::{Export, Front, SourceFile, UnreadFile};
 pub use plan::{FailedPost, ImportedPost, Plan, PostError, plan};
 pub use read::{FileError, FolderError, read_folder};
+pub use redirect_map::{MapEntry, REDIRECTS_CSV};
+pub use report::Report;
