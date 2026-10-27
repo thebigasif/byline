@@ -7,7 +7,9 @@ export function SettingField({ id, label, hint, children }: Props) {
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <span className="hint" id={`${id}-hint`}>{hint}</span>
+      <span className="hint" id={`${id}-hint`}>
+        {hint}
+      </span>
       {children}
     </div>
   );
