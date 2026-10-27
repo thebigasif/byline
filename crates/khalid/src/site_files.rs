@@ -24,7 +24,7 @@ pub(crate) fn files(
     pages: &[SeoPage],
     now: DateTime<Utc>,
 ) -> Result<Vec<Page>, UserMessage> {
-    build_files::files(site, pages, now)?
+    build_files::files(site, pages, config.seo().indexnow.as_ref(), now)?
         .into_iter()
         .map(|file| {
             let path = page_path(&format!("{}{}", config.mount(), file.file))?;

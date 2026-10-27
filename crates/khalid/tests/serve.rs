@@ -317,6 +317,20 @@ fn serve_moves_an_alias_to_where_routes_toml_puts_the_post() {
 }
 
 #[test]
+fn serve_answers_the_indexnow_key_file_where_requests_say_it_is() {
+    let site = demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let mut text = fs::read_to_string(&settings).unwrap();
+    text.push_str("\n[seo.indexnow]\nkey = \"5d1e7a0c9b3f4e28\"\n");
+    fs::write(&settings, text).unwrap();
+    let server = start(site.path());
+    let answer = get(&server, "/blog/5d1e7a0c9b3f4e28.txt");
+    assert_eq!(answer.status, 200);
+    assert_eq!(answer.body, "5d1e7a0c9b3f4e28");
+}
+
+#[test]
 fn serve_answers_the_admin_app_at_admin_with_its_own_policy() {
     let site = demo_copy();
     let server = start(site.path());
