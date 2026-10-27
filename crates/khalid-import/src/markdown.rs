@@ -99,13 +99,19 @@ pub(crate) fn body_markdown(html: &str) -> std::io::Result<Body> {
 fn paragraphs(html: &str) -> String {
     let mut out = Vec::new();
     let mut open_pre = 0_usize;
-    for chunk in html.split("\n\n").map(str::trim).filter(|c| !c.is_empty()) {
+    for chunk in html.split("\n\n") {
         let lower = chunk.to_ascii_lowercase();
-        let is_block = BLOCKS.iter().any(|tag| lower.starts_with(tag));
-        if open_pre == 0 && !is_block {
-            out.push(format!("<p>{}</p>", chunk.replace('\n', "<br>\n")));
-        } else {
+        let trimmed = chunk.trim();
+        let is_block = BLOCKS.iter().any(|tag| lower.trim_start().starts_with(tag));
+        if open_pre > 0 {
+            // Inside code every space and every blank line counts.
             out.push(chunk.to_owned());
+        } else if trimmed.is_empty() {
+            continue;
+        } else if is_block {
+            out.push(trimmed.to_owned());
+        } else {
+            out.push(format!("<p>{}</p>", trimmed.replace('\n', "<br>\n")));
         }
         open_pre = (open_pre + lower.matches("<pre").count())
             .saturating_sub(lower.matches("</pre>").count());
@@ -221,6 +227,11 @@ mod tests {
         let markdown = markdown("<pre><code>mix\n\nrest</code></pre>");
         assert!(markdown.contains("mix\n\nrest"), "{markdown:?}");
         assert!(!markdown.contains("<p>"), "{markdown:?}");
+        let indented = self::markdown("<pre><code>if a {\n\n    feed();\n\n\n\n}</code></pre>");
+        assert!(
+            indented.contains("if a {\n\n    feed();\n\n\n\n}"),
+            "indentation and every blank line are kept: {indented:?}"
+        );
     }
 
     #[test]
