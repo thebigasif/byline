@@ -73,6 +73,7 @@ mod search_index;
 mod search_page;
 mod search_route;
 mod search_static;
+mod seo_head_settings;
 mod seo_settings;
 mod serve;
 mod serve_https;

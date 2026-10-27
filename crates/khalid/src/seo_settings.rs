@@ -9,7 +9,7 @@ use khalid_core::toml_location::line_of_key;
 use khalid_core::{SeoSettings, TitleSettings, UserMessage};
 use khalid_seo::{MetaTemplate, PageKind, SeoSite, TemplatePair};
 
-use crate::config_message;
+use crate::{config_message, seo_head_settings};
 
 /// What a title or description template may use, for the fix.
 const TEMPLATE: &str =
@@ -100,7 +100,10 @@ impl SettingMistake {
 ///
 /// The first value `khalid-seo` refuses, with its table and key.
 pub(crate) fn apply(settings: &SeoSettings, site: &mut SeoSite) -> Result<(), SettingMistake> {
-    titles(&settings.titles, site)
+    titles(&settings.titles, site)?;
+    seo_head_settings::social(&settings.social, site)?;
+    seo_head_settings::verification(&settings.verification, site)?;
+    Ok(())
 }
 
 fn titles(settings: &TitleSettings, site: &mut SeoSite) -> Result<(), SettingMistake> {
