@@ -1,0 +1,1 @@
+- Search, publishing with scheduled posts and preview links, and the admin app now work together in one `khalid serve`. The post schedules migration is number 7, after the search index.
