@@ -3,6 +3,7 @@ export const en = {
   brand: "Khalid",
   skip: "Skip to the main content",
   viewBlog: "View the blog",
+  signOut: "Sign out",
   nav: {
     label: "Admin",
     home: "Home",
@@ -11,7 +12,30 @@ export const en = {
     title: "Your blog's admin",
     lede: "Write, check and publish posts here. Each one is saved as a text file on the server.",
   },
+  signIn: {
+    title: "Sign in to your blog's admin",
+    lede: "The admin works with a staff token, a key that lets one person edit this blog.",
+    label: "Staff token",
+    hint: "Make one on the server with khalid keys create --kind staff --role editor --name followed by your name. It is shown once.",
+    submit: "Sign in",
+    checking: "Checking the token",
+  },
   problems: {
+    rejected: {
+      what: "The blog did not accept this token.",
+      why: "It may be mistyped, revoked, or made for another blog.",
+      fix: "Paste it again, or make a new one with khalid keys create.",
+    },
+    lacksScope: {
+      what: "This key cannot edit posts.",
+      why: "The admin needs a key that may write posts, and this one may not.",
+      fix: "Make a staff token with the editor role, or an integration key with posts:write.",
+    },
+    unreachable: {
+      what: "The admin could not reach the blog's server.",
+      why: "Without the server, nothing can be read or saved.",
+      fix: "Check that khalid serve is running, then try again.",
+    },
     page: {
       what: "This screen stopped working.",
       why: "Something went wrong while showing it. Nothing you saved is lost.",
