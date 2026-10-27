@@ -76,11 +76,16 @@ mod search_index;
 mod search_page;
 mod search_route;
 mod search_static;
+mod seo_crawl_settings;
+mod seo_graph_settings;
+mod seo_head_settings;
+mod seo_settings;
 mod serve;
 mod serve_https;
 mod serve_message;
 mod settings_text;
 mod site_addresses;
+mod site_config;
 mod site_content;
 mod site_files;
 mod site_lists;
@@ -281,7 +286,7 @@ type Checked = (Config, Routes, SiteContent, Assets);
 /// returns them with the files beside folder posts. The folder is walked
 /// once, and no file's text is kept beyond the content.
 fn check(site: &Path, environment: &Environment) -> Result<Checked, UserMessage> {
-    let config = Config::load(site, environment).map_err(|e| config_message::of(&e))?;
+    let config = site_config::load(site, environment)?;
     let routes = Routes::load(site).map_err(|error| routes_message::of(&error))?;
     let (content, assets) = ContentTree::walk(site)
         .and_then(|tree| Ok((read_content(&tree)?, Assets::of(&tree))))

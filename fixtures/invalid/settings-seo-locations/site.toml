@@ -1,0 +1,21 @@
+# Breaks one rule: opening times are written as hours and minutes, such as
+# 09:00. The exact message khalid --site prints for it is in expected.txt
+# beside this file.
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+default_language = "en"
+languages = ["en", "de"]
+
+[[seo.locations]]
+type = "Dentist"
+name = "Mill Lane Dental"
+street = "12 Mill Lane"
+locality = "Leeds"
+postal_code = "LS1 4AB"
+country = "GB"
+
+[[seo.locations.hours]]
+days = ["mon", "tue"]
+opens = "9am"
+closes = "17:30"

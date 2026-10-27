@@ -276,6 +276,7 @@ fn post_page(
     let path = path_of(config, locale, &rest);
     let description = front.description.clone().unwrap_or_default();
     let mut seo = build_seo::post(locale, (&rest, &title), front, date)?;
+    seo.collection = Some(doc.collection.clone());
     seo.content_html = build_seo::full_addresses(config, &rendered.html);
     let (reviewers, profiles) = build_reader::reviewers(front, people, config)?;
     seo.reviewers = profiles;
