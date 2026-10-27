@@ -230,7 +230,10 @@ impl SitePages {
         let mut languages = build_home::home_pages(config, routes, content, href)?;
         search_page::link(config, &mut languages);
         let seo_site = build_seo::site(config)?;
-        share_images::attach(folder, config, &theme.tokens, &seo_site, &mut languages)?;
+        let cards = share_images::attach(folder, config, &theme.tokens, &seo_site, &mut languages)?;
+        // The home pages answer first, so their cards are drawn now; the
+        // rest warm in the background once the pages are live (G14).
+        share_images::draw_now(folder, cards)?;
         build_seo::heads(&seo_site, &mut languages)?;
         let mut pages = vec![theme.stylesheet.clone()];
         html_pages(theme, config, &languages, Which::All, &mut pages)?;
@@ -387,7 +390,7 @@ impl SitePages {
         let seo_site = build_seo::site(config)?;
         let default_tokens = Tokens::default();
         let tokens = theme.as_ref().map_or(&default_tokens, |t| &t.tokens);
-        share_images::attach(folder, config, tokens, &seo_site, &mut languages)?;
+        let cards = share_images::attach(folder, config, tokens, &seo_site, &mut languages)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
         build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
         post_lock::share_heads(&mut languages);
@@ -415,6 +418,14 @@ impl SitePages {
                     .unwrap_or_else(PoisonError::into_inner) = shells;
             }
             served.not_found = html_pages(theme, config, &languages, which, &mut served.pages)?;
+        }
+        // The cards draw behind the answers: their addresses are already
+        // baked into the heads, so the pages are complete without the
+        // files, and the cache warms while the server answers (G14, ADR
+        // "khalid serve answers before the full render").
+        if !cards.is_empty() {
+            let site = folder.clone();
+            std::thread::spawn(move || share_images::warm(&site, cards));
         }
         let listed = languages.into_iter().flat_map(|language| language.listed);
         Ok((served, listed.collect()))

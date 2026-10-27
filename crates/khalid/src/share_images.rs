@@ -38,7 +38,7 @@ pub(crate) fn attach(
     tokens: &Tokens,
     seo_site: &SeoSite,
     languages: &mut [LanguagePages],
-) -> Result<Vec<String>, UserMessage> {
+) -> Result<BTreeMap<String, ShareCard>, UserMessage> {
     let cache = ShareCache::new(site);
     let colors = card_colors(tokens);
     let mut cards: BTreeMap<String, ShareCard> = BTreeMap::new();
@@ -65,6 +65,30 @@ pub(crate) fn attach(
             cards.insert(key.as_str().to_owned(), card);
         }
     }
+    drop(cache);
+    Ok(cards)
+}
+
+/// Draws every `card` into the site's cache, one by one. Meant for a
+/// background task: the pages already name the cards' addresses, so the
+/// drawing never blocks an answer (ADR \"khalid serve answers before the
+/// full render\").
+pub(crate) fn warm(site: &Path, cards: BTreeMap<String, ShareCard>) {
+    let cache = ShareCache::new(site);
+    for (_, card) in cards {
+        if let Err(error) = cache.draw(&card) {
+            tracing::warn!(?error, "a share card could not be drawn");
+        }
+    }
+}
+
+/// Draws `cards` now, for the pages a first answer already serves, and
+/// gives back the files as the site serves them, `share/<key>.png`.
+pub(crate) fn draw_now(
+    site: &Path,
+    cards: BTreeMap<String, ShareCard>,
+) -> Result<Vec<String>, UserMessage> {
+    let cache = ShareCache::new(site);
     let mut files = Vec::with_capacity(cards.len());
     for (_, card) in cards {
         cache

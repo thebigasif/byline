@@ -123,11 +123,11 @@ fn build(
     }
     let seo_site = build_seo::site(config)?;
     let cards = share_images::attach(site, config, &tokens, &seo_site, &mut languages)?;
-    for file in &cards {
+    for file in share_images::draw_now(site, cards)? {
         let mut from = site.to_path_buf();
         from.push("data");
-        from.push(file);
-        copy(&from, out, file)?;
+        from.push(&file);
+        copy(&from, out, &file)?;
     }
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
     build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
