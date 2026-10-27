@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
 use crate::front_matter::{Fence, split};
-use crate::post_fields::{self, LeadImage, Sitemap};
+use crate::post_fields::{self, LeadImage, ReviewState, ShareCards, Sitemap};
 use crate::{ContentError, parse_blocks};
 
 /// What a post's front matter may say.
@@ -77,6 +77,15 @@ pub struct PostFront {
     /// Whether the post is listed in the XML sitemap.
     #[serde(default)]
     pub sitemap: Sitemap,
+    /// The other authors' slugs, shown after the author in the byline.
+    #[serde(default, deserialize_with = "slugs")]
+    pub co_authors: Vec<Slug>,
+    /// Where the post stands in review.
+    #[serde(default)]
+    pub review_state: ReviewState,
+    /// How the post looks when shared on X and Facebook.
+    #[serde(default)]
+    pub share_cards: ShareCards,
 }
 
 /// The most related posts a post shows, and so the most it may pin.

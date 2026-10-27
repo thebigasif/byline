@@ -37,6 +37,11 @@ pub struct AuthorFront {
     /// Profiles elsewhere, written into the author's schema as `sameAs`.
     #[serde(default)]
     pub same_as: Vec<AbsoluteUrl>,
+    /// The author's photo for bylines, cards and the author page: a file
+    /// beside the author's file, such as `asif.jpg`, a media path or a
+    /// full address.
+    #[serde(default, deserialize_with = "crate::post_fields::photo")]
+    pub photo: Option<String>,
 }
 
 /// A glossary term, in `glossary/`. The body is the definition.
