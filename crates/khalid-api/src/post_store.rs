@@ -30,7 +30,8 @@ pub trait PostStore: Send + Sync {
     /// # Errors
     ///
     /// Returns [`UpdatePostError::Stale`] naming the last change when the
-    /// post changed after that copy, [`UpdatePostError::NotFound`] when no
+    /// post changed after that copy, [`UpdatePostError::SlugTaken`] when
+    /// the edit's new slug is another post's, [`UpdatePostError::NotFound`] when no
     /// post has that identity, [`UpdatePostError::Refused`] with the lint
     /// report when the gate refuses, and [`UpdatePostError::Store`] when the
     /// posts cannot be read or written.
@@ -90,6 +91,9 @@ pub enum UpdatePostError {
         /// Who changed it, if known.
         updated_by: Option<String>,
     },
+    /// The edit gives the post a slug another post has.
+    #[error("another post has the slug {0}")]
+    SlugTaken(Slug),
     /// The edit publishes the post, and the lint publish gate refused it.
     /// The post stays as it was.
     #[error("the linter refused to publish the post")]
@@ -171,6 +175,10 @@ mod memory {
 
         fn apply(&self, id: &str, edit: PostEdit, by: &str) -> Result<AdminPost, UpdatePostError> {
             let mut posts = self.posts();
+            let taken = |slug: &Slug| posts.iter().any(|p| p.id() != id && p.slug() == slug);
+            if let Some(slug) = edit.slug().filter(|slug| taken(slug)) {
+                return Err(UpdatePostError::SlugTaken(slug.clone()));
+            }
             let post = posts
                 .iter_mut()
                 .find(|post| post.id() == id)

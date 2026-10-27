@@ -125,6 +125,36 @@ async fn null_clears_a_setting_and_a_left_out_one_stays() {
 }
 
 #[tokio::test]
+async fn an_edit_moves_the_slug_and_sets_then_clears_the_author() {
+    let first = json!({"slug": "how-to-choose-anchor-text", "author": "asif"});
+    let answers = edits(vec![first, json!({"author": null}), json!({})]).await;
+    let saved = &answers[0].1["posts"][0];
+    assert_eq!(saved["slug"], "how-to-choose-anchor-text", "{saved}");
+    assert_eq!(saved["author"], "asif");
+    let cleared = &answers[1].1["posts"][0];
+    assert_eq!(cleared["author"], Value::Null, "{cleared}");
+    let kept = &answers[2].1["posts"][0];
+    assert_eq!(kept["slug"], "how-to-choose-anchor-text", "{kept}");
+}
+
+#[tokio::test]
+async fn a_slug_another_post_has_is_a_409_and_its_own_is_kept() {
+    let (status, json) = edit(json!({"slug": "fixing-slow-pages"})).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert_eq!(json["rule"], "slug");
+    let fix = json["fix"].as_str().unwrap();
+    assert!(fix.contains("keep the one it has"), "{json}");
+    let (status, json) = edit(json!({"slug": "choosing-anchor-text"})).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "a post may send its own slug: {json}"
+    );
+    let (status, json) = edit(json!({"slug": "Not A Slug"})).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+}
+
+#[tokio::test]
 async fn settings_that_cannot_be_right_are_a_422() {
     let cases = [
         json!({"feature_image": {"src": "/media/a.jpg", "alt": " "}}),

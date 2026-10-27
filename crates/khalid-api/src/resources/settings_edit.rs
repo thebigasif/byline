@@ -68,7 +68,7 @@ impl SettingsEdit {
 
 /// What an edit does to a setting that may be empty.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-enum Change<T> {
+pub(super) enum Change<T> {
     /// Left out: the setting keeps its value.
     #[default]
     Keep,
@@ -80,7 +80,7 @@ enum Change<T> {
 
 impl<T> Change<T> {
     /// The setting's value after the change, from its value `before`.
-    fn applied_to(self, before: Option<T>) -> Option<T> {
+    pub(super) fn applied_to(self, before: Option<T>) -> Option<T> {
         match self {
             Self::Keep => before,
             Self::Clear => None,

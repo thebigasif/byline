@@ -286,7 +286,7 @@
             }
           },
           "409": {
-            "description": "The post changed after the copy the edit was made on",
+            "description": "The post changed after the copy the edit was made on, or another post has the new slug",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -296,7 +296,7 @@
             }
           },
           "422": {
-            "description": "The body could not be read, or the linter refused to publish the post",
+            "description": "The body could not be read, a setting is not valid, or the linter refused to publish the post",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3707,6 +3707,14 @@
           "updated_at"
         ],
         "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new author's slug, or `null` for none.",
+            "example": "asif"
+          },
           "markdown": {
             "type": [
               "string",
@@ -3724,6 +3732,14 @@
                 "type": "null"
               }
             ]
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new slug. No other post may have it.",
+            "example": "how-to-choose-anchor-text"
           },
           "status": {
             "type": [

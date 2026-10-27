@@ -97,8 +97,8 @@ pub(crate) struct EditPosts {
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
-        (status = 409, description = "The post changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
-        (status = 422, description = "The body could not be read, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The post changed after the copy the edit was made on, or another post has the new slug", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, a setting is not valid, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
     )
 )]
 async fn edit_admin_post(
@@ -119,6 +119,10 @@ async fn edit_admin_post(
             updated_at,
             updated_by,
         }) => Err(stale(updated_at, updated_by.as_deref())),
+        Err(UpdatePostError::SlugTaken(slug)) => Err(slug_taken(
+            slug.as_str(),
+            "Send a different slug, or leave slug out to keep the one it has.",
+        )),
         Err(UpdatePostError::Refused(report)) => Err(refused(report)),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
     }
@@ -201,7 +205,10 @@ async fn create_admin_post(
         .create(draft, principal.id().as_str(), idempotency)
         .await;
     let post = made.map_err(|error| match error {
-        CreatePostError::SlugTaken(slug) => slug_taken(slug.as_str()),
+        CreatePostError::SlugTaken(slug) => slug_taken(
+            slug.as_str(),
+            "Send a different slug, or leave slug out to have one made from the title.",
+        ),
         CreatePostError::NoSlug => {
             invalid_body("the title has no letters or digits to make a slug from")
         }
@@ -276,11 +283,12 @@ fn idempotency_key(headers: &HeaderMap) -> Result<Option<&str>, Problem> {
     }
 }
 
-fn slug_taken(slug: &str) -> Problem {
+/// The 409 for a slug another post has, with `fix` saying what to send.
+fn slug_taken(slug: &str, fix: &'static str) -> Problem {
     let message = UserMessage::new(
         format!("Another post already has the slug {slug}."),
         "Two posts cannot share one address.",
-        "Send a different slug, or leave slug out to have one made from the title.",
+        fix,
     );
     Problem::new(ProblemType::Conflict, &message).with_rule("slug")
 }

@@ -5,6 +5,7 @@ use khalid_core::Slug;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::settings_edit::Change;
 use super::{PostSettings, SettingsEdit, display, display_option};
 
 /// Where a post stands.
@@ -169,7 +170,9 @@ impl AdminPost {
             None => self.settings,
         };
         let post = Self {
+            slug: edit.slug.unwrap_or(self.slug),
             title: edit.title.unwrap_or(self.title),
+            author: edit.author.applied_to(self.author),
             markdown: edit.markdown.unwrap_or(self.markdown),
             updated_at: at,
             updated_by: Some(by.to_owned()),
@@ -187,8 +190,15 @@ impl AdminPost {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PostEdit {
+    /// A new slug. No other post may have it.
+    #[schema(value_type = Option<String>, example = "how-to-choose-anchor-text")]
+    slug: Option<Slug>,
     /// A new title.
     title: Option<String>,
+    /// A new author's slug, or `null` for none.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, example = "asif")]
+    author: Change<Slug>,
     /// A new markdown body.
     markdown: Option<String>,
     /// New values for some settings; the rest keep theirs.
@@ -210,6 +220,12 @@ impl PostEdit {
     /// Whether the edit asks to publish the post.
     pub fn publishes(&self) -> bool {
         self.status == Some(PostStatus::Published)
+    }
+
+    /// The new slug, if the edit changes it. The store checks that no
+    /// other post has it.
+    pub fn slug(&self) -> Option<&Slug> {
+        self.slug.as_ref()
     }
 }
 
