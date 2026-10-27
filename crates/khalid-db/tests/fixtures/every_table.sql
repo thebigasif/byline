@@ -60,9 +60,14 @@ INSERT INTO webhook_attempts (site_id, delivery_id, number, at, status, reason) 
 INSERT INTO form_submissions (site_id, form, fields, status, created_at) VALUES
     (1, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z'),
     (2, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z');
-INSERT INTO subscribers (site_id, email, status, created_at) VALUES
-    (1, 'reader@example.com', 'confirmed', '2026-10-26T09:00:00Z'),
-    (2, 'reader@example.com', 'confirmed', '2026-10-26T09:00:00Z');
+INSERT INTO subscribers (id, site_id, email, status, created_at) VALUES
+    (1, 1, 'reader@example.com', 'confirmed', '2026-10-26T09:00:00Z'),
+    (2, 2, 'reader@example.com', 'confirmed', '2026-10-26T09:00:00Z');
+INSERT INTO subscriber_lists (site_id, subscriber_id, list, joined_at) VALUES
+    (1, 1, 'main', '2026-10-26T09:00:00Z'), (2, 2, 'main', '2026-10-26T09:00:00Z');
+INSERT INTO subscriber_tokens (site_id, subscriber_id, purpose, token_hash, created_at) VALUES
+    (1, 1, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z'),
+    (2, 2, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z');
 INSERT INTO comments (site_id, post_path, author_name, author_email, body, status, created_at) VALUES
     (1, 'content/en/posts/old-post.md', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z'),
     (2, 'content/en/posts/old-post.md', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z');

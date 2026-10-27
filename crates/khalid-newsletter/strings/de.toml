@@ -1,0 +1,39 @@
+# What a German reader reads in the newsletter's emails. The same keys as
+# en.toml.
+confirm_subject = "Bitte bestätigen Sie Ihre E-Mail-Adresse für {site}"
+confirm_text = """
+Jemand möchte {site} per E-Mail an diese Adresse bekommen. Wir hoffen, Sie waren es.
+
+Um zuzustimmen, öffnen Sie innerhalb von zwei Tagen diesen Link:
+{confirm}
+
+Sie waren es nicht? Dann ignorieren Sie diese E-Mail, und es kommt nichts mehr. Um diese Adresse sofort zu entfernen, öffnen Sie diesen Link:
+{remove}
+"""
+
+[page]
+back = "Zurück zu {site}"
+email_label = "Ihre E-Mail-Adresse"
+sign_up_button = "Anmelden"
+check_title = "Sehen Sie in Ihr Postfach"
+check_text = "Wenn diese Adresse unsere E-Mails bekommen kann, ist eine Nachricht mit einem Link unterwegs, die Sie innerhalb von zwei Tagen öffnen."
+wrong_email_title = "Diese E-Mail-Adresse funktioniert nicht"
+wrong_email_text = "Eine Adresse braucht ein @ und eine Domain, etwa name@example.com, also geben Sie sie unten noch einmal ein."
+confirm_title = "Bestätigen Sie Ihre E-Mail-Adresse"
+confirm_text = "Noch ein Klick, und Sie bekommen {site} per E-Mail."
+confirm_button = "Ja, bitte senden"
+confirmed_title = "Sie sind angemeldet"
+confirmed_text = "Jede E-Mail von {site} hat einen Link, mit dem Sie sich mit einem Klick abmelden."
+expired_title = "Dieser Link ist zu alt"
+expired_text = "Links gelten zwei Tage, also melden Sie sich unten neu an und nutzen Sie den neuen Link."
+unknown_title = "Dieser Link funktioniert nicht"
+unknown_text = "Er ist vielleicht abgeschnitten oder schon benutzt, also kopieren Sie den ganzen Link aus der E-Mail oder melden Sie sich neu an."
+leave_title = "Von {site} abmelden"
+leave_text = "Nach diesem Klick bekommen Sie keine E-Mails mehr von {site}."
+leave_button = "Abmelden"
+left_title = "Sie sind abgemeldet"
+left_text = "Sie bekommen keine E-Mails mehr von {site} und können sich jederzeit neu anmelden."
+closed_title = "Die Anmeldung ist noch nicht offen"
+closed_text = "Diese Website kann noch keine E-Mails senden, daher wurde nichts gespeichert; versuchen Sie es an einem anderen Tag."
+failed_title = "Etwas ist schiefgegangen"
+failed_text = "Es wurde nichts gesendet, also versuchen Sie es in zehn Minuten noch einmal."

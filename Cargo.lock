@@ -2089,6 +2089,7 @@ dependencies = [
  "chrono",
  "khalid-api",
  "khalid-core",
+ "khalid-newsletter",
  "khalid-webhooks",
  "sqlx",
  "tempfile",
@@ -2195,6 +2196,26 @@ version = "0.0.0"
 dependencies = [
  "khalid-core",
  "thiserror",
+]
+
+[[package]]
+name = "khalid-newsletter"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "getrandom 0.4.3",
+ "khalid-core",
+ "khalid-db",
+ "khalid-newsletter",
+ "serde",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "toml",
+ "tower",
+ "tracing",
 ]
 
 [[package]]
