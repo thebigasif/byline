@@ -22,6 +22,12 @@ const DROPPED: [&str; 8] = [
     "script", "style", "object", "embed", "form", "noscript", "template", "svg",
 ];
 
+/// Starts a line the converter wrote as a block itself, such as an
+/// `::embed`, so the escaping of text that looks like a block leaves it
+/// alone. It is a private-use character, removed from the HTML first, so
+/// no post can forge one.
+const OWN_BLOCK: char = '\u{e000}';
+
 /// The schemes a link or image may keep.
 const SCHEMES: [&str; 3] = ["http", "https", "mailto"];
 
@@ -54,7 +60,7 @@ const BLOCKS: [&str; 16] = [
 ///
 /// Returns the converter's error when the HTML cannot be read.
 pub(crate) fn body_markdown(html: &str) -> std::io::Result<Body> {
-    let html = paragraphs(&html.replace("\r\n", "\n"));
+    let html = paragraphs(&html.replace("\r\n", "\n").replace(OWN_BLOCK, ""));
     let clean = ammonia::Builder::default()
         .add_tags(["iframe"])
         .add_tag_attributes("iframe", ["src", "title"])
@@ -71,7 +77,9 @@ pub(crate) fn body_markdown(html: &str) -> std::io::Result<Body> {
         .lines()
         .map(|line| {
             // `::` starts a block in Khalid; WordPress text never meant one.
-            if line.trim_start().starts_with("::") {
+            if let Some(own) = line.trim_start().strip_prefix(OWN_BLOCK) {
+                format!("::{own}")
+            } else if line.trim_start().starts_with("::") {
                 format!("\\{}", line.trim_start())
             } else {
                 line.to_owned()
@@ -122,7 +130,7 @@ fn embed(element: &Element<'_>) -> Option<HandlerResult> {
         .collect();
     Some(
         format!(
-            "\n\n::embed{{src=\"{src}\" title=\"{}\"}}\n\n",
+            "\n\n{OWN_BLOCK}embed{{src=\"{src}\" title=\"{}\"}}\n\n",
             title.trim()
         )
         .into(),
@@ -219,10 +227,16 @@ mod tests {
         let html = r#"<p>Watch first.</p><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Shaping a &quot;boule&quot;" width="560"></iframe>"#;
         let markdown = markdown(html);
         assert!(
-            markdown.contains("::embed{src=\"https://www.youtube.com/embed/dQw4w9WgXcQ\" title=\"Shaping a boule\"}"),
+            markdown.lines().any(|line| line == "::embed{src=\"https://www.youtube.com/embed/dQw4w9WgXcQ\" title=\"Shaping a boule\"}"),
             "{markdown:?}"
         );
-        parse_blocks(&markdown).unwrap();
+        let blocks = parse_blocks(&markdown).unwrap();
+        assert!(
+            blocks
+                .iter()
+                .any(|block| matches!(block.kind, khalid_content::BlockKind::Embed { .. })),
+            "{blocks:?}"
+        );
     }
 
     #[test]
@@ -247,5 +261,10 @@ mod tests {
         let markdown = markdown("<p>::toc</p><p>:::note</p>");
         assert_eq!(markdown, "\\::toc\n\n\\:::note\n");
         assert!(parse_blocks(&markdown).is_ok());
+        let forged = self::markdown("<p>\u{e000}toc</p>");
+        assert_eq!(
+            forged, "toc\n",
+            "a post cannot mark its own text as a block"
+        );
     }
 }
