@@ -10,6 +10,337 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/comments/": {
+      "get": {
+        "tags": [
+          "admin comments"
+        ],
+        "summary": "Lists the newest comments, filtered by status. Needs `posts:write`.",
+        "operationId": "list_comments",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Only comments with this status, such as `pending` for the queue.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CommentStatus"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "How many to send, newest first: 50 when not given, at most 100.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The comments, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminComments"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The status or limit is not one the API knows",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/comments/{id}/": {
+      "delete": {
+        "tags": [
+          "admin comments"
+        ],
+        "summary": "Removes a comment and every reply to it. Needs `posts:write`.",
+        "operationId": "delete_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The comment's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The comment and its replies are gone"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No comment has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/comments/{id}/approve/": {
+      "post": {
+        "tags": [
+          "admin comments"
+        ],
+        "summary": "Shows a comment under its post. Needs `posts:write`.",
+        "operationId": "approve_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The comment's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The comment, approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminComments"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No comment has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/comments/{id}/replies/": {
+      "post": {
+        "tags": [
+          "admin comments"
+        ],
+        "summary": "Answers a comment as staff. The reply shows at once, and the comment\nit answers is approved. Needs `posts:write`.",
+        "operationId": "reply_to_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The identity of the comment answered",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentReplies"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The reply as stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminComments"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No comment has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or its name or text cannot be kept",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "post": {
         "tags": [
@@ -3042,6 +3373,83 @@
   },
   "components": {
     "schemas": {
+      "AdminComment": {
+        "type": "object",
+        "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",
+        "required": [
+          "id",
+          "post",
+          "author_name",
+          "author_kind",
+          "text",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "author_email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The reader's email, when they gave one. Never shown on the site,\nand never sent in a webhook."
+          },
+          "author_kind": {
+            "$ref": "#/components/schemas/CommentWriter",
+            "description": "A reader or staff."
+          },
+          "author_name": {
+            "type": "string",
+            "description": "The name shown with it."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was sent."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Its identity."
+          },
+          "parent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The comment it answers. Threads are one level deep."
+          },
+          "post": {
+            "type": "string",
+            "description": "The post it is on, by the post's file in the site folder.",
+            "example": "content/en/posts/why-links-matter.md"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommentStatus",
+            "description": "Where it stands in moderation."
+          },
+          "text": {
+            "type": "string",
+            "description": "What it says, as plain text with a line break between lines."
+          }
+        }
+      },
+      "AdminComments": {
+        "type": "object",
+        "description": "Comments as the Admin API wraps them.",
+        "required": [
+          "comments"
+        ],
+        "properties": {
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminComment"
+            },
+            "description": "The comment or comments."
+          }
+        }
+      },
       "AdminPost": {
         "type": "object",
         "description": "A post in Admin API shape: any status, with its markdown source and\nthe `updated_at` an edit must send back (RULES.md BL-API-7).",
@@ -3345,6 +3753,62 @@
             ]
           }
         }
+      },
+      "CommentReplies": {
+        "type": "object",
+        "description": "A reply, wrapped the way the Admin API wraps comments: exactly one.",
+        "required": [
+          "comments"
+        ],
+        "properties": {
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentReply"
+            },
+            "description": "The one reply."
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommentReply": {
+        "type": "object",
+        "description": "A staff reply to a comment.",
+        "required": [
+          "author_name",
+          "text"
+        ],
+        "properties": {
+          "author_name": {
+            "type": "string",
+            "description": "The name shown with the reply, such as the writer's own.",
+            "example": "Asif"
+          },
+          "text": {
+            "type": "string",
+            "description": "What the reply says, as plain text.",
+            "example": "Thanks, Lena. The follow-up post is out next week."
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommentStatus": {
+        "type": "string",
+        "description": "Where a comment stands in moderation.",
+        "enum": [
+          "pending",
+          "approved",
+          "spam",
+          "trash"
+        ]
+      },
+      "CommentWriter": {
+        "type": "string",
+        "description": "Who wrote a comment.",
+        "enum": [
+          "reader",
+          "staff"
+        ]
       },
       "ContentCollection": {
         "type": "object",

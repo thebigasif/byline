@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 khalid-admin = { path = "../khalid-admin", version = "0.0.0" }
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
+khalid-comments = { path = "../khalid-comments", version = "0.0.0" }
 khalid-content = { path = "../khalid-content", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }

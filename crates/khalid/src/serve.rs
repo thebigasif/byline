@@ -29,7 +29,10 @@ use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{announce, db, db_message, preview, report, scheduler, search_route, serve_message};
+use crate::{
+    announce, comment_pages, db, db_message, preview, report, scheduler, search_route,
+    serve_message,
+};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -134,6 +137,9 @@ fn serve_with(
             .map_err(|_| (serve_message::internal(), Exit::Internal))?;
         announce(output, config, &format!("http://{local}{}", config.mount()));
         let live = LivePages::new(first);
+        let shown = (&source, &live);
+        let (comments, moderation) =
+            comment_pages::start(config, (database, id), shown, security.clone()).await;
         let (failed, failure) = oneshot::channel();
         let rest = (source.clone(), live.clone());
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
@@ -150,14 +156,17 @@ fn serve_with(
             .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
         let door = Arc::new(door);
         let scheduling = scheduler::start(Arc::clone(&door));
-        let shown = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
-        let (api, _) = api::router_with_door(Arc::new(content), door, Arc::new(keys));
+        let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
+        let stores = (Arc::new(content), door, Arc::new(keys));
+        let (api, _) =
+            api::router_with_door_and_comments(stores.0, stores.1, stores.2, moderation);
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
         let app = api
-            .merge(shown)
+            .merge(previews)
             .merge(searches)
             .merge(admin)
+            .merge(comments)
             .merge(router(live, security));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
