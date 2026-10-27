@@ -34,6 +34,7 @@ mod doctor_address;
 mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
+mod doctor_robots;
 mod exit;
 mod https_message;
 mod index;

@@ -12,7 +12,7 @@ use serde::Serialize;
 use crate::cli::{Cli, Network, Output};
 use crate::doctor_check::{Check, Finding, Outcome, Status};
 use crate::exit::Exit;
-use crate::{doctor_address, doctor_files, doctor_folder, report, static_mode};
+use crate::{doctor_address, doctor_files, doctor_folder, doctor_robots, report, static_mode};
 
 /// The JSON shape of a doctor run.
 #[derive(Serialize)]
@@ -58,12 +58,14 @@ impl<'a> From<&'a Finding> for CheckBody<'a> {
 }
 
 /// Runs every check on the `site` folder, then fetches its public address
-/// unless `network` says to stay offline, and reports them all, with the
+/// and the host's `robots.txt` unless `network` says to stay offline, and
+/// reports them all, with the
 /// features a static site has off.
 pub(crate) fn run(site: &Path, network: Network, cli: &Cli) -> Exit {
     let (mut findings, config) = doctor_files::check(site);
     findings.extend(doctor_folder::check(site));
     findings.push(doctor_address::check(config.as_ref(), network, cli));
+    findings.push(doctor_robots::check(config.as_ref(), network, cli));
     let off = config
         .as_ref()
         .map(|config| static_mode::off(config.mode()))
