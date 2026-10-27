@@ -43,7 +43,10 @@ impl Source for Server {
     const HEADERS: Headers = Headers::Sent;
 
     async fn fetch(&self, url: &AbsoluteUrl) -> Result<Answer, Unreached> {
-        let Some(path) = url.as_str().strip_prefix(&self.site) else {
+        // Only the site's own origin, then a path: a host that merely
+        // starts the same, such as `www.example.com.evil.test`, is refused
+        // before the server is asked.
+        let Some(path) = path_on(url.as_str(), &self.site) else {
             return Err(Unreached::Refused);
         };
         let request = http::Request::get(format!("{}{path}", self.asked))
@@ -63,7 +66,7 @@ impl Source for Server {
         let mut answer = Answer::new(parts.status.as_u16(), body);
         for (name, value) in &parts.headers {
             if let Ok(value) = value.to_str() {
-                let value = match value.strip_prefix(&self.asked) {
+                let value = match path_on(value, &self.asked) {
                     Some(rest) if name == http::header::LOCATION => format!("{}{rest}", self.site),
                     _ => value.to_owned(),
                 };
@@ -72,4 +75,10 @@ impl Source for Server {
         }
         Ok(answer)
     }
+}
+
+/// The path of `url` when it is on `origin` exactly, starting with `/`.
+fn path_on<'a>(url: &'a str, origin: &str) -> Option<&'a str> {
+    url.strip_prefix(origin)
+        .filter(|path| path.starts_with('/'))
 }
