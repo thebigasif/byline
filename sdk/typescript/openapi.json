@@ -3666,7 +3666,7 @@
       },
       "PostEdit": {
         "type": "object",
-        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through;\n`scheduled` with a future `published_at` publishes it then, and\n`draft` takes a scheduled post off its schedule.",
+        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through;\n`scheduled` with a future `published_at` publishes it then, and\n`draft` takes a scheduled post off its schedule and a live post down.",
         "required": [
           "updated_at"
         ],
@@ -3691,7 +3691,7 @@
               "string",
               "null"
             ],
-            "description": "`published` to publish the post now, `scheduled` to publish it at\n`published_at`, or `draft` to cancel a schedule. Publishing runs\nthe linter, and a post with a blocking finding stays a draft.",
+            "description": "`published` to publish the post now, `scheduled` to publish it at\n`published_at`, or `draft` to cancel a schedule and take a live post\ndown. Publishing runs\nthe linter, and a post with a blocking finding stays a draft.",
             "example": "scheduled"
           },
           "title": {

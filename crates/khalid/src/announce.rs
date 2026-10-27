@@ -1,8 +1,8 @@
-//! What `khalid serve` tells the world when a post goes live or is
-//! scheduled through the publish door: the `post.published` or
-//! `post.scheduled` webhook to every webhook in the site's list that asked
-//! for it, and a live post's address to `IndexNow` when `[seo.indexnow]`
-//! switches it on (CTO answers 2026-10-27, section 4).
+//! What `khalid serve` tells the world when a post goes live, is
+//! scheduled or comes down through the publish door: the matching `post.*`
+//! webhook to every webhook in the site's list that asked for it, and the
+//! post's address to `IndexNow` when `[seo.indexnow]` switches it on (CTO
+//! answers 2026-10-27, section 4).
 //! Failed deliveries are tried again on a timer.
 
 use std::path::Path;
@@ -64,6 +64,10 @@ impl Announce for SiteAnnounce {
 
     fn scheduled(&self, post: &AdminPost) {
         self.tell(Event::PostScheduled, post);
+    }
+
+    fn unpublished(&self, post: &AdminPost) {
+        self.tell(Event::PostUnpublished, post);
     }
 }
 
@@ -140,9 +144,9 @@ pub(crate) async fn start(
     Ok((telling, Announcing { sending, retrying }))
 }
 
-/// Fires `event` about `post` and, when the post went live, sends its
-/// address to `IndexNow`. A failure is logged; a failed webhook delivery
-/// is retried from the log.
+/// Fires `event` about `post` and, when the post went live or came down,
+/// sends its address to `IndexNow`. A failure is logged; a failed webhook
+/// delivery is retried from the log.
 async fn announce(receivers: Arc<Receivers>, event: Event, post: AdminPost) {
     // The body of a post event: the post in Admin API shape.
     let body = serde_json::json!({ "post": &post });
@@ -155,7 +159,7 @@ async fn announce(receivers: Arc<Receivers>, event: Event, post: AdminPost) {
         let Some(indexnow) = &receivers.indexnow else {
             return Ok(());
         };
-        if event != Event::PostPublished {
+        if event == Event::PostScheduled {
             return Ok(());
         }
         let url = post_url(&receivers.config, &post).ok_or("the post has no address")?;

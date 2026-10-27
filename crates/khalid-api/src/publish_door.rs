@@ -26,6 +26,9 @@ pub trait Announce: Send + Sync {
 
     /// `post` was given a new publish time. Nobody is told by default.
     fn scheduled(&self, _post: &AdminPost) {}
+
+    /// `post` was live and was just taken down. Nobody is told by default.
+    fn unpublished(&self, _post: &AdminPost) {}
 }
 
 /// Tells nobody, for a site with nowhere to send, and for tests.
@@ -126,8 +129,9 @@ impl PublishDoor {
 
     /// Applies `edit`, made by `by`, to post `id`, as
     /// [`PostStore::update`] does, and keeps the schedule it sets. When the
-    /// edit takes the post live, or gives it a new publish time, the
-    /// receivers are told once it is saved. An edit the store refuses, or
+    /// edit takes the post live, takes it down, or gives it a new publish
+    /// time, the receivers are told once it is saved. An edit the store
+    /// refuses, or
     /// whose schedule cannot be kept, saves nothing and tells nobody.
     ///
     /// # Errors
@@ -157,8 +161,11 @@ impl PublishDoor {
             schedules.set(id, next).await.map_err(PostStoreError::new)?;
         }
         let post = post.with_schedule(&next);
-        if before.status() != PostStatus::Published && post.status() == PostStatus::Published {
+        let was_live = before.status() == PostStatus::Published;
+        if !was_live && post.status() == PostStatus::Published {
             self.announce.published(&post);
+        } else if was_live && post.status() == PostStatus::Draft {
+            self.announce.unpublished(&post);
         } else if next.publish_at().is_some() && next.publish_at() != current.publish_at() {
             self.announce.scheduled(&post);
         }

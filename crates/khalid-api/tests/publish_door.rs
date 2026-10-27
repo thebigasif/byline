@@ -31,6 +31,10 @@ impl Announce for Recorder {
     fn published(&self, post: &AdminPost) {
         self.0.lock().unwrap().push(post.id().to_owned());
     }
+
+    fn unpublished(&self, post: &AdminPost) {
+        self.0.lock().unwrap().push(format!("down {}", post.id()));
+    }
 }
 
 /// The router over one draft, sending to `recorder`, with a key that may
@@ -89,6 +93,26 @@ async fn a_draft_that_goes_live_is_announced_once() {
     let (status, json) = put(&router, again).await;
     assert_eq!(status, StatusCode::OK, "{json}");
     assert_eq!(recorder.0.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_live_post_taken_down_is_announced_once() {
+    let recorder = Arc::new(Recorder::default());
+    let router = router(&recorder);
+    let up = json!({"status": "published", "updated_at": "2026-10-20T08:30:00Z"});
+    let (_, json) = put(&router, up).await;
+    let down = json!({"status": "draft", "updated_at": json["posts"][0]["updated_at"]});
+    let (status, json) = put(&router, down).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["posts"][0]["status"], "draft", "{json}");
+    assert_eq!(json["posts"][0]["published_at"], Value::Null, "{json}");
+    let again = json!({"status": "draft", "updated_at": json["posts"][0]["updated_at"]});
+    put(&router, again).await;
+    let told = recorder.0.lock().unwrap().clone();
+    assert_eq!(
+        told,
+        ["en.choosing-anchor-text", "down en.choosing-anchor-text"]
+    );
 }
 
 #[tokio::test]

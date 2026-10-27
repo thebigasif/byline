@@ -173,10 +173,11 @@ impl AdminPost {
 
     /// The post after `edit`, made by `by` at `at`. The store checks
     /// `edit.updated_at()` against this post's first, and runs the publish
-    /// gate before it applies [`PostEdit::publishes`].
+    /// gate before it applies [`PostEdit::publishes`]. `draft` takes the
+    /// post down, so it has no publish time.
     #[must_use]
     pub fn edited(self, edit: PostEdit, at: DateTime<Utc>, by: &str) -> Self {
-        let publishes = edit.publishes();
+        let status = edit.status;
         let post = Self {
             title: edit.title.unwrap_or(self.title),
             markdown: edit.markdown.unwrap_or(self.markdown),
@@ -184,7 +185,15 @@ impl AdminPost {
             updated_by: Some(by.to_owned()),
             ..self
         };
-        if publishes { post.published(at) } else { post }
+        match status {
+            Some(PostStatus::Published) => post.published(at),
+            Some(PostStatus::Draft) => Self {
+                status: PostStatus::Draft,
+                published_at: None,
+                ..post
+            },
+            _ => post,
+        }
     }
 }
 
@@ -192,7 +201,7 @@ impl AdminPost {
 /// copy it was made on. Fields left out keep their value. A `status` of
 /// `published` publishes a draft, once the linter lets it through;
 /// `scheduled` with a future `published_at` publishes it then, and
-/// `draft` takes a scheduled post off its schedule.
+/// `draft` takes a scheduled post off its schedule and a live post down.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PostEdit {
@@ -201,7 +210,8 @@ pub struct PostEdit {
     /// A new markdown body.
     markdown: Option<String>,
     /// `published` to publish the post now, `scheduled` to publish it at
-    /// `published_at`, or `draft` to cancel a schedule. Publishing runs
+    /// `published_at`, or `draft` to cancel a schedule and take a live post
+    /// down. Publishing runs
     /// the linter, and a post with a blocking finding stays a draft.
     #[schema(value_type = Option<String>, example = "scheduled")]
     status: Option<PostStatus>,
@@ -241,13 +251,14 @@ impl PostEdit {
         self.status == Some(PostStatus::Published)
     }
 
-    /// The same edit without its status and times, for the store, which
-    /// keeps the file; the schedule is kept apart.
+    /// The same edit without `scheduled` and the times, for the store,
+    /// which keeps the file; the schedule is kept apart. `published` and
+    /// `draft` stay, to take the post live or down.
     #[must_use]
     pub fn without_schedule(self) -> Self {
         let status = self
             .status
-            .filter(|status| *status == PostStatus::Published);
+            .filter(|status| *status != PostStatus::Scheduled);
         Self {
             status,
             published_at: None,
