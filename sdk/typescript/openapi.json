@@ -313,6 +313,92 @@
         ]
       }
     },
+    "/api/admin/v1/posts/{id}/preview-link/": {
+      "post": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Makes a link that shows the post, draft or not, in the site's design\nto anyone who has it, until it expires: 7 days unless `site.toml` says\notherwise. The page behind it tells search engines not to list it.\nNeeds `posts:write`.",
+        "operationId": "make_preview_link",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The new link and when it expires",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewLinks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "This site makes no preview links",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/authors/": {
       "get": {
         "tags": [
@@ -3749,6 +3835,41 @@
               "$ref": "#/components/schemas/Post"
             },
             "description": "The entries on this page, or the one entry asked for."
+          }
+        }
+      },
+      "PreviewLink": {
+        "type": "object",
+        "description": "A link to a draft, and when it stops working.",
+        "required": [
+          "url",
+          "expires_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the link stops working."
+          },
+          "url": {
+            "type": "string",
+            "description": "The address to share, such as\n`https://www.example.com/blog/preview/en.choosing-anchor-text/?until=1793696400&sig=...`."
+          }
+        }
+      },
+      "PreviewLinks": {
+        "type": "object",
+        "description": "Preview links, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "preview_links"
+        ],
+        "properties": {
+          "preview_links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewLink"
+            },
+            "description": "The one new link."
           }
         }
       },

@@ -12,6 +12,7 @@ use khalid_core::{Clock, SystemClock};
 use tokio::sync::Mutex;
 
 use crate::post_store::{PostStore, PostStoreError, UpdatePostError};
+use crate::preview_link::PreviewSigner;
 use crate::resources::{AdminPost, PostEdit, PostStatus};
 use crate::schedule_store::{Due, Schedule, ScheduleStore};
 
@@ -89,6 +90,7 @@ pub struct PublishDoor {
     posts: Arc<dyn PostStore>,
     announce: Arc<dyn Announce>,
     schedules: Option<Arc<dyn ScheduleStore>>,
+    previews: Option<PreviewSigner>,
     clock: Arc<dyn Clock>,
     /// Held through every edit, so two at once cannot both see the same
     /// draft go live and announce it twice.
@@ -110,6 +112,7 @@ impl PublishDoor {
             announce,
             schedules: None,
             clock: Arc::new(SystemClock),
+            previews: None,
             editing: Mutex::new(()),
         }
     }
@@ -127,6 +130,18 @@ impl PublishDoor {
             clock: Arc::new(clock),
             ..self
         }
+    }
+
+    /// The same door, making preview links with `signer`.
+    #[must_use]
+    pub fn with_previews(self, signer: PreviewSigner) -> Self {
+        let previews = Some(signer);
+        Self { previews, ..self }
+    }
+
+    /// What makes and checks preview links, if this site has one.
+    pub fn previews(&self) -> Option<&PreviewSigner> {
+        self.previews.as_ref()
     }
 
     /// The posts behind the door, for new drafts, which nobody is told
