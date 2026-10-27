@@ -252,3 +252,23 @@ async fn a_post_the_linter_refuses_fires_lint_blocked_with_its_findings() {
         "the same findings the API gave"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_deleted_post_fires_post_deleted_with_the_post_as_it_was() {
+    let receiver = receiver().await;
+    let (site, secret) = demo_site(&receiver, Event::PostDeleted).await;
+    let key = writer_key(site.path());
+    let server = start(site.path());
+
+    let route = "/api/admin/v1/posts/en.what-a-sitemap-does/";
+    let (status, live) = api(&server, &key, ("GET", route), &Value::Null);
+    assert_eq!(status, 200, "{live}");
+    let seen = live["posts"][0]["updated_at"].as_str().unwrap();
+    let gone = format!("{route}?updated_at={seen}");
+    let (status, answer) = api(&server, &key, ("DELETE", &gone), &Value::Null);
+    assert_eq!(status, 204, "{answer}");
+
+    let body = the_delivery(&receiver, Event::PostDeleted, &secret).await;
+    assert_eq!(body["post"]["id"], "en.what-a-sitemap-does", "{body}");
+    assert_eq!(body["post"]["title"], live["posts"][0]["title"], "{body}");
+}

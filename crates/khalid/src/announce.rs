@@ -101,11 +101,22 @@ impl Announce for SiteAnnounce {
         self.tell(Event::PostPublishedEdited, post);
     }
 
+    fn deleted(&self, post: &AdminPost) {
+        self.fire(Event::PostDeleted, Post { post: post.clone() });
+    }
+
     fn blocked(&self, post: &AdminPost, report: &Report) {
         let post = post.clone();
         let lint = report.clone();
         self.fire(Event::LintBlocked, Blocked { post, lint });
     }
+}
+
+/// The resource a `post.deleted` delivery carries: the post as it was
+/// last. `IndexNow` heard of a live one as taken down.
+#[derive(Debug, Serialize)]
+struct Post {
+    post: AdminPost,
 }
 
 /// The resource a `lint.blocked` delivery carries: the post as it stayed,

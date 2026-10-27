@@ -41,6 +41,10 @@ pub trait Announce: Send + Sync {
     /// The linter refused to publish `post`, with the findings in
     /// `report`. The post stays as it was. Nobody is told by default.
     fn blocked(&self, _post: &AdminPost, _report: &Report) {}
+
+    /// `post`, as it was last, was just deleted. A live post is told as
+    /// taken down first. Nobody is told by default.
+    fn deleted(&self, _post: &AdminPost) {}
 }
 
 /// Tells nobody, for a site with nowhere to send, and for tests.
@@ -240,7 +244,7 @@ impl PublishDoor {
 
     /// Removes post `id` when it has not changed since `updated_at`, as
     /// [`PostStore::delete`] does, and drops its schedule. A post that was
-    /// live is announced as taken down.
+    /// live is announced as taken down, then every post as deleted.
     ///
     /// # Errors
     ///
@@ -260,6 +264,7 @@ impl PublishDoor {
         if post.status() == PostStatus::Published {
             self.announce.unpublished(&post);
         }
+        self.announce.deleted(&post);
         Ok(post)
     }
 
