@@ -28,7 +28,9 @@ A test reads the table below and checks it lists every table in the schema, once
 | `redirects` | visitor | Redirects made in the admin, brought in by an import, or added when a slug changes |
 | `not_found_log` | visitor | Every address that answered 404, with its hit count and when it was first and last seen |
 | `users` | visitor | Staff accounts, with an Argon2id password hash when the account has a password |
-| `sessions` | visitor | Signed-in sessions, stored as a hash of the session token |
+| `sessions` | visitor | Signed-in sessions, stored as a hash of the session token, with when each was last used |
+| `passkeys` | visitor | Each staff passkey: the authenticator's name for it, its public key and its signature counter |
+| `magic_links` | visitor | Sign-in links sent by email, stored as a hash of the token, each usable once before it expires |
 | `api_keys` | visitor | Content keys, integration keys and staff tokens: each key's identity, kind, staff role and a hash of its secret, never the secret |
 | `api_key_scopes` | visitor | The scopes of each integration key |
 | `webhooks` | visitor | The addresses that receive each event, with the secret that signs deliveries |

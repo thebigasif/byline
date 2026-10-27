@@ -83,6 +83,13 @@ pub struct Principal {
 }
 
 impl Principal {
+    /// Who a request comes from when something other than a key signed it
+    /// in, such as a [`SessionCheck`](crate::session_check::SessionCheck):
+    /// `id` names them and `access` says what they may do.
+    pub fn new(id: KeyId, access: Access) -> Self {
+        Self { id, access }
+    }
+
     /// The key's identity.
     pub fn id(&self) -> &KeyId {
         &self.id
