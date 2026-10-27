@@ -15,6 +15,7 @@ khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-comments = { path = "../khalid-comments", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-newsletter = { path = "../khalid-newsletter", version = "0.0.0" }
+khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-search = { path = "../khalid-search", version = "0.0.0" }
 khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0" }
 sqlx = { version = "0.9", default-features = false, features = ["sqlite", "runtime-tokio", "macros", "migrate", "chrono"] }
