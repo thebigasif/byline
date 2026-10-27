@@ -63,11 +63,32 @@ fn waits(pages: &Pages, request: &Request<Body>) -> bool {
 /// Answers at once from `pages`, already in memory.
 fn answer(pages: &Pages, security: &SecurityHeaders, request: &Request<Body>) -> Response<Body> {
     let mut response = respond(pages, request);
+    let html = response.headers().get(header::CONTENT_TYPE).is_none() || is_html(&response);
+    if html && !pages.preloads().is_empty() {
+        let link = pages
+            .preloads()
+            .iter()
+            .map(|href| format!("<{href}>; rel=preload; as=style"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if let Ok(value) = HeaderValue::from_str(&link) {
+            response.headers_mut().insert(header::LINK, value);
+        }
+    }
     match response.extensions_mut().remove::<FilledNonce>() {
         Some(FilledNonce(nonce)) => security.apply_with_head_code(response.headers_mut(), &nonce),
         None => security.apply(response.headers_mut()),
     }
     response
+}
+
+/// Whether `response` is an HTML answer, which a stylesheet preload helps.
+fn is_html(response: &Response<Body>) -> bool {
+    response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.to_ascii_lowercase().starts_with("text/html"))
 }
 
 /// The nonce a page's [`NONCE_SLOT`] was filled with, which its policy

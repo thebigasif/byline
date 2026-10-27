@@ -5,6 +5,7 @@ expression: "head(&built(), \"why-internal-links-matter/index.html\")"
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Why internal links matter | Field Notes on SEO</title>
 <meta name="description" content="Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">

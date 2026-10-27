@@ -506,3 +506,22 @@ fn build_refuses_to_write_into_the_content_folder() {
     assert!(json["error"]["why"].as_str().unwrap().contains("content"));
     assert!(!content.exists());
 }
+
+#[test]
+fn static_builds_carry_the_referrer_meta_tags() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    for rel in [
+        "index.html",
+        "why-internal-links-matter/index.html",
+        "404.html",
+    ] {
+        let html = page(out.path(), rel);
+        assert!(
+            html.contains(r#"<meta name="referrer" content="strict-origin-when-cross-origin">"#),
+            "{rel} carries the referrer policy as a meta tag, for hosts that drop headers"
+        );
+    }
+}

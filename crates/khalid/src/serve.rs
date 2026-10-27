@@ -126,6 +126,10 @@ fn serve_with(
         .and_then(|source| {
             let first = source.render_first(&checked)?;
             let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+            let first = match source.stylesheet() {
+                Some(href) => first.with_preloads(vec![href]),
+                None => first,
+            };
             Ok((source, first))
         })
         .map_err(|message| (message, Exit::Failure))?;
@@ -295,6 +299,10 @@ async fn render_the_rest(
         drop(checked);
         Pages::plain(served.pages, served.not_found)
             .map(|pages| pages.with_moves(served.moves))
+            .map(|pages| match source.stylesheet() {
+                Some(href) => pages.with_preloads(vec![href]),
+                None => pages,
+            })
             .map_err(|_| serve_message::internal())
     });
     let pages = match rendering.await {

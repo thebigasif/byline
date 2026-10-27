@@ -510,3 +510,43 @@ fn serve_answers_the_drawn_share_card_of_a_page_as_png_bytes() {
     );
     assert_eq!(get_bytes(&server, "/blog/share/not-a-key.png").0, 404);
 }
+
+#[test]
+fn serve_sends_the_stylesheet_as_an_early_hint_link() {
+    let site = demo_copy();
+    let server = start(site.path());
+    let home = get(&server, "/blog/");
+    assert_eq!(home.status, 200);
+    // The head names the stylesheet; the same answer carries a Link header
+    // that says to preload it, which an HTTP stack can turn into a 103.
+    let (_, rest) = home
+        .body
+        .split_once(r#"<link rel="stylesheet" href=""#)
+        .unwrap();
+    let (href, _) = rest.split_once('"').unwrap();
+    let mut head = String::new();
+    {
+        let host = &server.host;
+        let mut stream = TcpStream::connect(host).unwrap();
+        stream
+            .write_all(
+                format!("GET /blog/ HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n")
+                    .as_bytes(),
+            )
+            .unwrap();
+        let mut raw = String::new();
+        stream.read_to_string(&mut raw).unwrap();
+        head = raw
+            .split_once("\r\n\r\n")
+            .map_or(String::new(), |(h, _)| h.to_owned());
+    }
+    let link = head
+        .lines()
+        .find_map(|line| {
+            line.split_once(": ")
+                .filter(|(name, _)| name.eq_ignore_ascii_case("link"))
+        })
+        .map(|(_, value)| value.trim().to_owned());
+    let want = format!("<{href}>; rel=preload; as=style");
+    assert_eq!(link.as_deref(), Some(want.as_str()), "the head: {head}");
+}
