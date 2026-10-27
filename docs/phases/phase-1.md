@@ -310,6 +310,8 @@ The importers depend only on the content types, so the WordPress importer starts
 
 - **Post front matter has no field for tags, a search title, a feature image or focus keywords (task 6.1, for the CTO session and the content track).** Context: a WordPress post carries all four, and the SEO plugins add the search title and focus keywords. `PostFront` refuses unknown fields, and it belongs to the content track. Why it matters: until it can hold them, the importer keeps them in its report as "held" for each post, so they are listed but not yet in the files. The choice: the content track adds `tags`, `seo_title`, `image` and `focus` to `PostFront`, and the importer writes them in one small change; or the importer writes them somewhere else, such as `data/import/`, until then.
 
+- **The admin needs a `package-lock.json` (Phase 4, for the CTO session).** The CI Admin job runs `npm ci`, which needs the lock file, and this server cannot run `npm`. `admin/package.json` pins every version exactly. Running `npm install` in `admin/` once and committing `admin/package-lock.json` to the admin branch turns the job on.
+
 ## Order
 
 1.1 to 1.4 first, since everything else depends on them. Then 1.5 to 1.10 for content, 1.11 to 1.14 for output, 1.15 and 1.16 for serving, 1.17 to 1.20 for the API, and 1.21 and 1.22 to prove it. 1.4 can move later if a content task is blocked, because only webhooks need it before 1.21.

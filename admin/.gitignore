@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Made from sdk/typescript/openapi.json on every install.
+src/api/schema.d.ts
