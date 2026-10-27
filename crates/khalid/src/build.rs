@@ -20,6 +20,7 @@ use crate::exit::Exit;
 use crate::{
     assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
     content_message, lint, lint_message, post_files, post_images, report, search_page,
+    search_static,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -116,7 +117,8 @@ fn build(
     }
     let redirects = build_redirects::file(config, content)?;
     let files = build_files::files(&seo_site, &seo_pages, clock.now())?;
-    for file in files.iter().chain(&redirects) {
+    let search = search_static::files(config, &languages)?;
+    for file in files.iter().chain(&redirects).chain(&search) {
         write(out, &file.file, &file.text)?;
     }
     Ok(written)

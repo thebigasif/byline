@@ -135,3 +135,44 @@ fn a_search_lists_ranked_marked_results_with_no_script_and_escapes_the_query() {
     assert!(body.contains(r#"<form class="search""#));
     assert!(!body.contains("search-results"), "{body}");
 }
+
+#[test]
+fn a_static_build_writes_the_lock_card_and_a_small_index_per_language() {
+    let site = demo();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let text = fs::read_to_string(&settings).unwrap();
+    fs::write(
+        &settings,
+        text.replace("mode = \"server\"", "mode = \"static\""),
+    )
+    .unwrap();
+    let built = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .arg("--site")
+        .arg(site.path())
+        .arg("build")
+        .output()
+        .unwrap();
+    assert!(built.status.success(), "{built:?}");
+
+    let read = |rel: &str| {
+        let mut file = site.path().to_path_buf();
+        file.push("public");
+        file.push(rel);
+        fs::read_to_string(&file).unwrap_or_else(|error| panic!("{rel}: {error}"))
+    };
+    let page = read("search/index.html");
+    assert!(page.contains("Search needs a running server"), "{page}");
+    let index: Value = serde_json::from_str(&read("search/index.json")).unwrap();
+    assert_eq!(index["language"], "en");
+    let pages = index["pages"].as_array().unwrap();
+    assert_eq!(pages.len(), 5, "the five English posts: {index}");
+    let sitemap = pages
+        .iter()
+        .find(|page| page["href"] == "/blog/what-a-sitemap-does/")
+        .unwrap();
+    let terms = sitemap["terms"].as_array().unwrap();
+    assert!(terms.contains(&Value::from("sitemap")), "{sitemap}");
+    let german: Value = serde_json::from_str(&read("de/search/index.json")).unwrap();
+    assert_eq!(german["language"], "de");
+}

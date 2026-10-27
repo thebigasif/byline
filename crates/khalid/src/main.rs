@@ -55,6 +55,7 @@ mod routes_message;
 mod search_index;
 mod search_page;
 mod search_route;
+mod search_static;
 mod serve;
 mod serve_message;
 mod site_content;
