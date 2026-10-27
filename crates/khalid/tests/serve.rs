@@ -524,22 +524,7 @@ fn serve_sends_the_stylesheet_as_an_early_hint_link() {
         .split_once(r#"<link rel="stylesheet" href=""#)
         .unwrap();
     let (href, _) = rest.split_once('"').unwrap();
-    let mut head = String::new();
-    {
-        let host = &server.host;
-        let mut stream = TcpStream::connect(host).unwrap();
-        stream
-            .write_all(
-                format!("GET /blog/ HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n")
-                    .as_bytes(),
-            )
-            .unwrap();
-        let mut raw = String::new();
-        stream.read_to_string(&mut raw).unwrap();
-        head = raw
-            .split_once("\r\n\r\n")
-            .map_or(String::new(), |(h, _)| h.to_owned());
-    }
+    let head = raw_head(&server, "/blog/");
     let link = head
         .lines()
         .find_map(|line| {
@@ -549,4 +534,20 @@ fn serve_sends_the_stylesheet_as_an_early_hint_link() {
         .map(|(_, value)| value.trim().to_owned());
     let want = format!("<{href}>; rel=preload; as=style");
     assert_eq!(link.as_deref(), Some(want.as_str()), "the head: {head}");
+}
+
+/// The raw answer head for `path`, for headers the helpers do not return.
+#[cfg(test)]
+fn raw_head(server: &Server, path: &str) -> String {
+    let host = &server.host;
+    let mut stream = TcpStream::connect(host).unwrap();
+    stream
+        .write_all(
+            format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n").as_bytes(),
+        )
+        .unwrap();
+    let mut raw = String::new();
+    stream.read_to_string(&mut raw).unwrap();
+    raw.split_once("\r\n\r\n")
+        .map_or(String::new(), |(head, _)| head.to_owned())
 }
