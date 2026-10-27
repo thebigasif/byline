@@ -67,7 +67,7 @@ fn status(outcome: &Outcome) -> String {
 
 /// The pages each address inside the blog is linked from, without
 /// `nofollow` links and links from a page to itself.
-fn inbound(crawl: &Crawl) -> BTreeMap<&str, BTreeSet<&str>> {
+pub(crate) fn inbound(crawl: &Crawl) -> BTreeMap<&str, BTreeSet<&str>> {
     let mut from: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     for visit in crawl.visits() {
         let Some(page) = visit.page() else { continue };

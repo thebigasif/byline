@@ -22,6 +22,7 @@ mod page;
 mod page_checks;
 mod robots;
 mod sitemap;
+mod sitemap_checks;
 mod thresholds;
 mod visit;
 

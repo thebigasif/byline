@@ -31,10 +31,12 @@ pub enum Category {
     Localization,
     /// Open Graph and Twitter tags.
     Social,
-    /// Sitemaps, `robots.txt` and `llms.txt`.
+    /// Sitemaps and `robots.txt`.
     Sitemaps,
     /// JSON-LD structured data.
     StructuredData,
+    /// What AI search tools read, such as `llms.txt`.
+    AiSearch,
 }
 
 impl Category {
@@ -56,6 +58,7 @@ impl Category {
             Self::Social => "Social tags",
             Self::Sitemaps => "Sitemaps and robots",
             Self::StructuredData => "Structured data",
+            Self::AiSearch => "AI search",
         }
     }
 }
@@ -279,4 +282,34 @@ checks! {
     /// A translation does not name the page back.
     HreflangNoReturn => "hreflang-no-return", Localization, Warning, "Missing reciprocal hreflang",
         "Name each translation on every other one, so the pair points both ways.";
+    /// The host has no `robots.txt`.
+    RobotsMissing => "robots-missing", Sitemaps, Notice, "Robots.txt not found",
+        "Put the robots.txt Khalid writes in _root at the root of your site.";
+    /// The blog has no sitemap.
+    SitemapMissing => "sitemap-missing", Sitemaps, Warning, "Sitemap not found",
+        "Keep the sitemap.xml Khalid writes, and name it in robots.txt.";
+    /// A sitemap `robots.txt` names does not answer.
+    SitemapBroken => "sitemap-broken", Sitemaps, Error, "Sitemap file broken",
+        "Change the Sitemap line in robots.txt to the address of the sitemap.";
+    /// A sitemap lists a broken page.
+    SitemapBrokenPage => "sitemap-broken-page", Sitemaps, Error, "4XX or 5XX page in sitemap",
+        "Build the site again, so the sitemap lists only pages that exist.";
+    /// A sitemap lists an address that redirects.
+    SitemapRedirect => "sitemap-redirect", Sitemaps, Warning, "3XX redirect in sitemap",
+        "List the address the redirect leads to instead.";
+    /// A sitemap lists a page search engines are asked not to list.
+    SitemapNoindex => "sitemap-noindex", Sitemaps, Warning, "Noindex page in sitemap",
+        "Take the page out of the sitemap, or remove noindex from it.";
+    /// A sitemap lists a page whose canonical is another page.
+    SitemapNonCanonical => "sitemap-non-canonical", Sitemaps, Warning, "Non-canonical page in sitemap",
+        "List the canonical address instead.";
+    /// Only a sitemap leads to a page: no page links to it.
+    Orphan => "orphan", InternalLinks, Warning, "Orphan page (has no incoming internal links)",
+        "Link to the page from a related post, a list or the home page.";
+    /// The blog has no `llms.txt`.
+    LlmsMissing => "llms-missing", AiSearch, Notice, "llms.txt not found",
+        "Keep the llms.txt Khalid writes beside the home page.";
+    /// The blog's `llms.txt` does not start with a `#` title.
+    LlmsFormat => "llms-format", AiSearch, Warning, "llms.txt format is not valid",
+        "Start llms.txt with a line that begins with # and names the site.";
 }

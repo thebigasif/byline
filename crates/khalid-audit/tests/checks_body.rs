@@ -3,8 +3,21 @@
 
 pub mod support;
 
-use khalid_audit::{Check, Thresholds, audit};
+use khalid_audit::{Category, Check, Crawl, Issue, Thresholds};
 use support::{HOME, crawled, page};
+
+/// The audit's issues, leaving out the sitemap and `llms.txt` checks,
+/// since these test sites have no such files.
+#[cfg(test)]
+fn audit(crawl: &Crawl, thresholds: Thresholds) -> Vec<Issue> {
+    khalid_audit::audit(crawl, thresholds)
+        .into_iter()
+        .filter(|issue| {
+            let category = issue.check().category();
+            category != Category::Sitemaps && category != Category::AiSearch
+        })
+        .collect()
+}
 
 /// A head with nothing for these checks to find.
 const HEAD: &str = r#"<title>Why internal links matter</title>
