@@ -191,7 +191,7 @@ async fn a_post_published_through_the_api_fires_the_webhook_and_indexnow() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_post_scheduled_through_the_api_goes_live_at_its_time() {
+async fn a_post_scheduled_through_the_api_goes_live_at_its_time_and_is_announced() {
     let receiver = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200))
@@ -217,6 +217,11 @@ async fn a_post_scheduled_through_the_api_goes_live_at_its_time() {
     assert_eq!(hooks.len(), 1, "post.published fires once, at its time");
     let body: Value = serde_json::from_slice(&hooks[0].body).unwrap();
     assert_eq!(body["post"]["updated_by"], "scheduler", "{body}");
+    let searches = received(&receiver, "/indexnow").await;
+    assert_eq!(searches.len(), 1, "IndexNow is told once, at its time");
+    let search: Value = serde_json::from_slice(&searches[0].body).unwrap();
+    let address = "https://www.example.com/blog/choosing-anchor-text/";
+    assert_eq!(search["urlList"], json!([address]));
     let shown = (0..200).any(|_| {
         std::thread::sleep(Duration::from_millis(100));
         send(&server, &key, "GET", page, &Value::Null).0 == 200
