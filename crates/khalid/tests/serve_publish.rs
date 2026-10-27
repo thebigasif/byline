@@ -205,7 +205,9 @@ async fn a_post_scheduled_through_the_api_goes_live_at_its_time_and_is_announced
         Read [why internal links matter](/blog/why-internal-links-matter/) first."}]});
     let (_, made) = send(&server, &key, "POST", "/api/admin/v1/posts/", &new);
 
-    let soon = SystemClock.now() + TimeDelta::seconds(2);
+    // Far enough ahead that the edit lands first on a loaded machine, and
+    // well inside the 20 seconds `received` waits.
+    let soon = SystemClock.now() + TimeDelta::seconds(8);
     let schedule = json!({"posts": [{"status": "scheduled", "published_at": soon,
         "updated_at": made["posts"][0]["updated_at"]}]});
     let route = "/api/admin/v1/posts/en.choosing-anchor-text/";
