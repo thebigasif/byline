@@ -187,3 +187,14 @@ pub(crate) fn photo<'de, D: Deserializer<'de>>(
         "the photo needs a file name, such as asif.jpg; remove the field if the author has none",
     )
 }
+
+/// Reads a post's hand-written JSON-LD as text, refusing a blank field.
+/// The build reads the JSON itself, where it can say what is wrong in it.
+pub(crate) fn schema<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    filled(
+        deserializer,
+        "the schema field needs JSON-LD, such as {\"@type\": \"Event\"}; remove the field if the post has none",
+    )
+}

@@ -318,6 +318,7 @@ fn post_page(
     let by = (path.as_str(), seo.author.clone().unwrap_or_default());
     let body = (&rendered.structured[..], &rendered.links[..]);
     build_schema::fill(&mut seo, config, (by.0, &by.1), body)?;
+    seo.custom_schema = build_schema::custom(&doc.path, front.schema.as_deref())?;
     let meta = meta(config, title, description, path, PageKind::Article)?;
     let body = PageBody::Post(Box::new(post));
     let mut page = page(locale, config, &rest, meta, body, seo).made_from(&doc.path);

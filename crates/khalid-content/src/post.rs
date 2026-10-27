@@ -86,6 +86,10 @@ pub struct PostFront {
     /// How the post looks when shared on X and Facebook.
     #[serde(default)]
     pub share_cards: ShareCards,
+    /// Hand-written JSON-LD for a type no block writes, such as an `Event`
+    /// or a `Course`, added to the page's structured data.
+    #[serde(default, deserialize_with = "post_fields::schema")]
+    pub schema: Option<String>,
 }
 
 /// The most related posts a post shows, and so the most it may pin.

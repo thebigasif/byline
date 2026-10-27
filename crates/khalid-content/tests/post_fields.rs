@@ -123,6 +123,20 @@ fn refuses_a_share_card_for_a_network_it_does_not_know() {
 }
 
 #[test]
+fn reads_hand_written_schema_as_text_and_refuses_a_blank_one() {
+    let text = "---\nschema: |\n  {\"@type\": \"Event\", \"name\": \"Links clinic\"}\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), text).unwrap();
+    assert_eq!(
+        post.front.schema.as_deref(),
+        Some("{\"@type\": \"Event\", \"name\": \"Links clinic\"}\n")
+    );
+    assert_eq!(
+        message("---\nschema: \" \"\n---\n"),
+        "posts/a.md, line 2, field \"schema\": the schema field needs JSON-LD, such as {\"@type\": \"Event\"}; remove the field if the post has none"
+    );
+}
+
+#[test]
 fn a_post_is_in_the_sitemap_unless_it_says_sitemap_false() {
     let plain = parse_post(Path::new("posts/a.md"), "---\ntitle: A\n---\n").unwrap();
     assert_eq!(plain.front.sitemap, Sitemap::Listed);

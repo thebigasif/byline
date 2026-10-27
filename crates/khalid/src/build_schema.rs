@@ -3,11 +3,13 @@
 //! videos for the video sitemap, and the entities it links to as
 //! `mentions`.
 
+use std::path::Path;
+
 use khalid_content::{HowToBlock, Link, RecipeBlock, ReviewBlock, StructuredBlock, VideoBlock};
 use khalid_core::{AbsoluteUrl, Config, UserMessage};
 use khalid_seo::{
-    Entity, EntityRole, FaqItem, HowTo, HowToStep, Rating, Recipe, Review, SchemaBlock, SeoPage,
-    Video, VideoSource,
+    CustomSchema, Entity, EntityRole, FaqItem, HowTo, HowToStep, Rating, Recipe, Review,
+    SchemaBlock, SeoPage, Video, VideoSource,
 };
 
 use crate::build_message;
@@ -53,6 +55,27 @@ pub(crate) fn fill(
     }
     seo.entities = links.iter().filter_map(entity).collect();
     Ok(())
+}
+
+/// The hand-written JSON-LD in the `schema` field of the post at `file`,
+/// read into nodes so it is escaped and checked like every other node
+/// (ADR "types without a block come from the post's schema field").
+///
+/// # Errors
+///
+/// A [`UserMessage`] naming `file` when the field is not JSON, or is JSON
+/// that is not schema.org JSON-LD.
+pub(crate) fn custom(file: &Path, text: Option<&str>) -> Result<CustomSchema, UserMessage> {
+    CustomSchema::parse(text.unwrap_or_default()).map_err(|error| {
+        UserMessage::new(
+            format!(
+                "{}: the schema field is not JSON-LD Khalid can write: {error}.",
+                file.display()
+            ),
+            "Search engines read it as the page's structured data, so a broken one is never published.",
+            "Correct the JSON in the schema field, such as a missing quote or an extra comma, then run the command again.",
+        )
+    })
 }
 
 /// The how-to block as `HowTo`.
