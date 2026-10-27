@@ -2121,6 +2121,7 @@ dependencies = [
 name = "khalid-audit"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "khalid-core",
  "percent-encoding",
  "roxmltree 0.20.0",
