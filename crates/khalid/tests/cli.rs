@@ -277,7 +277,7 @@ fn a_settings_mistake_with_json_prints_json() {
         json["error"]["fix"]
             .as_str()
             .unwrap()
-            .contains("`server` or `static`")
+            .contains("`server`, `static`, `headless`")
     );
 }
 

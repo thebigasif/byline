@@ -68,7 +68,7 @@ pub(crate) fn located(
         );
     }
     let fix = match allowed {
-        Some(fields) if fields.starts_with("one of ") => {
+        Some(fields) if detail.starts_with("unknown field") => {
             format!("Remove `{field}` on line {line}, or use {fields}.")
         }
         Some(allowed) => {
