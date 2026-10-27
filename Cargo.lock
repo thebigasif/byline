@@ -2449,6 +2449,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+ "ttf-parser",
  "url",
  "wiremock",
 ]

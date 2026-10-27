@@ -122,3 +122,27 @@ fn no_font_files_means_no_font_face() {
     let text = std::str::from_utf8(css.body()).unwrap();
     assert!(!text.contains("@font-face { font-family: \""), "{text}");
 }
+
+#[test]
+fn a_self_hosted_font_gets_its_own_tuned_fallback() {
+    // A real face's metrics decide the overrides, so any self-hosted font
+    // gets a fallback that holds the space, not only Inter and Roboto.
+    let tokens = Tokens::from_toml(
+        "[fonts]\nbody = \"Work Sans, sans-serif\"\n\n[[fonts.files]]\nfamily = \"Work Sans\"\nstyle = \"normal\"\nweight = \"400\"\npath = \"work-sans-latin.woff2\"\nrange = \"U+0000-00FF\"\nmetrics = { ascent = \"90.44%\" , descent = \"22.52%\" , line_gap = \"0%\" , size_adjust = \"107.12%\" }\n",
+    )
+    .unwrap();
+    let css = stylesheet(&tokens).unwrap();
+    let text = std::str::from_utf8(css.body()).unwrap();
+    assert!(
+        text.contains("\"Work Sans Fallback\""),
+        "the stack gains a tuned fallback:\n{text}"
+    );
+    assert!(
+        text.contains("size-adjust:"),
+        "the fallback carries the metric overrides:\n{text}"
+    );
+    assert!(
+        text.contains("src: local(\"Arial\")"),
+        "the fallback stands in with a local font:\n{text}"
+    );
+}

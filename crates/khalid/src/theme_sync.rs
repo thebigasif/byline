@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 use khalid_core::{AbsoluteUrl, Locale, UserMessage};
 use khalid_render::Renderer;
 use khalid_theme::{
-    ContrastFix, FontFileEntry, FontSource, HeldFont, MAX_CSS_BYTES, SiteSource, SiteTheme,
-    ThemeDiff, ThemeTokens, TokenChange, download, fetch_site,
+    ContrastFix, FontFileEntry, FontMetrics, FontSource, HeldFont, MAX_CSS_BYTES, SiteSource,
+    SiteTheme, ThemeDiff, ThemeTokens, TokenChange, download, fetch_site,
 };
 use serde::Serialize;
 
@@ -277,6 +277,12 @@ pub(crate) fn site_tokens(
                 weight: font.weight,
                 path: font.path,
                 range: font.range,
+                metrics: font.metrics.map(|metrics| FontMetrics {
+                    ascent: metrics.ascent,
+                    descent: metrics.descent,
+                    line_gap: metrics.line_gap,
+                    size_adjust: metrics.size_adjust,
+                }),
             })
             .collect();
     }

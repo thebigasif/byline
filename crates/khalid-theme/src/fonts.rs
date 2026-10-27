@@ -390,6 +390,23 @@ pub struct SavedFont {
     pub path: String,
     /// The Unicode range the file covers, when the CSS named one.
     pub range: Option<String>,
+    /// The face's metric overrides for its tuned local fallback, as CSS
+    /// percentages (G20). `None` when the file could not be measured.
+    pub metrics: Option<FontMetrics>,
+}
+
+/// A face's metrics as its fallback's `@font-face` overrides read them.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FontMetrics {
+    /// `ascent-override`, such as `90.44%`.
+    pub ascent: String,
+    /// `descent-override`, such as `22.52%`.
+    pub descent: String,
+    /// `line-gap-override`, such as `0%`.
+    pub line_gap: String,
+    /// `size-adjust`, such as `107.12%`.
+    pub size_adjust: String,
 }
 
 /// Downloads each rehostable font in `sources` and saves its files under
@@ -433,16 +450,50 @@ pub async fn download(
             if write_face(into, &face, bytes.body()).is_err() {
                 continue;
             }
+            let metrics = measure(bytes.body());
             saved.push(SavedFont {
                 family: face.family,
                 style: face.style,
                 weight: face.weight,
                 path: face.file,
                 range: face.range,
+                metrics,
             });
         }
     }
     Ok(saved)
+}
+
+/// The face's metric overrides for a local Arial fallback, as CSS
+/// percentages. `None` when the file is not a readable face. The formula
+/// is the one Capsize popularised: each override is the face's own value
+/// over its size, divided by Arial's, as a percentage of Arial's.
+fn measure(bytes: &[u8]) -> Option<FontMetrics> {
+    // Arial's metrics, in font units of 2048 per em: ascent 1854,
+    // descent 434, line gap 67, average character width 1934.
+    const ARIAL_ASCENT: f64 = 1854.0;
+    const ARIAL_DESCENT: f64 = 434.0;
+    const ARIAL_LINE_GAP: f64 = 67.0;
+    const ARIAL_WIDTH: f64 = 1934.0;
+    let face = ttf_parser::Face::parse(bytes, 0).ok()?;
+    let per_em = f64::from(face.units_per_em());
+    let ascent = f64::from(face.ascender()) / per_em;
+    let descent = f64::from(face.descender()).abs() / per_em;
+    let line_gap = f64::from(face.line_gap()) / per_em;
+    // The average character width lives at offset 2 of OS/2, as a signed
+    // 16-bit font unit. Faces without the table cannot be tuned.
+    let os2 = face
+        .raw_face()
+        .table(ttf_parser::Tag::from_bytes(b"OS/2"))?;
+    let width = i16::from_be_bytes(os2.get(2..4)?.try_into().ok()?);
+    let width = f64::from(width) / per_em;
+    let percent = |value: f64, arial: f64| format!("{:.2}%", value / arial * 100.0);
+    Some(FontMetrics {
+        ascent: percent(ascent, ARIAL_ASCENT / 2048.0),
+        descent: percent(descent, ARIAL_DESCENT / 2048.0),
+        line_gap: percent(line_gap, ARIAL_LINE_GAP / 2048.0),
+        size_adjust: percent(width, ARIAL_WIDTH / 2048.0),
+    })
 }
 
 /// One `@font-face` rule's parts, with the file name it saves under.

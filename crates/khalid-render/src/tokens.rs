@@ -146,6 +146,23 @@ pub struct FontFile {
     /// The Unicode range the file covers, so a browser loads only the
     /// subset a page needs. `None` covers everything.
     pub range: Option<String>,
+    /// The face's metric overrides for its tuned local fallback, as CSS
+    /// percentages (G20). `None` when the file was not measured.
+    pub metrics: Option<Metrics>,
+}
+
+/// A face's metrics as its fallback's `@font-face` overrides read them.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Metrics {
+    /// `ascent-override`, such as `90.44%`.
+    pub ascent: String,
+    /// `descent-override`, such as `22.52%`.
+    pub descent: String,
+    /// `line-gap-override`, such as `0%`.
+    pub line_gap: String,
+    /// `size-adjust`, such as `107.12%`.
+    pub size_adjust: String,
 }
 
 /// Corners and line length.
@@ -208,8 +225,17 @@ impl Tokens {
     pub fn to_css(&self) -> String {
         let colors = &self.colors;
         let mut families = Vec::new();
+        // A self-hosted family with measured metrics gains its fallback in
+        // the stack too, beside the file's own @font-face rule.
+        let measured: Vec<&str> = self
+            .fonts
+            .files
+            .iter()
+            .filter(|file| file.metrics.is_some())
+            .map(|file| file.family.as_str())
+            .collect();
         let mut font = |stack: &FontStack| {
-            let (tuned, family) = font_fallback::tuned(stack.as_str());
+            let (tuned, family) = font_fallback::tuned_with(stack.as_str(), &measured);
             families.extend(family.filter(|family| !families.contains(family)));
             tuned
         };
@@ -238,6 +264,9 @@ impl Tokens {
         css.push_str("}\n");
         for file in &self.fonts.files {
             css.push_str(&font_face(file));
+            if let Some(metrics) = &file.metrics {
+                css.push_str(&font_fallback::measured_face(&file.family, metrics));
+            }
         }
         for family in families {
             css.push_str(&font_fallback::face(family));

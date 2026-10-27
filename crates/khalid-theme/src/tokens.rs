@@ -131,6 +131,10 @@ pub struct FontFileEntry {
     /// subset a page needs. Left out when the file covers everything.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub range: Option<String>,
+    /// The face's metric overrides for its tuned local fallback. Left out
+    /// when the file was not measured.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<crate::fonts::FontMetrics>,
 }
 
 /// Corners and line length.
