@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 getrandom = "0.4"
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 sha2 = "0.11"

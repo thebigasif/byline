@@ -4,7 +4,7 @@
 //! link, and is a subscriber only once they open it (double opt-in). Every
 //! email they get later carries a link that unsubscribes them in one click.
 //! This crate owns those rules, the addresses and tokens they use, and the
-//! store the database implements. Subscribers are visitor data:
+//! [`SubscriberStore`] the database implements. Subscribers are visitor data:
 //! a rebuild from the content files never touches them.
 //!
 //! It must not know about SQL, files or how mail leaves the machine. The
@@ -12,7 +12,11 @@
 //! binary picks.
 
 mod email_address;
+mod store;
 mod token;
 
 pub use email_address::{EmailAddress, ParseEmailError};
+pub use store::{
+    BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, Unsubscribed,
+};
 pub use token::{GenerateTokenError, ParseTokenError, SubscriberToken, TokenHash};

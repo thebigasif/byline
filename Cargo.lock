@@ -2071,6 +2071,7 @@ dependencies = [
 name = "khalid-newsletter"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "getrandom 0.4.3",
  "khalid-core",
  "sha2 0.11.1",
