@@ -33,3 +33,4 @@ Three facts shape where redirects can live:
 - Nothing is lost silently: every item is imported, failed with a reason, or left behind with a reason, and every old address has an entry.
 - `import/` is a record of one import, outside `content/` and `data/`. A person may delete it once the redirects are in place on the host.
 - Tag archives get map entries once content has tags (the open question in the phase brief).
+- The Ghost importer follows the same decision: a plan first, kept slugs, one entry per live post, page and author archive from Ghost's default routes, and `import/ghost-redirects.csv` with the same columns. A Ghost export does not name its site's address or its custom routes, so the old address is given to the plan.

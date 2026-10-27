@@ -178,8 +178,12 @@ pub enum PostError {
 /// Published public posts go under `content/<lang>/posts/`. Drafts,
 /// scheduled posts and posts for members only go under `drafts/<lang>/`,
 /// so nothing a reader paid for is published. Published public pages go
-/// under `content/<lang>/pages/`. The export does not say where the old
-/// site lived, so `old_site` fills in Ghost's `__GHOST_URL__`.
+/// under `content/<lang>/pages/`. Each author of an imported post gets a
+/// file under `content/<lang>/authors/`. [`Plan::redirects`] says where
+/// every old address of a live post, page and author archive leads, and
+/// [`REDIRECTS_CSV`] holds every entry that moves. The export does not
+/// say where the old site lived, so `old_site` fills in Ghost's
+/// `__GHOST_URL__` and is where the old addresses start.
 pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Routes) -> Plan {
     let from = Source {
         export,
