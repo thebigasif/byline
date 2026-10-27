@@ -16,7 +16,7 @@ use khalid_api::post_store::{CreatePostError, PostStore, PostStoreError, UpdateP
 use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostStatus};
 use khalid_content::{ContentTree, SiteContent, parse_post, read_content};
 use khalid_core::{Clock, Config, Locale, Slug};
-use khalid_lint::{Linter, Verdict};
+use khalid_lint::{Linter, Report, Verdict};
 
 use crate::lint_input::{PostParts, lint_parts, lint_site};
 use crate::post_text::{PostText, quoted};
@@ -181,25 +181,8 @@ impl Site {
     /// go live, and only when the gate lets it through, writes it under
     /// `content/` and removes the draft. Returns where it now lives.
     fn publish(&self, found: &Found, text: &mut PostText) -> Result<PathBuf, UpdatePostError> {
-        let today = self.clock.now().date_naive();
-        text.set("date", &today.format("%Y-%m-%d").to_string());
-        let name = format!("{today}-{}.md", found.slug);
-        let relative = PathBuf::from(format!("content/{}/posts/{name}", found.locale));
-        let post = parse_post(&relative, &text.to_text()).map_err(PostStoreError::new)?;
-        let content = self.content()?;
-        let (site, _) = lint_site(&content, &self.config);
-        let parts = PostParts {
-            locale: &found.locale,
-            path: &relative,
-            front: &post.front,
-            body: &post.body,
-        };
-        let candidate = lint_parts(&parts, &self.config)
-            .ok_or_else(|| failure("the post cannot be read for linting"))?;
-        let settings =
-            lint::lint_settings(&self.folder).map_err(|message| failure(&message.to_string()))?;
-        let linter = Linter::new(&settings, self.clock.as_ref()).map_err(PostStoreError::new)?;
-        if let Verdict::Refuse { report } = linter.gate(&candidate, &site) {
+        let (name, relative) = self.dated(found, text);
+        if let Verdict::Refuse { report } = self.gate(found, text, &relative)? {
             return Err(UpdatePostError::Refused(report));
         }
         let mut folder = self.folder.clone();
@@ -209,6 +192,62 @@ impl Site {
         fs::remove_file(&found.path).map_err(PostStoreError::new)?;
         folder.push(name);
         Ok(folder)
+    }
+
+    /// Dates a draft's `text` today, as publishing does, and returns the
+    /// file name and site path it would go live at.
+    fn dated(&self, found: &Found, text: &mut PostText) -> (String, PathBuf) {
+        let today = self.clock.now().date_naive();
+        text.set("date", &today.format("%Y-%m-%d").to_string());
+        let name = format!("{today}-{}.md", found.slug);
+        let relative = PathBuf::from(format!("content/{}/posts/{name}", found.locale));
+        (name, relative)
+    }
+
+    /// The lint publish gate's verdict on `text` as the post at `relative`,
+    /// among the site's other posts.
+    fn gate(
+        &self,
+        found: &Found,
+        text: &PostText,
+        relative: &Path,
+    ) -> Result<Verdict, PostStoreError> {
+        let post = parse_post(relative, &text.to_text()).map_err(PostStoreError::new)?;
+        let content = self.content()?;
+        let (site, _) = lint_site(&content, &self.config);
+        let parts = PostParts {
+            locale: &found.locale,
+            path: relative,
+            front: &post.front,
+            body: &post.body,
+        };
+        let candidate = lint_parts(&parts, &self.config)
+            .ok_or_else(|| failure("the post cannot be read for linting"))?;
+        let settings =
+            lint::lint_settings(&self.folder).map_err(|message| failure(&message.to_string()))?;
+        let linter = Linter::new(&settings, self.clock.as_ref()).map_err(PostStoreError::new)?;
+        Ok(linter.gate(&candidate, &site))
+    }
+
+    /// What the publish gate finds in post `id` now, writing nothing. A
+    /// draft is judged as it would go live today; a published post as it
+    /// is. `None` when no post has that identity.
+    fn lint_now(&self, id: &str) -> Result<Option<Report>, PostStoreError> {
+        let Some(found) = self.find(id)? else {
+            return Ok(None);
+        };
+        let mut text = found.text.clone();
+        let relative = match found.status {
+            PostStatus::Draft => self.dated(&found, &mut text).1,
+            _ => found
+                .path
+                .strip_prefix(&self.folder)
+                .map_err(PostStoreError::new)?
+                .to_path_buf(),
+        };
+        let (Verdict::Publish { report } | Verdict::Refuse { report }) =
+            self.gate(&found, &text, &relative)?;
+        Ok(Some(report))
     }
 
     fn create_now(
@@ -283,6 +322,21 @@ where
     tokio::task::spawn_blocking(move || work(&site))
         .await
         .map_err(|error| E::from(PostStoreError::new(error)))?
+}
+
+impl SitePosts {
+    /// What the lint publish gate finds in post `id` now, on a blocking
+    /// thread, writing nothing. `khalid mcp`'s `lint_post` calls it; the
+    /// Admin API has no lint route yet.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PostStoreError`] when the posts or the lint settings
+    /// cannot be read.
+    pub(crate) async fn lint(&self, id: &str) -> Result<Option<Report>, PostStoreError> {
+        let id = id.to_owned();
+        blocking(&self.0, move |site| site.lint_now(&id)).await
+    }
 }
 
 impl PostStore for SitePosts {

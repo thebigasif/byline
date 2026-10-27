@@ -1897,6 +1897,7 @@ dependencies = [
  "khalid-core",
  "khalid-db",
  "khalid-lint",
+ "khalid-mcp",
  "khalid-media",
  "khalid-outbound",
  "khalid-render",
