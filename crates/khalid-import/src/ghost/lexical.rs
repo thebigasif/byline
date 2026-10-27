@@ -20,10 +20,6 @@ const HEADINGS: [&str; 6] = ["h1", "h2", "h3", "h4", "h5", "h6"];
 /// # Errors
 ///
 /// Returns the JSON reader's error when `json` is not JSON.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the Ghost plan, a later part, converts bodies")
-)]
 pub(crate) fn lexical_html(json: &str) -> Result<Html, serde_json::Error> {
     let document: Value = serde_json::from_str(json)?;
     let mut html = Html::default();

@@ -3,7 +3,10 @@
 use khalid_content::BlockError;
 use khalid_core::{Locale, SlugMode};
 
+use crate::ghost::Body;
 use crate::ghost::html::{Html, Piece};
+use crate::ghost::lexical::lexical_html;
+use crate::ghost::mobiledoc::mobiledoc_html;
 use crate::markdown::body_markdown;
 
 /// A body as markdown, with the kinds of content left out.
@@ -30,15 +33,33 @@ pub enum BodyError {
     Markdown(#[source] BlockError),
 }
 
+/// The markdown of a post's `body`, with `origin`, the old site's address,
+/// in place of Ghost's `__GHOST_URL__`, as [`converted`] writes it.
+pub(crate) fn post_body(
+    body: &Body,
+    origin: &str,
+    locale: &Locale,
+    slugs: SlugMode,
+) -> Result<Converted, BodyError> {
+    let resolved = |text: &str| text.replace("__GHOST_URL__", origin);
+    let html = match body {
+        Body::Lexical(json) => lexical_html(&resolved(json)).map_err(BodyError::Json)?,
+        Body::Mobiledoc(json) => mobiledoc_html(&resolved(json)).map_err(BodyError::Json)?,
+        Body::Html(text) => {
+            let mut html = Html::default();
+            html.tag(&resolved(text));
+            html
+        }
+        Body::Empty => Html::default(),
+    };
+    converted(html, locale, slugs)
+}
+
 /// The markdown of `html`, for a site written in `locale` with slugs in
 /// `slugs`. HTML pieces go through the crate's cleaner and converter; a
 /// markdown card is rendered first, its own lines that look like blocks
 /// escaped, then cleaned the same way, so it cannot carry a script or an
 /// unsafe link; and a block's body is cleaned between its fences.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the Ghost plan, a later part, converts bodies")
-)]
 pub(crate) fn converted(
     html: Html,
     locale: &Locale,

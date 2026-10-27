@@ -38,10 +38,6 @@ const SECTIONS: [(&str, &str); 9] = [
 /// # Errors
 ///
 /// Returns the JSON reader's error when `json` is not JSON.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the Ghost plan, a later part, converts bodies")
-)]
 pub(crate) fn mobiledoc_html(json: &str) -> Result<Html, serde_json::Error> {
     let document: Value = serde_json::from_str(json)?;
     let list = |name: &str| document.get(name).and_then(Value::as_array);
