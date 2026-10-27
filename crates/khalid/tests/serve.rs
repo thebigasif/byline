@@ -249,9 +249,16 @@ fn serve_refuses_tokens_it_cannot_read_and_names_the_file() {
 }
 
 #[test]
-fn serve_answers_the_sitemaps_and_feeds_beside_the_pages() {
+fn serve_answers_the_sitemaps_feeds_and_aliases_beside_the_pages() {
     let site = demo_copy();
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-09-28-what-a-sitemap-does.md");
+    let post = fs::read_to_string(&file).unwrap();
+    let alias = "translation: sitemap\naliases:\n  - /blog/sitemaps-explained/\n";
+    fs::write(&file, post.replace("translation: sitemap\n", alias)).unwrap();
     let server = start(site.path());
+    let moved = get(&server, "/blog/sitemaps-explained/");
+    assert_eq!(moved.status, 301, "the alias moved to its post");
     for (path, text) in [
         ("/blog/sitemap.xml", "<sitemapindex"),
         ("/blog/feed.xml", "<rss"),
