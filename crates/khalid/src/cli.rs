@@ -60,11 +60,7 @@ pub(crate) enum Command {
     /// Set up a site: address, mount, languages, mode
     Init(InitArgs),
     /// Run the blog and the admin, showing each saved edit at once
-    Serve {
-        /// The address and port to answer on
-        #[arg(long, value_name = "ADDRESS", default_value = "127.0.0.1:8080")]
-        listen: SocketAddr,
-    },
+    Serve(ServeArgs),
     /// Create a post file with correct front matter
     New {
         /// The post's title
@@ -152,6 +148,14 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: DbCommand,
     },
+}
+
+/// What `khalid serve` takes.
+#[derive(Debug, Args)]
+pub(crate) struct ServeArgs {
+    /// The address and port to answer on over plain HTTP
+    #[arg(long, value_name = "ADDRESS", default_value = "127.0.0.1:8080")]
+    pub(crate) listen: SocketAddr,
 }
 
 /// What `khalid init` takes. Each flag answers one of the four questions, and
@@ -322,7 +326,7 @@ impl Command {
     pub(crate) fn name(&self) -> &'static str {
         match self {
             Self::Init(_) => "init",
-            Self::Serve { .. } => "serve",
+            Self::Serve(_) => "serve",
             Self::New { .. } => "new",
             Self::Build { .. } => "build",
             Self::Lint { .. } => "lint",

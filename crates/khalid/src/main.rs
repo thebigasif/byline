@@ -55,6 +55,7 @@ mod repair;
 mod report;
 mod routes_message;
 mod serve;
+mod serve_https;
 mod serve_message;
 mod site_content;
 mod site_files;
@@ -114,7 +115,7 @@ fn run(cli: &Cli) -> Exit {
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
     let look = match (&cli.command, cli.site.as_deref()) {
-        (Some(Command::Serve { .. }), Some(folder)) => Some(FolderLook::take(folder)),
+        (Some(Command::Serve(_)), Some(folder)) => Some(FolderLook::take(folder)),
         _ => None,
     };
     let site = match cli.site.as_deref() {
@@ -129,11 +130,11 @@ fn run(cli: &Cli) -> Exit {
     // The server renders its first pages from the checked content, then
     // drops it, so it takes the content rather than borrowing it.
     let site = match (&cli.command, site) {
-        (Some(Command::Serve { listen }), Some((folder, config, routes, (content, assets)))) => {
+        (Some(Command::Serve(args)), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let checked = (&config, &routes);
             let start = (content, assets, look);
-            return serve::run(folder, checked, start, *listen, cli.output);
+            return serve_https::serve(cli, folder, checked, start, args);
         }
         (_, site) => site,
     };
@@ -180,7 +181,7 @@ fn run(cli: &Cli) -> Exit {
             Some(
                 command @ (Command::Db { .. }
                 | Command::Theme { .. }
-                | Command::Serve { .. }
+                | Command::Serve(_)
                 | Command::Keys { .. }
                 | Command::Mcp
                 | Command::Lint { .. }

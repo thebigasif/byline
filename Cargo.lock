@@ -2000,6 +2000,7 @@ dependencies = [
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-https",
  "khalid-lint",
  "khalid-mcp",
  "khalid-media",

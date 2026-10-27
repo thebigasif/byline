@@ -4,7 +4,6 @@
 //! published post or API write again after a moment, until Ctrl+C or a stop
 //! signal. A headless site has no pages, and every page address answers 404.
 
-use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
@@ -16,7 +15,6 @@ use khalid_db::{Database, KeyTable, SiteId};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
-use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
@@ -24,6 +22,7 @@ use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
 use crate::post_files::Assets;
+use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
@@ -56,7 +55,7 @@ pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    listen: SocketAddr,
+    listen: &Listen,
     output: Output,
 ) -> Exit {
     let Ok(runtime) = tokio::runtime::Builder::new_multi_thread()
@@ -89,7 +88,7 @@ pub(crate) fn run(
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, output): (SocketAddr, Output),
+    (listen, output): (&Listen, Output),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -117,13 +116,8 @@ fn serve_with(
         SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))?;
     let keys = KeyTable::new(database.clone(), id, SystemClock);
     let served = runtime.block_on(async {
-        let listener = TcpListener::bind(listen)
-            .await
-            .map_err(|error| (serve_message::listen(listen, &error), Exit::Failure))?;
-        let local = listener
-            .local_addr()
-            .map_err(|_| (serve_message::internal(), Exit::Internal))?;
-        announce(output, config, &format!("http://{local}{}", config.mount()));
+        let (listener, address) = serve_https::open(listen).await?;
+        announce(output, config, &format!("{address}{}", config.mount()));
         let live = LivePages::new(first);
         let (failed, failure) = oneshot::channel();
         let rest = (source.clone(), live.clone());
