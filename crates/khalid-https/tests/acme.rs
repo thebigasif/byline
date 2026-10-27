@@ -1,11 +1,181 @@
-//! An account with a certificate authority over ACME, against a small test
-//! service, through the one outbound client.
+//! An account with a certificate authority over ACME, and a certificate
+//! got with it, against a small test service that checks the answers for
+//! real: the TLS-ALPN-01 certificate on the TLS listener, or the HTTP-01
+//! file on the port 80 router.
 
 #[cfg(test)]
 mod acme_service;
+#[cfg(test)]
+mod common;
 
-use khalid_https::{AccountKey, Acme, AgreedToTerms, Directory, HttpsError};
+use std::time::Duration;
+
+use acme_service::{AcmeService, Offer, start_ordering};
+use khalid_core::FixedClock;
+use khalid_https::{
+    AccountKey, Acme, AgreedToTerms, Certificate, Certificates, Check, Directory, Domain, Https,
+    HttpsError, HttpsFolder, Renewal, TlsListener, port_80,
+};
 use khalid_outbound::{Limits, Outbound, Reach, Resolver};
+use tokio::net::TcpListener;
+
+/// The domain the certificates are for.
+const NAME: &str = "blog.test";
+
+/// The TLS listener and the port 80 router answering with `certificates`,
+/// and their ports.
+#[cfg(test)]
+async fn serve(certificates: &Certificates) -> (u16, u16) {
+    let tls = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let plain = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let ports = (
+        tls.local_addr().unwrap().port(),
+        plain.local_addr().unwrap().port(),
+    );
+    let listener = TlsListener::new(tls, certificates.clone()).unwrap();
+    tokio::spawn(async move { axum::serve(listener, axum::Router::new()).await });
+    let domain = Domain::try_new(NAME).unwrap();
+    let router = port_80(&domain, certificates.challenges().clone());
+    tokio::spawn(async move { axum::serve(plain, router).await });
+    ports
+}
+
+/// Signs up at `service`, then gets a certificate for `NAME` answering
+/// through `certificates` with `checks`.
+#[cfg(test)]
+async fn issue(
+    service: &AcmeService,
+    certificates: &Certificates,
+    checks: &[Check],
+) -> Result<Certificate, HttpsError> {
+    let directory = Directory::Other(service.directory.clone());
+    let (acme, _) = Acme::sign_up(&outbound(), &directory, AgreedToTerms).await?;
+    let domain = Domain::try_new(NAME).unwrap();
+    let ordering = acme.issue(&domain, certificates.challenges(), checks);
+    let issued = tokio::time::timeout(Duration::from_secs(30), ordering)
+        .await
+        .expect("the order ends")?;
+    Certificate::from_pem(issued.chain.as_bytes(), issued.key.as_bytes())
+}
+
+#[tokio::test]
+async fn a_certificate_is_issued_after_the_tls_check() {
+    let certificates = Certificates::new();
+    let service = start_ordering(NAME, Offer::TlsAlpn, serve(&certificates).await).await;
+
+    let certificate = issue(&service, &certificates, &[Check::TlsAlpn, Check::Http])
+        .await
+        .unwrap();
+
+    assert!(certificate.covers(NAME));
+    assert_eq!(service.issued(), 1);
+}
+
+#[tokio::test]
+async fn a_certificate_is_issued_after_the_file_check_whose_answer_is_then_cleared() {
+    let certificates = Certificates::new();
+    let service = start_ordering(NAME, Offer::Http, serve(&certificates).await).await;
+
+    let certificate = issue(&service, &certificates, &[Check::TlsAlpn, Check::Http])
+        .await
+        .unwrap();
+
+    assert!(certificate.covers(NAME));
+    assert_eq!(certificates.challenges().http_answer("token-1"), None);
+}
+
+#[tokio::test]
+async fn an_order_offering_no_check_this_server_answers_is_refused() {
+    let certificates = Certificates::new();
+    let service = start_ordering(NAME, Offer::Http, serve(&certificates).await).await;
+
+    let error = issue(&service, &certificates, &[Check::TlsAlpn])
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, HttpsError::NoCheck), "{error:?}");
+}
+
+#[tokio::test]
+async fn a_wrong_answer_to_either_check_is_refused_and_nothing_is_issued() {
+    for (offer, check) in [(Offer::TlsAlpn, Check::TlsAlpn), (Offer::Http, Check::Http)] {
+        let served = Certificates::new();
+        let service = start_ordering(NAME, offer, serve(&served).await).await;
+        let elsewhere = Certificates::new();
+
+        let error = issue(&service, &elsewhere, &[check]).await.unwrap_err();
+
+        assert!(
+            matches!(error, HttpsError::Refused { .. }),
+            "{offer:?}: {error:?}"
+        );
+        assert_eq!(service.issued(), 0);
+    }
+}
+
+/// A renewal for `NAME` through a new account at `service`, answering
+/// through `certificates` and saving to `folder`, whose account key is
+/// saved there too.
+#[cfg(test)]
+async fn renewal(
+    service: &AcmeService,
+    certificates: &Certificates,
+    folder: &HttpsFolder,
+) -> Renewal {
+    let directory = Directory::Other(service.directory.clone());
+    let (acme, key) = Acme::sign_up(&outbound(), &directory, AgreedToTerms)
+        .await
+        .unwrap();
+    folder.save_account(&key).await.unwrap();
+    Renewal {
+        acme,
+        domain: Domain::try_new(NAME).unwrap(),
+        certificates: certificates.clone(),
+        folder: folder.clone(),
+        checks: vec![Check::TlsAlpn],
+    }
+}
+
+#[tokio::test]
+async fn a_renewal_serves_and_saves_its_certificate() {
+    let certificates = Certificates::new();
+    let service = start_ordering(NAME, Offer::TlsAlpn, serve(&certificates).await).await;
+    let site = tempfile::tempdir().unwrap();
+    let folder = HttpsFolder::new(site.path().to_path_buf());
+
+    let renewed = renewal(&service, &certificates, &folder)
+        .await
+        .renew()
+        .await
+        .unwrap();
+
+    let served = certificates.current().map(|c| c.not_after());
+    let saved = folder.certificate().await.unwrap().map(|c| c.not_after());
+    assert_eq!(served, Some(renewed.not_after()));
+    assert_eq!(saved, Some(renewed.not_after()));
+    assert!(folder.account().await.unwrap().is_some());
+}
+
+#[tokio::test]
+async fn keeping_renewed_gets_a_certificate_when_there_is_none() {
+    let certificates = Certificates::new();
+    let service = start_ordering(NAME, Offer::TlsAlpn, serve(&certificates).await).await;
+    let site = tempfile::tempdir().unwrap();
+    let folder = HttpsFolder::new(site.path().to_path_buf());
+    let clock = FixedClock::new("2026-10-27T00:00:00Z".parse().unwrap());
+
+    let keeping = renewal(&service, &certificates, &folder).await;
+    let task = tokio::spawn(keeping.keep_renewed(clock));
+    let mut waited = 0;
+    while certificates.current().is_none() && waited < 200 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        waited += 1;
+    }
+    task.abort();
+
+    assert!(certificates.current().is_some_and(|c| c.covers(NAME)));
+    assert_eq!(service.issued(), 1);
+}
 
 /// The outbound client, reaching the test service on loopback.
 #[cfg(test)]
@@ -40,10 +210,11 @@ async fn a_saved_account_key_signs_in_again_without_a_new_account() {
         .await
         .unwrap();
 
-    let saved = key.to_json().unwrap();
-    let again = Acme::sign_in(&outbound(), AccountKey::from_json(&saved).unwrap())
-        .await
-        .unwrap();
+    let site = tempfile::tempdir().unwrap();
+    let folder = HttpsFolder::new(site.path().to_path_buf());
+    folder.save_account(&key).await.unwrap();
+    let saved = folder.account().await.unwrap().unwrap();
+    let again = Acme::sign_in(&outbound(), saved).await.unwrap();
 
     assert_eq!(again.id(), first.id());
     assert_eq!(service.accounts(), 1);
@@ -70,4 +241,97 @@ async fn an_inward_directory_is_refused_by_the_outbound_guard() {
         .unwrap_err();
 
     assert!(matches!(error, HttpsError::Acme { .. }), "{error:?}");
+}
+
+/// HTTPS for `NAME` from `service`, keeping its files in `site`.
+#[cfg(test)]
+fn https(service: &AcmeService, site: &tempfile::TempDir) -> Https {
+    Https {
+        domain: Domain::try_new(NAME).unwrap(),
+        folder: HttpsFolder::new(site.path().to_path_buf()),
+        directory: Directory::Other(service.directory.clone()),
+    }
+}
+
+/// A TLS port and a port 80 on loopback, and their numbers.
+#[cfg(test)]
+async fn ports() -> ((TcpListener, TcpListener), (u16, u16)) {
+    let tls = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let plain = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let numbers = (
+        tls.local_addr().unwrap().port(),
+        plain.local_addr().unwrap().port(),
+    );
+    ((tls, plain), numbers)
+}
+
+/// Starts `https` and accepts on its listener in the background, closing
+/// what it accepts; then whether a visitor gets a certificate on `port`.
+#[cfg(test)]
+async fn start_and_visit(
+    https: &Https,
+    listeners: (TcpListener, TcpListener),
+    port: u16,
+) -> Result<bool, HttpsError> {
+    let clock = FixedClock::new("2026-10-27T00:00:00Z".parse().unwrap());
+    let mut listener = https
+        .start(&outbound(), Some(AgreedToTerms), listeners, clock)
+        .await?;
+    tokio::spawn(async move {
+        loop {
+            drop(axum::serve::Listener::accept(&mut listener).await);
+        }
+    });
+    Ok(common::tls_handshake(port, NAME, b"http/1.1")
+        .await
+        .is_some())
+}
+
+#[tokio::test]
+async fn the_first_start_gets_saves_and_serves_a_certificate() {
+    let site = tempfile::tempdir().unwrap();
+    let (listeners, numbers) = ports().await;
+    let service = start_ordering(NAME, Offer::TlsAlpn, numbers).await;
+    let https = https(&service, &site);
+
+    let served = start_and_visit(&https, listeners, numbers.0).await.unwrap();
+
+    assert!(served, "a visitor gets the certificate");
+    assert!(https.folder.certificate().await.unwrap().is_some());
+    assert!(https.has_account().await.unwrap());
+    assert_eq!(service.issued(), 1);
+}
+
+#[tokio::test]
+async fn a_restart_serves_the_saved_certificate_without_ordering_again() {
+    let site = tempfile::tempdir().unwrap();
+    let (listeners, numbers) = ports().await;
+    let service = start_ordering(NAME, Offer::Http, numbers).await;
+    let https = https(&service, &site);
+    start_and_visit(&https, listeners, numbers.0).await.unwrap();
+
+    let (again, numbers) = ports().await;
+    let served = start_and_visit(&https, again, numbers.0).await.unwrap();
+
+    assert!(served, "a visitor gets the saved certificate");
+    assert_eq!(service.issued(), 1);
+    assert_eq!(service.accounts(), 1);
+}
+
+#[tokio::test]
+async fn no_account_is_opened_without_the_owners_yes() {
+    let site = tempfile::tempdir().unwrap();
+    let (listeners, numbers) = ports().await;
+    let service = start_ordering(NAME, Offer::TlsAlpn, numbers).await;
+    let https = https(&service, &site);
+    let clock = FixedClock::new("2026-10-27T00:00:00Z".parse().unwrap());
+
+    let error = https
+        .start(&outbound(), None, listeners, clock)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, HttpsError::TermsNotAgreed), "{error:?}");
+    assert!(!https.has_account().await.unwrap());
+    assert_eq!(service.accounts(), 0);
 }
