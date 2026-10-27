@@ -80,6 +80,24 @@ export const en = {
       },
     ],
   },
+  settings: {
+    title: "Post settings",
+    slug: "Web address",
+    slugHint:
+      "The last part of the post's address, in lowercase words joined by hyphens. Settle it before the post goes live, so links to it keep working.",
+    author: "Author",
+    authorHint:
+      "The author's short name, as in the file name in your blog's authors folder, such as asif.",
+    coAuthors: "Other authors",
+    coAuthorsHint: "Their short names, separated by commas. Readers see them after the author.",
+    date: "Date shown to readers",
+    dateHint: "The day printed on the post. Leave it empty to use the day it goes live.",
+    excerpt: "Description",
+    excerptHint: (count: number) =>
+      `The line under the title in search results, on cards and in feeds. ${count} of 160 characters.`,
+    review: "Review",
+    reviewHint: "Where the post is on its way to readers. Ready means someone has checked it.",
+  },
   filters: {
     label: "Filter posts",
     anyChecks: "Any result",

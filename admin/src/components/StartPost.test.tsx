@@ -12,6 +12,13 @@ const DRAFT = {
   status: "draft",
   markdown: "",
   updated_at: "2026-10-27T11:00:00Z",
+  settings: {
+    co_authors: [],
+    featured: false,
+    review_state: "draft",
+    share_cards: {},
+    aliases: [],
+  },
 };
 
 describe("starting a post", () => {

@@ -4,9 +4,11 @@ import type { AdminPost } from "../api/posts";
 import { Problem } from "../components/Problem";
 import { en } from "../strings/en";
 import { LintPanel } from "./LintPanel";
+import { PostSettings } from "./PostSettings";
 import { PublishButton } from "./PublishButton";
 import { RichText } from "./RichText";
 import { fitsRichText } from "./richText";
+import { type SettingsDraft, withSetting } from "./settings";
 import { type SaveState, useAutosave } from "./useAutosave";
 import { usePublish } from "./usePublish";
 
@@ -38,6 +40,8 @@ export function EditorForm({ post }: Props) {
   const onBlur = () => void save();
   const setTitle = (title: string) => setDraft((current) => ({ ...current, title }));
   const setMarkdown = (markdown: string) => setDraft((current) => ({ ...current, markdown }));
+  const setSetting = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) =>
+    setDraft((current) => ({ ...current, settings: withSetting(current.settings, key, value) }));
 
   return (
     <>
@@ -100,7 +104,10 @@ export function EditorForm({ post }: Props) {
             />
           )}
         </div>
-        <LintPanel findings={publishing.findings} />
+        <div>
+          <LintPanel findings={publishing.findings} />
+          <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur} />
+        </div>
       </div>
     </>
   );
