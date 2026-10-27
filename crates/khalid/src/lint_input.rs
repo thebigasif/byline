@@ -17,15 +17,22 @@ use khalid_content::{
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
     GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection, LintForm, LintLink,
-    LintPost, LintSite, PageRef,
+    LintPost, LintSite, PageRef, StructuredDataGap,
 };
 use khalid_routes::{PostAddress, Routes};
+use khalid_seo::SeoSite;
 
-/// What a post is linted against besides itself: the site's routes, and the
-/// pages a wikilink reaches in each language.
+use crate::build_pages::routed;
+use crate::build_seo;
+
+/// What a post is linted against besides itself: the site's routes, the
+/// pages a wikilink reaches in each language, and the site as the SEO
+/// outputs read it, or `None` when `site.toml` cannot give one, in which
+/// case `khalid build` stops with its own message.
 pub(crate) struct LintInput {
     routes: Routes,
     links: BTreeMap<Locale, Wikilinks>,
+    seo: Option<SeoSite>,
 }
 
 impl LintInput {
@@ -40,7 +47,8 @@ impl LintInput {
                 (locale.clone(), links)
             })
             .collect();
-        Self { routes, links }
+        let seo = build_seo::site(config).ok();
+        Self { routes, links, seo }
     }
 }
 
@@ -149,7 +157,10 @@ pub(crate) fn lint_parts(
     let rendered = render_linked(parts.body, parts.locale, config.slugs(), links).ok()?;
     let address = PostAddress::new(parts.collection, parts.locale, &slug, front.date);
     let path = input.routes.address(config, &address).ok();
+    let rest = routed(config, &input.routes, parts.locale, &address, parts.path).ok();
+    let gaps = rest.map(|rest| gaps(parts, input, &rest, &slug));
     let mut post = LintPost::new(parts.locale.clone(), slug);
+    post.structured_data_gaps = gaps.unwrap_or_default();
     post.path = path;
     post.collection = Some(parts.collection.to_owned());
     post.title.clone_from(&front.title);
@@ -191,6 +202,28 @@ pub(crate) fn lint_parts(
     post.word_count = rendered.words;
     post.body_text = plain_text(&rendered.html);
     Some(post)
+}
+
+/// The properties Google needs that the schema graph of the page `parts`
+/// becomes lacks, its address ending in `rest` and its slug `slug`, as
+/// `khalid-seo` checks the graph. A post with no date has no page yet, and
+/// so no gaps.
+fn gaps(
+    parts: &PostParts<'_>,
+    input: &LintInput,
+    rest: &str,
+    slug: &Slug,
+) -> Vec<StructuredDataGap> {
+    let (Some(site), Some(date)) = (&input.seo, parts.front.date) else {
+        return Vec::new();
+    };
+    let front = parts.front;
+    let title = front.title.clone().unwrap_or_else(|| slug.to_string());
+    let Ok(mut page) = build_seo::post(parts.locale, (rest, &title), front, date) else {
+        return Vec::new();
+    };
+    page.author = front.author.as_ref().map(Slug::to_string);
+    build_seo::structured_data_gaps(site, &page)
 }
 
 /// The slug a page is built at: from the header, or else from the title,

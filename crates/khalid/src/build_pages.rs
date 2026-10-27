@@ -280,12 +280,7 @@ fn post_page(
     let front = &doc.front;
     let path = path_of(config, locale, &rest);
     let description = front.description.clone().unwrap_or_default();
-    let mut seo = build_seo::page(SeoKind::Post, locale, &rest, &title)?;
-    seo.excerpt.clone_from(&description);
-    seo.published = Some(build_seo::midnight(date));
-    seo.translation = build_seo::translation(front.translation.as_deref())?;
-    seo.robots.clone_from(&front.robots);
-    seo.canonical.clone_from(&front.canonical);
+    let mut seo = build_seo::post(locale, (&rest, &title), front, date)?;
     seo.content_html = full_addresses(config, &rendered.html);
     let (reviewers, profiles) = build_reader::reviewers(front, people, config)?;
     seo.reviewers = profiles;

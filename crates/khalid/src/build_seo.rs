@@ -3,11 +3,13 @@
 //! its JSON-LD graph (ADR "the SEO head reaches templates as trusted HTML").
 
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use khalid_content::PostFront;
 use khalid_core::{Config, Locale, UserMessage};
+use khalid_lint::StructuredDataGap;
 use khalid_render::HeadHtml;
 use khalid_seo::{
-    IndexPolicy, PageKind, SeoError, SeoPage, SeoSite, TranslationKey, UrlPath, head_tags,
-    link_translations, page_graph,
+    IndexPolicy, IssueLevel, PageKind, SeoError, SeoPage, SeoSite, TranslationKey, UrlPath,
+    check_graph, head_tags, link_translations, page_graph,
 };
 
 use crate::build_pages::LanguagePages;
@@ -42,6 +44,40 @@ pub(crate) fn page(
 ) -> Result<SeoPage, UserMessage> {
     let path = UrlPath::try_new(&format!("/{rest}")).map_err(|error| build_message::seo(&error))?;
     Ok(SeoPage::new(kind, locale.clone(), path, title))
+}
+
+/// The SEO page of the post with front matter `front`, dated `date`, whose
+/// path ends in `rest` and whose title is `title`: the settings its head
+/// and schema graph are made from, before its body, author and reviewers
+/// are added. `khalid build` and the linter both start from it, so the
+/// linter checks the graph the page carries.
+pub(crate) fn post(
+    locale: &Locale,
+    (rest, title): (&str, &str),
+    front: &PostFront,
+    date: NaiveDate,
+) -> Result<SeoPage, UserMessage> {
+    let mut seo = page(PageKind::Post, locale, rest, title)?;
+    seo.excerpt = front.description.clone().unwrap_or_default();
+    seo.published = Some(midnight(date));
+    seo.translation = translation(front.translation.as_deref())?;
+    seo.robots.clone_from(&front.robots);
+    seo.canonical.clone_from(&front.canonical);
+    Ok(seo)
+}
+
+/// The properties Google needs that the schema graph of `page` on `site`
+/// lacks, as the linter reads them. Properties Google only recommends are
+/// left out: they never stop a post.
+pub(crate) fn structured_data_gaps(site: &SeoSite, page: &SeoPage) -> Vec<StructuredDataGap> {
+    let Ok(graph) = page_graph(site, page) else {
+        return Vec::new();
+    };
+    check_graph(&graph)
+        .into_iter()
+        .filter(|issue| issue.level() == IssueLevel::Blocks)
+        .map(|issue| StructuredDataGap::new(issue.kind(), issue.property()))
+        .collect()
 }
 
 /// The `translation` key from front matter, which pairs language versions.
@@ -84,4 +120,51 @@ fn head(site: &SeoSite, page: &SeoPage) -> Result<HeadHtml, SeoError> {
     let mut html = head_tags(site, page)?.to_html();
     html.push_str(&page_graph(site, page)?.to_script_tag());
     Ok(HeadHtml::from_trusted(html))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use khalid_core::Environment;
+    use khalid_seo::CustomSchema;
+
+    use super::*;
+
+    /// The demo site, and a post page on it, as `khalid build` starts it.
+    fn demo_post() -> (SeoSite, SeoPage) {
+        let mut folder = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
+        folder.push("../../fixtures/demo-site");
+        let config = Config::load(&folder, &Environment::empty()).unwrap();
+        let text = "---\ntitle: Why links matter\nauthor: asif\n---\n\nA post.\n";
+        let post = khalid_content::parse_post(Path::new("why.md"), text).unwrap();
+        let date = NaiveDate::from_ymd_opt(2026, 9, 14).unwrap();
+        let locale = config.default_language().clone();
+        let mut page = super::post(
+            &locale,
+            ("why-links-matter/", "Why links matter"),
+            &post.front,
+            date,
+        )
+        .unwrap();
+        page.author = Some("asif".to_owned());
+        (site(&config).unwrap(), page)
+    }
+
+    #[test]
+    fn a_post_page_as_built_today_lacks_nothing_google_needs() {
+        let (site, page) = demo_post();
+        assert_eq!(structured_data_gaps(&site, &page), []);
+    }
+
+    #[test]
+    fn each_property_google_needs_and_the_graph_lacks_is_a_gap() {
+        let (site, mut page) = demo_post();
+        let event = r#"{"@context": "https://schema.org", "@type": "Event", "name": "Link clinic", "location": "Lisbon"}"#;
+        page.custom_schema = CustomSchema::parse(event).unwrap();
+        assert_eq!(
+            structured_data_gaps(&site, &page),
+            [StructuredDataGap::new("Event", "startDate")]
+        );
+    }
 }
