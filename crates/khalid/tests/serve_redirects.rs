@@ -201,3 +201,61 @@ fn stored_redirects_answer_through_khalid_serve_in_one_step() {
     );
     assert_eq!(status, 200, "a page answers before a stored redirect");
 }
+
+/// The 404 log as the Admin API lists it, once it holds `path`.
+#[cfg(test)]
+fn logged(server: &Server, key: &str, path: &str) -> Value {
+    for _ in 0..100 {
+        let (_, _, body) = send(server, "GET", "/api/admin/v1/not-found/", Some(key), None);
+        let json: Value = serde_json::from_str(&body).unwrap();
+        if json["misses"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["path"] == path)
+        {
+            return json;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    panic!("{path} never reached the 404 log");
+}
+
+#[test]
+fn a_404_is_logged_and_redirected_in_one_step_for_good() {
+    let site = demo_copy();
+    let key = settings_key(site.path());
+    let server = start(site.path());
+    for path in [
+        "/blog/internal-links/",
+        "/api/content/v1/nothing/",
+        "/elsewhere/",
+    ] {
+        let (status, ..) = send(&server, "GET", path, None, None);
+        assert_eq!(status, 404, "{path}");
+    }
+    let log = logged(&server, &key, "/blog/internal-links/");
+    assert_eq!(
+        log["misses"].as_array().unwrap().len(),
+        1,
+        "only the blog's own 404: {log}"
+    );
+    assert_eq!(
+        log["misses"][0]["nearest"],
+        "/blog/why-internal-links-matter/"
+    );
+
+    let body = json!({"path": "/blog/internal-links/"});
+    let route = "/api/admin/v1/not-found/redirect/";
+    let (status, _, answer) = send(&server, "POST", route, Some(&key), Some(&body));
+    assert_eq!(status, 201, "{answer}");
+    drop(server);
+
+    let server = start(site.path());
+    let (status, head, _) = send(&server, "GET", "/blog/internal-links/", None, None);
+    assert_eq!(status, 301, "{head}");
+    assert!(
+        head.contains("\r\nlocation: /blog/why-internal-links-matter/\r\n"),
+        "{head}"
+    );
+}

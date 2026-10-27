@@ -4,7 +4,8 @@
 //! Pages and the aliases in front matter answer first, so a stored rule
 //! only ever catches an address that would be a 404. The answer keeps the
 //! 404's security headers. A move to a path an alias has moved again is
-//! sent straight to the end, so a reader takes one step.
+//! sent straight to the end, so a reader takes one step. A 404 no rule
+//! matches goes to the 404 log.
 
 use std::sync::Arc;
 
@@ -13,14 +14,16 @@ use axum::body::Body;
 use axum::extract::{Request, State};
 use axum::http::{HeaderValue, Method, Response, StatusCode, header};
 use axum::middleware::{self, Next};
+use khalid_api::not_found_log::NotFoundLog;
 use khalid_api::redirect_desk::RedirectDesk;
-use khalid_core::SystemClock;
+use khalid_core::{Clock, SystemClock};
 use khalid_db::{Database, NotFoundTable, RedirectRows, SiteId};
 use khalid_seo::{Destination, Redirect, UrlPath};
 use khalid_server::LivePages;
 use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};
 
 use crate::live_redirects::LiveRedirects;
+use crate::miss_log::MissLog;
 use crate::site_addresses::LiveAddresses;
 
 /// The characters encoded when a path goes into a `Location` header, as
@@ -44,6 +47,7 @@ struct Redirecting {
     redirects: LiveRedirects,
     pages: LivePages,
     mount: String,
+    misses: MissLog,
 }
 
 /// The site's stored redirects in `db`: the desk the Admin
@@ -55,16 +59,15 @@ pub(crate) async fn start(
     addresses: LiveAddresses,
 ) -> (RedirectDesk, Router) {
     let redirects = LiveRedirects::load(Arc::new(RedirectRows::new(db.clone(), site))).await;
-    let desk = RedirectDesk::new(
-        Arc::new(redirects.clone()),
-        Arc::new(NotFoundTable::new(db.clone(), site)),
-        Arc::new(addresses),
-        Arc::new(SystemClock),
-    );
+    let log: Arc<dyn NotFoundLog> = Arc::new(NotFoundTable::new(db.clone(), site));
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+    let misses = MissLog::start(Arc::clone(&log), Arc::clone(&clock));
+    let desk = RedirectDesk::new(Arc::new(redirects.clone()), log, Arc::new(addresses), clock);
     let redirecting = Redirecting {
         redirects,
         pages: live,
         mount: mount.to_owned(),
+        misses,
     };
     let state = Arc::new(redirecting);
     (
@@ -89,6 +92,7 @@ async fn answer(
         return response;
     };
     let Some(hit) = redirecting.redirects.table().resolve(&path) else {
+        redirecting.misses.note(path.as_str());
         return response;
     };
     redirected(response, &hit.answer, &redirecting, query.as_deref())
