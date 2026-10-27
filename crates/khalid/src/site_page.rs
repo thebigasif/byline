@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use khalid_core::{HeadCode, TemplateName, UserMessage};
 use khalid_render::{HeadHtml, PageBody, PageMeta, RenderSite, Renderer};
 use khalid_seo::SeoPage;
-use khalid_server::NONCE_SLOT;
+use khalid_server::{MediaType, NONCE_SLOT, PagePath};
 
 use crate::build_message;
 
@@ -39,6 +39,24 @@ pub(crate) enum HeadNonce {
 }
 
 impl Page {
+    /// `html`, rendered from this page, as `khalid serve` keeps it at
+    /// `address`: with a nonce slot when the page has head code.
+    ///
+    /// # Errors
+    ///
+    /// Returns a message when `address` cannot be a page's address.
+    pub(crate) fn served_at(
+        &self,
+        address: &str,
+        html: String,
+    ) -> Result<khalid_server::Page, UserMessage> {
+        let path = PagePath::try_new(address).map_err(|_| build_message::address(address))?;
+        Ok(match self.head_code {
+            Some(_) => khalid_server::Page::with_nonce_slot(path, MediaType::Html, html),
+            None => khalid_server::Page::new(path, MediaType::Html, html),
+        })
+    }
+
     /// The page, made from the content file at `path`.
     pub(crate) fn made_from(self, path: &Path) -> Self {
         Self {
