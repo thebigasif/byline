@@ -27,6 +27,14 @@ impl ContentKey {
         Self(key)
     }
 
+    /// Reads a key written by [`ContentKey::as_str`], such as a media item's
+    /// identity in an address, or `None` unless it is 16 lowercase hex
+    /// digits, so a key can always be used as a folder name.
+    pub fn parse(text: &str) -> Option<Self> {
+        let hex = |c: char| c.is_ascii_digit() || ('a'..='f').contains(&c);
+        (text.len() == KEY_DIGITS && text.chars().all(hex)).then(|| Self(text.to_owned()))
+    }
+
     /// The key as lowercase hex, such as `3f2a9c1e0b57d0aa`.
     pub fn as_str(&self) -> &str {
         &self.0

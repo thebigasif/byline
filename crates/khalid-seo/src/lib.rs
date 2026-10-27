@@ -13,6 +13,7 @@
 //! crates that read content and render pages build its inputs and place its
 //! output.
 
+mod comment;
 mod escape;
 mod feed;
 mod feed_atom;
@@ -29,6 +30,10 @@ mod meta_template;
 mod meta_templates;
 mod news_sitemap;
 mod page;
+mod redirect_columns;
+mod redirect_csv;
+mod redirect_explain;
+mod redirect_moves;
 mod redirect_patterns;
 mod redirects;
 mod robots_meta;
@@ -44,6 +49,7 @@ mod url_path;
 mod verification;
 mod video;
 
+pub use comment::SeoComment;
 pub use feed::{Feed, FeedContent, FeedFormat, FeedItem, FeedOptions, FeedScope};
 pub use head::{HeadTag, HeadTags, head_tags};
 pub use hreflang::{Alternate, Hreflang, TranslationKey, link_translations};
@@ -56,8 +62,14 @@ pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use news_sitemap::{NewsEntry, NewsSitemap};
 pub use page::{ArticleType, Crumb, PageKind, PublishState, SeoPage, SitemapListing};
+pub use redirect_columns::{Matching, RedirectColumns};
+pub use redirect_csv::{read_redirects_csv, write_redirects_csv};
+pub use redirect_explain::{Explanation, Hop, Matched};
+pub use redirect_moves::{moved_addresses, nearest_page};
 pub use redirect_patterns::{PatternRedirect, PatternRule, RedirectPattern};
-pub use redirects::{Destination, Move, Redirect, RedirectRule, RedirectTable, Resolution};
+pub use redirects::{
+    Destination, Move, Redirect, RedirectEntry, RedirectRule, RedirectTable, Resolution,
+};
 pub use robots_meta::IndexPolicy;
 pub use robots_txt::{
     BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,

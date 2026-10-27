@@ -4,7 +4,6 @@
 //! published post or API write again after a moment, until Ctrl+C or a stop
 //! signal. A headless site has no pages, and every page address answers 404.
 
-use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
@@ -18,7 +17,6 @@ use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
-use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
@@ -27,10 +25,14 @@ use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
+use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{announce, db, db_message, preview, report, scheduler, search_route, serve_message};
+use crate::{
+    announce, comment_pages, db, db_message, newsletter, preview, report, scheduler, search_route,
+    serve_message,
+};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -60,7 +62,7 @@ pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    (listen, outbound): (SocketAddr, Result<Outbound, OutboundError>),
+    (listen, outbound): (&Listen, Result<Outbound, OutboundError>),
     output: Output,
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
@@ -94,7 +96,7 @@ pub(crate) fn run(
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, outbound, output): (SocketAddr, &Outbound, Output),
+    (listen, outbound, output): (&Listen, &Outbound, Output),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -128,40 +130,32 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
+    let newsletters = newsletter::router(config).map_err(|message| (message, Exit::Internal))?;
     let served = runtime.block_on(async {
-        let listener = TcpListener::bind(listen)
-            .await
-            .map_err(|error| (serve_message::listen(listen, &error), Exit::Failure))?;
-        let local = listener
-            .local_addr()
-            .map_err(|_| (serve_message::internal(), Exit::Internal))?;
-        announce(output, config, &format!("http://{local}{}", config.mount()));
+        let (listener, address) = serve_https::open(site, listen).await?;
+        announce(output, config, &format!("{address}{}", config.mount()));
         let live = LivePages::new(first);
         hand_back.start(live.replacements());
+        let shown = (&source, &live);
+        let (comments, moderation) =
+            comment_pages::start(config, (database, id), shown, security.clone()).await;
         let (failed, failure) = oneshot::channel();
         let rest = (source.clone(), live.clone());
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
-        let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
-        let (telling, announcing) = announce::start(config, (database, id, &file), outbound)
-            .await
-            .map_err(|message| (message, Exit::Failure))?;
-        let posts = SitePosts::new(site, config.clone(), SystemClock);
-        let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
-        let signer = preview::signer(config, (database, id, &file)).await;
-        let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
-            .with_schedules(schedules, SystemClock)
-            .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
-        let door = Arc::new(door);
+        let (door, announcing) = publish_door((site, config), (database, id), outbound).await?;
         let scheduling = scheduler::start(Arc::clone(&door));
-        let shown = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
-        let (api, _) = api::router_with_door(Arc::new(content), door, Arc::new(keys));
+        let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
+        let stores = (Arc::new(content), door, Arc::new(keys));
+        let (api, _) = api::router_with_door_and_comments(stores.0, stores.1, stores.2, moderation);
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
         let app = api
-            .merge(shown)
+            .merge(previews)
             .merge(searches)
             .merge(admin)
+            .merge(comments)
+            .merge(newsletters)
             .merge(router(live, security));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
@@ -183,6 +177,27 @@ fn serve_with(
         tracing::warn!(?error, "the Content API's task stopped early");
     }
     served
+}
+
+/// The publish door the Admin API, the scheduler and preview links share.
+/// It keeps schedules in the database and announces each post that goes
+/// live through `outbound`, until the returned announcing is stopped.
+async fn publish_door(
+    (site, config): (&Path, &Config),
+    (database, id): (&Database, SiteId),
+    outbound: &Outbound,
+) -> Result<(Arc<PublishDoor>, announce::Announcing), (UserMessage, Exit)> {
+    let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
+    let (telling, announcing) = announce::start(config, (database, id, &file), outbound)
+        .await
+        .map_err(|message| (message, Exit::Failure))?;
+    let posts = SitePosts::new(site, config.clone(), SystemClock);
+    let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+    let signer = preview::signer(config, (database, id, &file)).await;
+    let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
+        .with_schedules(schedules, SystemClock)
+        .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
+    Ok((Arc::new(door), announcing))
 }
 
 /// Renders every page from the `checked` content on a blocking thread

@@ -1,11 +1,12 @@
 //! Where derived files live: `data/media/<key>/<width>.<ext>` in the site.
 
 use std::fs;
-use std::io::{self, Write as _};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use khalid_core::SitePath;
 
+use crate::whole_file::write_whole;
 use crate::{ContentKey, MediaError, Variant};
 
 /// The folder for derived media, inside the site's `data/` folder, never
@@ -66,24 +67,9 @@ impl MediaCache {
         bytes: &[u8],
     ) -> Result<PathBuf, MediaError> {
         let path = self.path(key, variant)?;
-        let failed = |source| MediaError::Write {
-            path: path.clone(),
-            source,
-        };
-        let folder = path
-            .parent()
-            .ok_or_else(|| failed(io::ErrorKind::InvalidInput.into()))?;
-        fs::create_dir_all(folder).map_err(failed)?;
-        let mut partial = path.clone();
-        partial.set_file_name(format!(
-            ".{}.{}.partial",
-            variant.file_name(),
-            std::process::id()
-        ));
-        let mut file = fs::File::create(&partial).map_err(failed)?;
-        file.write_all(bytes).map_err(failed)?;
-        file.sync_all().map_err(failed)?;
-        fs::rename(&partial, &path).map_err(failed)?;
-        Ok(path)
+        match write_whole(&path, bytes) {
+            Ok(()) => Ok(path),
+            Err(source) => Err(MediaError::Write { path, source }),
+        }
     }
 }

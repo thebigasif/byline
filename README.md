@@ -6,6 +6,18 @@ Khalid is an open-source blog engine any business can add to its website, whatev
 
 The one-line idea: get an Ahrefs- or Semrush-quality blog in one click.
 
+## Install
+
+On Linux or a Mac with Apple silicon, once the first release is out:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sh
+khalid init blog --address https://blog.example.com --yes
+khalid --site blog serve
+```
+
+The blog is then at `http://127.0.0.1:8080/`. `docs/deploy.md` covers the systemd service, the Docker image and Docker Compose.
+
 ## Where things are
 
 | | |
