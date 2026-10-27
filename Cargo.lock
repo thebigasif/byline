@@ -2059,6 +2059,7 @@ dependencies = [
  "khalid-search",
  "khalid-seo",
  "khalid-server",
+ "khalid-share-image",
  "khalid-static",
  "khalid-theme",
  "khalid-webhooks",

@@ -468,3 +468,45 @@ fn serve_refuses_an_address_it_cannot_listen_on() {
     assert!(said.contains(&address), "{said}");
     assert!(said.contains("--listen"), "names the fix: {said}");
 }
+
+/// Fetches `path` and returns its status and raw bytes, for files that are
+/// not text.
+#[cfg(test)]
+fn get_bytes(server: &Server, path: &str) -> (u16, Vec<u8>) {
+    let host = &server.host;
+    let mut stream = TcpStream::connect(host).unwrap();
+    let request = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
+    stream.write_all(request.as_bytes()).unwrap();
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).unwrap();
+    let end = raw.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
+    let head = String::from_utf8_lossy(&raw[..end]).to_ascii_lowercase();
+    let status = head
+        .split_whitespace()
+        .find_map(|word| word.parse::<u16>().ok())
+        .unwrap_or_default();
+    (status, raw[end + 4..].to_vec())
+}
+
+#[test]
+fn serve_answers_the_drawn_share_card_of_a_page_as_png_bytes() {
+    let site = demo_copy();
+    let server = start(site.path());
+    let home = get(&server, "/blog/").body;
+    let (_, rest) = home
+        .split_once(r#"<meta property="og:image" content=""#)
+        .unwrap();
+    let (url, _) = rest.split_once('"').unwrap();
+    let href = url.replace("https://www.example.com", "");
+    assert!(href.starts_with("/blog/share/"), "{href}");
+
+    let (status, png) = get_bytes(&server, &href);
+    assert_eq!(status, 200, "{href}");
+    assert_eq!(&png[..4], b"\x89PNG", "the PNG signature");
+    assert!(png.len() > 1000, "a real card, not a stub");
+    assert_eq!(
+        get_bytes(&server, "/blog/share/0000000000000000.png").0,
+        404
+    );
+    assert_eq!(get_bytes(&server, "/blog/share/not-a-key.png").0, 404);
+}

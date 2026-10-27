@@ -37,7 +37,7 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, staff, unlock,
+    report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -159,19 +159,17 @@ fn serve_with(
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
         let scheduling = scheduler::start(Arc::clone(&door));
-        let previews = preview::router(Arc::clone(&door), source.clone(), config, security);
+        let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let desks = (moderation, media, desk);
-        let app = api_router((content, door, keys), desks, (database, id, config))
-            .merge(files)
-            .merge(previews)
-            .merge(search_route::router(config, search))
-            .merge(khalid_admin::router(khalid_admin::built()))
-            .merge(comments)
-            .merge(newsletters)
-            .merge(pages);
+        let apis = api_router((content, door, keys), desks, (database, id, config));
+        let app = assembled(
+            (site, config, &security),
+            (apis, files, previews, search_route::router(config, search)),
+            (comments, newsletters, pages),
+        );
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
@@ -212,6 +210,23 @@ fn api_router(
     };
     let (api, _) = api::router_for_serve(Arc::new(content), door, Arc::new(keys), desks, staff);
     api
+}
+
+/// The one router the server answers: the APIs, the site's own routes, the
+/// drawn share cards, the admin, the comments and the newsletters.
+fn assembled(
+    (site, config, security): (&Path, &Config, &SecurityHeaders),
+    (api, files, previews, searches): (Router, Router, Router, Router),
+    (comments, newsletters, pages): (Router, Router, Router),
+) -> Router {
+    api.merge(files)
+        .merge(previews)
+        .merge(searches)
+        .merge(share_images::router(site, config, security.clone()))
+        .merge(khalid_admin::router(khalid_admin::built()))
+        .merge(comments)
+        .merge(newsletters)
+        .merge(pages)
 }
 
 /// The publish door the Admin API, the scheduler and preview links share.

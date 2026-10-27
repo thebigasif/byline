@@ -11,7 +11,7 @@ use std::path::{self, Path, PathBuf};
 use khalid_content::{ContentTree, SiteContent};
 use khalid_core::{Clock, Config, UserMessage};
 use khalid_lint::Linter;
-use khalid_render::{Asset, Renderer};
+use khalid_render::{Asset, Renderer, Tokens};
 use khalid_routes::Routes;
 use serde::Serialize;
 
@@ -23,7 +23,7 @@ use crate::site_page::HeadNonce;
 use crate::{
     assets, build_files, build_gate, build_lists, build_message, build_pages, build_redirects,
     build_seo, build_sitemap, categories, content_message, lint, lint_message, post_files,
-    post_images, post_lock, report, search_page, search_static, static_mode,
+    post_images, post_lock, report, search_page, search_static, share_images, static_mode,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -91,6 +91,11 @@ fn build(
     } else {
         None
     };
+    let tokens = if config.mode().has_pages() {
+        Tokens::load(site).map_err(|error| build_message::tokens(&error))?
+    } else {
+        Tokens::default()
+    };
     let href = theme
         .as_ref()
         .map(|(_, css)| assets::href(config, css))
@@ -117,6 +122,13 @@ fn build(
         copy(&size.path, out, &size.file)?;
     }
     let seo_site = build_seo::site(config)?;
+    let cards = share_images::attach(site, config, &tokens, &seo_site, &mut languages)?;
+    for file in &cards {
+        let mut from = site.to_path_buf();
+        from.push("data");
+        from.push(file);
+        copy(&from, out, file)?;
+    }
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
     build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
     let mut written = 0;

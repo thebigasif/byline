@@ -12,7 +12,7 @@ use khalid_content::{
 };
 use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
 use khalid_render::{
-    PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult,
+    PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult, Tokens,
 };
 use khalid_routes::Routes;
 use khalid_server::{Moved, Page, Render, Rendered};
@@ -29,8 +29,8 @@ use crate::site_page::HeadNonce;
 use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
-    categories, content_message, post_files, post_lock, search_page, serve_message, site_files,
-    site_outline,
+    categories, content_message, post_files, post_lock, search_page, serve_message, share_images,
+    site_files, site_outline,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -84,6 +84,8 @@ struct Outline {
 struct Theme {
     renderer: Renderer,
     stylesheet: Page,
+    /// The tokens the stylesheet was built from, for the share cards.
+    tokens: Tokens,
 }
 
 /// One render of the site: what [`Rendered`] holds, kept apart so that
@@ -110,9 +112,11 @@ impl SitePages {
                 Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
             let css = assets::site_stylesheet(folder)?;
             let stylesheet = assets::stylesheet_page(&config, &css)?;
+            let tokens = Tokens::load(folder).map_err(|error| build_message::tokens(&error))?;
             Some(Theme {
                 renderer,
                 stylesheet,
+                tokens,
             })
         } else {
             None
@@ -213,6 +217,7 @@ impl SitePages {
     /// makes. A headless site has none.
     pub(crate) fn render_first(&self, content: &SiteContent) -> Result<Vec<Page>, UserMessage> {
         let Site {
+            folder,
             config,
             routes,
             theme,
@@ -224,7 +229,9 @@ impl SitePages {
         let href = theme.stylesheet.path().as_str();
         let mut languages = build_home::home_pages(config, routes, content, href)?;
         search_page::link(config, &mut languages);
-        build_seo::heads(&build_seo::site(config)?, &mut languages)?;
+        let seo_site = build_seo::site(config)?;
+        share_images::attach(folder, config, &theme.tokens, &seo_site, &mut languages)?;
+        build_seo::heads(&seo_site, &mut languages)?;
         let mut pages = vec![theme.stylesheet.clone()];
         html_pages(theme, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
@@ -378,6 +385,9 @@ impl SitePages {
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
         let beside = post_files::served(folder, config, assets, &mut languages, shown)?;
         let seo_site = build_seo::site(config)?;
+        let default_tokens = Tokens::default();
+        let tokens = theme.as_ref().map_or(&default_tokens, |t| &t.tokens);
+        share_images::attach(folder, config, tokens, &seo_site, &mut languages)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
         build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
         post_lock::share_heads(&mut languages);
