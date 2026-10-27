@@ -1,5 +1,7 @@
 //! The staff routes `khalid-auth` adds to the Admin API under
-//! `/api/admin/v1/`: signing in (BL-API-4).
+//! `/api/admin/v1/`: signing in and out (BL-API-4).
+
+mod take_back;
 
 use std::net::SocketAddr;
 
@@ -26,7 +28,9 @@ pub fn staff_routes(accounts: Accounts) -> StaffRoutes {
             .routes(routes!(sign_in))
             .with_state(accounts.clone()),
         signed_in: OpenApiRouter::new()
-            .routes(routes!(current_session))
+            .routes(routes!(current_session, take_back::sign_out))
+            .routes(routes!(take_back::sign_out_everywhere))
+            .routes(routes!(take_back::change_password))
             .with_state(accounts),
     }
 }

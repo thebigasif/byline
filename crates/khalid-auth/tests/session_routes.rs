@@ -1,5 +1,5 @@
-//! Signing in over HTTP, end to end through the Admin API router, with
-//! the session cookie and its CSRF token.
+//! Signing in and out over HTTP, end to end through the Admin API router,
+//! with the session cookie and its CSRF token, and a stolen cookie.
 
 use std::sync::Arc;
 
@@ -151,4 +151,91 @@ async fn the_session_routes_need_the_csrf_token_too() {
     assert_eq!(send(&router, request).await.0, StatusCode::UNAUTHORIZED);
     let request = with_session("GET", "/api/admin/v1/session/", &cookie, Some("forged"));
     assert_eq!(send(&router, request).await.0, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn signing_out_clears_the_cookie_and_ends_the_session() {
+    let router = router().await;
+    let (cookie, csrf) = signed_in(&router).await;
+    let request = with_session("DELETE", "/api/admin/v1/session/", &cookie, Some(&csrf));
+    let (status, headers, _) = send(&router, request).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(
+        headers["set-cookie"]
+            .to_str()
+            .unwrap()
+            .contains("Max-Age=0")
+    );
+    let again = with_session("GET", "/api/admin/v1/session/", &cookie, Some(&csrf));
+    assert_eq!(
+        send(&router, again).await.0,
+        StatusCode::UNAUTHORIZED,
+        "the old cookie is dead"
+    );
+}
+
+#[tokio::test]
+async fn a_stolen_cookie_is_dead_after_the_owner_signs_out_everywhere() {
+    let router = router().await;
+    let (stolen, stolen_csrf) = signed_in(&router).await;
+    let (mine, my_csrf) = signed_in(&router).await;
+    let thief = with_session("GET", "/api/admin/v1/session/", &stolen, Some(&stolen_csrf));
+    assert_eq!(
+        send(&router, thief).await.0,
+        StatusCode::OK,
+        "a copied cookie works at first"
+    );
+    let request = with_session("DELETE", "/api/admin/v1/sessions/", &mine, Some(&my_csrf));
+    let (status, _, json) = send(&router, request).await;
+    assert_eq!((status, json), (StatusCode::OK, json!({ "ended": 2 })));
+    let thief = with_session("GET", "/api/admin/v1/session/", &stolen, Some(&stolen_csrf));
+    assert_eq!(send(&router, thief).await.0, StatusCode::UNAUTHORIZED);
+}
+
+#[cfg(test)]
+fn password_change(cookie: &str, csrf: &str, body: &Value) -> Request<Body> {
+    Request::put("/api/admin/v1/session/password/")
+        .header("cookie", cookie)
+        .header("x-khalid-csrf", csrf)
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_password_change_needs_the_old_one_and_a_long_new_one() {
+    let router = router().await;
+    let (stolen, stolen_csrf) = signed_in(&router).await;
+    let (mine, csrf) = signed_in(&router).await;
+    let thief = json!({ "new": "the thief's own choice" });
+    let (status, _, _) = send(&router, password_change(&stolen, &stolen_csrf, &thief)).await;
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "a cookie alone cannot change it"
+    );
+    let short = json!({ "current": "correct horse battery", "new": "too short" });
+    let (status, _, json) = send(&router, password_change(&mine, &csrf, &short)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(
+        json["detail"].as_str().unwrap().contains("12 characters"),
+        "{json}"
+    );
+    let good = json!({ "current": "correct horse battery", "new": "a brand new passphrase" });
+    assert_eq!(
+        send(&router, password_change(&mine, &csrf, &good)).await.0,
+        StatusCode::NO_CONTENT
+    );
+    let thief = with_session("GET", "/api/admin/v1/session/", &stolen, Some(&stolen_csrf));
+    assert_eq!(
+        send(&router, thief).await.0,
+        StatusCode::UNAUTHORIZED,
+        "other sessions ended"
+    );
+    let (status, _, _) = send(
+        &router,
+        sign_in_request("asif@example.com", "a brand new passphrase"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
 }
