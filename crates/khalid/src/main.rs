@@ -56,6 +56,7 @@ mod post_images;
 mod post_text;
 mod preview;
 mod redirect_route;
+mod redirects;
 mod repair;
 mod report;
 mod routes_message;
@@ -208,8 +209,8 @@ fn run(cli: &Cli) -> Exit {
 /// Runs the commands that do not start from a checked site: `init`, which
 /// makes the site, `agents`, which needs none, and `doctor`, which checks
 /// the settings, routes and content itself so it can list every problem
-/// instead of stopping at the first. Returns `None` for every other
-/// command.
+/// instead of stopping at the first, and `redirects`, which needs only the
+/// settings and the database. Returns `None` for every other command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -224,6 +225,10 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
+        }),
+        Some(asked @ Command::Redirects { command }) => Some(match cli.site.as_deref() {
+            Some(folder) => redirects::run(folder, command, cli.output),
+            None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
         }),
         _ => None,
     }
