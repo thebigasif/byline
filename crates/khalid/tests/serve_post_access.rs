@@ -156,10 +156,12 @@ fn a_password_opens_the_post_with_no_script_and_nothing_else_does() {
         "{page}"
     );
     assert!(!page.contains(BODY), "the locked page never shows the body");
-    let hidden = format!("GET /_unlocked{POST} HTTP/1.1");
-    let (status, _, page) = send(&server, &hidden, "");
-    assert_eq!(status, 404, "the full page has no door of its own");
-    assert!(!page.contains(BODY));
+    for door in ["/_unlocked", "/%5Funlocked", "/%5funlocked"] {
+        let hidden = format!("GET {door}{POST} HTTP/1.1");
+        let (status, _, page) = send(&server, &hidden, "");
+        assert_eq!(status, 404, "{door}: the full page has no door of its own");
+        assert!(!page.contains(BODY), "{door}");
+    }
 
     let (status, head, page) = unlock(&server, "not-the-password");
     assert_eq!(status, 401, "{head}");
