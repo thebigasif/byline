@@ -34,7 +34,10 @@ pub use magic_link::{
 };
 #[cfg(any(test, feature = "test-util"))]
 pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemorySessions};
-pub use passkey::{AuthenticatorData, PasskeyError, PublicKey};
+pub use passkey::{
+    AuthenticatorData, Challenge, PasskeyError, PublicKey, Registration, RelyingParty,
+    verify_registration,
+};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
