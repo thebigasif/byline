@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::{fmt, fs};
 
 use khalid_content::{ContentTree, Document, SiteContent, check_bodies, parse_post, read_content};
-use khalid_core::{Clock, Config, SystemClock, UserMessage};
+use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
 use khalid_render::{PageBody, Renderer};
 use khalid_routes::Routes;
 use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
@@ -125,6 +125,58 @@ impl SitePages {
     /// posts. `content` must have passed `check_bodies`.
     pub(crate) fn render_content(&self, content: &SiteContent) -> Result<Served, UserMessage> {
         self.render_from(&self.tree()?, content)
+    }
+
+    /// The page the draft of post `slug` in `locale` would have if it went
+    /// live today, rendered among the site's posts as they are now, for
+    /// its preview link. `None` when there is no such draft, the site has
+    /// no theme, or it has no post to shape the draft's entry on. Reads
+    /// files and renders, so it runs off the async runtime (BL-RUN-7).
+    pub(crate) fn preview(
+        &self,
+        locale: &Locale,
+        slug: &Slug,
+    ) -> Result<Option<String>, UserMessage> {
+        let Site { folder, config, .. } = &*self.0;
+        let mut file = folder.clone();
+        file.push(format!("drafts/{locale}/{slug}.md"));
+        let (Some(_), Ok(text)) = (&self.0.theme, fs::read_to_string(&file)) else {
+            return Ok(None);
+        };
+        let tree = self.tree()?;
+        let unreadable = |error| content_message::of(folder, &error);
+        let mut content = read_content(&tree).map_err(unreadable)?;
+        let today = SystemClock.now().date_naive();
+        let path = PathBuf::from(format!("content/{locale}/posts/{today}-{slug}.md"));
+        let post = parse_post(&path, &text).map_err(unreadable)?;
+        // A Document is made only by khalid-content, so the draft's entry
+        // is another post's with every field that names a file replaced.
+        let Some(mut doc) = content.posts.first().cloned() else {
+            return Ok(None);
+        };
+        doc.locale = locale.clone();
+        "posts".clone_into(&mut doc.collection);
+        doc.path = path;
+        doc.front = post.front;
+        doc.front.date.get_or_insert(today);
+        let front_lines = text
+            .lines()
+            .count()
+            .saturating_sub(post.body.lines().count());
+        doc.body_line = front_lines.saturating_add(1);
+        doc.body = post.body;
+        content
+            .posts
+            .retain(|other| &other.locale != locale || other.front.slug.as_ref() != Some(slug));
+        content.posts.push(doc);
+        let served = self.render_of(&tree, &content, Which::Posts)?;
+        let address = build_pages::path_of(config, locale, &format!("{slug}/"));
+        let page = served
+            .pages
+            .iter()
+            .rev()
+            .find(|page| page.path().as_str() == address);
+        Ok(page.map(|page| String::from_utf8_lossy(page.body()).into_owned()))
     }
 
     /// The list of the site's content files, as found on disk now.

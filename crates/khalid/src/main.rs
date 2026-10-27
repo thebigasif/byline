@@ -50,6 +50,7 @@ mod outbound;
 mod post_files;
 mod post_images;
 mod post_text;
+mod preview;
 mod repair;
 mod report;
 mod routes_message;

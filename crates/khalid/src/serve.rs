@@ -27,7 +27,7 @@ use crate::exit::Exit;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{announce, db, db_message, report, scheduler, serve_message};
+use crate::{announce, db, db_message, preview, report, scheduler, serve_message};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -143,12 +143,15 @@ fn serve_with(
             .map_err(|message| (message, Exit::Failure))?;
         let posts = SitePosts::new(site, config.clone(), SystemClock);
         let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+        let signer = preview::signer(config, (database, id, &file)).await;
         let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
-            .with_schedules(schedules, SystemClock);
+            .with_schedules(schedules, SystemClock)
+            .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
         let door = Arc::new(door);
         let scheduling = scheduler::start(Arc::clone(&door));
+        let shown = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let (api, _) = api::router_with_door(Arc::new(content), door, Arc::new(keys));
-        let app = api.merge(router(live, security));
+        let app = api.merge(shown).merge(router(live, security));
         let stopped = khalid_server::serve(listener, app, stop(), GRACE).await;
         watching.stop().await;
         scheduling.stop().await;

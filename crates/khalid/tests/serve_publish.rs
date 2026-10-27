@@ -223,3 +223,54 @@ async fn a_post_scheduled_through_the_api_goes_live_at_its_time() {
     });
     assert!(shown, "the scheduled post was never served");
 }
+
+/// Gets `path` with no key; returns the status, the head in lowercase and
+/// the body.
+#[cfg(test)]
+fn page(server: &Server, path: &str) -> (u16, String, String) {
+    let mut stream = TcpStream::connect(&server.host).unwrap();
+    let host = &server.host;
+    let head = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
+    stream.write_all(head.as_bytes()).unwrap();
+    let mut raw = String::new();
+    stream.read_to_string(&mut raw).unwrap();
+    let (head, body) = raw.split_once("\r\n\r\n").unwrap();
+    let status = head.split(' ').nth(1).unwrap().parse().unwrap();
+    (status, head.to_lowercase(), body.to_owned())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_preview_link_shows_the_draft_with_noindex_and_nothing_else() {
+    let receiver = MockServer::start().await;
+    let (site, _) = demo_site(&receiver).await;
+    let key = writer_key(site.path());
+    let server = start(site.path());
+    let new = json!({"posts": [{"title": "Choosing anchor text", "author": "asif",
+        "markdown": "Anchor text is the visible words of a link."}]});
+    send(&server, &key, "POST", "/api/admin/v1/posts/", &new);
+    let route = "/api/admin/v1/posts/en.choosing-anchor-text/preview-link/";
+    let (status, links) = send(&server, &key, "POST", route, &Value::Null);
+    assert_eq!(status, 201, "{links}");
+    let url = links["preview_links"][0]["url"].as_str().unwrap();
+    let path = url.strip_prefix("https://www.example.com").unwrap();
+
+    let (status, head, body) = page(&server, path);
+    assert_eq!(status, 200, "{body}");
+    assert!(
+        body.contains("Anchor text is the visible words of a link."),
+        "{body}"
+    );
+    assert!(body.contains("<meta name=\"robots\" content=\"noindex, nofollow\">"));
+    assert!(head.contains("x-robots-tag: noindex, nofollow"), "{head}");
+    assert!(head.contains("content-security-policy: "), "{head}");
+    assert!(head.contains("cache-control: no-store"), "{head}");
+
+    let changed = path.replace("sig=", "sig=00");
+    assert_eq!(
+        page(&server, &changed).0,
+        404,
+        "a changed link opens nothing"
+    );
+    let public = page(&server, "/blog/choosing-anchor-text/").0;
+    assert_eq!(public, 404, "the draft is still not public");
+}
