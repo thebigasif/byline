@@ -11,15 +11,17 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use chrono::{DateTime, NaiveTime, Utc};
-use khalid_api::content_store::BoxFuture;
+use khalid_api::content_store::{BoxFuture, Listed};
 use khalid_api::post_store::{CreatePostError, PostStore, PostStoreError, UpdatePostError};
-use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostStatus};
+use khalid_api::query::ListQuery;
+use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostRow, PostStatus};
 use khalid_content::{ContentTree, SiteContent, parse_post, read_content};
 use khalid_core::{Clock, Config, Locale, Slug};
-use khalid_lint::{Linter, Report, Verdict};
+use khalid_lint::{LintPost, LintSite, Linter, Report, Verdict};
 
 use crate::lint_input::{PostParts, lint_parts, lint_site};
 use crate::post_text::{PostText, quoted};
+use crate::settings_text::{put, settings_of, write_settings};
 use crate::{atomic, lint};
 
 /// The folder of drafts at the top of a site.
@@ -39,6 +41,12 @@ struct Site {
     seen: Mutex<BTreeMap<String, String>>,
 }
 
+/// The linter and the site view a post is judged against.
+struct Judge {
+    linter: Linter,
+    site: LintSite,
+}
+
 /// A post file found by its identity.
 struct Found {
     locale: Locale,
@@ -46,6 +54,27 @@ struct Found {
     path: PathBuf,
     status: PostStatus,
     text: PostText,
+}
+
+impl Found {
+    /// The post file at `path`, read.
+    fn read(
+        locale: Locale,
+        slug: Slug,
+        path: PathBuf,
+        status: PostStatus,
+    ) -> Result<Self, PostStoreError> {
+        let text = fs::read_to_string(&path).map_err(PostStoreError::new)?;
+        let text =
+            PostText::parse(&text).ok_or_else(|| failure("a post file has no front matter"))?;
+        Ok(Self {
+            locale,
+            slug,
+            path,
+            status,
+            text,
+        })
+    }
 }
 
 impl SitePosts {
@@ -93,17 +122,7 @@ impl Site {
             path.push(&doc.path);
             (path, PostStatus::Published)
         };
-        let text = fs::read_to_string(&path).map_err(PostStoreError::new)?;
-        let text =
-            PostText::parse(&text).ok_or_else(|| failure("a post file has no front matter"))?;
-        let (locale, slug) = (locale.clone(), slug);
-        Ok(Some(Found {
-            locale,
-            slug,
-            path,
-            status,
-            text,
-        }))
+        Found::read(locale.clone(), slug, path, status).map(Some)
     }
 
     /// The post a found file holds, in Admin API shape. It last changed when
@@ -114,6 +133,7 @@ impl Site {
             .and_then(|meta| meta.modified())
             .map_err(PostStoreError::new)?;
         let id = format!("{}.{}", found.locale, found.slug);
+        let settings = settings_of(&post.front);
         let title = post.front.title.unwrap_or_default();
         let admin = AdminPost::new(
             &id,
@@ -122,7 +142,8 @@ impl Site {
             found.text.markdown(),
             changed.into(),
         )
-        .with_author(post.front.author);
+        .with_author(post.front.author)
+        .with_settings(settings);
         Ok(match (found.status, post.front.date) {
             (PostStatus::Published, Some(date)) => admin.published(
                 DateTime::from_naive_utc_and_offset(date.and_time(NaiveTime::MIN), Utc),
@@ -159,6 +180,24 @@ impl Site {
         if edited.markdown() != current.markdown() {
             text.set_body(edited.markdown());
         }
+        if edited.author() != current.author() {
+            put(
+                &mut text,
+                "author",
+                edited.author().map(ToString::to_string),
+            );
+        }
+        write_settings(
+            &mut text,
+            current.settings(),
+            edited.settings(),
+            found.status,
+        )?;
+        let found = if edited.slug() == current.slug() {
+            found
+        } else {
+            self.moved(found, edited.slug(), &mut text)?
+        };
         let (path, status) = if publishes {
             (self.publish(&found, &mut text)?, PostStatus::Published)
         } else if unpublishes {
@@ -174,6 +213,38 @@ impl Site {
             ..found
         };
         Ok(Self::admin_post(&saved)?.with_updated_by(by))
+    }
+
+    /// Moves the draft `found` to its file for `slug`, with `text`, which
+    /// gains the new slug. Its identity changes with the slug.
+    fn moved(
+        &self,
+        found: Found,
+        slug: &Slug,
+        text: &mut PostText,
+    ) -> Result<Found, UpdatePostError> {
+        if found.status != PostStatus::Draft {
+            let why = "A live post's address cannot change yet, because links to the old one would break.";
+            let setting = "slug";
+            return Err(UpdatePostError::Unsupported { setting, why });
+        }
+        if self.find(&format!("{}.{slug}", found.locale))?.is_some() {
+            return Err(UpdatePostError::SlugTaken(slug.clone()));
+        }
+        text.set("slug", slug.as_str());
+        let path = self.draft_path(&found.locale, slug);
+        let folder = path
+            .parent()
+            .ok_or_else(|| failure("a draft has no folder"))?;
+        atomic::create(folder, &format!("{slug}.md"), &text.to_text())
+            .map_err(PostStoreError::new)?;
+        fs::remove_file(&found.path).map_err(PostStoreError::new)?;
+        let slug = slug.clone();
+        Ok(Found {
+            slug,
+            path,
+            ..found
+        })
     }
 
     /// Dates the draft today, runs the lint publish gate on it as it would
@@ -226,42 +297,81 @@ impl Site {
         text: &PostText,
         relative: &Path,
     ) -> Result<Verdict, PostStoreError> {
+        let judge = self.judge(&self.content()?)?;
+        self.gate_with(&judge, found, text, relative)
+    }
+
+    /// The linter and the view of `content` every post is judged against,
+    /// made once for a whole list.
+    fn judge(&self, content: &SiteContent) -> Result<Judge, PostStoreError> {
+        let (site, _) = lint_site(content, &self.config);
+        let settings =
+            lint::lint_settings(&self.folder).map_err(|message| failure(&message.to_string()))?;
+        let linter = Linter::new(&settings, self.clock.as_ref()).map_err(PostStoreError::new)?;
+        Ok(Judge { linter, site })
+    }
+
+    /// [`Site::gate`] with a `judge` already made.
+    fn gate_with(
+        &self,
+        judge: &Judge,
+        found: &Found,
+        text: &PostText,
+        relative: &Path,
+    ) -> Result<Verdict, PostStoreError> {
+        let candidate = self.candidate(found, text, relative)?;
+        Ok(judge.linter.gate(&candidate, &judge.site))
+    }
+
+    /// `text` as the linter reads the post at `relative`.
+    fn candidate(
+        &self,
+        found: &Found,
+        text: &PostText,
+        relative: &Path,
+    ) -> Result<LintPost, PostStoreError> {
         let post = parse_post(relative, &text.to_text()).map_err(PostStoreError::new)?;
-        let content = self.content()?;
-        let (site, _) = lint_site(&content, &self.config);
         let parts = PostParts {
             locale: &found.locale,
             path: relative,
             front: &post.front,
             body: &post.body,
         };
-        let candidate = lint_parts(&parts, &self.config)
-            .ok_or_else(|| failure("the post cannot be read for linting"))?;
-        let settings =
-            lint::lint_settings(&self.folder).map_err(|message| failure(&message.to_string()))?;
-        let linter = Linter::new(&settings, self.clock.as_ref()).map_err(PostStoreError::new)?;
-        Ok(linter.gate(&candidate, &site))
+        lint_parts(&parts, &self.config)
+            .ok_or_else(|| failure("the post cannot be read for linting"))
     }
 
-    /// What the publish gate finds in post `id` now, writing nothing. A
-    /// draft is judged as it would go live today; a published post as it
-    /// is. `None` when no post has that identity.
-    fn lint_now(&self, id: &str) -> Result<Option<Report>, PostStoreError> {
-        let Some(found) = self.find(id)? else {
-            return Ok(None);
-        };
+    /// `found` as the linter judges it now: a draft as it would go live
+    /// today, a published post as it is.
+    fn candidate_now(&self, found: &Found) -> Result<LintPost, PostStoreError> {
         let mut text = found.text.clone();
         let relative = match found.status {
-            PostStatus::Draft => self.dated(&found, &mut text).1,
+            PostStatus::Draft => self.dated(found, &mut text).1,
             _ => found
                 .path
                 .strip_prefix(&self.folder)
                 .map_err(PostStoreError::new)?
                 .to_path_buf(),
         };
+        self.candidate(found, &text, &relative)
+    }
+
+    /// What the publish gate finds in `found` now, writing nothing.
+    fn report(&self, judge: &Judge, found: &Found) -> Result<Report, PostStoreError> {
+        let candidate = self.candidate_now(found)?;
         let (Verdict::Publish { report } | Verdict::Refuse { report }) =
-            self.gate(&found, &text, &relative)?;
-        Ok(Some(report))
+            judge.linter.gate(&candidate, &judge.site);
+        Ok(report)
+    }
+
+    /// What the publish gate finds in post `id` now, writing nothing, or
+    /// `None` when no post has that identity.
+    fn lint_now(&self, id: &str) -> Result<Option<Report>, PostStoreError> {
+        let Some(found) = self.find(id)? else {
+            return Ok(None);
+        };
+        let judge = self.judge(&self.content()?)?;
+        self.report(&judge, &found).map(Some)
     }
 
     fn create_now(
@@ -359,6 +469,14 @@ impl PostStore for SitePosts {
         Box::pin(blocking(&self.0, move |site| site.get_now(&id)))
     }
 
+    fn list<'a>(
+        &'a self,
+        query: &'a ListQuery,
+    ) -> BoxFuture<'a, Result<Listed<PostRow>, PostStoreError>> {
+        let query = query.clone();
+        Box::pin(blocking(&self.0, move |site| site.list_now(&query)))
+    }
+
     fn update<'a>(
         &'a self,
         id: &'a str,
@@ -399,6 +517,9 @@ impl Error for Failure {}
 fn failure(what: &str) -> PostStoreError {
     PostStoreError::new(Failure(what.to_owned()))
 }
+
+#[path = "site_posts_list.rs"]
+mod list;
 
 #[cfg(test)]
 #[path = "site_posts_tests.rs"]

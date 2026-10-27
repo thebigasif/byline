@@ -387,7 +387,7 @@ async fn one_in_site<T: Listable>(
 }
 
 /// Refuses fields the resource does not have in `filter` and `order`.
-fn check_fields(query: &ListQuery, fields: &[&str]) -> Result<(), Problem> {
+pub(crate) fn check_fields(query: &ListQuery, fields: &[&str]) -> Result<(), Problem> {
     let unknown = |parameter: &str, field: &str| {
         let message = UserMessage::new(
             format!("The {parameter} uses {field}, which is not a field here."),

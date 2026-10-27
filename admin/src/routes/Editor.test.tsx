@@ -14,6 +14,13 @@ function post(markdown: string): AdminPost {
     status: "draft",
     markdown,
     updated_at: "2026-10-27T10:42:00Z",
+    settings: {
+      co_authors: [],
+      featured: false,
+      review_state: "draft",
+      share_cards: {},
+      aliases: [],
+    },
   };
 }
 
