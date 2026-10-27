@@ -15,7 +15,7 @@ use serde::Serialize;
 
 use crate::cli::{Output, RedirectsCommand};
 use crate::exit::Exit;
-use crate::{config_message, db, db_message, report};
+use crate::{db, db_message, report, site_config};
 
 /// The JSON shape of `khalid redirects import --json`.
 #[derive(Serialize)]
@@ -43,8 +43,8 @@ struct ExplainedBody {
 /// read, not its content, so a large site answers at once.
 pub(crate) fn run(site: &Path, command: &RedirectsCommand, output: Output) -> Exit {
     let done = match command {
-        RedirectsCommand::Import { file } => Config::load(site, &Environment::from_process())
-            .map_err(|error| (config_message::of(&error), Exit::Failure))
+        RedirectsCommand::Import { file } => site_config::load(site, &Environment::from_process())
+            .map_err(|message| (message, Exit::Failure))
             .and_then(|config| import(site, &config, file, output)),
         RedirectsCommand::Export => {
             on_desk(site, async |desk| export(desk, output).await).flatten()

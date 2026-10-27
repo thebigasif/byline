@@ -9,14 +9,14 @@ use khalid_core::{Config, Environment};
 use khalid_routes::Routes;
 
 use crate::doctor_check::{Check, Finding};
-use crate::{config_message, content_message, routes_message};
+use crate::{content_message, routes_message, site_config};
 
 /// Checks the settings, the routes and the content of `site`, in that order.
 /// The content is read only when the settings and the routes load, because
 /// reading it needs both. Returns the settings too, when they load, for the
 /// checks that need them.
 pub(crate) fn check(site: &Path) -> (Vec<Finding>, Option<Config>) {
-    let config = Config::load(site, &Environment::from_process());
+    let config = site_config::load(site, &Environment::from_process());
     let routes = Routes::load(site);
     let mut found = vec![
         match &config {
@@ -28,7 +28,7 @@ pub(crate) fn check(site: &Path) -> (Vec<Finding>, Option<Config>) {
                     config.address()
                 ),
             ),
-            Err(error) => Finding::problem(Check::Settings, config_message::of(error)),
+            Err(message) => Finding::problem(Check::Settings, message.clone()),
         },
         match &routes {
             Ok(_) => Finding::ok(

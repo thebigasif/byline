@@ -3,7 +3,8 @@
 use khalid_core::{ConfigError, UserMessage};
 
 /// Every settings message shares this reason.
-const WHY: &str = "Khalid checks every setting before it starts, so nothing runs with a wrong one.";
+pub(crate) const WHY: &str =
+    "Khalid checks every setting before it starts, so nothing runs with a wrong one.";
 
 /// Turns a settings error into what happened, why it matters and what to do.
 pub(crate) fn of(error: &ConfigError) -> UserMessage {
