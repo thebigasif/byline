@@ -17,7 +17,7 @@ use khalid_api::redirect_desk::{RedirectDesk, StaticPages};
 use khalid_api::redirect_store::{MemoryRedirectStore, Origin, RedirectStore};
 use khalid_core::FixedClock;
 use khalid_seo::read_redirects_csv;
-use serde_json::Value;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 /// Keys made up for these tests. They open nothing real.
@@ -129,4 +129,72 @@ async fn a_site_without_a_redirect_store_lists_none() {
     .await;
     assert_eq!(status, StatusCode::OK, "{json}");
     assert_eq!(json["redirects"], Value::Array(Vec::new()));
+}
+
+#[cfg(test)]
+fn create(redirect: &Value) -> Request<Body> {
+    let body = json!({"redirects": [redirect]});
+    Request::post("/api/admin/v1/redirects/")
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_new_redirect_of_each_status_is_stored_by_hand() {
+    let cases = [
+        json!({"from": "/blog/a/", "to": "/blog/robots-txt/", "status": 301}),
+        json!({"from": "/blog/b/", "to": "https://serpdad.com/", "status": 302}),
+        json!({"from": "/blog/c/", "to": "/blog/", "status": 307, "match": "exact"}),
+        json!({"from": "/blog/d/", "status": 410}),
+        json!({"from": "/blog/e/", "status": 451}),
+        json!({"from": "/blog/(\\d+)/", "to": "/blog/post-$1/", "status": 301, "match": "regex"}),
+    ];
+    for redirect in cases {
+        let (status, json) = send(desk("").await, SETTINGS, create(&redirect)).await;
+        assert_eq!(status, StatusCode::CREATED, "{redirect} {json}");
+        let made = &json["redirects"][0];
+        assert_eq!(made["from"], redirect["from"]);
+        assert_eq!(made["status"], redirect["status"]);
+        assert_eq!(made["origin"], "manual");
+        assert_eq!(made["created_at"], "2026-11-03T09:00:00Z");
+    }
+}
+
+#[tokio::test]
+async fn a_redirect_that_cannot_be_followed_is_a_422() {
+    let cases = [
+        json!({"from": "blog/a/", "to": "/blog/b/", "status": 301}),
+        json!({"from": "/blog/a/", "status": 301}),
+        json!({"from": "/blog/a/", "to": "/blog/b/", "status": 308}),
+        json!({"from": "/blog/a/", "to": "/blog/b/", "status": 301, "match": "glob"}),
+        json!({"from": "/blog/(/", "to": "/blog/b/", "status": 301, "match": "regex"}),
+    ];
+    for redirect in cases {
+        let (status, json) = send(desk("").await, SETTINGS, create(&redirect)).await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{redirect} {json}"
+        );
+        let detail = json["detail"].as_str().unwrap();
+        assert!(detail.contains("cannot be stored"), "{json}");
+    }
+}
+
+#[tokio::test]
+async fn a_loop_or_a_taken_address_is_refused_and_nothing_stored() {
+    let stored = "/blog/a/,/blog/b/,301\n";
+    let back = json!({"from": "/blog/b/", "to": "/blog/a/", "status": 301});
+    let (status, json) = send(desk(stored).await, SETTINGS, create(&back)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+    assert!(json["detail"].as_str().unwrap().contains("loop"), "{json}");
+
+    let again = json!({"from": "/blog/a/", "to": "/blog/c/", "status": 302});
+    let (status, json) = send(desk(stored).await, SETTINGS, create(&again)).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert!(
+        json["detail"].as_str().unwrap().contains("/blog/a/"),
+        "{json}"
+    );
 }

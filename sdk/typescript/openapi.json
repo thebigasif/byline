@@ -454,6 +454,91 @@
             "admin_key": []
           }
         ]
+      },
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Stores one redirect made by hand. It is checked against every stored\nredirect, so it can neither take an address that has one nor close a\nloop. Needs `settings:write`.",
+        "operationId": "create_redirect",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRedirects"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The address already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The redirect cannot be followed or would close a loop",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/content/v1/authors/": {
@@ -3704,6 +3789,61 @@
           }
         },
         "additionalProperties": false
+      },
+      "NewRedirect": {
+        "type": "object",
+        "description": "One new redirect, in the columns [`AdminRedirect`] shows.",
+        "required": [
+          "from",
+          "status"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The path it starts from, or a regular expression over the path.",
+            "example": "/blog/old-links/"
+          },
+          "match": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`exact`, the default, or `regex`.",
+            "example": "exact"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "301, 302, 307, 410 or 451.",
+            "example": 301,
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a move leads. Leave it out for 410 and 451.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewRedirects": {
+        "type": "object",
+        "description": "The body of a new redirect: exactly one.",
+        "required": [
+          "redirects"
+        ],
+        "properties": {
+          "redirects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewRedirect"
+            },
+            "description": "The one redirect to store."
+          }
+        }
       },
       "Pages": {
         "type": "object",
