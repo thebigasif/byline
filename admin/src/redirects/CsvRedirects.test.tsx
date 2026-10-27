@@ -65,6 +65,15 @@ describe("many redirects at once", () => {
     expect(await axeViolations()).toEqual([]);
   });
 
+  it("asks for a file before adding anything", async () => {
+    signedIn();
+    const sent = keeping([]);
+    renderAt("/redirects");
+    await userEvent.click(await screen.findByRole("button", { name: en.redirects.csv.add }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(en.problems.noFile.what);
+    expect(sent.filter((request) => request.method === "POST")).toEqual([]);
+  });
+
   it("shows the API's words when a row cannot be stored", async () => {
     signedIn();
     const unreadable = {

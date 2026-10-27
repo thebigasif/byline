@@ -343,6 +343,11 @@ export const en = {
       why: "Khalid needs a whole date and time to schedule the post.",
       fix: "Fill in the date and the time, or pick As soon as I press Publish.",
     },
+    noFile: {
+      what: "No CSV file is picked yet.",
+      why: "Khalid adds the redirects from a file, so there is nothing to add.",
+      fix: "Pick a CSV file under Add redirects from a CSV file, then press Add these redirects.",
+    },
     page: {
       what: "This screen stopped working.",
       why: "Something went wrong while showing it. Nothing you saved is lost.",
