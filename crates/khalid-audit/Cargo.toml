@@ -13,5 +13,8 @@ khalid-core = { path = "../khalid-core", version = "0.0.0" }
 scraper = "0.29"
 url = "2"
 
+[dev-dependencies]
+tokio.workspace = true
+
 [lints]
 workspace = true

@@ -10,11 +10,15 @@
 //! crawler does.
 
 mod answer;
+mod crawl;
 mod link;
 mod page;
 mod robots;
+mod visit;
 
 pub use answer::{Answer, Source, Unreached};
+pub use crawl::{Crawl, Limit, crawl};
 pub use link::{Alternate, Image, Link};
 pub use page::Page;
 pub use robots::Robots;
+pub use visit::{Outcome, Visit};
