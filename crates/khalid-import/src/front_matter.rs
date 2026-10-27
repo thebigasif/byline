@@ -32,6 +32,10 @@ impl FrontMatter {
     }
 
     /// Adds `key` as a list, when `values` holds any.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "aliases use it from task 6.1 part 5")
+    )]
     pub(crate) fn list(&mut self, key: &str, values: &[String]) -> &mut Self {
         if !values.is_empty() {
             self.yaml.push_str(key);

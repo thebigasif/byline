@@ -12,6 +12,7 @@ publish.workspace = true
 ammonia = "4"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-content = { path = "../khalid-content", version = "0.0.0" }
 htmd = "0.5"
 roxmltree = "0.20"
 serde.workspace = true
@@ -23,5 +24,4 @@ thiserror.workspace = true
 workspace = true
 
 [dev-dependencies]
-khalid-content = { path = "../khalid-content", version = "0.0.0" }
 proptest = "1"

@@ -3,10 +3,8 @@
 mod export;
 mod item;
 mod php;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the post files of task 6.1 part 4b use it")
-)]
+mod plan;
+mod post_file;
 mod post_slug;
 mod redirection;
 mod seo_meta;
@@ -17,6 +15,8 @@ mod wxr_error;
 
 pub use export::{Author, Export, Site, Term};
 pub use item::{Item, ItemKind, ItemStatus, Meta};
+pub use plan::{FailedItem, Held, ImportedItem, ItemError, Plan, PlannedFile, plan};
+pub use post_slug::SlugOrigin;
 pub use redirection::{
     MoveStatus, Redirection, RedirectionError, RedirectionRule, RuleSource, RuleTarget, SkipReason,
     SkippedRule, read_redirection,

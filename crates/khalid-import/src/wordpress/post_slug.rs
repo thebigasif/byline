@@ -16,7 +16,7 @@ pub(crate) struct PostSlug {
 
 /// How a post's slug relates to the one it had in `WordPress`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum SlugOrigin {
+pub enum SlugOrigin {
     /// The same slug, so the address keeps its last part.
     Kept,
     /// A new slug, because the old one breaks the site's slug rules, such as
