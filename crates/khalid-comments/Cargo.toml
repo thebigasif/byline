@@ -1,0 +1,17 @@
+[package]
+name = "khalid-comments"
+version = "0.0.0"
+description = "Readers' comments on posts: the form, spam checks, rate limits, moderation and threads."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
