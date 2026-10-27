@@ -11,7 +11,7 @@ fn depths(crawl: &Crawl) -> Vec<(&str, u32)> {
     crawl
         .visits()
         .iter()
-        .map(|visit| (visit.url().as_str(), visit.depth()))
+        .filter_map(|visit| Some((visit.url().as_str(), visit.depth()?)))
         .collect()
 }
 

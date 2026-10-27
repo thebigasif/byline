@@ -37,7 +37,7 @@ impl Outcome {
 #[derive(Debug, Clone)]
 pub struct Visit {
     url: AbsoluteUrl,
-    depth: u32,
+    depth: Option<u32>,
     outcome: Outcome,
     headers: Vec<(String, String)>,
     bytes: usize,
@@ -46,7 +46,7 @@ pub struct Visit {
 
 impl Visit {
     /// The visit to `url`, `depth` clicks from home, that got `answer`.
-    pub(crate) fn answered(url: AbsoluteUrl, depth: u32, answer: &Answer) -> Self {
+    pub(crate) fn answered(url: AbsoluteUrl, depth: Option<u32>, answer: &Answer) -> Self {
         let status = answer.status();
         let to = answer
             .header("location")
@@ -72,7 +72,7 @@ impl Visit {
     }
 
     /// The visit to `url` that got no answer.
-    pub(crate) fn unreached(url: AbsoluteUrl, depth: u32, why: Unreached) -> Self {
+    pub(crate) fn unreached(url: AbsoluteUrl, depth: Option<u32>, why: Unreached) -> Self {
         Self {
             url,
             depth,
@@ -88,8 +88,9 @@ impl Visit {
         &self.url
     }
 
-    /// How many clicks from the home page the crawl first found it.
-    pub fn depth(&self) -> u32 {
+    /// How many clicks from the home page the crawl first found it, or
+    /// `None` when only a sitemap leads to it.
+    pub fn depth(&self) -> Option<u32> {
         self.depth
     }
 

@@ -37,12 +37,8 @@ pub(crate) fn link_issues(crawl: &Crawl, issues: &mut Vec<Issue>) {
         }
         let Some(page) = visit.page() else { continue };
         targets(crawl, visit, page, issues);
-        if visit.depth() > MOST_CLICKS {
-            issues.push(Issue::new(
-                Check::TooDeep,
-                url,
-                format!("{} clicks", visit.depth()),
-            ));
+        if let Some(clicks) = visit.depth().filter(|clicks| *clicks > MOST_CLICKS) {
+            issues.push(Issue::new(Check::TooDeep, url, format!("{clicks} clicks")));
         }
         let from = inbound.get(url.as_str()).map_or(0, BTreeSet::len);
         if url != crawl.home() && from == 1 {

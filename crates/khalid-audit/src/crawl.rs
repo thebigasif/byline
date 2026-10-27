@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use khalid_core::AbsoluteUrl;
 use url::Url;
 
-use crate::{Outcome, Source, Visit};
+use crate::{Outcome, SiteFiles, Source, Visit};
 
 /// How far a crawl may go.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,9 +36,15 @@ pub struct Crawl {
     index: BTreeMap<String, usize>,
     outside: BTreeSet<AbsoluteUrl>,
     stopped_at_limit: bool,
+    files: SiteFiles,
 }
 
 impl Crawl {
+    /// The `robots.txt`, `llms.txt` and sitemaps read before the pages.
+    pub fn files(&self) -> &SiteFiles {
+        &self.files
+    }
+
     /// The home page the crawl started from.
     pub fn home(&self) -> &AbsoluteUrl {
         &self.home
@@ -73,7 +79,9 @@ impl Crawl {
 }
 
 /// Crawls the blog whose home page is `home`, asking `source` for every
-/// address inside it that a page links to or loads, until `limit`.
+/// address inside it that a page links to or loads, until `limit`. It
+/// reads `robots.txt`, `llms.txt` and the sitemaps first, and visits the
+/// pages only a sitemap lists after the pages links reach.
 pub async fn crawl<S: Source>(source: &S, home: &AbsoluteUrl, limit: Limit) -> Crawl {
     let mut found = Crawl {
         home: home.clone(),
@@ -81,10 +89,19 @@ pub async fn crawl<S: Source>(source: &S, home: &AbsoluteUrl, limit: Limit) -> C
         index: BTreeMap::new(),
         outside: BTreeSet::new(),
         stopped_at_limit: false,
+        files: SiteFiles::read(source, home).await,
     };
-    let mut queue = VecDeque::from([(home.clone(), 0)]);
+    let mut queue = VecDeque::from([(home.clone(), Some(0))]);
     let mut seen = BTreeSet::from([home.as_str().to_owned()]);
-    while let Some((url, depth)) = queue.pop_front() {
+    let mut listed: Vec<AbsoluteUrl> = found.files.listed().cloned().collect();
+    while let Some((url, depth)) = queue.pop_front().or_else(|| {
+        // Links reach no more pages: the ones only a sitemap lists are next.
+        let unseen = listed
+            .drain(..)
+            .filter(|url| inside(home, url) && seen.insert(url.as_str().to_owned()));
+        queue.extend(unseen.map(|url| (url, None)));
+        queue.pop_front()
+    }) {
         if found.visits.len() >= limit.pages {
             found.stopped_at_limit = true;
             break;
@@ -104,7 +121,7 @@ pub async fn crawl<S: Source>(source: &S, home: &AbsoluteUrl, limit: Limit) -> C
             let named = page.alternates().iter().map(crate::Alternate::to);
             let named = named.chain(page.canonical());
             for to in links.chain(page.resources()).chain(named) {
-                next.push((to.clone(), depth.saturating_add(1)));
+                next.push((to.clone(), depth.map(|clicks| clicks.saturating_add(1))));
             }
         }
         for (to, at) in next {

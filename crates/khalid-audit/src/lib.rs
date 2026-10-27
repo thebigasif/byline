@@ -21,6 +21,7 @@ mod link_checks;
 mod page;
 mod page_checks;
 mod robots;
+mod sitemap;
 mod thresholds;
 mod visit;
 
@@ -32,5 +33,6 @@ pub use issue::Issue;
 pub use link::{Alternate, Image, Link};
 pub use page::Page;
 pub use robots::Robots;
+pub use sitemap::{SiteFiles, Sitemap};
 pub use thresholds::Thresholds;
 pub use visit::{Outcome, Visit};
