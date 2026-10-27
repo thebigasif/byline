@@ -8,6 +8,7 @@ use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 use khalid_api::keys::{KeyId, Role, Scope};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
+use khalid_webhooks::Event;
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -100,11 +101,9 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: ThemeCommand,
     },
-    /// Bring in a blog from another platform
-    Import {
-        /// Where the blog comes from
-        source: ImportSource,
-    },
+    /// Bring in a blog from another platform, keeping every slug and
+    /// storing a redirect for each address that moves
+    Import(ImportArgs),
     /// Write the site as plain HTML to public/, for static mode
     Export,
     /// Speak the Model Context Protocol on stdin and stdout, for agents.
@@ -162,6 +161,35 @@ pub(crate) enum Command {
         /// What to do with the redirects
         #[command(subcommand)]
         command: RedirectsCommand,
+    },
+    /// Add, list and switch off the webhooks that tell other tools what happened
+    Webhooks {
+        /// What to do with the webhooks
+        #[command(subcommand)]
+        command: WebhooksCommand,
+    },
+}
+
+/// The webhook commands. Webhooks live in `data/site.db`; a running
+/// `khalid serve` sees a change at once.
+#[derive(Debug, Clone, Subcommand)]
+pub(crate) enum WebhooksCommand {
+    /// Send one event to one address, signed with a new secret shown once
+    Add {
+        /// The event to send, such as post.published or comment.added
+        #[arg(long, value_name = "EVENT", value_parser = |text: &str| text.parse::<Event>())]
+        event: Event,
+        /// Where to send it: a full http or https address
+        #[arg(long, value_name = "URL")]
+        url: String,
+    },
+    /// Show every webhook that is on, without its secret
+    List,
+    /// Switch a webhook off. Its past deliveries stay in the log
+    Remove {
+        /// The webhook's identity, as list shows it
+        #[arg(value_name = "ID")]
+        id: i64,
     },
 }
 
@@ -366,6 +394,44 @@ pub(crate) enum ThemeCommand {
     },
 }
 
+/// What `khalid import` takes.
+#[derive(Debug, Args)]
+pub(crate) struct ImportArgs {
+    /// Where the blog comes from
+    pub(crate) source: ImportSource,
+
+    #[arg(
+        value_name = "EXPORT",
+        help = "The export: a WordPress or Ghost file, a WordPress site's address for its published posts, the unpacked Medium or Substack folder, or a folder of markdown"
+    )]
+    pub(crate) export: PathBuf,
+
+    /// Say what would come in and what would stay behind, and write nothing
+    #[arg(long = "dry-run", action = ArgAction::SetTrue, value_parser = BoolValueParser::new().map(|dry| if dry { Run::Dry } else { Run::Write }))]
+    pub(crate) run: Run,
+
+    #[arg(
+        long,
+        value_name = "URL",
+        help = "Where the blog lived, for Ghost, Substack and markdown, such as https://rye.substack.com [default: the address in site.toml]"
+    )]
+    pub(crate) old_site: Option<AbsoluteUrl>,
+
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "The Redirection plugin's JSON export, whose rules come in with a WordPress export"
+    )]
+    pub(crate) redirection: Option<PathBuf>,
+}
+
+/// Whether `khalid import` writes, or only says what it would write.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Run {
+    Dry,
+    Write,
+}
+
 /// The platforms `khalid import` reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub(crate) enum ImportSource {
@@ -416,7 +482,7 @@ impl Command {
             Self::Theme {
                 command: ThemeCommand::Check { .. },
             } => "theme check",
-            Self::Import { .. } => "import",
+            Self::Import(_) => "import",
             Self::Export => "export",
             Self::Mcp => "mcp",
             Self::Agents => "agents",
@@ -449,6 +515,15 @@ impl Command {
             Self::Redirects {
                 command: RedirectsCommand::Explain { .. },
             } => "redirects explain",
+            Self::Webhooks {
+                command: WebhooksCommand::Add { .. },
+            } => "webhooks add",
+            Self::Webhooks {
+                command: WebhooksCommand::List,
+            } => "webhooks list",
+            Self::Webhooks {
+                command: WebhooksCommand::Remove { .. },
+            } => "webhooks remove",
         }
     }
 }

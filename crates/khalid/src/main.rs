@@ -37,6 +37,8 @@ mod doctor_folder;
 mod doctor_robots;
 mod exit;
 mod https_message;
+mod import;
+mod import_rest;
 mod index;
 mod init;
 mod init_message;
@@ -104,6 +106,7 @@ mod theme_message;
 mod theme_preview;
 mod theme_sync;
 mod unlock;
+mod webhooks;
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -206,9 +209,13 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Theme { command }), Some((folder, config, ..))) => {
             theme(folder, config, command, cli)
         }
+        (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
+            import::run(folder, (config, routes), args, cli)
+        }
         (
             Some(
                 command @ (Command::Db { .. }
+                | Command::Import(_)
                 | Command::Theme { .. }
                 | Command::Serve(_)
                 | Command::Keys { .. }
@@ -253,8 +260,9 @@ fn access(folder: &Path, config: &Config, command: &Command, output: Output) -> 
 /// Runs the commands that do not start from a checked site: `init`, which
 /// makes the site, `agents`, which needs none, and `doctor`, which checks
 /// the settings, routes and content itself so it can list every problem
-/// instead of stopping at the first, and `redirects`, which needs only the
-/// settings and the database. Returns `None` for every other command.
+/// instead of stopping at the first, `redirects`, which needs only the
+/// settings and the database, and `webhooks`, which needs only the
+/// database. Returns `None` for every other command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -272,6 +280,10 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
         }),
         Some(asked @ Command::Redirects { command }) => Some(match cli.site.as_deref() {
             Some(folder) => redirects::run(folder, command, cli.output),
+            None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
+        }),
+        Some(asked @ Command::Webhooks { command }) => Some(match cli.site.as_deref() {
+            Some(folder) => webhooks::run(folder, command, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
         }),
         _ => None,
