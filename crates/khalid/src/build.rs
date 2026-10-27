@@ -17,6 +17,7 @@ use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
+use crate::post_files::Assets;
 use crate::{
     assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
     content_message, lint, lint_message, post_files, post_images, report,
@@ -89,7 +90,7 @@ fn build(
     // The checked content keeps no assets, so the tree is read again for
     // them. A headless site gets them too: its feeds point at them.
     let tree = ContentTree::walk(site).map_err(|error| content_message::of(site, &error))?;
-    let beside = post_files::attach(&tree, &mut languages);
+    let beside = post_files::attach(&Assets::of(&tree), &mut languages);
     for file in &beside {
         copy(&post_files::on_disk(site, file)?, out, &file.file)?;
     }

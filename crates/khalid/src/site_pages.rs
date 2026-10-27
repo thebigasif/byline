@@ -18,6 +18,7 @@ use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
 use crate::build_pages::LanguagePages;
 use crate::content_feed::ContentFeed;
 use crate::listed_post::ListedPost;
+use crate::post_files::Assets;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::{
@@ -44,10 +45,10 @@ struct Site {
     /// What the last full render read of the site, so a saved post's page
     /// can be rendered alone.
     outline: Mutex<Outline>,
-    /// The content files the last full render listed, so a saved post's
-    /// page finds the files beside it without listing the folder again.
+    /// The files beside folder posts as the last full render found them, so
+    /// a saved post's page finds them without listing the folder again.
     /// `None` before the first full render.
-    tree: Mutex<Option<ContentTree>>,
+    assets: Mutex<Option<Assets>>,
 }
 
 /// What a saved post's page needs from the rest of the site, in a fraction
@@ -106,7 +107,7 @@ impl SitePages {
             theme,
             feed,
             outline: Mutex::default(),
-            tree: Mutex::default(),
+            assets: Mutex::default(),
         })))
     }
 
@@ -124,44 +125,31 @@ impl SitePages {
             routes,
             ..
         } = &*self.0;
-        let tree = self.tree()?;
-        let content = read_content(&tree)
-            .and_then(|content| check_bodies(&content, config, routes).map(|()| content))
+        let (content, assets) = ContentTree::walk(folder)
+            .and_then(|tree| Ok((read_content(&tree)?, Assets::of(&tree))))
+            .and_then(|read| check_bodies(&read.0, config, routes).map(|()| read))
             .map_err(|error| content_message::of(folder, &error))?;
-        self.render_from(&tree, &content)
+        self.render_content(&content, assets)
     }
 
     /// Every page made from `content`, already read from the site folder,
-    /// with the site's files, the not-found page and the moved addresses,
-    /// then hands the feed its catalog when there is one. At start, `khalid
-    /// serve` passes the content it checked, so the posts are read once, not
-    /// twice. The folder is only listed again, for the files beside folder
-    /// posts. `content` must have passed `check_bodies`.
-    pub(crate) fn render_content(&self, content: &SiteContent) -> Result<Served, UserMessage> {
-        self.render_from(&self.tree()?, content)
-    }
-
-    /// The list of the site's content files, as found on disk now.
-    fn tree(&self) -> Result<ContentTree, UserMessage> {
-        let folder = &self.0.folder;
-        ContentTree::walk(folder).map_err(|error| content_message::of(folder, &error))
-    }
-
-    /// Every page made from `content`, with the files `tree` holds beside
-    /// folder posts, the site's files, the not-found page and the moved
-    /// addresses. Only a full render hands the feed its catalog, so the
-    /// Content API never sees part of the site.
-    fn render_from(
+    /// with the files `assets` lists beside folder posts, the site's files,
+    /// the not-found page and the moved addresses, then hands the feed its
+    /// catalog when there is one. At start, `khalid serve` passes what it
+    /// checked, so the folder is read once, not twice. `content` must have
+    /// passed `check_bodies`. Only a full render hands the feed its
+    /// catalog, so the Content API never sees part of the site.
+    pub(crate) fn render_content(
         &self,
-        tree: &ContentTree,
         content: &SiteContent,
+        assets: Assets,
     ) -> Result<Served, UserMessage> {
         let Site {
             folder,
             config,
             feed,
             outline,
-            tree: files,
+            assets: kept,
             ..
         } = &*self.0;
         // The catalog holds no post body, so it is quick to make here, and
@@ -170,19 +158,19 @@ impl SitePages {
             Some(_) => Some(Catalog::of(folder, config, content)?),
             None => None,
         };
-        let (rendered, listed) = self.render_of(tree, (content, &[]), Which::All)?;
+        let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All)?;
         *outline.lock().unwrap_or_else(PoisonError::into_inner) = Outline {
             content: outline_of(content),
             listed,
         };
-        *files.lock().unwrap_or_else(PoisonError::into_inner) = Some(tree.clone());
+        *kept.lock().unwrap_or_else(PoisonError::into_inner) = Some(assets);
         if let (Some(feed), Some(catalog)) = (feed, catalog) {
             feed.send(catalog);
         }
         Ok(rendered)
     }
 
-    /// The `which` pages made from `content`, with the files `tree` holds
+    /// The `which` pages made from `content`, with the files `assets` lists
     /// beside folder posts, the site's files, the moved addresses and the
     /// not-found page of the default language when `which` is
     /// [`Which::All`], and the dated posts of `content` as lists show them.
@@ -192,7 +180,7 @@ impl SitePages {
     /// writes none.
     fn render_of(
         &self,
-        tree: &ContentTree,
+        assets: &Assets,
         (content, others): (&SiteContent, &[ListedPost]),
         which: Which,
     ) -> Result<(Served, Vec<ListedPost>), UserMessage> {
@@ -207,7 +195,7 @@ impl SitePages {
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
         let mut languages = build_pages::pages(config, routes, (content, others), href)?;
-        let beside = files(folder, config, tree, &mut languages)?;
+        let beside = files(folder, config, assets, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
         let mut served = Served {
@@ -320,16 +308,16 @@ fn without_body<F: Clone>(doc: &Document<F>) -> Document<F> {
     doc
 }
 
-/// The files beside folder posts in `tree`, each at its page's address,
+/// The files beside folder posts in `assets`, each at its page's address,
 /// and the sizes of their images, which never change under their names.
 fn files(
     folder: &Path,
     config: &Config,
-    tree: &ContentTree,
+    assets: &Assets,
     languages: &mut [LanguagePages],
 ) -> Result<Vec<Page>, UserMessage> {
     let address = |text: &str| PagePath::try_new(text).map_err(|_| build_message::address(text));
-    let beside = post_files::attach(tree, languages);
+    let beside = post_files::attach(assets, languages);
     let mut pages = Vec::with_capacity(beside.len());
     for file in &beside {
         let kind = MediaType::for_file(&file.address);
@@ -392,17 +380,17 @@ impl Render for SitePages {
     /// when nothing else can reach the page (see `saved_posts`), so it is
     /// the page the full render will make.
     fn render_saved(&self, files: &[PathBuf]) -> Result<Option<Vec<Page>>, Unrendered> {
-        let listed = self
+        let kept = self
             .0
-            .tree
+            .assets
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone();
-        let (Some(tree), Some((saved, others))) = (listed, self.saved_posts(files)) else {
+        let (Some(assets), Some((saved, others))) = (kept, self.saved_posts(files)) else {
             return Ok(None);
         };
         let (served, _) = self
-            .render_of(&tree, (&saved, &others), Which::Posts)
+            .render_of(&assets, (&saved, &others), Which::Posts)
             .map_err(Unrendered)?;
         Ok(Some(served.pages))
     }
@@ -428,7 +416,7 @@ mod tests {
     use khalid_core::{Config, Environment};
     use khalid_routes::Routes;
 
-    use super::{ContentTree, Render, SitePages, read_content};
+    use super::{Assets, ContentTree, Render, SitePages, read_content};
 
     fn fixture(name: &str) -> PathBuf {
         let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
@@ -466,9 +454,13 @@ mod tests {
     #[test]
     fn the_checked_content_renders_the_same_pages_as_the_folder() {
         let demo = fixture("demo-site");
-        let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
+        let tree = ContentTree::walk(&demo).unwrap();
+        let content = read_content(&tree).unwrap();
+        let assets = Assets::of(&tree);
+        assert_ne!(assets, Assets::default(), "the demo has a folder post");
+        drop(tree);
         let source = pages(&demo);
-        let given = source.render_content(&content).unwrap();
+        let given = source.render_content(&content, assets).unwrap();
         let read = source.render_all().unwrap();
         assert!(given.pages.len() > 10, "{} pages", given.pages.len());
         assert_eq!(given.pages, read.pages);

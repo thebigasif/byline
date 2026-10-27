@@ -22,6 +22,7 @@ use tokio::runtime::Runtime;
 use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
+use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
@@ -45,14 +46,15 @@ struct ServeBody<'a> {
 /// checked, on `listen`. The database opens first and closes last, after
 /// every request and the watch have stopped.
 ///
-/// `start` holds the checked content and a look at the folder taken before
-/// it was read. The first pages are rendered from that content, which is
-/// then dropped, so the folder is read once at start and a file saved from
-/// the look on is always seen as an edit.
+/// `start` holds the checked content, the files beside its folder posts,
+/// and a look at the folder taken before it was read. The first pages are
+/// rendered from that content, which is then dropped, so the folder is read
+/// once at start and a file saved from the look on is always seen as an
+/// edit.
 pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
-    start: (SiteContent, FolderLook),
+    start: (SiteContent, Assets, FolderLook),
     listen: SocketAddr,
     output: Output,
 ) -> Exit {
@@ -85,7 +87,7 @@ pub(crate) fn run(
 /// `listen` until told to stop.
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
-    (checked, look): (SiteContent, FolderLook),
+    (checked, assets, look): (SiteContent, Assets, FolderLook),
     (listen, output): (SocketAddr, Output),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
@@ -101,7 +103,7 @@ fn serve_with(
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     let (source, pages) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
         .and_then(|source| {
-            let served = source.render_content(&checked)?;
+            let served = source.render_content(&checked, assets)?;
             drop(checked);
             // Brotli copies are added once the server listens, so the first
             // reader does not wait for them (docs/standards/performance.md).

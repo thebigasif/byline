@@ -33,18 +33,30 @@ pub(crate) struct PostFile {
     pub(crate) address: String,
 }
 
-/// Every file beside the content file of a page in `languages`, as `tree`
-/// lists them, in page order. Each such page's body, and the copy the
-/// feeds read, point their relative images at those files.
-pub(crate) fn attach(tree: &ContentTree, languages: &mut [LanguagePages]) -> Vec<PostFile> {
-    let assets: BTreeMap<&Path, &[PathBuf]> = tree
-        .languages()
-        .iter()
-        .flat_map(Language::collections)
-        .flat_map(Collection::entries)
-        .filter(|entry| !entry.assets().is_empty())
-        .map(|entry| (entry.path(), entry.assets()))
-        .collect();
+/// The files beside each folder entry of a site, by the entry's content
+/// file, as a walk of the content found them: what [`attach`] needs of a
+/// [`ContentTree`], without the text of every file it read.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Assets(BTreeMap<PathBuf, Vec<PathBuf>>);
+
+impl Assets {
+    /// The files beside each folder entry of `tree`.
+    pub(crate) fn of(tree: &ContentTree) -> Self {
+        let entries = tree
+            .languages()
+            .iter()
+            .flat_map(Language::collections)
+            .flat_map(Collection::entries)
+            .filter(|entry| !entry.assets().is_empty())
+            .map(|entry| (entry.path().to_path_buf(), entry.assets().to_vec()));
+        Self(entries.collect())
+    }
+}
+
+/// Every file beside the content file of a page in `languages`, as
+/// `assets` lists them, in page order. Each such page's body, and the copy
+/// the feeds read, point their relative images at those files.
+pub(crate) fn attach(assets: &Assets, languages: &mut [LanguagePages]) -> Vec<PostFile> {
     let mut files = Vec::new();
     for page in languages
         .iter_mut()
@@ -53,7 +65,7 @@ pub(crate) fn attach(tree: &ContentTree, languages: &mut [LanguagePages]) -> Vec
         let Some((source, found)) = page
             .source
             .as_deref()
-            .and_then(|source| assets.get_key_value(source))
+            .and_then(|source| assets.0.get_key_value(source))
         else {
             continue;
         };
