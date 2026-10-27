@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use khalid_core::{AbsoluteUrl, Locale};
 use serde::Deserialize;
 
+use crate::pages::PageWords;
 use crate::{EmailAddress, Mail, SubscriberToken};
 
 /// The language whose words fill in for a language with no file.
@@ -17,22 +18,24 @@ const FILES: [(&str, &str); 2] = [
     ("de", include_str!("../strings/de.toml")),
 ];
 
-/// One language's words for the confirmation email. `{site}`, `{confirm}`
-/// and `{remove}` stand for the site's name and the two links.
+/// One language's words: the confirmation email, where `{site}`,
+/// `{confirm}` and `{remove}` stand for the site's name and the two links,
+/// and the pages.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Words {
     confirm_subject: String,
     confirm_text: String,
+    page: PageWords,
 }
 
-/// The words of every built-in language.
+/// The words of the emails and pages in every built-in language.
 #[derive(Debug, Clone)]
-pub struct MailWords {
+pub struct NewsletterWords {
     words: BTreeMap<&'static str, Words>,
 }
 
-impl MailWords {
+impl NewsletterWords {
     /// Reads every built-in words file.
     ///
     /// # Errors
@@ -61,10 +64,7 @@ impl MailWords {
         to: EmailAddress,
         links: ConfirmationLinks<'_>,
     ) -> Mail {
-        let words = self
-            .words
-            .get(locale.language())
-            .or_else(|| self.words.get(FALLBACK_LANGUAGE));
+        let words = self.of(locale);
         let fill = |text: &str| {
             text.replace("{confirm}", &links.confirm())
                 .replace("{remove}", &links.remove())
@@ -75,6 +75,18 @@ impl MailWords {
         });
         Mail::new(to, subject, text)
     }
+
+    /// The words of the pages in `locale`, or in English when the language
+    /// has no file.
+    pub(crate) fn page(&self, locale: &Locale) -> Option<&PageWords> {
+        self.of(locale).map(|words| &words.page)
+    }
+
+    fn of(&self, locale: &Locale) -> Option<&Words> {
+        self.words
+            .get(locale.language())
+            .or_else(|| self.words.get(FALLBACK_LANGUAGE))
+    }
 }
 
 /// Where the site's newsletter pages answer: the site's address with its
@@ -82,6 +94,7 @@ impl MailWords {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SiteLinks {
     base: String,
+    mount: String,
 }
 
 impl SiteLinks {
@@ -90,7 +103,15 @@ impl SiteLinks {
     pub fn new(address: &AbsoluteUrl, mount: &str) -> Self {
         let mut base = address.as_str().trim_end_matches('/').to_owned();
         base.push_str(mount);
-        Self { base }
+        Self {
+            base,
+            mount: mount.to_owned(),
+        }
+    }
+
+    /// The mount path alone, such as `/blog/`, for links between the pages.
+    pub fn mount(&self) -> &str {
+        &self.mount
     }
 
     /// The page a confirmation link opens, with `token`.

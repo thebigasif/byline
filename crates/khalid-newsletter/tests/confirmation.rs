@@ -4,7 +4,7 @@
 
 use khalid_core::{AbsoluteUrl, Locale};
 use khalid_newsletter::{
-    ConfirmationLinks, EmailAddress, Mail, MailWords, Mailer, MemoryMailer, SiteLinks,
+    ConfirmationLinks, EmailAddress, Mail, Mailer, MemoryMailer, NewsletterWords, SiteLinks,
     SubscriberToken,
 };
 
@@ -28,7 +28,7 @@ fn mail(language: &str) -> (Mail, SubscriberToken, SubscriberToken) {
         remove: &remove,
     };
     let locale: Locale = language.parse().unwrap();
-    let mail = MailWords::load()
+    let mail = NewsletterWords::load()
         .unwrap()
         .confirmation(&locale, "Field Notes", to, links);
     (mail, confirm, remove)

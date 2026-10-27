@@ -11,3 +11,32 @@ To say yes, open this link within two days:
 Not you? Ignore this email and nothing more is sent. To remove this address now, open this link:
 {remove}
 """
+
+# The pages a reader sees after the form and the links. Titles say what
+# happened; texts say why it matters or what to do, in one sentence.
+[page]
+back = "Back to {site}"
+email_label = "Your email address"
+sign_up_button = "Sign up"
+check_title = "Check your inbox"
+check_text = "If this address can get our emails, a message with a link is on its way, so open it within two days to confirm."
+wrong_email_title = "This email address does not work"
+wrong_email_text = "An address needs one @ and a domain, like name@example.com, so type it again below."
+confirm_title = "Confirm your email"
+confirm_text = "One more click and you get {site} by email."
+confirm_button = "Yes, send it to me"
+confirmed_title = "You are subscribed"
+confirmed_text = "Every email from {site} has a link to unsubscribe in one click."
+expired_title = "This link is too old"
+expired_text = "Links work for two days, so sign up again below and use the new link."
+unknown_title = "This link does not work"
+unknown_text = "It may be cut short or used up, so copy the whole link from the email or sign up again."
+leave_title = "Unsubscribe from {site}"
+leave_text = "After this click you get no more emails from {site}."
+leave_button = "Unsubscribe"
+left_title = "You are unsubscribed"
+left_text = "You get no more emails from {site}, and you can sign up again at any time."
+closed_title = "Signing up is not open yet"
+closed_text = "This site cannot send email yet, so nothing was saved; try again another day."
+failed_title = "Something went wrong"
+failed_text = "Nothing was sent, so try again in ten minutes."

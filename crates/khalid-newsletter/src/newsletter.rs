@@ -6,9 +6,9 @@ use std::sync::Arc;
 use khalid_core::{Clock, Locale, Slug};
 
 use crate::{
-    ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, MailError, MailWords, Mailer,
-    SignUp, SignedUp, SiteLinks, StoreError, SubscriberStore, SubscriberToken, Unsubscribed,
-    WordsError,
+    ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, MailError, Mailer,
+    NewsletterWords, SignUp, SignedUp, SiteLinks, StoreError, SubscriberStore, SubscriberToken,
+    Unsubscribed, WordsError,
 };
 
 /// The site the emails come from: its name, its language and where its
@@ -30,7 +30,7 @@ pub struct Newsletter {
     store: Arc<dyn SubscriberStore>,
     mailer: Arc<dyn Mailer>,
     clock: Arc<dyn Clock>,
-    site: Arc<(NewsletterSite, MailWords)>,
+    site: Arc<(NewsletterSite, NewsletterWords)>,
 }
 
 impl Newsletter {
@@ -47,7 +47,7 @@ impl Newsletter {
         clock: Arc<dyn Clock>,
         site: NewsletterSite,
     ) -> Result<Self, WordsError> {
-        let words = MailWords::load()?;
+        let words = NewsletterWords::load()?;
         Ok(Self {
             store,
             mailer,
