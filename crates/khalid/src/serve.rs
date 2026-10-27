@@ -27,7 +27,7 @@ use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{db, db_message, report, serve_message};
+use crate::{db, db_message, report, serve_message, staff};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -130,7 +130,11 @@ fn serve_with(
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         let posts = SitePosts::new(site, config.clone(), SystemClock);
-        let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
+        let accounts = staff::accounts(database, id, config);
+        let staff = khalid_auth::staff_routes(accounts.clone());
+        let (content, keys) = (Arc::new(content), Arc::new(keys));
+        let accounts = Arc::new(accounts);
+        let (api, _) = api::router_with_staff(content, Arc::new(posts), keys, staff, accounts);
         let app = api.merge(router(live, security));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));

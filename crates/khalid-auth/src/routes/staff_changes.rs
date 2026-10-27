@@ -41,13 +41,13 @@ pub(super) struct RoleChange {
 pub(super) async fn change_role(
     State(accounts): State<Accounts>,
     Extension(principal): Extension<Principal>,
-    Path(id): Path<i64>,
+    Path(id): Path<String>,
     body: Result<Json<RoleChange>, JsonRejection>,
 ) -> Result<Json<StaffList>, Problem> {
     let fix = "Send JSON with role, one of admin, editor, writer or contributor.";
     let Json(body) = body.map_err(|_| invalid(fix))?;
     let role: Role = body.role.parse().map_err(|_| invalid(fix))?;
-    let target = found(&accounts, id).await?;
+    let target = found(&accounts, &id).await?;
     if !acting_role(&principal).is_some_and(|actor| may_assign(actor, target.role(), role)) {
         return Err(forbidden(
             "This role cannot make that change to that account.",
@@ -58,7 +58,7 @@ pub(super) async fn change_role(
         .set_role(target.id(), role)
         .await
         .map_err(|error| Problem::internal(&error))?;
-    let changed = found(&accounts, id).await?;
+    let changed = found(&accounts, &id).await?;
     Ok(Json(StaffList::of(&changed)))
 }
 
@@ -77,9 +77,9 @@ pub(super) async fn change_role(
 pub(super) async fn remove_staff(
     State(accounts): State<Accounts>,
     Extension(principal): Extension<Principal>,
-    Path(id): Path<i64>,
+    Path(id): Path<String>,
 ) -> Result<StatusCode, Problem> {
-    let target = found(&accounts, id).await?;
+    let target = found(&accounts, &id).await?;
     if !acting_role(&principal).is_some_and(|actor| may_manage(actor, target.role())) {
         return Err(forbidden("This role cannot remove that account."));
     }
@@ -107,7 +107,7 @@ pub(super) async fn remove_staff(
 pub(super) async fn transfer(
     State(accounts): State<Accounts>,
     headers: HeaderMap,
-    Path(id): Path<i64>,
+    Path(id): Path<String>,
 ) -> Response {
     let owner = match cookie_token(&headers) {
         Some(token) => accounts.session(&token).await,
@@ -119,8 +119,11 @@ pub(super) async fn transfer(
         Err(error) => return problem(&error),
     };
     let store = accounts.store();
-    match store.transfer(owner.id(), AccountId::from_row(id)).await {
-        Ok(true) => match found(&accounts, id).await {
+    let Ok(row) = id.parse::<i64>() else {
+        return missing().into_response();
+    };
+    match store.transfer(owner.id(), AccountId::from_row(row)).await {
+        Ok(true) => match found(&accounts, &id).await {
             Ok(new) => Json(StaffList::of(&new)).into_response(),
             Err(missing) => missing.into_response(),
         },
@@ -131,8 +134,9 @@ pub(super) async fn transfer(
 
 const ONLY_OWNER: &str = "Only the owner, signed in, may hand the site to someone else.";
 
-/// The account numbered `id`, or a 404.
-async fn found(accounts: &Accounts, id: i64) -> Result<Account, Problem> {
+/// The account numbered `id`, or a 404, also for text that is not a number.
+async fn found(accounts: &Accounts, id: &str) -> Result<Account, Problem> {
+    let id: i64 = id.parse().map_err(|_| missing())?;
     let account = accounts.store().find(AccountId::from_row(id)).await;
     account
         .map_err(|error| Problem::internal(&error))?

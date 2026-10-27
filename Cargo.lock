@@ -1937,6 +1937,7 @@ dependencies = [
  "image",
  "insta",
  "khalid-api",
+ "khalid-auth",
  "khalid-content",
  "khalid-core",
  "khalid-db",

@@ -272,6 +272,20 @@ fn a_counter_that_stays_at_zero_is_a_synced_passkey_and_allowed() {
     assert_eq!(sign_in(&mut soft, &key, 0), Ok(0));
 }
 
+#[test]
+fn a_site_under_a_folder_has_the_origin_of_its_whole_host() {
+    let party = |text| RelyingParty::for_address(&khalid_core::AbsoluteUrl::parse(text).unwrap());
+    let want = |id: &str, origin: &str| RelyingParty::new(id.to_owned(), origin.to_owned());
+    assert_eq!(
+        party("https://example.com/blog/"),
+        want("example.com", "https://example.com")
+    );
+    assert_eq!(
+        party("http://localhost:4000/"),
+        want("localhost", "http://localhost:4000")
+    );
+}
+
 /// A clock the test moves by hand.
 #[derive(Debug)]
 struct Hands(Mutex<DateTime<Utc>>);

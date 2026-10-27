@@ -7,6 +7,7 @@ mod public_key;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ciborium::Value;
+use khalid_core::AbsoluteUrl;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
@@ -30,6 +31,22 @@ impl RelyingParty {
     #[must_use]
     pub fn new(id: String, origin: String) -> Self {
         Self { id, origin }
+    }
+
+    /// The relying party for the site at `address`, the address in
+    /// `site.toml`: its host name, and its scheme, host and port as the
+    /// origin. A blog under a folder, such as `/blog/`, has the origin of
+    /// the whole host, as browsers do.
+    #[must_use]
+    pub fn for_address(address: &AbsoluteUrl) -> Self {
+        let text = address.as_str();
+        let after_scheme = text.find("://").map_or(0, |at| at + 3);
+        let end = text
+            .get(after_scheme..)
+            .and_then(|rest| rest.find('/'))
+            .map_or(text.len(), |at| after_scheme + at);
+        let origin = text.get(..end).unwrap_or(text).to_owned();
+        Self::new(address.host().to_owned(), origin)
     }
 
     /// The host name, which the browser checks passkeys against.
