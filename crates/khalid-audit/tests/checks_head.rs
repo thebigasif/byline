@@ -80,6 +80,15 @@ async fn a_canonical_elsewhere_is_named_and_one_to_itself_is_not() {
 }
 
 #[tokio::test]
+async fn a_page_kept_out_of_search_needs_no_description() {
+    let head = r#"<title>Search</title><meta name="robots" content="noindex">"#;
+    assert_eq!(
+        issues(head, "<h1>Search</h1>").await,
+        [(Check::Noindex, String::new())]
+    );
+}
+
+#[tokio::test]
 async fn a_missing_title_description_and_heading_are_each_named() {
     assert_eq!(
         issues("<title> </title>", "<h1></h1>").await,

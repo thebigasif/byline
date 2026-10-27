@@ -19,7 +19,7 @@ pub(crate) fn page_issues(crawl: &Crawl, thresholds: Thresholds, issues: &mut Ve
                 issues: &mut *issues,
             };
             indexing(visit, page, &mut found);
-            head(page, &mut found);
+            head(page, robots(visit, page), &mut found);
             body_issues(crawl, (visit, page), thresholds, &mut found);
         }
     }
@@ -60,8 +60,11 @@ fn indexing(visit: &Visit, page: &Page, found: &mut Found<'_>) {
     }
 }
 
-/// The title, the description, the main heading and the language.
-fn head(page: &Page, found: &mut Found<'_>) {
+/// The title, the description, the main heading and the language. A page
+/// `robots` keeps out of search results shows no snippet, so its
+/// description is not checked, as Ahrefs checks indexable pages only.
+fn head(page: &Page, robots: Robots, found: &mut Found<'_>) {
+    let snippet = !robots.noindex();
     let texts = [
         (page.titles(), Check::TitleMissing, Check::TitleMultiple),
         (
@@ -76,6 +79,9 @@ fn head(page: &Page, found: &mut Found<'_>) {
         ),
     ];
     for (texts, missing, multiple) in texts {
+        if missing == Check::DescriptionMissing && !snippet {
+            continue;
+        }
         if texts.iter().all(|text| text.trim().is_empty()) {
             found.add(missing, "");
         } else if texts.len() > 1 {
@@ -92,7 +98,7 @@ fn head(page: &Page, found: &mut Found<'_>) {
     ];
     for (texts, most, check) in longest {
         let length = texts.first().map_or(0, |text| text.chars().count());
-        if length > most {
+        if length > most && (snippet || check != Check::DescriptionTooLong) {
             found.add(check, format!("{length} characters"));
         }
     }
