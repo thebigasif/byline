@@ -2,7 +2,11 @@
 
 use serde::Deserialize;
 
-use crate::{AbsoluteUrl, IndexNowKey, Indexing};
+use crate::{
+    AbsoluteUrl, CrawlerSettings, FeedSettings, IndexNowKey, Indexing, LinkSettings,
+    LocationSettings, PublisherSettings, SchemaTemplateSettings, SocialSettings, TitleSettings,
+    VerificationSettings,
+};
 
 /// The SEO settings. Every one has a default, so the table may be left out:
 ///
@@ -23,6 +27,24 @@ pub struct SeoSettings {
     /// Where changed pages are sent, from `[seo.indexnow]`. `None`, the
     /// default, sends nothing.
     pub indexnow: Option<IndexNowSettings>,
+    /// Title and description templates, from `[seo.titles]`.
+    pub titles: TitleSettings,
+    /// The Twitter account and default share image, from `[seo.social]`.
+    pub social: SocialSettings,
+    /// Verification codes and files, from `[seo.verification]`.
+    pub verification: VerificationSettings,
+    /// Which crawlers may read which paths, from `[seo.crawlers]`.
+    pub crawlers: CrawlerSettings,
+    /// What every feed carries, from `[seo.feeds]`.
+    pub feeds: FeedSettings,
+    /// The `rel` and `target` links get, from `[seo.links]`.
+    pub links: LinkSettings,
+    /// Who publishes the site, from `[seo.publisher]`.
+    pub publisher: PublisherSettings,
+    /// The site's shops, offices or clinics, from `[[seo.locations]]`.
+    pub locations: Vec<LocationSettings>,
+    /// Schema nodes per category or collection, from `[[seo.schema]]`.
+    pub schema: Vec<SchemaTemplateSettings>,
 }
 
 /// `IndexNow`, switched on by its table in `site.toml`.

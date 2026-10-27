@@ -21,6 +21,8 @@ mod post_access;
 mod reader;
 mod robots;
 mod secret;
+mod seo_head_settings;
+mod seo_publisher_settings;
 mod seo_settings;
 mod site_path;
 mod slug;
@@ -46,6 +48,14 @@ pub use robots::{
     RobotsDirectives,
 };
 pub use secret::Secret;
+pub use seo_head_settings::{
+    CrawlerSettings, FeedContentSetting, FeedSettings, ImageSettings, LinkRelSetting, LinkSettings,
+    LinkTargetSetting, SocialSettings, TemplateSettings, TitleSettings, VerificationSettings,
+};
+pub use seo_publisher_settings::{
+    HoursSettings, LocationSettings, PublisherSettings, PublisherType, SchemaTemplateSettings,
+    WeekdaySetting,
+};
 pub use seo_settings::{ArchiveIndex, IndexNowSettings, SeoSettings};
 pub use site_path::{SitePath, SitePathError};
 pub use slug::{ParseSlugError, Slug};
