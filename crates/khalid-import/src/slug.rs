@@ -1,6 +1,8 @@
-//! A Khalid slug from a `WordPress` slug, kept whenever Khalid's rules allow.
+//! A Khalid slug from the slug another system gave a post, kept whenever
+//! Khalid's rules allow.
 
 use std::borrow::Cow;
+use std::fmt::Display;
 
 use khalid_core::{Locale, ParseSlugError, Slug, SlugMode};
 use percent_encoding::percent_decode_str;
@@ -14,7 +16,7 @@ pub(crate) struct PostSlug {
     pub(crate) origin: SlugOrigin,
 }
 
-/// How a post's slug relates to the one it had in `WordPress`.
+/// How a post's slug relates to the one it had before.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SlugOrigin {
     /// The same slug, so the address keeps its last part.
@@ -29,15 +31,16 @@ pub enum SlugOrigin {
     Made,
 }
 
-/// The slug for an item whose `WordPress` slug is `name`, with `title` and
+/// The slug for an item whose old slug is `name`, with `title` and
 /// `id` to fall back on, on a site written in `locale` with slugs in `mode`.
 ///
-/// The error is the one `post-<id>` would give as a slug, which never
-/// happens; it is returned rather than assumed away.
+/// The error is the one `post-<id>` would give as a slug, which does not
+/// happen for the numbers and hex ids exports use; it is returned rather
+/// than assumed away.
 pub(crate) fn post_slug(
     name: &str,
     title: &str,
-    id: u64,
+    id: impl Display,
     locale: &Locale,
     mode: SlugMode,
 ) -> Result<PostSlug, ParseSlugError> {

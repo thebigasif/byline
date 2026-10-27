@@ -10,4 +10,11 @@
 
 mod front_matter;
 mod markdown;
+mod redirects;
+mod slug;
 pub mod wordpress;
+mod write;
+
+pub use redirects::{MapTarget, Matching, MoveStatus};
+pub use slug::SlugOrigin;
+pub use write::{PlannedFile, WriteError};

@@ -5,7 +5,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use khalid_core::{Config, Environment};
-use khalid_import::wordpress::{Plan, WriteError, plan, read_wxr};
+use khalid_import::WriteError;
+use khalid_import::wordpress::{Plan, plan, read_wxr};
 use khalid_routes::Routes;
 
 #[cfg(test)]

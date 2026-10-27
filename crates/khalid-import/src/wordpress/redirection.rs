@@ -5,6 +5,8 @@
 use serde::de::IgnoredAny;
 use serde::{Deserialize, Deserializer};
 
+use crate::MoveStatus;
+
 /// The rules of one Redirection export.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[non_exhaustive]
@@ -53,18 +55,6 @@ pub enum RuleTarget {
     Gone,
     /// 451: the page is withheld for legal reasons.
     Unavailable,
-}
-
-/// How long a move lasts, which search engines read from the status code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum MoveStatus {
-    /// 301, or the plugin's 308: the page moved for good.
-    Permanent,
-    /// 302, or the plugin's 303: the page is elsewhere for now.
-    Found,
-    /// 307: the page is elsewhere for now.
-    Temporary,
 }
 
 /// A rule Khalid cannot answer.

@@ -1,4 +1,5 @@
-//! Writing a plan into a site folder (RULES.md BL-RUN-9, BL-SEC-4).
+//! Writing a plan's files into a site folder, whatever the source
+//! (RULES.md BL-RUN-9, BL-SEC-4).
 
 use std::fs;
 use std::io::{self, Write as _};
@@ -6,7 +7,15 @@ use std::path::{Path, PathBuf};
 
 use khalid_core::{SitePath, SitePathError};
 
-use crate::wordpress::Plan;
+/// One file an import plans to write.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct PlannedFile {
+    /// The path from the site folder, such as `content/en/posts/...`.
+    pub path: PathBuf,
+    /// The whole file.
+    pub text: String,
+}
 
 /// Why a plan could not be written.
 #[derive(Debug, thiserror::Error)]
@@ -41,50 +50,48 @@ pub enum WriteError {
     },
 }
 
-impl Plan {
-    /// Writes every planned file into the site folder at `site`, each one
-    /// atomically: to a temporary file in the same folder, synced, then
-    /// renamed. Returns the files written, from the site folder.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`WriteError::Exists`] when any planned file exists already,
-    /// before anything is written; [`WriteError::Path`] when a planned path
-    /// leads outside the site folder, also before anything is written; and
-    /// [`WriteError::Write`] when a file cannot be written.
-    pub fn write(&self, site: &Path) -> Result<Vec<PathBuf>, WriteError> {
-        let mut targets = Vec::with_capacity(self.files.len());
-        for file in &self.files {
-            let path = &file.path;
-            let failed = |source| WriteError::Path {
-                path: path.clone(),
-                source,
-            };
-            let within = SitePath::within(site, &path.to_string_lossy()).map_err(failed)?;
-            targets.push((within.resolve().map_err(failed)?, file));
-        }
-        let exists: Vec<PathBuf> = targets
-            .iter()
-            .filter(|(target, _)| target.exists())
-            .map(|(_, file)| file.path.clone())
-            .collect();
-        if !exists.is_empty() {
-            return Err(WriteError::Exists { paths: exists });
-        }
-        let mut written = Vec::with_capacity(targets.len());
-        for (target, file) in targets {
-            if let Err(source) = atomic_write(&target, file.text.as_bytes()) {
-                let path = file.path.clone();
-                return Err(WriteError::Write {
-                    path,
-                    written,
-                    source,
-                });
-            }
-            written.push(file.path.clone());
-        }
-        Ok(written)
+/// Writes every one of `files` into the site folder at `site`, each one
+/// atomically: to a temporary file in the same folder, synced, then
+/// renamed. Returns the files written, from the site folder.
+///
+/// # Errors
+///
+/// Returns [`WriteError::Exists`] when any planned file exists already,
+/// before anything is written; [`WriteError::Path`] when a planned path
+/// leads outside the site folder, also before anything is written; and
+/// [`WriteError::Write`] when a file cannot be written.
+pub(crate) fn write_files(files: &[PlannedFile], site: &Path) -> Result<Vec<PathBuf>, WriteError> {
+    let mut targets = Vec::with_capacity(files.len());
+    for file in files {
+        let path = &file.path;
+        let failed = |source| WriteError::Path {
+            path: path.clone(),
+            source,
+        };
+        let within = SitePath::within(site, &path.to_string_lossy()).map_err(failed)?;
+        targets.push((within.resolve().map_err(failed)?, file));
     }
+    let exists: Vec<PathBuf> = targets
+        .iter()
+        .filter(|(target, _)| target.exists())
+        .map(|(_, file)| file.path.clone())
+        .collect();
+    if !exists.is_empty() {
+        return Err(WriteError::Exists { paths: exists });
+    }
+    let mut written = Vec::with_capacity(targets.len());
+    for (target, file) in targets {
+        if let Err(source) = atomic_write(&target, file.text.as_bytes()) {
+            let path = file.path.clone();
+            return Err(WriteError::Write {
+                path,
+                written,
+                source,
+            });
+        }
+        written.push(file.path.clone());
+    }
+    Ok(written)
 }
 
 /// Writes `bytes` to `target` through a temporary file beside it, so a

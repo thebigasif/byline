@@ -8,9 +8,8 @@ use std::path::Path;
 
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, Environment};
-use khalid_import::wordpress::{
-    MapSource, MapTarget, Place, Plan, SlugOrigin, plan, read_redirection, read_wxr,
-};
+use khalid_import::wordpress::{MapSource, Place, Plan, plan, read_redirection, read_wxr};
+use khalid_import::{MapTarget, SlugOrigin};
 use khalid_routes::Routes;
 
 const POSTS: u64 = 500;

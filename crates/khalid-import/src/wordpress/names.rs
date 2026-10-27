@@ -3,7 +3,7 @@
 
 use khalid_core::{AbsoluteUrl, Config, Slug};
 
-use crate::wordpress::post_slug::post_slug;
+use crate::slug::post_slug;
 use crate::wordpress::{Author, Export};
 
 /// `text` with the HTML entities `WordPress` stores in names and titles

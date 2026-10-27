@@ -6,13 +6,12 @@ use chrono::NaiveDate;
 use khalid_core::{AbsoluteUrl, Config, Slug};
 use khalid_routes::{PostAddress, Routes};
 
+use crate::PlannedFile;
 use crate::front_matter::FrontMatter;
 use crate::markdown::body_markdown;
+use crate::slug::{PostSlug, post_slug};
 use crate::wordpress::names::{author_slug, category_slug, decoded, path_of};
-use crate::wordpress::post_slug::{PostSlug, post_slug};
-use crate::wordpress::{
-    Export, Held, ImportedItem, Item, ItemError, ItemStatus, Place, PlannedFile, SeoMeta,
-};
+use crate::wordpress::{Export, Held, ImportedItem, Item, ItemError, ItemStatus, Place, SeoMeta};
 
 /// What every item's file is made for: the export and the site.
 #[derive(Debug, Clone, Copy)]

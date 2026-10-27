@@ -2,15 +2,13 @@
 //! pages, images' pages, category archives and the Redirection plugin's
 //! rules, each once.
 
-use std::fmt::Write as _;
-
 use khalid_core::{AbsoluteUrl, Config};
 use khalid_routes::Routes;
 
+use crate::redirects::{MapTarget, Matching, moved, redirects_csv};
 use crate::wordpress::names::{category_slug, path_of};
 use crate::wordpress::{
-    Export, ImportedItem, ItemKind, MoveStatus, Redirection, RedirectionRule, RuleSource,
-    RuleTarget,
+    Export, ImportedItem, ItemKind, Redirection, RedirectionRule, RuleSource, RuleTarget,
 };
 
 /// One old address and where it leads.
@@ -26,35 +24,6 @@ pub struct MapEntry {
     pub to: MapTarget,
     /// What the old address was.
     pub source: MapSource,
-}
-
-/// How an entry matches old addresses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Matching {
-    /// One path, exactly.
-    Exact,
-    /// A regular expression over the path, from the Redirection plugin.
-    Pattern,
-}
-
-/// Where an old address leads.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum MapTarget {
-    /// Nowhere new: the address is the same in Khalid.
-    Kept,
-    /// To a new address, a full one or a path the plugin wrote.
-    Moved {
-        /// Where the visitor goes.
-        to: String,
-        /// How long the move lasts.
-        status: MoveStatus,
-    },
-    /// 410: gone for good.
-    Gone,
-    /// 451: withheld for legal reasons.
-    Unavailable,
 }
 
 /// What an old address was.
@@ -182,14 +151,6 @@ fn rule_entry(rule: &RedirectionRule, live: &[Live<'_>]) -> MapEntry {
     }
 }
 
-/// A permanent move to `to`.
-fn moved(to: &str) -> MapTarget {
-    MapTarget::Moved {
-        to: to.to_owned(),
-        status: MoveStatus::Permanent,
-    }
-}
-
 /// Adds an exact entry unless the address is listed already.
 fn add(map: &mut Vec<MapEntry>, from: &str, to: MapTarget, source: MapSource) {
     if !map.iter().any(|entry| entry.from == from) {
@@ -221,41 +182,11 @@ fn category_path(slug: &str, export: &Export) -> String {
     chain.reverse();
     format!("/category/{}/", chain.join("/"))
 }
-/// The map as CSV for the host or the redirect manager: every entry that
-/// redirects, with its status and whether it matches a path or a pattern.
-pub(crate) fn redirects_csv(map: &[MapEntry]) -> String {
-    let mut csv = String::from("from,to,status,match\n");
-    for entry in map {
-        let (to, status) = match &entry.to {
-            MapTarget::Moved { to, status } => (
-                to.as_str(),
-                match status {
-                    MoveStatus::Found => "302",
-                    MoveStatus::Temporary => "307",
-                    MoveStatus::Permanent => "301",
-                },
-            ),
-            MapTarget::Gone => ("", "410"),
-            MapTarget::Unavailable => ("", "451"),
-            MapTarget::Kept => continue,
-        };
-        let matching = if entry.matching == Matching::Pattern {
-            "regex"
-        } else {
-            "exact"
-        };
-        let (from, to) = (field(&entry.from), field(to));
-        // Writing to a String cannot fail.
-        let _ = writeln!(csv, "{from},{to},{status},{matching}");
-    }
-    csv
-}
 
-/// A CSV field, quoted when it holds a comma, a quote or a line break.
-fn field(text: &str) -> String {
-    if text.contains([',', '"', '\n', '\r']) {
-        format!("\"{}\"", text.replace('"', "\"\""))
-    } else {
-        text.to_owned()
-    }
+/// The map as CSV, every entry that redirects.
+pub(crate) fn wordpress_csv(map: &[MapEntry]) -> String {
+    redirects_csv(
+        map.iter()
+            .map(|entry| (entry.from.as_str(), &entry.to, entry.matching)),
+    )
 }

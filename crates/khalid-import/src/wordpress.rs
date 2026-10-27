@@ -7,7 +7,6 @@ mod names;
 mod php;
 mod plan;
 
-mod post_slug;
 mod redirect_map;
 mod redirection;
 mod report;
@@ -15,24 +14,21 @@ mod seo_meta;
 mod seo_plugins;
 mod seo_text;
 mod site_files;
-mod write;
 mod wxr;
 mod wxr_error;
 
 pub use export::{Author, Export, Site, Term};
 pub use item::{Item, ItemKind, ItemStatus, Meta};
 pub use plan::{
-    FailedItem, Held, ImportedItem, ItemError, LeftItem, LeftReason, Place, Plan, PlannedFile,
-    REDIRECTS_CSV, plan,
+    FailedItem, Held, ImportedItem, ItemError, LeftItem, LeftReason, Place, Plan, REDIRECTS_CSV,
+    plan,
 };
-pub use post_slug::SlugOrigin;
-pub use redirect_map::{MapEntry, MapSource, MapTarget, Matching};
+pub use redirect_map::{MapEntry, MapSource};
 pub use redirection::{
-    MoveStatus, Redirection, RedirectionError, RedirectionRule, RuleSource, RuleTarget, SkipReason,
+    Redirection, RedirectionError, RedirectionRule, RuleSource, RuleTarget, SkipReason,
     SkippedRule, read_redirection,
 };
 pub use report::Report;
 pub use seo_meta::{SeoMeta, SeoPlugin, UnreadField};
-pub use write::WriteError;
 pub use wxr::read_wxr;
 pub use wxr_error::WxrError;

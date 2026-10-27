@@ -5,9 +5,9 @@ use std::path::Path;
 
 use khalid_core::{Config, Environment};
 use khalid_import::wordpress::{
-    Export, MapSource, MapTarget, MoveStatus, Plan, REDIRECTS_CSV, Redirection, plan,
-    read_redirection, read_wxr,
+    Export, MapSource, Plan, REDIRECTS_CSV, Redirection, plan, read_redirection, read_wxr,
 };
+use khalid_import::{MapTarget, MoveStatus};
 use khalid_routes::Routes;
 
 #[cfg(test)]

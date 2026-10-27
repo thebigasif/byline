@@ -6,9 +6,10 @@ use std::path::PathBuf;
 
 use khalid_core::Config;
 
+use crate::PlannedFile;
 use crate::front_matter::{FrontMatter, quoted};
+use crate::wordpress::Export;
 use crate::wordpress::names::{author_slug, category_slug, decoded};
-use crate::wordpress::{Export, PlannedFile};
 
 /// One file per author under `content/<lang>/authors/`, named by the same
 /// slug their posts use. Two authors whose names make one slug share the

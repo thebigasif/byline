@@ -1,18 +1,20 @@
 //! What an import would write, worked out before anything is written, so
 //! a dry run and the real run see the same thing.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::NaiveDateTime;
 use khalid_content::ContentError;
 use khalid_core::{AbsoluteUrl, Config, ParseSlugError, RobotsDirectives, Slug};
 
 use crate::wordpress::item_file::{Source, item_file};
-use crate::wordpress::redirect_map::{redirect_map, redirects_csv};
+use crate::wordpress::redirect_map::{redirect_map, wordpress_csv};
 use crate::wordpress::site_files::{author_files, categories_file};
 use crate::wordpress::{
-    Export, Item, ItemKind, ItemStatus, MapEntry, Redirection, SkippedRule, SlugOrigin, UnreadField,
+    Export, Item, ItemKind, ItemStatus, MapEntry, Redirection, SkippedRule, UnreadField,
 };
+use crate::write::write_files;
+use crate::{PlannedFile, SlugOrigin, WriteError};
 use khalid_routes::{AddressError, Routes};
 
 /// Everything an import of one export would write.
@@ -76,16 +78,6 @@ pub enum LeftReason {
     Kind(String),
     /// A post with a status Khalid has no place for, by its name.
     Status(String),
-}
-
-/// One file to write.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct PlannedFile {
-    /// The path from the site folder, such as `content/en/posts/...`.
-    pub path: PathBuf,
-    /// The whole file.
-    pub text: String,
 }
 
 /// An item that came in.
@@ -227,9 +219,25 @@ pub fn plan(
     plan.skipped_rules = redirection.map(|r| r.skipped.clone()).unwrap_or_default();
     plan.files.push(PlannedFile {
         path: PathBuf::from(REDIRECTS_CSV),
-        text: redirects_csv(&plan.redirects),
+        text: wordpress_csv(&plan.redirects),
     });
     plan
+}
+
+impl Plan {
+    /// Writes every planned file into the site folder at `site`, each one
+    /// atomically: to a temporary file in the same folder, synced, then
+    /// renamed. Returns the files written, from the site folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WriteError::Exists`] when any planned file exists already,
+    /// before anything is written; [`WriteError::Path`] when a planned path
+    /// leads outside the site folder, also before anything is written; and
+    /// [`WriteError::Write`] when a file cannot be written.
+    pub fn write(&self, site: &Path) -> Result<Vec<PathBuf>, WriteError> {
+        write_files(&self.files, site)
+    }
 }
 
 /// Where an item's file goes, or why it stays behind.
