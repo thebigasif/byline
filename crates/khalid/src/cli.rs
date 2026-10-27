@@ -75,7 +75,8 @@ pub(crate) enum Command {
     },
     /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked.
     /// A headless site gets its feeds, sitemaps and redirects and no HTML.
-    /// A static site gets a list of the features that need a server, which are off
+    /// A static site gets a note in place of each form, and a list of the
+    /// features that need a server, which are off
     Build {
         /// The folder to write the pages to [default: public in the site folder]
         #[arg(long, value_name = "FOLDER")]

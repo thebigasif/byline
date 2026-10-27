@@ -102,6 +102,7 @@ fn build(
     let seo_site = build_seo::site(config)?;
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
     let mut written = 0;
+    let locks = static_mode::locks(config.mode())?;
     if let Some((renderer, css)) = &theme {
         write_asset(out, css)?;
         for language in &languages {
@@ -109,6 +110,8 @@ fn build(
                 let html = renderer
                     .render(&language.site, &page.meta, &page.body)
                     .map_err(|error| build_message::render(&error))?;
+                let html =
+                    static_mode::lock(locks.as_ref(), html, &language.site.locale, &page.file)?;
                 write(out, &page.file, &html)?;
                 written += 1;
             }

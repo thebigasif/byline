@@ -1,10 +1,12 @@
 //! Static mode in the binary (KH-OPS-1): the features a static site has
-//! off, as the owner reads them in `khalid build` and `khalid doctor`.
+//! off, as the owner reads them in `khalid build` and `khalid doctor`, and
+//! each built page with its forms locked (ADR "static mode locks forms
+//! after the page is rendered").
 
 use std::fmt::Write as _;
 
-use khalid_core::{Mode, UserMessage};
-use khalid_static::ServerFeature;
+use khalid_core::{Locale, Mode, UserMessage};
+use khalid_static::{LockError, Locks, ServerFeature};
 use serde::Serialize;
 
 /// The fix for most locks: the one change that brings every feature back.
@@ -97,6 +99,54 @@ pub(crate) fn human(off: &[Off]) -> String {
         );
     }
     said
+}
+
+/// The notes that stand in for forms, when `mode` is static.
+///
+/// # Errors
+///
+/// A [`UserMessage`] when the built-in notes cannot be read.
+pub(crate) fn locks(mode: Mode) -> Result<Option<Locks>, UserMessage> {
+    if mode != Mode::Static {
+        return Ok(None);
+    }
+    Locks::load().map(Some).map_err(|error| {
+        UserMessage::new(
+            format!("Khalid could not read its notes for static pages: {error}."),
+            "Each static page needs them to stand in for its forms, so nothing was built.",
+            "Report it at https://github.com/thebigasif/khalid/issues with the version number.",
+        )
+    })
+}
+
+/// `html`, the page written to `file` in `locale`, with its forms locked
+/// when there are `locks`, or as it is when there are none.
+///
+/// # Errors
+///
+/// A [`UserMessage`] when a form on the page never ends.
+pub(crate) fn lock(
+    locks: Option<&Locks>,
+    html: String,
+    locale: &Locale,
+    file: &str,
+) -> Result<String, UserMessage> {
+    match locks {
+        Some(locks) => locks
+            .page(&html, locale)
+            .map(|page| page.html)
+            .map_err(|error| lock_message(file, &error)),
+        None => Ok(html),
+    }
+}
+
+/// The message when the page written to `file` cannot be locked.
+fn lock_message(file: &str, error: &LockError) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid could not make the static page {file}: {error}."),
+        "A static page must not keep a form that sends to the site, and a form left open hides where the page goes on.",
+        "Close the form in the template or post that writes it, then build again.",
+    )
 }
 
 #[cfg(test)]
