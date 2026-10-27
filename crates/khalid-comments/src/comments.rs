@@ -1,6 +1,8 @@
 //! Sending, moderating and showing comments: the one door every caller uses.
 
 use std::collections::BTreeMap;
+use std::fmt;
+use std::sync::Arc;
 
 use khalid_core::Clock;
 
@@ -18,6 +20,22 @@ use crate::{
 pub struct Comments<S> {
     store: S,
     clock: Box<dyn Clock>,
+    events: Vec<Arc<dyn CommentEvents>>,
+}
+
+/// What a running site does when comments change, such as sending the
+/// `comment.added` webhook or rendering a post page again. Each method
+/// returns at once; slow work belongs on a task of its own.
+pub trait CommentEvents: fmt::Debug + Send + Sync {
+    /// A comment was stored, a reader's or a staff reply.
+    fn added(&self, comment: &Comment) {
+        let _ = comment;
+    }
+
+    /// The approved comments on `post` changed, so its page shows others.
+    fn shown_changed(&self, post: &PostFile) {
+        let _ = post;
+    }
 }
 
 /// Why a comment could not be sent or moderated.
@@ -47,7 +65,16 @@ impl<S: CommentStore> Comments<S> {
         Self {
             store,
             clock: Box::new(clock),
+            events: Vec::new(),
         }
+    }
+
+    /// These comments, telling `events` about each change after the
+    /// listeners added before.
+    #[must_use]
+    pub fn with_events(mut self, events: Arc<dyn CommentEvents>) -> Self {
+        self.events.push(events);
+        self
     }
 
     /// Stores a reader's comment to wait for approval. A reply must answer
@@ -68,7 +95,9 @@ impl<S: CommentStore> Comments<S> {
             new.parent = Some(parent.parent.unwrap_or(parent.id));
         }
         let at = self.clock.now();
-        Ok(self.store.insert(new, CommentStatus::Pending, at).await?)
+        let sent = self.store.insert(new, CommentStatus::Pending, at).await?;
+        self.events.iter().for_each(|events| events.added(&sent));
+        Ok(sent)
     }
 
     /// Shows comment `id` under its post, and returns it.
@@ -78,8 +107,20 @@ impl<S: CommentStore> Comments<S> {
     /// [`CommentsError::NotFound`] when there is no such comment, and
     /// [`CommentsError::Store`] when the store fails.
     pub async fn approve(&self, id: CommentId) -> Result<Comment, CommentsError> {
+        let approved = self.approved(id).await?;
+        self.shown_changed(&approved.post);
+        Ok(approved)
+    }
+
+    async fn approved(&self, id: CommentId) -> Result<Comment, CommentsError> {
         let approved = self.store.set_status(id, CommentStatus::Approved).await?;
         approved.ok_or(CommentsError::NotFound { id })
+    }
+
+    fn shown_changed(&self, post: &PostFile) {
+        for events in &self.events {
+            events.shown_changed(post);
+        }
     }
 
     /// Answers comment `id` as `name`, on the staff, and returns the
@@ -96,7 +137,7 @@ impl<S: CommentStore> Comments<S> {
         name: AuthorName,
         text: CommentText,
     ) -> Result<Comment, CommentsError> {
-        let parent = self.approve(id).await?;
+        let parent = self.approved(id).await?;
         let new = NewComment {
             post: parent.post,
             parent: Some(parent.parent.unwrap_or(parent.id)),
@@ -104,7 +145,10 @@ impl<S: CommentStore> Comments<S> {
             text,
         };
         let at = self.clock.now();
-        Ok(self.store.insert(new, CommentStatus::Approved, at).await?)
+        let reply = self.store.insert(new, CommentStatus::Approved, at).await?;
+        self.events.iter().for_each(|events| events.added(&reply));
+        self.shown_changed(&reply.post);
+        Ok(reply)
     }
 
     /// Removes comment `id` and its replies, and returns it as it was.
@@ -115,7 +159,11 @@ impl<S: CommentStore> Comments<S> {
     /// [`CommentsError::Store`] when the store fails.
     pub async fn delete(&self, id: CommentId) -> Result<Comment, CommentsError> {
         let deleted = self.store.delete(id).await?;
-        deleted.ok_or(CommentsError::NotFound { id })
+        let deleted = deleted.ok_or(CommentsError::NotFound { id })?;
+        if deleted.status == CommentStatus::Approved {
+            self.shown_changed(&deleted.post);
+        }
+        Ok(deleted)
     }
 
     /// The newest `limit` comments with `status`, or with any status,

@@ -31,7 +31,7 @@ mod thread;
 pub use comment::{Comment, CommentAuthor, CommentId, CommentStatus, ParseStatusError, PostFile};
 pub use comment_form::{CommentForm, FormComment, Reading};
 pub use comment_store::{CommentStore, CommentStoreError, NewComment};
-pub use comments::{Comments, CommentsError};
+pub use comments::{CommentEvents, Comments, CommentsError};
 pub use field_problem::FieldProblem;
 pub use fields::{AuthorName, CommentText, ReaderEmail};
 pub use form_route::{FormRoute, PostPage, PostPages, form_router};
