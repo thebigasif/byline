@@ -3,7 +3,7 @@
 
 use chrono::{TimeZone, Utc};
 use khalid_api::post_store::{MemoryPostStore, PostStore};
-use khalid_api::resources::{AdminPost, PostStatus};
+use khalid_api::resources::{AdminPost, PostSettings, PostStatus, ReviewState};
 use khalid_core::Slug;
 use serde_json::json;
 
@@ -35,8 +35,32 @@ fn a_new_admin_post_is_a_draft_in_api_shape() {
             "published_at": null,
             "updated_at": "2026-10-20T08:30:00Z",
             "updated_by": null,
+            "settings": {
+                "date": null,
+                "co_authors": [],
+                "excerpt": null,
+                "feature_image": null,
+                "featured": false,
+                "review_state": "draft",
+                "canonical": null,
+                "robots": null,
+                "share_cards": {"x": null, "facebook": null},
+                "aliases": [],
+            },
         })
     );
+}
+
+#[tokio::test]
+async fn a_post_keeps_its_settings_in_the_store() {
+    let mut settings = PostSettings::default();
+    settings.featured = true;
+    settings.review_state = ReviewState::Ready;
+    let store = MemoryPostStore::new(vec![draft().with_settings(settings.clone())]);
+    let found = store.get("anchor-text-draft").await.unwrap().unwrap();
+    assert_eq!(found.settings(), &settings);
+    let json = serde_json::to_value(&found).unwrap();
+    assert_eq!(json["settings"]["review_state"], "ready");
 }
 
 #[test]

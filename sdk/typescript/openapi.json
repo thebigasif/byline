@@ -2965,7 +2965,8 @@
           "title",
           "status",
           "markdown",
-          "updated_at"
+          "updated_at",
+          "settings"
         ],
         "properties": {
           "author": {
@@ -2991,6 +2992,10 @@
             ],
             "format": "date-time",
             "description": "When it went or goes live; empty for a draft."
+          },
+          "settings": {
+            "$ref": "#/components/schemas/PostSettings",
+            "description": "The settings beside the title and body, as the admin's settings\npanel shows them."
           },
           "slug": {
             "type": "string",
@@ -3034,6 +3039,11 @@
             "description": "The post or posts."
           }
         }
+      },
+      "Alias": {
+        "type": "string",
+        "description": "An old address on this site that redirects to the post, such as\n`/2019/05/old-title/`, so a moved post keeps its links.",
+        "example": "/2019/05/old-title/"
       },
       "Author": {
         "type": "object",
@@ -3308,6 +3318,36 @@
         },
         "additionalProperties": false
       },
+      "FeatureImage": {
+        "type": "object",
+        "description": "The image at the top of a post and on its cards. The alt text is\nrequired, as for every image (plan section 4.6).",
+        "required": [
+          "src",
+          "alt"
+        ],
+        "properties": {
+          "alt": {
+            "$ref": "#/components/schemas/NonBlank",
+            "description": "What the image shows, for readers who cannot see it."
+          },
+          "caption": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "The line shown under the image, if any."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "src": {
+            "$ref": "#/components/schemas/NonBlank",
+            "description": "A media path such as `/media/anchor-text.jpg`, or a full address."
+          }
+        },
+        "additionalProperties": false
+      },
       "GlossaryTerms": {
         "type": "object",
         "required": [
@@ -3482,6 +3522,10 @@
           }
         },
         "additionalProperties": false
+      },
+      "NonBlank": {
+        "type": "string",
+        "description": "Text with something in it other than spaces."
       },
       "Pages": {
         "type": "object",
@@ -3693,6 +3737,95 @@
         },
         "additionalProperties": false
       },
+      "PostSettings": {
+        "type": "object",
+        "description": "A post's settings beside its title and body. Every setting has a\nvalue: empty lists, `false`, `draft` and `null` when never set.",
+        "required": [
+          "co_authors",
+          "featured",
+          "review_state",
+          "share_cards",
+          "aliases"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Alias"
+            },
+            "description": "Old addresses that redirect here."
+          },
+          "canonical": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The address search engines should credit instead of this post.",
+            "example": "https://example.com/original/"
+          },
+          "co_authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The other authors' slugs, after the author.",
+            "example": [
+              "mira"
+            ]
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The day the post is dated, as shown to readers.",
+            "example": "2026-11-02"
+          },
+          "excerpt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "The summary for cards, feeds and search results."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feature_image": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FeatureImage",
+                "description": "The image at the top of the post."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "featured": {
+            "type": "boolean",
+            "description": "Whether the post is featured in lists and the featured channel."
+          },
+          "review_state": {
+            "$ref": "#/components/schemas/ReviewState",
+            "description": "Where the post stands in review."
+          },
+          "robots": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The post's own robots directives, in place of the site's.",
+            "example": "noindex, nofollow"
+          },
+          "share_cards": {
+            "$ref": "#/components/schemas/ShareCards",
+            "description": "How the post looks when shared on X and Facebook."
+          }
+        }
+      },
       "PostStatus": {
         "type": "string",
         "description": "Where a post stands.",
@@ -3785,6 +3918,15 @@
           }
         }
       },
+      "ReviewState": {
+        "type": "string",
+        "description": "Where a post stands in review, before it is published (KH-EDT-4).",
+        "enum": [
+          "draft",
+          "in_review",
+          "ready"
+        ]
+      },
       "Settings": {
         "type": "object",
         "description": "The public settings of the site, in API shape: its name, where it lives\nand its languages. Nothing secret is ever part of it.",
@@ -3821,6 +3963,75 @@
             "example": "https://example.com/blog/"
           }
         }
+      },
+      "ShareCard": {
+        "type": "object",
+        "description": "How a post looks when shared on one network. Anything left out comes\nfrom the post's title, excerpt and feature image.",
+        "properties": {
+          "description": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "The line under the headline."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "A media path or address, in place of the feature image."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NonBlank",
+                "description": "The headline on the card."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShareCards": {
+        "type": "object",
+        "description": "The share cards for X and Facebook (plan section 4.6).",
+        "properties": {
+          "facebook": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ShareCard",
+                "description": "The card on Facebook, and on other sites that read Open Graph."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "x": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ShareCard",
+                "description": "The card on X."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "SiteSettings": {
         "type": "object",

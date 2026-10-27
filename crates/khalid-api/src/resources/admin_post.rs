@@ -5,7 +5,7 @@ use khalid_core::Slug;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::{display, display_option};
+use super::{PostSettings, display, display_option};
 
 /// Where a post stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -46,6 +46,9 @@ pub struct AdminPost {
     updated_at: DateTime<Utc>,
     /// Who made the last change: a staff name or a key's identity.
     updated_by: Option<String>,
+    /// The settings beside the title and body, as the admin's settings
+    /// panel shows them.
+    settings: PostSettings,
 }
 
 impl AdminPost {
@@ -67,7 +70,19 @@ impl AdminPost {
             published_at: None,
             updated_at,
             updated_by: None,
+            settings: PostSettings::default(),
         }
+    }
+
+    /// The settings beside the title and body.
+    pub fn settings(&self) -> &PostSettings {
+        &self.settings
+    }
+
+    /// The same post with `settings`.
+    #[must_use]
+    pub fn with_settings(self, settings: PostSettings) -> Self {
+        Self { settings, ..self }
     }
 
     /// The identity.
