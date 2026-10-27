@@ -2,6 +2,7 @@
 //! `/api/admin/v1/`: signing in and out, and managing staff (BL-API-4).
 
 mod staff;
+mod staff_changes;
 mod take_back;
 
 use std::net::SocketAddr;
@@ -33,6 +34,11 @@ pub fn staff_routes(accounts: Accounts) -> StaffRoutes {
             .routes(routes!(take_back::sign_out_everywhere))
             .routes(routes!(take_back::change_password))
             .routes(routes!(staff::list_staff, staff::invite))
+            .routes(routes!(
+                staff_changes::change_role,
+                staff_changes::remove_staff
+            ))
+            .routes(routes!(staff_changes::transfer))
             .with_state(accounts),
     }
 }

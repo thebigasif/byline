@@ -12,8 +12,8 @@ use khalid_api::content_store::MemoryContentStore;
 use khalid_api::keys::{MemoryKeyStore, Role};
 use khalid_api::post_store::MemoryPostStore;
 use khalid_auth::{
-    AccountStore, Accounts, MemoryAccounts, MemorySessions, Password, PasswordHashing, may_manage,
-    staff_routes,
+    AccountStore, Accounts, MemoryAccounts, MemorySessions, Password, PasswordHashing, may_assign,
+    may_manage, staff_routes,
 };
 use khalid_core::FixedClock;
 use serde_json::{Value, json};
@@ -158,4 +158,97 @@ async fn an_email_already_in_use_is_a_409_and_a_bad_one_a_422() {
     )
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+/// The account number of `role`'s account: they were made in the order
+/// `Role::ALL` lists them, from 1.
+#[cfg(test)]
+fn number(role: Role) -> usize {
+    Role::ALL.iter().position(|r| *r == role).unwrap() + 1
+}
+
+#[tokio::test]
+async fn each_role_moves_exactly_the_accounts_it_may_between_roles_it_may_give() {
+    for actor in Role::ALL {
+        for target in Role::ALL.into_iter().filter(|target| *target != actor) {
+            for to in [Role::Admin, Role::Contributor] {
+                let router = router().await;
+                let session = sign_in(&router, actor).await;
+                let uri = format!("/api/admin/v1/staff/{}/", number(target));
+                let body = json!({ "role": to.as_str() });
+                let (status, json) =
+                    send(&router, as_staff("PUT", &uri, &session, Some(body))).await;
+                let want = if may_assign(actor, target, to) {
+                    StatusCode::OK
+                } else {
+                    StatusCode::FORBIDDEN
+                };
+                assert_eq!(
+                    status, want,
+                    "{actor:?} moving {target:?} to {to:?}: {json}"
+                );
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn each_role_removes_exactly_the_accounts_it_may_manage() {
+    for actor in Role::ALL {
+        for target in Role::ALL.into_iter().filter(|target| *target != actor) {
+            let router = router().await;
+            let session = sign_in(&router, actor).await;
+            let uri = format!("/api/admin/v1/staff/{}/", number(target));
+            let (status, _) = send(&router, as_staff("DELETE", &uri, &session, None)).await;
+            let want = if may_manage(actor, target) {
+                StatusCode::NO_CONTENT
+            } else {
+                StatusCode::FORBIDDEN
+            };
+            assert_eq!(status, want, "{actor:?} removing {target:?}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn only_the_signed_in_owner_hands_the_site_over() {
+    let router = router().await;
+    let uri = format!("/api/admin/v1/staff/{}/owner/", number(Role::Editor));
+    let admin = sign_in(&router, Role::Admin).await;
+    assert_eq!(
+        send(&router, as_staff("POST", &uri, &admin, None)).await.0,
+        StatusCode::FORBIDDEN
+    );
+    let owner = sign_in(&router, Role::Owner).await;
+    let (status, json) = send(&router, as_staff("POST", &uri, &owner, None)).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["staff"][0]["role"], "owner");
+    let (status, json) = send(
+        &router,
+        as_staff("GET", "/api/admin/v1/staff/", &owner, None),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "the old owner is an admin now and still manages staff"
+    );
+    let roles: Vec<&str> = json["staff"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["role"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        roles.iter().filter(|role| **role == "owner").count(),
+        1,
+        "{roles:?}"
+    );
+    let unknown = as_staff(
+        "PUT",
+        "/api/admin/v1/staff/99/",
+        &owner,
+        Some(json!({ "role": "writer" })),
+    );
+    assert_eq!(send(&router, unknown).await.0, StatusCode::NOT_FOUND);
 }
