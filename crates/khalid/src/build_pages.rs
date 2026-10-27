@@ -16,7 +16,7 @@ use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
 use crate::listed_post::ListedPost;
-use crate::{build_message, build_reader, build_seo};
+use crate::{build_home, build_message, build_reader, build_seo};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
@@ -95,35 +95,11 @@ fn language_pages(
     pages.extend(author_pages(
         config, &links, content, locale, &listed, &people,
     )?);
-    let home = RenderListing {
-        title: config.name().to_owned(),
-        intro: None,
-        posts: listed.iter().map(|post| post.card.clone()).collect(),
-        pagination: None,
-    };
-    let home_meta = meta(
-        config,
-        config.name().to_owned(),
-        String::new(),
-        path_of(config, locale, ""),
-        PageKind::Website,
-    )?;
-    let mut missing = home_meta.clone();
+    let cards = listed.iter().map(|post| post.card.clone()).collect();
+    let home = home_page(config, locale, cards)?;
+    let mut missing = home.meta.clone();
     missing.robots = Robots::NoIndex;
-    let mut home_seo = build_seo::page(SeoKind::Home, locale, "", config.name())?;
-    home_seo.translation = build_seo::translation(Some("home"))?;
-    pages.push(page(
-        locale,
-        config,
-        "",
-        home_meta,
-        PageBody::Home(RenderHome {
-            listing: home,
-            sections: Vec::new(),
-            topics: Vec::new(),
-        }),
-        home_seo,
-    ));
+    pages.push(home);
     let mut missing_seo = build_seo::page(SeoKind::NotFound, locale, "404.html", config.name())?;
     missing_seo.seo_title = MetaTemplate::parse("{site}").ok();
     pages.push(Page {
@@ -138,6 +114,35 @@ fn language_pages(
         pages,
         listed,
     })
+}
+
+/// The home page of `locale`, listing `cards`, newest first.
+pub(crate) fn home_page(
+    config: &Config,
+    locale: &Locale,
+    cards: Vec<PostCard>,
+) -> Result<Page, UserMessage> {
+    let listing = RenderListing {
+        title: config.name().to_owned(),
+        intro: None,
+        posts: cards,
+        pagination: None,
+    };
+    let meta = meta(
+        config,
+        config.name().to_owned(),
+        String::new(),
+        path_of(config, locale, ""),
+        PageKind::Website,
+    )?;
+    let mut seo = build_seo::page(SeoKind::Home, locale, "", config.name())?;
+    seo.translation = build_seo::translation(Some("home"))?;
+    let body = PageBody::Home(RenderHome {
+        listing,
+        sections: Vec::new(),
+        topics: Vec::new(),
+    });
+    Ok(page(locale, config, "", meta, body, seo))
 }
 
 /// The dated posts of one language that pages are made from or choose
@@ -245,18 +250,8 @@ fn listed(
     slugs: &BTreeMap<String, String>,
 ) -> ListedPost {
     let (locale, front) = (posts.locale, &draft.doc.front);
-    let card = PostCard {
-        title: draft.title.clone(),
-        href: path_of(config, locale, &draft.rest),
-        date: draft.date,
-        excerpt: front.description.clone().unwrap_or_default(),
-        image: None,
-        author: front
-            .author
-            .as_ref()
-            .map(|slug| build_reader::person(posts.people, slug, config, locale)),
-        category: None,
-    };
+    let named = (draft.title.clone(), draft.rest.as_str(), draft.date);
+    let card = build_home::card(config, locale, posts.people, named, front);
     ListedPost {
         path: draft.doc.path.clone(),
         locale: locale.clone(),
@@ -459,7 +454,7 @@ pub(crate) fn named<F>(
 
 /// The end of the address `routes` gives the document at `file`, after the
 /// mount and the language prefix, such as `glossary/seo/`.
-fn routed(
+pub(crate) fn routed(
     config: &Config,
     routes: &Routes,
     locale: &Locale,
@@ -558,7 +553,7 @@ fn page(
 }
 
 /// The site as pages in `locale` show it, linking the stylesheet at `stylesheet`.
-fn render_site(config: &Config, locale: &Locale, stylesheet: &str) -> RenderSite {
+pub(crate) fn render_site(config: &Config, locale: &Locale, stylesheet: &str) -> RenderSite {
     RenderSite {
         name: config.name().to_owned(),
         locale: locale.clone(),

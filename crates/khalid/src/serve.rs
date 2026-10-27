@@ -6,7 +6,7 @@
 
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use khalid_api::api;
@@ -18,6 +18,7 @@ use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch
 use serde::Serialize;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
+use tokio::sync::oneshot;
 
 use crate::cli::Output;
 use crate::content_feed::{self, Destination};
@@ -101,16 +102,14 @@ fn serve_with(
         live: content.clone(),
     };
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
-    let (source, pages) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
+    // Only the home pages are rendered before the server listens; the rest
+    // follows behind the first answer (ADR "khalid serve answers before the
+    // full render").
+    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
         .and_then(|source| {
-            let served = source.render_content(&checked, assets)?;
-            drop(checked);
-            // Brotli copies are added once the server listens, so the first
-            // reader does not wait for them (docs/standards/performance.md).
-            let pages = Pages::plain(served.pages, served.not_found)
-                .map_err(|_| serve_message::internal())?
-                .with_moves(served.moves);
-            Ok((source, pages))
+            let first = source.render_first(&checked)?;
+            let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+            Ok((source, first))
         })
         .map_err(|message| (message, Exit::Failure))?;
     let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
@@ -125,22 +124,21 @@ fn serve_with(
             .local_addr()
             .map_err(|_| (serve_message::internal(), Exit::Internal))?;
         announce(output, config, &format!("http://{local}{}", config.mount()));
-        let live = LivePages::new(pages);
-        let compressing = live.clone();
-        tokio::spawn(async move {
-            if let Err(error) = compressing.compress().await {
-                tracing::warn!(
-                    ?error,
-                    "pages could not be compressed, so they are sent plain"
-                );
-            }
-        });
+        let live = LivePages::new(first);
+        let (failed, failure) = oneshot::channel();
+        let rest = (source.clone(), live.clone());
+        tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         let posts = SitePosts::new(site, config.clone(), SystemClock);
         let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
         let app = api.merge(router(live, security));
-        let stopped = khalid_server::serve(listener, app, stop(), GRACE).await;
+        let why = Arc::new(Mutex::new(None));
+        let stopping = stop_or_fail(failure, Arc::clone(&why));
+        let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
         watching.stop().await;
+        if let Some(message) = why.lock().unwrap_or_else(PoisonError::into_inner).take() {
+            return Err((message, Exit::Failure));
+        }
         stopped
             .map(|_| ())
             .map_err(|_| (serve_message::stopped(), Exit::Failure))
@@ -152,6 +150,60 @@ fn serve_with(
         tracing::warn!(?error, "the Content API's task stopped early");
     }
     served
+}
+
+/// Renders every page from the `checked` content on a blocking thread
+/// (RULES.md BL-RUN-7), serves them in place of the first pages, then adds
+/// their Brotli copies. A save during the start may have served a whole set
+/// already, which is newer and stays. When the pages cannot be rendered,
+/// `failed` gets why, and the server stops with it, as it did when it
+/// rendered every page before listening.
+async fn render_the_rest(
+    (source, live): (SitePages, LivePages),
+    (checked, assets): (SiteContent, Assets),
+    failed: oneshot::Sender<UserMessage>,
+) {
+    let first = live.current();
+    let rendering = tokio::task::spawn_blocking(move || {
+        let served = source.render_content(&checked, assets)?;
+        drop(checked);
+        Pages::plain(served.pages, served.not_found)
+            .map(|pages| pages.with_moves(served.moves))
+            .map_err(|_| serve_message::internal())
+    });
+    let pages = match rendering.await {
+        Ok(Ok(pages)) => pages,
+        Ok(Err(message)) => {
+            let _ = failed.send(message);
+            return;
+        }
+        Err(_) => {
+            let _ = failed.send(serve_message::internal());
+            return;
+        }
+    };
+    if live.replace_if_current(&first, pages)
+        && let Err(error) = live.compress().await
+    {
+        tracing::warn!(
+            ?error,
+            "pages could not be compressed, so they are sent plain"
+        );
+    }
+}
+
+/// Completes on a stop signal, or once `failure` says why the site's pages
+/// could not be rendered, which it leaves in `why`.
+async fn stop_or_fail(
+    failure: oneshot::Receiver<UserMessage>,
+    why: Arc<Mutex<Option<UserMessage>>>,
+) {
+    tokio::select! {
+        () = stop() => {}
+        Ok(message) = failure => {
+            *why.lock().unwrap_or_else(PoisonError::into_inner) = Some(message);
+        }
+    }
 }
 
 /// Opens `data/site.db` in the site folder, making it when it is missing,

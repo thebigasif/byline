@@ -10,6 +10,7 @@ mod atomic;
 mod build;
 mod build_files;
 mod build_gate;
+mod build_home;
 mod build_message;
 mod build_pages;
 mod build_reader;

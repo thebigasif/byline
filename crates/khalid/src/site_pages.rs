@@ -22,7 +22,7 @@ use crate::post_files::Assets;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::{
-    assets, build_message, build_pages, build_seo, content_message, post_files, post_images,
+    assets, build_home, build_message, build_pages, build_seo, content_message, post_files,
     site_files,
 };
 
@@ -132,6 +132,29 @@ impl SitePages {
         self.render_content(&content, assets)
     }
 
+    /// The first pages `khalid serve` answers with while the rest of the
+    /// site renders: the home page of each language, made from the front
+    /// matter of `content` without rendering a single body, and the
+    /// stylesheet they link. Each is byte for byte the page the full render
+    /// makes. A headless site has none.
+    pub(crate) fn render_first(&self, content: &SiteContent) -> Result<Vec<Page>, UserMessage> {
+        let Site {
+            config,
+            routes,
+            theme,
+            ..
+        } = &*self.0;
+        let Some(theme) = theme else {
+            return Ok(Vec::new());
+        };
+        let href = theme.stylesheet.path().as_str();
+        let mut languages = build_home::home_pages(config, routes, content, href)?;
+        build_seo::heads(&build_seo::site(config)?, &mut languages)?;
+        let mut pages = vec![theme.stylesheet.clone()];
+        html_pages(theme, config, &languages, Which::All, &mut pages)?;
+        Ok(pages)
+    }
+
     /// Every page made from `content`, already read from the site folder,
     /// with the files `assets` lists beside folder posts, the site's files,
     /// the not-found page and the moved addresses, then hands the feed its
@@ -195,7 +218,7 @@ impl SitePages {
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
         let mut languages = build_pages::pages(config, routes, (content, others), href)?;
-        let beside = files(folder, config, assets, &mut languages)?;
+        let beside = post_files::served(folder, config, assets, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
         let mut served = Served {
@@ -308,31 +331,6 @@ fn without_body<F: Clone>(doc: &Document<F>) -> Document<F> {
     doc
 }
 
-/// The files beside folder posts in `assets`, each at its page's address,
-/// and the sizes of their images, which never change under their names.
-fn files(
-    folder: &Path,
-    config: &Config,
-    assets: &Assets,
-    languages: &mut [LanguagePages],
-) -> Result<Vec<Page>, UserMessage> {
-    let address = |text: &str| PagePath::try_new(text).map_err(|_| build_message::address(text));
-    let beside = post_files::attach(assets, languages);
-    let mut pages = Vec::with_capacity(beside.len());
-    for file in &beside {
-        let kind = MediaType::for_file(&file.address);
-        let bytes = post_files::read(folder, file)?;
-        pages.push(Page::new(address(&file.address)?, kind, bytes));
-    }
-    for size in post_images::attach(folder, config, &beside, languages)? {
-        let kind = MediaType::for_file(&size.address);
-        let bytes =
-            fs::read(&size.path).map_err(|error| post_files::unreadable(&size.path, &error))?;
-        pages.push(Page::immutable(address(&size.address)?, kind, bytes));
-    }
-    Ok(pages)
-}
-
 /// Renders the `which` pages of `languages` with `theme` into `pages`, and
 /// returns the not-found page of the default language, empty unless
 /// `which` is [`Which::All`].
@@ -439,6 +437,22 @@ mod tests {
             what.ends_with("why-links-matter.md, line 10: [[link-equity]] matches no post, page or glossary term in en."),
             "{what}"
         );
+    }
+
+    #[test]
+    fn the_first_pages_are_the_full_renders_home_pages_and_stylesheet() {
+        let site = demo_copy();
+        let content = read_content(&ContentTree::walk(site.path()).unwrap()).unwrap();
+        let source = pages(site.path());
+        let first = source.render_first(&content).unwrap();
+        let all = source.render_all().unwrap().pages;
+        let paths: Vec<&str> = first.iter().map(|page| page.path().as_str()).collect();
+        assert_eq!(paths.len(), 3, "{paths:?}");
+        assert!(paths.contains(&"/blog/"), "{paths:?}");
+        assert!(paths.contains(&"/blog/de/"), "{paths:?}");
+        for page in &first {
+            assert!(all.contains(page), "{} differs", page.path().as_str());
+        }
     }
 
     #[test]

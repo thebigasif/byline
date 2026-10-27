@@ -9,10 +9,12 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use khalid_content::{Collection, ContentTree, Language};
-use khalid_core::{SitePath, UserMessage};
+use khalid_core::{Config, SitePath, UserMessage};
 use khalid_render::{BodyHtml, PageBody};
+use khalid_server::{MediaType, Page as Served, PagePath};
 
 use crate::build_pages::{LanguagePages, Page};
+use crate::{build_message, post_images};
 
 /// How a body image starts, up to its address, as `khalid_content::render`
 /// writes it.
@@ -150,6 +152,34 @@ pub(crate) fn on_disk(site: &Path, file: &PostFile) -> Result<PathBuf, UserMessa
 /// The bytes of `file` in the `site` folder.
 pub(crate) fn read(site: &Path, file: &PostFile) -> Result<Vec<u8>, UserMessage> {
     fs::read(on_disk(site, file)?).map_err(|error| unreadable(&file.source, &error))
+}
+
+/// The files beside folder posts in `assets`, as `khalid serve` answers
+/// them, each at its page's address, and the sizes of their images, which
+/// never change under their names.
+pub(crate) fn served(
+    folder: &Path,
+    config: &Config,
+    assets: &Assets,
+    languages: &mut [LanguagePages],
+) -> Result<Vec<Served>, UserMessage> {
+    let address = |text: &str| PagePath::try_new(text).map_err(|_| build_message::address(text));
+    let beside = attach(assets, languages);
+    let mut pages = Vec::with_capacity(beside.len());
+    for file in &beside {
+        let kind = MediaType::for_file(&file.address);
+        pages.push(Served::new(
+            address(&file.address)?,
+            kind,
+            read(folder, file)?,
+        ));
+    }
+    for size in post_images::attach(folder, config, &beside, languages)? {
+        let kind = MediaType::for_file(&size.address);
+        let bytes = fs::read(&size.path).map_err(|error| unreadable(&size.path, &error))?;
+        pages.push(Served::immutable(address(&size.address)?, kind, bytes));
+    }
+    Ok(pages)
 }
 
 /// The message when a file beside a post cannot be read.

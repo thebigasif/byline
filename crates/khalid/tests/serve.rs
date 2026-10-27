@@ -249,6 +249,22 @@ fn serve_refuses_tokens_it_cannot_read_and_names_the_file() {
 }
 
 #[test]
+fn serve_stops_and_names_an_image_it_cannot_render_after_answering_first() {
+    let site = demo_copy();
+    let mut image = site.path().to_path_buf();
+    image.push("content/en/posts/2026-10-05-fixing-slow-pages/page-weight.png");
+    fs::write(&image, "not a picture").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.path().to_str().unwrap(), "serve"])
+        .args(["--listen", "127.0.0.1:0"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1), "it stops, it does not hang");
+    let said = String::from_utf8_lossy(&output.stderr);
+    assert!(said.contains("page-weight.png"), "{said}");
+}
+
+#[test]
 fn serve_answers_the_sitemaps_feeds_and_aliases_beside_the_pages() {
     let site = demo_copy();
     let mut file = site.path().to_path_buf();
