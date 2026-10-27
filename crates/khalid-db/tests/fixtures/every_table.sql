@@ -44,6 +44,9 @@ INSERT INTO users (id, site_id, email, name, role, created_at) VALUES
 INSERT INTO sessions (site_id, user_id, token_hash, created_at, expires_at) VALUES
     (1, 1, randomblob(32), '2026-10-26T09:00:00Z', '2026-11-26T09:00:00Z'),
     (2, 2, randomblob(32), '2026-10-26T09:00:00Z', '2026-11-26T09:00:00Z');
+INSERT INTO magic_links (site_id, user_id, token_hash, created_at, expires_at) VALUES
+    (1, 1, randomblob(32), '2026-10-26T09:00:00Z', '2026-10-26T09:15:00Z'),
+    (2, 2, randomblob(32), '2026-10-26T09:00:00Z', '2026-10-26T09:15:00Z');
 INSERT INTO api_keys (id, site_id, key_id, kind, name, key_hash, created_at) VALUES
     (1, 1, '0123456789abcdef', 'integration', 'Zapier', '$argon2id$v=19$m=19456,t=2,p=1$c2FsdA$aGFzaA', '2026-10-26T09:00:00Z'),
     (2, 2, 'fedcba9876543210', 'integration', 'Zapier', '$argon2id$v=19$m=19456,t=2,p=1$c2FsdA$aGFzaA', '2026-10-26T09:00:00Z');

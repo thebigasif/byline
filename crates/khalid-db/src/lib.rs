@@ -11,8 +11,8 @@
 //! keeps the webhook delivery log, as the [`DeliveryLog`] that
 //! `khalid-webhooks` writes through, the API keys, as the [`KeyTable`]
 //! that `khalid-api` checks keys against, and the staff accounts, as the
-//! [`AccountTable`] and [`SessionTable`] that `khalid-auth` signs people in
-//! with.
+//! [`AccountTable`], [`SessionTable`] and [`LinkTable`] that `khalid-auth`
+//! signs people in with.
 
 mod account_table;
 mod content_index;
@@ -20,6 +20,7 @@ mod database;
 mod db_error;
 mod delivery_log;
 mod key_table;
+mod link_table;
 mod posts;
 mod rebuild;
 mod session_table;
@@ -32,6 +33,7 @@ pub use database::Database;
 pub use db_error::DbError;
 pub use delivery_log::DeliveryLog;
 pub use key_table::KeyTable;
+pub use link_table::LinkTable;
 pub use rebuild::{PostChanges, RebuildSummary};
 pub use session_table::SessionTable;
 pub use site_id::SiteId;
