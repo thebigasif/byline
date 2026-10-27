@@ -106,6 +106,10 @@ fn send(
     body: Option<&Value>,
 ) -> (u16, String, String) {
     let mut stream = TcpStream::connect(&server.host).unwrap();
+    // A request the server never answers fails the test, not hangs it.
+    let patience = Some(std::time::Duration::from_secs(30));
+    stream.set_read_timeout(patience).unwrap();
+    stream.set_write_timeout(patience).unwrap();
     let body = body.map(Value::to_string).unwrap_or_default();
     let (host, length) = (&server.host, body.len());
     let authorization = key.map_or(String::new(), |key| {
@@ -119,7 +123,9 @@ fn send(
         .write_all(format!("{head}\r\n{body}").as_bytes())
         .unwrap();
     let mut raw = String::new();
-    stream.read_to_string(&mut raw).unwrap();
+    if let Err(error) = stream.read_to_string(&mut raw) {
+        panic!("{method} {path} got no whole answer in 30 s: {error}; so far: {raw}");
+    }
     let (head, body) = raw.split_once("\r\n\r\n").unwrap();
     let status = head.split(' ').nth(1).unwrap().parse().unwrap();
     (status, head.to_lowercase(), body.to_owned())
@@ -293,6 +299,15 @@ fn moves(server: &Server, from: &str, to: &str) {
 fn a_renamed_post_keeps_its_old_address_while_serving_and_across_a_restart() {
     let site = demo_copy();
     let server = start(site.path());
+    // The whole site is rendered once a post page answers.
+    let (status, ..) = send(
+        &server,
+        "GET",
+        "/blog/why-internal-links-matter/",
+        None,
+        None,
+    );
+    assert_eq!(status, 200);
     let title = "2026-09-21-how-to-write-a-title-tag.md";
     rename(
         site.path(),
