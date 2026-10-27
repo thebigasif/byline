@@ -1,6 +1,7 @@
 //! An account with a certificate authority over ACME, and a certificate
-//! got with it, against a small test service that checks the answer for
-//! real: the TLS-ALPN-01 certificate on the TLS listener.
+//! got with it, against a small test service that checks the answers for
+//! real: the TLS-ALPN-01 certificate on the TLS listener, or the HTTP-01
+//! file on the port 80 router.
 
 #[cfg(test)]
 mod acme_service;
@@ -9,10 +10,10 @@ mod common;
 
 use std::time::Duration;
 
-use acme_service::{AcmeService, start_ordering};
+use acme_service::{AcmeService, Offer, start_ordering};
 use khalid_https::{
     AccountKey, Acme, AgreedToTerms, Certificate, Certificates, Check, Directory, Domain,
-    HttpsError, TlsListener,
+    HttpsError, TlsListener, port_80,
 };
 use khalid_outbound::{Limits, Outbound, Reach, Resolver};
 use tokio::net::TcpListener;
@@ -20,14 +21,22 @@ use tokio::net::TcpListener;
 /// The domain the certificates are for.
 const NAME: &str = "blog.test";
 
-/// The TLS listener answering with `certificates`, and its port.
+/// The TLS listener and the port 80 router answering with `certificates`,
+/// and their ports.
 #[cfg(test)]
-async fn serve(certificates: &Certificates) -> u16 {
+async fn serve(certificates: &Certificates) -> (u16, u16) {
     let tls = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = tls.local_addr().unwrap().port();
+    let plain = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let ports = (
+        tls.local_addr().unwrap().port(),
+        plain.local_addr().unwrap().port(),
+    );
     let listener = TlsListener::new(tls, certificates.clone()).unwrap();
     tokio::spawn(async move { axum::serve(listener, axum::Router::new()).await });
-    port
+    let domain = Domain::try_new(NAME).unwrap();
+    let router = port_80(&domain, certificates.challenges().clone());
+    tokio::spawn(async move { axum::serve(plain, router).await });
+    ports
 }
 
 /// Signs up at `service`, then gets a certificate for `NAME` answering
@@ -51,7 +60,7 @@ async fn issue(
 #[tokio::test]
 async fn a_certificate_is_issued_after_the_tls_check() {
     let certificates = Certificates::new();
-    let service = start_ordering(NAME, serve(&certificates).await).await;
+    let service = start_ordering(NAME, Offer::TlsAlpn, serve(&certificates).await).await;
 
     let certificate = issue(&service, &certificates, &[Check::TlsAlpn, Check::Http])
         .await
@@ -62,11 +71,24 @@ async fn a_certificate_is_issued_after_the_tls_check() {
 }
 
 #[tokio::test]
+async fn a_certificate_is_issued_after_the_file_check_whose_answer_is_then_cleared() {
+    let certificates = Certificates::new();
+    let service = start_ordering(NAME, Offer::Http, serve(&certificates).await).await;
+
+    let certificate = issue(&service, &certificates, &[Check::TlsAlpn, Check::Http])
+        .await
+        .unwrap();
+
+    assert!(certificate.covers(NAME));
+    assert_eq!(certificates.challenges().http_answer("token-1"), None);
+}
+
+#[tokio::test]
 async fn an_order_offering_no_check_this_server_answers_is_refused() {
     let certificates = Certificates::new();
-    let service = start_ordering(NAME, serve(&certificates).await).await;
+    let service = start_ordering(NAME, Offer::Http, serve(&certificates).await).await;
 
-    let error = issue(&service, &certificates, &[Check::Http])
+    let error = issue(&service, &certificates, &[Check::TlsAlpn])
         .await
         .unwrap_err();
 
@@ -74,17 +96,20 @@ async fn an_order_offering_no_check_this_server_answers_is_refused() {
 }
 
 #[tokio::test]
-async fn a_wrong_answer_is_refused_and_nothing_is_issued() {
-    let served = Certificates::new();
-    let service = start_ordering(NAME, serve(&served).await).await;
-    let elsewhere = Certificates::new();
+async fn a_wrong_answer_to_either_check_is_refused_and_nothing_is_issued() {
+    for (offer, check) in [(Offer::TlsAlpn, Check::TlsAlpn), (Offer::Http, Check::Http)] {
+        let served = Certificates::new();
+        let service = start_ordering(NAME, offer, serve(&served).await).await;
+        let elsewhere = Certificates::new();
 
-    let error = issue(&service, &elsewhere, &[Check::TlsAlpn])
-        .await
-        .unwrap_err();
+        let error = issue(&service, &elsewhere, &[check]).await.unwrap_err();
 
-    assert!(matches!(error, HttpsError::Refused { .. }), "{error:?}");
-    assert_eq!(service.issued(), 0);
+        assert!(
+            matches!(error, HttpsError::Refused { .. }),
+            "{offer:?}: {error:?}"
+        );
+        assert_eq!(service.issued(), 0);
+    }
 }
 
 /// The outbound client, reaching the test service on loopback.

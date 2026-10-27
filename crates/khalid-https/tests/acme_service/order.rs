@@ -8,12 +8,14 @@ use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use khalid_core::AbsoluteUrl;
+use khalid_outbound::{Limits, Outbound, Reach, Resolver};
 use rcgen::{CertificateSigningRequestParams, Issuer};
 use rustls_pki_types::CertificateSigningRequestDer;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-use super::{Book, Shared, answer, opened};
+use super::{Book, Offer, Shared, answer, opened};
 use crate::common::tls_handshake;
 
 /// The order as JSON, with its certificate's address once there is one.
@@ -47,13 +49,21 @@ pub(crate) async fn authorization(State(book): State<Shared>) -> Response {
         "status": "pending",
         "identifier": { "type": "dns", "value": book.domain },
         "challenges": [{
-            "type": "tls-alpn-01",
+            "type": kind(book.offer),
             "url": format!("{}/challenge/1", book.base),
             "token": "token-1",
             "status": "pending",
         }],
     });
     answer(StatusCode::OK, None, &body)
+}
+
+/// The check's name in ACME.
+fn kind(offer: Offer) -> &'static str {
+    match offer {
+        Offer::TlsAlpn => "tls-alpn-01",
+        Offer::Http => "http-01",
+    }
 }
 
 /// The key authorization the server under test must show.
@@ -69,21 +79,36 @@ fn expected(book: &Book) -> String {
 
 /// Makes the check for real, then marks the order ready or invalid.
 pub(crate) async fn challenge(State(book): State<Shared>) -> Response {
-    let (domain, port, expected) = {
+    let (offer, domain, ports, expected) = {
         let book = book.lock().unwrap();
-        (book.domain.clone(), book.tls_port, expected(&book))
+        (book.offer, book.domain.clone(), book.ports, expected(&book))
     };
-    let mut extension = vec![0x04, 0x20];
-    extension.extend_from_slice(&Sha256::digest(expected.as_bytes()));
-    let passed = tls_handshake(port, &domain, b"acme-tls/1")
-        .await
-        .is_some_and(|(certificate, _)| {
-            certificate.windows(extension.len()).any(|w| w == extension)
-        });
+    let passed = match offer {
+        Offer::Http => {
+            let hosts = vec![(domain.clone(), vec!["127.0.0.1".parse().unwrap()])];
+            let resolver = Resolver::for_tests(hosts, Reach::PublicAndLoopback);
+            let outbound = Outbound::with_resolver(Limits::default(), resolver).unwrap();
+            let url = format!(
+                "http://{domain}:{}/.well-known/acme-challenge/token-1",
+                ports.1
+            );
+            let fetched = outbound.get(&AbsoluteUrl::parse(&url).unwrap()).await;
+            fetched.is_ok_and(|f| f.status() == 200 && f.body() == expected.as_bytes())
+        }
+        Offer::TlsAlpn => {
+            let mut extension = vec![0x04, 0x20];
+            extension.extend_from_slice(&Sha256::digest(expected.as_bytes()));
+            tls_handshake(ports.0, &domain, b"acme-tls/1")
+                .await
+                .is_some_and(|(certificate, _)| {
+                    certificate.windows(extension.len()).any(|w| w == extension)
+                })
+        }
+    };
     let mut book = book.lock().unwrap();
     book.order = if passed { "ready" } else { "invalid" };
     let body = json!({
-        "type": "tls-alpn-01",
+        "type": kind(offer),
         "url": format!("{}/challenge/1", book.base),
         "token": "token-1",
         "status": if passed { "valid" } else { "invalid" },

@@ -37,6 +37,14 @@ impl AcmeService {
     }
 }
 
+/// Which check the service offers.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum Offer {
+    #[default]
+    TlsAlpn,
+    Http,
+}
+
 /// What the service remembers.
 #[derive(Default)]
 pub(crate) struct Book {
@@ -44,7 +52,9 @@ pub(crate) struct Book {
     accounts: usize,
     account_key: Option<Value>,
     domain: String,
-    tls_port: u16,
+    offer: Offer,
+    /// The server under test: its TLS port, then its port 80.
+    ports: (u16, u16),
     order: &'static str,
     chain: Option<String>,
     issued: usize,
@@ -55,12 +65,12 @@ pub(crate) type Shared = Arc<Mutex<Book>>;
 
 /// Starts the service on a free loopback port, to open accounts.
 pub(crate) async fn start() -> AcmeService {
-    start_ordering("blog.test", 0).await
+    start_ordering("blog.test", Offer::TlsAlpn, (0, 0)).await
 }
 
-/// Starts the service to issue for `domain`, checking it over TLS-ALPN-01
-/// on the server under test at `tls_port`.
-pub(crate) async fn start_ordering(domain: &str, tls_port: u16) -> AcmeService {
+/// Starts the service to issue for `domain`, offering `offer`, made against
+/// the server under test at `ports`: its TLS port, then its port 80.
+pub(crate) async fn start_ordering(domain: &str, offer: Offer, ports: (u16, u16)) -> AcmeService {
     let tcp = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://127.0.0.1:{}", tcp.local_addr().unwrap().port());
     let key = KeyPair::generate().unwrap();
@@ -69,7 +79,8 @@ pub(crate) async fn start_ordering(domain: &str, tls_port: u16) -> AcmeService {
     let book = Arc::new(Mutex::new(Book {
         base: base.clone(),
         domain: domain.to_owned(),
-        tls_port,
+        offer,
+        ports,
         order: "pending",
         authority: Some((params, key)),
         ..Book::default()
