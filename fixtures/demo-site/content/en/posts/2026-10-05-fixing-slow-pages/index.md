@@ -6,6 +6,10 @@ author: lena-vogt
 category: technical-seo
 description: Slow pages lose readers before they read a word. Where the time usually goes, and what to fix first.
 translation: page-speed
+image:
+  src: page-weight.png
+  alt: A bar chart of page weight by part
+  caption: Images weigh the most.
 ---
 
 Readers leave pages that load slowly, and search engines notice. The good news: most slow pages are slow for the same few reasons.
@@ -26,3 +30,13 @@ Where the bytes of a typical slow page go.
 4. **Layout that jumps.** Give every image a width and height, so the text does not move while the page loads.
 
 Fix the first cause on your slowest page, measure again, and move on. Faster pages also get crawled more often, which helps [your sitemap](/blog/what-a-sitemap-does/) do its job.
+
+::::faq
+:::question{text="How fast should a page load?"}
+Aim for the main content to show within 2.5 seconds on a phone.
+:::
+
+:::question{text="Which page should I fix first?"}
+The slowest page that brings in the most readers.
+:::
+::::

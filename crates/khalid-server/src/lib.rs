@@ -38,7 +38,7 @@ pub use background::Background;
 pub use live_pages::{LivePages, Replacements};
 pub use media_type::MediaType;
 pub use moved::Moved;
-pub use page::Page;
+pub use page::{NONCE_SLOT, Page};
 pub use page_path::{PagePath, ParsePagePathError};
 pub use pages::Pages;
 pub use render::{Render, Rendered, render_pages};

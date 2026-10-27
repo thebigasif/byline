@@ -8,10 +8,16 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
-use khalid_api::api;
+use axum::Router;
+use khalid_api::api::{self, AdminDesks};
+use khalid_api::comment_moderation::CommentModeration;
+use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
+use khalid_api::redirect_desk::RedirectDesk;
+use khalid_api::session_check::SessionCheck;
+use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
-use khalid_core::{Config, Slug, SystemClock, UserMessage};
+use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -30,8 +36,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, newsletter, preview, report, scheduler, search_route,
-    serve_message, staff,
+    announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
+    report, scheduler, search_route, serve_message, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -62,7 +68,7 @@ pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    (listen, outbound): (&Listen, Result<Outbound, OutboundError>),
+    (listen, outbound, bucket_keys): (&Listen, Result<Outbound, OutboundError>, Option<S3Keys>),
     output: Output,
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
@@ -79,7 +85,7 @@ pub(crate) fn run(
     let served = serve_with(
         (site, config, routes),
         start,
-        (listen, &outbound, output),
+        (listen, &outbound, output, bucket_keys),
         &runtime,
         (&database, id),
     );
@@ -96,11 +102,12 @@ pub(crate) fn run(
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, outbound, output): (&Listen, &Outbound, Output),
+    (listen, outbound, output, bucket_keys): (&Listen, &Outbound, Output, Option<S3Keys>),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
     let (content, hand_back) = (LiveContent::default(), HandBack::default());
+    let (redirects, addresses) = redirect_route::stores((database, id));
     let to = Destination {
         folder: site.to_path_buf(),
         config: config.clone(),
@@ -108,6 +115,8 @@ fn serve_with(
         site: id,
         live: content.clone(),
         hand_back: hand_back.clone(),
+        addresses: addresses.clone(),
+        redirects: redirects.clone(),
     };
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
@@ -136,36 +145,33 @@ fn serve_with(
         announce(output, config, &format!("{address}{}", config.mount()));
         let live = LivePages::new(first);
         hand_back.start(live.replacements());
-        let shown = (&source, &live);
-        let (comments, moderation) =
-            comment_pages::start(config, (database, id), shown, security.clone()).await;
         let (failed, failure) = oneshot::channel();
-        let rest = (source.clone(), live.clone());
-        tokio::spawn(render_the_rest(rest, (checked, assets), failed));
+        tokio::spawn(render_the_rest((source.clone(), live.clone()), (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
-        let (door, announcing) = publish_door((site, config), (database, id), outbound).await?;
+        // Each part reads the database or the folder alone, so all open at once.
+        let shown = (&source, &live);
+        let commenting = comment_pages::start(config, (database, id), shown, security.clone());
+        let shown_pages = router(live.clone(), security.clone());
+        let ((comments, moderation), (door, announcing), (media, files), unlocked) = tokio::try_join!(
+            async { Ok(commenting.await) },
+            publish_door((site, config), (database, id), outbound),
+            media_library::open(site, config, bucket_keys, outbound),
+            unlocking((site, config), (database, id), &source, shown_pages),
+        )?;
         let scheduling = scheduler::start(Arc::clone(&door));
-        let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
-        let accounts = staff::accounts(database, id, config);
-        let staff = khalid_auth::staff_routes(accounts.clone());
-        let stores = (Arc::new(content), door, Arc::new(keys));
-        let (api, _) = api::router_with_door_comments_and_staff(
-            stores.0,
-            stores.1,
-            stores.2,
-            moderation,
-            staff,
-            Arc::new(accounts),
-        );
-        let searches = search_route::router(config, search);
-        let admin = khalid_admin::router(khalid_admin::built());
-        let app = api
+        let previews = preview::router(Arc::clone(&door), source.clone(), config, security);
+        let pages = (unlocked, live, config.mount());
+        let (desk, pages) =
+            redirect_route::start((database, id), pages, (redirects, addresses)).await;
+        let desks = (moderation, media, desk);
+        let app = api_router((content, door, keys), desks, (database, id, config))
+            .merge(files)
             .merge(previews)
-            .merge(searches)
-            .merge(admin)
+            .merge(search_route::router(config, search))
+            .merge(khalid_admin::router(khalid_admin::built()))
             .merge(comments)
             .merge(newsletters)
-            .merge(router(live, security));
+            .merge(pages);
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
@@ -188,6 +194,26 @@ fn serve_with(
     served
 }
 
+/// The Content API and the Admin API as `khalid serve` runs them, with the
+/// comment moderation, media library, stored redirects and staff accounts
+/// of site `id`.
+fn api_router(
+    (content, door, keys): (LiveContent, Arc<PublishDoor>, KeyTable),
+    (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
+    (database, id, config): (&Database, SiteId, &Config),
+) -> Router {
+    let accounts = staff::accounts(database, id, config);
+    let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
+    let staff = (khalid_auth::staff_routes(accounts), sessions);
+    let desks = AdminDesks {
+        comments,
+        media: Some(media),
+        redirects,
+    };
+    let (api, _) = api::router_for_serve(Arc::new(content), door, Arc::new(keys), desks, staff);
+    api
+}
+
 /// The publish door the Admin API, the scheduler and preview links share.
 /// It keeps schedules in the database and announces each post that goes
 /// live through `outbound`, until the returned announcing is stopped.
@@ -207,6 +233,34 @@ async fn publish_door(
         .with_schedules(schedules, SystemClock)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
     Ok((Arc::new(door), announcing))
+}
+
+/// `pages`, the site's page router, with the password form and the cookie
+/// check of `source`'s password posts. The cookies are signed with the
+/// site's preview key under their own label, and marked `Secure` when the
+/// site's address is `https`.
+async fn unlocking(
+    (site, config): (&Path, &Config),
+    (database, id): (&Database, SiteId),
+    source: &SitePages,
+    pages: axum::Router,
+) -> Result<axum::Router, (UserMessage, Exit)> {
+    let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
+    let key = database.preview_key(id, &SystemClock).await;
+    let key = key.map_err(|error| (db_message::of(&file, &error), Exit::Failure))?;
+    let transport = if config.address().as_str().starts_with("https://") {
+        Transport::Https
+    } else {
+        Transport::Http
+    };
+    let signer = UnlockSigner::new(&key, transport, SystemClock);
+    Ok(unlock::router(
+        config,
+        source.gate(),
+        signer,
+        pages,
+        SystemClock,
+    ))
 }
 
 /// Renders every page from the `checked` content on a blocking thread

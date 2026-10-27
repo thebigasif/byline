@@ -7,15 +7,18 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use khalid_core::Config;
+use khalid_core::{Clock, Config, SystemClock};
 use khalid_db::{Database, PostChanges, SiteId};
+use khalid_seo::UrlPath;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::live_redirects::LiveRedirects;
 use crate::memory::HandBack;
+use crate::site_addresses::{self, LiveAddresses};
 use crate::site_content::{Catalog, LiveContent, Published};
-use crate::{db_message, search_index};
+use crate::{db_message, search_index, slug_moves};
 
 /// Hands the catalog of each render to the background task. When every
 /// feed is dropped, the task finishes what it is doing and stops.
@@ -44,6 +47,10 @@ pub(crate) struct Destination {
     pub(crate) live: LiveContent,
     /// Told after each catalog is served and written.
     pub(crate) hand_back: HandBack,
+    /// The address of each page, for the redirect routes.
+    pub(crate) addresses: LiveAddresses,
+    /// The stored redirects, which get a move for each page that moved.
+    pub(crate) redirects: LiveRedirects,
 }
 
 /// Starts the background task on `runtime`. Await the handle after the
@@ -64,6 +71,22 @@ struct Applied {
     published: Option<Arc<Published>>,
     served: Option<Arc<Hashes>>,
     written: Option<Arc<Hashes>>,
+    /// Each page's address in the last catalog, by file.
+    addresses: Option<BTreeMap<String, UrlPath>>,
+}
+
+/// Serves the addresses of `catalog`'s pages, and stores a permanent move
+/// for each page whose address changed since the last catalog, or, for
+/// the first, since the index this run started with.
+async fn moved(to: &Destination, catalog: &Catalog, applied: &mut Applied) {
+    let after = site_addresses::of(&to.config, &catalog.index);
+    let before = match applied.addresses.take() {
+        Some(before) => before,
+        None => slug_moves::indexed((&to.db, to.site), &to.config, &catalog.index).await,
+    };
+    slug_moves::store(&to.redirects, (&before, &after), SystemClock.now()).await;
+    to.addresses.replace(&after);
+    applied.addresses = Some(after);
 }
 
 /// Builds the latest catalog each time one arrives, and drops it once it is
@@ -92,6 +115,7 @@ async fn apply(to: &Arc<Destination>, catalog: Arc<Catalog>, applied: &mut Appli
         .map(|post| (post.path.clone(), post.content_hash))
         .collect();
     let hashes = Arc::new(hashes);
+    moved(to, &catalog, applied).await;
     let since = applied.published.clone().zip(applied.served.as_ref());
     let since = since.map(|(published, served)| (published, changes(served, &hashes)));
     let building = {
@@ -194,6 +218,8 @@ mod tests {
             site,
             live: live.clone(),
             hand_back: HandBack::default(),
+            addresses: LiveAddresses::default(),
+            redirects: LiveRedirects::new(Arc::new(khalid_db::RedirectRows::new(db.clone(), site))),
         };
         let (feed, task) = start(&Handle::current(), to);
 

@@ -15,18 +15,21 @@ use khalid_render::{
     PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult,
 };
 use khalid_routes::Routes;
-use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
+use khalid_server::{Moved, Page, Render, Rendered};
 
 use crate::build_pages::LanguagePages;
 use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
 use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
+use crate::post_photos::Shown;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
+use crate::site_page::HeadNonce;
+use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_message, build_pages, build_seo, content_message, post_files,
-    search_page, serve_message, site_files,
+    post_lock, search_page, serve_message, site_files, site_outline,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -57,6 +60,8 @@ struct Site {
     searches: Mutex<Vec<SearchShell>>,
     /// The comments post pages show, or `None` when the site takes none.
     comments: Option<ShownComments>,
+    /// The password posts of the last full render, for the password form.
+    gate: Gate,
 }
 
 /// What a saved post's page needs from the rest of the site, in a fraction
@@ -68,6 +73,9 @@ struct Outline {
     content: SiteContent,
     /// Every dated post, which related posts are chosen from.
     listed: Vec<ListedPost>,
+    /// The lead images and author photos the full render drew, which cards
+    /// and bylines on a saved post's page show.
+    shown: Shown,
 }
 
 /// The theme's renderer, and the stylesheet every page links.
@@ -119,6 +127,7 @@ impl SitePages {
             outline: Mutex::default(),
             assets: Mutex::default(),
             searches: Mutex::default(),
+            gate: Gate::default(),
             comments,
         })))
     }
@@ -220,6 +229,12 @@ impl SitePages {
         Ok(pages)
     }
 
+    /// The password posts the password form checks, as the last full
+    /// render found them.
+    pub(crate) fn gate(&self) -> Gate {
+        self.0.gate.clone()
+    }
+
     /// The page the draft of post `slug` in `locale` would have if it went
     /// live today, rendered among the site's posts as they are now, for
     /// its preview link. `None` when there is no such draft, the site has
@@ -263,7 +278,9 @@ impl SitePages {
             .retain(|other| &other.locale != locale || other.front.slug.as_ref() != Some(slug));
         content.posts.push(doc);
         let assets = Assets::of(&tree);
-        let (served, _) = self.render_of(&assets, (&content, &[]), Which::Posts)?;
+        let mut shown = Shown::default();
+        let which = Which::Posts;
+        let (served, _) = self.render_of(&assets, (&content, &[]), which, &mut shown)?;
         let address = build_pages::path_of(config, locale, &format!("{slug}/"));
         let page = served
             .pages
@@ -303,10 +320,12 @@ impl SitePages {
             Some(_) => Some(Catalog::of(folder, config, content)?),
             None => None,
         };
-        let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All)?;
+        let mut shown = Shown::default();
+        let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All, &mut shown)?;
         *outline.lock().unwrap_or_else(PoisonError::into_inner) = Outline {
-            content: outline_of(content),
+            content: site_outline::outline_of(content),
             listed,
+            shown,
         };
         *kept.lock().unwrap_or_else(PoisonError::into_inner) = Some(assets);
         if let (Some(feed), Some(catalog)) = (feed, catalog) {
@@ -322,12 +341,14 @@ impl SitePages {
     /// Related posts are chosen among those and `others`. Only a full
     /// render serves the files; a saved post's page still points its
     /// images at them. A headless site has no HTML page, as `khalid build`
-    /// writes none.
+    /// writes none. Cards and bylines show the images in `shown`, which
+    /// gains the ones these pages draw.
     fn render_of(
         &self,
         assets: &Assets,
         (content, others): (&SiteContent, &[ListedPost]),
         which: Which,
+        shown: &mut Shown,
     ) -> Result<(Served, Vec<ListedPost>), UserMessage> {
         let Site {
             folder,
@@ -340,13 +361,19 @@ impl SitePages {
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
         let mut languages = build_pages::pages(config, routes, (content, others), href)?;
+        let renderer = theme.as_ref().map(|theme| &theme.renderer);
+        post_lock::lock(config, content, renderer, &mut languages);
         if let Some(theme) = theme {
             search_page::add(config, &theme.renderer, &mut languages)?;
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
-        let beside = post_files::served(folder, config, assets, &mut languages)?;
+        let beside = post_files::served(folder, config, assets, &mut languages, shown)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+        post_lock::share_heads(&mut languages);
+        if which == Which::All {
+            self.0.gate.replace(&languages);
+        }
         let mut served = Served {
             pages: Vec::new(),
             not_found: HEADLESS_NOT_FOUND.to_owned(),
@@ -470,23 +497,6 @@ fn search_shells(languages: &[LanguagePages]) -> Vec<SearchShell> {
     shells
 }
 
-/// The posts of `content` without their bodies, and its authors whole,
-/// since a post's author box shows their bios: what a saved post's page
-/// needs from the rest of the site, in a fraction of the memory the whole
-/// content takes.
-fn outline_of(content: &SiteContent) -> SiteContent {
-    let mut outline = SiteContent::default();
-    outline.posts = content.posts.iter().map(without_body).collect();
-    outline.authors.clone_from(&content.authors);
-    outline
-}
-
-fn without_body<F: Clone>(doc: &Document<F>) -> Document<F> {
-    let mut doc = doc.clone();
-    doc.body = String::new();
-    doc
-}
-
 /// Renders the `which` pages of `languages` with `theme` into `pages`, and
 /// returns the not-found page of the default language, empty unless
 /// `which` is [`Which::All`].
@@ -503,19 +513,19 @@ fn html_pages(
             if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
                 continue;
             }
-            let html = theme
-                .renderer
-                .render(&language.site, &page.meta, &page.body)
-                .map_err(|error| build_message::render(&error))?;
+            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
             if matches!(page.body, PageBody::NotFound) {
                 if &language.site.locale == config.default_language() {
                     not_found = html;
                 }
                 continue;
             }
-            let path = PagePath::try_new(&page.meta.path)
-                .map_err(|_| build_message::address(&page.meta.path))?;
-            pages.push(Page::new(path, MediaType::Html, html));
+            pages.push(page.served_at(&page.meta.path, html)?);
+        }
+        for unlocked in &language.unlocked {
+            let page = &unlocked.page;
+            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
+            pages.push(page.served_at(&post_lock::hidden(&page.meta.path), html)?);
         }
     }
     Ok(not_found)
@@ -543,8 +553,21 @@ impl Render for SitePages {
         let (Some(assets), Some((saved, others))) = (kept, self.saved_posts(files)) else {
             return Ok(None);
         };
+        // A post that is or was locked changes the password posts the
+        // form checks, which only the full render keeps.
+        let locked = |doc: &Document<PostFront>| {
+            post_lock::Lock::of(&doc.front).is_some() || self.0.gate.guards(&doc.path)
+        };
+        if saved.posts.iter().any(locked) {
+            return Ok(None);
+        }
+        let outline = self.0.outline.lock();
+        let mut shown = outline
+            .unwrap_or_else(PoisonError::into_inner)
+            .shown
+            .clone();
         let (served, _) = self
-            .render_of(&assets, (&saved, &others), Which::Posts)
+            .render_of(&assets, (&saved, &others), Which::Posts, &mut shown)
             .map_err(Unrendered)?;
         Ok(Some(served.pages))
     }

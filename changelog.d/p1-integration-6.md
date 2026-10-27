@@ -1,0 +1,1 @@
+- The media library, stored redirects, password and members posts, and the new post fields (co-authors, review state, share cards, schema) now work together in one `khalid serve`. Staff sessions reach the media and redirect routes like any key.

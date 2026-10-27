@@ -188,7 +188,8 @@ pub(crate) struct EditPosts {
 /// made on; when the post changed since, the answer is a 409 naming who
 /// changed it and when (RULES.md BL-API-7). Needs `posts:write`, and
 /// `posts:publish` to publish, schedule or take down a post, or to edit one
-/// that is live or scheduled.
+/// that is live or scheduled. A change to head code needs an owner, an
+/// admin or `admin:all`.
 #[utoipa::path(
     put, path = "/posts/{id}/", tag = "admin posts",
     security(("admin_key" = [])),
@@ -197,7 +198,7 @@ pub(crate) struct EditPosts {
     responses(
         (status = 200, description = "The post as saved", body = AdminPosts),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
-        (status = 403, description = "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, or changes head code without being an owner or admin", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The post changed after the copy the edit was made on, or another post has the new slug", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "The body could not be read, a setting is not valid, the schedule cannot be kept, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
@@ -217,6 +218,14 @@ async fn edit_admin_post(
     if !principal.access().allows(Scope::PostsPublish) && publishes(&posts, &id, &edit).await? {
         require_publish(&principal)?;
     }
+    if edit.names_head_code() && !principal.access().allows(Scope::AdminAll) {
+        let post = posts.get(&id).await.map_err(|e| Problem::internal(&e))?;
+        let post = post.ok_or_else(|| missing(uri.path()))?;
+        if edit.changes_head_code(&post) {
+            return Err(head_code_forbidden());
+        }
+    }
+    let edit = hashed(edit).await?;
     match posts.edit(&id, edit, principal.id().as_str()).await {
         Ok(post) => Ok(Json(AdminPosts { posts: vec![post] })),
         Err(UpdatePostError::NotFound) => Err(missing(uri.path())),
@@ -251,6 +260,28 @@ async fn publishes(posts: &Posts, id: &str, edit: &PostEdit) -> Result<bool, Pro
         .await
         .map_err(|error| Problem::internal(&error))?;
     Ok(post.is_some_and(|post| post.status() != PostStatus::Draft))
+}
+
+/// The 403 for a head code change from anyone but an owner, an admin or
+/// an `admin:all` key, because head code runs on every reader's page.
+fn head_code_forbidden() -> Problem {
+    let message = UserMessage::new(
+        "Only an owner or an admin may change a post's head code.",
+        "Head code runs in every reader's browser, so it needs the most trusted roles.",
+        "Ask an owner or an admin to add it, or leave head_code out of the edit.",
+    );
+    Problem::new(ProblemType::Forbidden, &message).with_rule("head_code")
+}
+
+/// `edit` with its new password, if any, hashed on a blocking thread,
+/// because Argon2id is slow on purpose (RULES.md BL-RUN-7).
+async fn hashed(mut edit: PostEdit) -> Result<PostEdit, Problem> {
+    let hashed = tokio::task::spawn_blocking(move || edit.hash_password().map(|()| edit)).await;
+    match hashed {
+        Ok(Ok(edit)) => Ok(edit),
+        Ok(Err(error)) => Err(Problem::internal(&error)),
+        Err(error) => Err(Problem::internal(&error)),
+    }
 }
 
 /// The 422 for a post the linter refused to publish, with every finding.

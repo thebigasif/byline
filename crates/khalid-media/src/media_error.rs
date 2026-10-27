@@ -61,6 +61,31 @@ pub enum MediaError {
         #[source]
         source: tokio::task::JoinError,
     },
+    /// A media item's `item.toml` is not valid.
+    #[error("{} is not a valid media item file", path.display())]
+    Item {
+        /// The file.
+        path: PathBuf,
+        /// What is wrong with it.
+        #[source]
+        source: crate::ParseItemError,
+    },
+    /// The bucket could not be reached, or took too long.
+    #[error("the bucket could not be reached")]
+    Reach {
+        /// What the outbound client reported.
+        #[source]
+        source: khalid_outbound::OutboundError,
+    },
+    /// The bucket answered with a status other than success.
+    #[error("the bucket answered with status {status}")]
+    Bucket {
+        /// The HTTP status, such as 403 for keys the bucket refuses.
+        status: u16,
+    },
+    /// The bucket's endpoint and a file's name do not make an address.
+    #[error("the bucket's endpoint does not make a valid address")]
+    BucketAddress,
     /// A request to a bucket could not be signed.
     #[error("the request to the bucket could not be signed")]
     Sign {

@@ -11,6 +11,8 @@ use tower::service_fn;
 
 use crate::clean_url::{Resolved, resolve};
 use crate::compress::{self, Compressed};
+use crate::page::NONCE_SLOT;
+use crate::security::fresh_nonce;
 use crate::{LivePages, MediaType, Page, Pages, SecurityHeaders, etag};
 
 /// The methods a page answers.
@@ -61,7 +63,38 @@ fn waits(pages: &Pages, request: &Request<Body>) -> bool {
 /// Answers at once from `pages`, already in memory.
 fn answer(pages: &Pages, security: &SecurityHeaders, request: &Request<Body>) -> Response<Body> {
     let mut response = respond(pages, request);
-    security.apply(response.headers_mut());
+    match response.extensions_mut().remove::<FilledNonce>() {
+        Some(FilledNonce(nonce)) => security.apply_with_head_code(response.headers_mut(), &nonce),
+        None => security.apply(response.headers_mut()),
+    }
+    response
+}
+
+/// The nonce a page's [`NONCE_SLOT`] was filled with, which its policy
+/// must carry.
+#[derive(Debug, Clone)]
+struct FilledNonce(String);
+
+/// A page with a nonce slot, filled for this request alone and never kept.
+/// Without random bytes the slot is emptied and the policy allows no
+/// script, which is stricter, never looser.
+fn per_request(page: &Page, send: SendBody) -> Response<Body> {
+    let plain = match page.body() {
+        Ok(plain) => plain,
+        Err(error) => {
+            tracing::error!(%error, "a page could not be sent plain");
+            return status(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    let nonce = fresh_nonce();
+    let html = String::from_utf8_lossy(&plain).replace(NONCE_SLOT, nonce.as_deref().unwrap_or(""));
+    let mut response = file(StatusCode::OK, page.media_type(), &Bytes::from(html), send);
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, page.cache_control());
+    if let Some(nonce) = nonce {
+        response.extensions_mut().insert(FilledNonce(nonce));
+    }
     response
 }
 
@@ -99,6 +132,9 @@ enum SendBody {
 /// The page, compressed when the browser takes Brotli, or 304 when the
 /// reader's copy, plain or compressed, is current.
 fn page_response(page: &Page, request: &HeaderMap, send: SendBody) -> Response<Body> {
+    if page.fills_nonce() {
+        return per_request(page, send);
+    }
     let brotli = page.brotli().filter(|_| compress::accepts_brotli(request));
     let tag = match brotli {
         Some(copy) => copy.etag(),

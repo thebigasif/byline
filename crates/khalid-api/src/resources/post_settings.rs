@@ -4,9 +4,12 @@
 use std::fmt;
 
 use chrono::NaiveDate;
-use khalid_core::{AbsoluteUrl, RobotsDirectives, Slug};
+use khalid_core::{
+    AbsoluteUrl, HeadCode, PasswordHash, PostAccess, RobotsDirectives, Slug, TemplateName,
+};
 use serde::{Deserialize, Serialize, Serializer};
 use utoipa::ToSchema;
+use utoipa::openapi::schema::{ObjectBuilder, Schema, Type};
 
 use super::display_option;
 
@@ -176,6 +179,45 @@ pub struct PostSettings {
     pub share_cards: ShareCards,
     /// Old addresses that redirect here.
     pub aliases: Vec<Alias>,
+    /// Who may read the body: `public` or `members`.
+    #[schema(schema_with = access_schema)]
+    pub access: PostAccess,
+    /// Whether a reader must give a password to read the body. The
+    /// password itself is never sent back.
+    #[serde(rename = "password_protected", serialize_with = "is_set")]
+    #[schema(value_type = bool)]
+    pub password: Option<PasswordHash>,
+    /// The theme template the post is shown with, such as `wide` for
+    /// `theme/templates/post-wide.html`, or `null` for `post.html`.
+    #[serde(serialize_with = "display_option")]
+    #[schema(value_type = Option<String>, example = "wide")]
+    pub template: Option<TemplateName>,
+    /// Checked HTML added to the post's page head, such as an analytics
+    /// tag. Only owners and admins may change it.
+    #[serde(serialize_with = "display_option")]
+    #[schema(value_type = Option<String>, example = "<meta name=\"verify\" content=\"x\">")]
+    pub head_code: Option<HeadCode>,
+}
+
+/// The schema for [`PostAccess`]: one of its names.
+pub(super) fn access_schema() -> Schema {
+    let names = PostAccess::ALL.map(PostAccess::as_str);
+    let schema = ObjectBuilder::new()
+        .schema_type(Type::String)
+        .enum_values(Some(names))
+        .description(Some(
+            "Who may read the body: `public`, or `members`, who are signed in.",
+        ));
+    schema.into()
+}
+
+/// Writes whether there is a value, and never the value.
+#[expect(
+    clippy::ref_option,
+    reason = "serde's serialize_with passes the field by reference"
+)]
+fn is_set<T, S: Serializer>(value: &Option<T>, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_bool(value.is_some())
 }
 
 /// Writes each value through its `Display`.

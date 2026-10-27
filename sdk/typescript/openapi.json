@@ -341,6 +341,603 @@
         ]
       }
     },
+    "/api/admin/v1/media/": {
+      "get": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Lists the media library, newest upload first, with the shared list\ngrammar: `filter`, `order`, `limit` and `page` (RULES.md BL-API-5).\n`filter=alt:null+kind:image` finds images still waiting for alt text.\nNeeds `media:write`.",
+        "operationId": "list_media",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=tag:news+featured:true`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`include=authors,tags`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "`fields=title,slug`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=published_at desc,title`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formats",
+            "in": "query",
+            "description": "`formats=html,plaintext`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15` or `limit=all`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Adds the file sent as the body to the media library; its type is read\nfrom its bytes. A file the library already has answers 200 with that\nitem, so a retry adds no second copy. Needs `media:write`.",
+        "operationId": "upload_media",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "The file's name, made a slug; the extension comes from its content.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folder",
+            "in": "query",
+            "description": "The library folder, such as `guides/2026`. The top when left out.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The file's bytes",
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The library already had this file; the item as it is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The new item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The folder is not up to five slugs joined by /",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file is a type the library refuses, cannot be read, or is too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/media/{id}/": {
+      "get": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Reads one item of the media library. Needs `media:write`.",
+        "operationId": "read_media",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The item's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No item has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Changes an item's alt text, caption, focal point or folder; a field left\nout stays. The edit carries the `updated_at` of the copy it was made on,\nand is a 409 when the item changed since (RULES.md BL-API-7). Needs\n`media:write`.",
+        "operationId": "edit_media",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The item's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The item as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No item has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The item changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/not-found/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Lists the addresses that answered 404, most requested first, each with\nthe nearest page. Needs `settings:write`.",
+        "operationId": "list_misses",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "path",
+            "description": "From 1 to 1,000; 100 when left out.",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The logged addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMisses"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The limit is not from 1 to 1,000",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/not-found/redirect/": {
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "\"Redirect this\": stores a permanent move from an address that answered\n404 to the page given, or to the nearest page, and drops the address\nfrom the log. Needs `settings:write`.",
+        "operationId": "redirect_miss",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedirectMiss"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The address already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The address or page is not a clean path, or no page is near",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "get": {
         "tags": [
@@ -644,7 +1241,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled. A change to head code needs an owner, an\nadmin or `admin:all`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -698,7 +1295,7 @@
             }
           },
           "403": {
-            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post",
+            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, or changes head code without being an owner or admin",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -815,6 +1412,440 @@
           },
           "422": {
             "description": "This site makes no preview links",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Lists every stored redirect, oldest first. Aliases in front matter are\nnot listed; they live in their posts. Needs `settings:write`.",
+        "operationId": "list_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Stores one redirect made by hand. It is checked against every stored\nredirect, so it can neither take an address that has one nor close a\nloop. Needs `settings:write`.",
+        "operationId": "create_redirect",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRedirects"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The address already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The redirect cannot be followed or would close a loop",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/explain/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Explains which stored redirect an address matches, every hop of its\nchain, and the one step a visitor gets. Aliases in front matter and\npages answer before stored redirects, so they are not shown here.\nNeeds `settings:write`.",
+        "operationId": "explain_redirect",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "description": "The path, from the site root, such as `/blog/old-links/`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Why the address answers what it does",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedirectExplanation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The path is not a clean path from the site root",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/export/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Every stored redirect as a CSV list, oldest first, to\nopen in a spreadsheet or import elsewhere. Needs `settings:write`.",
+        "operationId": "export_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The list, header first",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/import/": {
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Stores every redirect in a CSV list, or none. The list is checked row\nby row, then together with every stored redirect, so it can neither\ntake a used address nor close a loop. Needs `settings:write`.",
+        "operationId": "import_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "A header from,to,status,match (match may be left out), then one redirect a row",
+          "content": {
+            "text/csv": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "from,to,status,match\n/blog/old-links/,/blog/why-internal-links-matter/,301,exact\n"
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Every redirect in the list, stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An address in the list already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A row cannot be read or followed, or the list would close a loop",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/{id}/": {
+      "delete": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Removes one stored redirect. Needs `settings:write`.",
+        "operationId": "remove_redirect",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The redirect's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The redirect is gone"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No redirect has this identity",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4517,6 +5548,184 @@
           }
         }
       },
+      "AdminMedia": {
+        "type": "object",
+        "description": "A file in the media library with the details kept beside it.",
+        "required": [
+          "id",
+          "name",
+          "folder",
+          "type",
+          "kind",
+          "bytes",
+          "alt",
+          "caption",
+          "focal_point",
+          "url",
+          "uploaded_at",
+          "uploaded_by",
+          "updated_at",
+          "updated_by"
+        ],
+        "properties": {
+          "alt": {
+            "type": "string",
+            "description": "What an image shows, for readers who cannot see it."
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The size in bytes as stored.",
+            "minimum": 0
+          },
+          "caption": {
+            "type": "string",
+            "description": "The line shown under it."
+          },
+          "focal_point": {
+            "$ref": "#/components/schemas/FocalPointBody",
+            "description": "The part of an image every crop keeps."
+          },
+          "folder": {
+            "type": "string",
+            "description": "The library folder, or empty for the top."
+          },
+          "height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The height in pixels, for images.",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "A hash of the uploaded bytes, the same for the same file."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`image`, `video`, `audio` or `file`."
+          },
+          "name": {
+            "type": "string",
+            "description": "The file name it is served under."
+          },
+          "type": {
+            "type": "string",
+            "description": "The `Content-Type`, read from the bytes."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When its details last changed. An edit sends this back."
+          },
+          "updated_by": {
+            "type": "string",
+            "description": "Who changed them."
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was uploaded."
+          },
+          "uploaded_by": {
+            "type": "string",
+            "description": "Who uploaded it."
+          },
+          "url": {
+            "type": "string",
+            "description": "Where readers fetch the file."
+          },
+          "width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The width in pixels, for images.",
+            "minimum": 0
+          }
+        },
+        "example": {
+          "id": "3f2a9c1e0b57d0aa",
+          "name": "choosing-a-crm.jpg",
+          "folder": "guides",
+          "type": "image/jpeg",
+          "kind": "image",
+          "bytes": 48213,
+          "width": 1600,
+          "height": 900,
+          "alt": "A sales team comparing two CRM dashboards on one screen",
+          "caption": "",
+          "focal_point": {
+            "x": 500,
+            "y": 500
+          },
+          "url": "https://www.example.com/blog/media/library/3f2a9c1e0b57d0aa/choosing-a-crm.jpg",
+          "uploaded_at": "2026-10-27T08:00:00Z",
+          "uploaded_by": "asif",
+          "updated_at": "2026-10-27T08:00:00Z",
+          "updated_by": "asif"
+        }
+      },
+      "AdminMiss": {
+        "type": "object",
+        "description": "An address that answered 404, as the Admin API shows it.",
+        "required": [
+          "path",
+          "hits",
+          "first_seen",
+          "last_seen"
+        ],
+        "properties": {
+          "first_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The first request."
+          },
+          "hits": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many requests it answered.",
+            "minimum": 0
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The latest request."
+          },
+          "nearest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page \"redirect this\" would send it to, or null when no page is\nnear enough to guess.",
+            "example": "/blog/why-internal-links-matter/"
+          },
+          "path": {
+            "type": "string",
+            "description": "The address as requested.",
+            "example": "/blog/internal-links/"
+          }
+        }
+      },
+      "AdminMisses": {
+        "type": "object",
+        "description": "The 404 log as the Admin API wraps it.",
+        "required": [
+          "misses"
+        ],
+        "properties": {
+          "misses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMiss"
+            },
+            "description": "The addresses, most requested first."
+          }
+        }
+      },
       "AdminPost": {
         "type": "object",
         "description": "A post in Admin API shape: any status, with its markdown source and\nthe `updated_at` an edit must send back (RULES.md BL-API-7).",
@@ -4606,6 +5815,77 @@
               "$ref": "#/components/schemas/AdminPost"
             },
             "description": "The post or posts."
+          }
+        }
+      },
+      "AdminRedirect": {
+        "type": "object",
+        "description": "A stored redirect as the Admin API shows it.",
+        "required": [
+          "id",
+          "from",
+          "status",
+          "match",
+          "origin",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made."
+          },
+          "from": {
+            "type": "string",
+            "description": "The path it starts from, or a regular expression over the path.",
+            "example": "/blog/old-links/"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The identity to remove it by.",
+            "example": 12
+          },
+          "match": {
+            "type": "string",
+            "description": "`exact` or `regex`.",
+            "example": "exact"
+          },
+          "origin": {
+            "type": "string",
+            "description": "`manual`, `import` or `slug_change`.",
+            "example": "manual"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "301, 302, 307, 410 or 451.",
+            "example": 301,
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a move leads: a path, a web address, or a pattern's template\nwith `$1` for its first group. Empty for 410 and 451.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        }
+      },
+      "AdminRedirects": {
+        "type": "object",
+        "description": "Redirects as the Admin API wraps them.",
+        "required": [
+          "redirects"
+        ],
+        "properties": {
+          "redirects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminRedirect"
+            },
+            "description": "The redirects, oldest first."
           }
         }
       },
@@ -5004,6 +6284,41 @@
           }
         }
       },
+      "ExplainedHop": {
+        "type": "object",
+        "description": "One hop of a chain in the debug view.",
+        "required": [
+          "from",
+          "status"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The address this hop starts from."
+          },
+          "redirect": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The identity of the stored redirect that answered it."
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "What that redirect answers on its own.",
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it leads, for a move."
+          }
+        }
+      },
       "FeatureImage": {
         "type": "object",
         "description": "The image at the top of a post and on its cards. The alt text is\nrequired, as for every image (plan section 4.6).",
@@ -5030,6 +6345,29 @@
           "src": {
             "$ref": "#/components/schemas/NonBlank",
             "description": "A media path such as `/media/anchor-text.jpg`, or a full address."
+          }
+        },
+        "additionalProperties": false
+      },
+      "FocalPointBody": {
+        "type": "object",
+        "description": "A point in an image in thousandths of its width and height, from the top\nleft. `{ \"x\": 500, \"y\": 500 }` is the centre.",
+        "required": [
+          "x",
+          "y"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Thousandths of the width from the left, 0 to 1000.",
+            "minimum": 0
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Thousandths of the height from the top, 0 to 1000.",
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -5173,6 +6511,107 @@
             "format": "int32",
             "description": "Findings the writer should see, which do not stop it.",
             "minimum": 0
+          }
+        }
+      },
+      "MediaEditBody": {
+        "type": "object",
+        "description": "A change to an item's details. A field left out stays as it is.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "alt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New alt text, up to 1000 characters; empty clears it."
+          },
+          "caption": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new caption, up to 2000 characters; empty clears it."
+          },
+          "focal_point": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FocalPointBody",
+                "description": "A new focal point."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new folder, such as `guides/2026`, or empty for the top."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy the edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "MediaEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps resources: exactly one.",
+        "required": [
+          "media"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaEditBody"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
+      },
+      "MediaItems": {
+        "type": "object",
+        "description": "Media items, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "media"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMedia"
+            },
+            "description": "The item or items."
+          }
+        }
+      },
+      "MediaList": {
+        "type": "object",
+        "description": "A page of the media library with its pagination.",
+        "required": [
+          "media",
+          "meta"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMedia"
+            },
+            "description": "The items on this page."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta",
+            "description": "Where this page sits in the list."
           }
         }
       },
@@ -5348,6 +6787,61 @@
           }
         },
         "additionalProperties": false
+      },
+      "NewRedirect": {
+        "type": "object",
+        "description": "One new redirect, in the columns [`AdminRedirect`] shows.",
+        "required": [
+          "from",
+          "status"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The path it starts from, or a regular expression over the path.",
+            "example": "/blog/old-links/"
+          },
+          "match": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`exact`, the default, or `regex`.",
+            "example": "exact"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "301, 302, 307, 410 or 451.",
+            "example": 301,
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a move leads. Leave it out for 410 and 451.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewRedirects": {
+        "type": "object",
+        "description": "The body of a new redirect: exactly one.",
+        "required": [
+          "redirects"
+        ],
+        "properties": {
+          "redirects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewRedirect"
+            },
+            "description": "The one redirect to store."
+          }
+        }
       },
       "NonBlank": {
         "type": "string",
@@ -5768,9 +7262,19 @@
           "featured",
           "review_state",
           "share_cards",
-          "aliases"
+          "aliases",
+          "access",
+          "password_protected"
         ],
         "properties": {
+          "access": {
+            "type": "string",
+            "description": "Who may read the body: `public`, or `members`, who are signed in.",
+            "enum": [
+              "public",
+              "members"
+            ]
+          },
           "aliases": {
             "type": "array",
             "items": {
@@ -5831,6 +7335,18 @@
             "type": "boolean",
             "description": "Whether the post is featured in lists and the featured channel."
           },
+          "head_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Checked HTML added to the post's page head, such as an analytics\ntag. Only owners and admins may change it.",
+            "example": "<meta name=\"verify\" content=\"x\">"
+          },
+          "password_protected": {
+            "type": "boolean",
+            "description": "Whether a reader must give a password to read the body. The\npassword itself is never sent back."
+          },
           "review_state": {
             "$ref": "#/components/schemas/ReviewState",
             "description": "Where the post stands in review."
@@ -5846,6 +7362,14 @@
           "share_cards": {
             "$ref": "#/components/schemas/ShareCards",
             "description": "How the post looks when shared on X and Facebook."
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The theme template the post is shown with, such as `wide` for\n`theme/templates/post-wide.html`, or `null` for `post.html`.",
+            "example": "wide"
           }
         }
       },
@@ -5976,6 +7500,79 @@
           }
         }
       },
+      "RedirectExplanation": {
+        "type": "object",
+        "description": "Why an address answers what it answers: the debug view.",
+        "required": [
+          "path",
+          "hops",
+          "text"
+        ],
+        "properties": {
+          "hops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExplainedHop"
+            },
+            "description": "Each hop from the address to the end of its chain."
+          },
+          "matched": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The identity of the stored redirect it matched, if any."
+          },
+          "path": {
+            "type": "string",
+            "description": "The address asked about."
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The one status a visitor gets, if a redirect matched.",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "description": "The same, in plain words."
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a visitor is sent in one step, for a move."
+          }
+        }
+      },
+      "RedirectMiss": {
+        "type": "object",
+        "description": "The address to redirect, and where to.",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The address that answered 404.",
+            "example": "/blog/internal-links/"
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page to send it to. Leave it out for the nearest page.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        },
+        "additionalProperties": false
+      },
       "ReviewState": {
         "type": "string",
         "description": "Where a post stands in review, before it is published (KH-EDT-4).",
@@ -6058,6 +7655,14 @@
         "type": "object",
         "description": "New values for some of a post's settings. A setting left out keeps\nits value, and `null` clears one that may be empty.",
         "properties": {
+          "access": {
+            "type": "string",
+            "description": "Who may read the body: `public`, or `members`, who are signed in.",
+            "enum": [
+              "public",
+              "members"
+            ]
+          },
           "aliases": {
             "type": [
               "array",
@@ -6126,6 +7731,22 @@
             ],
             "description": "Whether the post is featured."
           },
+          "head_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New head code, or `null` for none. Owners and admins only.",
+            "example": "<meta name=\"verify\" content=\"x\">"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "password",
+            "description": "A new password of 8 to 128 characters that readers must give, or\n`null` to remove it. It is kept only as a hash."
+          },
           "review_state": {
             "oneOf": [
               {
@@ -6155,6 +7776,14 @@
                 "type": "null"
               }
             ]
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A theme template such as `wide`, or `null` for `post.html`.",
+            "example": "wide"
           }
         },
         "additionalProperties": false

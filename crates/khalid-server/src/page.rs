@@ -21,7 +21,18 @@ enum Caching {
     Revalidate,
     /// Kept for a year without a check, because its address names its content.
     Immutable,
+    /// Never kept, because each answer fills [`NONCE_SLOT`] with that
+    /// request's nonce, so no two answers are the same bytes.
+    PerRequest,
 }
+
+/// What a page with a post's head code holds where each answer puts its
+/// request's nonce, such as `<script nonce="khalid-nonce-slot">`. Only hex
+/// digits replace it, so it can never open a tag.
+pub const NONCE_SLOT: &str = "khalid-nonce-slot";
+
+/// A page that must not be kept, because its bytes differ on each request.
+const NO_STORE: HeaderValue = HeaderValue::from_static("no-store");
 
 /// One rendered page or file, ready to send: its address, its kind, its
 /// bytes and the tag made from them. [`Pages`](crate::Pages) adds its
@@ -74,6 +85,24 @@ impl Page {
         }
     }
 
+    /// A page at `path` whose `body` holds [`NONCE_SLOT`] wherever a post's
+    /// head code needs the request's nonce. Each answer fills the slot and
+    /// carries a policy with that nonce, so the page has no tag and no
+    /// Brotli copy, and is never kept (ADR "head code gets the nonce on
+    /// each request").
+    pub fn with_nonce_slot(path: PagePath, media_type: MediaType, body: impl Into<Bytes>) -> Self {
+        Self {
+            caching: Caching::PerRequest,
+            etag: None,
+            ..Self::new(path, media_type, body)
+        }
+    }
+
+    /// Whether each answer must fill the page's [`NONCE_SLOT`].
+    pub(crate) fn fills_nonce(&self) -> bool {
+        self.caching == Caching::PerRequest
+    }
+
     /// The page holding only its Brotli copy, when its kind is text and
     /// compressing makes it smaller, or as it is. When `old` has the same
     /// bytes, by its tag, and a copy, that copy is shared instead of
@@ -83,7 +112,7 @@ impl Page {
             return self;
         };
         let brotli = match old {
-            _ if !self.media_type.compresses() => None,
+            _ if !self.media_type.compresses() || self.fills_nonce() => None,
             Some(old) if old.etag.is_some() && old.etag == self.etag && old.brotli().is_some() => {
                 old.brotli().cloned()
             }
@@ -156,6 +185,7 @@ impl Page {
         match self.caching {
             Caching::Revalidate => REVALIDATE,
             Caching::Immutable => IMMUTABLE,
+            Caching::PerRequest => NO_STORE,
         }
     }
 }

@@ -4,7 +4,8 @@
 
 use std::path::Path;
 
-use khalid_content::{Sitemap, parse_post};
+use khalid_content::{ReviewState, ShareCards, Sitemap, parse_post};
+use khalid_core::Slug;
 
 #[cfg(test)]
 fn message(text: &str) -> String {
@@ -75,6 +76,63 @@ fn refuses_a_blank_tag_and_a_tag_named_twice() {
     assert_eq!(
         message("---\ntags: [Guides, guides]\n---\n"),
         "posts/a.md, line 2, field \"tags\": the tag \"guides\" is listed twice; keep one"
+    );
+}
+
+#[test]
+fn reads_co_authors_and_the_review_state() {
+    let text = "---\nauthor: asif\nco_authors: [lena-vogt, mira]\nreview_state: in_review\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), text).unwrap();
+    let names: Vec<&str> = post.front.co_authors.iter().map(Slug::as_str).collect();
+    assert_eq!(names, ["lena-vogt", "mira"]);
+    assert_eq!(post.front.review_state, ReviewState::InReview);
+    let plain = parse_post(Path::new("posts/a.md"), "---\n---\n").unwrap();
+    assert_eq!(plain.front.review_state, ReviewState::Draft);
+    assert_eq!(plain.front.co_authors, Vec::<Slug>::new());
+}
+
+#[test]
+fn refuses_a_review_state_it_does_not_know() {
+    assert_eq!(
+        message("---\nreview_state: done\n---\n"),
+        "posts/a.md, line 2, field \"review_state\": unknown variant `done`, expected one of draft, in_review, ready"
+    );
+}
+
+#[test]
+fn reads_share_cards_for_x_and_facebook() {
+    let text = "---\nshare_cards:\n  x:\n    title: Internal links in five minutes\n  facebook:\n    description: A short guide.\n    image: card.png\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), text).unwrap();
+    let cards = post.front.share_cards;
+    let x = cards.x.unwrap();
+    assert_eq!(x.title.as_deref(), Some("Internal links in five minutes"));
+    assert_eq!(x.description, None);
+    let facebook = cards.facebook.unwrap();
+    assert_eq!(facebook.description.as_deref(), Some("A short guide."));
+    assert_eq!(facebook.image.as_deref(), Some("card.png"));
+    let plain = parse_post(Path::new("posts/a.md"), "---\n---\n").unwrap();
+    assert_eq!(plain.front.share_cards, ShareCards::default());
+}
+
+#[test]
+fn refuses_a_share_card_for_a_network_it_does_not_know() {
+    assert_eq!(
+        message("---\nshare_cards:\n  mastodon:\n    title: A\n---\n"),
+        "posts/a.md, line 3, field \"share_cards\": unknown field `mastodon`, expected one of x, facebook"
+    );
+}
+
+#[test]
+fn reads_hand_written_schema_as_text_and_refuses_a_blank_one() {
+    let text = "---\nschema: |\n  {\"@type\": \"Event\", \"name\": \"Links clinic\"}\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), text).unwrap();
+    assert_eq!(
+        post.front.schema.as_deref(),
+        Some("{\"@type\": \"Event\", \"name\": \"Links clinic\"}\n")
+    );
+    assert_eq!(
+        message("---\nschema: \" \"\n---\n"),
+        "posts/a.md, line 2, field \"schema\": the schema field needs JSON-LD, such as {\"@type\": \"Event\"}; remove the field if the post has none"
     );
 }
 

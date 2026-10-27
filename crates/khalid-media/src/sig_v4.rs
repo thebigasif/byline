@@ -105,6 +105,11 @@ impl SigV4 {
     }
 }
 
+/// SHA-256 of `bytes` in lowercase hex, as `X-Amz-Content-Sha256` wants.
+pub(crate) fn payload_hash(bytes: &[u8]) -> String {
+    hex(&Sha256::digest(bytes))
+}
+
 /// The path as sent, already percent-encoded, or `/` for none. S3 signs it
 /// without encoding it again.
 fn path_of(uri: &Uri) -> &str {

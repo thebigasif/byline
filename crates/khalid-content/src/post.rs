@@ -3,12 +3,14 @@
 use std::path::Path;
 
 use chrono::NaiveDate;
-use khalid_core::{AbsoluteUrl, RobotsDirectives, Slug};
+use khalid_core::{
+    AbsoluteUrl, HeadCode, PasswordHash, PostAccess, RobotsDirectives, Slug, TemplateName,
+};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
 use crate::front_matter::{Fence, split};
-use crate::post_fields::{self, LeadImage, Sitemap};
+use crate::post_fields::{self, LeadImage, ReviewState, ShareCards, Sitemap};
 use crate::{ContentError, parse_blocks};
 
 /// What a post's front matter may say.
@@ -77,6 +79,31 @@ pub struct PostFront {
     /// Whether the post is listed in the XML sitemap.
     #[serde(default)]
     pub sitemap: Sitemap,
+    /// Who may read the body: `public`, the default, or `members`. Anyone
+    /// else sees the title, the description and a note.
+    #[serde(default)]
+    pub access: PostAccess,
+    /// A theme template to show the post with, such as `wide` for
+    /// `theme/templates/post-wide.html`, in place of `post.html`.
+    pub template: Option<TemplateName>,
+    /// The Argon2id hash of the password a reader must give to read the
+    /// body. Set through the Admin API, which never writes the password.
+    pub password_hash: Option<PasswordHash>,
+    /// Checked HTML for this post's page head, such as an analytics tag.
+    pub head_code: Option<HeadCode>,
+    /// The other authors' slugs, shown after the author in the byline.
+    #[serde(default, deserialize_with = "slugs")]
+    pub co_authors: Vec<Slug>,
+    /// Where the post stands in review.
+    #[serde(default)]
+    pub review_state: ReviewState,
+    /// How the post looks when shared on X and Facebook.
+    #[serde(default)]
+    pub share_cards: ShareCards,
+    /// Hand-written JSON-LD for a type no block writes, such as an `Event`
+    /// or a `Course`, added to the page's structured data.
+    #[serde(default, deserialize_with = "post_fields::schema")]
+    pub schema: Option<String>,
 }
 
 /// The most related posts a post shows, and so the most it may pin.

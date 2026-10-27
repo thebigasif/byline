@@ -16,7 +16,7 @@ use khalid_api::post_store::{CreatePostError, PostStore, PostStoreError, UpdateP
 use khalid_api::query::ListQuery;
 use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostRow, PostStatus};
 use khalid_content::{ContentTree, SiteContent, parse_post, read_content};
-use khalid_core::{Clock, Config, Locale, Slug};
+use khalid_core::{Clock, Config, Locale, Slug, TemplateName};
 use khalid_lint::{LintPost, LintSite, Linter, Report, Verdict};
 use khalid_routes::Routes;
 
@@ -154,6 +154,13 @@ impl Site {
         })
     }
 
+    /// Whether the site's theme has no `templates/post-<name>.html`.
+    fn lacks(&self, template: &TemplateName) -> bool {
+        let mut file = self.folder.clone();
+        file.extend(["theme", "templates", &template.file_name()]);
+        !file.is_file()
+    }
+
     fn get_now(&self, id: &str) -> Result<Option<AdminPost>, PostStoreError> {
         self.find(id)?
             .map(|found| Self::admin_post(&found))
@@ -188,6 +195,17 @@ impl Site {
                 "author",
                 edited.author().map(ToString::to_string),
             );
+        }
+        let template = edited.settings().template.as_ref();
+        if template != current.settings().template.as_ref()
+            && template.is_some_and(|name| self.lacks(name))
+        {
+            let why =
+                "The theme has no such file in theme/templates/, so the post could not be shown.";
+            return Err(UpdatePostError::Unsupported {
+                setting: "template",
+                why,
+            });
         }
         write_settings(
             &mut text,

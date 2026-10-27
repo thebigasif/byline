@@ -3,10 +3,12 @@
 
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use chrono::NaiveDate;
-use khalid_content::{Document, PostFront, Rendered, SiteContent, Wikilinks, render_linked};
+use khalid_content::{
+    Document, LeadImage, PostFront, Rendered, SiteContent, Wikilinks, render_linked,
+};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
     BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
@@ -16,39 +18,20 @@ use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
 use crate::listed_post::ListedPost;
-use crate::{build_home, build_message, build_reader, build_seo};
+use crate::post_lock::Unlocked;
+pub(crate) use crate::site_page::Page;
+use crate::{build_home, build_message, build_reader, build_schema, build_seo};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
 pub(crate) struct LanguagePages {
     pub(crate) site: RenderSite,
     pub(crate) pages: Vec<Page>,
+    /// The full pages of the password posts, which only `khalid serve`
+    /// sends, to a reader who gave the password.
+    pub(crate) unlocked: Vec<Unlocked>,
     /// The dated posts the pages were made from, newest first.
     pub(crate) listed: Vec<ListedPost>,
-}
-
-/// One page and the file it goes to, relative to the output folder.
-#[derive(Debug)]
-pub(crate) struct Page {
-    pub(crate) file: String,
-    pub(crate) meta: PageMeta,
-    pub(crate) body: PageBody,
-    /// The page as the SEO outputs read it, before its language versions
-    /// are linked by `build_seo::heads`.
-    pub(crate) seo: SeoPage,
-    /// The content file it was made from, relative to the site folder, so
-    /// `post_files` can find the files beside it. `None` for lists.
-    pub(crate) source: Option<PathBuf>,
-}
-
-impl Page {
-    /// The page, made from the content file at `path`.
-    fn made_from(self, path: &Path) -> Self {
-        Self {
-            source: Some(path.to_path_buf()),
-            ..self
-        }
-    }
 }
 
 /// Every page of the site, per language in the order of `site.toml`: each
@@ -108,11 +91,15 @@ fn language_pages(
         body: PageBody::NotFound,
         seo: missing_seo,
         source: None,
+        template: None,
+        head_code: None,
+        lead: None,
     });
     Ok(LanguagePages {
         site: render_site(config, locale, stylesheet),
         pages,
         listed,
+        unlocked: Vec::new(),
     })
 }
 
@@ -281,7 +268,7 @@ fn post_page(
     let path = path_of(config, locale, &rest);
     let description = front.description.clone().unwrap_or_default();
     let mut seo = build_seo::post(locale, (&rest, &title), front, date)?;
-    seo.content_html = full_addresses(config, &rendered.html);
+    seo.content_html = build_seo::full_addresses(config, &rendered.html);
     let (reviewers, profiles) = build_reader::reviewers(front, people, config)?;
     seo.reviewers = profiles;
     let html = BodyHtml::from_sanitised(rendered.html);
@@ -306,9 +293,17 @@ fn post_page(
         body: html,
     };
     seo.author = post.authors.first().map(|author| author.name.clone());
+    let by = (path.as_str(), seo.author.clone().unwrap_or_default());
+    let body = (&rendered.structured[..], &rendered.links[..]);
+    build_schema::fill(&mut seo, config, (by.0, &by.1), body)?;
+    seo.custom_schema = build_schema::custom(&doc.path, front.schema.as_deref())?;
     let meta = meta(config, title, description, path, PageKind::Article)?;
     let body = PageBody::Post(Box::new(post));
-    Ok(page(locale, config, &rest, meta, body, seo).made_from(&doc.path))
+    let mut page = page(locale, config, &rest, meta, body, seo).made_from(&doc.path);
+    page.template.clone_from(&front.template);
+    page.head_code = front.head_code.clone().filter(|code| !code.is_empty());
+    page.lead.clone_from(&front.image);
+    Ok(page)
 }
 
 /// The page of every plain page in `locale`, such as About, at `/<slug>/`.
@@ -388,6 +383,10 @@ fn author_pages(
         let rest = format!("authors/{slug}/");
         let path = path_of(config, locale, &rest);
         let meta = meta(config, name.clone(), String::new(), path, PageKind::Website)?;
+        let photo = front
+            .photo
+            .as_deref()
+            .and_then(|src| LeadImage::try_new(src, &name));
         let profiles = front
             .same_as
             .iter()
@@ -425,7 +424,9 @@ fn author_pages(
                 .collect(),
         };
         let body = PageBody::Author(Box::new(author));
-        pages.push(page(locale, config, &rest, meta, body, seo).made_from(&doc.path));
+        let mut page = page(locale, config, &rest, meta, body, seo).made_from(&doc.path);
+        page.lead = photo;
+        pages.push(page);
     }
     Ok(pages)
 }
@@ -484,28 +485,6 @@ pub(crate) fn body_html<F>(
         .map_err(|error| build_message::block(&doc.path, &error))
 }
 
-/// `html` with each `href` and `src` that starts at the site root, such as
-/// `/blog/about/`, made a full address on the site's host, for feed readers,
-/// which have no page to read such a path against. A body escapes `"` in its
-/// text, so `="/` can only end an attribute name.
-fn full_addresses(config: &Config, html: &str) -> String {
-    let origin = config.address().as_str().trim_end_matches('/');
-    let mut out = String::with_capacity(html.len());
-    let mut rest = html;
-    while let Some((before, after)) = rest.split_once("=\"/") {
-        out.push_str(before);
-        out.push_str("=\"");
-        let named = before.ends_with(" href") || before.ends_with(" src");
-        if named && !after.starts_with('/') {
-            out.push_str(origin);
-        }
-        out.push('/');
-        rest = after;
-    }
-    out.push_str(rest);
-    out
-}
-
 /// The head of a page at `path`, indexable, with no alternates yet.
 pub(crate) fn meta(
     config: &Config,
@@ -545,6 +524,9 @@ fn page(
         body,
         seo,
         source: None,
+        template: None,
+        head_code: None,
+        lead: None,
     }
 }
 

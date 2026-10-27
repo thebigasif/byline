@@ -227,11 +227,14 @@ const RESOURCES: [&str; 18] = [
 /// The methods a route could answer.
 const METHODS: [&str; 5] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
-/// Whether an answer came from an API handler: those answer JSON or a
-/// problem, and every other address gets the site's HTML pages.
+/// Whether an answer came from an API handler: those answer JSON, a
+/// problem, or a CSV export, and every other address gets the site's HTML
+/// pages.
 #[cfg(test)]
 fn from_a_handler(media: &str) -> bool {
-    media.starts_with("application/json") || media.starts_with("application/problem+json")
+    media.starts_with("application/json")
+        || media.starts_with("application/problem+json")
+        || media.starts_with("text/csv")
 }
 
 /// Brief B-API-4's done line: `khalid serve` answers `/api/openapi.json`
@@ -437,24 +440,23 @@ fn a_post_created_and_published_through_the_admin_api_is_served() {
     assert_eq!(listed["meta"]["pagination"]["total"], 1, "{listed}");
 
     let path = "/api/admin/v1/posts/en.choosing-anchor-text/";
-    let co_authors = serde_json::json!({"posts": [{
-        "settings": {"co_authors": ["mira"]},
-        "updated_at": draft["updated_at"],
-    }]});
-    let (status, body) = request(&server, "PUT", path, &auth, Some(&co_authors));
-    assert_eq!(status, 422, "post files cannot hold co-authors yet: {body}");
-    assert!(body.contains("\"rule\":\"co_authors\""), "{body}");
-
     let excerpt = "Pick the words a reader clicks with care.";
     let publish = serde_json::json!({"posts": [{
         "status": "published",
-        "settings": {"excerpt": excerpt, "featured": true},
+        "settings": {
+            "excerpt": excerpt,
+            "featured": true,
+            "co_authors": ["lena-vogt"],
+            "review_state": "ready",
+        },
         "updated_at": draft["updated_at"],
     }]});
     let (status, body) = request(&server, "PUT", path, &auth, Some(&publish));
     assert_eq!(status, 200, "{body}");
     assert!(body.contains("\"status\":\"published\""), "{body}");
     assert!(body.contains("\"featured\":true"), "{body}");
+    assert!(body.contains("\"co_authors\":[\"lena-vogt\"]"), "{body}");
+    assert!(body.contains("\"review_state\":\"ready\""), "{body}");
 
     let page_shown = (0..TRIES).any(|_| {
         thread::sleep(PAUSE);
@@ -584,4 +586,68 @@ fn the_first_owner_signs_in_with_the_link_khalid_staff_owner_shows_once() {
     assert!(body.contains("\"role\":\"owner\""), "{body}");
     let (status, _) = request(&server, "POST", path, &[], Some(&redeem));
     assert_eq!(status, 401, "the link works once");
+}
+
+/// Sends `body` as it is, and returns the status, the head in lowercase and
+/// the body's bytes.
+#[cfg(test)]
+fn raw(
+    server: &Server,
+    method: &str,
+    path: &str,
+    key: &str,
+    body: &[u8],
+) -> (u16, String, Vec<u8>) {
+    let host = &server.host;
+    let mut stream = TcpStream::connect(host).unwrap();
+    let head = format!(
+        "{method} {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\
+         Authorization: Khalid {key}\r\nContent-Length: {}\r\n\r\n",
+        body.len()
+    );
+    stream.write_all(head.as_bytes()).unwrap();
+    stream.write_all(body).unwrap();
+    let mut answer = Vec::new();
+    stream.read_to_end(&mut answer).unwrap();
+    let end = answer.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
+    let head = String::from_utf8_lossy(&answer[..end]).to_lowercase();
+    let status = head.split(' ').nth(1).unwrap().parse().unwrap();
+    (status, head, answer[end + 4..].to_vec())
+}
+
+/// The media library's done line (plan 5.15, KH-EDT-5): a file uploaded
+/// through the Admin API with a key from `khalid keys create` is served
+/// from the blog's own address, and is still in the library after a
+/// restart.
+#[test]
+fn a_file_uploaded_through_the_admin_api_is_served_and_kept() {
+    let site = demo_copy();
+    let key = new_key(site.path(), &["--name", "Editor", "--scope", "media:write"]);
+    let pdf = b"%PDF-1.7\nTen questions to ask a CRM vendor\n%%EOF\n";
+    let server = start(site.path());
+    let upload = "/api/admin/v1/media/?name=CRM%20checklist.pdf&folder=guides";
+    let (status, _, body) = raw(&server, "POST", upload, &key, pdf);
+    assert_eq!(status, 201, "{}", String::from_utf8_lossy(&body));
+    let made: Value = serde_json::from_slice(&body).unwrap();
+    let id = made["media"][0]["id"].as_str().unwrap().to_owned();
+    let path = format!("/blog/media/library/{id}/crm-checklist.pdf");
+    let url = format!("https://www.example.com{path}");
+    assert_eq!(made["media"][0]["url"], url.as_str());
+
+    let (status, head, bytes) = raw(&server, "GET", &path, "", b"");
+    assert_eq!((status, bytes.as_slice()), (200, pdf.as_slice()));
+    assert!(head.contains("content-type: application/pdf"), "{head}");
+    assert!(
+        head.contains("immutable") && head.contains("nosniff"),
+        "{head}"
+    );
+    let wrong = format!("/blog/media/library/{id}/another-name.pdf");
+    assert_eq!(raw(&server, "GET", &wrong, "", b"").0, 404);
+
+    drop(server);
+    let server = start(site.path());
+    let listed = "/api/admin/v1/media/?filter=folder:guides";
+    let (status, _, body) = raw(&server, "GET", listed, &key, b"");
+    let list: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!((status, &list["media"][0]["id"]), (200, &Value::from(id)));
 }

@@ -102,3 +102,10 @@ sitemap_posts = "Posts"
 sitemap_pages = "Pages"
 sitemap_archives = "Topics and archives"
 sitemap_empty = "This blog has no pages to list yet."
+
+# A post readers may not read yet: a password form, or a note for members (task 5.11).
+locked_password_note = "This post is protected by a password. Ask its writer for it."
+locked_password_label = "Password"
+locked_password_button = "Read the post"
+locked_password_wrong = "That password is not right. Check it and try again."
+locked_members_note = "This post is for members. Signing in for readers is not open yet."

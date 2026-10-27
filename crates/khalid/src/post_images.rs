@@ -7,13 +7,15 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use khalid_core::{Config, UserMessage};
+use khalid_core::{AbsoluteUrl, Config, UserMessage};
 use khalid_media::{DerivedImage, Format, MediaCache, MediaError, derive};
-use khalid_render::{ImageCandidate, ImageSet};
+use khalid_render::{ImageCandidate, ImageSet, Loading, PageBody, RenderImage};
+use khalid_seo::ShareImage;
 use khalid_server::MediaType;
 
-use crate::build_pages::LanguagePages;
+use crate::build_pages::{LanguagePages, Page};
 use crate::post_files::{self, IMAGE, PostFile};
+use crate::post_photos::{self, Shown};
 
 /// The folder under the mount, and in the output folder, that holds every size.
 const FOLDER: &str = "media/";
@@ -45,11 +47,17 @@ struct Picture {
 /// Makes the sizes of each image among `files` that the `site` folder's
 /// `data/media/` lacks, off the async runtime (RULES.md BL-RUN-7), draws
 /// the body images of `languages` showing one, and returns every size once.
+///
+/// The lead images and author photos drawn are added to `shown`, which may
+/// hold those of an earlier render, and every card and name on the pages
+/// gets its image from it, so a saved post's page rendered alone shows the
+/// same images as the full render.
 pub(crate) fn attach(
     site: &Path,
     config: &Config,
     files: &[PostFile],
     languages: &mut [LanguagePages],
+    shown: &mut Shown,
 ) -> Result<Vec<MediaFile>, UserMessage> {
     let cache = MediaCache::new(site);
     let mut pictures = BTreeMap::new();
@@ -70,9 +78,59 @@ pub(crate) fn attach(
     for language in languages.iter_mut().filter(|_| !pictures.is_empty()) {
         for page in &mut language.pages {
             post_files::rewrite(page, |html| drawn(html, &pictures));
+            if let Some(image) = lead(config, page, &pictures) {
+                shown.add(page, image);
+            }
         }
     }
+    post_photos::attach(languages, shown);
     Ok(sizes.into_values().collect())
+}
+
+/// Draws the lead image of a post, or the photo of an author, at the top
+/// of `page`, when it is a file beside the page's file with its sizes among
+/// `pictures`: fetched at once with high priority, as the one large image
+/// at the top (BL-WEB-5), and shared as the page's Open Graph and X image.
+/// Returns what it drew. An image anywhere else is left out until it has
+/// sizes, so no page shifts while it loads.
+fn lead(
+    config: &Config,
+    page: &mut Page,
+    pictures: &BTreeMap<String, Picture>,
+) -> Option<RenderImage> {
+    let image = page.lead.as_ref()?;
+    let name = image.src.trim_start_matches("./");
+    let address = format!("{}{name}", page.meta.path);
+    let Some(picture) = pictures.get(&address) else {
+        tracing::warn!(image = %image.src, page = %page.meta.path, "the lead image is not a file beside its page, so it is left out");
+        return None;
+    };
+    let drawn = RenderImage {
+        alt: image.alt.clone(),
+        caption: image.caption.clone(),
+        width: picture.width,
+        height: picture.height,
+        sizes: SIZES.to_owned(),
+        avif: None,
+        webp: Some(picture.webp.clone()),
+        fallback: picture.fallback.clone(),
+        loading: Loading::Eager,
+    };
+    match &mut page.body {
+        PageBody::Post(post) => post.image = Some(drawn.clone()),
+        PageBody::Author(author) => author.image = Some(drawn.clone()),
+        _ => return None,
+    }
+    let origin = config.address().as_str().trim_end_matches('/');
+    let widest = picture.fallback.widest();
+    let shared = widest.and_then(|file| {
+        let url = AbsoluteUrl::parse(&format!("{origin}{}", file.url)).ok()?;
+        let scaled = u64::from(picture.height).checked_mul(u64::from(file.width))?;
+        let height = u32::try_from(scaled.checked_div(u64::from(picture.width))?).ok()?;
+        Some(ShareImage::new(url, file.width, height, &image.alt))
+    });
+    page.seo.share_image = shared;
+    Some(drawn)
 }
 
 /// The picture `image` makes, and its files. `None` without the WebP and

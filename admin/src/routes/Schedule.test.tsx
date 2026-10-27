@@ -18,6 +18,8 @@ const DRAFT: AdminPost = {
     co_authors: [],
     featured: false,
     review_state: "ready",
+    access: "public",
+    password_protected: false,
     share_cards: {},
     aliases: [],
   },
