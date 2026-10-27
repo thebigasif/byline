@@ -144,22 +144,11 @@ fn serve_with(
         let rest = (source.clone(), live.clone());
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
-        let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
-        let (telling, announcing) = announce::start(config, (database, id, &file), outbound)
-            .await
-            .map_err(|message| (message, Exit::Failure))?;
-        let posts = SitePosts::new(site, config.clone(), SystemClock);
-        let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
-        let signer = preview::signer(config, (database, id, &file)).await;
-        let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
-            .with_schedules(schedules, SystemClock)
-            .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
-        let door = Arc::new(door);
+        let (door, announcing) = publish_door((site, config), (database, id), outbound).await?;
         let scheduling = scheduler::start(Arc::clone(&door));
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let stores = (Arc::new(content), door, Arc::new(keys));
-        let (api, _) =
-            api::router_with_door_and_comments(stores.0, stores.1, stores.2, moderation);
+        let (api, _) = api::router_with_door_and_comments(stores.0, stores.1, stores.2, moderation);
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
         let app = api
@@ -188,6 +177,27 @@ fn serve_with(
         tracing::warn!(?error, "the Content API's task stopped early");
     }
     served
+}
+
+/// The publish door the Admin API, the scheduler and preview links share.
+/// It keeps schedules in the database and announces each post that goes
+/// live through `outbound`, until the returned announcing is stopped.
+async fn publish_door(
+    (site, config): (&Path, &Config),
+    (database, id): (&Database, SiteId),
+    outbound: &Outbound,
+) -> Result<(Arc<PublishDoor>, announce::Announcing), (UserMessage, Exit)> {
+    let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
+    let (telling, announcing) = announce::start(config, (database, id, &file), outbound)
+        .await
+        .map_err(|message| (message, Exit::Failure))?;
+    let posts = SitePosts::new(site, config.clone(), SystemClock);
+    let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+    let signer = preview::signer(config, (database, id, &file)).await;
+    let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
+        .with_schedules(schedules, SystemClock)
+        .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
+    Ok((Arc::new(door), announcing))
 }
 
 /// Renders every page from the `checked` content on a blocking thread
