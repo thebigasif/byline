@@ -1,0 +1,2 @@
+Changed
+While `khalid serve` runs, a saved post's page shows early only when nothing else on it can change: with related posts switched off and no wikilink in the post or in an author's bio. Otherwise it shows when the whole site has rendered again, so it never shows a page the full render would change. A saved page keeps every moved address, and a headless build still copies the files beside each post that its feeds point at (BL-PERF-1, KH-OPS-4).
