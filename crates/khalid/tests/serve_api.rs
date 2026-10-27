@@ -418,20 +418,41 @@ fn a_post_created_and_published_through_the_admin_api_is_served() {
     assert_eq!(draft["status"], "draft", "{made}");
     let (status, _) = request(&server, "GET", "/blog/choosing-anchor-text/", &[], None);
     assert_eq!(status, 404, "a draft is never served");
+    let drafts = "/api/admin/v1/posts/?filter=status:draft";
+    let (status, body) = request(&server, "GET", drafts, &auth, None);
+    assert_eq!(status, 200, "{body}");
+    let listed: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(
+        listed["posts"][0]["id"], "en.choosing-anchor-text",
+        "{listed}"
+    );
+    assert_eq!(listed["posts"][0]["gate"], "passes", "{listed}");
+    assert_eq!(listed["meta"]["pagination"]["total"], 1, "{listed}");
 
-    let publish = serde_json::json!({"posts": [{
-        "status": "published",
+    let path = "/api/admin/v1/posts/en.choosing-anchor-text/";
+    let co_authors = serde_json::json!({"posts": [{
+        "settings": {"co_authors": ["mira"]},
         "updated_at": draft["updated_at"],
     }]});
-    let path = "/api/admin/v1/posts/en.choosing-anchor-text/";
+    let (status, body) = request(&server, "PUT", path, &auth, Some(&co_authors));
+    assert_eq!(status, 422, "post files cannot hold co-authors yet: {body}");
+    assert!(body.contains("\"rule\":\"co_authors\""), "{body}");
+
+    let excerpt = "Pick the words a reader clicks with care.";
+    let publish = serde_json::json!({"posts": [{
+        "status": "published",
+        "settings": {"excerpt": excerpt, "featured": true},
+        "updated_at": draft["updated_at"],
+    }]});
     let (status, body) = request(&server, "PUT", path, &auth, Some(&publish));
     assert_eq!(status, 200, "{body}");
     assert!(body.contains("\"status\":\"published\""), "{body}");
+    assert!(body.contains("\"featured\":true"), "{body}");
 
     let page_shown = (0..TRIES).any(|_| {
         thread::sleep(PAUSE);
         let (status, page) = request(&server, "GET", "/blog/choosing-anchor-text/", &[], None);
-        status == 200 && page.contains("Choosing anchor text")
+        status == 200 && page.contains("Choosing anchor text") && page.contains(excerpt)
     });
     assert!(page_shown, "the published post was never served");
     let after = english_posts(&server, &content_key);

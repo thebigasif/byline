@@ -1,0 +1,61 @@
+# Runs Khalid as a service on a Linux machine with systemd.
+#
+# The site folder is /var/lib/khalid: site.toml, content/ and theme/ go
+# there, and Khalid keeps what it derives in /var/lib/khalid/data. The
+# service runs as the khalid user from khalid.sysusers, never as root.
+#
+# Install: copy this file to /etc/systemd/system/ and khalid.sysusers to
+# /etc/sysusers.d/, run `systemd-sysusers`, then
+# `systemctl enable --now khalid`. The install script does all of this
+# when given --systemd. Change the command with `systemctl edit khalid`.
+
+[Unit]
+Description=Khalid blog engine
+Documentation=https://github.com/thebigasif/khalid/blob/main/docs/deploy.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=khalid
+Group=khalid
+ExecStart=/usr/local/bin/khalid --site /var/lib/khalid serve --listen 127.0.0.1:8080
+WorkingDirectory=/var/lib/khalid
+StateDirectory=khalid
+StateDirectoryMode=0750
+Restart=on-failure
+RestartSec=2s
+# Khalid finishes the requests in flight when it is asked to stop.
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+
+# Lets `serve --domain` answer on ports 80 and 443 without root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# Everything outside the site folder is read-only or hidden.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

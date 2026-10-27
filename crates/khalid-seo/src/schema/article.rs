@@ -4,7 +4,8 @@ use khalid_core::AbsoluteUrl;
 
 use crate::schema::{image_node, node_id, publisher_id};
 use crate::{
-    ArticleType, AuthorProfile, EntityRole, SchemaNode, SchemaValue, SeoError, SeoPage, SeoSite,
+    ArticleType, AuthorProfile, EntityRole, SchemaNode, SchemaValue, SeoComment, SeoError, SeoPage,
+    SeoSite,
 };
 
 /// Google shows at most this many characters of a headline.
@@ -78,6 +79,27 @@ fn entities(page: &SeoPage, role: EntityRole) -> Option<SchemaValue> {
     (!things.is_empty()).then_some(SchemaValue::List(things))
 }
 
+/// Each of `comments` as a `Comment` node at `<post>#comment-<id>`, the
+/// anchor the post page gives it, with its replies inside.
+fn comment_list(comments: &[SeoComment], page_url: &AbsoluteUrl) -> Result<SchemaValue, SeoError> {
+    let mut nodes = Vec::with_capacity(comments.len());
+    for comment in comments {
+        let id = node_id(page_url, &format!("comment-{}", comment.id))?;
+        let author = SchemaNode::new("Person").with("name", SchemaValue::text(&comment.author));
+        let mut node = SchemaNode::new("Comment")
+            .with_id(id.clone())
+            .with("url", SchemaValue::Url(id))
+            .with("author", SchemaValue::Node(Box::new(author)))
+            .with("text", SchemaValue::text(&comment.text))
+            .with("datePublished", SchemaValue::DateTime(comment.published));
+        if !comment.replies.is_empty() {
+            node.set("comment", comment_list(&comment.replies, page_url)?);
+        }
+        nodes.push(SchemaValue::Node(Box::new(node)));
+    }
+    Ok(SchemaValue::List(nodes))
+}
+
 /// The post's article node at `<post>#article`, then its author's `Person`
 /// node when the post has an author.
 pub(crate) fn article_nodes(
@@ -127,6 +149,12 @@ pub(crate) fn article_nodes(
         if let Some(things) = entities(page, role) {
             article.set(property, things);
         }
+    }
+    if !page.comments.is_empty() {
+        let count: usize = page.comments.iter().map(|c| 1 + c.replies.len()).sum();
+        let count = i64::try_from(count).unwrap_or(i64::MAX);
+        article.set("commentCount", SchemaValue::Integer(count));
+        article.set("comment", comment_list(&page.comments, &page_url)?);
     }
     let profile = page
         .author_profile

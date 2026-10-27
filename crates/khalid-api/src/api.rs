@@ -9,6 +9,7 @@ use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_axum::router::OpenApiRouter;
 
+use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
@@ -16,7 +17,7 @@ use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
 use crate::resources::MediaItems;
-use crate::{admin_api, api_version, content_api};
+use crate::{admin_api, admin_comments, api_version, content_api};
 
 /// The document's title, the schemas every route shares and the ways a
 /// key may be sent.
@@ -75,8 +76,19 @@ pub fn router(
     posts: Arc<dyn PostStore>,
     keys: Arc<dyn KeyStore>,
 ) -> (Router, Document) {
+    router_with_comments(content, posts, keys, Arc::new(NoComments))
+}
+
+/// [`router`] for a site that keeps readers' comments, moderated through
+/// `comments` under `/api/admin/v1/comments/`. The document is the same.
+pub fn router_with_comments(
+    content: Arc<dyn ContentStore>,
+    posts: Arc<dyn PostStore>,
+    keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
+) -> (Router, Document) {
     let door = PublishDoor::new(posts, Arc::new(Silent));
-    router_with_door(content, Arc::new(door), keys)
+    router_with_door_and_comments(content, Arc::new(door), keys, comments)
 }
 
 /// The same router, publishing through `door`, which `khalid serve` shares
@@ -86,28 +98,42 @@ pub fn router_with_door(
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
 ) -> (Router, Document) {
-    build(content, door, keys, None)
+    router_with_door_and_comments(content, door, keys, Arc::new(NoComments))
 }
 
-/// The same router with the site's media library under
-/// `/api/admin/v1/media/`. Without one, as in [`router_with_door`], the
-/// media routes answer that the site has no library.
+/// [`router_with_door`] for a site that keeps readers' comments, moderated
+/// through `comments`. Without a media library, the media routes answer
+/// that the site has none.
+pub fn router_with_door_and_comments(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
+) -> (Router, Document) {
+    build(content, door, keys, comments, None)
+}
+
+/// [`router_with_door_and_comments`] with the site's media library under
+/// `/api/admin/v1/media/`, as `khalid serve` runs it.
 pub fn router_with_media(
     content: Arc<dyn ContentStore>,
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
     media: MediaLibrary,
 ) -> (Router, Document) {
-    build(content, door, keys, Some(media))
+    build(content, door, keys, comments, Some(media))
 }
 
 fn build(
     content: Arc<dyn ContentStore>,
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
     media: Option<MediaLibrary>,
 ) -> (Router, Document) {
     let admin = admin_api::routes(door, Arc::clone(&keys))
+        .merge(admin_comments::routes(comments, Arc::clone(&keys)))
         .merge(media_api::routes(media, Arc::clone(&keys)));
     let api = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest(content_api::BASE, content_api::routes(content, keys))

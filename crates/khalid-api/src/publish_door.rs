@@ -11,9 +11,11 @@ use chrono::{DateTime, Utc};
 use khalid_core::{Clock, SystemClock};
 use tokio::sync::Mutex;
 
+use crate::content_store::Listed;
 use crate::post_store::{PostStore, PostStoreError, UpdatePostError};
 use crate::preview_link::PreviewSigner;
-use crate::resources::{AdminPost, PostEdit, PostStatus};
+use crate::query::ListQuery;
+use crate::resources::{AdminPost, PostEdit, PostRow, PostStatus};
 use crate::schedule_store::{Due, Schedule, ScheduleStore};
 
 /// Tells the site's receivers what happened to a post: the webhooks that
@@ -148,6 +150,17 @@ impl PublishDoor {
     /// about.
     pub fn posts(&self) -> &dyn PostStore {
         self.posts.as_ref()
+    }
+
+    /// One page of the admin's posts table, as [`PostStore::list`] reads
+    /// it. A row's status is the one its file holds.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PostStoreError`] when the posts or the lint settings
+    /// cannot be read.
+    pub async fn list(&self, query: &ListQuery) -> Result<Listed<PostRow>, PostStoreError> {
+        self.posts.list(query).await
     }
 
     /// The post with identity `id`, with its schedule, or `None`.

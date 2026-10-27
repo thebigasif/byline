@@ -21,6 +21,7 @@ One Cargo workspace at the repository root, flat `crates/` folder, one purpose p
 | `khalid-mount` | The proxy rule that mounts the blog under a folder of another site, per stack | Content, HTTP, files |
 | `khalid-db` | SQLite, migrations, typed queries | Rendering |
 | `khalid-search` | Site search: words and stems per language, ranking, highlighted snippets | SQL, HTTP, templates, files |
+| `khalid-comments` | Readers' comments: the form and its honeypot, rate limits, moderation, threads | SQL, templates, content files |
 | `khalid-media` | Image processing, storage backends | HTTP routes |
 | `khalid-outbound` | The one HTTP client with the private-network guard (BL-RUN-8) | Everything else |
 | `khalid-webhooks` | The event catalogue, signed deliveries, retries, the delivery log model, the verifier for incoming webhooks | Content files, templates, SQL |
