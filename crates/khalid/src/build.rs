@@ -19,8 +19,8 @@ use crate::cli::Output;
 use crate::exit::Exit;
 use crate::post_files::Assets;
 use crate::{
-    assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
-    content_message, lint, lint_message, post_files, post_images, report, search_page,
+    assets, build_files, build_gate, build_lists, build_message, build_pages, build_redirects,
+    build_seo, content_message, lint, lint_message, post_files, post_images, report, search_page,
     search_static, static_mode,
 };
 
@@ -93,6 +93,7 @@ fn build(
     let mut languages = build_pages::pages(config, routes, (content, &[]), &href)?;
     if let Some((renderer, _)) = &theme {
         search_page::add(config, renderer, &mut languages)?;
+        build_lists::add(config, renderer, &mut languages)?;
     }
     // The checked content keeps no assets, so the tree is read again for
     // them. A headless site gets them too: its feeds point at them.
