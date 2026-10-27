@@ -118,3 +118,12 @@ pub(crate) fn write(file: &Path, error: &io::Error) -> UserMessage {
         "Check that you may write to the output folder, then build again.",
     )
 }
+
+/// The message when a share image cannot be drawn or kept.
+pub(crate) fn share_image(error: &khalid_share_image::ShareImageError) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid could not draw a share image: {error}."),
+        "Every page without its own image gets a drawn card, kept in data/share/.",
+        "Check that the data folder is writable and the disk is not full, then build again.",
+    )
+}
