@@ -24,7 +24,7 @@ pub enum Move {
 }
 
 impl Move {
-    fn status(self) -> u16 {
+    pub(crate) fn status(self) -> u16 {
         match self {
             Self::Permanent => 301,
             Self::Found => 302,
@@ -105,6 +105,16 @@ impl RedirectRule {
     }
 }
 
+/// One line of a redirect list: a rule for one path, or a pattern.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum RedirectEntry {
+    /// A rule for exactly one path.
+    Exact(RedirectRule),
+    /// A rule for every path its regular expression matches.
+    Pattern(PatternRule),
+}
+
 /// The answer for a path, with any chain already followed to its end.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -174,6 +184,32 @@ impl RedirectTable {
     pub fn with_patterns(mut self, patterns: Vec<PatternRule>) -> Self {
         self.patterns = patterns;
         self
+    }
+
+    /// Builds the table from a list such as a CSV file holds: the exact
+    /// rules in their order, then the patterns in theirs.
+    ///
+    /// # Errors
+    ///
+    /// As [`RedirectTable::new`] for the exact rules.
+    pub fn from_entries(entries: Vec<RedirectEntry>) -> Result<Self, SeoError> {
+        let mut rules = Vec::new();
+        let mut patterns = Vec::new();
+        for entry in entries {
+            match entry {
+                RedirectEntry::Exact(rule) => rules.push(rule),
+                RedirectEntry::Pattern(pattern) => patterns.push(pattern),
+            }
+        }
+        Ok(Self::new(rules)?.with_patterns(patterns))
+    }
+
+    /// Every rule as a list entry: the exact rules, then the patterns, in
+    /// the order they are tried.
+    pub fn entries(&self) -> Vec<RedirectEntry> {
+        let exact = self.rules.iter().cloned().map(RedirectEntry::Exact);
+        let patterns = self.patterns.iter().cloned().map(RedirectEntry::Pattern);
+        exact.chain(patterns).collect()
     }
 
     /// The exact rules, in the order given.
