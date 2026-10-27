@@ -10,7 +10,8 @@
 //! callers read the content and hand it over as a [`ContentIndex`]. It also
 //! keeps the webhook delivery log, as the [`DeliveryLog`] that
 //! `khalid-webhooks` writes through, and the API keys, as the [`KeyTable`]
-//! that `khalid-api` checks keys against.
+//! that `khalid-api` checks keys against, and the site's webhook list, as
+//! the [`WebhookTable`] `khalid serve` announces events to.
 
 mod content_index;
 mod database;
@@ -21,6 +22,7 @@ mod posts;
 mod rebuild;
 mod site_id;
 mod site_lists;
+mod webhook_table;
 
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;
@@ -29,3 +31,4 @@ pub use delivery_log::DeliveryLog;
 pub use key_table::KeyTable;
 pub use rebuild::{PostChanges, RebuildSummary};
 pub use site_id::SiteId;
+pub use webhook_table::WebhookTable;

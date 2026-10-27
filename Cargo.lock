@@ -1982,6 +1982,7 @@ name = "khalid-db"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "getrandom 0.4.3",
  "khalid-api",
  "khalid-core",
  "khalid-webhooks",

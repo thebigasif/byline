@@ -34,6 +34,13 @@ pub enum DbError {
         /// The delivery's id.
         id: i64,
     },
+    /// The system gave no randomness to make a webhook's secret from.
+    #[error("the system has no randomness to make a secret from")]
+    NoRandomness {
+        /// What the system reported.
+        #[source]
+        source: getrandom::Error,
+    },
     /// Something else changed a stored value; a rebuild writes it again.
     #[error("the database holds a {column} Khalid cannot read: {value:?}")]
     Unreadable {
