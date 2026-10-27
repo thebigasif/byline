@@ -36,7 +36,9 @@ A test reads the table below and checks it lists every table in the schema, once
 | `webhook_attempts` | visitor | Every attempt at a delivery, with the status that came back or why there was none |
 | `post_schedules` | visitor | When each post goes live and when it comes down, named by its identity so a rebuild keeps it |
 | `form_submissions` | visitor | What people sent through forms on the site |
-| `subscribers` | visitor | Newsletter subscribers and whether they confirmed |
+| `subscribers` | visitor | Newsletter subscribers, whether they confirmed, and when they left |
+| `subscriber_lists` | visitor | Which newsletters each subscriber gets, by the newsletter's name |
+| `subscriber_tokens` | visitor | The confirmation and unsubscribe links sent to each subscriber, as hashes of their tokens |
 | `comments` | visitor | Comments on posts, named by the post's path so they survive a rebuild |
 | `analytics_counts` | visitor | Page views per day, page and referrer group, counted without cookies |
 

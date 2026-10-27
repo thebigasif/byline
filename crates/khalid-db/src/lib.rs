@@ -10,9 +10,11 @@
 //! callers read the content and hand it over as a [`ContentIndex`]. It also
 //! keeps the webhook delivery log, as the [`DeliveryLog`] that
 //! `khalid-webhooks` writes through, and the API keys, as the [`KeyTable`]
-//! that `khalid-api` checks keys against, and the site's webhook list, as
-//! the [`WebhookTable`] `khalid serve` announces events to, and each post's
-//! schedule, as the [`ScheduleTable`] the publish door keeps.
+//! that `khalid-api` checks keys against, the site's webhook list, as the
+//! [`WebhookTable`] `khalid serve` announces events to, each post's
+//! schedule, as the [`ScheduleTable`] the publish door keeps, and the
+//! newsletter subscribers, as the [`SubscriberTable`] that
+//! `khalid-newsletter` keeps them in.
 
 mod content_index;
 mod database;
@@ -26,6 +28,7 @@ mod search_find;
 mod search_index;
 mod site_id;
 mod site_lists;
+mod subscriber_table;
 mod webhook_table;
 
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
@@ -38,4 +41,5 @@ pub use schedule_table::ScheduleTable;
 pub use search_find::{SearchHit, SearchResults};
 pub use search_index::SearchPage;
 pub use site_id::SiteId;
+pub use subscriber_table::SubscriberTable;
 pub use webhook_table::WebhookTable;

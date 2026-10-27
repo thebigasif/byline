@@ -41,6 +41,13 @@ pub enum DbError {
         #[source]
         source: getrandom::Error,
     },
+    /// An unsubscribe link was added for a subscriber the site does not
+    /// have.
+    #[error("the site has no subscriber {id}")]
+    NoSuchSubscriber {
+        /// The subscriber's row.
+        id: i64,
+    },
     /// Something else changed a stored value; a rebuild writes it again.
     #[error("the database holds a {column} Khalid cannot read: {value:?}")]
     Unreadable {

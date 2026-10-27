@@ -19,4 +19,4 @@ suche = "suche"
 [files]
 # typos knows English only. German content is checked by its writer, not by
 # an English dictionary that reads "Sie" and "ein" as typos.
-extend-exclude = ["target/", "node_modules/", "*.lock", ".claude/skills/rust-best-practices/references/", "**/content/de/", "crates/khalid-render/strings/de.toml", "crates/khalid-lint/src/german.rs"]
+extend-exclude = ["target/", "node_modules/", "*.lock", ".claude/skills/rust-best-practices/references/", "**/content/de/", "crates/khalid-render/strings/de.toml", "crates/khalid-newsletter/strings/de.toml","crates/khalid-lint/src/german.rs"]
