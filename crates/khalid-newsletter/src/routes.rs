@@ -23,7 +23,8 @@ const LARGEST_FORM: usize = 4 * 1024;
 
 /// Pages hold links with tokens and answers about one reader, so nothing
 /// keeps them, no other site may frame them, and no link leaks the address.
-const HEADERS: [(HeaderName, &str); 6] = [
+/// The last two match what `khalid-server` sends with every other page.
+const HEADERS: [(HeaderName, &str); 8] = [
     (header::CACHE_CONTROL, "no-store"),
     (header::REFERRER_POLICY, "no-referrer"),
     (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
@@ -33,6 +34,14 @@ const HEADERS: [(HeaderName, &str); 6] = [
     ),
     (HeaderName::from_static("x-robots-tag"), "noindex"),
     (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+    (
+        HeaderName::from_static("permissions-policy"),
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
+    ),
+    (
+        HeaderName::from_static("cross-origin-opener-policy"),
+        "same-origin",
+    ),
 ];
 
 /// What every route reads. `newsletter` is `None` while the site cannot

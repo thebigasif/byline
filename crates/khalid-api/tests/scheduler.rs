@@ -6,12 +6,13 @@
 use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, TimeZone, Utc};
-use khalid_api::content_store::BoxFuture;
+use khalid_api::content_store::{BoxFuture, Listed};
 use khalid_api::post_store::{
     CreatePostError, MemoryPostStore, PostStore, PostStoreError, UpdatePostError,
 };
 use khalid_api::publish_door::{Announce, PublishDoor, Ran};
-use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostStatus};
+use khalid_api::query::ListQuery;
+use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostRow, PostStatus};
 use khalid_api::schedule_store::{MemoryScheduleStore, Schedule, ScheduleStore};
 use khalid_core::{FixedClock, Slug};
 use khalid_lint::Report;
@@ -136,6 +137,13 @@ struct Refusing(MemoryPostStore);
 impl PostStore for Refusing {
     fn get<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<AdminPost>, PostStoreError>> {
         self.0.get(id)
+    }
+
+    fn list<'a>(
+        &'a self,
+        query: &'a ListQuery,
+    ) -> BoxFuture<'a, Result<Listed<PostRow>, PostStoreError>> {
+        self.0.list(query)
     }
 
     fn update<'a>(
