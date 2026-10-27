@@ -197,3 +197,102 @@ fn within(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
     path.push(name);
     path
 }
+
+#[tokio::test]
+async fn a_font_over_the_cap_is_skipped_in_plain_words() {
+    use khalid_theme::{MAX_FONT_BYTES, download_and_report as download};
+    use std::net::{IpAddr, Ipv4Addr};
+
+    let server = wiremock::MockServer::start().await;
+    let port = server.address().port();
+    let loopback = vec![IpAddr::V4(Ipv4Addr::LOCALHOST)];
+    let hosts = [
+        ("fonts.googleapis.com".to_owned(), loopback.clone()),
+        ("fonts.gstatic.com".to_owned(), loopback),
+    ];
+    let resolver = khalid_outbound::Resolver::for_tests(
+        hosts.into(),
+        khalid_outbound::Reach::PublicAndLoopback,
+    );
+    let outbound =
+        khalid_outbound::Outbound::with_resolver(khalid_outbound::Limits::default(), resolver)
+            .unwrap();
+
+    let css = format!(
+        "/* latin */\n@font-face {{ font-family: 'Inter'; font-style: normal; font-weight: 400; src: url(http://fonts.gstatic.com:{port}/huge.woff2) format('woff2'); }}\n"
+    );
+    wiremock::Mock::given(wiremock::matchers::path("/css2"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_string(css))
+        .mount(&server)
+        .await;
+    // One byte over the cap: the file is never read further.
+    let huge = vec![0u8; MAX_FONT_BYTES + 1];
+    wiremock::Mock::given(wiremock::matchers::path("/huge.woff2"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_bytes(huge))
+        .mount(&server)
+        .await;
+
+    let source = source(
+        "Inter",
+        &format!("http://fonts.googleapis.com:{port}/css2?family=Inter"),
+        FontHost::Google,
+    );
+    let into = tempfile::tempdir().unwrap();
+    let (saved, skipped) = download(&outbound, std::slice::from_ref(&source), into.path())
+        .await
+        .unwrap();
+    assert!(saved.is_empty(), "an oversized font is never served");
+    assert_eq!(skipped.len(), 1, "{skipped:?}");
+    assert!(
+        skipped[0].contains("over the 4096 KB a font may be"),
+        "the reason is plain words: {}",
+        skipped[0]
+    );
+    assert!(
+        !within(into.path(), "inter-latin.woff2").exists(),
+        "nothing was written"
+    );
+}
+
+#[tokio::test]
+async fn a_stylesheet_that_answers_an_error_is_skipped_in_plain_words() {
+    use khalid_theme::download_and_report as download;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    let server = wiremock::MockServer::start().await;
+    let port = server.address().port();
+    let loopback = vec![IpAddr::V4(Ipv4Addr::LOCALHOST)];
+    let hosts = [("fonts.googleapis.com".to_owned(), loopback)];
+    let resolver = khalid_outbound::Resolver::for_tests(
+        hosts.into(),
+        khalid_outbound::Reach::PublicAndLoopback,
+    );
+    let outbound =
+        khalid_outbound::Outbound::with_resolver(khalid_outbound::Limits::default(), resolver)
+            .unwrap();
+
+    wiremock::Mock::given(wiremock::matchers::path("/css2"))
+        .respond_with(wiremock::ResponseTemplate::new(500))
+        .mount(&server)
+        .await;
+
+    let source = source(
+        "Inter",
+        &format!("http://fonts.googleapis.com:{port}/css2?family=Inter"),
+        FontHost::Google,
+    );
+    let into = tempfile::tempdir().unwrap();
+    let (saved, skipped) = download(&outbound, std::slice::from_ref(&source), into.path())
+        .await
+        .unwrap();
+    assert!(
+        saved.is_empty(),
+        "a failed stylesheet serves nothing: {saved:?}"
+    );
+    assert_eq!(skipped.len(), 1, "{skipped:?}");
+    assert!(
+        skipped[0].contains("answered 500"),
+        "the reason names the status: {}",
+        skipped[0]
+    );
+}

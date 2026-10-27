@@ -33,7 +33,10 @@ pub use fetch::{
     MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_STYLESHEETS, Origin, SiteSource, Stylesheet, fetch_site,
 };
 pub use fetch_error::FetchError;
-pub use fonts::{FontHost, FontSource, HeldFont, SavedFont, Typography, download};
+pub use fonts::{
+    FontHost, FontSource, HeldFont, MAX_FONT_BYTES, SavedFont, Typography, download,
+    download_and_report,
+};
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
 pub use palette::Palette;
 pub use properties::CustomProperties;

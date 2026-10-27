@@ -376,6 +376,11 @@ fn from_face(rule: &Rule) -> Option<FontSource> {
     Some(FontSource::new(family, url, FontHost::of(url)))
 }
 
+/// The most bytes one downloaded font file may hold before it is skipped.
+/// A web font subset is tens of kilobytes; four megabytes leaves room for
+/// whole families while keeping a hostile file from being read far.
+pub const MAX_FONT_BYTES: usize = 4 * 1024 * 1024;
+
 /// A self-hosted font file `theme sync` saved, as the renderer's tokens
 /// carry it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -406,15 +411,44 @@ pub async fn download(
     sources: &[FontSource],
     into: &std::path::Path,
 ) -> Result<Vec<SavedFont>, crate::FetchError> {
+    let (saved, _) = download_and_report(outbound, sources, into).await?;
+    Ok(saved)
+}
+
+/// As [`download`], also saying in plain words why each font was skipped.
+/// A font comes from someone else's website, so nothing about it is
+/// trusted: files over [`MAX_FONT_BYTES`] are not read further, and a file
+/// that fails to parse as a font face is dropped, never a failure of the
+/// sync (G20, maintainer review).
+///
+/// # Errors
+///
+/// Returns an error only when the folder cannot be made; every network
+/// miss is a skip with its sentence.
+pub async fn download_and_report(
+    outbound: &Outbound,
+    sources: &[FontSource],
+    into: &std::path::Path,
+) -> Result<(Vec<SavedFont>, Vec<String>), crate::FetchError> {
     let mut saved = Vec::new();
+    let mut skipped = Vec::new();
     for source in sources.iter().filter(|source| source.host.can_rehost()) {
         let Ok(url) = AbsoluteUrl::parse(&source.url) else {
             continue;
         };
         let Ok(css) = outbound.get(&url).await else {
+            skipped.push(format!(
+                "The stylesheet for {} could not be read, so its fonts stay where they are.",
+                source.family
+            ));
             continue;
         };
         if !(200..300).contains(&css.status()) {
+            let status = css.status();
+            skipped.push(format!(
+                "The stylesheet for {} answered {status}, so its fonts stay where they are.",
+                source.family
+            ));
             continue;
         }
         let Ok(css) = std::str::from_utf8(css.body()) else {
@@ -425,12 +459,35 @@ pub async fn download(
                 continue;
             };
             let Ok(bytes) = outbound.get(&font).await else {
+                skipped.push(format!(
+                    "The file for {} {} could not be read, so that face stays where it is.",
+                    face.family, face.weight
+                ));
                 continue;
             };
             if !(200..300).contains(&bytes.status()) || bytes.body().is_empty() {
+                let status = bytes.status();
+                skipped.push(format!(
+                    "The file for {} {} answered {status}, so that face stays where it is.",
+                    face.family, face.weight
+                ));
+                continue;
+            }
+            if bytes.body().len() > MAX_FONT_BYTES {
+                skipped.push(format!(
+                    "The file for {} {} is {} KB, over the {} KB a font may be, so it stays where it is.",
+                    face.family,
+                    face.weight,
+                    bytes.body().len() / 1024,
+                    MAX_FONT_BYTES / 1024
+                ));
                 continue;
             }
             if write_face(into, &face, bytes.body()).is_err() {
+                skipped.push(format!(
+                    "The file for {} {} could not be saved beside the theme, so that face is left out.",
+                    face.family, face.weight
+                ));
                 continue;
             }
             saved.push(SavedFont {
@@ -442,7 +499,7 @@ pub async fn download(
             });
         }
     }
-    Ok(saved)
+    Ok((saved, skipped))
 }
 
 /// One `@font-face` rule's parts, with the file name it saves under.
