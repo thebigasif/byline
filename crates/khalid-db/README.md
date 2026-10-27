@@ -23,6 +23,8 @@ A test reads the table below and checks it lists every table in the schema, once
 | `links` | derived | The link graph: every link in every file, with its anchor text and where it resolves |
 | `lint_results` | derived | What the linter found in each file |
 | `alias_redirects` | derived | Old addresses from `aliases` in front matter, each pointing at its file |
+| `search_pages` | derived | Each published page site search can find: its address, title, plain-text body and words per field |
+| `search_terms` | derived | The search index: each term, the pages that hold it, and how often in the title, headings and body |
 | `redirects` | visitor | Redirects made in the admin, brought in by an import, or added when a slug changes |
 | `not_found_log` | visitor | Every address that answered 404, with its hit count and when it was first and last seen |
 | `users` | visitor | Staff accounts, with an Argon2id password hash when the account has a password |
@@ -32,6 +34,8 @@ A test reads the table below and checks it lists every table in the schema, once
 | `webhooks` | visitor | The addresses that receive each event, with the secret that signs deliveries |
 | `webhook_deliveries` | visitor | Each delivery of an event: the bytes sent, where it stands and when it is due again |
 | `webhook_attempts` | visitor | Every attempt at a delivery, with the status that came back or why there was none |
+| `post_schedules` | visitor | When each post goes live and when it comes down, named by its identity so a rebuild keeps it |
+| `site_keys` | visitor | Keys the site makes for itself, such as the one that signs preview links; 256 random bits each, never shown |
 | `form_submissions` | visitor | What people sent through forms on the site |
 | `subscribers` | visitor | Newsletter subscribers, whether they confirmed, and when they left |
 | `subscriber_lists` | visitor | Which newsletters each subscriber gets, by the newsletter's name |

@@ -7,6 +7,7 @@ use khalid_core::Slug;
 use khalid_lint::Report;
 
 use crate::content_store::BoxFuture;
+use crate::publish_door::ScheduleError;
 use crate::resources::{AdminPost, PostDraft, PostEdit};
 
 /// Posts in every status, for the Admin API. Task 1.15 implements it on
@@ -94,6 +95,9 @@ pub enum UpdatePostError {
     /// The post stays as it was.
     #[error("the linter refused to publish the post")]
     Refused(Report),
+    /// The edit's schedule cannot be kept. The post stays as it was.
+    #[error("the schedule cannot be kept")]
+    Schedule(#[source] ScheduleError),
     /// The posts could not be read or written.
     #[error(transparent)]
     Store(#[from] PostStoreError),

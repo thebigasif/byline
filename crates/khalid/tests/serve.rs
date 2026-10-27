@@ -288,6 +288,32 @@ fn serve_answers_the_sitemaps_feeds_and_aliases_beside_the_pages() {
 }
 
 #[test]
+fn serve_answers_the_admin_app_at_admin_with_its_own_policy() {
+    let site = demo_copy();
+    let server = start(site.path());
+    let admin = get(&server, "/admin/");
+    // CI builds Khalid without running npm, so the binary may hold no admin
+    // and say how to add it; with admin/dist built, it is the app's page.
+    match admin.status {
+        200 => assert!(admin.body.contains("<div id=\"root\">"), "{}", admin.body),
+        503 => assert!(admin.body.contains("npm run build"), "{}", admin.body),
+        other => panic!("/admin/ answered {other}"),
+    }
+    assert!(
+        admin.policy.contains("script-src 'self'"),
+        "{}",
+        admin.policy
+    );
+    assert!(
+        admin.policy.contains("frame-ancestors 'none'"),
+        "{}",
+        admin.policy
+    );
+    let blog = get(&server, "/blog/");
+    assert_eq!(blog.status, 200, "the pages still answer beside the admin");
+}
+
+#[test]
 fn serve_answers_the_home_page_then_stops_gracefully_when_told_to() {
     let site = demo_copy();
     let mut server = start(site.path());

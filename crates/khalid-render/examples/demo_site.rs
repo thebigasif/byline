@@ -22,7 +22,7 @@ use khalid_render::{
     Alternate, AuthorEntry, BodyHtml, Features, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink,
     PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor, RenderAuthors,
     RenderGlossary, RenderHome, RenderListing, RenderPage, RenderPost, RenderSearch, RenderSite,
-    Renderer, Robots, ScriptTag, Tokens, TopicGroup, reader_script, stylesheet,
+    Renderer, Robots, ScriptTag, SearchMode, Tokens, TopicGroup, reader_script, stylesheet,
 };
 
 type Fallible<T> = Result<T, Box<dyn Error>>;
@@ -491,6 +491,7 @@ impl Demo {
         let path = format!("{}search/", lang.prefix);
         let search = RenderSearch {
             title: lang.search.to_owned(),
+            mode: SearchMode::Live,
             action: path.clone(),
             query: None,
             results: Vec::new(),

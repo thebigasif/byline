@@ -33,6 +33,7 @@ fn a_new_admin_post_is_a_draft_in_api_shape() {
             "status": "draft",
             "markdown": "Anchor text tells readers where a link goes.",
             "published_at": null,
+            "unpublish_at": null,
             "updated_at": "2026-10-20T08:30:00Z",
             "updated_by": null,
         })

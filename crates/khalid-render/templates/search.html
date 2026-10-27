@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block main %}
 <h1>{{ page.title }}</h1>
-<form class="search" role="search" action="{{ page.action }}" method="get">
+{% if page.mode == "locked" %}<section class="lock" aria-labelledby="lock-title">
+<h2 id="lock-title">{{ t.search_locked_title }}</h2>
+<p>{{ t.search_locked_why }}</p>
+<p>{{ t.search_locked_fix }} <code>khalid serve</code></p>
+</section>
+{% else %}<form class="search" role="search" action="{{ page.action }}" method="get">
 <label for="search-query">{{ t.search_label }}</label>
 <input id="search-query" type="search" name="q" value="{{ page.query or "" }}" autocomplete="off">
 <button type="submit">{{ t.search_button }}</button>
@@ -11,9 +16,9 @@
 {% if page.results %}<ol class="results">
 {% for result in page.results %}<li>
 <h3><a href="{{ result.href }}">{{ result.title }}</a></h3>
-<p>{{ result.excerpt }}</p>
+<p>{% for part in result.snippet %}{% if part.kind == "match" %}<mark>{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}</p>
 </li>
 {% endfor %}</ol>
 {% else %}<p>{{ t.search_nothing }}</p>
 {% endif %}</section>
-{% endif %}{% endblock %}
+{% endif %}{% endif %}{% endblock %}

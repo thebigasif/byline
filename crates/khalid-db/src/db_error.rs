@@ -34,6 +34,13 @@ pub enum DbError {
         /// The delivery's id.
         id: i64,
     },
+    /// The system gave no randomness to make a webhook's secret from.
+    #[error("the system has no randomness to make a secret from")]
+    NoRandomness {
+        /// What the system reported.
+        #[source]
+        source: getrandom::Error,
+    },
     /// An unsubscribe link was added for a subscriber the site does not
     /// have.
     #[error("the site has no subscriber {id}")]

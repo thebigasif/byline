@@ -10,8 +10,10 @@ use std::{fmt, fs};
 use khalid_content::{
     ContentTree, Document, PostFront, SiteContent, check_bodies, parse_post, read_content,
 };
-use khalid_core::{Clock, Config, SystemClock, UserMessage};
-use khalid_render::{PageBody, Renderer};
+use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
+use khalid_render::{
+    PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult,
+};
 use khalid_routes::Routes;
 use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
 
@@ -23,7 +25,7 @@ use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::{
     assets, build_home, build_message, build_pages, build_seo, content_message, post_files,
-    site_files,
+    search_page, serve_message, site_files,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -49,6 +51,9 @@ struct Site {
     /// a saved post's page finds them without listing the folder again.
     /// `None` before the first full render.
     assets: Mutex<Option<Assets>>,
+    /// The search page of each language as the last full render made it,
+    /// which a search's results are rendered into.
+    searches: Mutex<Vec<SearchShell>>,
 }
 
 /// What a saved post's page needs from the rest of the site, in a fraction
@@ -108,7 +113,50 @@ impl SitePages {
             feed,
             outline: Mutex::default(),
             assets: Mutex::default(),
+            searches: Mutex::default(),
         })))
+    }
+
+    /// The text `key` of the strings file for `locale`, as the theme's
+    /// templates read it. `None` on a headless site.
+    pub(crate) fn text(&self, locale: &Locale, key: &str) -> Option<String> {
+        let theme = self.0.theme.as_ref()?;
+        theme.renderer.text(locale, key).map(str::to_owned)
+    }
+
+    /// The page of a search for `query` that found `results`, rendered into
+    /// the search page at `path` as the last full render made it. `None`
+    /// before the first full render, or when `path` has no search page.
+    pub(crate) fn render_search(
+        &self,
+        path: &str,
+        query: Option<String>,
+        results: Vec<SearchResult>,
+    ) -> Result<Option<String>, UserMessage> {
+        let Some(theme) = &self.0.theme else {
+            return Ok(None);
+        };
+        let shell = self
+            .0
+            .searches
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .find(|shell| shell.meta.path == path)
+            .cloned();
+        let Some(SearchShell { site, meta }) = shell else {
+            return Ok(None);
+        };
+        let body = PageBody::Search(RenderSearch {
+            title: meta.title.clone(),
+            mode: SearchMode::Live,
+            action: meta.path.clone(),
+            query,
+            results,
+        });
+        let html = theme.renderer.render(&site, &meta, &body);
+        html.map(Some)
+            .map_err(|error| build_message::render(&error))
     }
 
     /// Every page of the site at its address, the stylesheet they link, the
@@ -149,10 +197,68 @@ impl SitePages {
         };
         let href = theme.stylesheet.path().as_str();
         let mut languages = build_home::home_pages(config, routes, content, href)?;
+        search_page::link(config, &mut languages);
         build_seo::heads(&build_seo::site(config)?, &mut languages)?;
         let mut pages = vec![theme.stylesheet.clone()];
         html_pages(theme, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
+    }
+
+    /// The page the draft of post `slug` in `locale` would have if it went
+    /// live today, rendered among the site's posts as they are now, for
+    /// its preview link. `None` when there is no such draft, the site has
+    /// no theme, or it has no post to shape the draft's entry on. Reads
+    /// files and renders, so it runs off the async runtime (BL-RUN-7).
+    pub(crate) fn preview(
+        &self,
+        locale: &Locale,
+        slug: &Slug,
+    ) -> Result<Option<String>, UserMessage> {
+        let Site { folder, config, .. } = &*self.0;
+        let mut file = folder.clone();
+        file.push(format!("drafts/{locale}/{slug}.md"));
+        let (Some(_), Ok(text)) = (&self.0.theme, fs::read_to_string(&file)) else {
+            return Ok(None);
+        };
+        let unreadable = |error| content_message::of(folder, &error);
+        let tree = ContentTree::walk(folder).map_err(unreadable)?;
+        let mut content = read_content(&tree).map_err(unreadable)?;
+        let today = SystemClock.now().date_naive();
+        let path = PathBuf::from(format!("content/{locale}/posts/{today}-{slug}.md"));
+        let post = parse_post(&path, &text).map_err(unreadable)?;
+        // A Document is made only by khalid-content, so the draft's entry
+        // is another post's with every field that names a file replaced.
+        let Some(mut doc) = content.posts.first().cloned() else {
+            return Ok(None);
+        };
+        doc.locale = locale.clone();
+        "posts".clone_into(&mut doc.collection);
+        doc.path = path;
+        doc.front = post.front;
+        doc.front.date.get_or_insert(today);
+        let front_lines = text
+            .lines()
+            .count()
+            .saturating_sub(post.body.lines().count());
+        doc.body_line = front_lines.saturating_add(1);
+        doc.body = post.body;
+        content
+            .posts
+            .retain(|other| &other.locale != locale || other.front.slug.as_ref() != Some(slug));
+        content.posts.push(doc);
+        let assets = Assets::of(&tree);
+        let (served, _) = self.render_of(&assets, (&content, &[]), Which::Posts)?;
+        let address = build_pages::path_of(config, locale, &format!("{slug}/"));
+        let page = served
+            .pages
+            .iter()
+            .rev()
+            .find(|page| page.path().as_str() == address);
+        let Some(page) = page else {
+            return Ok(None);
+        };
+        let body = page.body().map_err(|_| serve_message::internal())?;
+        Ok(Some(String::from_utf8_lossy(&body).into_owned()))
     }
 
     /// Every page made from `content`, already read from the site folder,
@@ -218,6 +324,9 @@ impl SitePages {
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
         let mut languages = build_pages::pages(config, routes, (content, others), href)?;
+        if let Some(theme) = theme {
+            search_page::add(config, &theme.renderer, &mut languages)?;
+        }
         let beside = post_files::served(folder, config, assets, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
@@ -234,6 +343,12 @@ impl SitePages {
         if let Some(theme) = theme {
             if which == Which::All {
                 served.pages.push(theme.stylesheet.clone());
+                let shells = search_shells(&languages);
+                *self
+                    .0
+                    .searches
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = shells;
             }
             served.not_found = html_pages(theme, config, &languages, which, &mut served.pages)?;
         }
@@ -313,6 +428,30 @@ enum Which {
 
 /// How a wikilink starts in markdown, such as `[[link-equity]]`.
 const WIKILINK: &str = "[[";
+
+/// A language's search page without results: the site as its pages show it
+/// and the page's head, with its title and its SEO tags.
+#[derive(Debug, Clone)]
+struct SearchShell {
+    site: RenderSite,
+    meta: PageMeta,
+}
+
+/// The search page of each of `languages`.
+fn search_shells(languages: &[LanguagePages]) -> Vec<SearchShell> {
+    let mut shells = Vec::new();
+    for language in languages {
+        let searches = language
+            .pages
+            .iter()
+            .filter(|page| matches!(page.body, PageBody::Search(_)));
+        shells.extend(searches.map(|page| SearchShell {
+            site: language.site.clone(),
+            meta: page.meta.clone(),
+        }));
+    }
+    shells
+}
 
 /// The posts of `content` without their bodies, and its authors whole,
 /// since a post's author box shows their bios: what a saved post's page
@@ -407,177 +546,5 @@ impl fmt::Display for Unrendered {
 impl Error for Unrendered {}
 
 #[cfg(test)]
-mod tests {
-    use std::fs;
-    use std::path::{Path, PathBuf};
-
-    use khalid_core::{Config, Environment};
-    use khalid_routes::Routes;
-
-    use super::{Assets, ContentTree, Render, SitePages, read_content};
-
-    fn fixture(name: &str) -> PathBuf {
-        let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
-        path.push("../../fixtures");
-        path.push(name);
-        path
-    }
-
-    fn pages(site: &Path) -> SitePages {
-        let config = Config::load(site, &Environment::empty()).unwrap();
-        SitePages::new(site, config, Routes::load(site).unwrap(), None).unwrap()
-    }
-
-    #[test]
-    fn a_saved_broken_wikilink_stops_the_render_and_names_its_file_and_line() {
-        let site = fixture("invalid/content-broken-wikilink");
-        let message = pages(&site).render_all().unwrap_err();
-        let what = message.what();
-        assert!(
-            what.ends_with("why-links-matter.md, line 10: [[link-equity]] matches no post, page or glossary term in en."),
-            "{what}"
-        );
-    }
-
-    #[test]
-    fn the_first_pages_are_the_full_renders_home_pages_and_stylesheet() {
-        let site = demo_copy();
-        let content = read_content(&ContentTree::walk(site.path()).unwrap()).unwrap();
-        let source = pages(site.path());
-        let first = source.render_first(&content).unwrap();
-        let all = source.render_all().unwrap().pages;
-        let paths: Vec<&str> = first.iter().map(|page| page.path().as_str()).collect();
-        assert_eq!(paths.len(), 3, "{paths:?}");
-        assert!(paths.contains(&"/blog/"), "{paths:?}");
-        assert!(paths.contains(&"/blog/de/"), "{paths:?}");
-        for page in &first {
-            assert!(all.contains(page), "{} differs", page.path().as_str());
-        }
-    }
-
-    #[test]
-    fn served_pages_link_each_wikilink() {
-        let pages = pages(&fixture("demo-site")).render_all().unwrap().pages;
-        let link = "<a href=\"/blog/glossary/topical-authority/\">Topical authority</a>";
-        let linking = pages
-            .iter()
-            .filter(|page| String::from_utf8_lossy(&page.body().unwrap()).contains(link));
-        assert_eq!(linking.count(), 2);
-    }
-
-    #[test]
-    fn the_checked_content_renders_the_same_pages_as_the_folder() {
-        let demo = fixture("demo-site");
-        let tree = ContentTree::walk(&demo).unwrap();
-        let content = read_content(&tree).unwrap();
-        let assets = Assets::of(&tree);
-        assert_ne!(assets, Assets::default(), "the demo has a folder post");
-        drop(tree);
-        let source = pages(&demo);
-        let given = source.render_content(&content, assets).unwrap();
-        let read = source.render_all().unwrap();
-        assert!(given.pages.len() > 10, "{} pages", given.pages.len());
-        assert_eq!(given.pages, read.pages);
-        assert_eq!(given.not_found, read.not_found);
-        assert_eq!(given.moves, read.moves);
-    }
-
-    fn copy_dir(from: &Path, into: &Path) {
-        fs::create_dir_all(into).unwrap();
-        for entry in fs::read_dir(from).unwrap() {
-            let entry = entry.unwrap();
-            let mut target = into.to_path_buf();
-            target.push(entry.file_name());
-            if entry.file_type().unwrap().is_dir() {
-                copy_dir(&entry.path(), &target);
-            } else {
-                fs::copy(entry.path(), &target).unwrap();
-            }
-        }
-    }
-
-    /// The paths of the posts the last full render of `source` read.
-    fn outlined(source: &SitePages) -> Vec<PathBuf> {
-        let outline = source.0.outline.lock().unwrap();
-        outline
-            .content
-            .posts
-            .iter()
-            .map(|doc| doc.path.clone())
-            .collect()
-    }
-
-    /// The demo site in a folder of its own, which a test may edit.
-    fn demo_copy() -> tempfile::TempDir {
-        let site = tempfile::tempdir().unwrap();
-        copy_dir(&fixture("demo-site"), site.path());
-        site
-    }
-
-    /// Whether the file at `path` in `site` holds a wikilink.
-    fn links_a_term(site: &Path, path: &Path) -> bool {
-        let mut file = site.to_path_buf();
-        file.push(path);
-        fs::read_to_string(file).unwrap().contains("[[")
-    }
-
-    #[test]
-    fn each_saved_post_alone_renders_the_page_the_full_render_makes() {
-        let site = demo_copy();
-        let source = pages(site.path());
-        let unread = vec![PathBuf::from(
-            "content/en/posts/2026-09-28-what-a-sitemap-does.md",
-        )];
-        assert_eq!(
-            source.render_saved(&unread).unwrap(),
-            None,
-            "no full render yet"
-        );
-
-        let all = source.render_all().unwrap().pages;
-        let (linking, posts): (Vec<PathBuf>, Vec<PathBuf>) = outlined(&source)
-            .into_iter()
-            .partition(|path| links_a_term(site.path(), path));
-        assert_eq!(posts.len(), 6, "{posts:?}");
-        for post in &posts {
-            let saved = source.render_saved(std::slice::from_ref(post)).unwrap();
-            let saved = saved.unwrap_or_else(|| panic!("{} alone", post.display()));
-            assert_eq!(saved.len(), 2, "the post and its translation");
-            for page in &saved {
-                assert!(all.contains(page), "{} differs", page.path().as_str());
-            }
-        }
-        assert_eq!(linking.len(), 4, "{linking:?}");
-        assert_eq!(source.render_saved(&linking).unwrap(), None, "a wikilink");
-        let author = vec![PathBuf::from("content/en/authors/asif.md")];
-        assert_eq!(source.render_saved(&author).unwrap(), None);
-    }
-
-    #[test]
-    fn a_saved_edit_that_changes_the_related_posts_renders_the_next_full_render_page() {
-        let site = demo_copy();
-        let source = pages(site.path());
-        source.render_all().unwrap();
-        let post = PathBuf::from("content/en/posts/2026-09-28-what-a-sitemap-does.md");
-        let mut file = site.path().to_path_buf();
-        file.push(&post);
-        let text = fs::read_to_string(&file).unwrap();
-        let edited = text.replace(
-            "title: What a sitemap does,",
-            "title: What a sitemap is for,",
-        );
-        let link = "\nSee [the topic cluster plan](/blog/planning-a-topic-cluster/).\n";
-        fs::write(&file, format!("{edited}{link}")).unwrap();
-
-        let saved = source.render_saved(&[post]).unwrap().unwrap();
-        let all = source.render_all().unwrap().pages;
-        let page = saved
-            .iter()
-            .find(|page| page.path().as_str() == "/blog/what-a-sitemap-does/")
-            .unwrap();
-        let body = page.body().unwrap();
-        let html = String::from_utf8_lossy(&body);
-        assert!(html.contains("What a sitemap is for"), "the edit shows");
-        assert!(all.contains(page), "the saved page is the full render's");
-    }
-}
+#[path = "site_pages_tests.rs"]
+mod tests;

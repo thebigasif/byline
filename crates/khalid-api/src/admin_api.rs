@@ -19,15 +19,17 @@ use crate::admin_key::{require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::html_source::markdown_from_html;
 use crate::keys::{KeyStore, Principal, Scope};
-use crate::post_store::{CreatePostError, PostStore, UpdatePostError};
+use crate::post_store::{CreatePostError, UpdatePostError};
+use crate::preview_link::PreviewLink;
 use crate::problem::{Problem, ProblemType};
+use crate::publish_door::{PublishDoor, ScheduleError};
 use crate::resources::{AdminPost, NewPost, PostDraft, PostEdit};
 
 /// Where the Admin API lives.
 pub(crate) const BASE: &str = "/api/admin/v1";
 
-/// The store every post route reads and writes.
-type Posts = Arc<dyn PostStore>;
+/// The door every post route reads and writes through.
+type Posts = Arc<PublishDoor>;
 
 /// The Admin API routes, each declared with `utoipa::path` and registered
 /// through `routes!` (RULES.md BL-API-4). Every route needs an
@@ -36,6 +38,7 @@ pub(crate) fn routes(posts: Posts, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(create_admin_post))
         .routes(routes!(read_admin_post, edit_admin_post))
+        .routes(routes!(make_preview_link))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(posts)
@@ -84,7 +87,8 @@ pub(crate) struct EditPosts {
 }
 
 /// Edits one post, and publishes it with `"status": "published"` once
-/// the linter lets it through. The edit carries the `updated_at` of the copy it was
+/// the linter lets it through, or with `"status": "scheduled"` and a
+/// future `published_at` at that time. The edit carries the `updated_at` of the copy it was
 /// made on; when the post changed since, the answer is a 409 naming who
 /// changed it and when (RULES.md BL-API-7). Needs `posts:write`.
 #[utoipa::path(
@@ -98,7 +102,7 @@ pub(crate) struct EditPosts {
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The post changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
-        (status = 422, description = "The body could not be read, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, the schedule cannot be kept, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
     )
 )]
 async fn edit_admin_post(
@@ -112,7 +116,7 @@ async fn edit_admin_post(
     let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
     let [edit] = <[PostEdit; 1]>::try_from(body.posts)
         .map_err(|_| invalid_body("posts must hold exactly one post"))?;
-    match posts.update(&id, edit, principal.id().as_str()).await {
+    match posts.edit(&id, edit, principal.id().as_str()).await {
         Ok(post) => Ok(Json(AdminPosts { posts: vec![post] })),
         Err(UpdatePostError::NotFound) => Err(missing(uri.path())),
         Err(UpdatePostError::Stale {
@@ -120,6 +124,7 @@ async fn edit_admin_post(
             updated_by,
         }) => Err(stale(updated_at, updated_by.as_deref())),
         Err(UpdatePostError::Refused(report)) => Err(refused(report)),
+        Err(UpdatePostError::Schedule(error)) => Err(unschedulable(error)),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
     }
 }
@@ -132,6 +137,65 @@ fn refused(report: Report) -> Problem {
         "Fix each finding marked block, then publish again.",
     );
     Problem::new(ProblemType::LintBlocked, &message).with_lint(report)
+}
+
+/// Preview links, wrapped the way the Admin API wraps resources.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct PreviewLinks {
+    /// The one new link.
+    preview_links: Vec<PreviewLink>,
+}
+
+/// Makes a link that shows the post, draft or not, in the site's design
+/// to anyone who has it, until it expires: 7 days unless `site.toml` says
+/// otherwise. The page behind it tells search engines not to list it.
+/// Needs `posts:write`.
+#[utoipa::path(
+    post, path = "/posts/{id}/preview-link/", tag = "admin posts",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The post's identity")),
+    responses(
+        (status = 201, description = "The new link and when it expires", body = PreviewLinks),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "This site makes no preview links", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn make_preview_link(
+    State(posts): State<Posts>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<(StatusCode, Json<PreviewLinks>), Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let Some(signer) = posts.previews() else {
+        let message = UserMessage::new(
+            "This site makes no preview links.",
+            "A preview link needs the site's server, which signs each link.",
+            "Ask for the link from the running khalid serve.",
+        );
+        return Err(Problem::new(ProblemType::InvalidBody, &message));
+    };
+    let found = posts.get(&id).await;
+    found
+        .map_err(|error| Problem::internal(&error))?
+        .ok_or_else(|| missing(uri.path()))?;
+    let link = signer.link(&id).ok_or_else(|| missing(uri.path()))?;
+    let links = PreviewLinks {
+        preview_links: vec![link],
+    };
+    Ok((StatusCode::CREATED, Json(links)))
+}
+
+/// The 422 for an edit whose schedule cannot be kept.
+fn unschedulable(error: ScheduleError) -> Problem {
+    let message = UserMessage::new(
+        format!("The schedule in this edit cannot be kept: {error}."),
+        "A post goes live or comes down only at a time still to come, and nothing was changed.",
+        "Send status scheduled with a later published_at, and any unpublish_at after it.",
+    );
+    Problem::new(ProblemType::InvalidBody, &message).with_rule("published_at")
 }
 
 /// A new post, wrapped the way the Admin API wraps posts: exactly one.
@@ -198,6 +262,7 @@ async fn create_admin_post(
     let idempotency = idempotency_key(&headers)?;
     let draft = checked(new, options.source.unwrap_or_default()).await?;
     let made = posts
+        .posts()
         .create(draft, principal.id().as_str(), idempotency)
         .await;
     let post = made.map_err(|error| match error {

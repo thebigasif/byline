@@ -6,6 +6,7 @@
 //! which this binary calls the same way the API does.
 
 mod agents;
+mod announce;
 mod assets;
 mod atomic;
 mod build;
@@ -51,9 +52,15 @@ mod outbound;
 mod post_files;
 mod post_images;
 mod post_text;
+mod preview;
 mod repair;
 mod report;
 mod routes_message;
+mod scheduler;
+mod search_index;
+mod search_page;
+mod search_route;
+mod search_static;
 mod serve;
 mod serve_message;
 mod site_content;
@@ -131,9 +138,9 @@ fn run(cli: &Cli) -> Exit {
     let site = match (&cli.command, site) {
         (Some(Command::Serve { listen }), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
-            let checked = (&config, &routes);
-            let start = (content, assets, look);
-            return serve::run(folder, checked, start, *listen, cli.output);
+            let (checked, start) = ((&config, &routes), (content, assets, look));
+            let to = (*listen, outbound::client(cli));
+            return serve::run(folder, checked, start, to, cli.output);
         }
         (_, site) => site,
     };

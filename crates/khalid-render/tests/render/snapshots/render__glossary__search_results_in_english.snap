@@ -15,7 +15,7 @@ expression: main_of(&page)
 <ol class="results">
 <li>
 <h3><a href="/blog/what-a-sitemap-does/">What a sitemap does, and what it does not</a></h3>
-<p>A sitemap lists the pages you want search engines to know about.</p>
+<p>A <mark>sitemap</mark> lists the pages you want search engines to know about.</p>
 </li>
 </ol>
 </section>

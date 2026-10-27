@@ -13,6 +13,7 @@ use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
 use crate::post_store::PostStore;
 use crate::problem::Problem;
+use crate::publish_door::{PublishDoor, Silent};
 use crate::{admin_api, api_version, content_api};
 
 /// The document's title, the schemas every route shares and the ways a
@@ -66,9 +67,21 @@ impl Modify for KeySchemes {
 /// The Content API under `/api/content/v1/`, the Admin API under
 /// `/api/admin/v1/`, and `/api/openapi.json`, with the document every
 /// route declares (RULES.md BL-API-4). The document itself needs no key.
+/// A post that goes live is announced to nobody; see [`router_with_door`].
 pub fn router(
     content: Arc<dyn ContentStore>,
     posts: Arc<dyn PostStore>,
+    keys: Arc<dyn KeyStore>,
+) -> (Router, Document) {
+    let door = PublishDoor::new(posts, Arc::new(Silent));
+    router_with_door(content, Arc::new(door), keys)
+}
+
+/// The same router, publishing through `door`, which `khalid serve` shares
+/// with its scheduler so every post that goes live is announced.
+pub fn router_with_door(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
 ) -> (Router, Document) {
     let api = OpenApiRouter::with_openapi(ApiDoc::openapi())
@@ -76,7 +89,7 @@ pub fn router(
             content_api::BASE,
             content_api::routes(content, Arc::clone(&keys)),
         )
-        .nest(admin_api::BASE, admin_api::routes(posts, keys));
+        .nest(admin_api::BASE, admin_api::routes(door, keys));
     finish(api)
 }
 

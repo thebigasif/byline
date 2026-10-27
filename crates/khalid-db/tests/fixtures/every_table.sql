@@ -31,6 +31,11 @@ INSERT INTO lint_results (site_id, path, rule, severity, line, message) VALUES
     (2, 'content/en/posts/old-post.md', 'no-description', 'warn', NULL, 'This post has no description.');
 INSERT INTO alias_redirects (site_id, from_path, to_path) VALUES
     (1, '/2025/old-post/', 'content/en/posts/old-post.md'), (2, '/2025/old-post/', 'content/en/posts/old-post.md');
+INSERT INTO search_pages (id, site_id, locale, path, href, title, body, title_words, heading_words, body_words) VALUES
+    (1, 1, 'en', 'content/en/posts/old-post.md', '/blog/old-post/', 'Old post', 'Words.', 2, 0, 1),
+    (2, 2, 'en', 'content/en/posts/old-post.md', '/blog/old-post/', 'Old post', 'Words.', 2, 0, 1);
+INSERT INTO search_terms (site_id, term, page_id, in_title, in_headings, in_body) VALUES
+    (1, 'old', 1, 1, 0, 0), (2, 'old', 2, 1, 0, 0);
 
 INSERT INTO redirects (site_id, from_path, to_url, status, origin, created_at) VALUES
     (1, '/old/', '/blog/old-post/', 301, 'manual', '2026-10-26T09:00:00Z'),
@@ -57,6 +62,12 @@ INSERT INTO webhook_deliveries (id, site_id, webhook_id, event, url, body, first
 INSERT INTO webhook_attempts (site_id, delivery_id, number, at, status, reason) VALUES
     (1, 1, 1, '2026-10-26T09:00:00.000000Z', 503, NULL),
     (2, 2, 1, '2026-10-26T09:00:00.000000Z', 204, NULL);
+INSERT INTO post_schedules (site_id, post_id, publish_at, unpublish_at) VALUES
+    (1, 'en.choosing-anchor-text', '2026-11-03T08:00:00Z', NULL),
+    (2, 'en.choosing-anchor-text', NULL, '2026-12-01T00:00:00Z');
+INSERT INTO site_keys (site_id, purpose, secret, created_at) VALUES
+    (1, 'preview', randomblob(32), '2026-10-27T09:00:00Z'),
+    (2, 'preview', randomblob(32), '2026-10-27T09:00:00Z');
 INSERT INTO form_submissions (site_id, form, fields, status, created_at) VALUES
     (1, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z'),
     (2, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z');

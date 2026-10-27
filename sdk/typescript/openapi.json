@@ -212,7 +212,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -296,7 +296,93 @@
             }
           },
           "422": {
-            "description": "The body could not be read, or the linter refused to publish the post",
+            "description": "The body could not be read, the schedule cannot be kept, or the linter refused to publish the post",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/posts/{id}/preview-link/": {
+      "post": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Makes a link that shows the post, draft or not, in the site's design\nto anyone who has it, until it expires: 7 days unless `site.toml` says\notherwise. The page behind it tells search engines not to list it.\nNeeds `posts:write`.",
+        "operationId": "make_preview_link",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The new link and when it expires",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewLinks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "This site makes no preview links",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3005,6 +3091,14 @@
             "type": "string",
             "description": "The title."
           },
+          "unpublish_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it comes down again, if it is scheduled to."
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time",
@@ -3658,7 +3752,7 @@
       },
       "PostEdit": {
         "type": "object",
-        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through.",
+        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through;\n`scheduled` with a future `published_at` publishes it then, and\n`draft` takes a scheduled post off its schedule and a live post down.",
         "required": [
           "updated_at"
         ],
@@ -3670,13 +3764,21 @@
             ],
             "description": "A new markdown body."
           },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a `scheduled` post goes live: a time to come, with its offset,\nsuch as `2026-11-03T09:00:00+01:00`."
+          },
           "status": {
             "type": [
               "string",
               "null"
             ],
-            "description": "`published` to publish the post. Publishing runs the linter, and a\npost with a blocking finding stays a draft.",
-            "example": "published"
+            "description": "`published` to publish the post now, `scheduled` to publish it at\n`published_at`, or `draft` to cancel a schedule and take a live post\ndown. Publishing runs\nthe linter, and a post with a blocking finding stays a draft.",
+            "example": "scheduled"
           },
           "title": {
             "type": [
@@ -3684,6 +3786,14 @@
               "null"
             ],
             "description": "A new title."
+          },
+          "unpublish_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the post comes down again: a time to come, after\n`published_at` for a scheduled post."
           },
           "updated_at": {
             "type": "string",
@@ -3725,6 +3835,41 @@
               "$ref": "#/components/schemas/Post"
             },
             "description": "The entries on this page, or the one entry asked for."
+          }
+        }
+      },
+      "PreviewLink": {
+        "type": "object",
+        "description": "A link to a draft, and when it stops working.",
+        "required": [
+          "url",
+          "expires_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the link stops working."
+          },
+          "url": {
+            "type": "string",
+            "description": "The address to share, such as\n`https://www.example.com/blog/preview/en.choosing-anchor-text/?until=1793696400&sig=...`."
+          }
+        }
+      },
+      "PreviewLinks": {
+        "type": "object",
+        "description": "Preview links, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "preview_links"
+        ],
+        "properties": {
+          "preview_links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewLink"
+            },
+            "description": "The one new link."
           }
         }
       },

@@ -511,7 +511,7 @@ fn full_addresses(config: &Config, html: &str) -> String {
 }
 
 /// The head of a page at `path`, indexable, with no alternates yet.
-fn meta(
+pub(crate) fn meta(
     config: &Config,
     title: String,
     description: String,

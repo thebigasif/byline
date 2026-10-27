@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO search_terms (site_id, term, page_id, in_title, in_headings, in_body) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "2f87c769787ac2fb42c56f0b64c7808cb514b253d98abc1ceb184865ba5d62cd"
+}
