@@ -1,3 +1,4 @@
+import { CsvRedirects } from "../redirects/CsvRedirects";
 import { KeptRedirects } from "../redirects/KeptRedirects";
 import { MissLog } from "../redirects/MissLog";
 import { en } from "../strings/en";
@@ -10,6 +11,7 @@ export function Redirects() {
       <p className="lede">{en.redirects.lede}</p>
       <MissLog />
       <KeptRedirects />
+      <CsvRedirects />
     </>
   );
 }

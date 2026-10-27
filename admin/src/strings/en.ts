@@ -47,6 +47,16 @@ export const en = {
       removeText: "Remove",
       removed: (from: string) => `Removed. ${from} no longer redirects.`,
     },
+    csv: {
+      title: "Many redirects at once",
+      lede: "A CSV file is a spreadsheet saved as plain text. Each row is one redirect, with the columns from, to, status and match. Khalid stores the whole file or nothing, so a mistake in one row never leaves half a list.",
+      download: "Download every redirect as CSV",
+      file: "Add redirects from a CSV file",
+      fileHint: "From a spreadsheet, another blog or the download above.",
+      add: "Add these redirects",
+      adding: "Adding the redirects",
+      added: (count: number) => (count === 1 ? "Added 1 redirect." : `Added ${count} redirects.`),
+    },
     // What a visitor gets, by the status the redirect answers.
     kind: (status: number, pattern: boolean) => {
       const kinds: Record<number, string> = {
