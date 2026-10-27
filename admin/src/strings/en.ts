@@ -15,6 +15,23 @@ export const en = {
   redirects: {
     title: "Redirects",
     lede: "A redirect sends visitors and Google from an old web address to a new one. When you rename a post, a redirect keeps old links working and keeps the post's place in search results.",
+    send: {
+      title: "Send an old address to a post",
+      lede: "Khalid writes the old address into the post's file, among its old addresses. The redirect then moves with the post, and git keeps a record of it.",
+      from: "Old address",
+      fromHint: "It must start with /, such as /2019/05/old-title/.",
+      to: "Post it should open",
+      toHint: "Visitors land here instead.",
+      pick: "Pick a post",
+      permanent:
+        "This is a permanent move, the kind Google follows and remembers (a 301 redirect).",
+      submit: "Add redirect",
+      adding: "Adding the redirect",
+      loading: "Reading your posts",
+      noPosts: "No post is live yet. Once one is, you can send old addresses to it here.",
+      done: (from: string) => `Added. ${from} now opens`,
+      where: "You find it in that post under More settings, Old addresses.",
+    },
     misses: {
       title: "Addresses that found nothing",
       lede: 'These addresses on your blog answered "page not found" (a 404). Visitors and Google gave up on them. Send each one to the page Khalid suggests, or leave it.',
@@ -342,6 +359,11 @@ export const en = {
       what: "The time to go live is not complete.",
       why: "Khalid needs a whole date and time to schedule the post.",
       fix: "Fill in the date and the time, or pick As soon as I press Publish.",
+    },
+    badAlias: {
+      what: "The old address is not a path on this blog.",
+      why: "Only an address that starts with / and has no spaces can lead to a post.",
+      fix: "Write it as it appears after your domain, such as /2019/05/old-title/.",
     },
     page: {
       what: "This screen stopped working.",
