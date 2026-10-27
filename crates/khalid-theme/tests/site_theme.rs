@@ -117,4 +117,37 @@ async fn a_bootstrap_site_gives_its_variables_and_an_adobe_font_is_not_rehosted(
         Some(url(&format!("{home}/assets/img/studio-kite-logo.svg")))
     );
     assert_eq!(brand.icons.len(), 2);
+    let held: Vec<(&str, FontHost)> = fonts
+        .held
+        .iter()
+        .map(|font| (font.family(), font.host()))
+        .collect();
+    assert_eq!(held, [("proxima-nova", FontHost::Adobe)]);
+    assert!(!theme.drawn_by_script);
+}
+
+#[tokio::test]
+async fn openly_licensed_and_self_hosted_fonts_are_never_held_back() {
+    for (site, stylesheet) in [
+        ("bakery", "/wp-content/themes/northwind/style.css"),
+        ("saas", "/_next/static/css/4f1c2a9e.css"),
+    ] {
+        let (theme, _) = sync(site, stylesheet).await;
+        assert_eq!(theme.typography.held, [], "{site}");
+        assert!(!theme.drawn_by_script, "{site}");
+    }
+}
+
+#[test]
+fn a_page_with_scripts_and_almost_no_text_is_drawn_by_script() {
+    let empty = r#"<!doctype html><html><head><title>Acme</title></head><body>
+<div id="root"></div><noscript>You need to enable JavaScript to run this app.</noscript>
+<script src="/static/js/main.4f1c2a9e.js"></script></body></html>"#;
+    let quiet = r"<!doctype html><html><body><p>Short page.</p></body></html>";
+
+    assert!(SiteTheme::looks_drawn_by_script(empty));
+    assert!(
+        !SiteTheme::looks_drawn_by_script(quiet),
+        "no script, no guess"
+    );
 }

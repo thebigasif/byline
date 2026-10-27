@@ -5,7 +5,7 @@ use std::path::Path;
 
 use khalid_core::{AbsoluteUrl, SitePathError, UserMessage};
 use khalid_outbound::OutboundError;
-use khalid_theme::{FetchError, MAX_CSS_BYTES, TokensError};
+use khalid_theme::{FetchError, FontHost, HeldFont, MAX_CSS_BYTES, TokensError};
 
 /// Turns a failure to read the main site's home page at `url` into what, why
 /// and fix.
@@ -58,6 +58,30 @@ pub(crate) fn no_stylesheet(url: &AbsoluteUrl, skipped: usize) -> UserMessage {
         format!("Khalid found no stylesheet on {url}."),
         why,
         "Give the address of a page on the main site that shows its usual colours, such as the home page.",
+    )
+}
+
+/// What a person reads when the page at `url` is drawn by JavaScript, so
+/// the blog took the clean default look.
+pub(crate) fn drawn_by_script(url: &AbsoluteUrl) -> String {
+    format!(
+        "{url} draws its pages with JavaScript, so its HTML shows almost nothing to copy. \
+         The blog uses the clean default colours and fonts for now. \
+         To use your site's own, save its CSS variables in a file and run \
+         `khalid theme sync {url} --from-css <file>`."
+    )
+}
+
+/// What a person reads about a font the blog may not serve.
+pub(crate) fn held_font(font: &HeldFont) -> String {
+    let service = match font.host() {
+        FontHost::Adobe => "Adobe Fonts",
+        _ => font.server(),
+    };
+    format!(
+        "The font {} comes from {service}, whose licence does not let the blog serve it, \
+         so the blog shows the next font in its list.",
+        font.family()
     )
 }
 

@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 use khalid_core::{AbsoluteUrl, Locale, UserMessage};
 use khalid_render::Renderer;
 use khalid_theme::{
-    ContrastFix, MAX_CSS_BYTES, SiteSource, SiteTheme, ThemeDiff, ThemeTokens, TokenChange,
-    fetch_site,
+    ContrastFix, HeldFont, MAX_CSS_BYTES, SiteSource, SiteTheme, ThemeDiff, ThemeTokens,
+    TokenChange, fetch_site,
 };
 use serde::Serialize;
 
@@ -39,6 +39,11 @@ struct SyncBody<'a> {
     /// order. Absent on a first sync.
     #[serde(skip_serializing_if = "Option::is_none")]
     changes: Option<Vec<ChangeBody>>,
+    /// Whether the home page is drawn by JavaScript, so the clean default
+    /// look was used and `--from-css` can do better.
+    drawn_by_script: bool,
+    /// Each font the blog may not serve, in page order.
+    held_fonts: Vec<HeldBody<'a>>,
 }
 
 /// The JSON shape of one contrast fix.
@@ -112,6 +117,7 @@ struct Synced<'a> {
     from_css: Option<&'a Path>,
     fixes: Vec<ContrastFix>,
     diff: Option<ThemeDiff>,
+    notes: Notes,
 }
 
 /// What the main site gives today.
@@ -122,6 +128,16 @@ pub(crate) struct FromSite {
     pub(crate) fixes: Vec<ContrastFix>,
     /// The site's name, when its home page says it.
     pub(crate) name: Option<String>,
+    /// What the person should know about what could not be copied.
+    pub(crate) notes: Notes,
+}
+
+/// What a sync could not copy, said in plain words beside the changes.
+pub(crate) struct Notes {
+    /// The home page is drawn by JavaScript, so the default look was used.
+    drawn_by_script: bool,
+    /// The fonts the blog may not serve.
+    held: Vec<HeldFont>,
 }
 
 impl FromSite {
@@ -133,8 +149,20 @@ impl FromSite {
             tokens,
             fixes,
             name: theme.brand.name,
+            notes: Notes {
+                drawn_by_script: theme.drawn_by_script,
+                held: theme.typography.held,
+            },
         }
     }
+}
+
+/// The JSON shape of one font the blog may not serve.
+#[derive(Serialize)]
+struct HeldBody<'a> {
+    family: &'a str,
+    server: &'a str,
+    message: String,
 }
 
 /// Syncs the theme of the main site at `url` into the `site` folder, and
@@ -156,6 +184,7 @@ pub(crate) fn run(
         tokens: fresh,
         mut fixes,
         name,
+        notes,
     } = match found {
         Ok(found) => found,
         Err((message, exit)) => return report::failure(output, &message, exit),
@@ -190,6 +219,7 @@ pub(crate) fn run(
                 from_css,
                 fixes,
                 diff,
+                notes,
             },
         ),
         Err(error) => report::failure(output, &error.message(), Exit::Failure),
@@ -204,14 +234,16 @@ fn preview(site: &Path, tokens: &ThemeTokens, source: Source<'_>) -> Result<Path
 }
 
 /// The tokens the main site at `url` gives today, after the contrast pass,
-/// what that pass changed, and the site's name.
+/// what that pass changed, and the site's name. A page drawn by JavaScript
+/// with no stylesheet gives the clean default look (plan section 4.9).
 pub(crate) fn site_tokens(cli: &Cli, url: &AbsoluteUrl) -> Result<FromSite, (UserMessage, Exit)> {
     let source = read(cli, url)?;
-    if source.stylesheets().is_empty() {
+    let theme = SiteTheme::from_source(&source);
+    if source.stylesheets().is_empty() && !theme.drawn_by_script {
         let message = theme_message::no_stylesheet(url, source.skipped().len());
         return Err((message, Exit::Failure));
     }
-    Ok(FromSite::of(SiteTheme::from_source(&source)))
+    Ok(FromSite::of(theme))
 }
 
 /// The tokens the CSS in `file` gives, after the contrast pass. The file
@@ -263,6 +295,12 @@ fn success(output: Output, url: &AbsoluteUrl, synced: &Synced<'_>) -> Exit {
             if let Some(diff) = &synced.diff {
                 let _ = write!(said, "{diff}");
             }
+            if synced.notes.drawn_by_script {
+                let _ = writeln!(said, "{}", theme_message::drawn_by_script(url));
+            }
+            for font in &synced.notes.held {
+                let _ = writeln!(said, "{}", theme_message::held_font(font));
+            }
             let _ = writeln!(
                 said,
                 "Open {preview} in a browser to see how the blog will look."
@@ -277,6 +315,17 @@ fn success(output: Output, url: &AbsoluteUrl, synced: &Synced<'_>) -> Exit {
                 from_css: synced.from_css.map(|file| file.display().to_string()),
                 contrast_fixes: synced.fixes.iter().map(FixBody::from).collect(),
                 changes: synced.diff.as_ref().map(ChangeBody::all),
+                drawn_by_script: synced.notes.drawn_by_script,
+                held_fonts: synced
+                    .notes
+                    .held
+                    .iter()
+                    .map(|font| HeldBody {
+                        family: font.family(),
+                        server: font.server(),
+                        message: theme_message::held_font(font),
+                    })
+                    .collect(),
             },
             Exit::Success,
         ),

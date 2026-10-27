@@ -237,6 +237,65 @@ async fn a_page_with_no_stylesheet_writes_nothing() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_site_drawn_by_javascript_gets_the_clean_default_and_the_way_to_paste_its_css() {
+    let site = site();
+    let app = r#"<!doctype html><html><head><title>Acme</title>
+<link rel="icon" href="/favicon.ico"></head><body><div id="root"></div>
+<script src="/static/js/main.js"></script></body></html>"#;
+    let (_server, home) = stand_in(app, None).await;
+
+    let human = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+    let output = khalid(
+        site.path(),
+        &["--json", "theme", "sync", &home],
+        Names::StandIn,
+    )
+    .await;
+
+    assert_eq!(human.status.code(), Some(0), "{}", text(&human.stderr));
+    let said = text(&human.stdout);
+    assert!(said.contains("draws its pages with JavaScript"), "{said}");
+    assert!(said.contains("clean default"), "{said}");
+    assert!(
+        said.contains(&format!("khalid theme sync {home} --from-css")),
+        "{said}"
+    );
+    let tokens = fs::read_to_string(within(site.path(), "theme/tokens.toml")).unwrap();
+    assert!(tokens.contains("background = \"#ffffff\""), "{tokens}");
+    assert!(tokens.contains("favicon.ico"), "{tokens}");
+    assert_eq!(json(&output)["drawn_by_script"], true);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_font_the_blog_may_not_serve_is_named_in_plain_words() {
+    let site = site();
+    let kit = HOME.replace(
+        "<link rel=\"stylesheet\" href=\"/style.css\">",
+        "<link rel=\"stylesheet\" href=\"https://use.typekit.net/kxv2mqa.css\">\n\
+         <link rel=\"stylesheet\" href=\"/style.css\">",
+    );
+    let style = format!("{STYLE}body {{ font-family: proxima-nova, Arial, sans-serif; }}\n");
+    let (_server, home) = stand_in(&kit, Some(&style)).await;
+
+    let human = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+    let output = khalid(
+        site.path(),
+        &["--json", "theme", "sync", &home],
+        Names::StandIn,
+    )
+    .await;
+
+    assert_eq!(human.status.code(), Some(0), "{}", text(&human.stderr));
+    let said = text(&human.stdout);
+    let line = "The font proxima-nova comes from Adobe Fonts, whose licence does not let \
+                the blog serve it, so the blog shows the next font in its list.";
+    assert!(said.contains(line), "{said}");
+    let held = &json(&output)["held_fonts"][0];
+    assert_eq!(held["family"], "proxima-nova");
+    assert_eq!(held["server"], "use.typekit.net");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_file_in_the_way_of_the_theme_folder_is_named() {
     let site = site();
     fs::write(within(site.path(), "theme"), "not a folder").unwrap();
