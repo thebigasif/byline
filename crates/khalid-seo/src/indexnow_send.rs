@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 use khalid_core::AbsoluteUrl;
-use khalid_outbound::{Fetched, Outbound, OutboundError};
+use khalid_outbound::{Outbound, OutboundError};
 
 use crate::{IndexNow, SeoError, Submission};
 
@@ -47,28 +47,15 @@ impl Default for Retries {
 }
 
 /// What [`IndexNow::send`] sent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub struct Sent {
-    requests: usize,
-    urls: usize,
-    attempts: usize,
-}
-
-impl Sent {
     /// The requests search engines accepted.
-    pub fn requests(&self) -> usize {
-        self.requests
-    }
-
+    pub requests: usize,
     /// The addresses those requests announced, each once.
-    pub fn urls(&self) -> usize {
-        self.urls
-    }
-
+    pub urls: usize,
     /// The attempts made in all, retries included.
-    pub fn attempts(&self) -> usize {
-        self.attempts
-    }
+    pub attempts: usize,
 }
 
 /// Why changed addresses did not reach `IndexNow`.
@@ -84,9 +71,8 @@ pub enum SendIndexNowError {
         #[from]
         source: SeoError,
     },
-    /// The search engine answered with a status other than success: 400
-    /// for a bad request, 403 for a key it could not check, 422 for an
-    /// address that is not the site's, 429 or 5xx when it stayed busy.
+    /// The search engine did not take the request: 400, 403 for a key it
+    /// could not check, 422 for an address not the site's, or 429 or 5xx.
     #[error("IndexNow answered {status} after {attempts} attempts")]
     Status {
         /// The last HTTP status.
@@ -128,11 +114,7 @@ impl IndexNow {
         changed: &[AbsoluteUrl],
     ) -> Result<Sent, SendIndexNowError> {
         let submissions = self.submissions(changed)?;
-        let mut sent = Sent {
-            requests: 0,
-            urls: 0,
-            attempts: 0,
-        };
+        let mut sent = Sent::default();
         for submission in &submissions {
             let attempts = self.deliver(outbound, retries, submission).await?;
             sent.requests = sent.requests.saturating_add(1);
@@ -157,12 +139,10 @@ impl IndexNow {
             let answer = outbound
                 .post(self.endpoint(), &[JSON], submission.body().to_vec())
                 .await;
-            let error = match answer {
-                Ok(fetched) if is_success(&fetched) => return Ok(attempts),
-                Ok(fetched) => SendIndexNowError::Status {
-                    status: fetched.status(),
-                    attempts,
-                },
+            // Any 2xx is taken: 200, or 202 for later.
+            let error = match answer.map(|fetched| fetched.status()) {
+                Ok(status) if (200..300).contains(&status) => return Ok(attempts),
+                Ok(status) => SendIndexNowError::Status { status, attempts },
                 Err(source) => SendIndexNowError::Request { attempts, source },
             };
             match pauses.next() {
@@ -171,12 +151,6 @@ impl IndexNow {
             }
         }
     }
-}
-
-/// Whether the search engine took the request: any 2xx, such as 200, or 202
-/// for later.
-fn is_success(fetched: &Fetched) -> bool {
-    (200..300).contains(&fetched.status())
 }
 
 /// Whether trying the same request again may succeed.
