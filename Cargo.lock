@@ -2197,6 +2197,7 @@ name = "khalid-static"
 version = "0.0.0"
 dependencies = [
  "serde",
+ "thiserror",
 ]
 
 [[package]]
