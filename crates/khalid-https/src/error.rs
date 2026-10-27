@@ -35,6 +35,20 @@ pub enum HttpsError {
         #[source]
         source: rcgen::Error,
     },
+    /// The certificate authority could not be reached, or refused.
+    #[error("the certificate authority could not be reached, or refused")]
+    Acme {
+        /// What the ACME client reported.
+        #[source]
+        source: instant_acme::Error,
+    },
+    /// A saved account key cannot be read or written.
+    #[error("the saved account key cannot be read")]
+    AccountFile {
+        /// What the JSON reader reported.
+        #[source]
+        source: serde_json::Error,
+    },
     /// The TLS settings could not be built.
     #[error("TLS could not be set up")]
     Tls {
