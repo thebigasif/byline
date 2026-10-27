@@ -277,6 +277,17 @@ Theme sync and the generated share image depend on nothing in progress, so they 
 - Rules: BL-CLI-1 to BL-CLI-4, BL-ERR-4.
 - Done when: CLI tests run both commands against a `wiremock` site, in human and `--json` output, with the right exit codes.
 
+## Phase 6 work pulled forward
+
+The importers depend only on the content types, so the WordPress importer starts now, as a library. Plan section 5.7, PRD KH-API-7. `crates/khalid-import` depends on `khalid-core`, `khalid-content` and `khalid-routes`, and reads only the text it is given. The `khalid import` command comes after the 1.15 wiring lands.
+
+### 6.1 The WordPress importer
+
+- Status: `todo`
+- Read a WXR export (posts, pages, authors, categories, tags, featured images, dates, slugs). Carry the titles, descriptions, canonical and robots fields of Yoast, Rank Math, All in One SEO and SEOPress, and the rules of the Redirection plugin. Produce Khalid content files whose front matter `khalid-content` reads, with every slug kept, a complete redirect map and a dry-run report of what came in and what did not.
+- Rules: BL-TYP-3, BL-TYP-5, BL-RUN-5, BL-RUN-9, BL-SEC-1, BL-FS-2, BL-TST-2.
+- Done when: a hand-made WXR file per SEO plugin gives its expected front matter, and a generated 500-post export loses nothing: zero lost posts, every slug kept, and a redirect map that covers every old address.
+
 ## Questions for the founder
 
 - **AI crawlers in a new site's robots.txt (task 1.13).** Context: AI companies send crawlers that copy blog posts to train their models (GPTBot, CCBot and others), and separate crawlers that fetch posts to quote and link them in AI answers (OAI-SearchBot, Claude-SearchBot, PerplexityBot). Khalid can block or allow each one by name. Today a new site allows all of them. Consequence: blocking the training crawlers keeps posts out of future models and costs no search traffic; blocking the answer crawlers also removes the blog from AI answers. Question: should a new site block the training crawlers by default, and keep the answer crawlers allowed?
