@@ -1,0 +1,3 @@
+# The web address drops "internal".
+extends = "focus-clean"
+slug = "why-links-matter"

@@ -244,11 +244,41 @@ why = "Readers who struggle leave early, and Google favours pages that answer pe
 fix = "Split long sentences, and use shorter everyday words where you can."
 guide = "readability"
 
-[focus-topic-missing]
-what = "Your focus topic is missing from one of the places readers and Google look at first."
-why = "The title, address, opening, description and headings tell Google what the post is about."
-fix = "Add the words of `focus:` to the place this message names."
-guide = "focus-topic"
+[focus-not-in-title]
+what = "The title does not hold your focus keyword."
+why = "The title is the headline in search results, and Google reads it first to learn the topic."
+fix = "Rewrite the title so it holds the words of `focus_keyword:`, ideally near the start."
+guide = "focus-keyword"
+
+[focus-not-in-description]
+what = "The description does not hold your focus keyword."
+why = "Google shows the description under the title and marks the words a searcher typed in bold."
+fix = "Rewrite the description so it holds the words of `focus_keyword:` once."
+guide = "focus-keyword"
+
+[focus-not-in-first-paragraph]
+what = "The first paragraph does not hold your focus keyword."
+why = "Readers decide in the first lines whether the post answers their search, and so does Google."
+fix = "Use the words of `focus_keyword:` in the first paragraph, where it reads naturally."
+guide = "focus-keyword"
+
+[focus-not-in-subheading]
+what = "None of the subheadings holds your focus keyword."
+why = "Subheadings show readers and Google how the post is built around its topic."
+fix = "Change one subheading so it holds the words of `focus_keyword:`."
+guide = "focus-keyword"
+
+[focus-not-in-address]
+what = "The web address of this post does not hold your focus keyword."
+why = "Searchers see the address in results, and a clear one tells them what the page is about."
+fix = "Change `slug:` to the words of `focus_keyword:` before you publish, because a later change needs a redirect."
+guide = "focus-keyword"
+
+[focus-not-in-image-alt]
+what = "None of the image descriptions holds your focus keyword."
+why = "Google Images reads the descriptions to know what an image shows and which searches it fits."
+fix = "Describe one image in words that include `focus_keyword:` if the image really shows it."
+guide = "focus-keyword"
 
 [overlapping-collections]
 what = "Two collections, the folders that group your posts, could give two posts the same address."

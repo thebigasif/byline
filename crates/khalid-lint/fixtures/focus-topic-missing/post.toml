@@ -1,5 +1,0 @@
-# The focus topic is in the title, the address and the first words, but
-# not the description, and no heading holds it: "internal link" is not
-# "internal links".
-extends = "clean"
-focus = "internal links"

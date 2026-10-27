@@ -1,0 +1,3 @@
+# The title names links, but not the focus keyword as a whole phrase.
+extends = "focus-clean"
+title = "Why links between your posts matter"
