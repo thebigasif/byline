@@ -2051,6 +2051,7 @@ dependencies = [
 name = "khalid-comments"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
  "getrandom 0.4.3",
  "khalid-comments",
@@ -2060,6 +2061,8 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+ "tower",
+ "tracing",
 ]
 
 [[package]]

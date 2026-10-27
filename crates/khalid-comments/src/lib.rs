@@ -21,6 +21,7 @@ mod comment_store;
 mod comments;
 mod field_problem;
 mod fields;
+mod form_route;
 #[cfg(any(test, feature = "test-util"))]
 mod memory_store;
 mod rate_limits;
@@ -33,6 +34,7 @@ pub use comment_store::{CommentStore, CommentStoreError, NewComment};
 pub use comments::{Comments, CommentsError};
 pub use field_problem::FieldProblem;
 pub use fields::{AuthorName, CommentText, ReaderEmail};
+pub use form_route::{FormRoute, PostPage, PostPages, form_router};
 #[cfg(any(test, feature = "test-util"))]
 pub use memory_store::MemoryCommentStore;
 pub use rate_limits::{RateLimitError, RateLimits};
