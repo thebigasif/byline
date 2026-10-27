@@ -3,6 +3,7 @@
 
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
+use std::mem;
 use std::path::Path;
 
 use chrono::NaiveDate;
@@ -17,7 +18,7 @@ use khalid_render::{
 use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
-use crate::listed_post::ListedPost;
+use crate::listed_post::{ListedPost, ListedTag};
 use crate::post_lock::Unlocked;
 pub(crate) use crate::site_page::Page;
 use crate::{build_home, build_message, build_reader, build_schema, build_seo};
@@ -179,8 +180,9 @@ fn post_pages(
         let (title, slug) = named(config, doc, front.slug.as_ref(), front.title.as_deref())?;
         let entry = PostAddress::new(&doc.collection, locale, &slug, Some(date));
         let rest = routed(config, routes, locale, &entry, &doc.path)?;
-        let rendered = render_linked(&doc.body, &doc.locale, config.slugs(), links)
+        let mut rendered = render_linked(&doc.body, &doc.locale, config.slugs(), links)
             .map_err(|error| build_message::block(&doc.path, &error))?;
+        rendered.html = build_seo::with_link_policy(config, mem::take(&mut rendered.html));
         drafts.push(Draft {
             doc,
             date,
@@ -239,10 +241,16 @@ fn listed(
     let (locale, front) = (posts.locale, &draft.doc.front);
     let named = (draft.title.clone(), draft.rest.as_str(), draft.date);
     let card = build_home::card(config, locale, posts.people, named, front);
+    let tags = ListedTag::all(&front.tags, locale, config.slugs());
+    let mut topics = build_reader::topics(&draft.slug, draft.date, front, &draft.rendered, slugs);
+    topics.tags = tags.iter().map(|tag| tag.slug.to_string()).collect();
     ListedPost {
         path: draft.doc.path.clone(),
         locale: locale.clone(),
-        topics: build_reader::topics(&draft.slug, draft.date, front, &draft.rendered, slugs),
+        collection: draft.doc.collection.clone(),
+        featured: front.featured,
+        tags,
+        topics,
         card,
         author: front.author.clone(),
     }
@@ -473,15 +481,18 @@ pub(crate) fn routed(
 
 /// A document's body as HTML, with raw HTML escaped, maths drawn as `MathML`
 /// and each wikilink a link to the page `links` gives it, by
-/// `khalid_content::render_linked`. `main` has checked every wikilink
-/// reaches a page, so none falls back to plain text.
+/// `khalid_content::render_linked`, and each link given the site's link
+/// policy. `main` has checked every wikilink reaches a page, so none falls
+/// back to plain text.
 pub(crate) fn body_html<F>(
     config: &Config,
     links: &Wikilinks,
     doc: &Document<F>,
 ) -> Result<BodyHtml, UserMessage> {
     render_linked(&doc.body, &doc.locale, config.slugs(), links)
-        .map(|rendered| BodyHtml::from_sanitised(rendered.html))
+        .map(|rendered| {
+            BodyHtml::from_sanitised(build_seo::with_link_policy(config, rendered.html))
+        })
         .map_err(|error| build_message::block(&doc.path, &error))
 }
 

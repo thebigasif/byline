@@ -1,0 +1,7 @@
+---
+source: crates/khalid/tests/build_links.rs
+expression: body_links(&site(LINKS))
+---
+<a href="https://developers.google.com/search/docs/crawling-indexing/links-crawlable" rel="nofollow noopener" target="_blank">link guide
+<a href="https://www.amazon.com/dp/B0C1234567" rel="nofollow sponsored noopener" target="_blank">The book
+<a href="/blog/">the home page

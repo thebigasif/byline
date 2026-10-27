@@ -9,7 +9,7 @@ use std::fs;
 use std::path::{self, Path, PathBuf};
 
 use khalid_content::{ContentTree, SiteContent};
-use khalid_core::{Clock, Config, Mode, UserMessage};
+use khalid_core::{Clock, Config, UserMessage};
 use khalid_lint::Linter;
 use khalid_render::{Asset, Renderer};
 use khalid_routes::Routes;
@@ -21,9 +21,9 @@ use crate::post_files::Assets;
 use crate::post_photos::Shown;
 use crate::site_page::HeadNonce;
 use crate::{
-    assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
-    content_message, lint, lint_message, post_files, post_images, post_lock, report, search_page,
-    search_static, static_mode,
+    assets, build_files, build_gate, build_lists, build_message, build_pages, build_redirects,
+    build_seo, build_sitemap, categories, content_message, lint, lint_message, post_files,
+    post_images, post_lock, report, search_page, search_static, static_mode,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -34,6 +34,9 @@ const PUBLIC: &str = "public";
 struct BuildBody {
     out: String,
     pages: usize,
+    /// The folder of files for the root of the host, for a blog in a folder.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    root: Option<String>,
     /// The features a static site has off, each with what, why and fix.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     off: Vec<static_mode::Off>,
@@ -65,7 +68,7 @@ pub(crate) fn run(
         return build_gate::refuse(output, &refused);
     }
     match build(site, config, routes, content, &out, clock) {
-        Ok(written) => success(output, &out, written, config.mode()),
+        Ok(written) => success(output, &out, written, config),
         Err(message) => report::failure(output, &message, Exit::Failure),
     }
 }
@@ -97,6 +100,10 @@ fn build(
     post_lock::lock(config, content, renderer, &mut languages);
     if let Some((renderer, _)) = &theme {
         search_page::add(config, renderer, &mut languages)?;
+        let categories = categories::of(site)?;
+        let sources = (content, categories.as_slice());
+        build_lists::add((config, routes), renderer, sources, &mut languages)?;
+        build_sitemap::add(config, renderer, &mut languages)?;
     }
     // The checked content keeps no assets, so the tree is read again for
     // them. A headless site gets them too: its feeds point at them.
@@ -111,6 +118,7 @@ fn build(
     }
     let seo_site = build_seo::site(config)?;
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+    build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
     let mut written = 0;
     let locks = static_mode::locks(config.mode())?;
     if let Some((renderer, css)) = &theme {
@@ -125,11 +133,20 @@ fn build(
             }
         }
     }
-    let redirects = build_redirects::file(site, config, content)?;
-    let files = build_files::files(&seo_site, &seo_pages, clock.now())?;
+    let redirects = build_redirects::file(site, config, routes, content)?;
+    let files = build_files::files(
+        &seo_site,
+        &seo_pages,
+        config.seo().indexnow.as_ref(),
+        clock.now(),
+    )?;
     let search = search_static::files(config, &languages)?;
     for file in files.iter().chain(&redirects).chain(&search) {
         write(out, &file.file, &file.text)?;
+    }
+    for file in build_files::root_files(&seo_site)? {
+        let relative = format!("{}/{}", build_files::ROOT_FOLDER, file.file);
+        write(out, &relative, &file.text)?;
     }
     Ok(written)
 }
@@ -186,11 +203,15 @@ fn inside(path: &Path, folder: &Path) -> bool {
 }
 
 /// Says how many pages were written and where, or for a headless site that
-/// only its files were, and for a static site which features are off.
-fn success(output: Output, out: &Path, pages: usize, mode: Mode) -> Exit {
+/// only its files were, where the files for the host's root are, and for a
+/// static site which features are off.
+fn success(output: Output, out: &Path, pages: usize, config: &Config) -> Exit {
     let shown = out.display().to_string();
+    let mode = config.mode();
     let off = static_mode::off(mode);
-    let said = if mode.has_pages() {
+    let root = (config.mount() != "/")
+        .then(|| within(out, build_files::ROOT_FOLDER).display().to_string());
+    let mut said = if mode.has_pages() {
         format!(
             "Built {pages} pages in {shown}.\n{}",
             static_mode::human(&off)
@@ -200,12 +221,19 @@ fn success(output: Output, out: &Path, pages: usize, mode: Mode) -> Exit {
             "Built the feeds, sitemaps and redirects in {shown}. The site is headless, so Khalid writes no pages.\n"
         )
     };
+    if let Some(root) = &root {
+        let host = config.address().as_str().trim_end_matches('/');
+        said = format!(
+            "{said}Search engines read robots.txt only at {host}/robots.txt, outside the blog's folder, so its copy is in {root}. Copy the files in that folder to the root of the main site.\n"
+        );
+    }
     match output {
         Output::Human => report::text(&said, Exit::Success),
         Output::Json => report::json(
             &BuildBody {
                 out: shown,
                 pages,
+                root,
                 off,
             },
             Exit::Success,

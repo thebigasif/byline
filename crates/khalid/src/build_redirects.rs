@@ -7,10 +7,11 @@ use std::path::Path;
 
 use khalid_content::SiteContent;
 use khalid_core::{Config, UserMessage};
+use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{Destination, Move, Redirect, RedirectRule, RedirectTable, UrlPath};
 
 use crate::build_files::SiteFile;
-use crate::build_pages::{named, prefix};
+use crate::build_pages::{named, prefix, routed};
 use crate::{build_message, db, redirects};
 
 /// One alias and the address it ends at, each from the site root, mount
@@ -29,10 +30,11 @@ pub(crate) struct Hop {
 pub(crate) fn file(
     site: &Path,
     config: &Config,
+    routes: &Routes,
     content: &SiteContent,
 ) -> Result<Option<SiteFile>, UserMessage> {
     let mut rules = Vec::new();
-    for hop in hops(config, content)? {
+    for hop in hops(config, routes, content)? {
         let to = Destination::Path(path(&hop.to)?);
         let redirect = Redirect::Move {
             kind: Move::Permanent,
@@ -77,14 +79,21 @@ fn stored_moves(site: &Path) -> Result<Vec<RedirectRule>, UserMessage> {
     Ok(moves.cloned().collect())
 }
 
-/// Every alias of a dated post, with each chain followed to its end, in
-/// the order of the redirect table. `khalid serve` answers the same hops.
-pub(crate) fn hops(config: &Config, content: &SiteContent) -> Result<Vec<Hop>, UserMessage> {
+/// Every alias of a dated post, moved to the address `routes` gives the
+/// post, as its page has, with each chain followed to its end, in the
+/// order of the redirect table. `khalid serve` answers the same hops.
+pub(crate) fn hops(
+    config: &Config,
+    routes: &Routes,
+    content: &SiteContent,
+) -> Result<Vec<Hop>, UserMessage> {
     let mut rules = Vec::new();
     for doc in content.posts.iter().filter(|doc| doc.front.date.is_some()) {
         let front = &doc.front;
         let (_, slug) = named(config, doc, front.slug.as_ref(), front.title.as_deref())?;
-        let to = path(&format!("/{}{slug}/", prefix(config, &doc.locale)))?;
+        let entry = PostAddress::new(&doc.collection, &doc.locale, &slug, front.date);
+        let rest = routed(config, routes, &doc.locale, &entry, &doc.path)?;
+        let to = path(&format!("/{}{rest}", prefix(config, &doc.locale)))?;
         for alias in &front.aliases {
             let inside = alias
                 .strip_prefix(config.mount().trim_end_matches('/'))

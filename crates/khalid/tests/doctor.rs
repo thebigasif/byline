@@ -13,7 +13,7 @@ use tempfile::TempDir;
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
 /// Every check, in the order doctor runs them.
-const CHECKS: [&str; 7] = [
+const CHECKS: [&str; 8] = [
     "settings",
     "routes",
     "content",
@@ -21,7 +21,11 @@ const CHECKS: [&str; 7] = [
     "theme",
     "permissions",
     "address",
+    "robots",
 ];
+
+/// The checks that fetch over the network, skipped with `--offline`.
+const ONLINE: [&str; 2] = ["address", "robots"];
 
 /// Runs the binary from the repository root.
 #[cfg(test)]
@@ -96,6 +100,7 @@ fn the_demo_site_passes_every_check_and_exits_0() {
         "Theme: ok.",
         "Permissions: ok.",
         "Public address: skipped.",
+        "Host robots.txt: skipped.",
     ] {
         assert!(said.contains(heading), "no {heading:?} in:\n{said}");
     }
@@ -122,17 +127,23 @@ fn the_demo_site_in_json_lists_each_check_in_order() {
     assert_eq!(names, CHECKS, "{body}");
     for name in CHECKS {
         let found = check(&body, name);
-        let want = if name == "address" { "skipped" } else { "ok" };
+        let want = if ONLINE.contains(&name) {
+            "skipped"
+        } else {
+            "ok"
+        };
         assert_eq!(found["status"], want, "{found}");
         assert!(found["summary"].as_str().unwrap().ends_with('.'), "{found}");
     }
-    assert!(
-        check(&body, "address")["summary"]
-            .as_str()
-            .unwrap()
-            .contains("--offline"),
-        "{body}"
-    );
+    for name in ONLINE {
+        assert!(
+            check(&body, name)["summary"]
+                .as_str()
+                .unwrap()
+                .contains("--offline"),
+            "{body}"
+        );
+    }
 }
 
 #[test]

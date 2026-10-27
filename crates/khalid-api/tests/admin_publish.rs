@@ -8,12 +8,12 @@ use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
-use chrono::{TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use khalid_api::api;
 use khalid_api::content_store::{BoxFuture, Listed};
 use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
 use khalid_api::post_store::{
-    CreatePostError, MemoryPostStore, PostStore, PostStoreError, UpdatePostError,
+    CreatePostError, DeletePostError, MemoryPostStore, PostStore, PostStoreError, UpdatePostError,
 };
 use khalid_api::query::ListQuery;
 use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostRow};
@@ -130,6 +130,14 @@ impl PostStore for Refusing {
         _idempotency: Option<&'a str>,
     ) -> BoxFuture<'a, Result<AdminPost, CreatePostError>> {
         Box::pin(std::future::ready(Err(CreatePostError::NoSlug)))
+    }
+
+    fn delete<'a>(
+        &'a self,
+        _id: &'a str,
+        _updated_at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>> {
+        Box::pin(std::future::ready(Err(DeletePostError::NotFound)))
     }
 }
 
