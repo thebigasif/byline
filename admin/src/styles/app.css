@@ -85,6 +85,9 @@
   .terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(16rem,100%),1fr));gap:.25rem 2rem;margin:0 0 1.5rem;font-size:.9375rem}
   .terms dt{font-weight:600}
   .terms dd{margin:0 0 .5rem;color:var(--color-muted)}
+  .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(12rem,100%),1fr));gap:1rem;align-items:end;background:var(--color-surface);border-radius:var(--radius-field);padding:1rem;margin:0 0 1rem}
+  .filters .field{margin:0}
+  .paging{display:flex;flex-wrap:wrap;gap:.75rem 1rem;align-items:center;margin:1.25rem 0 0}
   /* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
   @media (max-width:40em){
     table,tbody,tr,td{display:block}

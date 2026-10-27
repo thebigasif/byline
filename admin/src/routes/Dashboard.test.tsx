@@ -76,6 +76,8 @@ describe("the dashboard", () => {
       "/admin/posts/01JB",
     );
     expect(screen.getByText(en.dashboard.blockedLede(1))).toBeVisible();
+    const all = within(focus).getByRole("link", { name: en.dashboard.showBlocked });
+    expect(all).toHaveAttribute("href", "/admin/posts?checks=blocked");
     expect(screen.queryByLabelText(en.start.label)).toBeNull();
     expect(await axeViolations()).toEqual([]);
   });

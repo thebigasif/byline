@@ -25,7 +25,10 @@ export function BlockedFocus({ page }: Props) {
           </li>
         ))}
       </ul>
-      <p className="mb-0">{en.dashboard.blockedFix}</p>
+      <p>{en.dashboard.blockedFix}</p>
+      <Link to="/posts" search={{ checks: "blocked" }} className="btn primary">
+        {en.dashboard.showBlocked}
+      </Link>
     </section>
   );
 }

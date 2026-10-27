@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { axeViolations, json, renderAt, serve, signedIn } from "../../test/render";
@@ -29,10 +29,47 @@ function blog(rows: PostRow[] = ROWS, total = rows.length) {
       return json(404, {});
     }
     queries.push(query);
-    return rowsPage(rows, total);
+    return rowsPage(rows, total, Number(query.get("page") ?? "1"), 20);
   });
   return queries;
 }
+
+describe("filtering and paging posts", () => {
+  it("asks the blog only for posts the address filters to", async () => {
+    signedIn();
+    const queries = blog([ROWS[1] ?? row()]);
+    renderAt("/posts?checks=blocked&stage=in_review");
+    await screen.findByRole("table");
+    expect(queries[0]?.get("filter")).toBe("gate:refuses+status:draft+review_state:in_review");
+    expect(screen.getByLabelText(en.posts.checks)).toHaveValue("blocked");
+  });
+
+  it("writes the picked filters into the address and lists again from page 1", async () => {
+    signedIn();
+    const queries = blog();
+    const { router } = renderAt("/posts?page=2");
+    const form = await screen.findByRole("form", { name: en.filters.label });
+    await userEvent.selectOptions(within(form).getByLabelText(en.posts.index), "noindex");
+    await userEvent.click(within(form).getByRole("button", { name: en.filters.show }));
+    await waitFor(() => expect(queries.at(-1)?.get("filter")).toBe("index_status:noindex"));
+    expect(queries.at(-1)?.get("page")).toBe("1");
+    expect(router.state.location.search).toEqual({ index: "noindex" });
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it("moves between pages and keeps the filters", async () => {
+    signedIn();
+    const queries = blog(ROWS, 45);
+    renderAt("/posts?stage=live");
+    const pages = await screen.findByRole("navigation", { name: en.paging.label });
+    expect(pages).toHaveTextContent(en.paging.where(1, 3));
+    expect(within(pages).queryByRole("link", { name: en.paging.previous })).toBeNull();
+    await userEvent.click(within(pages).getByRole("link", { name: en.paging.next }));
+    await screen.findByText(en.paging.where(2, 3));
+    expect(queries.at(-1)?.get("page")).toBe("2");
+    expect(queries.at(-1)?.get("filter")).toBe("status:published");
+  });
+});
 
 describe("the posts screen", () => {
   it("lists every post, newest change first, with what each stands at", async () => {

@@ -1,14 +1,16 @@
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { useRows } from "../api/rows";
+import { rowQuery } from "../posts/filters";
+import { PostFilters } from "../posts/PostFilters";
 import { PostResults } from "../posts/PostResults";
 import { en } from "../strings/en";
 
-/** How many rows one page of the posts screen holds. */
-const PAGE_SIZE = 20;
+const route = getRouteApi("/signed-in/posts");
 
-/** Every post on the blog in any status, the latest change first. */
+/** Every post on the blog in any status, the latest change first, filtered by the address. */
 export function Posts() {
-  const rows = useRows({ order: "updated_at desc", limit: PAGE_SIZE });
+  const search = route.useSearch();
+  const rows = useRows(rowQuery(search));
   return (
     <>
       <div className="heading">
@@ -28,7 +30,8 @@ export function Posts() {
           </div>
         ))}
       </dl>
-      <PostResults rows={rows} />
+      <PostFilters search={search} />
+      <PostResults rows={rows} search={search} />
     </>
   );
 }

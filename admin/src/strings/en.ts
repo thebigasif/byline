@@ -24,6 +24,7 @@ export const en = {
     blockedWhy:
       "Khalid's checks found a problem in each one. Readers see none of them until it is fixed.",
     blockedFix: "Open a post. Its checks say what to change.",
+    showBlocked: "Show every blocked post",
     glance: "At a glance",
     live: (count: number) => (count === 1 ? "post live on the blog" : "posts live on the blog"),
     scheduled: (count: number) =>
@@ -78,6 +79,23 @@ export const en = {
           "Whether this blog lets search engines such as Google list the post. Google's own answer comes once Search Console is connected.",
       },
     ],
+  },
+  filters: {
+    label: "Filter posts",
+    anyChecks: "Any result",
+    anyStage: "Any stage",
+    anyIndex: "Any answer",
+    checks: {
+      blocked: "Blocked from publishing",
+      clear: "Nothing blocks it",
+    },
+    show: "Show posts",
+  },
+  paging: {
+    label: "Pages",
+    previous: "Previous page",
+    next: "Next page",
+    where: (page: number, pages: number) => `Page ${page} of ${pages}`,
   },
   stage: {
     draft: "Draft",

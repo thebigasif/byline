@@ -10,6 +10,7 @@ import {
 import { readKey } from "../auth/session";
 import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
+import { postSearch } from "../posts/filters";
 import { Dashboard } from "./Dashboard";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
@@ -38,7 +39,13 @@ const dashboard = createRoute({
   component: Dashboard,
 });
 
-const posts = createRoute({ getParentRoute: () => signedIn, path: "/posts", component: Posts });
+// The filters live in the address, so a filtered list can be bookmarked and shared.
+const posts = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/posts",
+  validateSearch: postSearch,
+  component: Posts,
+});
 
 const newPost = createRoute({ getParentRoute: () => signedIn, path: "/new", component: NewPost });
 

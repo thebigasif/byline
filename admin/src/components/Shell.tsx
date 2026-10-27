@@ -32,7 +32,9 @@ export function Shell() {
               </Link>
             </li>
             <li>
-              <Link to="/posts">{en.nav.posts}</Link>
+              <Link to="/posts" search={{}} activeOptions={{ includeSearch: false }}>
+                {en.nav.posts}
+              </Link>
             </li>
           </ul>
         </nav>
