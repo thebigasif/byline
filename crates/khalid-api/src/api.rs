@@ -14,6 +14,7 @@ use crate::keys::KeyStore;
 use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
+use crate::resources::MediaItems;
 use crate::{admin_api, api_version, content_api};
 
 /// The document's title, the schemas every route shares and the ways a
@@ -24,7 +25,7 @@ use crate::{admin_api, api_version, content_api};
         title = "Khalid API",
         description = "The Content API and the Admin API of a Khalid blog."
     ),
-    components(schemas(Problem)),
+    components(schemas(Problem, MediaItems)),
     modifiers(&KeySchemes)
 )]
 pub(crate) struct ApiDoc;

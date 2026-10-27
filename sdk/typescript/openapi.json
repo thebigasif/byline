@@ -3042,6 +3042,127 @@
   },
   "components": {
     "schemas": {
+      "AdminMedia": {
+        "type": "object",
+        "description": "A file in the media library with the details kept beside it.",
+        "required": [
+          "id",
+          "name",
+          "folder",
+          "type",
+          "kind",
+          "bytes",
+          "alt",
+          "caption",
+          "focal_point",
+          "url",
+          "uploaded_at",
+          "uploaded_by",
+          "updated_at",
+          "updated_by"
+        ],
+        "properties": {
+          "alt": {
+            "type": "string",
+            "description": "What an image shows, for readers who cannot see it."
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The size in bytes as stored.",
+            "minimum": 0
+          },
+          "caption": {
+            "type": "string",
+            "description": "The line shown under it."
+          },
+          "focal_point": {
+            "$ref": "#/components/schemas/FocalPointBody",
+            "description": "The part of an image every crop keeps."
+          },
+          "folder": {
+            "type": "string",
+            "description": "The library folder, or empty for the top."
+          },
+          "height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The height in pixels, for images.",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "A hash of the uploaded bytes, the same for the same file."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`image`, `video`, `audio` or `file`."
+          },
+          "name": {
+            "type": "string",
+            "description": "The file name it is served under."
+          },
+          "type": {
+            "type": "string",
+            "description": "The `Content-Type`, read from the bytes."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When its details last changed. An edit sends this back."
+          },
+          "updated_by": {
+            "type": "string",
+            "description": "Who changed them."
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was uploaded."
+          },
+          "uploaded_by": {
+            "type": "string",
+            "description": "Who uploaded it."
+          },
+          "url": {
+            "type": "string",
+            "description": "Where readers fetch the file."
+          },
+          "width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The width in pixels, for images.",
+            "minimum": 0
+          }
+        },
+        "example": {
+          "id": "3f2a9c1e0b57d0aa",
+          "name": "choosing-a-crm.jpg",
+          "folder": "guides",
+          "type": "image/jpeg",
+          "kind": "image",
+          "bytes": 48213,
+          "width": 1600,
+          "height": 900,
+          "alt": "A sales team comparing two CRM dashboards on one screen",
+          "caption": "",
+          "focal_point": {
+            "x": 500,
+            "y": 500
+          },
+          "url": "https://www.example.com/blog/media/3f2a9c1e0b57d0aa/choosing-a-crm.jpg",
+          "uploaded_at": "2026-10-27T08:00:00Z",
+          "uploaded_by": "asif",
+          "updated_at": "2026-10-27T08:00:00Z",
+          "updated_by": "asif"
+        }
+      },
       "AdminPost": {
         "type": "object",
         "description": "A post in Admin API shape: any status, with its markdown source and\nthe `updated_at` an edit must send back (RULES.md BL-API-7).",
@@ -3402,6 +3523,29 @@
         },
         "additionalProperties": false
       },
+      "FocalPointBody": {
+        "type": "object",
+        "description": "A point in an image in thousandths of its width and height, from the top\nleft. `{ \"x\": 500, \"y\": 500 }` is the centre.",
+        "required": [
+          "x",
+          "y"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Thousandths of the width from the left, 0 to 1000.",
+            "minimum": 0
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Thousandths of the height from the top, 0 to 1000.",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "GlossaryTerms": {
         "type": "object",
         "required": [
@@ -3425,6 +3569,22 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "MediaItems": {
+        "type": "object",
+        "description": "Media items, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "media"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMedia"
+            },
+            "description": "The item or items."
           }
         }
       },
