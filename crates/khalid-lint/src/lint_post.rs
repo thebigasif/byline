@@ -54,7 +54,8 @@ pub struct LintPost {
     /// How many words the body holds.
     #[serde(default)]
     pub word_count: usize,
-    /// The body as plain text, with markup removed.
+    /// The body as plain text, with markup removed, one line per paragraph,
+    /// heading or list item, so a rule can find the first paragraph.
     #[serde(default)]
     pub body_text: String,
     /// Old paths that redirect to this post, such as `/2019/05/old-title/`,
@@ -65,8 +66,8 @@ pub struct LintPost {
     #[serde(default)]
     pub forms: Vec<LintForm>,
     /// The phrase the post wants to be found for, such as "internal links",
-    /// from the header.
-    pub focus: Option<String>,
+    /// from `focus_keyword` in the header.
+    pub focus_keyword: Option<String>,
     /// The collection the post belongs to, such as `guides`, from the
     /// folder it lives in.
     pub collection: Option<String>,
@@ -98,7 +99,7 @@ impl LintPost {
             body_text: String::new(),
             aliases: Vec::new(),
             forms: Vec::new(),
-            focus: None,
+            focus_keyword: None,
             collection: None,
             structured_data_gaps: Vec::new(),
         }

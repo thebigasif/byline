@@ -1,0 +1,14 @@
+# The clean post with a focus keyword in every place the focus rules
+# check: the starting point for the focus fixtures, with no findings.
+extends = "clean"
+focus_keyword = "internal links"
+description = "Why internal links help readers and search engines, and how to add them."
+body_text = "Internal links help readers find the next useful post on your site.\nWhere internal links belong\nPut them where a reader asks what comes next."
+
+[[headings]]
+level = "h2"
+text = "Where internal links belong"
+
+[[images]]
+src = "/media/link-map.png"
+alt = "A map of internal links between five posts"

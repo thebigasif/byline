@@ -1,0 +1,6 @@
+# The image has a description, but it does not name the keyword.
+extends = "focus-clean"
+
+[[images]]
+src = "/media/link-map.png"
+alt = "A map of five posts and the lines between them"

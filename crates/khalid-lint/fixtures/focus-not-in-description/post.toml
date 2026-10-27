@@ -1,0 +1,3 @@
+# The description says "linking", not "internal links".
+extends = "focus-clean"
+description = "Why linking your own posts helps readers and search engines."

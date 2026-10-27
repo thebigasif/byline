@@ -1,0 +1,1 @@
+warn focus-not-in-description: internal links

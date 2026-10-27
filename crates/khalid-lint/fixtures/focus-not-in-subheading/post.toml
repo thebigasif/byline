@@ -1,0 +1,6 @@
+# The only subheading says "internal link", one link, not the keyword.
+extends = "focus-clean"
+
+[[headings]]
+level = "h2"
+text = "What an internal link is"

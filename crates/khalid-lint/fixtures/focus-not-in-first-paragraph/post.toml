@@ -1,0 +1,3 @@
+# The keyword comes only after the first paragraph and the heading.
+extends = "focus-clean"
+body_text = "Readers who finish a post look for the next one.\nWhere internal links belong\nInternal links show them where to go."
