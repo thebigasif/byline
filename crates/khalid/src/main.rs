@@ -38,6 +38,7 @@ mod lint;
 mod lint_fix;
 mod lint_input;
 mod lint_message;
+mod listed_post;
 mod new;
 mod new_message;
 mod outbound;

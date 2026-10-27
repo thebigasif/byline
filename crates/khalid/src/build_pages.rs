@@ -15,6 +15,7 @@ use khalid_render::{
 use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
+use crate::listed_post::ListedPost;
 use crate::{build_message, build_reader, build_seo};
 
 /// The pages of one language, and the site as they show it.
@@ -22,6 +23,8 @@ use crate::{build_message, build_reader, build_seo};
 pub(crate) struct LanguagePages {
     pub(crate) site: RenderSite,
     pub(crate) pages: Vec<Page>,
+    /// The dated posts the pages were made from, newest first.
+    pub(crate) listed: Vec<ListedPost>,
 }
 
 /// One page and the file it goes to, relative to the output folder.
@@ -53,38 +56,49 @@ impl Page {
 /// plain page, each author with their posts, the home page with the posts
 /// newest first, and the 404 page. Every page links the stylesheet at
 /// `stylesheet`.
+///
+/// Each post's related posts are chosen from the dated posts of `content`
+/// and from `others`, the posts of an earlier render that `content` does
+/// not hold, so `khalid serve` can render a saved post's page alone. The
+/// lists only show the posts of `content`.
 pub(crate) fn pages(
     config: &Config,
     routes: &Routes,
-    content: &SiteContent,
+    (content, others): (&SiteContent, &[ListedPost]),
     stylesheet: &str,
 ) -> Result<Vec<LanguagePages>, UserMessage> {
     config
         .languages()
         .iter()
-        .map(|locale| language_pages(config, routes, content, locale, stylesheet))
+        .map(|locale| language_pages(config, routes, (content, others), locale, stylesheet))
         .collect()
 }
 
 fn language_pages(
     config: &Config,
     routes: &Routes,
-    content: &SiteContent,
+    (content, others): (&SiteContent, &[ListedPost]),
     locale: &Locale,
     stylesheet: &str,
 ) -> Result<LanguagePages, UserMessage> {
     let links = Wikilinks::for_language(content, config, routes, locale);
     let people = build_reader::people(config, &links, content, locale)?;
-    let (mut pages, cards) = post_pages(config, routes, &links, content, locale, &people)?;
+    let posts = Posts {
+        content,
+        others,
+        locale,
+        people: &people,
+    };
+    let (mut pages, listed) = post_pages(config, routes, &links, &posts)?;
     pages.extend(plain_pages(config, &links, content, locale)?);
     pages.extend(glossary_pages(config, routes, &links, content, locale)?);
     pages.extend(author_pages(
-        config, &links, content, locale, &cards, &people,
+        config, &links, content, locale, &listed, &people,
     )?);
     let home = RenderListing {
         title: config.name().to_owned(),
         intro: None,
-        posts: cards.into_iter().map(|(_, card)| card).collect(),
+        posts: listed.iter().map(|post| post.card.clone()).collect(),
         pagination: None,
     };
     let home_meta = meta(
@@ -122,11 +136,20 @@ fn language_pages(
     Ok(LanguagePages {
         site: render_site(config, locale, stylesheet),
         pages,
+        listed,
     })
 }
 
-/// A post's card with the slug of its author, so author pages can list it.
-type Card<'a> = (Option<&'a Slug>, PostCard);
+/// The dated posts of one language that pages are made from or choose
+/// their related posts from, and the people they name.
+struct Posts<'a> {
+    content: &'a SiteContent,
+    /// Posts of an earlier render, in any language, some of which `content`
+    /// may hold again.
+    others: &'a [ListedPost],
+    locale: &'a Locale,
+    people: &'a BTreeMap<Slug, Person>,
+}
 
 /// A dated post, read and rendered, before its page is built.
 struct Draft<'a> {
@@ -139,16 +162,22 @@ struct Draft<'a> {
     rendered: Rendered,
 }
 
-/// The page of every dated post in `locale`, and their cards, newest first.
-/// Every card is made before any page, so each post can list related ones.
-fn post_pages<'a>(
+/// The page of every dated post of `posts` in its language, and the posts
+/// as lists show them, newest first. Every post is listed before any page
+/// is made, so each page can show related ones, chosen among these and the
+/// other posts of `posts`.
+fn post_pages(
     config: &Config,
     routes: &Routes,
     links: &Wikilinks,
-    content: &'a SiteContent,
-    locale: &Locale,
-    people: &BTreeMap<Slug, Person>,
-) -> Result<(Vec<Page>, Vec<Card<'a>>), UserMessage> {
+    posts: &Posts<'_>,
+) -> Result<(Vec<Page>, Vec<ListedPost>), UserMessage> {
+    let Posts {
+        content,
+        locale,
+        people,
+        ..
+    } = *posts;
     let mut drafts = Vec::new();
     for doc in content.posts.iter().filter(|doc| &doc.locale == locale) {
         let Some(date) = doc.front.date else {
@@ -170,26 +199,25 @@ fn post_pages<'a>(
         });
     }
     drafts.sort_by_key(|draft| Reverse(draft.date));
-    let slugs: BTreeMap<String, String> = drafts
+    let others: Vec<&ListedPost> = posts
+        .others
         .iter()
-        .map(|draft| (path_of(config, locale, &draft.rest), draft.slug.to_string()))
+        .filter(|other| &other.locale == locale)
+        .filter(|other| !drafts.iter().any(|draft| draft.doc.path == other.path))
         .collect();
-    let topics: Vec<PostTopics> = drafts
+    let drafted = drafts
         .iter()
-        .map(|draft| {
-            build_reader::topics(
-                &draft.slug,
-                draft.date,
-                &draft.doc.front,
-                &draft.rendered,
-                &slugs,
-            )
-        })
-        .collect();
-    let cards: Vec<Card<'a>> = drafts
+        .map(|draft| (path_of(config, locale, &draft.rest), draft.slug.to_string()));
+    let known = others
         .iter()
-        .map(|draft| card(config, locale, draft, people))
+        .map(|other| (other.card.href.clone(), other.topics.slug.clone()));
+    let slugs: BTreeMap<String, String> = drafted.chain(known).collect();
+    let listed: Vec<ListedPost> = drafts
+        .iter()
+        .map(|draft| listed(config, posts, draft, &slugs))
         .collect();
+    let among: Vec<&ListedPost> = listed.iter().chain(others).collect();
+    let topics: Vec<PostTopics> = among.iter().map(|post| post.topics.clone()).collect();
     let mut pages = Vec::with_capacity(drafts.len() + 2);
     for (draft, topic) in drafts.into_iter().zip(&topics) {
         let pinned: Vec<String> = draft
@@ -201,21 +229,22 @@ fn post_pages<'a>(
             .collect();
         let related = related(topic, &topics, &pinned)
             .into_iter()
-            .filter_map(|index| cards.get(index).map(|(_, card)| card.clone()))
+            .filter_map(|index| among.get(index).map(|post| post.card.clone()))
             .collect();
         pages.push(post_page(config, locale, draft, related, people)?);
     }
-    Ok((pages, cards))
+    Ok((pages, listed))
 }
 
-/// A post as lists show it, with the slug of its author.
-fn card<'a>(
+/// A post as lists and the related-posts choice read it, its links found
+/// by their paths in `slugs`.
+fn listed(
     config: &Config,
-    locale: &Locale,
-    draft: &Draft<'a>,
-    people: &BTreeMap<Slug, Person>,
-) -> Card<'a> {
-    let front = &draft.doc.front;
+    posts: &Posts<'_>,
+    draft: &Draft<'_>,
+    slugs: &BTreeMap<String, String>,
+) -> ListedPost {
+    let (locale, front) = (posts.locale, &draft.doc.front);
     let card = PostCard {
         title: draft.title.clone(),
         href: path_of(config, locale, &draft.rest),
@@ -225,10 +254,16 @@ fn card<'a>(
         author: front
             .author
             .as_ref()
-            .map(|slug| build_reader::person(people, slug, config, locale)),
+            .map(|slug| build_reader::person(posts.people, slug, config, locale)),
         category: None,
     };
-    (front.author.as_ref(), card)
+    ListedPost {
+        path: draft.doc.path.clone(),
+        locale: locale.clone(),
+        topics: build_reader::topics(&draft.slug, draft.date, front, &draft.rendered, slugs),
+        card,
+        author: front.author.clone(),
+    }
 }
 
 /// The page of one post, with the posts chosen to show under it.
@@ -352,7 +387,7 @@ fn author_pages(
     links: &Wikilinks,
     content: &SiteContent,
     locale: &Locale,
-    cards: &[Card<'_>],
+    listed: &[ListedPost],
     people: &BTreeMap<Slug, Person>,
 ) -> Result<Vec<Page>, UserMessage> {
     let mut pages = Vec::new();
@@ -370,10 +405,10 @@ fn author_pages(
                 href: url.to_string(),
             })
             .collect();
-        let posts: Vec<PostCard> = cards
+        let posts: Vec<PostCard> = listed
             .iter()
-            .filter(|(author, _)| *author == Some(&slug))
-            .map(|(_, card)| card.clone())
+            .filter(|post| post.author.as_ref() == Some(&slug))
+            .map(|post| post.card.clone())
             .collect();
         let mut seo = build_seo::page(SeoKind::Author, locale, &rest, &name)?;
         seo.author = Some(name.clone());

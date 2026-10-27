@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::{fmt, fs};
 
-use khalid_content::{ContentTree, Document, SiteContent, check_bodies, parse_post, read_content};
+use khalid_content::{
+    ContentTree, Document, PostFront, SiteContent, check_bodies, parse_post, read_content,
+};
 use khalid_core::{Clock, Config, SystemClock, UserMessage};
 use khalid_render::{PageBody, Renderer};
 use khalid_routes::Routes;
@@ -15,6 +17,7 @@ use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
 
 use crate::build_pages::LanguagePages;
 use crate::content_feed::ContentFeed;
+use crate::listed_post::ListedPost;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::{
@@ -38,13 +41,24 @@ struct Site {
     /// `None` on a headless site, whose theme is never read.
     theme: Option<Theme>,
     feed: Option<ContentFeed>,
-    /// The posts the last full render read, without bodies, and its
-    /// authors, so a saved post's page can be rendered alone.
-    outline: Mutex<SiteContent>,
+    /// What the last full render read of the site, so a saved post's page
+    /// can be rendered alone.
+    outline: Mutex<Outline>,
     /// The content files the last full render listed, so a saved post's
     /// page finds the files beside it without listing the folder again.
     /// `None` before the first full render.
     tree: Mutex<Option<ContentTree>>,
+}
+
+/// What a saved post's page needs from the rest of the site, in a fraction
+/// of the memory the whole content takes.
+#[derive(Debug, Default)]
+struct Outline {
+    /// The posts without their bodies, and the authors whole, since a
+    /// post's author box shows their bios.
+    content: SiteContent,
+    /// Every dated post, which related posts are chosen from.
+    listed: Vec<ListedPost>,
 }
 
 /// The theme's renderer, and the stylesheet every page links.
@@ -147,7 +161,7 @@ impl SitePages {
             config,
             feed,
             outline,
-            tree: listed,
+            tree: files,
             ..
         } = &*self.0;
         // The catalog holds no post body, so it is quick to make here, and
@@ -156,9 +170,12 @@ impl SitePages {
             Some(_) => Some(Catalog::of(folder, config, content)?),
             None => None,
         };
-        let rendered = self.render_of(tree, content, Which::All)?;
-        *outline.lock().unwrap_or_else(PoisonError::into_inner) = outline_of(content);
-        *listed.lock().unwrap_or_else(PoisonError::into_inner) = Some(tree.clone());
+        let (rendered, listed) = self.render_of(tree, (content, &[]), Which::All)?;
+        *outline.lock().unwrap_or_else(PoisonError::into_inner) = Outline {
+            content: outline_of(content),
+            listed,
+        };
+        *files.lock().unwrap_or_else(PoisonError::into_inner) = Some(tree.clone());
         if let (Some(feed), Some(catalog)) = (feed, catalog) {
             feed.send(catalog);
         }
@@ -168,15 +185,17 @@ impl SitePages {
     /// The `which` pages made from `content`, with the files `tree` holds
     /// beside folder posts, the site's files, the moved addresses and the
     /// not-found page of the default language when `which` is
-    /// [`Which::All`]. Only a full render serves those files; a saved
-    /// post's page still points its images at them. A headless site has no
-    /// HTML page, as `khalid build` writes none.
+    /// [`Which::All`], and the dated posts of `content` as lists show them.
+    /// Related posts are chosen among those and `others`. Only a full
+    /// render serves the files; a saved post's page still points its
+    /// images at them. A headless site has no HTML page, as `khalid build`
+    /// writes none.
     fn render_of(
         &self,
         tree: &ContentTree,
-        content: &SiteContent,
+        (content, others): (&SiteContent, &[ListedPost]),
         which: Which,
-    ) -> Result<Served, UserMessage> {
+    ) -> Result<(Served, Vec<ListedPost>), UserMessage> {
         let Site {
             folder,
             config,
@@ -187,7 +206,7 @@ impl SitePages {
         let href = theme
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
-        let mut languages = build_pages::pages(config, routes, content, href)?;
+        let mut languages = build_pages::pages(config, routes, (content, others), href)?;
         let beside = files(folder, config, tree, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
@@ -207,50 +226,68 @@ impl SitePages {
             }
             served.not_found = html_pages(theme, config, &languages, which, &mut served.pages)?;
         }
-        Ok(served)
+        let listed = languages.into_iter().flat_map(|language| language.listed);
+        Ok((served, listed.collect()))
     }
 
-    /// The saved `files`, relative to the site folder, read again as posts,
-    /// with every author their pages may name. `None` when one of them is
-    /// not a post the last full render read, or cannot be read now: the
-    /// full render then shows it, or says what is wrong.
+    /// The saved `files`, relative to the site folder, and their other
+    /// language versions, read again as posts, with every author their
+    /// pages may name, and the dated posts of the last full render, which
+    /// their related posts are chosen from. `None` when a saved file is
+    /// not a post the last full render read, or one cannot be read now:
+    /// the full render then shows it, or says what is wrong.
     ///
-    /// Also `None` when a post's page would read more than these files, so
-    /// it could differ from the full render's: when the pages show related
-    /// posts, chosen from every post's links, or when a saved post or an
-    /// author's bio has a wikilink, which may name a page outside them.
-    fn saved_posts(&self, files: &[PathBuf]) -> Option<SiteContent> {
-        if self.0.config.reader().related_posts {
-            return None;
-        }
+    /// Also `None` when a post or an author's bio has a wikilink, which may
+    /// name a page outside these, so the page could differ from the full
+    /// render's.
+    fn saved_posts(&self, files: &[PathBuf]) -> Option<(SiteContent, Vec<ListedPost>)> {
+        let outline = self
+            .0
+            .outline
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let posts = &outline.content.posts;
         let mut saved = SiteContent::default();
-        {
-            let outline = self
-                .0
-                .outline
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner);
-            for file in files {
-                saved
-                    .posts
-                    .push(outline.posts.iter().find(|doc| &doc.path == file)?.clone());
-            }
-            saved.authors.clone_from(&outline.authors);
+        for file in files {
+            let mut doc = posts.iter().find(|doc| &doc.path == file)?.clone();
+            self.read_again(&mut doc)?;
+            saved.posts.push(doc);
         }
-        for doc in &mut saved.posts {
-            let mut path = self.0.folder.clone();
-            path.push(&doc.path);
-            let text = fs::read_to_string(&path).ok()?;
-            let post = parse_post(&doc.path, &text).ok()?;
-            doc.front = post.front;
-            doc.body = post.body;
+        // A page's head links its other language versions, so they are
+        // rendered with it.
+        let keys: Vec<&String> = saved
+            .posts
+            .iter()
+            .filter_map(|doc| doc.front.translation.as_ref())
+            .collect();
+        let versions = posts.iter().filter(|doc| {
+            let key = doc.front.translation.as_ref();
+            key.is_some_and(|key| keys.contains(&key)) && !files.contains(&doc.path)
+        });
+        let mut versions: Vec<_> = versions.cloned().collect();
+        for doc in &mut versions {
+            self.read_again(doc)?;
         }
+        saved.posts.extend(versions);
+        saved.authors.clone_from(&outline.content.authors);
         let bodies = saved.posts.iter().map(|doc| &doc.body);
         let mut bodies = bodies.chain(saved.authors.iter().map(|doc| &doc.body));
         if bodies.any(|body| body.contains(WIKILINK)) {
             return None;
         }
-        Some(saved)
+        Some((saved, outline.listed.clone()))
+    }
+
+    /// `doc`, a post of the outline, with its front matter and body read
+    /// from its file now. `None` when the file cannot be read or parsed.
+    fn read_again(&self, doc: &mut Document<PostFront>) -> Option<()> {
+        let mut path = self.0.folder.clone();
+        path.push(&doc.path);
+        let text = fs::read_to_string(&path).ok()?;
+        let post = parse_post(&doc.path, &text).ok()?;
+        doc.front = post.front;
+        doc.body = post.body;
+        Some(())
     }
 }
 
@@ -361,11 +398,11 @@ impl Render for SitePages {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone();
-        let (Some(tree), Some(saved)) = (listed, self.saved_posts(files)) else {
+        let (Some(tree), Some((saved, others))) = (listed, self.saved_posts(files)) else {
             return Ok(None);
         };
-        let served = self
-            .render_of(&tree, &saved, Which::Posts)
+        let (served, _) = self
+            .render_of(&tree, (&saved, &others), Which::Posts)
             .map_err(Unrendered)?;
         Ok(Some(served.pages))
     }
@@ -456,21 +493,31 @@ mod tests {
     /// The paths of the posts the last full render of `source` read.
     fn outlined(source: &SitePages) -> Vec<PathBuf> {
         let outline = source.0.outline.lock().unwrap();
-        outline.posts.iter().map(|doc| doc.path.clone()).collect()
+        outline
+            .content
+            .posts
+            .iter()
+            .map(|doc| doc.path.clone())
+            .collect()
+    }
+
+    /// The demo site in a folder of its own, which a test may edit.
+    fn demo_copy() -> tempfile::TempDir {
+        let site = tempfile::tempdir().unwrap();
+        copy_dir(&fixture("demo-site"), site.path());
+        site
+    }
+
+    /// Whether the file at `path` in `site` holds a wikilink.
+    fn links_a_term(site: &Path, path: &Path) -> bool {
+        let mut file = site.to_path_buf();
+        file.push(path);
+        fs::read_to_string(file).unwrap().contains("[[")
     }
 
     #[test]
-    fn a_saved_post_alone_renders_the_page_the_full_render_makes() {
-        let site = tempfile::tempdir().unwrap();
-        copy_dir(&fixture("demo-site"), site.path());
-        let mut settings = site.path().to_path_buf();
-        settings.push("site.toml");
-        let text = fs::read_to_string(&settings).unwrap();
-        fs::write(
-            &settings,
-            format!("{text}\n[reader]\nrelated_posts = false\n"),
-        )
-        .unwrap();
+    fn each_saved_post_alone_renders_the_page_the_full_render_makes() {
+        let site = demo_copy();
         let source = pages(site.path());
         let unread = vec![PathBuf::from(
             "content/en/posts/2026-09-28-what-a-sitemap-does.md",
@@ -482,17 +529,17 @@ mod tests {
         );
 
         let all = source.render_all().unwrap().pages;
-        let (linking, posts): (Vec<PathBuf>, Vec<PathBuf>) =
-            outlined(&source).into_iter().partition(|path| {
-                let mut file = site.path().to_path_buf();
-                file.push(path);
-                fs::read_to_string(file).unwrap().contains("[[")
-            });
-        assert!(posts.len() >= 3, "{posts:?}");
-        let saved = source.render_saved(&posts).unwrap().unwrap();
-        assert_eq!(saved.len(), posts.len(), "one page per dated post");
-        for page in &saved {
-            assert!(all.contains(page), "{} differs", page.path().as_str());
+        let (linking, posts): (Vec<PathBuf>, Vec<PathBuf>) = outlined(&source)
+            .into_iter()
+            .partition(|path| links_a_term(site.path(), path));
+        assert_eq!(posts.len(), 6, "{posts:?}");
+        for post in &posts {
+            let saved = source.render_saved(std::slice::from_ref(post)).unwrap();
+            let saved = saved.unwrap_or_else(|| panic!("{} alone", post.display()));
+            assert_eq!(saved.len(), 2, "the post and its translation");
+            for page in &saved {
+                assert!(all.contains(page), "{} differs", page.path().as_str());
+            }
         }
         assert_eq!(linking.len(), 4, "{linking:?}");
         assert_eq!(source.render_saved(&linking).unwrap(), None, "a wikilink");
@@ -501,11 +548,29 @@ mod tests {
     }
 
     #[test]
-    fn a_saved_post_waits_for_the_full_render_when_posts_show_related_ones() {
-        let source = pages(&fixture("demo-site"));
+    fn a_saved_edit_that_changes_the_related_posts_renders_the_next_full_render_page() {
+        let site = demo_copy();
+        let source = pages(site.path());
         source.render_all().unwrap();
-        let posts = outlined(&source);
-        assert_eq!(posts.len(), 10, "{posts:?}");
-        assert_eq!(source.render_saved(&posts).unwrap(), None);
+        let post = PathBuf::from("content/en/posts/2026-09-28-what-a-sitemap-does.md");
+        let mut file = site.path().to_path_buf();
+        file.push(&post);
+        let text = fs::read_to_string(&file).unwrap();
+        let edited = text.replace(
+            "title: What a sitemap does,",
+            "title: What a sitemap is for,",
+        );
+        let link = "\nSee [the topic cluster plan](/blog/planning-a-topic-cluster/).\n";
+        fs::write(&file, format!("{edited}{link}")).unwrap();
+
+        let saved = source.render_saved(&[post]).unwrap().unwrap();
+        let all = source.render_all().unwrap().pages;
+        let page = saved
+            .iter()
+            .find(|page| page.path().as_str() == "/blog/what-a-sitemap-does/")
+            .unwrap();
+        let html = String::from_utf8_lossy(page.body());
+        assert!(html.contains("What a sitemap is for"), "the edit shows");
+        assert!(all.contains(page), "the saved page is the full render's");
     }
 }

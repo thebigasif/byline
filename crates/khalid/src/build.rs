@@ -85,7 +85,7 @@ fn build(
         .as_ref()
         .map(|(_, css)| assets::href(config, css))
         .unwrap_or_default();
-    let mut languages = build_pages::pages(config, routes, content, &href)?;
+    let mut languages = build_pages::pages(config, routes, (content, &[]), &href)?;
     // The checked content keeps no assets, so the tree is read again for
     // them. A headless site gets them too: its feeds point at them.
     let tree = ContentTree::walk(site).map_err(|error| content_message::of(site, &error))?;
