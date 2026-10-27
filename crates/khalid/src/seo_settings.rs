@@ -9,7 +9,7 @@ use khalid_core::toml_location::line_of_key;
 use khalid_core::{SeoSettings, TitleSettings, UserMessage};
 use khalid_seo::{MetaTemplate, PageKind, SeoSite, TemplatePair};
 
-use crate::{config_message, seo_crawl_settings, seo_head_settings};
+use crate::{config_message, seo_crawl_settings, seo_graph_settings, seo_head_settings};
 
 /// What a title or description template may use, for the fix.
 pub(crate) const TEMPLATE: &str =
@@ -47,6 +47,11 @@ impl SettingMistake {
             key: key.to_owned(),
             problem,
         }
+    }
+
+    /// The same mistake, in entry `entry` of an array of tables.
+    pub(crate) fn in_entry(self, entry: usize) -> Self {
+        Self { entry, ..self }
     }
 
     /// What a person reads when the mistake is found with no `site.toml`
@@ -106,6 +111,9 @@ pub(crate) fn apply(settings: &SeoSettings, site: &mut SeoSite) -> Result<(), Se
     seo_crawl_settings::crawlers(&settings.crawlers, site)?;
     seo_crawl_settings::feeds(&settings.feeds, site)?;
     seo_crawl_settings::links(&settings.links, site)?;
+    seo_graph_settings::publisher(&settings.publisher, site)?;
+    seo_graph_settings::locations(&settings.locations, site)?;
+    seo_graph_settings::schema(&settings.schema, site)?;
     Ok(())
 }
 

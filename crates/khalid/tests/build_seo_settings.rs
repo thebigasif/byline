@@ -137,6 +137,67 @@ fn the_feed_table_shapes_every_feed() {
     assert!(items.len() <= 2, "{json}");
 }
 
+/// The publisher, a location and a schema template, as a site owner writes them.
+const GRAPH_TABLES: &str = r#"
+[seo.publisher]
+type = "person"
+name = "Asif Khan"
+same_as = ["https://www.linkedin.com/in/asif"]
+
+[[seo.locations]]
+type = "Dentist"
+name = "Mill Lane Dental"
+street = "12 Mill Lane"
+locality = "Leeds"
+postal_code = "LS1 4AB"
+country = "GB"
+
+[[seo.locations.hours]]
+days = ["mon", "tue"]
+opens = "09:00"
+closes = "17:30"
+
+[[seo.schema]]
+collection = "posts"
+type = "Course"
+
+[seo.schema.properties]
+provider = "{site}"
+"#;
+
+/// The JSON-LD graph of the page at `rel`, one node to a line.
+#[cfg(test)]
+fn graph(out: &TempDir, rel: &str) -> String {
+    let page = fs::read_to_string(at(out.path(), rel)).unwrap();
+    let (_, rest) = page.split_once("application/ld+json\">").unwrap();
+    let (json, _) = rest.split_once("</script>").unwrap();
+    let value: serde_json::Value = serde_json::from_str(json).unwrap();
+    value["@graph"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn the_publisher_and_its_locations_reach_the_home_page_graph() {
+    let (_site, out) = built_with(GRAPH_TABLES);
+    insta::assert_snapshot!(graph(&out, "index.html"));
+}
+
+#[test]
+fn a_post_in_a_templated_collection_carries_the_template_node() {
+    let (_site, out) = built_with(GRAPH_TABLES);
+    let nodes = graph(&out, "why-internal-links-matter/index.html");
+    assert!(nodes.contains(r#""@type":"Course""#), "{nodes}");
+    assert!(
+        nodes.contains(r#""provider":"Field Notes on SEO""#),
+        "{nodes}"
+    );
+}
+
 #[test]
 fn a_post_title_follows_its_template() {
     let (_site, out) = built_with(HEAD_TABLES);

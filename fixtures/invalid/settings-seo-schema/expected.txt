@@ -1,0 +1,3 @@
+fixtures/invalid/settings-seo-schema/site.toml, line 12, `collection`: a schema template may name a category or a collection, not both.
+Khalid checks every setting before it starts, so nothing runs with a wrong one.
+Correct `collection` on line 12, then run the command again.
