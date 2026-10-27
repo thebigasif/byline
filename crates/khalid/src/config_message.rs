@@ -68,9 +68,7 @@ pub(crate) fn located(
         );
     }
     let fix = match allowed {
-        Some(fields) if detail.starts_with("unknown field") => {
-            format!("Remove `{field}` on line {line}, or use {fields}.")
-        }
+        Some(fields) if detail.starts_with("unknown field") => unknown_fix(field, line, fields),
         Some(allowed) => {
             format!("Set `{field}` on line {line} to {allowed}, then run the command again.")
         }
@@ -81,4 +79,77 @@ pub(crate) fn located(
         why,
         fix,
     )
+}
+
+/// The most fields a fix lists by name before the sentence grows too long
+/// to read in one go (BL-CLI-3).
+const MAX_LISTED: usize = 12;
+
+/// What to do about the unknown `field`, given the fields `allowed` there,
+/// such as `one of title, slug`: rename a near miss, list a short set, or
+/// remove it.
+fn unknown_fix(field: &str, line: usize, allowed: &str) -> String {
+    let names: Vec<&str> = allowed
+        .trim_start_matches("one of ")
+        .split(", ")
+        .flat_map(|part| part.split(" or "))
+        .map(|name| name.trim_matches('`'))
+        .collect();
+    let nearest = names
+        .iter()
+        .map(|name| (distance(field, name), *name))
+        .filter(|(edits, _)| *edits <= 2)
+        .min();
+    match nearest {
+        Some((_, name)) => format!("Remove `{field}` on line {line}, or rename it `{name}`."),
+        None if names.len() <= MAX_LISTED => {
+            format!("Remove `{field}` on line {line}, or use {allowed}.")
+        }
+        None => format!("Remove `{field}` on line {line}, then run the command again."),
+    }
+}
+
+/// How many single-letter edits turn `a` into `b` (Levenshtein distance).
+fn distance(a: &str, b: &str) -> usize {
+    let b: Vec<char> = b.chars().collect();
+    let mut row: Vec<usize> = (0..=b.len()).collect();
+    for (i, left) in a.chars().enumerate() {
+        let mut diagonal = i;
+        let mut next = vec![i.saturating_add(1)];
+        for (j, right) in b.iter().enumerate() {
+            let above = row.get(j.saturating_add(1)).copied().unwrap_or(usize::MAX);
+            let before = next.last().copied().unwrap_or(usize::MAX);
+            let swap = diagonal.saturating_add(usize::from(left != *right));
+            next.push(
+                swap.min(above.saturating_add(1))
+                    .min(before.saturating_add(1)),
+            );
+            diagonal = above;
+        }
+        row = next;
+    }
+    row.last().copied().unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_near_miss_is_renamed_and_a_long_list_is_not_printed() {
+        let allowed = "one of title, slug, date, author, category, description, translation, aliases, featured, robots, canonical, reviewed_by, related";
+        assert_eq!(
+            unknown_fix("slgu", 3, allowed),
+            "Remove `slgu` on line 3, or rename it `slug`."
+        );
+        assert_eq!(
+            unknown_fix("colour", 3, allowed),
+            "Remove `colour` on line 3, then run the command again."
+        );
+        assert_eq!(
+            unknown_fix("colour", 3, "`server` or `static`"),
+            "Remove `colour` on line 3, or use `server` or `static`."
+        );
+        assert_eq!(distance("kitten", "sitting"), 3);
+    }
 }
