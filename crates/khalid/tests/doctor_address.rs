@@ -4,9 +4,10 @@
 //! so nothing is fetched from the internet (RULES.md BL-TST-3).
 
 use std::fs;
+use std::io::{BufRead, BufReader};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Child, Command, Output, Stdio};
 
 use serde_json::Value;
 use tempfile::TempDir;
@@ -118,6 +119,75 @@ async fn the_blog_answering_under_its_mount_passes_and_exits_0() {
         found["summary"],
         format!("The blog answers at {origin}/blog/.")
     );
+}
+
+/// A running `khalid serve`, stopped when dropped.
+struct Served(Child);
+
+impl Drop for Served {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+/// Starts `khalid serve` on `site` on a free port. Returns the server and
+/// its port, read from the address it prints once it answers.
+#[cfg(test)]
+fn serve(site: &Path) -> (Served, u16) {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .arg("--site")
+        .arg(site)
+        .args(["serve", "--listen", "127.0.0.1:0", "--json"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut line = String::new();
+    BufReader::new(child.stdout.take().unwrap())
+        .read_line(&mut line)
+        .unwrap();
+    let json: Value = serde_json::from_str(&line).unwrap_or_else(|_| panic!("{line}"));
+    let port = json["address"]
+        .as_str()
+        .unwrap()
+        .trim_start_matches("http://127.0.0.1:")
+        .trim_end_matches("/blog/")
+        .parse()
+        .unwrap();
+    (Served(child), port)
+}
+
+/// Copies the folder `from` into `into`.
+#[cfg(test)]
+fn copy_dir(from: &Path, into: &Path) {
+    fs::create_dir_all(into).unwrap();
+    for entry in fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = within(into, entry.file_name().to_str().unwrap());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), &target).unwrap();
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn doctor_recognises_the_demo_blog_as_khalid_serve_answers_it() {
+    let demo = tempfile::tempdir().unwrap();
+    copy_dir(
+        Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/demo-site"
+        )),
+        demo.path(),
+    );
+    let (_served, port) = serve(demo.path());
+    let site = site_at(&format!("http://{HOST}:{port}"));
+    let (code, body) = doctor(site.path(), Names::StandIn).await;
+    assert_eq!(code, Some(0), "{body}");
+    assert_eq!(address(&body)["status"], "ok", "{body}");
 }
 
 #[tokio::test(flavor = "multi_thread")]
