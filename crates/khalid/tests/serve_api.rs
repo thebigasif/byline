@@ -487,3 +487,79 @@ fn a_weak_post_is_refused_with_its_findings_and_never_served() {
     let (status, _) = request(&server, "POST", "/api/admin/v1/posts/", &[], Some(&new));
     assert_eq!(status, 401, "no key, no post");
 }
+
+#[test]
+fn khalid_serve_answers_staff_sign_in_and_keeps_staff_tokens_working() {
+    let site = demo_copy();
+    let staff_token = new_key(
+        site.path(),
+        &["--kind", "staff", "--name", "Admin app", "--role", "owner"],
+    );
+    let server = start(site.path());
+    let sign_in =
+        serde_json::json!({"email": "nobody@example.com", "password": "correct horse battery"});
+    let (status, media, body) = exchange(
+        &server,
+        "POST",
+        "/api/admin/v1/session/",
+        &[],
+        Some(&sign_in),
+    );
+    assert_eq!(
+        (status, media.as_str()),
+        (401, "application/problem+json"),
+        "{body}"
+    );
+    let (status, _) = request(&server, "GET", "/api/admin/v1/session/", &[], None);
+    assert_eq!(status, 401, "no session cookie");
+    let authorization = format!("Khalid {staff_token}");
+    let auth = [("Authorization", authorization.as_str())];
+    let (status, body) = request(&server, "GET", "/api/admin/v1/staff/", &auth, None);
+    assert_eq!(status, 200, "an owner's staff token manages staff: {body}");
+    let invite = serde_json::json!({"email": "mia@example.com", "name": "Mia", "role": "writer"});
+    let (status, body) = request(
+        &server,
+        "POST",
+        "/api/admin/v1/staff/",
+        &auth,
+        Some(&invite),
+    );
+    assert_eq!(status, 201, "{body}");
+    let (_, body) = request(&server, "GET", "/api/admin/v1/staff/", &auth, None);
+    assert!(
+        body.contains("mia@example.com"),
+        "kept in the site's database: {body}"
+    );
+}
+
+/// Runs `khalid --site <site> staff owner --json` with `email`.
+#[cfg(test)]
+fn owner(site: &Path, email: &str) -> (Option<i32>, Value) {
+    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.to_str().unwrap(), "--json", "staff", "owner"])
+        .args(["--email", email, "--name", "Asif"])
+        .output()
+        .unwrap();
+    let text = [output.stdout, output.stderr].concat();
+    (output.status.code(), serde_json::from_slice(&text).unwrap())
+}
+
+#[test]
+fn the_first_owner_signs_in_with_the_link_khalid_staff_owner_shows_once() {
+    let site = demo_copy();
+    let (code, made) = owner(site.path(), "asif@example.com");
+    assert_eq!(code, Some(0), "{made}");
+    let link = made["link"].as_str().unwrap();
+    let (admin, token) = link.split_once("/sign-in/link#token=").unwrap();
+    assert!(admin.ends_with("/admin"), "{link}");
+    let (code, second) = owner(site.path(), "someone@example.com");
+    assert_eq!(code, Some(1), "a second owner is refused: {second}");
+    let server = start(site.path());
+    let redeem = serde_json::json!({ "token": token });
+    let path = "/api/admin/v1/session/link/redeem/";
+    let (status, body) = request(&server, "POST", path, &[], Some(&redeem));
+    assert_eq!(status, 200, "{body}");
+    assert!(body.contains("\"role\":\"owner\""), "{body}");
+    let (status, _) = request(&server, "POST", path, &[], Some(&redeem));
+    assert_eq!(status, 401, "the link works once");
+}

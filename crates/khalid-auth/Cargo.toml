@@ -1,0 +1,42 @@
+[package]
+name = "khalid-auth"
+version = "0.0.0"
+description = "Staff accounts: roles and what each may do, passwords, passkeys, magic links and sessions."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# Fast password hashing and in-memory stores, for this crate's tests and other crates' tests.
+test-util = []
+
+[dependencies]
+argon2 = "0.6"
+axum = { version = "0.8", default-features = false, features = ["json", "tokio"] }
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+ciborium = "0.2"
+getrandom = "0.4"
+khalid-api = { path = "../khalid-api", version = "0.0.0" }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+ring = "0.17"
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.11"
+subtle = "2"
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt"] }
+utoipa = "6"
+utoipa-axum = "0.3"
+
+[dev-dependencies]
+khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
+khalid-auth = { path = ".", version = "0.0.0", features = ["test-util"] }
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+tokio.workspace = true
+tower = { version = "0.5", features = ["util"] }
+
+[lints]
+workspace = true
