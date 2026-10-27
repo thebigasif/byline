@@ -8,6 +8,10 @@ Thank you for looking. Khalid is in the planning stage, and most code is written
 2. Read `docs/standards/RULES.md`. Reviews cite its IDs.
 3. Look for an open issue or a task in `docs/phases/`. Comment on it before starting, so two people do not build the same thing.
 
+## How the work runs
+
+`docs/process/build-pipeline.md` explains how tasks become pull requests and how pull requests land on `main`, for people and for coding agents you run yourself.
+
 ## The short version
 
 - One task, one branch, one pull request, under 400 changed lines.
