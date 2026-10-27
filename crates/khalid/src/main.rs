@@ -23,6 +23,7 @@ mod content_message;
 mod db;
 mod db_message;
 mod doctor;
+mod doctor_address;
 mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
@@ -49,6 +50,7 @@ mod routes_message;
 mod serve;
 mod serve_message;
 mod site_content;
+mod site_files;
 mod site_lists;
 mod site_pages;
 mod site_posts;
@@ -190,8 +192,8 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
                 .unwrap_or(Path::new("."));
             Some(init::run(folder, args, cli.output))
         }
-        Some(command @ Command::Doctor) => Some(match cli.site.as_deref() {
-            Some(folder) => doctor::run(folder, cli),
+        Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
+            Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
         }),
         _ => None,

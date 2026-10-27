@@ -2,12 +2,16 @@
 //!
 //! This crate owns what search engines and feed readers read: the `<head>`
 //! tags of every page, hreflang, sitemaps, feeds, `robots.txt`, the redirect
-//! table and the JSON-LD schema graphs. It takes its own input types, such as
-//! [`SeoSite`], and returns ordered output (BL-TYP-5), so the same input
-//! always gives the same bytes (ADR 0013).
+//! table, the JSON-LD schema graphs, and the `IndexNow` key file and
+//! requests that tell search engines which pages changed. It takes its own
+//! input types, such as [`SeoSite`], and returns ordered output (BL-TYP-5),
+//! so the same input always gives the same bytes (ADR 0013).
 //!
-//! It must not know about templates, files, HTTP or the database. The crates
-//! that read content and render pages build its inputs and place its output.
+//! It must not know about templates, files or the database, nor how HTTP is
+//! done: [`IndexNow::send`] is the one call that reaches another server, and
+//! it does so through the `Outbound` client it is given (BL-RUN-8). The
+//! crates that read content and render pages build its inputs and place its
+//! output.
 
 mod escape;
 mod feed;
@@ -17,6 +21,8 @@ mod feed_rss;
 mod head;
 mod hreflang;
 mod html_sitemap;
+mod indexnow;
+mod indexnow_send;
 mod link_policy;
 mod llms_txt;
 mod meta_template;
@@ -42,6 +48,8 @@ pub use feed::{Feed, FeedContent, FeedFormat, FeedItem, FeedOptions, FeedScope};
 pub use head::{HeadTag, HeadTags, head_tags};
 pub use hreflang::{Alternate, Hreflang, TranslationKey, link_translations};
 pub use html_sitemap::{HtmlSitemap, HtmlSitemapGroup, HtmlSitemapLink};
+pub use indexnow::{IndexNow, KeyFile, Submission};
+pub use indexnow_send::{Retries, SendIndexNowError, Sent};
 pub use link_policy::{Domain, LinkAttributes, LinkPolicy, LinkRel, LinkTarget};
 pub use llms_txt::{LlmsTxt, llms_txt_url};
 pub use meta_template::MetaTemplate;

@@ -2003,6 +2003,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-mcp"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "form_urlencoded",
+ "khalid-api",
+ "khalid-core",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tower",
+]
+
+[[package]]
 name = "khalid-media"
 version = "0.0.0"
 dependencies = [
@@ -2094,6 +2111,7 @@ dependencies = [
  "chrono",
  "insta",
  "khalid-core",
+ "khalid-outbound",
  "regex",
  "robotstxt",
  "roxmltree 0.20.0",
@@ -2101,6 +2119,8 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
+ "wiremock",
 ]
 
 [[package]]

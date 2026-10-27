@@ -152,6 +152,15 @@ pub enum SeoError {
         /// What is wrong there.
         problem: &'static str,
     },
+    /// A changed address is outside the folder that holds the `IndexNow` key
+    /// file, so search engines would refuse the request.
+    #[error("the address {url} is outside {scope}, where the IndexNow key file applies")]
+    IndexNowScope {
+        /// The address, as given.
+        url: String,
+        /// The folder the key file applies to, such as `https://www.example.com/blog/`.
+        scope: String,
+    },
     /// The address built for a page is not a valid absolute URL.
     #[error("the address built for {path:?} is not a valid URL")]
     Url {

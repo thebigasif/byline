@@ -19,6 +19,8 @@ pub(crate) enum Check {
     Theme,
     /// Khalid may write to the folders it saves into.
     Permissions,
+    /// The blog answers at its public address, so the proxy rule works.
+    Address,
 }
 
 impl Check {
@@ -31,6 +33,7 @@ impl Check {
             Self::Database => "Database",
             Self::Theme => "Theme",
             Self::Permissions => "Permissions",
+            Self::Address => "Public address",
         }
     }
 }
