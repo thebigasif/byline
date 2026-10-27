@@ -1,0 +1,16 @@
+[package]
+name = "khalid-search"
+version = "0.0.0"
+description = "Site search: words and their stems per language, ranking, and highlighted snippets."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+rust-stemmers = "1.2"
+
+[lints]
+workspace = true
