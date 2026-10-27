@@ -3,11 +3,12 @@
 //! its JSON-LD graph (ADR "the SEO head reaches templates as trusted HTML").
 
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use khalid_content::{PostFront, Sitemap};
 use khalid_core::{Config, Locale, UserMessage};
 use khalid_render::HeadHtml;
 use khalid_seo::{
-    IndexPolicy, PageKind, SeoError, SeoPage, SeoSite, TranslationKey, UrlPath, head_tags,
-    link_translations, page_graph,
+    IndexPolicy, MetaTemplate, PageKind, SeoError, SeoPage, SeoSite, SitemapListing,
+    TranslationKey, UrlPath, head_tags, link_translations, page_graph,
 };
 
 use crate::build_pages::LanguagePages;
@@ -42,6 +43,24 @@ pub(crate) fn page(
 ) -> Result<SeoPage, UserMessage> {
     let path = UrlPath::try_new(&format!("/{rest}")).map_err(|error| build_message::seo(&error))?;
     Ok(SeoPage::new(kind, locale.clone(), path, title))
+}
+
+/// Copies what a post's `front` matter says about search into `seo`: its
+/// translation key, robots, canonical, search title and sitemap listing.
+/// The search title may use the meta template variables, such as `{site}`.
+pub(crate) fn from_front(seo: &mut SeoPage, front: &PostFront) -> Result<(), UserMessage> {
+    seo.translation = translation(front.translation.as_deref())?;
+    seo.robots.clone_from(&front.robots);
+    seo.canonical.clone_from(&front.canonical);
+    let title = front.seo_title.as_deref().map(MetaTemplate::parse);
+    seo.seo_title = title
+        .transpose()
+        .map_err(|error| build_message::seo(&error))?;
+    seo.sitemap = match front.sitemap {
+        Sitemap::Unlisted => SitemapListing::Excluded,
+        _ => SitemapListing::Listed,
+    };
+    Ok(())
 }
 
 /// The `translation` key from front matter, which pairs language versions.
@@ -84,4 +103,29 @@ fn head(site: &SeoSite, page: &SeoPage) -> Result<HeadHtml, SeoError> {
     let mut html = head_tags(site, page)?.to_html();
     html.push_str(&page_graph(site, page)?.to_script_tag());
     Ok(HeadHtml::from_trusted(html))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use khalid_content::parse_post;
+    use khalid_core::Locale;
+
+    use super::*;
+
+    #[test]
+    fn a_posts_search_title_and_sitemap_choice_reach_its_seo_page() {
+        let text = "---\nseo_title: \"Slow pages, fixed {sep} {site}\"\nsitemap: false\n---\n";
+        let front = parse_post(Path::new("a.md"), text).unwrap().front;
+        let locale = Locale::try_new("en").unwrap();
+        let mut seo = page(PageKind::Post, &locale, "slow/", "Slow pages").unwrap();
+        from_front(&mut seo, &front).unwrap();
+        let title = seo.seo_title.as_ref().map(MetaTemplate::as_str);
+        assert_eq!(title, Some("Slow pages, fixed {sep} {site}"));
+        assert_eq!(seo.sitemap, SitemapListing::Excluded);
+        let plain = parse_post(Path::new("a.md"), "---\n---\n").unwrap().front;
+        from_front(&mut seo, &plain).unwrap();
+        assert_eq!((seo.seo_title, seo.sitemap), (None, SitemapListing::Listed));
+    }
 }

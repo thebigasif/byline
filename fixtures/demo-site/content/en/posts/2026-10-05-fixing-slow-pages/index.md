@@ -6,6 +6,10 @@ author: lena-vogt
 category: technical-seo
 description: Slow pages lose readers before they read a word. Where the time usually goes, and what to fix first.
 translation: page-speed
+image:
+  src: page-weight.png
+  alt: A bar chart of page weight by part
+  caption: Images weigh the most.
 ---
 
 Readers leave pages that load slowly, and search engines notice. The good news: most slow pages are slow for the same few reasons.

@@ -6,7 +6,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use chrono::NaiveDate;
-use khalid_content::{Document, PostFront, Rendered, SiteContent, Wikilinks, render_linked};
+use khalid_content::{
+    Document, LeadImage, PostFront, Rendered, SiteContent, Wikilinks, render_linked,
+};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
     BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
@@ -39,6 +41,9 @@ pub(crate) struct Page {
     /// The content file it was made from, relative to the site folder, so
     /// `post_files` can find the files beside it. `None` for lists.
     pub(crate) source: Option<PathBuf>,
+    /// The post's lead image as written, which `post_images` draws once
+    /// it has made its sizes. `None` on every other page.
+    pub(crate) lead: Option<LeadImage>,
 }
 
 impl Page {
@@ -108,6 +113,7 @@ fn language_pages(
         body: PageBody::NotFound,
         seo: missing_seo,
         source: None,
+        lead: None,
     });
     Ok(LanguagePages {
         site: render_site(config, locale, stylesheet),
@@ -283,9 +289,7 @@ fn post_page(
     let mut seo = build_seo::page(SeoKind::Post, locale, &rest, &title)?;
     seo.excerpt.clone_from(&description);
     seo.published = Some(build_seo::midnight(date));
-    seo.translation = build_seo::translation(front.translation.as_deref())?;
-    seo.robots.clone_from(&front.robots);
-    seo.canonical.clone_from(&front.canonical);
+    build_seo::from_front(&mut seo, front)?;
     seo.content_html = full_addresses(config, &rendered.html);
     let (reviewers, profiles) = build_reader::reviewers(front, people, config)?;
     seo.reviewers = profiles;
@@ -313,7 +317,9 @@ fn post_page(
     seo.author = post.authors.first().map(|author| author.name.clone());
     let meta = meta(config, title, description, path, PageKind::Article)?;
     let body = PageBody::Post(Box::new(post));
-    Ok(page(locale, config, &rest, meta, body, seo).made_from(&doc.path))
+    let mut page = page(locale, config, &rest, meta, body, seo).made_from(&doc.path);
+    page.lead.clone_from(&front.image);
+    Ok(page)
 }
 
 /// The page of every plain page in `locale`, such as About, at `/<slug>/`.
@@ -550,6 +556,7 @@ fn page(
         body,
         seo,
         source: None,
+        lead: None,
     }
 }
 

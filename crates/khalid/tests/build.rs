@@ -398,6 +398,34 @@ fn build_copies_a_folder_posts_image_beside_its_page() {
     );
 }
 
+#[test]
+fn a_posts_lead_image_is_drawn_at_once_and_shared() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let post = page(out.path(), "fixing-slow-pages/index.html");
+    let (_, lead) = post.split_once("<figure class=\"image\">").expect(&post);
+    let (lead, _) = lead.split_once("</figure>").unwrap();
+    assert!(
+        lead.contains("alt=\"A bar chart of page weight by part\""),
+        "{lead}"
+    );
+    assert!(lead.contains(" fetchpriority=\"high\""), "{lead}");
+    assert!(!lead.contains("loading=\"lazy\""), "{lead}");
+    assert!(lead.contains("/blog/media/"), "{lead}");
+    assert!(
+        lead.contains("<figcaption>Images weigh the most.</figcaption>"),
+        "{lead}"
+    );
+    assert!(
+        post.contains("<meta property=\"og:image\" content=\"https://www.example.com/blog/media/"),
+        "{post}"
+    );
+    let plain = page(out.path(), "why-internal-links-matter/index.html");
+    assert!(!plain.contains("fetchpriority"), "{plain}");
+}
+
 /// Every `.html` file under `folder`.
 #[cfg(test)]
 fn html_files(folder: &Path, found: &mut Vec<PathBuf>) {

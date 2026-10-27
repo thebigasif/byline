@@ -7,12 +7,13 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use khalid_core::{Config, UserMessage};
+use khalid_core::{AbsoluteUrl, Config, UserMessage};
 use khalid_media::{DerivedImage, Format, MediaCache, MediaError, derive};
-use khalid_render::{ImageCandidate, ImageSet};
+use khalid_render::{ImageCandidate, ImageSet, Loading, PageBody, RenderImage};
+use khalid_seo::ShareImage;
 use khalid_server::MediaType;
 
-use crate::build_pages::LanguagePages;
+use crate::build_pages::{LanguagePages, Page};
 use crate::post_files::{self, IMAGE, PostFile};
 
 /// The folder under the mount, and in the output folder, that holds every size.
@@ -70,9 +71,47 @@ pub(crate) fn attach(
     for language in languages.iter_mut().filter(|_| !pictures.is_empty()) {
         for page in &mut language.pages {
             post_files::rewrite(page, |html| drawn(html, &pictures));
+            lead(config, page, &pictures);
         }
     }
     Ok(sizes.into_values().collect())
+}
+
+/// Draws the lead image of the post on `page`, when it is a file beside the
+/// post with its sizes among `pictures`: fetched at once with high priority,
+/// as the one large image at the top (BL-WEB-5), and shared as the page's
+/// Open Graph and X image. A lead image anywhere else is left out until it
+/// has sizes, so no page shifts while it loads.
+fn lead(config: &Config, page: &mut Page, pictures: &BTreeMap<String, Picture>) {
+    let Some(image) = &page.lead else {
+        return;
+    };
+    let name = image.src.trim_start_matches("./");
+    let address = format!("{}{name}", page.meta.path);
+    let (Some(picture), PageBody::Post(post)) = (pictures.get(&address), &mut page.body) else {
+        tracing::warn!(image = %image.src, page = %page.meta.path, "the lead image is not a file beside the post, so it is left out");
+        return;
+    };
+    post.image = Some(RenderImage {
+        alt: image.alt.clone(),
+        caption: image.caption.clone(),
+        width: picture.width,
+        height: picture.height,
+        sizes: SIZES.to_owned(),
+        avif: None,
+        webp: Some(picture.webp.clone()),
+        fallback: picture.fallback.clone(),
+        loading: Loading::Eager,
+    });
+    let origin = config.address().as_str().trim_end_matches('/');
+    let widest = picture.fallback.widest();
+    let shared = widest.and_then(|file| {
+        let url = AbsoluteUrl::parse(&format!("{origin}{}", file.url)).ok()?;
+        let scaled = u64::from(picture.height).checked_mul(u64::from(file.width))?;
+        let height = u32::try_from(scaled.checked_div(u64::from(picture.width))?).ok()?;
+        Some(ShareImage::new(url, file.width, height, &image.alt))
+    });
+    page.seo.share_image = shared;
 }
 
 /// The picture `image` makes, and its files. `None` without the WebP and
