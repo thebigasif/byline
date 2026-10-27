@@ -441,7 +441,7 @@ mod tests {
         for page in &saved {
             assert!(all.contains(page), "{} differs", page.path().as_str());
         }
-        assert!(!linking.is_empty());
+        assert_eq!(linking.len(), 4, "{linking:?}");
         assert_eq!(source.render_saved(&linking).unwrap(), None, "a wikilink");
         let author = vec![PathBuf::from("content/en/authors/asif.md")];
         assert_eq!(source.render_saved(&author).unwrap(), None);
@@ -452,7 +452,7 @@ mod tests {
         let source = pages(&fixture("demo-site"));
         source.render_all().unwrap();
         let posts = outlined(&source);
-        assert!(!posts.is_empty());
+        assert_eq!(posts.len(), 10, "{posts:?}");
         assert_eq!(source.render_saved(&posts).unwrap(), None);
     }
 }
