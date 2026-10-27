@@ -73,6 +73,7 @@ fn a_published_post_becomes_a_dated_file_that_reads_back() {
          title: \"How to bake rye bread\"\n\
          slug: \"how-to-bake-rye-bread\"\n\
          date: \"2024-03-12\"\n\
+         author: \"mara\"\n\
          description: \"A wetter dough and a longer rest\"\n\
          ---\n\
          \n\
@@ -140,7 +141,7 @@ fn the_plan_writes_every_file_and_never_over_one() {
     );
     let again = plan.write(site.path()).unwrap_err();
     assert!(
-        matches!(&again, WriteError::Exists { paths } if paths.len() == 3),
+        matches!(&again, WriteError::Exists { paths } if paths.len() == 5),
         "{again:?}"
     );
 }
@@ -154,7 +155,7 @@ fn two_drafts_with_one_title_get_two_files() {
     ])
     .unwrap();
     let plan = planned(&export);
-    let paths: Vec<&Path> = plan.files.iter().map(|file| file.path.as_path()).collect();
+    let paths: Vec<&Path> = plan.posts.iter().map(|post| post.path.as_path()).collect();
     assert_eq!(
         paths,
         [

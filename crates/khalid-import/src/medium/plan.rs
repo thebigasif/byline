@@ -10,7 +10,10 @@ use khalid_routes::{AddressError, PostAddress, Routes};
 
 use crate::front_matter::FrontMatter;
 use crate::medium::body::medium_body;
+use crate::medium::redirect_map::{MapEntry, REDIRECTS_CSV, medium_csv, redirect_map};
+use crate::medium::site_files::{author_files, author_slug};
 use crate::medium::{BodyError, Export, Post, PostStatus, UnreadFile};
+use crate::redirects::path_of;
 use crate::slug::{PostSlug, post_slug};
 use crate::write::write_files;
 use crate::{Place, PlannedFile, SlugOrigin, WriteError};
@@ -28,6 +31,11 @@ pub struct Plan {
     pub failed: Vec<FailedPost>,
     /// Each file of the export that is not a post, with the reason.
     pub unread: Vec<UnreadFile>,
+    /// Where every old address of a published post leads, in file name
+    /// order. [`REDIRECTS_CSV`] holds every entry that moves.
+    pub redirects: Vec<MapEntry>,
+    /// How many author files the plan writes.
+    pub authors: usize,
 }
 
 /// A post that came in.
@@ -91,6 +99,11 @@ pub enum PostError {
 /// from `.../rye-3f1a8c4e2b9d`; when an earlier post took that slug, it
 /// keeps the whole last part, id and all, as Medium does. A draft whose
 /// slug, made from its title, is taken gets Medium's id after it.
+///
+/// Each author of an imported post gets a file under
+/// `content/<lang>/authors/`. When a post lived on the new site's own
+/// host, inside the blog, its old path goes into its `aliases`, so Khalid
+/// answers it; every move is also in [`REDIRECTS_CSV`].
 pub fn plan(export: &Export, site: &Config, routes: &Routes) -> Plan {
     let mut plan = Plan {
         unread: export.unread.clone(),
@@ -109,6 +122,14 @@ pub fn plan(export: &Export, site: &Config, routes: &Routes) -> Plan {
             }),
         }
     }
+    let authors = author_files(export, &plan.posts, site);
+    plan.authors = authors.len();
+    plan.files.extend(authors);
+    plan.redirects = redirect_map(export, &plan.posts, site);
+    plan.files.push(PlannedFile {
+        path: PathBuf::from(REDIRECTS_CSV),
+        text: medium_csv(&plan.redirects, site),
+    });
     plan
 }
 
@@ -152,17 +173,26 @@ fn post_file(
     let mut front = FrontMatter::default();
     front.text("title", &post.title).text("slug", slug.as_str());
     let date = post.published.map(|at| at.date());
+    let mut aliases = Vec::new();
     let (place, path, address) = match (post.status, date) {
         (PostStatus::Published, Some(date)) => {
             let new = PostAddress::new("posts", locale, &slug, Some(date));
             let address = routes.address(site, &new).map_err(PostError::Address)?;
             front.text("date", &date.to_string());
+            aliases.extend(alias(post, site, routes, &new));
             let path = format!("content/{locale}/posts/{date}-{slug}.md");
             (Place::Post, path, Some(address))
         }
         _ => (Place::Draft, format!("drafts/{locale}/{slug}.md"), None),
     };
-    front.maybe("description", post.subtitle.as_ref());
+    let author = post
+        .author
+        .as_ref()
+        .and_then(|author| author_slug(author, site));
+    front
+        .maybe("author", author)
+        .maybe("description", post.subtitle.as_ref())
+        .list("aliases", &aliases);
     let path = PathBuf::from(path);
     let text = front.file(&body.markdown);
     khalid_content::parse_post(&path, &text).map_err(PostError::Content)?;
@@ -176,6 +206,17 @@ fn post_file(
         left: body.left,
     };
     Ok((PlannedFile { path, text }, imported))
+}
+
+/// The post's old path as an alias of `new`, when it lived on the new
+/// site's host and the path lies inside the blog.
+fn alias(post: &Post, site: &Config, routes: &Routes, new: &PostAddress<'_>) -> Option<String> {
+    let old = post.canonical.as_ref()?;
+    if old.host() != site.address().host() {
+        return None;
+    }
+    let redirect = routes.redirect(site, path_of(old), new).ok()?;
+    Some(redirect.from().to_owned())
 }
 
 /// The last part of a post's Medium address, whole and without its id.
