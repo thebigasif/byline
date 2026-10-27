@@ -1,0 +1,1 @@
+- The list pages (archive, authors, collections, categories, tags, channels, dates and the HTML sitemap), the Admin API post delete, and the SEO root files (IndexNow key file, the host's robots.txt in `_root/`, its doctor check, and the `[seo.links]` link policy) now work together on one `main`.

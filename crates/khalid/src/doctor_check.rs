@@ -21,6 +21,8 @@ pub(crate) enum Check {
     Permissions,
     /// The blog answers at its public address, so the proxy rule works.
     Address,
+    /// The host's own `robots.txt` names the blog's sitemap.
+    Robots,
 }
 
 impl Check {
@@ -34,6 +36,7 @@ impl Check {
             Self::Theme => "Theme",
             Self::Permissions => "Permissions",
             Self::Address => "Public address",
+            Self::Robots => "Host robots.txt",
         }
     }
 }

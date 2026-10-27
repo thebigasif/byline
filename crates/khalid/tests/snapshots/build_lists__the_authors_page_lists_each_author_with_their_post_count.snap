@@ -1,0 +1,16 @@
+---
+source: crates/khalid/tests/build_lists.rs
+expression: main_of(&authors)
+---
+ id="main" tabindex="-1">
+
+<h1>Authors</h1>
+<ul class="people-list" role="list">
+<li class="person-card">
+<div>
+<p class="person-name"><a href="/blog/authors/asif/">Asif</a></p>
+<p class="person-role">Founder of SerpDad</p>
+<p>3 posts</p>
+</div>
+</li>
+</ul>

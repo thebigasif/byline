@@ -1,0 +1,5 @@
+---
+source: crates/khalid/tests/build_root.rs
+expression: key_file
+---
+5d1e7a0c9b3f4e28

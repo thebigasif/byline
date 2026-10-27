@@ -1,0 +1,6 @@
+---
+source: crates/khalid-seo/tests/link_policy.rs
+expression: "site.links.apply_to_html(&site, body)"
+---
+<p>Read <a href="https://developers.google.com/search" rel="nofollow noopener" target="_blank">the guide</a>, buy <a href="https://www.amazon.com/dp/B0C1234567?tag=fieldnotes&amp;th=1" rel="nofollow sponsored noopener" target="_blank">the book</a>, see <a href="/blog/why-links-matter/">why links matter</a> and <a href="#notes">the notes</a>.</p>
+<p><a class="button" href="https://app.serpdad.com/">Open SerpDad</a> <abbr title="a &lt;b&gt;">SEO</abbr></p>

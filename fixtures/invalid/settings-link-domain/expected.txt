@@ -1,0 +1,3 @@
+fixtures/invalid/settings-link-domain/site.toml, line 11, `affiliate_domains`: `https://www.amazon.com/` is not a domain name.
+Khalid checks every setting before it starts, so nothing runs with a wrong one.
+Set `affiliate_domains` on line 11 to a name such as amazon.com, with no https:// and no path, then run the command again.

@@ -1,10 +1,13 @@
 //! The files `khalid build` writes beside the pages, from `khalid-seo`: the
-//! sitemap index and its sitemaps, `robots.txt`, `llms.txt`, and the RSS,
-//! Atom and JSON feeds of each language (KH-SEO-5, KH-SEO-6, KH-SEO-7).
+//! sitemap index and its sitemaps, `robots.txt`, `llms.txt`, the RSS,
+//! Atom and JSON feeds of each language, and the `IndexNow` key file
+//! (KH-SEO-5, KH-SEO-6, KH-SEO-7, KH-SEO-11).
 
 use chrono::{DateTime, Utc};
-use khalid_core::{Locale, UserMessage};
-use khalid_seo::{Feed, FeedScope, LlmsTxt, RobotsTxt, SeoError, SeoPage, SeoSite, SitemapSet};
+use khalid_core::{IndexNowSettings, Locale, UserMessage};
+use khalid_seo::{
+    Feed, FeedScope, IndexNow, LlmsTxt, RobotsTxt, SeoError, SeoPage, SeoSite, SitemapSet, UrlPath,
+};
 
 use crate::build_message;
 
@@ -17,18 +20,48 @@ pub(crate) struct SiteFile {
 
 /// Every file of `site` beside its `pages`, whose language versions are
 /// already linked. Each lives in the mount folder, where its address
-/// points. `now` dates a feed that has no posts yet.
+/// points. `now` dates a feed that has no posts yet. With `indexnow` set,
+/// the key file is one of them, at the address requests name in
+/// `keyLocation`.
 pub(crate) fn files(
     site: &SeoSite,
     pages: &[SeoPage],
+    indexnow: Option<&IndexNowSettings>,
     now: DateTime<Utc>,
 ) -> Result<Vec<SiteFile>, UserMessage> {
-    collect(site, pages, now).map_err(|error| build_message::seo(&error))
+    collect(site, pages, indexnow, now).map_err(|error| build_message::seo(&error))
+}
+
+/// The folder inside the output that holds the files for the root of the
+/// host, for a blog in a folder (ADR "root files go in their own folder").
+pub(crate) const ROOT_FOLDER: &str = "_root";
+
+/// The files a blog in a folder needs at the root of its host, where search
+/// engines look for them: `robots.txt`, whose first line says where it goes,
+/// and each verification file. None for a blog at the root, whose own
+/// files are already there.
+pub(crate) fn root_files(site: &SeoSite) -> Result<Vec<SiteFile>, UserMessage> {
+    if site.mount == UrlPath::root() {
+        return Ok(Vec::new());
+    }
+    let robots = RobotsTxt::for_site(site).map_err(|error| build_message::seo(&error))?;
+    let host = site.address.as_str().trim_end_matches('/');
+    let mount = site.mount.as_str();
+    let said = format!(
+        "# For {host}/robots.txt. Every rule here is about {mount}, so use it as the whole file or add it to the one there.\n{robots}"
+    );
+    let mut files = vec![file("robots.txt", said)];
+    for root in &site.root_files {
+        let name = root.path().as_str().trim_start_matches('/');
+        files.push(file(name, root.body().to_owned()));
+    }
+    Ok(files)
 }
 
 fn collect(
     site: &SeoSite,
     pages: &[SeoPage],
+    indexnow: Option<&IndexNowSettings>,
     now: DateTime<Utc>,
 ) -> Result<Vec<SiteFile>, SeoError> {
     let sitemaps = SitemapSet::from_pages(site, pages)?;
@@ -51,6 +84,11 @@ fn collect(
         files.push(file(&format!("{folder}feed.xml"), feed.to_rss()?));
         files.push(file(&format!("{folder}atom.xml"), feed.to_atom()?));
         files.push(file(&format!("{folder}feed.json"), feed.to_json()?));
+    }
+    if let Some(settings) = indexnow {
+        let key = IndexNow::new(site, settings)?.key_file();
+        let name = key.path().as_str().trim_start_matches('/');
+        files.push(file(name, key.body().to_owned()));
     }
     Ok(files)
 }
@@ -90,7 +128,7 @@ mod tests {
         );
         site.languages.push(Locale::try_new("de").unwrap());
         let now = Utc.with_ymd_and_hms(2026, 10, 26, 12, 0, 0).unwrap();
-        let written = files(&site, &[], now).unwrap();
+        let written = files(&site, &[], None, now).unwrap();
         for language in &site.languages {
             let feed =
                 Feed::for_pages(&site, &[], &FeedScope::language(language.clone()), now).unwrap();
