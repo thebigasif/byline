@@ -3,6 +3,11 @@
 mod export;
 mod item;
 mod php;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "the post files of task 6.1 part 4b use it")
+)]
+mod post_slug;
 mod redirection;
 mod seo_meta;
 mod seo_plugins;

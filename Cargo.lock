@@ -1975,7 +1975,10 @@ name = "khalid-import"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "khalid-content",
  "khalid-core",
+ "percent-encoding",
+ "proptest",
  "roxmltree 0.20.0",
  "serde",
  "serde_json",

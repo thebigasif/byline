@@ -14,7 +14,12 @@ khalid-core = { path = "../khalid-core", version = "0.0.0" }
 roxmltree = "0.20"
 serde.workspace = true
 serde_json.workspace = true
+percent-encoding = "2"
 thiserror.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+khalid-content = { path = "../khalid-content", version = "0.0.0" }
+proptest = "1"

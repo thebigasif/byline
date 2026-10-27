@@ -6,4 +6,9 @@
 //! It must not know about rendering, HTTP or the database. It reads text it
 //! is given and never fetches anything itself.
 
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "the post files of task 6.1 part 4b use it")
+)]
+mod front_matter;
 pub mod wordpress;
