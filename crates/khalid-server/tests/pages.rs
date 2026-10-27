@@ -43,7 +43,7 @@ fn holds_each_page_by_its_path() {
     let pages = Pages::new(vec![page.clone()], "<h1>Page not found</h1>").unwrap();
     let held = pages.get("/blog/what-a-sitemap-does/").unwrap();
     assert_eq!(held.path(), page.path());
-    assert_eq!(held.body(), page.body());
+    assert_eq!(held.body().unwrap(), page.body().unwrap());
     assert_eq!(pages.get("/blog/what-a-sitemap-does"), None);
     assert_eq!(pages.not_found().as_ref(), b"<h1>Page not found</h1>");
 }

@@ -461,7 +461,7 @@ mod tests {
         let link = "<a href=\"/blog/glossary/topical-authority/\">Topical authority</a>";
         let linking = pages
             .iter()
-            .filter(|page| String::from_utf8_lossy(page.body()).contains(link));
+            .filter(|page| String::from_utf8_lossy(&page.body().unwrap()).contains(link));
         assert_eq!(linking.count(), 2);
     }
 
@@ -575,7 +575,8 @@ mod tests {
             .iter()
             .find(|page| page.path().as_str() == "/blog/what-a-sitemap-does/")
             .unwrap();
-        let html = String::from_utf8_lossy(page.body());
+        let body = page.body().unwrap();
+        let html = String::from_utf8_lossy(&body);
         assert!(html.contains("What a sitemap is for"), "the edit shows");
         assert!(all.contains(page), "the saved page is the full render's");
     }

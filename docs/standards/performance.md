@@ -52,6 +52,18 @@ What this shows:
 - **The allocator is not what holds the memory on a 1,000-post site.** The system allocator holds as much as mimalloc there. The rendered pages are 6.9 MB plain, with their Brotli copies on top. The server's fixed cost is about 35 MB, measured on a 10-post site. The rest grows with the posts and has not been broken down yet; the Content API's store and its index refresh, the subject of the CTO answers' section 3, are the largest part not yet measured.
 - **mimalloc costs about 12 MB more than the system allocator on a small site**, from its per-thread heaps. That is worth measuring again once the 1,000-post site is inside its budget.
 
+Measured again on 2026-10-27 (perf track, task 1.21), with the server answering before its full render and each page compressed with a window of at least 128 KB, on a quiet server (load average 3 to 9), two runs each, idle memory as defined above:
+
+| Setting | Idle memory, 1,000 posts |
+|---|---|
+| mimalloc, default settings | 57.85 MB, 59.47 MB |
+| with `no_thp` | 59.06 MB, 60.53 MB |
+| tokio blocking threads kept 1 s instead of 10 s | 58.22 MB, 59.80 MB |
+| the full render on a thread of its own, which ends after it | 58.08 MB, 59.48 MB |
+| two tokio worker threads, on top of one copy per page | 63.98 MB, 70.94 MB, against 65.82 MB |
+
+None of them changes idle memory beyond the noise between runs, so still no setting is changed. A `dhat` heap profile of the running server, 14 s after start, holds 26.8 MB live, about half of it each page's plain bytes beside its Brotli copy; `khalid-server` now keeps one copy per page. Brotli's own buffers are the other large cost: below a 128 KB window the `brotli` crate set up a 32 MB table for each page.
+
 ## Fast to build
 
 - `sccache` and `mold` in CI. `cargo nextest` with the default partitioning.

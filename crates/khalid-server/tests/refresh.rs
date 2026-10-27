@@ -63,7 +63,7 @@ fn edit(folder: &Path, post: &str) {
 fn body(live: &LivePages) -> String {
     let pages = live.current();
     let page = pages.get("/what-a-sitemap-does/").expect("the post");
-    String::from_utf8(page.body().to_vec()).unwrap()
+    String::from_utf8(page.body().unwrap().to_vec()).unwrap()
 }
 
 #[tokio::test]

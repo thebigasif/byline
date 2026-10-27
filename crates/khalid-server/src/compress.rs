@@ -1,6 +1,8 @@
 //! Brotli copies of pages, made once when the pages are built, and whether
 //! a browser accepts them.
 
+use std::io;
+
 use axum::http::{HeaderMap, HeaderValue, header};
 use brotli::enc::BrotliEncoderParams;
 use bytes::Bytes;
@@ -63,6 +65,14 @@ impl Compressed {
     /// The compressed bytes.
     pub(crate) fn body(&self) -> &Bytes {
         &self.body
+    }
+
+    /// The plain bytes, `len` of them, decoded from this copy.
+    pub(crate) fn plain(&self, len: usize) -> io::Result<Bytes> {
+        let mut input: &[u8] = &self.body;
+        let mut output = Vec::with_capacity(len);
+        brotli::BrotliDecompress(&mut input, &mut output)?;
+        Ok(Bytes::from(output))
     }
 
     /// The tag of the compressed copy.

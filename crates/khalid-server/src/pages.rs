@@ -214,7 +214,7 @@ mod tests {
         let about = Page::new(about, MediaType::Html, "<h1>About this blog</h1>");
         let pages = Pages::new(vec![post("<p>A sitemap lists pages.</p>"), about], "").unwrap();
         let saved = pages.with_saved(vec![post("<p>A sitemap lists posts.</p>")]);
-        let body = |pages: &Pages, path: &str| pages.get(path).unwrap().body().clone();
+        let body = |pages: &Pages, path: &str| pages.get(path).unwrap().body().unwrap();
         let edited = "<p>A sitemap lists posts.</p>".repeat(40);
         assert_eq!(body(&saved, "/blog/what-a-sitemap-does/"), edited);
         assert_eq!(body(&saved, "/blog/about/"), body(&pages, "/blog/about/"));
