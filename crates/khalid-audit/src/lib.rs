@@ -11,6 +11,7 @@
 
 mod answer;
 mod audit;
+mod body_checks;
 mod check;
 mod crawl;
 mod issue;
@@ -18,6 +19,7 @@ mod link;
 mod page;
 mod page_checks;
 mod robots;
+mod thresholds;
 mod visit;
 
 pub use answer::{Answer, Source, Unreached};
@@ -28,4 +30,5 @@ pub use issue::Issue;
 pub use link::{Alternate, Image, Link};
 pub use page::Page;
 pub use robots::Robots;
+pub use thresholds::Thresholds;
 pub use visit::{Outcome, Visit};

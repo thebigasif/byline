@@ -184,4 +184,41 @@ checks! {
     /// A page does not say which language it is in.
     LanguageMissing => "language-missing", Localization, Warning, "Language not declared",
         "Set the lang attribute on the html element in the template override.";
+    /// A page search engines may list has few words.
+    LowWordCount => "low-word-count", Content, Notice, "Low word count",
+        "Add the detail a reader needs, or join the page to a related one.";
+    /// A page's text is a small share of its HTML.
+    LowTextRatio => "low-text-ratio", Content, Notice, "Low text to HTML ratio",
+        "Add text, or take markup the page does not need out of the template override.";
+    /// A page's HTML is larger than search engines read in full.
+    HtmlTooLarge => "html-too-large", Content, Warning, "HTML is too large",
+        "Split the page, or move large inline data out of it, so it stays under 2 MB.";
+    /// A page links to another page of the blog with `nofollow`.
+    NofollowInternal => "nofollow-internal", InternalLinks, Warning, "Page has nofollow internal links",
+        "Remove nofollow from links to your own pages, so search engines follow them.";
+    /// A page has more links than the limit.
+    TooManyLinks => "too-many-links", InternalLinks, Warning, "Too many links on the page",
+        "Keep the links a reader needs and move the rest to a list page.";
+    /// An image has no `alt` attribute.
+    AltMissing => "alt-missing", Images, Warning, "Missing alt text",
+        "Describe each image in a few words, or give it an empty alt when it is decoration.";
+    /// A page served over HTTPS links to an HTTP address.
+    HttpLink => "http-link", Https, Warning, "HTTPS page has links to HTTP",
+        "Change the link to its https address, which most sites answer.";
+    /// A page served over HTTPS loads a file over HTTP.
+    MixedContent => "mixed-content", Https, Error, "Mixed content",
+        "Load the file over https, or keep a copy with the site.";
+    /// A page lacks one of the Open Graph tags a shared link needs.
+    OpenGraphIncomplete => "open-graph-incomplete", Social, Notice, "Open Graph tags incomplete",
+        "Give the page a title, type, image and address for shared links, such as a share image.";
+    /// A page has no Twitter card tag.
+    TwitterCardMissing => "twitter-card-missing", Social, Notice, "Twitter card missing",
+        "Keep the default head, which adds a Twitter card to every page.";
+    /// A JSON-LD block is not valid JSON.
+    StructuredDataInvalid => "structured-data-invalid", StructuredData, Error,
+        "Structured data is not valid JSON",
+        "Fix the JSON in the post's schema field or the template override.";
+    /// A page has no structured data.
+    StructuredDataMissing => "structured-data-missing", StructuredData, Notice, "No structured data",
+        "Keep the default head, which describes every page in JSON-LD.";
 }

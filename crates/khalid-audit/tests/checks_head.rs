@@ -2,11 +2,27 @@
 
 pub mod support;
 
-use khalid_audit::{Answer, Check, Issue, Severity, audit};
+use khalid_audit::{Answer, Category, Check, Crawl, Issue, Severity, Thresholds};
 use support::{HOME, crawled, page};
 
 const GOOD_HEAD: &str = r#"<title>Why internal links matter</title>
 <meta name="description" content="Internal links help readers find the rest of your site.">"#;
+
+/// The issues of the head checks in `crawl`, leaving out what the body
+/// checks find on these short test pages.
+#[cfg(test)]
+fn audit(crawl: &Crawl) -> Vec<Issue> {
+    let head = [
+        Category::Indexability,
+        Category::Titles,
+        Category::Headings,
+        Category::Localization,
+    ];
+    khalid_audit::audit(crawl, Thresholds::default())
+        .into_iter()
+        .filter(|issue| head.contains(&issue.check().category()))
+        .collect()
+}
 
 #[cfg(test)]
 async fn issues(head: &str, body: &str) -> Vec<(Check, String)> {
