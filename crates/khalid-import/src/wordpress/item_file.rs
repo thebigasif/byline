@@ -11,19 +11,8 @@ use crate::markdown::body_markdown;
 use crate::wordpress::names::{author_slug, category_slug, decoded, path_of};
 use crate::wordpress::post_slug::{PostSlug, post_slug};
 use crate::wordpress::{
-    Export, Held, ImportedItem, Item, ItemError, ItemStatus, PlannedFile, SeoMeta,
+    Export, Held, ImportedItem, Item, ItemError, ItemStatus, Place, PlannedFile, SeoMeta,
 };
-
-/// Where an item's file goes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Place {
-    /// A published post, under `content/<lang>/posts/`.
-    Post,
-    /// A post not yet published, under `drafts/<lang>/` (ADR 0030).
-    Draft,
-    /// A page, under `content/<lang>/pages/`.
-    Page,
-}
 
 /// What every item's file is made for: the export and the site.
 #[derive(Debug, Clone, Copy)]
@@ -107,6 +96,7 @@ pub(crate) fn item_file(
         slug,
         slug_origin: origin,
         held,
+        place,
     };
     Ok((PlannedFile { path, text }, imported))
 }

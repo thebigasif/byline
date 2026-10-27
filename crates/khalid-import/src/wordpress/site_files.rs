@@ -37,8 +37,8 @@ pub(crate) fn author_files(export: &Export, site: &Config) -> Vec<PlannedFile> {
 }
 
 /// `categories.toml`, with each category's slug and its name in the site's
-/// language, or none when the export has no categories.
-pub(crate) fn categories_file(export: &Export, site: &Config) -> Option<PlannedFile> {
+/// language, and how many it lists, or none when the export has none.
+pub(crate) fn categories_file(export: &Export, site: &Config) -> Option<(PlannedFile, usize)> {
     let locale = site.default_language();
     let mut text = format!(
         "# Categories from the WordPress export of {}.\n",
@@ -60,8 +60,9 @@ pub(crate) fn categories_file(export: &Export, site: &Config) -> Option<PlannedF
         );
         slugs.push(slug);
     }
-    (!slugs.is_empty()).then(|| PlannedFile {
+    let file = PlannedFile {
         path: PathBuf::from("categories.toml"),
         text,
-    })
+    };
+    (!slugs.is_empty()).then_some((file, slugs.len()))
 }

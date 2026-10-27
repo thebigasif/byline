@@ -7,11 +7,11 @@ use chrono::NaiveDateTime;
 use khalid_content::ContentError;
 use khalid_core::{AbsoluteUrl, Config, ParseSlugError, RobotsDirectives, Slug};
 
-use crate::wordpress::item_file::{Place, Source, item_file};
+use crate::wordpress::item_file::{Source, item_file};
 use crate::wordpress::redirect_map::{redirect_map, redirects_csv};
 use crate::wordpress::site_files::{author_files, categories_file};
 use crate::wordpress::{
-    Export, ItemKind, ItemStatus, MapEntry, Redirection, SlugOrigin, UnreadField,
+    Export, Item, ItemKind, ItemStatus, MapEntry, Redirection, SkippedRule, SlugOrigin, UnreadField,
 };
 use khalid_routes::{AddressError, Routes};
 
@@ -27,6 +27,55 @@ pub struct Plan {
     pub redirects: Vec<MapEntry>,
     /// Each item that could not come in, with the reason.
     pub failed: Vec<FailedItem>,
+    /// Each item that stays behind, with the reason, in export order.
+    pub left_behind: Vec<LeftItem>,
+    /// The Redirection plugin's rules that stay behind, with the reason.
+    pub skipped_rules: Vec<SkippedRule>,
+    /// How many author files the plan writes.
+    pub authors: usize,
+    /// How many categories `categories.toml` lists.
+    pub categories: usize,
+}
+
+/// Where an item's file goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Place {
+    /// A published post, under `content/<lang>/posts/`.
+    Post,
+    /// A post not yet published, under `drafts/<lang>/` (ADR 0030).
+    Draft,
+    /// A page, under `content/<lang>/pages/`.
+    Page,
+}
+
+/// An item that stays behind.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct LeftItem {
+    /// Its id in the export.
+    pub id: u64,
+    /// Why it stays behind.
+    pub reason: LeftReason,
+}
+
+/// Why an item stays behind.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum LeftReason {
+    /// An uploaded file. Its page is in the redirect map, and the file stays
+    /// at its address until the media is fetched.
+    Attachment,
+    /// Private, seen only by signed-in editors.
+    Private,
+    /// In the bin.
+    Trash,
+    /// A page that was never published; drafts are kept for posts only.
+    UnpublishedPage,
+    /// A kind Khalid has no place for, such as a menu item, by its name.
+    Kind(String),
+    /// A post with a status Khalid has no place for, by its name.
+    Status(String),
 }
 
 /// One file to write.
@@ -57,6 +106,8 @@ pub struct ImportedItem {
     /// What it had that Khalid's front matter cannot hold yet, in a fixed
     /// order, so the report can say so.
     pub held: Vec<Held>,
+    /// Where its file went.
+    pub place: Place,
 }
 
 /// Something an item had that the file does not hold.
@@ -147,13 +198,15 @@ pub fn plan(
     };
     let mut plan = Plan::default();
     for item in &export.items {
-        let place = match (&item.kind, &item.status) {
-            (ItemKind::Post, ItemStatus::Publish) => Place::Post,
-            (ItemKind::Post, ItemStatus::Draft | ItemStatus::Pending | ItemStatus::Future) => {
-                Place::Draft
+        let place = match place_of(item) {
+            Ok(place) => place,
+            Err(reason) => {
+                plan.left_behind.push(LeftItem {
+                    id: item.id,
+                    reason,
+                });
+                continue;
             }
-            (ItemKind::Page, ItemStatus::Publish) => Place::Page,
-            _ => continue,
         };
         match item_file(item, from, place) {
             Ok((file, imported)) => {
@@ -163,12 +216,36 @@ pub fn plan(
             Err(error) => plan.failed.push(FailedItem { id: item.id, error }),
         }
     }
-    plan.files.extend(author_files(export, site));
-    plan.files.extend(categories_file(export, site));
+    let authors = author_files(export, site);
+    plan.authors = authors.len();
+    plan.files.extend(authors);
+    if let Some((file, count)) = categories_file(export, site) {
+        plan.files.push(file);
+        plan.categories = count;
+    }
     plan.redirects = redirect_map(export, redirection, &plan.items, site, routes);
+    plan.skipped_rules = redirection.map(|r| r.skipped.clone()).unwrap_or_default();
     plan.files.push(PlannedFile {
         path: PathBuf::from(REDIRECTS_CSV),
         text: redirects_csv(&plan.redirects),
     });
     plan
+}
+
+/// Where an item's file goes, or why it stays behind.
+fn place_of(item: &Item) -> Result<Place, LeftReason> {
+    match (&item.kind, &item.status) {
+        (ItemKind::Post, ItemStatus::Publish) => Ok(Place::Post),
+        (ItemKind::Post, ItemStatus::Draft | ItemStatus::Pending | ItemStatus::Future) => {
+            Ok(Place::Draft)
+        }
+        (ItemKind::Page, ItemStatus::Publish) => Ok(Place::Page),
+        (ItemKind::Attachment, _) => Err(LeftReason::Attachment),
+        (ItemKind::Other(kind), _) => Err(LeftReason::Kind(kind.clone())),
+        (_, ItemStatus::Private) => Err(LeftReason::Private),
+        (_, ItemStatus::Trash) => Err(LeftReason::Trash),
+        (ItemKind::Page, _) => Err(LeftReason::UnpublishedPage),
+        (_, ItemStatus::Other(status)) => Err(LeftReason::Status(status.clone())),
+        (_, status) => Err(LeftReason::Status(format!("{status:?}").to_lowercase())),
+    }
 }
