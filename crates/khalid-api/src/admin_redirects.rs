@@ -166,19 +166,33 @@ async fn create_redirect(
         Matching::from_name(matching).ok_or_else(|| unstorable("match must be exact or regex"))?;
     let columns = RedirectColumns::new(&new.from, new.to.as_deref(), new.status, matching);
     let entry = RedirectEntry::from_columns(&columns).map_err(|e| unstorable(&e.to_string()))?;
+    let added = store_checked(&desk, vec![entry], Origin::Manual).await?;
+    Ok((StatusCode::CREATED, Json(added)))
+}
+
+/// Stores `entries` made by `origin` once they are checked together with
+/// every stored redirect, so none takes a used address or closes a loop.
+pub(crate) async fn store_checked(
+    desk: &RedirectDesk,
+    entries: Vec<RedirectEntry>,
+    origin: Origin,
+) -> Result<AdminRedirects, Problem> {
     let stored = desk.store.list().await.map_err(|e| Problem::internal(&e))?;
-    let all = stored.into_iter().map(|s| s.entry).chain([entry.clone()]);
+    let all = stored
+        .into_iter()
+        .map(|s| s.entry)
+        .chain(entries.iter().cloned());
     RedirectTable::from_entries(all.collect()).map_err(|error| refused(&error))?;
     let added = desk
         .store
-        .add(vec![entry], Origin::Manual, desk.clock.now())
+        .add(entries, origin, desk.clock.now())
         .await
         .map_err(|error| match error {
             RedirectStoreError::Taken { from } => taken(&from),
             error => Problem::internal(&error),
         })?;
     let redirects = added.iter().map(AdminRedirect::from).collect();
-    Ok((StatusCode::CREATED, Json(AdminRedirects { redirects })))
+    Ok(AdminRedirects { redirects })
 }
 
 /// Removes one stored redirect. Needs `settings:write`.

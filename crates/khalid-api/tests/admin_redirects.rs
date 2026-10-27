@@ -280,3 +280,81 @@ async fn the_debug_view_says_when_nothing_matches_and_refuses_a_bad_path() {
     assert_eq!(status, StatusCode::BAD_REQUEST, "{json}");
     assert_eq!(json["rule"], "path");
 }
+
+#[cfg(test)]
+fn import(csv: &str) -> Request<Body> {
+    Request::post("/api/admin/v1/redirects/import/")
+        .header("content-type", "text/csv")
+        .body(Body::from(csv.to_owned()))
+        .unwrap()
+}
+
+/// The list the importers write, one row of each kind.
+const IMPORTED: &str = "from,to,status,match\n\
+    /blog/2019/05/old-links/,/blog/old-links/,301,exact\n\
+    /blog/retired-tool/,,410,exact\n\
+    /blog/tmp/.*,,410,regex\n";
+
+#[tokio::test]
+async fn an_imported_list_is_stored_whole_and_exported_the_same() {
+    let desk = desk("/blog/old-links/,/blog/why-internal-links-matter/,301\n").await;
+    let (status, json) = send(desk.clone(), SETTINGS, import(IMPORTED)).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["redirects"].as_array().unwrap().len(), 3);
+    assert_eq!(json["redirects"][0]["origin"], "import");
+
+    let export = get("/api/admin/v1/redirects/export/");
+    let (status, csv) = send(desk.clone(), SETTINGS, export).await;
+    assert_eq!(status, StatusCode::OK);
+    let csv = csv.as_str().unwrap();
+    assert!(
+        csv.starts_with("from,to,status,match\n/blog/old-links/,"),
+        "{csv}"
+    );
+    assert!(
+        csv.ends_with(IMPORTED.trim_start_matches("from,to,status,match\n")),
+        "{csv}"
+    );
+
+    let uri = "/api/admin/v1/redirects/explain/?path=/blog/2019/05/old-links/";
+    let (_, json) = send(desk, SETTINGS, get(uri)).await;
+    assert_eq!(json["to"], "/blog/why-internal-links-matter/", "{json}");
+}
+
+#[tokio::test]
+async fn a_list_with_a_bad_row_a_loop_or_a_taken_address_stores_nothing() {
+    let stored = "/blog/a/,/blog/b/,301\n";
+    let lists = [
+        (
+            "from,to,status,match\n/blog/c/,/blog/d/,301\n/blog/e/,,301\n",
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "line 3",
+        ),
+        (
+            "/blog/c/,/blog/d/,301\n",
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "line 1",
+        ),
+        (
+            "from,to,status\n/blog/b/,/blog/a/,301\n",
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "loop",
+        ),
+        (
+            "from,to,status\n/blog/c/,/blog/d/,301\n/blog/a/,/blog/e/,302\n",
+            StatusCode::CONFLICT,
+            "/blog/a/",
+        ),
+    ];
+    for (csv, want, says) in lists {
+        let desk = desk(stored).await;
+        let (status, json) = send(desk.clone(), SETTINGS, import(csv)).await;
+        assert_eq!(status, want, "{csv} {json}");
+        assert!(
+            json["detail"].as_str().unwrap().contains(says),
+            "{csv} {json}"
+        );
+        let (_, json) = send(desk, SETTINGS, get("/api/admin/v1/redirects/")).await;
+        assert_eq!(json["redirects"].as_array().unwrap().len(), 1, "{csv}");
+    }
+}

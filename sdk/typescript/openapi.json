@@ -617,6 +617,152 @@
         ]
       }
     },
+    "/api/admin/v1/redirects/export/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Every stored redirect as a CSV list, oldest first, to\nopen in a spreadsheet or import elsewhere. Needs `settings:write`.",
+        "operationId": "export_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The list, header first",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/import/": {
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Stores every redirect in a CSV list, or none. The list is checked row\nby row, then together with every stored redirect, so it can neither\ntake a used address nor close a loop. Needs `settings:write`.",
+        "operationId": "import_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "A header from,to,status,match (match may be left out), then one redirect a row",
+          "content": {
+            "text/csv": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "from,to,status,match\n/blog/old-links/,/blog/why-internal-links-matter/,301,exact\n"
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Every redirect in the list, stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An address in the list already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A row cannot be read or followed, or the list would close a loop",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/redirects/{id}/": {
       "delete": {
         "tags": [
