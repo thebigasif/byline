@@ -1,5 +1,5 @@
 //! `khalid build` with a post's own settings: the theme template it asks
-//! for (KH-EDT-3).
+//! for and its head code (KH-EDT-3).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -70,6 +70,33 @@ fn a_post_without_a_template_keeps_the_default() {
     let site = site("", &[("post-wide.html", WIDE)]);
     assert_eq!(khalid(site.path()).status.code(), Some(0));
     assert!(!post_page(site.path()).contains("class=\"wide\""));
+}
+
+#[test]
+fn head_code_goes_after_the_seo_head_of_its_post_alone() {
+    let code = "head_code: \"<meta name=verify content=abc>\\n<script>go()</script>\"\n";
+    let site = site(code, &[]);
+    let output = khalid(site.path());
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let page = post_page(site.path());
+    let head = page.split("</head>").next().unwrap();
+    let written = "<meta name=\"verify\" content=\"abc\">\n<script>go()</script>";
+    assert!(
+        head.contains(written),
+        "a static page gets no nonce: {head}"
+    );
+    assert!(
+        head.find("application/ld+json") < head.find(written),
+        "{head}"
+    );
+    assert!(!page.contains("khalid-nonce-slot"), "{page}");
+    let home = fs::read_to_string(at(site.path(), "public/index.html")).unwrap();
+    assert!(!home.contains("verify"), "{home}");
 }
 
 #[test]

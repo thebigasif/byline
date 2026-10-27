@@ -18,6 +18,7 @@ use serde::Serialize;
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::post_files::Assets;
+use crate::site_page::HeadNonce;
 use crate::{
     assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
     content_message, lint, lint_message, post_files, post_images, report, search_page,
@@ -112,7 +113,7 @@ fn build(
         write_asset(out, css)?;
         for language in &languages {
             for page in &language.pages {
-                let html = page.rendered(renderer, &language.site)?;
+                let html = page.rendered(renderer, &language.site, HeadNonce::Static)?;
                 let html =
                     static_mode::lock(locks.as_ref(), html, &language.site.locale, &page.file)?;
                 write(out, &page.file, &html)?;

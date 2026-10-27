@@ -13,16 +13,18 @@ const NONCE_BYTES: usize = 16;
 /// a directive allows it.
 const HEAD: &str = "default-src 'none'; script-src ";
 
-/// The policy after the script sources, up to the frame sources.
+/// The policy after the script, style and connection sources, up to the
+/// frame sources. Styles and connections come from the site itself, except
+/// on a page with head code.
 ///
-/// Styles, fonts and media come from the site itself. Images may also come
+/// Fonts and media come from the site itself. Images may also come
 /// from any `https` address or a `data:` address, because writers and
 /// bookmark cards show pictures hosted elsewhere, and an image cannot run
 /// code. Forms post only to the site, the page may be framed only by the
 /// site, and `base-uri 'none'` stops an injected `base` tag from moving
 /// every relative link.
-const REST: &str = "; style-src 'self'; img-src 'self' https: data:; font-src 'self'; \
-     media-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; \
+const REST: &str = "; img-src 'self' https: data:; font-src 'self'; \
+     media-src 'self'; manifest-src 'self'; object-src 'none'; \
      base-uri 'none'; form-action 'self'; frame-ancestors 'self'; frame-src ";
 
 /// Room for the script sources with their nonce.
@@ -99,26 +101,73 @@ impl SecurityHeaders {
         }
     }
 
+    /// Sets every security header on `headers` for a page whose head code
+    /// was given `nonce`: its scripts and styles may run under that nonce,
+    /// and scripts may send data to any `https` address, as analytics
+    /// tags do (ADR "head code gets the nonce on each request").
+    pub(crate) fn apply_with_head_code(&self, headers: &mut HeaderMap, nonce: &str) {
+        for (name, value) in &FIXED {
+            headers.insert(name.clone(), value.clone());
+        }
+        if let Some(policy) = self.policy_with(Some(nonce), Sources::HeadCode) {
+            headers.insert(header::CONTENT_SECURITY_POLICY, policy);
+        }
+    }
+
     /// The policy with a nonce no other response has had. If the system
     /// cannot give random bytes, the script sources become `'none'`, which
     /// is stricter, never looser.
     fn policy(&self) -> Option<HeaderValue> {
-        let length = HEAD.len() + SCRIPT_SOURCES + REST.len() + self.frames.len();
+        self.policy_with(fresh_nonce().as_deref(), Sources::Site)
+    }
+
+    /// The policy with `nonce`, or with no script at all when there is none.
+    fn policy_with(&self, nonce: Option<&str>, sources: Sources) -> Option<HeaderValue> {
+        let length = HEAD.len() + SCRIPT_SOURCES * 2 + REST.len() + self.frames.len();
         let mut policy = String::with_capacity(length);
         policy.push_str(HEAD);
-        match nonce() {
-            Some(bytes) => {
+        match nonce {
+            Some(nonce) => {
                 policy.push_str("'nonce-");
-                let digits = bytes.iter().flat_map(|byte| [byte >> 4, byte & 0x0f]);
-                policy.extend(digits.filter_map(|digit| char::from_digit(u32::from(digit), 16)));
+                policy.push_str(nonce);
                 policy.push_str("' 'strict-dynamic'");
             }
             None => policy.push_str("'none'"),
+        }
+        match (sources, nonce) {
+            (Sources::HeadCode, Some(nonce)) => {
+                policy.push_str("; style-src 'self' 'nonce-");
+                policy.push_str(nonce);
+                policy.push_str("'; connect-src 'self' https:");
+            }
+            _ => policy.push_str("; style-src 'self'; connect-src 'self'"),
         }
         policy.push_str(REST);
         policy.push_str(&self.frames);
         HeaderValue::try_from(policy).ok()
     }
+}
+
+/// Which pages a policy is for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Sources {
+    /// Any page: no inline style, connections to the site only.
+    Site,
+    /// A page with a post's head code, whose styles carry the nonce too and
+    /// whose scripts may report to analytics services.
+    HeadCode,
+}
+
+/// A nonce no other response has had, as 32 hex digits, or `None` when the
+/// system cannot give random bytes.
+pub(crate) fn fresh_nonce() -> Option<String> {
+    let bytes = nonce()?;
+    let digits = bytes.iter().flat_map(|byte| [byte >> 4, byte & 0x0f]);
+    Some(
+        digits
+            .filter_map(|digit| char::from_digit(u32::from(digit), 16))
+            .collect(),
+    )
 }
 
 impl Default for SecurityHeaders {

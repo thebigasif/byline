@@ -86,6 +86,7 @@ fn language_pages(
         seo: missing_seo,
         source: None,
         template: None,
+        head_code: None,
     });
     Ok(LanguagePages {
         site: render_site(config, locale, stylesheet),
@@ -293,6 +294,7 @@ fn post_page(
     let body = PageBody::Post(Box::new(post));
     let mut page = page(locale, config, &rest, meta, body, seo).made_from(&doc.path);
     page.template.clone_from(&front.template);
+    page.head_code = front.head_code.clone().filter(|code| !code.is_empty());
     Ok(page)
 }
 
@@ -531,6 +533,7 @@ fn page(
         seo,
         source: None,
         template: None,
+        head_code: None,
     }
 }
 

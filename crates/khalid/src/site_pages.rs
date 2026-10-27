@@ -24,6 +24,7 @@ use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
+use crate::site_page::HeadNonce;
 use crate::{
     assets, build_home, build_message, build_pages, build_seo, content_message, post_files,
     search_page, serve_message, site_files,
@@ -503,7 +504,7 @@ fn html_pages(
             if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
                 continue;
             }
-            let html = page.rendered(&theme.renderer, &language.site)?;
+            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
             if matches!(page.body, PageBody::NotFound) {
                 if &language.site.locale == config.default_language() {
                     not_found = html;
@@ -512,7 +513,10 @@ fn html_pages(
             }
             let path = PagePath::try_new(&page.meta.path)
                 .map_err(|_| build_message::address(&page.meta.path))?;
-            pages.push(Page::new(path, MediaType::Html, html));
+            pages.push(match page.head_code {
+                Some(_) => Page::with_nonce_slot(path, MediaType::Html, html),
+                None => Page::new(path, MediaType::Html, html),
+            });
         }
     }
     Ok(not_found)

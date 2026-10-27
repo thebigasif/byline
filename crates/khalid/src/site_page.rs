@@ -2,9 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use khalid_core::{TemplateName, UserMessage};
-use khalid_render::{PageBody, PageMeta, RenderSite, Renderer};
+use khalid_core::{HeadCode, TemplateName, UserMessage};
+use khalid_render::{HeadHtml, PageBody, PageMeta, RenderSite, Renderer};
 use khalid_seo::SeoPage;
+use khalid_server::NONCE_SLOT;
 
 use crate::build_message;
 
@@ -23,6 +24,18 @@ pub(crate) struct Page {
     /// The theme's post template the page asks for, such as `wide`, in
     /// place of its type's own.
     pub(crate) template: Option<TemplateName>,
+    /// The post's own head code, added after the SEO head. `None` when it
+    /// has none, or only comments.
+    pub(crate) head_code: Option<HeadCode>,
+}
+
+/// Where a page's head code gets its nonce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HeadNonce {
+    /// From the server on each request, through [`NONCE_SLOT`].
+    PerRequest,
+    /// Nowhere: a static host sends its own policy, or none.
+    Static,
 }
 
 impl Page {
@@ -35,7 +48,7 @@ impl Page {
     }
 
     /// The page as HTML, drawn by `renderer` for `site` with the template
-    /// it asks for.
+    /// it asks for, and its head code after the SEO head, with `nonce`.
     ///
     /// # Errors
     ///
@@ -45,6 +58,29 @@ impl Page {
         &self,
         renderer: &Renderer,
         site: &RenderSite,
+        nonce: HeadNonce,
+    ) -> Result<String, UserMessage> {
+        let Some(code) = &self.head_code else {
+            return self.drawn(renderer, site, &self.meta);
+        };
+        let code = match nonce {
+            HeadNonce::PerRequest => code.to_html(NONCE_SLOT),
+            HeadNonce::Static => code.to_string(),
+        };
+        let mut meta = self.meta.clone();
+        let seo = meta.seo_head.as_ref().map_or("", HeadHtml::as_str);
+        // The head code was checked by HeadCode, which writes every
+        // attribute quoted and keeps only head elements.
+        meta.seo_head = Some(HeadHtml::from_trusted(format!("{seo}\n{code}")));
+        self.drawn(renderer, site, &meta)
+    }
+
+    /// The page as HTML with the head `meta`.
+    fn drawn(
+        &self,
+        renderer: &Renderer,
+        site: &RenderSite,
+        meta: &PageMeta,
     ) -> Result<String, UserMessage> {
         let html = match &self.template {
             Some(name) if !renderer.has_template(name) => {
@@ -54,8 +90,8 @@ impl Page {
                     .unwrap_or_else(|| Path::new(&self.file));
                 return Err(build_message::no_template(source, name));
             }
-            Some(name) => renderer.render_as(name, site, &self.meta, &self.body),
-            None => renderer.render(site, &self.meta, &self.body),
+            Some(name) => renderer.render_as(name, site, meta, &self.body),
+            None => renderer.render(site, meta, &self.body),
         };
         html.map_err(|error| build_message::render(&error))
     }
