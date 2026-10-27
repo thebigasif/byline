@@ -18,4 +18,4 @@ mod write;
 
 pub use redirects::{MapTarget, Matching, MoveStatus};
 pub use slug::SlugOrigin;
-pub use write::{PlannedFile, WriteError};
+pub use write::{Place, PlannedFile, WriteError};

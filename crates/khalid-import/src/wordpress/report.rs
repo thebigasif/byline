@@ -3,8 +3,8 @@
 
 use std::fmt;
 
-use crate::wordpress::{LeftReason, Place, Plan, SkipReason};
-use crate::{MapTarget, SlugOrigin};
+use crate::wordpress::{LeftReason, Plan, SkipReason};
+use crate::{MapTarget, Place, SlugOrigin};
 
 /// What a plan would do, counted, with the plan's lists for the details.
 #[derive(Debug)]

@@ -20,8 +20,7 @@ mod wxr_error;
 pub use export::{Author, Export, Site, Term};
 pub use item::{Item, ItemKind, ItemStatus, Meta};
 pub use plan::{
-    FailedItem, Held, ImportedItem, ItemError, LeftItem, LeftReason, Place, Plan, REDIRECTS_CSV,
-    plan,
+    FailedItem, Held, ImportedItem, ItemError, LeftItem, LeftReason, Plan, REDIRECTS_CSV, plan,
 };
 pub use redirect_map::{MapEntry, MapSource};
 pub use redirection::{

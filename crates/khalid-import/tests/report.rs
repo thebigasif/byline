@@ -4,7 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use khalid_core::{Config, Environment};
-use khalid_import::wordpress::{LeftReason, Place, Plan, plan, read_redirection, read_wxr};
+use khalid_import::Place;
+use khalid_import::wordpress::{LeftReason, Plan, plan, read_redirection, read_wxr};
 use khalid_routes::Routes;
 
 #[cfg(test)]

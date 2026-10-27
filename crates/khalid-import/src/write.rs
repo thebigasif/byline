@@ -17,6 +17,18 @@ pub struct PlannedFile {
     pub text: String,
 }
 
+/// Where an imported item's file goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Place {
+    /// A published post, under `content/<lang>/posts/`.
+    Post,
+    /// A post not yet published, under `drafts/<lang>/` (ADR 0030).
+    Draft,
+    /// A page, under `content/<lang>/pages/`.
+    Page,
+}
+
 /// Why a plan could not be written.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

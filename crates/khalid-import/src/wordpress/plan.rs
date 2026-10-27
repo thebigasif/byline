@@ -14,7 +14,7 @@ use crate::wordpress::{
     Export, Item, ItemKind, ItemStatus, MapEntry, Redirection, SkippedRule, UnreadField,
 };
 use crate::write::write_files;
-use crate::{PlannedFile, SlugOrigin, WriteError};
+use crate::{Place, PlannedFile, SlugOrigin, WriteError};
 use khalid_routes::{AddressError, Routes};
 
 /// Everything an import of one export would write.
@@ -37,18 +37,6 @@ pub struct Plan {
     pub authors: usize,
     /// How many categories `categories.toml` lists.
     pub categories: usize,
-}
-
-/// Where an item's file goes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Place {
-    /// A published post, under `content/<lang>/posts/`.
-    Post,
-    /// A post not yet published, under `drafts/<lang>/` (ADR 0030).
-    Draft,
-    /// A page, under `content/<lang>/pages/`.
-    Page,
 }
 
 /// An item that stays behind.
