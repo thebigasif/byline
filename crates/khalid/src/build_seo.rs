@@ -3,13 +3,13 @@
 //! its JSON-LD graph (ADR "the SEO head reaches templates as trusted HTML").
 
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
-use khalid_content::PostFront;
+use khalid_content::{PostFront, Sitemap};
 use khalid_core::{Config, Locale, UserMessage};
 use khalid_lint::StructuredDataGap;
 use khalid_render::HeadHtml;
 use khalid_seo::{
-    IndexPolicy, IssueLevel, PageKind, SeoError, SeoPage, SeoSite, TranslationKey, UrlPath,
-    check_graph, head_tags, link_translations, page_graph,
+    IndexPolicy, IssueLevel, MetaTemplate, PageKind, SeoError, SeoPage, SeoSite, SitemapListing,
+    TranslationKey, UrlPath, check_graph, head_tags, link_translations, page_graph,
 };
 
 use crate::build_pages::LanguagePages;
@@ -60,9 +60,7 @@ pub(crate) fn post(
     let mut seo = page(PageKind::Post, locale, rest, title)?;
     seo.excerpt = front.description.clone().unwrap_or_default();
     seo.published = Some(midnight(date));
-    seo.translation = translation(front.translation.as_deref())?;
-    seo.robots.clone_from(&front.robots);
-    seo.canonical.clone_from(&front.canonical);
+    from_front(&mut seo, front)?;
     Ok(seo)
 }
 
@@ -78,6 +76,46 @@ pub(crate) fn structured_data_gaps(site: &SeoSite, page: &SeoPage) -> Vec<Struct
         .filter(|issue| issue.level() == IssueLevel::Blocks)
         .map(|issue| StructuredDataGap::new(issue.kind(), issue.property()))
         .collect()
+}
+
+/// `html` with each `href` and `src` that starts at the site root, such as
+/// `/blog/about/`, made a full address on the site's host, for feed readers,
+/// which have no page to read such a path against. A body escapes `"` in its
+/// text, so `="/` can only end an attribute name.
+pub(crate) fn full_addresses(config: &Config, html: &str) -> String {
+    let origin = config.address().as_str().trim_end_matches('/');
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some((before, after)) = rest.split_once("=\"/") {
+        out.push_str(before);
+        out.push_str("=\"");
+        let named = before.ends_with(" href") || before.ends_with(" src");
+        if named && !after.starts_with('/') {
+            out.push_str(origin);
+        }
+        out.push('/');
+        rest = after;
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Copies what a post's `front` matter says about search into `seo`: its
+/// translation key, robots, canonical, search title and sitemap listing.
+/// The search title may use the meta template variables, such as `{site}`.
+pub(crate) fn from_front(seo: &mut SeoPage, front: &PostFront) -> Result<(), UserMessage> {
+    seo.translation = translation(front.translation.as_deref())?;
+    seo.robots.clone_from(&front.robots);
+    seo.canonical.clone_from(&front.canonical);
+    let title = front.seo_title.as_deref().map(MetaTemplate::parse);
+    seo.seo_title = title
+        .transpose()
+        .map_err(|error| build_message::seo(&error))?;
+    seo.sitemap = match front.sitemap {
+        Sitemap::Unlisted => SitemapListing::Excluded,
+        _ => SitemapListing::Listed,
+    };
+    Ok(())
 }
 
 /// The `translation` key from front matter, which pairs language versions.
@@ -126,6 +164,7 @@ fn head(site: &SeoSite, page: &SeoPage) -> Result<HeadHtml, SeoError> {
 mod tests {
     use std::path::Path;
 
+    use khalid_content::parse_post;
     use khalid_core::Environment;
     use khalid_seo::CustomSchema;
 
@@ -166,5 +205,20 @@ mod tests {
             structured_data_gaps(&site, &page),
             [StructuredDataGap::new("Event", "startDate")]
         );
+    }
+
+    #[test]
+    fn a_posts_search_title_and_sitemap_choice_reach_its_seo_page() {
+        let text = "---\nseo_title: \"Slow pages, fixed {sep} {site}\"\nsitemap: false\n---\n";
+        let front = parse_post(Path::new("a.md"), text).unwrap().front;
+        let locale = Locale::try_new("en").unwrap();
+        let mut seo = page(PageKind::Post, &locale, "slow/", "Slow pages").unwrap();
+        from_front(&mut seo, &front).unwrap();
+        let title = seo.seo_title.as_ref().map(MetaTemplate::as_str);
+        assert_eq!(title, Some("Slow pages, fixed {sep} {site}"));
+        assert_eq!(seo.sitemap, SitemapListing::Excluded);
+        let plain = parse_post(Path::new("a.md"), "---\n---\n").unwrap().front;
+        from_front(&mut seo, &plain).unwrap();
+        assert_eq!((seo.seo_title, seo.sitemap), (None, SitemapListing::Listed));
     }
 }

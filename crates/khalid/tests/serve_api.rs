@@ -440,24 +440,23 @@ fn a_post_created_and_published_through_the_admin_api_is_served() {
     assert_eq!(listed["meta"]["pagination"]["total"], 1, "{listed}");
 
     let path = "/api/admin/v1/posts/en.choosing-anchor-text/";
-    let co_authors = serde_json::json!({"posts": [{
-        "settings": {"co_authors": ["mira"]},
-        "updated_at": draft["updated_at"],
-    }]});
-    let (status, body) = request(&server, "PUT", path, &auth, Some(&co_authors));
-    assert_eq!(status, 422, "post files cannot hold co-authors yet: {body}");
-    assert!(body.contains("\"rule\":\"co_authors\""), "{body}");
-
     let excerpt = "Pick the words a reader clicks with care.";
     let publish = serde_json::json!({"posts": [{
         "status": "published",
-        "settings": {"excerpt": excerpt, "featured": true},
+        "settings": {
+            "excerpt": excerpt,
+            "featured": true,
+            "co_authors": ["lena-vogt"],
+            "review_state": "ready",
+        },
         "updated_at": draft["updated_at"],
     }]});
     let (status, body) = request(&server, "PUT", path, &auth, Some(&publish));
     assert_eq!(status, 200, "{body}");
     assert!(body.contains("\"status\":\"published\""), "{body}");
     assert!(body.contains("\"featured\":true"), "{body}");
+    assert!(body.contains("\"co_authors\":[\"lena-vogt\"]"), "{body}");
+    assert!(body.contains("\"review_state\":\"ready\""), "{body}");
 
     let page_shown = (0..TRIES).any(|_| {
         thread::sleep(PAUSE);

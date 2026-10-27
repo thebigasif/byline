@@ -68,6 +68,7 @@ pub(crate) fn add(
             source: None,
             template: None,
             head_code: None,
+            lead: None,
         });
     }
     link(config, languages);

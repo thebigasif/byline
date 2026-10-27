@@ -346,21 +346,27 @@ async fn settings_go_into_the_front_matter_and_read_back() {
 }
 
 #[tokio::test]
-async fn a_setting_the_files_cannot_hold_is_refused_and_nothing_changes() {
+async fn co_authors_image_review_and_share_cards_go_into_the_front_matter() {
     let (site, posts) = demo();
     let draft = within(site.path(), "drafts/en/choosing-anchor-text.md");
-    for settings in [
-        json!({"co_authors": ["mira"], "featured": true}),
-        json!({"review_state": "ready"}),
-        json!({"feature_image": {"src": "/media/a.jpg", "alt": "A link"}}),
-        json!({"share_cards": {"x": {"title": "Anchor text"}}}),
+    for (settings, line) in [
+        (json!({"co_authors": ["mira"]}), "co_authors: [mira]\n"),
+        (json!({"review_state": "ready"}), "review_state: ready\n"),
+        (
+            json!({"feature_image": {"src": "/media/a.jpg", "alt": "A link"}}),
+            "image: {src: \"/media/a.jpg\", alt: \"A link\"}\n",
+        ),
+        (
+            json!({"share_cards": {"x": {"title": "Anchor text"}}}),
+            "share_cards: {x: {title: \"Anchor text\"}}\n",
+        ),
     ] {
-        let refused = edited_draft(&posts, json!({"settings": settings})).await;
-        assert!(
-            matches!(refused, Err(UpdatePostError::Unsupported { .. })),
-            "{refused:?}"
-        );
-        assert!(!fs::read_to_string(&draft).unwrap().contains("featured"));
+        let saved = edited_draft(&posts, json!({"settings": settings})).await;
+        let saved = saved.unwrap();
+        let text = fs::read_to_string(&draft).unwrap();
+        assert!(text.contains(line), "{line} in {text}");
+        let read = posts.get(saved.id()).await.unwrap().unwrap();
+        assert_eq!(read.settings(), saved.settings());
         fs::remove_file(&draft).unwrap();
     }
 }

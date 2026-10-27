@@ -132,3 +132,21 @@ fn an_author_profile_must_be_a_web_address() {
     );
     assert!(error.contains("not a full URL"), "{error}");
 }
+
+#[test]
+fn an_author_has_a_photo_and_refuses_a_blank_one() {
+    let dir = site_with(
+        "content/en/authors/asif.md",
+        "---\nname: Asif\nphoto: asif.jpg\n---\n",
+    );
+    let content = read_content(&ContentTree::walk(dir.path()).unwrap()).unwrap();
+    assert_eq!(content.authors[0].front.photo.as_deref(), Some("asif.jpg"));
+    let blank = site_with("content/en/authors/asif.md", "---\nphoto: \" \"\n---\n");
+    let error = read_content(&ContentTree::walk(blank.path()).unwrap())
+        .unwrap_err()
+        .to_string();
+    assert_eq!(
+        error,
+        "content/en/authors/asif.md, line 2, field \"photo\": the photo needs a file name, such as asif.jpg; remove the field if the author has none"
+    );
+}

@@ -1,6 +1,5 @@
 ---
 source: crates/khalid/tests/build_files.rs
-assertion_line: 105
 expression: "read(&built(), \"feed.xml\")"
 ---
 <?xml version="1.0" encoding="UTF-8"?>
@@ -58,6 +57,16 @@ expression: "read(&built(), \"feed.xml\")"
 &lt;li&gt;&lt;strong&gt;Layout that jumps.&lt;/strong&gt; Give every image a width and height, so the text does not move while the page loads.&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;Fix the first cause on your slowest page, measure again, and move on. Faster pages also get crawled more often, which helps &lt;a href=&quot;https://www.example.com/blog/what-a-sitemap-does/&quot;&gt;your sitemap&lt;/a&gt; do its job.&lt;/p&gt;
+&lt;section class=&quot;faq&quot;&gt;
+&lt;details&gt;
+&lt;summary&gt;How fast should a page load?&lt;/summary&gt;
+&lt;p&gt;Aim for the main content to show within 2.5 seconds on a phone.&lt;/p&gt;
+&lt;/details&gt;
+&lt;details&gt;
+&lt;summary&gt;Which page should I fix first?&lt;/summary&gt;
+&lt;p&gt;The slowest page that brings in the most readers.&lt;/p&gt;
+&lt;/details&gt;
+&lt;/section&gt;
 </content:encoded>
     </item>
     <item>

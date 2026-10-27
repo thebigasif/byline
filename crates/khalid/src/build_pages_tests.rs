@@ -45,7 +45,7 @@ fn only_addresses_from_the_site_root_become_full() {
                 <a href=\"//cdn.example.org/c\">c</a><a href=\"https://x.org/\">x</a>\
                 <a title=\"/t\" href=\"#d\">d</a><code>href=&quot;/e&quot;</code>";
     assert_eq!(
-        super::full_addresses(&config, html),
+        crate::build_seo::full_addresses(&config, html),
         "<a href=\"https://www.example.com/blog/a/\">a</a>\
          <img src=\"https://www.example.com/blog/b.png\" alt=\"\">\
          <a href=\"//cdn.example.org/c\">c</a><a href=\"https://x.org/\">x</a>\

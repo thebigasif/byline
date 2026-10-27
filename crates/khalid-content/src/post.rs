@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
 use crate::front_matter::{Fence, split};
-use crate::post_fields::{self, LeadImage, Sitemap};
+use crate::post_fields::{self, LeadImage, ReviewState, ShareCards, Sitemap};
 use crate::{ContentError, parse_blocks};
 
 /// What a post's front matter may say.
@@ -91,6 +91,19 @@ pub struct PostFront {
     pub password_hash: Option<PasswordHash>,
     /// Checked HTML for this post's page head, such as an analytics tag.
     pub head_code: Option<HeadCode>,
+    /// The other authors' slugs, shown after the author in the byline.
+    #[serde(default, deserialize_with = "slugs")]
+    pub co_authors: Vec<Slug>,
+    /// Where the post stands in review.
+    #[serde(default)]
+    pub review_state: ReviewState,
+    /// How the post looks when shared on X and Facebook.
+    #[serde(default)]
+    pub share_cards: ShareCards,
+    /// Hand-written JSON-LD for a type no block writes, such as an `Event`
+    /// or a `Course`, added to the page's structured data.
+    #[serde(default, deserialize_with = "post_fields::schema")]
+    pub schema: Option<String>,
 }
 
 /// The most related posts a post shows, and so the most it may pin.

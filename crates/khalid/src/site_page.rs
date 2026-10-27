@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+use khalid_content::LeadImage;
 use khalid_core::{HeadCode, TemplateName, UserMessage};
 use khalid_render::{HeadHtml, PageBody, PageMeta, RenderSite, Renderer};
 use khalid_seo::SeoPage;
@@ -27,6 +28,9 @@ pub(crate) struct Page {
     /// The post's own head code, added after the SEO head. `None` when it
     /// has none, or only comments.
     pub(crate) head_code: Option<HeadCode>,
+    /// The post's lead image as written, which `post_images` draws once
+    /// it has made its sizes. `None` on every other page.
+    pub(crate) lead: Option<LeadImage>,
 }
 
 /// Where a page's head code gets its nonce.
