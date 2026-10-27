@@ -2021,6 +2021,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "toml",
+ "tower",
  "tracing",
  "wiremock",
 ]
@@ -2044,6 +2045,7 @@ dependencies = [
  "axum",
  "chrono",
  "getrandom 0.4.3",
+ "hmac",
  "htmd",
  "khalid-api",
  "khalid-core",

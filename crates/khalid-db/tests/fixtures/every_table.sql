@@ -65,6 +65,9 @@ INSERT INTO webhook_attempts (site_id, delivery_id, number, at, status, reason) 
 INSERT INTO post_schedules (site_id, post_id, publish_at, unpublish_at) VALUES
     (1, 'en.choosing-anchor-text', '2026-11-03T08:00:00Z', NULL),
     (2, 'en.choosing-anchor-text', NULL, '2026-12-01T00:00:00Z');
+INSERT INTO site_keys (site_id, purpose, secret, created_at) VALUES
+    (1, 'preview', randomblob(32), '2026-10-27T09:00:00Z'),
+    (2, 'preview', randomblob(32), '2026-10-27T09:00:00Z');
 INSERT INTO form_submissions (site_id, form, fields, status, created_at) VALUES
     (1, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z'),
     (2, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z');

@@ -27,6 +27,7 @@ mod schedule_table;
 mod search_find;
 mod search_index;
 mod site_id;
+mod site_keys;
 mod site_lists;
 mod subscriber_table;
 mod webhook_table;

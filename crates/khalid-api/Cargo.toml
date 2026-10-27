@@ -18,6 +18,7 @@ argon2 = "0.6"
 axum = { version = "0.8", default-features = false, features = ["json", "original-uri", "query"] }
 chrono = { version = "0.4", default-features = false, features = ["alloc", "serde"] }
 getrandom = "0.4"
+hmac = "0.13"
 htmd = "0.5"
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-lint = { path = "../khalid-lint", version = "0.0.0" }

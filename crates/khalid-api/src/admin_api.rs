@@ -20,6 +20,7 @@ use crate::api_version::negotiate_version;
 use crate::html_source::markdown_from_html;
 use crate::keys::{KeyStore, Principal, Scope};
 use crate::post_store::{CreatePostError, UpdatePostError};
+use crate::preview_link::PreviewLink;
 use crate::problem::{Problem, ProblemType};
 use crate::publish_door::{PublishDoor, ScheduleError};
 use crate::resources::{AdminPost, NewPost, PostDraft, PostEdit};
@@ -37,6 +38,7 @@ pub(crate) fn routes(posts: Posts, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(create_admin_post))
         .routes(routes!(read_admin_post, edit_admin_post))
+        .routes(routes!(make_preview_link))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(posts)
@@ -135,6 +137,55 @@ fn refused(report: Report) -> Problem {
         "Fix each finding marked block, then publish again.",
     );
     Problem::new(ProblemType::LintBlocked, &message).with_lint(report)
+}
+
+/// Preview links, wrapped the way the Admin API wraps resources.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct PreviewLinks {
+    /// The one new link.
+    preview_links: Vec<PreviewLink>,
+}
+
+/// Makes a link that shows the post, draft or not, in the site's design
+/// to anyone who has it, until it expires: 7 days unless `site.toml` says
+/// otherwise. The page behind it tells search engines not to list it.
+/// Needs `posts:write`.
+#[utoipa::path(
+    post, path = "/posts/{id}/preview-link/", tag = "admin posts",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The post's identity")),
+    responses(
+        (status = 201, description = "The new link and when it expires", body = PreviewLinks),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "This site makes no preview links", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn make_preview_link(
+    State(posts): State<Posts>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<(StatusCode, Json<PreviewLinks>), Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let Some(signer) = posts.previews() else {
+        let message = UserMessage::new(
+            "This site makes no preview links.",
+            "A preview link needs the site's server, which signs each link.",
+            "Ask for the link from the running khalid serve.",
+        );
+        return Err(Problem::new(ProblemType::InvalidBody, &message));
+    };
+    let found = posts.get(&id).await;
+    found
+        .map_err(|error| Problem::internal(&error))?
+        .ok_or_else(|| missing(uri.path()))?;
+    let link = signer.link(&id).ok_or_else(|| missing(uri.path()))?;
+    let links = PreviewLinks {
+        preview_links: vec![link],
+    };
+    Ok((StatusCode::CREATED, Json(links)))
 }
 
 /// The 422 for an edit whose schedule cannot be kept.

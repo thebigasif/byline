@@ -18,6 +18,7 @@ mod html_source;
 pub mod keys;
 pub mod pagination;
 pub mod post_store;
+pub mod preview_link;
 pub mod problem;
 pub mod publish_door;
 pub mod query;

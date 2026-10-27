@@ -41,7 +41,10 @@ pub(crate) trait Listable: FieldValues + Clone {
 
 /// Writes a value through its `Display`, for the core newtypes such as
 /// `Slug`, which read themselves from text but leave writing to the edge.
-fn display<T: Display, S: Serializer>(value: &T, serializer: S) -> Result<S::Ok, S::Error> {
+pub(crate) fn display<T: Display, S: Serializer>(
+    value: &T,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
     serializer.collect_str(value)
 }
 
