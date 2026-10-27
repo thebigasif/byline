@@ -102,16 +102,6 @@ pub enum Confirmed {
     Unknown,
 }
 
-/// What an unsubscribe link did.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Unsubscribed {
-    /// The subscriber gets no more email, now or since an earlier click.
-    Done,
-    /// No email was ever sent with this token.
-    Unknown,
-}
-
 /// One site's subscribers. Every time comes from the caller's clock, and
 /// every token is a hash (RULES.md BL-RUN-1, BL-SEC-3).
 pub trait SubscriberStore: fmt::Debug + Send + Sync {
@@ -134,33 +124,6 @@ pub trait SubscriberStore: fmt::Debug + Send + Sync {
         token: &'a TokenHash,
         at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<Confirmed, StoreError>>;
-
-    /// Stores `token` as one more working unsubscribe link of `subscriber`,
-    /// for an email about to be sent. It never expires.
-    ///
-    /// # Errors
-    ///
-    /// [`StoreError`] when the store cannot be written, or `subscriber` is
-    /// gone.
-    fn add_unsubscribe<'a>(
-        &'a self,
-        subscriber: SubscriberId,
-        token: &'a TokenHash,
-        at: DateTime<Utc>,
-    ) -> BoxFuture<'a, Result<(), StoreError>>;
-
-    /// Unsubscribes the subscriber whose unsubscribe token hashes to
-    /// `token` from every newsletter, `at` that time. Clicking again
-    /// changes nothing.
-    ///
-    /// # Errors
-    ///
-    /// [`StoreError`] when the store cannot be read or written.
-    fn unsubscribe<'a>(
-        &'a self,
-        token: &'a TokenHash,
-        at: DateTime<Utc>,
-    ) -> BoxFuture<'a, Result<Unsubscribed, StoreError>>;
 }
 
 /// The store could not be read or written. It keeps the store's own error
