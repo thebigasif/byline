@@ -222,6 +222,29 @@ async fn a_reader_comment_fires_comment_added_without_their_email() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_webhook_added_with_the_command_fires_on_the_running_site() {
+    let receiver = receiver().await;
+    let (site, _) = demo_site(&receiver, Event::PostDeleted).await;
+    let server = start(site.path());
+
+    let url = format!(
+        "http://hooks.test:{}/comment.added",
+        receiver.address().port()
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.path().to_str().unwrap(), "webhooks", "add"])
+        .args(["--event", "comment.added", "--url", &url, "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let added: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let secret = Secret::new(added["secret"].as_str().unwrap().to_owned());
+    assert_eq!(leave_comment(&server).await, 303);
+    let body = the_delivery(&receiver, Event::CommentAdded, &secret).await;
+    assert_eq!(body["comment"]["text"], "Very clear, thanks.", "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_webhook_added_through_the_api_fires_on_the_running_site() {
     let receiver = receiver().await;
     let (site, _) = demo_site(&receiver, Event::PostDeleted).await;

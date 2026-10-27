@@ -8,6 +8,7 @@ use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 use khalid_api::keys::{KeyId, Role, Scope};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
+use khalid_webhooks::Event;
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -162,6 +163,35 @@ pub(crate) enum Command {
         /// What to do with the redirects
         #[command(subcommand)]
         command: RedirectsCommand,
+    },
+    /// Add, list and switch off the webhooks that tell other tools what happened
+    Webhooks {
+        /// What to do with the webhooks
+        #[command(subcommand)]
+        command: WebhooksCommand,
+    },
+}
+
+/// The webhook commands. Webhooks live in `data/site.db`; a running
+/// `khalid serve` sees a change at once.
+#[derive(Debug, Clone, Subcommand)]
+pub(crate) enum WebhooksCommand {
+    /// Send one event to one address, signed with a new secret shown once
+    Add {
+        /// The event to send, such as post.published or comment.added
+        #[arg(long, value_name = "EVENT", value_parser = |text: &str| text.parse::<Event>())]
+        event: Event,
+        /// Where to send it: a full http or https address
+        #[arg(long, value_name = "URL")]
+        url: String,
+    },
+    /// Show every webhook that is on, without its secret
+    List,
+    /// Switch a webhook off. Its past deliveries stay in the log
+    Remove {
+        /// The webhook's identity, as list shows it
+        #[arg(value_name = "ID")]
+        id: i64,
     },
 }
 
@@ -443,6 +473,15 @@ impl Command {
             Self::Redirects {
                 command: RedirectsCommand::Explain { .. },
             } => "redirects explain",
+            Self::Webhooks {
+                command: WebhooksCommand::Add { .. },
+            } => "webhooks add",
+            Self::Webhooks {
+                command: WebhooksCommand::List,
+            } => "webhooks list",
+            Self::Webhooks {
+                command: WebhooksCommand::Remove { .. },
+            } => "webhooks remove",
         }
     }
 }
