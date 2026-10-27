@@ -11,4 +11,9 @@
     expect(dead_code, reason = "the post files of task 6.1 part 4b use it")
 )]
 mod front_matter;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "the post files of task 6.1 part 4c use it")
+)]
+mod markdown;
 pub mod wordpress;
