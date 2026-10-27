@@ -50,7 +50,7 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     assert!(
-        text(&output.stdout).contains("22 pages"),
+        text(&output.stdout).contains("24 pages"),
         "{}",
         text(&output.stdout)
     );
@@ -274,7 +274,7 @@ fn init_then_new_then_build_writes_the_post_to_public() {
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(json["out"], path(&public));
-    assert_eq!(json["pages"], 3);
+    assert_eq!(json["pages"], 4);
     let post = page(&public, "why-links-matter/index.html");
     assert!(post.contains("Why links matter</h1>"), "{post}");
 }

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM search_pages WHERE site_id = ?1 AND path = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "0b79ed6b212218060c6ea1cbbabffbbc4d7c82f78bf0028f1d30e4078e8d3eb4"
+}

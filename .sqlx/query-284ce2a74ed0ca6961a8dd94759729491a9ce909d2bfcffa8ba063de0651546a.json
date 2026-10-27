@@ -1,0 +1,98 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.id, p.title_words, p.heading_words, p.body_words, t.in_title, t.in_headings, t.in_body FROM search_terms t JOIN search_pages p ON p.id = t.page_id WHERE t.site_id = ?1 AND p.locale = ?2 AND (t.term = ?3 OR (t.term >= ?4 AND t.term < ?5))",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "search_pages",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "title_words",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "search_pages",
+            "name": "title_words"
+          }
+        }
+      },
+      {
+        "name": "heading_words",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "search_pages",
+            "name": "heading_words"
+          }
+        }
+      },
+      {
+        "name": "body_words",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "search_pages",
+            "name": "body_words"
+          }
+        }
+      },
+      {
+        "name": "in_title",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "search_terms",
+            "name": "in_title"
+          }
+        }
+      },
+      {
+        "name": "in_headings",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "search_terms",
+            "name": "in_headings"
+          }
+        }
+      },
+      {
+        "name": "in_body",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "search_terms",
+            "name": "in_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "284ce2a74ed0ca6961a8dd94759729491a9ce909d2bfcffa8ba063de0651546a"
+}

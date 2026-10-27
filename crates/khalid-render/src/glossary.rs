@@ -46,12 +46,26 @@ pub struct GlossaryTerm {
 pub struct RenderSearch {
     /// The heading, shown as the page's one `h1`.
     pub title: String,
+    /// Whether the site can answer a search, or shows the lock card.
+    pub mode: SearchMode,
     /// Where the form sends the query, such as `/blog/search/`.
     pub action: String,
     /// What the reader searched for, if they did.
     pub query: Option<String>,
     /// What matched, best first. Empty with a query means nothing matched.
     pub results: Vec<SearchResult>,
+}
+
+/// Whether a search page can answer a query.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchMode {
+    /// A running server answers the form.
+    Live,
+    /// The site is plain files, which cannot look words up, so the page
+    /// shows the lock card with the command that turns search on (plan
+    /// section 7, KH-OPS-1).
+    Locked,
 }
 
 /// One page that matched a search.
@@ -61,6 +75,16 @@ pub struct SearchResult {
     pub title: String,
     /// The page's path.
     pub href: String,
-    /// The sentence that matched, or the page's description.
-    pub excerpt: String,
+    /// The text around what matched, with each matching word marked.
+    pub snippet: Vec<Highlight>,
+}
+
+/// One run of a search result's snippet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", content = "text", rename_all = "snake_case")]
+pub enum Highlight {
+    /// Text shown as it is.
+    Text(String),
+    /// A word that matched the search, shown marked.
+    Match(String),
 }

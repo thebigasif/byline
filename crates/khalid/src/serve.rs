@@ -27,7 +27,7 @@ use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{db, db_message, report, serve_message};
+use crate::{db, db_message, report, search_route, serve_message};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -116,6 +116,12 @@ fn serve_with(
     let security =
         SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))?;
     let keys = KeyTable::new(database.clone(), id, SystemClock);
+    let search = search_route::Search {
+        pages: source.clone(),
+        db: database.clone(),
+        site: id,
+        security: security.clone(),
+    };
     let served = runtime.block_on(async {
         let listener = TcpListener::bind(listen)
             .await
@@ -131,7 +137,8 @@ fn serve_with(
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         let posts = SitePosts::new(site, config.clone(), SystemClock);
         let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
-        let app = api.merge(router(live, security));
+        let searches = search_route::router(config, search);
+        let app = api.merge(searches).merge(router(live, security));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;

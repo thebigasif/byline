@@ -258,6 +258,8 @@ async fn clear(tx: &mut Transaction<'_, Sqlite>, site: SiteId) -> Result<(), DbE
         "links",
         "lint_results",
         "alias_redirects",
+        "search_terms",
+        "search_pages",
         "posts",
         "pages",
         "collection_entries",

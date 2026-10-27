@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO search_pages (site_id, locale, path, href, title, body, title_words, heading_words, body_words) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "search_pages",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "11b71c6885018d7d2c94b114b97abf104550e66f9296fe9957fbea90020a8abe"
+}

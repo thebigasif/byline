@@ -1888,6 +1888,7 @@ dependencies = [
 name = "khalid"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
  "clap",
  "image",
@@ -1902,6 +1903,7 @@ dependencies = [
  "khalid-outbound",
  "khalid-render",
  "khalid-routes",
+ "khalid-search",
  "khalid-seo",
  "khalid-server",
  "khalid-static",
@@ -1985,6 +1987,7 @@ dependencies = [
  "chrono",
  "khalid-api",
  "khalid-core",
+ "khalid-search",
  "khalid-webhooks",
  "sqlx",
  "tempfile",

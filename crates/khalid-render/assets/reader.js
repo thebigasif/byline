@@ -1,6 +1,7 @@
 // Polish on top of pages that read completely without it (RULES.md BL-WEB-2):
 // copy a heading's address, open an enlarged image in a dialog, open search
-// with / or Ctrl+K, and mark the section being read in the contents.
+// with / or Ctrl+K, show results while typing a search, and mark the
+// section being read in the contents.
 // The words it shows come from the script tag's data attributes.
 (() => {
   "use strict";
@@ -75,6 +76,67 @@
     if (box) box.focus();
     else location.href = page.href;
   });
+
+  // Results while typing on the search page. The server answers the form's
+  // own address with `typing=1` as JSON, and the list is built from text,
+  // never from markup. Without the script the form submits as before.
+  const form = document.querySelector("form.search");
+  const query = form?.querySelector("input[type=search]");
+  if (query && window.fetch) {
+    let timer = 0;
+    let asked = 0;
+    const show = (found) => {
+      const section = document.createElement("section");
+      section.setAttribute("aria-labelledby", "search-results");
+      const heading = document.createElement("h2");
+      heading.id = "search-results";
+      heading.textContent = found.heading;
+      section.append(heading);
+      if (found.results.length === 0) {
+        const nothing = document.createElement("p");
+        nothing.textContent = found.nothing;
+        section.append(nothing);
+      } else {
+        const list = document.createElement("ol");
+        list.className = "results";
+        for (const result of found.results) {
+          const title = document.createElement("h3");
+          const link = document.createElement("a");
+          link.href = result.href;
+          link.textContent = result.title;
+          title.append(link);
+          const text = document.createElement("p");
+          for (const part of result.snippet) {
+            const run = document.createElement(part.kind === "match" ? "mark" : "span");
+            run.textContent = part.text;
+            text.append(run);
+          }
+          const item = document.createElement("li");
+          item.append(title, text);
+          list.append(item);
+        }
+        section.append(list);
+      }
+      document.querySelector("section[aria-labelledby=search-results]")?.remove();
+      form.after(section);
+    };
+    query.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const number = ++asked;
+        const typed = query.value.trim();
+        if (!typed) return;
+        const address = new URL(form.action, location.href);
+        address.search = new URLSearchParams({ q: typed, typing: "1" }).toString();
+        fetch(address)
+          .then((response) => (response.ok ? response.json() : null))
+          .then((found) => {
+            if (found && number === asked) show(found);
+          })
+          .catch(() => {});
+      }, 250);
+    });
+  }
 
   // The contents column marks the section on screen.
   const side = document.querySelector(".toc-side");

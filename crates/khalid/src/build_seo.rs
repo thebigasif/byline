@@ -10,8 +10,8 @@ use khalid_seo::{
     link_translations, page_graph,
 };
 
-use crate::build_message;
 use crate::build_pages::LanguagePages;
+use crate::{build_message, search_page};
 
 /// The site as the SEO outputs read it, from `site.toml`: its name, address,
 /// mount folder, languages, default first, and which archives are indexed.
@@ -28,6 +28,7 @@ pub(crate) fn site(config: &Config) -> Result<SeoSite, UserMessage> {
         .filter(|locale| *locale != config.default_language());
     site.languages.extend(others.cloned());
     site.indexing = IndexPolicy::from(&config.seo().index);
+    search_page::announce(config, &mut site)?;
     Ok(site)
 }
 
