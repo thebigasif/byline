@@ -1,4 +1,5 @@
-//! The files in `packaging/` that start Khalid on a server: each one's own
+//! The files that start Khalid on a server, the systemd unit in
+//! `packaging/`, the `Dockerfile` and `compose.yaml`: each one's own
 //! command line, run against the demo site, answers the home page (task
 //! 5.14, KH-INS-1).
 
@@ -196,4 +197,96 @@ fn the_systemd_unit_passes_systemd_analyze_verify() {
     let said = String::from_utf8_lossy(&verify.stderr);
     assert!(verify.status.success(), "{said}");
     assert!(!said.contains("khalid.service"), "{said}");
+}
+
+/// The JSON array after the last `instruction ` line of the Dockerfile.
+#[cfg(test)]
+fn docker_array(dockerfile: &str, instruction: &str) -> Vec<String> {
+    let prefix = format!("{instruction} ");
+    let line = dockerfile
+        .lines()
+        .filter_map(|line| line.strip_prefix(&prefix))
+        .next_back()
+        .unwrap_or_else(|| panic!("no {instruction} line"));
+    serde_json::from_str(line).unwrap_or_else(|_| panic!("{instruction} is not exec form"))
+}
+
+/// The value after the last `instruction ` line of the Dockerfile.
+#[cfg(test)]
+fn docker_value<'a>(dockerfile: &'a str, instruction: &str) -> &'a str {
+    let prefix = format!("{instruction} ");
+    dockerfile
+        .lines()
+        .filter_map(|line| line.strip_prefix(&prefix))
+        .next_back()
+        .unwrap_or_else(|| panic!("no {instruction} line"))
+}
+
+#[test]
+fn the_image_command_serves_the_demo_site() {
+    let dockerfile = fs::read_to_string(repo_file("Dockerfile")).unwrap();
+    let mut args = docker_array(&dockerfile, "ENTRYPOINT");
+    args.extend(docker_array(&dockerfile, "CMD"));
+    let site = demo_copy();
+    let server = start(&args, "/khalid", ("/site", site.path()), "0.0.0.0:8080");
+    let (status, body) = get(&server, "/blog/");
+    assert_eq!(status, 200);
+    assert!(body.contains("Field Notes on SEO"), "{body}");
+}
+
+#[test]
+fn the_image_is_one_static_binary_in_an_empty_image_run_as_a_user() {
+    let dockerfile = fs::read_to_string(repo_file("Dockerfile")).unwrap();
+    assert_eq!(docker_value(&dockerfile, "FROM"), "scratch");
+    // With no loader in the image, this step fails unless the binary is static.
+    assert!(dockerfile.contains("\nRUN [\"/khalid\", \"--version\"]\n"));
+    let (user, group) = docker_value(&dockerfile, "USER").split_once(':').unwrap();
+    assert_ne!(user.parse::<u32>().unwrap(), 0, "the image runs as root");
+    assert_ne!(group.parse::<u32>().unwrap(), 0, "the image runs as root");
+    assert_eq!(docker_value(&dockerfile, "EXPOSE"), "8080");
+    assert_eq!(docker_value(&dockerfile, "VOLUME"), "/site");
+}
+
+/// The Dockerfile builds with the compiler and Node the rest of the
+/// repository uses, so a raise in one place is a test failure here.
+#[test]
+fn the_image_builds_with_the_pinned_rust_and_node() {
+    let dockerfile = fs::read_to_string(repo_file("Dockerfile")).unwrap();
+    let toolchain = fs::read_to_string(repo_file("rust-toolchain.toml")).unwrap();
+    let ci = fs::read_to_string(repo_file(".github/workflows/ci.yml")).unwrap();
+    let default = |name: &str| {
+        let prefix = format!("ARG {name}=");
+        let found = dockerfile
+            .lines()
+            .find_map(|line| line.strip_prefix(&prefix));
+        found
+            .unwrap_or_else(|| panic!("no {prefix} line"))
+            .to_owned()
+    };
+    let rust = default("RUST_VERSION");
+    assert!(
+        toolchain.contains(&format!("channel = \"{rust}\"")),
+        "{rust}"
+    );
+    let node = default("NODE_VERSION");
+    assert!(ci.contains(&format!("node-version: {node}\n")), "{node}");
+}
+
+#[test]
+fn the_compose_file_runs_the_image_on_the_site_folder_and_port() {
+    let compose = fs::read_to_string(repo_file("compose.yaml")).unwrap();
+    let dockerfile = fs::read_to_string(repo_file("Dockerfile")).unwrap();
+    let port = docker_value(&dockerfile, "EXPOSE");
+    let lines: Vec<&str> = compose.lines().map(str::trim).collect();
+    for wanted in [
+        "build: .",
+        "- ./site:/site",
+        &format!("- \"{port}:{port}\""),
+        "read_only: true",
+        "- ALL",
+        "- no-new-privileges:true",
+    ] {
+        assert!(lines.contains(&wanted), "compose.yaml has no line {wanted}");
+    }
+    assert!(compose.contains("docker compose run --rm khalid init /site "));
 }
