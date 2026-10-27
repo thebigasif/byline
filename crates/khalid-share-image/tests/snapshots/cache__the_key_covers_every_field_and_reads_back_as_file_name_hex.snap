@@ -1,0 +1,6 @@
+---
+source: crates/khalid-share-image/tests/cache.rs
+assertion_line: 103
+expression: text
+---
+b7bb6adbdbea0307

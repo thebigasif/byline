@@ -1,5 +1,7 @@
 //! Why a share image could not be drawn.
 
+use std::path::PathBuf;
+
 /// Why a share image could not be drawn.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -20,5 +22,26 @@ pub enum ShareImageError {
         /// What the PNG encoder reported.
         #[source]
         source: png::EncodingError,
+    },
+    /// The cache folder could not be used inside the site folder.
+    #[error("the share image cache folder could not be used")]
+    CachePath(#[from] khalid_core::SitePathError),
+    /// A cached file exists but cannot be read.
+    #[error("could not read {}", path.display())]
+    Read {
+        /// The file.
+        path: PathBuf,
+        /// What the file system reported.
+        #[source]
+        source: std::io::Error,
+    },
+    /// A drawn card could not be written to the cache.
+    #[error("could not write {}", path.display())]
+    Write {
+        /// The file.
+        path: PathBuf,
+        /// What the file system reported.
+        #[source]
+        source: std::io::Error,
     },
 }
