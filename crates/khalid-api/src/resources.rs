@@ -7,6 +7,7 @@ mod collection;
 mod content_collection;
 mod menu;
 mod post;
+mod post_row;
 mod post_settings;
 mod settings;
 mod settings_edit;
@@ -18,6 +19,7 @@ pub use collection::Collection;
 pub use content_collection::ContentCollection;
 pub use menu::{Menu, MenuLink};
 pub use post::{Bodies, Post};
+pub use post_row::{IndexStatus, LintCounts, PostRow};
 pub use post_settings::{
     Alias, FeatureImage, NonBlank, PostSettings, ReviewState, ShareCard, ShareCards,
 };
