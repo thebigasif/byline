@@ -107,7 +107,8 @@ pub(crate) enum Command {
     },
     /// Write the site as plain HTML to public/, for static mode
     Export,
-    /// Speak the Model Context Protocol on stdin and stdout, for agents
+    /// Speak the Model Context Protocol on stdin and stdout, for agents.
+    /// Acts with the key in the `KHALID_KEY` environment variable
     Mcp,
     /// Check the site and its public address, and say how to fix each problem
     Doctor {

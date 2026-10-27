@@ -38,14 +38,9 @@ mod lint;
 mod lint_fix;
 mod lint_input;
 mod lint_message;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "khalid mcp serves the Content API from it, in the next part"
-    )
-)]
+mod mcp;
 mod mcp_content;
+mod mcp_message;
 mod new;
 mod new_message;
 mod outbound;
@@ -109,6 +104,7 @@ fn run(cli: &Cli) -> Exit {
     if let Some(exit) = run_unchecked(cli) {
         return exit;
     }
+    let environment = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
     let look = match (&cli.command, cli.site.as_deref()) {
@@ -116,7 +112,7 @@ fn run(cli: &Cli) -> Exit {
         _ => None,
     };
     let site = match cli.site.as_deref() {
-        Some(folder) => match check(folder) {
+        Some(folder) => match check(folder, &environment) {
             Ok((config, routes, content)) => Some((folder, config, routes, content)),
             Err(message) => return report::failure(cli.output, &message, Exit::Failure),
         },
@@ -158,6 +154,7 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Keys { command }), Some((folder, ..))) => {
             keys::run(folder, command, cli.output)
         }
+        (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
         (
             Some(Command::Theme {
                 command: ThemeCommand::Sync { url },
@@ -176,6 +173,7 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Theme { .. }
                 | Command::Serve { .. }
                 | Command::Keys { .. }
+                | Command::Mcp
                 | Command::Lint { .. }
                 | Command::New { .. }
                 | Command::Build { .. }),
@@ -210,9 +208,11 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
 
 /// Checks the settings, the routes and the content of the `site` folder, and
 /// returns the settings, the routes and the content.
-fn check(site: &Path) -> Result<(Config, Routes, SiteContent), UserMessage> {
-    let config =
-        Config::load(site, &Environment::from_process()).map_err(|e| config_message::of(&e))?;
+fn check(
+    site: &Path,
+    environment: &Environment,
+) -> Result<(Config, Routes, SiteContent), UserMessage> {
+    let config = Config::load(site, environment).map_err(|e| config_message::of(&e))?;
     let routes = Routes::load(site).map_err(|error| routes_message::of(&error))?;
     let content = ContentTree::walk(site)
         .and_then(|tree| read_content(&tree))
