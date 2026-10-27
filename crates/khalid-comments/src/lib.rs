@@ -6,7 +6,8 @@
 //! ([`CommentForm`]) with its honeypot, and how approved comments are
 //! shown one level deep ([`threads`]). [`RateLimits`] keeps one network
 //! address from sending many, without keeping the address. [`Comments`]
-//! sends, moderates and shows comments over a [`CommentStore`].
+//! sends, moderates and shows comments over a [`CommentStore`], and
+//! [`RefusalPages`] tell a reader, in their language, why one was not sent.
 //!
 //! Comments are visitor data: they live in the site database, never in
 //! `content/`, and name their post by its file ([`PostFile`]) so they
@@ -23,6 +24,7 @@ mod fields;
 #[cfg(any(test, feature = "test-util"))]
 mod memory_store;
 mod rate_limits;
+mod refusal_page;
 mod thread;
 
 pub use comment::{Comment, CommentAuthor, CommentId, CommentStatus, ParseStatusError, PostFile};
@@ -34,4 +36,5 @@ pub use fields::{AuthorName, CommentText, ReaderEmail};
 #[cfg(any(test, feature = "test-util"))]
 pub use memory_store::MemoryCommentStore;
 pub use rate_limits::{RateLimitError, RateLimits};
+pub use refusal_page::{LoadWordsError, Refusal, RefusalPages};
 pub use thread::{Thread, threads};
