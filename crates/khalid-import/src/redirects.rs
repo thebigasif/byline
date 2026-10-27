@@ -3,6 +3,8 @@
 
 use std::fmt::Write as _;
 
+use khalid_core::AbsoluteUrl;
+
 /// How long a move lasts, which search engines read from the status code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -42,6 +44,17 @@ pub enum MapTarget {
     Gone,
     /// 451: withheld for legal reasons.
     Unavailable,
+}
+
+/// The path and query of an old address, such as `/2024/03/rye/` or
+/// `/?p=12`.
+pub(crate) fn path_of(url: &AbsoluteUrl) -> &str {
+    let text = url.as_str();
+    let after_scheme = text.split_once("://").map_or(text, |(_, rest)| rest);
+    after_scheme
+        .find('/')
+        .and_then(|at| after_scheme.get(at..))
+        .unwrap_or("/")
 }
 
 /// A permanent move to `to`.

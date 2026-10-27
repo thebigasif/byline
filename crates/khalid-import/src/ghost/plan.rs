@@ -10,6 +10,8 @@ use khalid_core::{AbsoluteUrl, Config, ParseSlugError, Slug};
 use khalid_routes::{AddressError, Routes};
 
 use crate::ghost::post_file::{Source, post_file};
+use crate::ghost::redirect_map::{MapEntry, REDIRECTS_CSV, ghost_csv, redirect_map};
+use crate::ghost::site_files::author_files;
 use crate::ghost::{BodyError, Export, Post, PostKind, PostStatus, Visibility};
 use crate::{Place, PlannedFile, SlugOrigin};
 
@@ -26,6 +28,11 @@ pub struct Plan {
     pub failed: Vec<FailedPost>,
     /// Each post that stays behind, with the reason, in export order.
     pub left_behind: Vec<LeftPost>,
+    /// Where every old address leads, posts and pages first in export
+    /// order, then the archives of the authors who got files.
+    pub redirects: Vec<MapEntry>,
+    /// How many author files the plan writes.
+    pub authors: usize,
 }
 
 /// A post or page that came in.
@@ -189,6 +196,15 @@ pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Rou
             }
         }
     }
+    let credited = author_files(export, &plan.posts, site);
+    plan.authors = credited.len();
+    plan.redirects = redirect_map(export, &plan.posts, &credited, old_site, site);
+    plan.files
+        .extend(credited.into_iter().map(|known| known.file));
+    plan.files.push(PlannedFile {
+        path: PathBuf::from(REDIRECTS_CSV),
+        text: ghost_csv(&plan.redirects),
+    });
     plan
 }
 

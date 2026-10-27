@@ -5,8 +5,8 @@
 use khalid_core::{AbsoluteUrl, Config};
 use khalid_routes::Routes;
 
-use crate::redirects::{MapTarget, Matching, moved, redirects_csv};
-use crate::wordpress::names::{category_slug, path_of};
+use crate::redirects::{MapTarget, Matching, moved, path_of, redirects_csv};
+use crate::wordpress::names::category_slug;
 use crate::wordpress::{
     Export, ImportedItem, ItemKind, Redirection, RedirectionRule, RuleSource, RuleTarget,
 };

@@ -1,7 +1,7 @@
-//! The names and slugs of people and categories, and the paths of old
-//! addresses, the same in every file that mentions them.
+//! The names and slugs of people and categories, the same in every file
+//! that mentions them.
 
-use khalid_core::{AbsoluteUrl, Config, Slug};
+use khalid_core::{Config, Slug};
 
 use crate::slug::post_slug;
 use crate::wordpress::{Author, Export};
@@ -33,15 +33,4 @@ pub(crate) fn category_slug(slug: &str, export: &Export, site: &Config) -> Optio
     let name = term.map_or_else(|| slug.to_owned(), |term| decoded(&term.name));
     let made = post_slug(slug, &name, 0, site.default_language(), site.slugs());
     made.ok().map(|made| made.slug)
-}
-
-/// The path and query of an old address, such as `/2024/03/rye/` or
-/// `/?p=12`.
-pub(crate) fn path_of(url: &AbsoluteUrl) -> &str {
-    let text = url.as_str();
-    let after_scheme = text.split_once("://").map_or(text, |(_, rest)| rest);
-    after_scheme
-        .find('/')
-        .and_then(|at| after_scheme.get(at..))
-        .unwrap_or("/")
 }

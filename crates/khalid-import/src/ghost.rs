@@ -11,6 +11,8 @@ mod mobiledoc;
 mod plan;
 mod post_file;
 mod read;
+mod redirect_map;
+mod site_files;
 
 pub use body::BodyError;
 pub use export::{
@@ -20,3 +22,4 @@ pub use plan::{
     Dropped, FailedPost, Held, ImportedPost, LeftPost, LeftReason, Plan, PostError, ShareCard, plan,
 };
 pub use read::{ExportError, read_export};
+pub use redirect_map::{MapEntry, MapSource, REDIRECTS_CSV};

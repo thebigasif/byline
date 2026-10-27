@@ -10,8 +10,9 @@ use crate::Place;
 use crate::PlannedFile;
 use crate::front_matter::FrontMatter;
 use crate::markdown::body_markdown;
+use crate::redirects::path_of;
 use crate::slug::{PostSlug, post_slug};
-use crate::wordpress::names::{author_slug, category_slug, decoded, path_of};
+use crate::wordpress::names::{author_slug, category_slug, decoded};
 use crate::wordpress::{Export, Held, ImportedItem, Item, ItemError, ItemStatus, SeoMeta};
 
 /// What every item's file is made for: the export and the site.

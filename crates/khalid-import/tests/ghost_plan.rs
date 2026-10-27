@@ -92,7 +92,12 @@ fn newsletters_unpublished_and_members_pages_stay_behind_with_the_reason() {
         ]
     );
     assert_eq!(plan.left_behind[3].id, "a4");
-    assert_eq!(plan.files.len(), 0);
+    let paths: Vec<&Path> = plan.files.iter().map(|file| file.path.as_path()).collect();
+    assert_eq!(
+        paths,
+        [Path::new("import/ghost-redirects.csv")],
+        "no content file"
+    );
 }
 
 #[test]
