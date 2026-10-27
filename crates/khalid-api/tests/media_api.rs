@@ -56,8 +56,23 @@ async fn app(site: Option<&Path>) -> Router {
 /// Posts `body` to `uri` with `key`, and reads the answer.
 #[cfg(test)]
 async fn post(app: &Router, uri: &str, key: &str, body: &[u8]) -> (StatusCode, Value) {
-    let request = Request::post(uri)
+    send(app, "POST", uri, key, body).await
+}
+
+/// Sends `body` to `uri` with `method` and `key`, and reads the answer.
+#[cfg(test)]
+async fn send(
+    app: &Router,
+    method: &str,
+    uri: &str,
+    key: &str,
+    body: &[u8],
+) -> (StatusCode, Value) {
+    let request = Request::builder()
+        .method(method)
+        .uri(uri)
         .header("authorization", format!("Khalid {key}"))
+        .header("content-type", "application/json")
         .body(Body::from(body.to_vec()))
         .unwrap();
     let response = app.clone().oneshot(request).await.unwrap();
@@ -83,6 +98,25 @@ async fn an_upload_is_added_once() {
     let (status, again) = post(&app, "/api/admin/v1/media/?name=copy", UPLOADER, PDF).await;
     assert_eq!(status, StatusCode::OK, "the same file is not added twice");
     assert_eq!(&again["media"][0], item);
+}
+
+#[tokio::test]
+async fn an_item_is_read_by_its_identity_and_nothing_else() {
+    let site = tempfile::tempdir().unwrap();
+    let app = app(Some(site.path())).await;
+    let (_, body) = post(&app, UPLOAD, UPLOADER, PDF).await;
+    let item = &body["media"][0];
+    let uri = format!("/api/admin/v1/media/{}/", item["id"].as_str().unwrap());
+    let (status, read) = send(&app, "GET", &uri, UPLOADER, b"").await;
+    assert_eq!((status, &read["media"][0]), (StatusCode::OK, item));
+    let others = [
+        "/api/admin/v1/media/0000000000000000/",
+        "/api/admin/v1/media/..%2Fsite.toml/",
+    ];
+    for uri in others {
+        let (status, _) = send(&app, "GET", uri, UPLOADER, b"").await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{uri}");
+    }
 }
 
 #[tokio::test]

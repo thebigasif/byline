@@ -4,12 +4,14 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::rejection::QueryRejection;
-use axum::extract::{Query, State};
+use axum::extract::{OriginalUri, Path, Query, State};
 use axum::http::header::LOCATION;
 use axum::http::{HeaderName, StatusCode};
 use axum::{Extension, Json, middleware};
 use khalid_core::UserMessage;
-use khalid_media::{Folder, Kind, Library, MediaItem, Refusal, Upload, UploadMediaError, Uploaded};
+use khalid_media::{
+    ContentKey, Folder, Kind, Library, MediaItem, Refusal, Upload, UploadMediaError, Uploaded,
+};
 use serde::Deserialize;
 use utoipa::IntoParams;
 use utoipa_axum::router::OpenApiRouter;
@@ -52,6 +54,7 @@ type Media = Option<MediaLibrary>;
 pub(crate) fn routes(media: Media, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(upload_media))
+        .routes(routes!(read_media))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(media)
@@ -112,6 +115,42 @@ async fn upload_media(
         media: vec![media.shown(&item)],
     };
     Ok((status, [(LOCATION, location)], Json(items)))
+}
+
+/// Reads one item of the media library. Needs `media:write`.
+#[utoipa::path(
+    get, path = "/media/{id}/", tag = "admin media",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The item's identity")),
+    responses(
+        (status = 200, description = "The item", body = MediaItems),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks media:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No item has this identity", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn read_media(
+    State(media): State<Media>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<Json<MediaItems>, Problem> {
+    require(&principal, Scope::MediaWrite)?;
+    let media = media.ok_or_else(no_library)?;
+    let item = ContentKey::parse(&id)
+        .and_then(|id| media.library.get(&id))
+        .ok_or_else(|| missing(uri.path()))?;
+    let media = vec![media.shown(&item)];
+    Ok(Json(MediaItems { media }))
+}
+
+fn missing(path: &str) -> Problem {
+    let message = UserMessage::new(
+        "No media item has this identity.",
+        "It may never have been uploaded, or the identity may be mistyped.",
+        "Check the identity, or list the media library to find it.",
+    );
+    Problem::new(ProblemType::NotFound, &message).with_instance(path)
 }
 
 /// The 422 for a file the library refuses, saying why in plain words.
