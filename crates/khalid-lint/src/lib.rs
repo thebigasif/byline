@@ -32,6 +32,7 @@ mod lint_site;
 mod linter;
 mod reading;
 mod rule;
+mod score;
 mod severity;
 mod site_content;
 mod site_links;
@@ -54,5 +55,6 @@ pub use lint_post::{
 pub use lint_site::{GlossaryTerm, LintCollection, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};
 pub use rule::{Hit, Rule, RuleId, SiteRule};
+pub use score::{Loss, Score};
 pub use severity::Severity;
 pub use thresholds::Thresholds;

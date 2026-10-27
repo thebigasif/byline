@@ -1,0 +1,4 @@
+# The text uses "link text" but never "orphan posts".
+extends = "focus-clean"
+secondary_keywords = ["link text", "orphan posts"]
+body_text = "Internal links help readers find the next useful post on your site.\nWhere internal links belong\nGood link text names the page it opens."

@@ -280,6 +280,24 @@ why = "Google Images reads the descriptions to know what an image shows and whic
 fix = "Describe one image in words that include `focus_keyword:` if the image really shows it."
 guide = "focus-keyword"
 
+[focus-too-rare]
+what = "Your focus keyword appears too rarely in the text."
+why = "A post that names its topic only once or twice reads to Google as being about something else."
+fix = "Use the words of `focus_keyword:` a few more times where they fit, about once every 200 words."
+guide = "keyword-density"
+
+[focus-too-often]
+what = "Your focus keyword appears so often that the post reads as if written for machines."
+why = "Google treats heavy repetition as spam and may show the post less."
+fix = "Replace some repeats of `focus_keyword:` with other words, such as a close phrase or a pronoun."
+guide = "keyword-density"
+
+[secondary-keyword-unused]
+what = "One of your secondary keywords never appears in the text."
+why = "A close phrase only helps the post when readers and Google can find it in the text."
+fix = "Use the words this message names at least once, or remove them from `secondary_keywords:`."
+guide = "focus-keyword"
+
 [overlapping-collections]
 what = "Two collections, the folders that group your posts, could give two posts the same address."
 why = "Only one post can live at an address, so the other could vanish from your site and from Google."

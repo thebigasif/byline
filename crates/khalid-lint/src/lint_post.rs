@@ -68,6 +68,10 @@ pub struct LintPost {
     /// The phrase the post wants to be found for, such as "internal links",
     /// from `focus_keyword` in the header.
     pub focus_keyword: Option<String>,
+    /// Other phrases close to the focus keyword that the post covers, such
+    /// as "link text", from `secondary_keywords` in the header.
+    #[serde(default)]
+    pub secondary_keywords: Vec<String>,
     /// The collection the post belongs to, such as `guides`, from the
     /// folder it lives in.
     pub collection: Option<String>,
@@ -100,6 +104,7 @@ impl LintPost {
             aliases: Vec::new(),
             forms: Vec::new(),
             focus_keyword: None,
+            secondary_keywords: Vec::new(),
             collection: None,
             structured_data_gaps: Vec::new(),
         }

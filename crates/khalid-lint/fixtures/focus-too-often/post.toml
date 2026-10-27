@@ -1,0 +1,9 @@
+# The keyword appears five times in about 120 words, 40 times per
+# thousand, over the default ceiling of 25. Only the focus warning fires:
+# keyword-stuffing leaves the focus keyword to it.
+extends = "focus-clean"
+body_text = """
+Internal links help readers find the next useful post on your site.
+Where internal links belong
+Put each link where a reader asks what comes next. A guide to baking bread might point to a post about flour. A review of a camera might point to a lesson on light. Short words that name the target work best. Readers click when they know where they will land. Search engines follow the same path and learn how your pages relate. Internal links in each section are plenty. Too many internal links in a row look like a list of ads. Check old posts from time to time and add internal links to new work. That keeps the whole site fresh for everyone who visits.
+"""

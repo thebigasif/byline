@@ -1,0 +1,8 @@
+# The keyword appears twice in about 120 words, 16 times per thousand,
+# under this fixture's floor of 20 in lint.toml.
+extends = "focus-clean"
+body_text = """
+Internal links help readers find the next useful post on your site.
+Where internal links belong
+Put each link where a reader asks what comes next. A guide to baking bread might point to a post about flour. A review of a camera might point to a lesson on light. Short words that name the target work best. Readers click when they know where they will land. Search engines follow the same path and learn how your pages relate. One good link in each section is plenty. Too many links in a row look like a list of ads. Check old posts from time to time and add a link to new work. That keeps the whole site fresh for everyone who visits.
+"""

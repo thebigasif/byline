@@ -95,6 +95,15 @@ fn in_address(post: &LintPost, keyword: &str, topic: &[String]) -> bool {
     holds(&address, topic) || holds(&address, &plain)
 }
 
+/// The post's focus keyword without outer spaces, or `None` when it has
+/// none or it holds no word, as a draft from another caller may.
+fn focus_keyword(post: &LintPost) -> Option<&str> {
+    post.focus_keyword
+        .as_deref()
+        .filter(|keyword| !words(keyword).is_empty())
+        .map(str::trim)
+}
+
 /// The focus keyword is missing from one place in the post. The finding
 /// names the keyword, so the writer sees which words to add.
 #[derive(Debug)]
@@ -110,7 +119,7 @@ impl Rule for FocusNotIn {
     }
 
     fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
-        let Some(keyword) = post.focus_keyword.as_deref().map(str::trim) else {
+        let Some(keyword) = focus_keyword(post) else {
             return Vec::new();
         };
         if self.0.holds(post, keyword, &words(keyword)) == Some(false) {
@@ -118,6 +127,106 @@ impl Rule for FocusNotIn {
         } else {
             Vec::new()
         }
+    }
+}
+
+/// The fewest words a post needs before its keyword density is measured,
+/// because one use more or less swings the share of a short text too far.
+const DENSITY_MIN_WORDS: usize = 100;
+
+/// The post's focus keyword and how many times per thousand words its body
+/// holds it, or `None` when it has no keyword or too few words to judge.
+fn per_thousand(post: &LintPost) -> Option<(&str, usize)> {
+    let keyword = focus_keyword(post)?;
+    let text = words(&post.body_text);
+    if text.len() < DENSITY_MIN_WORDS {
+        return None;
+    }
+    let topic = words(keyword);
+    let uses = text
+        .windows(topic.len())
+        .filter(|run| *run == topic)
+        .count();
+    Some((keyword, uses * 1000 / text.len()))
+}
+
+/// The focus keyword appears fewer times per thousand words than the
+/// floor, so the text does not read as being about it.
+#[derive(Debug)]
+pub(crate) struct FocusTooRare {
+    /// From `Thresholds::focus_min_per_thousand_words`.
+    pub(crate) min: usize,
+}
+
+impl Rule for FocusTooRare {
+    fn id(&self) -> RuleId {
+        RuleId::new("focus-too-rare")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        per_thousand(post)
+            .filter(|&(_, rate)| rate < self.min)
+            .map(|(keyword, _)| Hit::about(keyword))
+            .into_iter()
+            .collect()
+    }
+}
+
+/// The focus keyword appears more times per thousand words than the
+/// ceiling, so the text reads as stuffed.
+#[derive(Debug)]
+pub(crate) struct FocusTooOften {
+    /// From `Thresholds::focus_max_per_thousand_words`.
+    pub(crate) max: usize,
+}
+
+impl Rule for FocusTooOften {
+    fn id(&self) -> RuleId {
+        RuleId::new("focus-too-often")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        per_thousand(post)
+            .filter(|&(_, rate)| rate > self.max)
+            .map(|(keyword, _)| Hit::about(keyword))
+            .into_iter()
+            .collect()
+    }
+}
+
+/// A secondary keyword the body never uses, one hit per keyword in the
+/// header's order.
+#[derive(Debug)]
+pub(crate) struct SecondaryKeywordUnused;
+
+impl Rule for SecondaryKeywordUnused {
+    fn id(&self) -> RuleId {
+        RuleId::new("secondary-keyword-unused")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        let text = words(&post.body_text);
+        post.secondary_keywords
+            .iter()
+            .map(|keyword| keyword.trim())
+            .filter(|keyword| {
+                let topic = words(keyword);
+                !topic.is_empty() && !holds(&text, &topic)
+            })
+            .map(Hit::about)
+            .collect()
     }
 }
 
@@ -154,5 +263,18 @@ mod tests {
         post.focus_keyword = Some("über interne Links".to_owned());
         let hits = FocusNotIn(Place::Address).check(&post, &crate::LintSite::default());
         assert_eq!(hits, []);
+    }
+
+    #[test]
+    fn a_keyword_without_words_is_no_keyword() {
+        let mut post = LintPost::new(Locale::try_new("en").unwrap(), Slug::try_new("a").unwrap());
+        post.focus_keyword = Some(" - ".to_owned());
+        post.secondary_keywords = vec![String::new()];
+        post.title = Some("A title".to_owned());
+        post.body_text = ["word"; 120].join(" ");
+        let site = crate::LintSite::default();
+        assert_eq!(FocusNotIn(Place::Title).check(&post, &site), []);
+        assert_eq!(FocusTooRare { min: 5 }.check(&post, &site), []);
+        assert_eq!(SecondaryKeywordUnused.check(&post, &site), []);
     }
 }
