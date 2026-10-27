@@ -70,6 +70,11 @@ impl Account {
     pub fn role(&self) -> Role {
         self.role
     }
+
+    #[cfg(any(test, feature = "test-util"))]
+    pub(crate) fn set_role(&mut self, role: Role) {
+        self.role = role;
+    }
 }
 
 /// An account with its password hash, for signing in. `None` means the

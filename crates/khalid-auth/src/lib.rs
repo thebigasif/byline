@@ -11,6 +11,8 @@
 
 mod account;
 mod email;
+#[cfg(any(test, feature = "test-util"))]
+mod memory;
 mod password;
 mod permission;
 
@@ -18,6 +20,8 @@ pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
 };
 pub use email::{Email, ParseEmailError};
+#[cfg(any(test, feature = "test-util"))]
+pub use memory::MemoryAccounts;
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
