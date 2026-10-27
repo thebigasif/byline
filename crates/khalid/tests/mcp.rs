@@ -136,7 +136,7 @@ fn an_agent_drafts_and_publishes_a_post_behind_the_lint_gate() {
     let tools = session.ask("tools/list", &json!({}));
     assert_eq!(tools["result"]["tools"].as_array().map(Vec::len), Some(6));
 
-    let weak = json!({ "title": "A weak post", "markdown": "No link and no author." });
+    let weak = json!({ "title": "A weak post", "markdown": "No link and no author. See [[no-such-page]]." });
     let (failed, weak) = session.call("create_draft", &weak);
     assert!(!failed, "{weak}");
     let (failed, report) = session.call("lint_post", &json!({ "id": "en.a-weak-post" }));
@@ -150,6 +150,7 @@ fn an_agent_drafts_and_publishes_a_post_behind_the_lint_gate() {
         .collect();
     assert!(rules.contains(&&json!("no-author")), "{rules:?}");
     assert!(rules.contains(&&json!("no-internal-link")), "{rules:?}");
+    assert!(rules.contains(&&json!("broken-wikilink")), "{rules:?}");
     assert!(
         !rules.contains(&&json!("no-date")),
         "linted as it would go live: {rules:?}"

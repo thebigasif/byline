@@ -3,19 +3,21 @@
 //! The lint crate never reads files, so this binary maps parsed posts and
 //! their rendered output to `LintPost` and `LintSite`, as the built page has
 //! them: the slug and address `khalid build` gives each post, its body
-//! rendered with its wikilinks linked, its collection, the site's
-//! collections, and the links of each home page, which lists every dated
-//! post (audit 2, G5).
+//! rendered with its wikilinks linked, the wikilinks as written, its forms,
+//! focus keywords and collection, the site's collections, and the links of
+//! each home page, which lists every dated post (audit 2, G5).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::NaiveDate;
-use khalid_content::{Document, PostFront, SiteContent, Wikilinks, render_linked};
+use khalid_content::{
+    BlockKind, Document, PostFront, SiteContent, Wikilinks, parse_blocks, render_linked,
+};
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
-    GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection, LintLink, LintPost,
-    LintSite, PageRef,
+    GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection, LintForm, LintLink,
+    LintPost, LintSite, PageRef,
 };
 use khalid_routes::{PostAddress, Routes};
 
@@ -159,6 +161,11 @@ pub(crate) fn lint_parts(
         .map(|author| author.as_str().to_owned());
     post.translation.clone_from(&front.translation);
     post.aliases.clone_from(&front.aliases);
+    post.focus_keyword.clone_from(&front.focus_keyword);
+    post.secondary_keywords
+        .clone_from(&front.secondary_keywords);
+    post.wikilinks = wikilinks(parts.body);
+    post.forms = forms(parts.body);
     post.headings = rendered
         .headings
         .iter()
@@ -216,6 +223,52 @@ fn slug_of(
         _ => stem,
     };
     Slug::from_title(undated, locale, config.slugs()).ok()
+}
+
+/// The forms of `body`, in order. No setting sends a form's answers
+/// anywhere yet, so none has a destination.
+fn forms(body: &str) -> Vec<LintForm> {
+    let blocks = parse_blocks(body).unwrap_or_default();
+    blocks
+        .into_iter()
+        .filter_map(|block| match block.kind {
+            BlockKind::Form { id, .. } => Some(LintForm::new(id, Vec::new())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// The target of each `[[target]]` and `[[target|text]]` in `body`, as
+/// written, in order. Code, fenced or inline, holds none.
+fn wikilinks(body: &str) -> Vec<String> {
+    let mut targets = Vec::new();
+    let mut fence: Option<&str> = None;
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        let marker = ["```", "~~~"].into_iter().find(|m| trimmed.starts_with(m));
+        match (fence, marker) {
+            (None, Some(marker)) => fence = Some(marker),
+            (Some(open), Some(marker)) if open == marker => fence = None,
+            (None, None) => {
+                // Text between backticks is inline code: every other piece.
+                for prose in line.split('`').step_by(2) {
+                    let mut rest = prose;
+                    while let Some((_, after)) = rest.split_once("[[") {
+                        let Some((inside, tail)) = after.split_once("]]") else {
+                            break;
+                        };
+                        let target = inside.split('|').next().unwrap_or_default().trim();
+                        if !target.is_empty() {
+                            targets.push(target.to_owned());
+                        }
+                        rest = tail;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    targets
 }
 
 /// The lint model's heading level for an HTML level from 1 to 6.
@@ -312,5 +365,13 @@ mod tests {
             .filter(|line| !line.is_empty())
             .collect();
         assert_eq!(lines, ["Why links", "One link", "Two", "three"]);
+    }
+
+    #[test]
+    fn wikilinks_are_read_as_written_outside_code() {
+        let body = "See [[why-links]] and [[link-text|good link text]].\n\n\
+                    Write `[[not-a-link]]` like this.\n\n```\n[[in-a-fence]]\n```\n\n\
+                    ~~~\n```\n[[still-fenced]]\n~~~\n\nLast [[ seo ]] and [[]] and [[open";
+        assert_eq!(wikilinks(body), ["why-links", "link-text", "seo"]);
     }
 }

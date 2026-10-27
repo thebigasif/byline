@@ -1,6 +1,6 @@
 //! `khalid lint` reads each post as its page has it: its slug and routed
-//! address, its wikilinked body and its collection, and the home page's
-//! links, so the rules that need them fire (audit 2, brief G5).
+//! address, its wikilinked body, forms, focus keywords and collection, and
+//! the home page's links, so the rules that need them fire (audit 2, G5).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -99,6 +99,21 @@ fn a_post_is_named_by_its_title_as_its_page_is_and_wikilinks_reach_it() {
 }
 
 #[test]
+fn a_form_whose_answers_go_nowhere_is_a_warning() {
+    let body = "Write to us.\n\n:::form{id=\"contact\" button=\"Send\"}\n\
+                - text name: Your name\n- email reply_to: Your email address\n:::";
+    let site = site(
+        None,
+        &[("posts/contact-us.md", &post("Contact us", "", body))],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "form-without-destination", "contact-us"),
+        ["contact"]
+    );
+}
+
+#[test]
 fn two_collections_at_the_same_addresses_are_a_warning() {
     let routes = "[collections.guides]\npermalink = \"/{slug}/\"\n";
     let site = site(
@@ -172,4 +187,101 @@ fn a_post_the_home_page_does_not_list_is_too_deep() {
         Vec::<String>::new()
     );
     assert_eq!(found(&report, "too-deep", "notes-for-later"), [""]);
+}
+
+#[test]
+fn a_focus_keyword_missing_from_each_place_is_a_warning_per_place() {
+    let body = "Readers come back for clear writing.\n\n## How it starts\n\n\
+                ![A tidy desk](/media/desk.jpg)";
+    let extra = "focus_keyword: internal links\n";
+    let site = site(
+        None,
+        &[("posts/writing-well.md", &post("Writing well", extra, body))],
+    );
+    let report = lint(site.path());
+    for rule in [
+        "focus-not-in-title",
+        "focus-not-in-description",
+        "focus-not-in-first-paragraph",
+        "focus-not-in-subheading",
+        "focus-not-in-address",
+        "focus-not-in-image-alt",
+    ] {
+        assert_eq!(
+            found(&report, rule, "writing-well"),
+            ["internal links"],
+            "{rule}"
+        );
+    }
+}
+
+/// `count` sentences of filler, ten words each, the first `uses` of them
+/// holding "internal links".
+#[cfg(test)]
+fn filler(count: usize, uses: usize) -> String {
+    (0..count)
+        .map(|n| {
+            if n < uses {
+                "Good internal links help readers find the next useful page here."
+            } else {
+                "A clear sentence helps every reader keep going through the page."
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[test]
+fn a_focus_keyword_used_too_rarely_is_a_warning() {
+    let extra = "focus_keyword: internal links\n";
+    let body = filler(40, 0);
+    let site = site(
+        None,
+        &[(
+            "posts/internal-links.md",
+            &post("Internal links", extra, &body),
+        )],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "focus-too-rare", "internal-links"),
+        ["internal links"]
+    );
+}
+
+#[test]
+fn a_focus_keyword_used_too_often_is_a_warning() {
+    let extra = "focus_keyword: internal links\n";
+    let body = filler(40, 40);
+    let site = site(
+        None,
+        &[(
+            "posts/internal-links.md",
+            &post("Internal links", extra, &body),
+        )],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "focus-too-often", "internal-links"),
+        ["internal links"]
+    );
+}
+
+#[test]
+fn a_secondary_keyword_the_body_never_uses_is_a_warning() {
+    let extra =
+        "focus_keyword: internal links\nsecondary_keywords:\n  - link text\n  - site structure\n";
+    let body = "Internal links need good link text.";
+    let site = site(
+        None,
+        &[(
+            "posts/internal-links.md",
+            &post("Internal links", extra, body),
+        )],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "secondary-keyword-unused", "internal-links"),
+        ["site structure"]
+    );
 }
