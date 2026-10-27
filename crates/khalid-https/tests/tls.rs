@@ -1,13 +1,13 @@
 //! HTTPS end to end: a page served through `khalid_server::serve` on the
 //! TLS listener, fetched by the outbound client trusting a test
-//! certificate.
+//! certificate, and the same server over plain HTTP.
 
 use std::time::Duration;
 
 use axum::Router;
 use axum::routing::get;
 use khalid_core::AbsoluteUrl;
-use khalid_https::{Certificate, Certificates, TlsListener};
+use khalid_https::{Certificate, Certificates, Domain, Listening, TlsListener};
 use khalid_outbound::{Limits, Outbound, Reach, Resolver};
 use rcgen::CertifiedKey;
 use tokio::io::AsyncWriteExt;
@@ -32,7 +32,14 @@ fn self_signed() -> (String, String) {
 async fn serve(certificates: Certificates) -> (u16, oneshot::Sender<()>) {
     let tcp = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = tcp.local_addr().unwrap().port();
-    let listener = TlsListener::new(tcp, certificates).unwrap();
+    let listening = Listening::Tls(TlsListener::new(tcp, certificates).unwrap());
+    (port, answer_on(listening))
+}
+
+/// Answers `/` with "hello" on `listening` until the switch returned is
+/// used.
+#[cfg(test)]
+fn answer_on(listener: Listening) -> oneshot::Sender<()> {
     let app = Router::new().route("/", get(|| async { "hello" }));
     let (stop, stopped) = oneshot::channel::<()>();
     let shutdown = async move {
@@ -44,7 +51,7 @@ async fn serve(certificates: Certificates) -> (u16, oneshot::Sender<()>) {
         shutdown,
         Duration::from_secs(1),
     ));
-    (port, stop)
+    stop
 }
 
 /// The outbound client, trusting `root` alone and finding `NAME` on
@@ -108,4 +115,35 @@ async fn a_stalled_handshake_does_not_hold_up_the_next_visitor() {
     assert_eq!(fetched.body(), b"hello");
     drop(stalled);
     stop.send(()).unwrap();
+}
+
+#[tokio::test]
+async fn plain_http_is_served_through_the_same_listener_type() {
+    let tcp = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let listening = Listening::Plain(tcp);
+    let address = listening.address(None).unwrap();
+    let stop = answer_on(listening);
+    let resolver = Resolver::for_tests(Vec::new(), Reach::PublicAndLoopback);
+    let outbound = Outbound::with_resolver(Limits::default(), resolver).unwrap();
+
+    let url = AbsoluteUrl::parse(&format!("{address}/")).unwrap();
+    let fetched = outbound.get(&url).await.unwrap();
+
+    assert!(address.starts_with("http://127.0.0.1:"), "{address}");
+    assert_eq!(fetched.body(), b"hello");
+    stop.send(()).unwrap();
+}
+
+#[tokio::test]
+async fn an_https_address_names_the_domain_with_a_port_other_than_443() {
+    let tcp = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = tcp.local_addr().unwrap().port();
+    let listening = Listening::Tls(TlsListener::new(tcp, Certificates::new()).unwrap());
+    let domain = Domain::try_new(NAME).unwrap();
+
+    let named = listening.address(Some(&domain)).unwrap();
+    let unnamed = listening.address(None).unwrap();
+
+    assert_eq!(named, format!("https://blog.test:{port}"));
+    assert_eq!(unnamed, format!("https://127.0.0.1:{port}"));
 }

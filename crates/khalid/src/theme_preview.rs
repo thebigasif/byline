@@ -226,6 +226,7 @@ fn sample_post(author: &str, locale: &Locale) -> RenderPost {
         contents: None,
         originals: BTreeMap::new(),
         related: Vec::new(),
+        comments: None,
         body,
     }
 }
