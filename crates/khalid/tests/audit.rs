@@ -46,6 +46,14 @@ fn audit(site: &Path, args: &[&str]) -> Output {
         .unwrap()
 }
 
+#[cfg(test)]
+fn file(site: &Path, name: &str) -> String {
+    let mut path = site.to_path_buf();
+    path.push("data/audit");
+    path.push(name);
+    fs::read_to_string(path).unwrap()
+}
+
 /// The warnings the demo site has today, each a gap in the default pages
 /// that another track's brief fixes. A fix leaves this test green; a new
 /// kind of warning fails it.
@@ -80,6 +88,28 @@ fn the_demo_site_scores_100_with_no_errors_and_only_known_warnings() {
     assert_eq!(body["errors"], 0);
     assert!(body["pages"].as_u64().unwrap() > 10, "{stdout}");
     assert_eq!(output.status.code(), Some(0));
+    assert!(
+        file(site.path(), "issues.csv").starts_with("severity,category,check,url,detail,fix\n")
+    );
+    let links = file(site.path(), "links.csv");
+    assert!(
+        links.contains("https://www.example.com/blog/why-internal-links-matter/,"),
+        "{links}"
+    );
+}
+
+#[test]
+fn each_run_adds_to_the_trend() {
+    let site = demo_copy();
+    assert_eq!(audit(site.path(), &[]).status.code(), Some(0));
+    let output = audit(site.path(), &[]);
+    let said = String::from_utf8_lossy(&output.stdout);
+    assert!(said.contains("Health score: 100 out of 100."), "{said}");
+    assert!(
+        said.contains("The last scores, oldest first: 100, 100."),
+        "{said}"
+    );
+    assert_eq!(file(site.path(), "runs.jsonl").lines().count(), 2);
 }
 
 #[test]
@@ -103,6 +133,11 @@ fn a_link_to_a_missing_page_fails_the_audit_and_says_how_to_fix_it() {
     assert_eq!(output.status.code(), Some(1), "{said}");
     assert!(said.contains("Page has links to broken page"), "{said}");
     assert!(said.contains("Change the link to a page that exists, or remove it."));
+    let issues = file(site.path(), "issues.csv");
+    assert!(
+        issues.contains("https://www.example.com/blog/old-guide/"),
+        "{issues}"
+    );
 }
 
 #[test]

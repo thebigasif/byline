@@ -1,14 +1,17 @@
 //! What `khalid audit` says: the score, the issues by severity with their
-//! fixes, and its messages when it cannot run.
+//! fixes, the trend, and its messages when it cannot run.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 
-use khalid_audit::{AuditError, Check, Report, Severity};
+use khalid_audit::{AuditError, Check, Report, Run, Severity};
 use khalid_core::UserMessage;
 use serde::Serialize;
+
+/// How many past scores the human report shows.
+const TREND: usize = 5;
 
 /// The JSON shape of `khalid audit --json`.
 #[derive(Serialize)]
@@ -19,6 +22,8 @@ pub(crate) struct AuditBody<'a> {
     warnings: usize,
     notices: usize,
     issues: Vec<IssueBody<'a>>,
+    trend: &'a [Run],
+    files: Files,
 }
 
 /// One issue in `--json`, with what the check is and how to fix it.
@@ -34,8 +39,17 @@ struct IssueBody<'a> {
     fix: &'static str,
 }
 
-/// The JSON body for `audit`.
-pub(crate) fn body(audit: &Report) -> AuditBody<'_> {
+/// Where the audit wrote its files.
+#[derive(Serialize)]
+struct Files {
+    issues: String,
+    links: String,
+    runs: String,
+}
+
+/// The JSON body for `audit`, whose files are in `folder`.
+pub(crate) fn body<'a>(audit: &'a Report, trend: &'a [Run], folder: &Path) -> AuditBody<'a> {
+    let file = |name: &str| format!("{}/{name}", folder.display());
     AuditBody {
         score: audit.score(),
         pages: audit.pages(),
@@ -58,13 +72,19 @@ pub(crate) fn body(audit: &Report) -> AuditBody<'_> {
                 }
             })
             .collect(),
+        trend,
+        files: Files {
+            issues: file("issues.csv"),
+            links: file("links.csv"),
+            runs: file("runs.jsonl"),
+        },
     }
 }
 
-/// The report for a person: the score, and each check that found
-/// something, grouped by severity, with the pages it found it on and its
-/// fix.
-pub(crate) fn human(audit: &Report) -> String {
+/// The report for a person: the score, each check that found something,
+/// grouped by severity with its count and fix, the last scores, and where
+/// the full lists are.
+pub(crate) fn human(audit: &Report, trend: &[Run], folder: &Path) -> String {
     let mut said = format!(
         "Audited {} pages. Health score: {} out of 100.\n",
         audit.pages(),
@@ -103,6 +123,25 @@ pub(crate) fn human(audit: &Report) -> String {
             check.fix()
         );
     }
+    let scores: Vec<String> = trend
+        .iter()
+        .rev()
+        .take(TREND)
+        .rev()
+        .map(|run| run.score.to_string())
+        .collect();
+    if scores.len() > 1 {
+        let _ = writeln!(
+            said,
+            "The last scores, oldest first: {}.",
+            scores.join(", ")
+        );
+    }
+    let _ = writeln!(
+        said,
+        "Every issue with its page is in {0}/issues.csv, and the internal linking report in {0}/links.csv.",
+        folder.display()
+    );
     said
 }
 
@@ -133,7 +172,7 @@ pub(crate) fn of(error: &AuditError) -> UserMessage {
 pub(crate) fn write(file: &Path, error: &io::Error) -> UserMessage {
     UserMessage::new(
         format!("Khalid could not write {}: {error}.", file.display()),
-        "The audit builds the site into the data folder, so it stopped there.",
+        "The audit keeps its results and its trend in the data folder, so it stopped there.",
         "Check that the disk has room and the folder can be written to, then run `khalid audit` again.",
     )
 }

@@ -1,14 +1,17 @@
 //! `khalid --site <folder> audit`: build the site into `data/audit/site/`,
 //! crawl it the way Ahrefs and Semrush do, and print its health score out
-//! of 100 with every issue and its fix. It exits with 1 when it finds an
-//! error.
+//! of 100 with every issue and its fix. It keeps each run's score in
+//! `data/audit/runs.jsonl` for the trend, and writes the issues and the
+//! internal linking report as CSV beside it. It exits with 1 when it finds
+//! an error.
 
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use khalid_audit::{Folder, Limit, Report, Severity, Thresholds, crawl};
+use khalid_audit::{Folder, Limit, LinkReport, Report, Run, Severity, Thresholds, crawl, history};
 use khalid_content::SiteContent;
-use khalid_core::{AbsoluteUrl, Clock, Config, UserMessage};
+use khalid_core::{AbsoluteUrl, Clock, Config};
 use khalid_routes::Routes;
 
 use crate::cli::Output;
@@ -50,22 +53,56 @@ pub(crate) fn run(
     };
     let crawled = runtime.block_on(crawl(&source, &home, Limit::default()));
     let audit = Report::of(&crawled, Thresholds::default());
+    let links = LinkReport::of(&crawled);
+    let trend = match keep(&folder, &audit, &links, clock) {
+        Ok(trend) => trend,
+        Err(message) => return report::failure(output, &message, Exit::Failure),
+    };
     let exit = if audit.count(Severity::Error) == 0 {
         Exit::Success
     } else {
         Exit::Failure
     };
     match output {
-        Output::Json => report::json(&audit_message::body(&audit), exit),
-        Output::Human => report::text(&audit_message::human(&audit), exit),
+        Output::Json => report::json(&audit_message::body(&audit, &trend, &folder), exit),
+        Output::Human => report::text(&audit_message::human(&audit, &trend, &folder), exit),
     }
 }
 
 /// The blog's home page: the site's address with its mount.
-fn home(config: &Config) -> Result<AbsoluteUrl, UserMessage> {
+fn home(config: &Config) -> Result<AbsoluteUrl, khalid_core::UserMessage> {
     let address = config.address().as_str().trim_end_matches('/');
     AbsoluteUrl::parse(&format!("{address}{}", config.mount()))
         .map_err(|_| audit_message::internal())
+}
+
+/// Writes the issues and the link report as CSV into `folder`, adds this
+/// run to the history, and returns every run, oldest first.
+fn keep(
+    folder: &Path,
+    audit: &Report,
+    links: &LinkReport,
+    clock: &dyn Clock,
+) -> Result<Vec<Run>, khalid_core::UserMessage> {
+    let write = |name: &str, text: &str| {
+        let file = within(folder, name);
+        fs::write(&file, text).map_err(|error| audit_message::write(&file, &error))
+    };
+    write("issues.csv", &audit.csv())?;
+    write("links.csv", &links.csv())?;
+    let line = Run::of(audit, clock.now())
+        .line()
+        .map_err(|_| audit_message::internal())?;
+    // Appended, never rewritten, so a failed write loses this run at most.
+    let file = within(folder, "runs.jsonl");
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&file)
+        .and_then(|mut runs| runs.write_all(line.as_bytes()))
+        .map_err(|error| audit_message::write(&file, &error))?;
+    let runs = fs::read_to_string(&file).map_err(|error| audit_message::write(&file, &error))?;
+    Ok(history(&runs))
 }
 
 /// `relative` inside `folder`; every `relative` here is a fixed name.
