@@ -2,7 +2,8 @@
 //!
 //! This crate owns what search engines and feed readers read: the `<head>`
 //! tags of every page, hreflang, sitemaps, feeds, `robots.txt`, the redirect
-//! table and the JSON-LD schema graphs. It takes its own input types, such as
+//! table, the JSON-LD schema graphs, and the `IndexNow` key file and
+//! requests that tell search engines which pages changed. It takes its own input types, such as
 //! [`SeoSite`], and returns ordered output (BL-TYP-5), so the same input
 //! always gives the same bytes (ADR 0013).
 //!
@@ -17,6 +18,7 @@ mod feed_rss;
 mod head;
 mod hreflang;
 mod html_sitemap;
+mod indexnow;
 mod link_policy;
 mod llms_txt;
 mod meta_template;
@@ -42,6 +44,7 @@ pub use feed::{Feed, FeedContent, FeedFormat, FeedItem, FeedOptions, FeedScope};
 pub use head::{HeadTag, HeadTags, head_tags};
 pub use hreflang::{Alternate, Hreflang, TranslationKey, link_translations};
 pub use html_sitemap::{HtmlSitemap, HtmlSitemapGroup, HtmlSitemapLink};
+pub use indexnow::{IndexNow, KeyFile, Submission};
 pub use link_policy::{Domain, LinkAttributes, LinkPolicy, LinkRel, LinkTarget};
 pub use llms_txt::{LlmsTxt, llms_txt_url};
 pub use meta_template::MetaTemplate;
