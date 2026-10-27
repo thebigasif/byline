@@ -55,6 +55,8 @@ describe("filtering and paging posts", () => {
     expect(queries.at(-1)?.get("page")).toBe("1");
     expect(router.state.location.search).toEqual({ index: "noindex" });
     expect(await axeViolations()).toEqual([]);
+    router.history.back();
+    await waitFor(() => expect(screen.getByLabelText(en.posts.index)).toHaveValue(""));
   });
 
   it("moves between pages and keeps the filters", async () => {
