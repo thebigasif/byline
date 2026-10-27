@@ -23,6 +23,7 @@ mod db_message;
 mod doctor;
 mod doctor_check;
 mod doctor_files;
+mod doctor_folder;
 mod exit;
 mod index;
 mod init;

@@ -1,6 +1,7 @@
 //! `khalid --site <folder> doctor`: run every check on a site folder and
 //! print each problem with what to do. It exits with 1 when any check finds a
-//! problem, and writes nothing.
+//! problem. It changes nothing: the permission check writes a hidden empty
+//! file and removes it at once.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -11,7 +12,7 @@ use serde::Serialize;
 use crate::cli::{Cli, Output};
 use crate::doctor_check::{Check, Finding, Outcome, Status};
 use crate::exit::Exit;
-use crate::{doctor_files, report};
+use crate::{doctor_files, doctor_folder, report};
 
 /// The JSON shape of a doctor run.
 #[derive(Serialize)]
@@ -55,7 +56,8 @@ impl<'a> From<&'a Finding> for CheckBody<'a> {
 
 /// Runs every check on the `site` folder and reports them all.
 pub(crate) fn run(site: &Path, cli: &Cli) -> Exit {
-    let findings = doctor_files::check(site);
+    let mut findings = doctor_files::check(site);
+    findings.extend(doctor_folder::check(site));
     let problems = findings
         .iter()
         .filter(|finding| finding.status() == Status::Problem)

@@ -13,6 +13,12 @@ pub(crate) enum Check {
     Routes,
     /// Every content file and every block in it reads.
     Content,
+    /// `data/site.db`, when there is one, opens.
+    Database,
+    /// `theme/tokens.toml`, when there is one, reads and is readable.
+    Theme,
+    /// Khalid may write to the folders it saves into.
+    Permissions,
 }
 
 impl Check {
@@ -22,6 +28,9 @@ impl Check {
             Self::Settings => "Settings",
             Self::Routes => "Routes",
             Self::Content => "Content",
+            Self::Database => "Database",
+            Self::Theme => "Theme",
+            Self::Permissions => "Permissions",
         }
     }
 }

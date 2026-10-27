@@ -2,15 +2,25 @@
 //! do, in human and `--json` output with exit codes (PRD KH-OPS-2, RULES.md
 //! BL-CLI-1 to BL-CLI-3).
 
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use serde_json::Value;
+use tempfile::TempDir;
 
 /// The repository root, where the fixtures are.
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
-/// The checks that read the site's files, in the order doctor runs them.
-const FILE_CHECKS: [&str; 3] = ["settings", "routes", "content"];
+/// Every check, in the order doctor runs them.
+const CHECKS: [&str; 6] = [
+    "settings",
+    "routes",
+    "content",
+    "database",
+    "theme",
+    "permissions",
+];
 
 /// Runs the binary from the repository root.
 #[cfg(test)]
@@ -68,7 +78,7 @@ fn invalid_sites() -> Vec<(String, String)> {
 }
 
 #[test]
-fn the_demo_site_passes_every_file_check_and_exits_0() {
+fn the_demo_site_passes_every_check_and_exits_0() {
     let output = khalid(&["--site", "fixtures/demo-site", "doctor"]);
     let said = text(&output.stdout);
     assert_eq!(
@@ -77,7 +87,14 @@ fn the_demo_site_passes_every_file_check_and_exits_0() {
         "{said}{}",
         text(&output.stderr)
     );
-    for heading in ["Settings: ok.", "Routes: ok.", "Content: ok."] {
+    for heading in [
+        "Settings: ok.",
+        "Routes: ok.",
+        "Content: ok.",
+        "Database: ok.",
+        "Theme: ok.",
+        "Permissions: ok.",
+    ] {
         assert!(said.contains(heading), "no {heading:?} in:\n{said}");
     }
     assert!(
@@ -100,8 +117,8 @@ fn the_demo_site_in_json_lists_each_check_in_order() {
         .iter()
         .map(|check| check["check"].as_str().unwrap())
         .collect();
-    assert_eq!(&names[..3], &FILE_CHECKS, "{body}");
-    for name in FILE_CHECKS {
+    assert_eq!(names, CHECKS, "{body}");
+    for name in CHECKS {
         let found = check(&body, name);
         assert_eq!(found["status"], "ok", "{found}");
         assert!(found["summary"].as_str().unwrap().ends_with('.'), "{found}");
@@ -177,4 +194,182 @@ fn doctor_without_a_site_folder_is_a_usage_error() {
         "{}",
         text(&output.stderr)
     );
+}
+
+/// A copy of the demo site, so a test can break one thing in it.
+#[cfg(test)]
+fn demo_copy() -> TempDir {
+    let mut demo = PathBuf::from(ROOT);
+    demo.push("fixtures/demo-site");
+    let temp = tempfile::tempdir().unwrap();
+    copy_dir(&demo, temp.path());
+    temp
+}
+
+#[cfg(test)]
+fn copy_dir(from: &Path, into: &Path) {
+    fs::create_dir_all(into).unwrap();
+    for entry in fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = within(into, entry.file_name().to_str().unwrap());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), &target).unwrap();
+        }
+    }
+}
+
+/// `name` inside `dir`.
+#[cfg(test)]
+fn within(dir: &Path, name: &str) -> PathBuf {
+    let mut path = dir.to_path_buf();
+    path.push(name);
+    path
+}
+
+/// Writes `text` to `name` inside `site`, making its folder.
+#[cfg(test)]
+fn write(site: &Path, name: &str, text: &str) {
+    let path = within(site, name);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, text).unwrap();
+}
+
+/// Runs doctor with `--json` on `site` and returns the one problem it found.
+#[cfg(test)]
+fn one_problem(site: &Path, check_name: &str) -> Value {
+    let (code, body) = doctor_json(site.to_str().unwrap());
+    assert_eq!(code, Some(1), "{body}");
+    assert_eq!(body["problems"], 1, "{body}");
+    let found = check(&body, check_name);
+    assert_eq!(found["status"], "problem", "{body}");
+    found["problem"].clone()
+}
+
+#[test]
+fn a_database_file_that_is_not_sqlite_is_a_problem() {
+    let site = demo_copy();
+    write(
+        site.path(),
+        "data/site.db",
+        "These are notes, not a database.\n",
+    );
+    let problem = one_problem(site.path(), "database");
+    assert!(
+        problem["what"].as_str().unwrap().contains("site.db"),
+        "{problem}"
+    );
+}
+
+#[test]
+fn a_site_with_no_database_yet_is_fine() {
+    let site = demo_copy();
+    let _ = fs::remove_dir_all(within(site.path(), "data"));
+    let (code, body) = doctor_json(site.path().to_str().unwrap());
+    assert_eq!(code, Some(0), "{body}");
+    let database = check(&body, "database");
+    assert!(
+        database["summary"]
+            .as_str()
+            .unwrap()
+            .contains("no database yet"),
+        "{database}"
+    );
+    assert!(
+        !within(site.path(), "data/site.db").exists(),
+        "doctor made the database"
+    );
+}
+
+#[test]
+fn a_faint_theme_colour_is_a_problem_that_names_the_colour() {
+    let site = demo_copy();
+    write(
+        site.path(),
+        "theme/tokens.toml",
+        "[colors]\nlink = \"#f0c040\"\n",
+    );
+    let problem = one_problem(site.path(), "theme");
+    assert_eq!(
+        problem["what"],
+        "colors.link in theme/tokens.toml is too faint to read on the background."
+    );
+    assert!(
+        problem["fix"].as_str().unwrap().contains("darker shade"),
+        "{problem}"
+    );
+}
+
+#[test]
+fn a_partial_tokens_file_the_pages_accept_is_fine() {
+    let site = demo_copy();
+    write(
+        site.path(),
+        "theme/tokens.toml",
+        "[colors]\nlink = \"#b3261e\"\n",
+    );
+    let (code, body) = doctor_json(site.path().to_str().unwrap());
+    assert_eq!(code, Some(0), "{body}");
+    assert_eq!(check(&body, "theme")["status"], "ok", "{body}");
+}
+
+#[test]
+fn a_tokens_file_with_a_mistake_names_its_line() {
+    let site = demo_copy();
+    write(
+        site.path(),
+        "theme/tokens.toml",
+        "[colors]\nlink = \"red-ish\"\n",
+    );
+    let problem = one_problem(site.path(), "theme");
+    assert!(
+        problem["what"].as_str().unwrap().contains("line 2"),
+        "{problem}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_folder_khalid_cannot_write_to_is_a_problem() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let site = demo_copy();
+    let content = within(site.path(), "content");
+    fs::set_permissions(&content, fs::Permissions::from_mode(0o555)).unwrap();
+    // A user who may write anywhere, such as root, cannot see this problem.
+    let probe = tempfile::tempfile_in(&content);
+    if probe.is_ok() {
+        fs::set_permissions(&content, fs::Permissions::from_mode(0o755)).unwrap();
+        return;
+    }
+    let (code, body) = doctor_json(site.path().to_str().unwrap());
+    fs::set_permissions(&content, fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(code, Some(1), "{body}");
+    let problem = &check(&body, "permissions")["problem"];
+    assert_eq!(problem["what"], "Khalid cannot write to content/.");
+}
+
+#[test]
+fn doctor_leaves_the_site_folder_as_it_was() {
+    let site = demo_copy();
+    let before = listing(site.path());
+    let (code, body) = doctor_json(site.path().to_str().unwrap());
+    assert_eq!(code, Some(0), "{body}");
+    assert_eq!(listing(site.path()), before);
+}
+
+/// Every path under `dir`, sorted.
+#[cfg(test)]
+fn listing(dir: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    for entry in fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            found.extend(listing(&path));
+        }
+        found.push(path);
+    }
+    found.sort();
+    found
 }

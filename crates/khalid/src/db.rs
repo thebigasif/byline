@@ -13,10 +13,10 @@ use crate::exit::Exit;
 use crate::{db_message, index, report};
 
 /// The folder inside a site that holds everything Khalid derives or keeps.
-const DATA: &str = "data";
+pub(crate) const DATA: &str = "data";
 
 /// The database file inside [`DATA`].
-const FILE: &str = "site.db";
+pub(crate) const FILE: &str = "site.db";
 
 /// The handle of the one site a site folder holds. Multi-site, in a later
 /// phase, gives each site in a process its own.
