@@ -101,7 +101,7 @@ pub(crate) enum Command {
         command: ThemeCommand,
     },
     /// Bring in a blog from another platform, keeping every slug and
-    /// mapping each address that moves to its new one
+    /// storing a redirect for each address that moves
     Import(ImportArgs),
     /// Write the site as plain HTML to public/, for static mode
     Export,
@@ -366,7 +366,7 @@ pub(crate) struct ImportArgs {
 
     #[arg(
         value_name = "EXPORT",
-        help = "The export file from WordPress or Ghost"
+        help = "The export: a WordPress or Ghost file, or the unpacked Medium folder"
     )]
     pub(crate) export: PathBuf,
 

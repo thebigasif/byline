@@ -272,7 +272,7 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
         }),
         Some(asked @ Command::Import(args))
-            if !matches!(args.source, ImportSource::Wordpress | ImportSource::Ghost) =>
+            if matches!(args.source, ImportSource::Substack | ImportSource::Markdown) =>
         {
             Some(report::failure(
                 cli.output,

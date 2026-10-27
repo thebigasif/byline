@@ -1,6 +1,6 @@
 //! `khalid import` (KH-API-7): a dry run writes nothing, an import writes
-//! the posts with their slugs and a redirect map `khalid redirects import`
-//! stores, and a second import refuses to overwrite.
+//! the posts with their slugs and stores the redirects the site can answer,
+//! and a second import refuses to overwrite.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -71,7 +71,7 @@ fn a_dry_run_reports_and_writes_nothing() {
 }
 
 #[test]
-fn a_wordpress_import_writes_posts_and_a_map_redirects_import_stores() {
+fn a_wordpress_import_writes_posts_and_stores_its_redirects() {
     let site = site();
     let export = fixture("wordpress/basic.xml");
     let rules = fixture("wordpress/redirection.json");
@@ -84,15 +84,8 @@ fn a_wordpress_import_writes_posts_and_a_map_redirects_import_stores() {
     let map = fs::read_to_string(file(site.path(), "import/wordpress-redirects.csv")).unwrap();
     let rows = map.lines().count() - 1;
     assert!(rows > 0, "{map}");
-    let told = "Run `khalid redirects import import/wordpress-redirects.csv`";
-    assert!(printed.contains(told), "{printed}");
-    let map_file = file(site.path(), "import/wordpress-redirects.csv");
-    let (code, done) = khalid(
-        site.path(),
-        &["redirects", "import", map_file.to_str().unwrap()],
-    );
-    assert_eq!(code, 0, "{done}");
-    assert!(done.contains(&format!("Stored {rows} redirects")), "{done}");
+    let told = format!("Wrote 7 files and stored {rows} redirects.");
+    assert!(printed.starts_with(&told), "{printed}");
     let (code, stored) = khalid(site.path(), &["redirects", "export"]);
     assert_eq!(code, 0, "{stored}");
     assert_eq!(
@@ -133,6 +126,40 @@ fn a_ghost_import_answers_in_json() {
 }
 
 #[test]
+fn a_medium_import_keeps_addresses_on_medium_in_the_file_only() {
+    let site = site();
+    let posts = file(site.path(), "medium-export/posts");
+    fs::create_dir_all(&posts).unwrap();
+    let post = file(&posts, "2024-03-12_How-to-bake-rye-bread-3f1a8c4e2b9d.html");
+    fs::write(post, MEDIUM_POST).unwrap();
+    let export = file(site.path(), "medium-export");
+    let (code, printed) = khalid(site.path(), &["import", "medium", export.to_str().unwrap()]);
+    assert_eq!(code, 0, "{printed}");
+    assert!(printed.contains("stored 0 redirects"), "{printed}");
+    let map = fs::read_to_string(file(site.path(), "import/medium-redirects.csv")).unwrap();
+    assert!(map.contains(",https://www.example.com/blog/"), "{map}");
+    assert!(map.contains("https://medium.com/@mara/how-to-bake-rye-bread-3f1a8c4e2b9d,"));
+}
+
+#[test]
+fn redirects_that_clash_with_stored_ones_are_named() {
+    let site = site();
+    let clash = file(site.path(), "clash.csv");
+    let row = "/keep-a-starter-alive/,/blog/elsewhere/,301";
+    fs::write(&clash, format!("from,to,status\n{row}\n")).unwrap();
+    let (code, done) = khalid(
+        site.path(),
+        &["redirects", "import", clash.to_str().unwrap()],
+    );
+    assert_eq!(code, 0, "{done}");
+    let export = fixture("ghost/ghost-5.json");
+    let (code, printed) = khalid(site.path(), &["import", "ghost", &export]);
+    assert_eq!(code, 1, "{printed}");
+    assert!(printed.contains("were not stored"), "{printed}");
+    assert!(printed.contains("khalid redirects import import/ghost-redirects.csv"));
+}
+
+#[test]
 fn an_export_that_is_not_one_imports_nothing() {
     let site = site();
     let export = fixture("ghost/ghost-5.json");
@@ -141,3 +168,5 @@ fn an_export_that_is_not_one_imports_nothing() {
     assert!(printed.contains("Nothing was imported"), "{printed}");
     assert!(!file(site.path(), "content/en").exists());
 }
+
+const MEDIUM_POST: &str = r#"<html><body><article class="h-entry"><header><h1 class="p-name">How to bake rye bread</h1></header><section data-field="subtitle" class="p-summary">A wetter dough</section><section data-field="body" class="e-content"><section class="section"><div class="section-inner"><h3 class="graf graf--h3 graf--title">How to bake rye bread</h3><p class="graf graf--p">Rye needs time.</p></div></section></section><footer><p>By <a href="https://medium.com/@mara" class="p-author h-card">Mara Lind</a> on <time class="dt-published" datetime="2024-03-12T09:30:44.123Z">then</time>.</p><p><a href="https://medium.com/@mara/how-to-bake-rye-bread-3f1a8c4e2b9d" class="p-canonical">Canonical link</a></p></footer></article></body></html>"#;
