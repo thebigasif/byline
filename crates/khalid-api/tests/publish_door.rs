@@ -126,6 +126,28 @@ async fn a_live_post_taken_down_is_announced_once() {
 }
 
 #[tokio::test]
+async fn a_live_post_deleted_is_announced_as_taken_down() {
+    let recorder = Arc::new(Recorder::default());
+    let router = router(&recorder);
+    let up = json!({"status": "published", "updated_at": "2026-10-20T08:30:00Z"});
+    let (_, json) = put(&router, up).await;
+    let seen = json["posts"][0]["updated_at"].as_str().unwrap();
+    let request = Request::delete(format!(
+        "/api/admin/v1/posts/en.choosing-anchor-text/?updated_at={seen}"
+    ))
+    .header("authorization", format!("Khalid {WRITER}"))
+    .body(Body::empty())
+    .unwrap();
+    let response = router.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let told = recorder.0.lock().unwrap().clone();
+    assert_eq!(
+        told,
+        ["en.choosing-anchor-text", "down en.choosing-anchor-text"]
+    );
+}
+
+#[tokio::test]
 async fn an_edit_that_does_not_publish_is_not_announced() {
     let recorder = Arc::new(Recorder::default());
     let router = router(&recorder);

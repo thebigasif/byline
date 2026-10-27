@@ -33,10 +33,12 @@ impl Drop for Server {
     }
 }
 
-/// One answer: its status, its Content Security Policy, and its body.
+/// One answer: its status, its Content Security Policy, where it moves
+/// to, and its body.
 struct Answer {
     status: u16,
     policy: String,
+    location: String,
     body: String,
 }
 
@@ -100,9 +102,14 @@ fn get(server: &Server, path: &str) -> Answer {
         .lines()
         .find_map(|line| line.strip_prefix("content-security-policy: "))
         .unwrap_or_default();
+    let location = head
+        .lines()
+        .find_map(|line| line.strip_prefix("location: "))
+        .unwrap_or_default();
     Answer {
         status: head.split(' ').nth(1).unwrap().parse().unwrap(),
         policy: policy.to_owned(),
+        location: location.to_owned(),
         body: body.to_owned(),
     }
 }
@@ -285,6 +292,124 @@ fn serve_answers_the_sitemaps_feeds_and_aliases_beside_the_pages() {
         assert_eq!(answer.status, 200, "{path}");
         assert!(answer.body.contains(text), "{path}:\n{}", answer.body);
     }
+}
+
+/// Writes `text` to `rel` inside `site`, making its folders first.
+#[cfg(test)]
+fn put(site: &Path, rel: &str, text: &str) {
+    let mut file = site.to_path_buf();
+    file.push(rel);
+    fs::create_dir_all(file.parent().unwrap()).unwrap();
+    fs::write(file, text).unwrap();
+}
+
+#[test]
+fn serve_answers_every_list_page_where_routes_toml_puts_it() {
+    let site = demo_copy();
+    put(
+        site.path(),
+        "routes.toml",
+        "[taxonomies]\ncategory = \"topic\"\n\n\
+         [collections.news]\npermalink = \"/news/{year}/{month}/{slug}/\"\n\n\
+         [channels.from-lena]\npath = \"/from-lena/\"\nfilter = { author = \"lena-vogt\" }\n",
+    );
+    put(
+        site.path(),
+        "content/en/news/_index.md",
+        "---\ntitle: News\n---\n\nWhat changed on Field Notes, month by month.\n",
+    );
+    put(
+        site.path(),
+        "content/en/news/launch.md",
+        "---\ntitle: Field Notes is live\nslug: launch\ndate: 2026-09-03\nauthor: asif\n---\n\n\
+         The blog is live. Start at [the home page](/blog/).\n",
+    );
+    let server = start(site.path());
+    for (path, text) in [
+        ("/blog/archive/", "<h1>Archive</h1>"),
+        ("/blog/de/archive/", "lang=\"de\""),
+        ("/blog/authors/", "<h1>Authors</h1>"),
+        ("/blog/sitemap/", "<h1>Sitemap</h1>"),
+        ("/blog/topic/technical-seo/", "<h1>Technical SEO</h1>"),
+        ("/blog/from-lena/", "<h1>From lena</h1>"),
+        ("/blog/news/", "month by month."),
+        ("/blog/news/2026/", "<h1>2026</h1>"),
+        ("/blog/news/2026/09/", "Field Notes is live</a>"),
+    ] {
+        let answer = get(&server, path);
+        assert_eq!(answer.status, 200, "{path}");
+        assert!(answer.body.contains(text), "{path}:\n{}", answer.body);
+    }
+    assert_eq!(get(&server, "/blog/category/technical-seo/").status, 404);
+}
+
+#[test]
+fn serve_moves_an_alias_to_where_routes_toml_puts_the_post() {
+    let site = demo_copy();
+    let mut routes = site.path().to_path_buf();
+    routes.push("routes.toml");
+    fs::write(
+        &routes,
+        "[collections.posts]\npermalink = \"/{year}/{slug}/\"\n",
+    )
+    .unwrap();
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-09-28-what-a-sitemap-does.md");
+    let post = fs::read_to_string(&file).unwrap();
+    let alias = "translation: sitemap\naliases:\n  - /blog/sitemaps-explained/\n";
+    fs::write(&file, post.replace("translation: sitemap\n", alias)).unwrap();
+    let server = start(site.path());
+    let moved = get(&server, "/blog/sitemaps-explained/");
+    assert_eq!(moved.status, 301, "the alias moved to its post");
+    assert_eq!(moved.location, "/blog/2026/what-a-sitemap-does/");
+    assert_eq!(get(&server, &moved.location).status, 200);
+}
+
+#[test]
+fn serve_answers_the_indexnow_key_file_where_requests_say_it_is() {
+    let site = demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let mut text = fs::read_to_string(&settings).unwrap();
+    text.push_str("\n[seo.indexnow]\nkey = \"5d1e7a0c9b3f4e28\"\n");
+    fs::write(&settings, text).unwrap();
+    let server = start(site.path());
+    let answer = get(&server, "/blog/5d1e7a0c9b3f4e28.txt");
+    assert_eq!(answer.status, 200);
+    assert_eq!(answer.body, "5d1e7a0c9b3f4e28");
+}
+
+#[test]
+fn serve_answers_robots_txt_at_the_host_root_for_a_blog_in_a_folder() {
+    let site = demo_copy();
+    let server = start(site.path());
+    let answer = get(&server, "/robots.txt");
+    assert_eq!(answer.status, 200);
+    let sitemap = "Sitemap: https://www.example.com/blog/sitemap.xml";
+    assert!(answer.body.contains(sitemap), "{}", answer.body);
+}
+
+#[test]
+fn serve_gives_body_links_the_sites_link_policy() {
+    let site = demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let mut text = fs::read_to_string(&settings).unwrap();
+    text.push_str("\n[seo.links]\nrel = [\"nofollow\"]\naffiliate_domains = [\"amazon.com\"]\n");
+    fs::write(&settings, text).unwrap();
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-09-28-what-a-sitemap-does.md");
+    let mut post = fs::read_to_string(&file).unwrap();
+    post.push_str("\nRead [the book](https://www.amazon.com/dp/B0C1234567) or ");
+    post.push_str("[the guide](https://developers.google.com/search).\n");
+    fs::write(&file, post).unwrap();
+    let server = start(site.path());
+    let page = get(&server, "/blog/what-a-sitemap-does/");
+    assert_eq!(page.status, 200);
+    let book = "<a href=\"https://www.amazon.com/dp/B0C1234567\" rel=\"nofollow sponsored\">";
+    let guide = "<a href=\"https://developers.google.com/search\" rel=\"nofollow\">";
+    assert!(page.body.contains(book), "{}", page.body);
+    assert!(page.body.contains(guide), "{}", page.body);
 }
 
 #[test]

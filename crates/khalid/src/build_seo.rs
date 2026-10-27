@@ -8,8 +8,8 @@ use khalid_core::{Config, Locale, UserMessage};
 use khalid_lint::StructuredDataGap;
 use khalid_render::HeadHtml;
 use khalid_seo::{
-    IndexPolicy, IssueLevel, MetaTemplate, PageKind, SeoError, SeoPage, SeoSite, SitemapListing,
-    TranslationKey, UrlPath, check_graph, head_tags, link_translations, page_graph,
+    IndexPolicy, IssueLevel, LinkPolicy, MetaTemplate, PageKind, SeoError, SeoPage, SeoSite,
+    SitemapListing, TranslationKey, UrlPath, check_graph, head_tags, link_translations, page_graph,
 };
 
 use crate::build_pages::LanguagePages;
@@ -30,8 +30,25 @@ pub(crate) fn site(config: &Config) -> Result<SeoSite, UserMessage> {
         .filter(|locale| *locale != config.default_language());
     site.languages.extend(others.cloned());
     site.indexing = IndexPolicy::from(&config.seo().index);
+    site.links = LinkPolicy::from(&config.seo().links);
     search_page::announce(config, &mut site)?;
     Ok(site)
+}
+
+/// `html`, a rendered body, with each link given the `rel` and `target` the
+/// link policy in `[seo.links]` gives it. Without that table, `html` as it
+/// is.
+pub(crate) fn with_link_policy(config: &Config, html: String) -> String {
+    let policy = LinkPolicy::from(&config.seo().links);
+    if policy == LinkPolicy::default() {
+        return html;
+    }
+    let site = SeoSite::new(
+        config.name(),
+        config.address().clone(),
+        config.default_language().clone(),
+    );
+    policy.apply_to_html(&site, &html)
 }
 
 /// A page of `kind` in `locale` whose path in the mount folder and language

@@ -1,0 +1,11 @@
+# Breaks one rule: an affiliate domain is a name such as amazon.com, not a
+# web address. The exact message khalid --site prints for it is in
+# expected.txt beside this file.
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+default_language = "en"
+languages = ["en", "de"]
+
+[seo.links]
+affiliate_domains = ["https://www.amazon.com/"]

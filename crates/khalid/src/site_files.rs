@@ -6,6 +6,7 @@
 use chrono::{DateTime, Utc};
 use khalid_content::SiteContent;
 use khalid_core::{Config, UserMessage};
+use khalid_routes::Routes;
 use khalid_seo::{SeoPage, SeoSite};
 use khalid_server::{MediaType, Moved, Page, PagePath};
 
@@ -16,25 +17,36 @@ use crate::{build_files, build_message, build_redirects};
 pub(crate) const HEADLESS_NOT_FOUND: &str = "<!doctype html>\n<html lang=\"en\">\n<meta charset=\"utf-8\">\n<title>Not found</title>\n<p>Nothing is here. This site's pages are shown by another app.</p>\n</html>\n";
 
 /// Every file of `site` beside its `pages`, at the address its build file
-/// has under the mount folder. `now` dates a feed that has no posts yet.
+/// has under the mount folder, and for a blog in a folder the files for
+/// the host's root, at the root. `now` dates a feed that has no posts yet.
 pub(crate) fn files(
     config: &Config,
     site: &SeoSite,
     pages: &[SeoPage],
     now: DateTime<Utc>,
 ) -> Result<Vec<Page>, UserMessage> {
-    build_files::files(site, pages, now)?
+    let in_mount = build_files::files(site, pages, config.seo().indexnow.as_ref(), now)?
         .into_iter()
-        .map(|file| {
-            let path = page_path(&format!("{}{}", config.mount(), file.file))?;
+        .map(|file| (config.mount(), file));
+    let at_root = build_files::root_files(site)?
+        .into_iter()
+        .map(|file| ("/", file));
+    in_mount
+        .chain(at_root)
+        .map(|(folder, file)| {
+            let path = page_path(&format!("{folder}{}", file.file))?;
             Ok(Page::new(path, media_type(&file.file), file.text))
         })
         .collect()
 }
 
-/// Each alias of a dated post, moved to the post's address.
-pub(crate) fn moves(config: &Config, content: &SiteContent) -> Result<Vec<Moved>, UserMessage> {
-    build_redirects::hops(config, content)?
+/// Each alias of a dated post, moved to the address `routes` gives it.
+pub(crate) fn moves(
+    config: &Config,
+    routes: &Routes,
+    content: &SiteContent,
+) -> Result<Vec<Moved>, UserMessage> {
+    build_redirects::hops(config, routes, content)?
         .into_iter()
         .map(|hop| Ok(Moved::new(page_path(&hop.from)?, page_path(&hop.to)?)))
         .collect()
