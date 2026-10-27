@@ -1,7 +1,6 @@
 //! The redirect routes of the Admin API under `/api/admin/v1/redirects/`
 //! (KH-SEO-8). Every route needs `settings:write`.
 
-
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;

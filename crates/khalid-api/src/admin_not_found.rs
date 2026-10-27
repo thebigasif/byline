@@ -2,7 +2,6 @@
 //! an address that found nothing to a permanent move (KH-SEO-8). Both
 //! routes need `settings:write`.
 
-
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
