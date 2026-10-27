@@ -28,8 +28,9 @@ use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::site_page::HeadNonce;
 use crate::unlock::Gate;
 use crate::{
-    assets, build_home, build_message, build_pages, build_seo, content_message, post_files,
-    post_lock, search_page, serve_message, site_files, site_outline,
+    assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
+    categories, content_message, post_files, post_lock, search_page, serve_message, site_files,
+    site_outline,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -365,11 +366,20 @@ impl SitePages {
         post_lock::lock(config, content, renderer, &mut languages);
         if let Some(theme) = theme {
             search_page::add(config, &theme.renderer, &mut languages)?;
+            // A saved post's page alone needs no list, and its content
+            // holds too few posts to make one.
+            if which == Which::All {
+                let categories = categories::of(folder)?;
+                let sources = (content, categories.as_slice());
+                build_lists::add((config, routes), &theme.renderer, sources, &mut languages)?;
+                build_sitemap::add(config, &theme.renderer, &mut languages)?;
+            }
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
         let beside = post_files::served(folder, config, assets, &mut languages, shown)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+        build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
         post_lock::share_heads(&mut languages);
         if which == Which::All {
             self.0.gate.replace(&languages);
@@ -382,7 +392,7 @@ impl SitePages {
         if which == Which::All {
             served.pages = site_files::files(config, &seo_site, &seo_pages, SystemClock.now())?;
             served.pages.extend(beside);
-            served.moves = site_files::moves(config, content)?;
+            served.moves = site_files::moves(config, routes, content)?;
         }
         if let Some(theme) = theme {
             if which == Which::All {

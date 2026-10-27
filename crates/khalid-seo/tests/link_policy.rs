@@ -7,7 +7,8 @@ mod common;
 use std::fmt::Write as _;
 
 use common::{demo_site, internal_links_post, internal_links_post_de};
-use khalid_seo::{Domain, LinkRel, LinkTarget, SeoError, SeoSite};
+use khalid_core::{DomainName, ExternalRel, LinkOpening, LinkSettings};
+use khalid_seo::{Domain, LinkPolicy, LinkRel, LinkTarget, SeoError, SeoSite};
 
 fn domain(text: &str) -> Domain {
     Domain::try_new(text).unwrap()
@@ -82,6 +83,47 @@ fn the_default_policy_leaves_every_link_alone() {
         .links
         .attributes_for(&site, "https://developers.google.com/");
     assert_eq!((external.rel(), external.target()), (None, None));
+}
+
+#[test]
+fn every_link_in_a_body_gets_its_attributes_and_nothing_else_changes() {
+    let site = demo_policy_site();
+    let body = concat!(
+        "<p>Read <a href=\"https://developers.google.com/search\">the guide</a>, ",
+        "buy <a href=\"https://www.amazon.com/dp/B0C1234567?tag=fieldnotes&amp;th=1\">the book</a>, ",
+        "see <a href=\"/blog/why-links-matter/\">why links matter</a> and ",
+        "<a href=\"#notes\">the notes</a>.</p>\n",
+        "<p><a class=\"button\" href=\"https://app.serpdad.com/\">Open SerpDad</a> ",
+        "<abbr title=\"a &lt;b&gt;\">SEO</abbr></p>\n",
+    );
+    insta::assert_snapshot!(site.links.apply_to_html(&site, body));
+}
+
+#[test]
+fn a_link_that_has_rel_or_target_keeps_them() {
+    let site = demo_policy_site();
+    let body = "<a href=\"https://example.org/\" rel=\"me\" target=\"_self\">me</a>";
+    assert_eq!(site.links.apply_to_html(&site, body), body);
+}
+
+#[test]
+fn the_default_policy_returns_the_body_as_it_is() {
+    let site = demo_site();
+    let body = "<p><a href=\"https://developers.google.com/\">the guide</a></p>";
+    assert_eq!(site.links.apply_to_html(&site, body), body);
+}
+
+#[test]
+fn the_link_settings_become_the_policy() {
+    let mut settings = LinkSettings::default();
+    settings.rel = vec![ExternalRel::NoFollow];
+    settings.open = LinkOpening::NewTab;
+    settings.affiliate_domains = vec![DomainName::try_new("Amazon.com").unwrap()];
+    let mut site = demo_site();
+    site.links = LinkPolicy::from(&settings);
+    assert_eq!(site.links.external_rel, [LinkRel::NoFollow].into());
+    assert_eq!(site.links.external_target, LinkTarget::NewTab);
+    assert_eq!(site.links.affiliate_domains, vec![domain("amazon.com")]);
 }
 
 #[test]

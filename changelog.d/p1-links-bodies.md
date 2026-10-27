@@ -1,0 +1,2 @@
+Added
+Every link to another site in a post, page, glossary term or author bio now gets the `rel` and `target` that `[seo.links]` sets, in `khalid build` and `khalid serve`: `nofollow` or `ugc` if chosen, `sponsored` for an affiliate domain, and `target="_blank"` with `noopener` for a new tab. Links inside the blog and to internal domains are left alone, and so is a site without the table (KH-SEO-10, audit G17).

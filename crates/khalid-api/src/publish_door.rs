@@ -13,7 +13,7 @@ use khalid_lint::Report;
 use tokio::sync::Mutex;
 
 use crate::content_store::Listed;
-use crate::post_store::{PostStore, PostStoreError, UpdatePostError};
+use crate::post_store::{DeletePostError, PostStore, PostStoreError, UpdatePostError};
 use crate::preview_link::PreviewSigner;
 use crate::query::ListQuery;
 use crate::resources::{AdminPost, PostEdit, PostRow, PostStatus};
@@ -234,6 +234,31 @@ impl PublishDoor {
             self.announce.scheduled(&post);
         } else if was_live && !post.reads_as(&before.with_schedule(&current)) {
             self.announce.edited(&post);
+        }
+        Ok(post)
+    }
+
+    /// Removes post `id` when it has not changed since `updated_at`, as
+    /// [`PostStore::delete`] does, and drops its schedule. A post that was
+    /// live is announced as taken down.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`DeletePostError`] of [`PostStore::delete`], and
+    /// [`DeletePostError::Store`] when the schedule cannot be cleared.
+    pub async fn delete(
+        &self,
+        id: &str,
+        updated_at: DateTime<Utc>,
+    ) -> Result<AdminPost, DeletePostError> {
+        let _editing = self.editing.lock().await;
+        let post = self.posts.delete(id, updated_at).await?;
+        if let Some(schedules) = &self.schedules {
+            let cleared = schedules.set(id, Schedule::default()).await;
+            cleared.map_err(PostStoreError::new)?;
+        }
+        if post.status() == PostStatus::Published {
+            self.announce.unpublished(&post);
         }
         Ok(post)
     }
