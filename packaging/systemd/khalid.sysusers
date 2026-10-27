@@ -1,0 +1,3 @@
+# The system user khalid.service runs as, with the site folder as its home.
+# Copy to /etc/sysusers.d/khalid.conf and run `systemd-sysusers`.
+u khalid - "Khalid blog engine" /var/lib/khalid

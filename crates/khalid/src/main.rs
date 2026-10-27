@@ -20,6 +20,7 @@ mod build_redirects;
 mod build_seo;
 mod categories;
 mod cli;
+mod comment_pages;
 mod config_message;
 mod content_feed;
 mod content_message;
@@ -31,6 +32,7 @@ mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
 mod exit;
+mod https_message;
 mod index;
 mod init;
 mod init_message;
@@ -49,6 +51,7 @@ mod mcp_tools;
 mod media_library;
 mod new;
 mod new_message;
+mod newsletter;
 mod outbound;
 mod post_files;
 mod post_images;
@@ -63,7 +66,9 @@ mod search_page;
 mod search_route;
 mod search_static;
 mod serve;
+mod serve_https;
 mod serve_message;
+mod settings_text;
 mod site_content;
 mod site_files;
 mod site_lists;
@@ -122,7 +127,7 @@ fn run(cli: &Cli) -> Exit {
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
     let look = match (&cli.command, cli.site.as_deref()) {
-        (Some(Command::Serve { .. }), Some(folder)) => Some(FolderLook::take(folder)),
+        (Some(Command::Serve(_)), Some(folder)) => Some(FolderLook::take(folder)),
         _ => None,
     };
     let site = match cli.site.as_deref() {
@@ -137,11 +142,11 @@ fn run(cli: &Cli) -> Exit {
     // The server renders its first pages from the checked content, then
     // drops it, so it takes the content rather than borrowing it.
     let site = match (&cli.command, site) {
-        (Some(Command::Serve { listen }), Some((folder, config, routes, (content, assets)))) => {
+        (Some(Command::Serve(args)), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let (checked, start) = ((&config, &routes), (content, assets, look));
-            let to = (*listen, outbound::client(cli), environment.s3_keys());
-            return serve::run(folder, checked, start, to, cli.output);
+            let bucket_keys = environment.s3_keys();
+            return serve_https::serve(cli, folder, checked, start, (args, bucket_keys));
         }
         (_, site) => site,
     };
@@ -188,7 +193,7 @@ fn run(cli: &Cli) -> Exit {
             Some(
                 command @ (Command::Db { .. }
                 | Command::Theme { .. }
-                | Command::Serve { .. }
+                | Command::Serve(_)
                 | Command::Keys { .. }
                 | Command::Mcp
                 | Command::Lint { .. }

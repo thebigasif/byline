@@ -23,6 +23,7 @@ htmd = "0.5"
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
 khalid-media = { path = "../khalid-media", version = "0.0.0" }
+khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 serde.workspace = true
 sha2 = "0.11"
 subtle = "2"

@@ -5,7 +5,8 @@ use khalid_core::Slug;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::{display, display_option};
+use super::settings_edit::Change;
+use super::{PostSettings, SettingsEdit, display, display_option};
 use crate::schedule_store::Schedule;
 
 /// Where a post stands.
@@ -49,6 +50,9 @@ pub struct AdminPost {
     updated_at: DateTime<Utc>,
     /// Who made the last change: a staff name or a key's identity.
     updated_by: Option<String>,
+    /// The settings beside the title and body, as the admin's settings
+    /// panel shows them.
+    settings: PostSettings,
 }
 
 impl AdminPost {
@@ -71,6 +75,7 @@ impl AdminPost {
             unpublish_at: None,
             updated_at,
             updated_by: None,
+            settings: PostSettings::default(),
         }
     }
 
@@ -96,6 +101,17 @@ impl AdminPost {
     /// When it comes down again, if it is scheduled to.
     pub fn unpublish_at(&self) -> Option<DateTime<Utc>> {
         self.unpublish_at
+    }
+
+    /// The settings beside the title and body.
+    pub fn settings(&self) -> &PostSettings {
+        &self.settings
+    }
+
+    /// The same post with `settings`.
+    #[must_use]
+    pub fn with_settings(self, settings: PostSettings) -> Self {
+        Self { settings, ..self }
     }
 
     /// The identity.
@@ -178,11 +194,18 @@ impl AdminPost {
     #[must_use]
     pub fn edited(self, edit: PostEdit, at: DateTime<Utc>, by: &str) -> Self {
         let status = edit.status;
+        let settings = match edit.settings {
+            Some(change) => change.applied_to(self.settings),
+            None => self.settings,
+        };
         let post = Self {
+            slug: edit.slug.unwrap_or(self.slug),
             title: edit.title.unwrap_or(self.title),
+            author: edit.author.applied_to(self.author),
             markdown: edit.markdown.unwrap_or(self.markdown),
             updated_at: at,
             updated_by: Some(by.to_owned()),
+            settings,
             ..self
         };
         match status {
@@ -198,17 +221,27 @@ impl AdminPost {
 }
 
 /// An edit to a post: the fields to change, and the `updated_at` of the
-/// copy it was made on. Fields left out keep their value. A `status` of
-/// `published` publishes a draft, once the linter lets it through;
-/// `scheduled` with a future `published_at` publishes it then, and
-/// `draft` takes a scheduled post off its schedule and a live post down.
+/// copy it was made on. Fields left out keep their value, and `null`
+/// clears one that may be empty. A `status` of `published` publishes a
+/// draft, once the linter lets it through; `scheduled` with a future
+/// `published_at` publishes it then, and `draft` takes a scheduled post
+/// off its schedule and a live post down.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PostEdit {
+    /// A new slug. No other post may have it.
+    #[schema(value_type = Option<String>, example = "how-to-choose-anchor-text")]
+    slug: Option<Slug>,
     /// A new title.
     title: Option<String>,
+    /// A new author's slug, or `null` for none.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, example = "asif")]
+    author: Change<Slug>,
     /// A new markdown body.
     markdown: Option<String>,
+    /// New values for some settings; the rest keep theirs.
+    settings: Option<SettingsEdit>,
     /// `published` to publish the post now, `scheduled` to publish it at
     /// `published_at`, or `draft` to cancel a schedule and take a live post
     /// down. Publishing runs
@@ -230,8 +263,11 @@ impl PostEdit {
     /// `updated_at`, as the scheduler sends.
     pub fn status_only(status: PostStatus, updated_at: DateTime<Utc>) -> Self {
         Self {
+            slug: None,
             title: None,
+            author: Change::default(),
             markdown: None,
+            settings: None,
             status: Some(status),
             published_at: None,
             unpublish_at: None,
@@ -278,6 +314,12 @@ impl PostEdit {
             unpublish_at: None,
             ..self
         }
+    }
+
+    /// The new slug, if the edit changes it. The store checks that no
+    /// other post has it.
+    pub fn slug(&self) -> Option<&Slug> {
+        self.slug.as_ref()
     }
 }
 

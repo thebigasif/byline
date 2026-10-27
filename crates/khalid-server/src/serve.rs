@@ -5,7 +5,7 @@ use std::future::{Future, IntoFuture, pending};
 use std::time::Duration;
 
 use axum::Router;
-use axum::serve::Listener;
+use axum::serve::{Listener, ListenerExt};
 use tokio::sync::oneshot;
 
 use crate::ServerError;
@@ -41,7 +41,7 @@ pub async fn serve<L, F>(
 ) -> Result<Stopped, ServerError>
 where
     L: Listener,
-    L::Addr: Debug,
+    L::Addr: Clone + Debug + Send + Sync + 'static,
     F: Future<Output = ()> + Send + 'static,
 {
     let (signalled, on_signal) = oneshot::channel::<()>();
@@ -50,6 +50,11 @@ where
         tracing::info!("stopping: no new connections, finishing the requests in flight");
         let _ = signalled.send(());
     };
+    // Handlers that limit by address, such as the comment form, read the
+    // peer through `ConnectInfo` of the listener's address, a `SocketAddr`
+    // for TCP and TLS. Tapping no connection is what gives any listener it.
+    let listener = listener.tap_io(|_| {});
+    let router = router.into_make_service_with_connect_info::<L::Addr>();
     let server = axum::serve(listener, router)
         .with_graceful_shutdown(signal)
         .into_future();

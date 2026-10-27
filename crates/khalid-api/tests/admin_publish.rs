@@ -10,12 +10,13 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use chrono::{TimeZone, Utc};
 use khalid_api::api;
-use khalid_api::content_store::BoxFuture;
+use khalid_api::content_store::{BoxFuture, Listed};
 use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
 use khalid_api::post_store::{
     CreatePostError, MemoryPostStore, PostStore, PostStoreError, UpdatePostError,
 };
-use khalid_api::resources::{AdminPost, PostDraft, PostEdit};
+use khalid_api::query::ListQuery;
+use khalid_api::resources::{AdminPost, PostDraft, PostEdit, PostRow};
 use khalid_core::{FixedClock, Locale, Slug};
 use khalid_lint::{LintConfig, LintPost, LintSite, Linter, Verdict};
 use serde_json::{Value, json};
@@ -90,6 +91,13 @@ struct Refusing;
 impl PostStore for Refusing {
     fn get<'a>(&'a self, _id: &'a str) -> BoxFuture<'a, Result<Option<AdminPost>, PostStoreError>> {
         Box::pin(std::future::ready(Ok(Some(draft()))))
+    }
+
+    fn list<'a>(
+        &'a self,
+        _query: &'a ListQuery,
+    ) -> BoxFuture<'a, Result<Listed<PostRow>, PostStoreError>> {
+        Box::pin(std::future::ready(Ok(Listed::new(Vec::new(), 0))))
     }
 
     fn update<'a>(
