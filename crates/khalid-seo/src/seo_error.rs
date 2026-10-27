@@ -114,6 +114,14 @@ pub enum SeoError {
         #[source]
         source: ParseUrlError,
     },
+    /// A redirect's status and destination do not fit together.
+    #[error("the redirect from {from:?} {problem}")]
+    RedirectColumns {
+        /// The path or pattern the redirect starts from.
+        from: String,
+        /// What is wrong with it.
+        problem: &'static str,
+    },
     /// A row of a redirect list has the wrong shape.
     #[error("line {line} of the redirect list {problem}")]
     RedirectCsvRow {
