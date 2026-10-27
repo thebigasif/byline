@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::{Page, Pages, ServerError};
+use crate::{Moved, Page, Pages, ServerError};
 
 /// Renders every page of a site from its files.
 ///
@@ -35,26 +35,34 @@ impl<R: Render + ?Sized> Render for Arc<R> {
     }
 }
 
-/// What a [`Render`] gives back: every page, and the HTML for an address
-/// with nothing behind it.
+/// What a [`Render`] gives back: every page, the HTML for an address with
+/// nothing behind it, and the addresses that moved.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rendered {
     pages: Vec<Page>,
     not_found: Bytes,
+    moves: Vec<Moved>,
 }
 
 impl Rendered {
-    /// The rendered `pages` and the `not_found` page.
+    /// The rendered `pages` and the `not_found` page, with no moves.
     pub fn new(pages: Vec<Page>, not_found: impl Into<Bytes>) -> Self {
         Self {
             pages,
             not_found: not_found.into(),
+            moves: Vec::new(),
         }
     }
 
-    /// Splits into the pages and the not-found page.
-    pub(crate) fn into_parts(self) -> (Vec<Page>, Bytes) {
-        (self.pages, self.not_found)
+    /// The same, with `moves` answered by 301 where no page sits.
+    #[must_use]
+    pub fn with_moves(self, moves: Vec<Moved>) -> Self {
+        Self { moves, ..self }
+    }
+
+    /// Splits into the pages, the not-found page and the moves.
+    pub(crate) fn into_parts(self) -> (Vec<Page>, Bytes, Vec<Moved>) {
+        (self.pages, self.not_found, self.moves)
     }
 }
 
