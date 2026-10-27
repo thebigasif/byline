@@ -14,6 +14,11 @@ use crate::wordpress::{Item, Site};
 pub enum SeoPlugin {
     /// Rank Math.
     RankMath,
+    /// All in One SEO, versions 3 and 4. Version 4 keeps robots and
+    /// canonical in its own table, which the export leaves out.
+    AllInOneSeo,
+    /// `SEOPress`.
+    SeoPress,
     /// Yoast SEO.
     Yoast,
 }

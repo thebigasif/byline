@@ -8,6 +8,8 @@ pub(crate) enum Syntax {
     Double,
     /// `%title%`, as Rank Math writes it.
     Single,
+    /// `#post_title`, as All in One SEO writes it.
+    Hash,
 }
 
 /// The values the variables stand for in one post.
@@ -40,10 +42,17 @@ impl Vars<'_> {
 /// it uses a variable Khalid cannot fill, such as the current year. The
 /// text may be empty when every variable it held was empty.
 pub(crate) fn fill(text: &str, syntax: Syntax, vars: &Vars<'_>) -> Option<String> {
-    let mark = match syntax {
-        Syntax::Double => "%%",
-        Syntax::Single => "%",
+    let filled = match syntax {
+        Syntax::Double => between_marks(text, "%%", vars)?,
+        Syntax::Single => between_marks(text, "%", vars)?,
+        Syntax::Hash => after_hashes(text, vars)?,
     };
+    let words: Vec<&str> = filled.split_whitespace().collect();
+    Some(words.join(" "))
+}
+
+/// Fills variables written between two marks, such as `%%title%%`.
+fn between_marks(text: &str, mark: &str, vars: &Vars<'_>) -> Option<String> {
     let mut filled = String::with_capacity(text.len());
     let mut rest = text;
     while let Some((before, tail)) = rest.split_once(mark) {
@@ -61,13 +70,34 @@ pub(crate) fn fill(text: &str, syntax: Syntax, vars: &Vars<'_>) -> Option<String
         }
     }
     filled.push_str(rest);
-    let words: Vec<&str> = filled.split_whitespace().collect();
-    Some(words.join(" "))
+    Some(filled)
+}
+
+/// Fills variables written after a hash, such as `#post_title`.
+fn after_hashes(text: &str, vars: &Vars<'_>) -> Option<String> {
+    let mut filled = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some((before, tail)) = rest.split_once('#') {
+        filled.push_str(before);
+        let end = tail.find(|c| !is_name_char(c)).unwrap_or(tail.len());
+        let (name, after) = tail.split_at_checked(end)?;
+        // A hash before a digit or a space, such as "#1", is text.
+        if name.starts_with(|c: char| c.is_ascii_lowercase()) {
+            filled.push_str(vars.value(name)?);
+        } else {
+            filled.push('#');
+            filled.push_str(name);
+        }
+        rest = after;
+    }
+    filled.push_str(rest);
+    Some(filled)
 }
 
 fn is_name(text: &str) -> bool {
-    !text.is_empty()
-        && text
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    !text.is_empty() && text.chars().all(is_name_char)
+}
+
+fn is_name_char(c: char) -> bool {
+    c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'
 }

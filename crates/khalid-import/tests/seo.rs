@@ -145,3 +145,63 @@ fn rank_math_comes_before_the_yoast_fields_it_imported() {
         )]
     );
 }
+
+#[test]
+fn all_in_one_seo_4_title_and_description() {
+    let seo = seo("aioseo", 40);
+    assert_eq!(
+        seo.title.as_deref(),
+        Some("A cold first rise - Northfield Bakery Blog")
+    );
+    assert_eq!(
+        seo.description.as_deref(),
+        Some("Cold flour, warm water, and a slow first rise.")
+    );
+    assert_eq!((&seo.canonical, &seo.robots), (&None, &None));
+}
+
+#[test]
+fn all_in_one_seo_3_fields_and_robots() {
+    let seo = seo("aioseo", 41);
+    assert_eq!(seo.title, None);
+    assert_eq!(
+        seo.description.as_deref(),
+        Some("Why spelt is our #1 flour for flavour."),
+        "a # before a digit is text"
+    );
+    assert_eq!(
+        seo.canonical.as_ref().map(AbsoluteUrl::as_str),
+        Some("https://northfield.example.com/spelt/")
+    );
+    assert_eq!(seo.robots, Some(robots("noindex, nofollow")));
+    assert_eq!(
+        unread(&seo),
+        [(
+            SeoPlugin::AllInOneSeo,
+            "_aioseop_title",
+            "Baking with spelt, #current_year edition"
+        )]
+    );
+}
+
+#[test]
+fn seopress_fields_and_robots() {
+    let seo = seo("seopress", 50);
+    assert_eq!(
+        seo.title.as_deref(),
+        Some("Which flour to buy - Northfield Bakery Blog")
+    );
+    assert_eq!(
+        seo.description.as_deref(),
+        Some("Strong flour, plain flour and rye: what each one is for.")
+    );
+    assert_eq!(
+        seo.canonical.as_ref().map(AbsoluteUrl::as_str),
+        Some("https://northfield.example.com/flour/")
+    );
+    let words = "noindex, nofollow, noarchive, nosnippet, noimageindex";
+    assert_eq!(seo.robots, Some(robots(words)));
+    assert_eq!(seo.focus_keywords, ["bread flour", "strong flour"]);
+    assert_eq!(seo.primary_category, None, "SEOPress writes none");
+    assert!(seo.unread.is_empty(), "{:?}", seo.unread);
+}
