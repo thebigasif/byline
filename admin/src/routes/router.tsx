@@ -11,6 +11,8 @@ import { readKey } from "../auth/session";
 import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
 import { Dashboard } from "./Dashboard";
+import { NewPost } from "./NewPost";
+import { Posts } from "./Posts";
 import { SignIn } from "./SignIn";
 
 const root = createRootRoute({ errorComponent: RouteError });
@@ -36,6 +38,10 @@ const dashboard = createRoute({
   component: Dashboard,
 });
 
+const posts = createRoute({ getParentRoute: () => signedIn, path: "/posts", component: Posts });
+
+const newPost = createRoute({ getParentRoute: () => signedIn, path: "/new", component: NewPost });
+
 // The editor carries Tiptap, so it loads only when a post is opened.
 const editor = createRoute({
   getParentRoute: () => signedIn,
@@ -43,7 +49,10 @@ const editor = createRoute({
   component: lazyRouteComponent(() => import("./Editor"), "Editor"),
 });
 
-const routeTree = root.addChildren([signIn, signedIn.addChildren([dashboard, editor])]);
+const routeTree = root.addChildren([
+  signIn,
+  signedIn.addChildren([dashboard, posts, newPost, editor]),
+]);
 
 /** Makes the admin's router; a test passes a memory history. */
 export function makeRouter(history: RouterHistory = createBrowserHistory()) {

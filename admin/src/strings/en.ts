@@ -9,6 +9,7 @@ export const en = {
   nav: {
     label: "Admin",
     dashboard: "Dashboard",
+    posts: "Posts",
   },
   dashboard: {
     title: "Your blog today",
@@ -42,6 +43,54 @@ export const en = {
     draft: "Draft",
     published: "Live",
     scheduled: "Scheduled",
+  },
+  posts: {
+    title: "Posts",
+    lede: "Every post on the blog, the latest change first. Pick a title to open it in the editor.",
+    write: "Write a new post",
+    loading: "Reading your posts",
+    found: (count: number) => (count === 1 ? "1 post matches." : `${count} posts match.`),
+    none: "No post matches. Change the filters, or write a new post.",
+    titleColumn: "Title",
+    author: "Author",
+    noAuthor: "No author yet",
+    checks: "Checks",
+    review: "Review",
+    index: "Search engines",
+    changed: "Last change",
+    clear: "No problems",
+    blocks: (count: number) => (count === 1 ? "1 block" : `${count} blocks`),
+    warnings: (count: number) => (count === 1 ? "1 warning" : `${count} warnings`),
+    terms: [
+      {
+        term: "Checks",
+        meaning:
+          "Khalid reads every post for problems before it goes live. A block stops publishing. A warning does not.",
+      },
+      {
+        term: "Review",
+        meaning:
+          "Where the post is on its way to readers: draft, in review, ready, scheduled or live.",
+      },
+      {
+        term: "Search engines",
+        meaning:
+          "Whether this blog lets search engines such as Google list the post. Google's own answer comes once Search Console is connected.",
+      },
+    ],
+  },
+  stage: {
+    draft: "Draft",
+    in_review: "In review",
+    ready: "Ready",
+    scheduled: "Scheduled",
+    live: "Live",
+  },
+  index: {
+    indexable: "May be listed",
+    noindex: "Kept out",
+    canonical_elsewhere: "Credited to another address",
+    not_live: "Not live yet",
   },
   start: {
     title: "Start a post",

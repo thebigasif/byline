@@ -31,6 +31,9 @@ export function Shell() {
                 {en.nav.dashboard}
               </Link>
             </li>
+            <li>
+              <Link to="/posts">{en.nav.posts}</Link>
+            </li>
           </ul>
         </nav>
         <main id="main" className="page">

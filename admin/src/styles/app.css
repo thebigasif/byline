@@ -75,9 +75,20 @@
   table{border-collapse:collapse;width:100%}
   th,td{text-align:left;padding:.7rem .75rem;border-bottom:1px solid var(--color-border);vertical-align:top}
   th{font-size:.875rem;color:var(--color-muted);font-weight:600}
+  table.wide{min-width:50rem}
+  .pill{display:inline-block;padding:.1rem .6rem;border-radius:999px;font-size:.875rem;font-weight:600;white-space:nowrap}
+  .pill.block{color:var(--color-block);background:var(--color-block-bg)}
+  .pill.warn{color:var(--color-warn);background:var(--color-warn-bg)}
+  .pill.ok{color:var(--color-ok);background:var(--color-ok-bg)}
+  .pill.quiet{color:var(--color-muted);background:var(--color-surface)}
+  .heading{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:flex-start}
+  .terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(16rem,100%),1fr));gap:.25rem 2rem;margin:0 0 1.5rem;font-size:.9375rem}
+  .terms dt{font-weight:600}
+  .terms dd{margin:0 0 .5rem;color:var(--color-muted)}
   /* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
   @media (max-width:40em){
     table,tbody,tr,td{display:block}
+    table.wide{min-width:0}
     thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
     tr{border:1px solid var(--color-border);border-radius:var(--radius-field);margin:0 0 .75rem;padding:.4rem 0}
     td{border:0;padding:.35rem .9rem}
