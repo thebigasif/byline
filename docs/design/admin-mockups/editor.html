@@ -43,7 +43,8 @@ code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-s
 .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:2rem}
 @media (min-width:68em){.layout{grid-template-columns:minmax(0,1fr) 23rem}}
 .doc{max-width:68ch}
-.title{font-size:clamp(1.75rem,1.4rem + 1.5vw,2.5rem);font-weight:700;line-height:1.2;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:.25rem 0 .5rem;margin:0 0 1.5rem}
+/* The title is a block, not a one-line input, so a long title wraps instead of running off the edge. */
+.title{font-size:clamp(1.75rem,1.4rem + 1.5vw,2.5rem);font-weight:700;line-height:1.2;border-bottom:1px solid var(--border);padding:.25rem 0 .5rem;margin:0 0 1.5rem;min-height:44px;cursor:text}
 .text{font-size:1.125rem;line-height:1.65}
 .text h2{font-size:1.5rem;margin:2rem 0 .75rem}
 .text ol{padding-left:1.5rem}.text li{margin:0 0 .5rem}
@@ -92,15 +93,14 @@ details details{margin:1rem 0 0}
     </div>
     <div class="row">
       <button class="btn" type="button">Preview in your theme</button>
-      <button class="btn primary" type="button" disabled aria-describedby="why-disabled">Publish</button>
-      <span id="why-disabled" class="muted">Fix the one block on the right to publish.</span>
+      <button class="btn primary" type="button" disabled aria-describedby="why-disabled">Schedule</button>
+      <span id="why-disabled" class="muted">Fix the one problem under <a href="#checks-title">Checks</a> to schedule this post.</span>
     </div>
   </div>
 
   <div class="layout">
     <article class="doc">
-      <label class="visually-hidden" for="title">Title</label>
-      <input class="title" id="title" value="Planning a topic cluster in an afternoon">
+      <div class="title" id="title" role="textbox" contenteditable="true" aria-label="Title">Planning a topic cluster in an afternoon</div>
       <div class="text" aria-label="Post text">
         <p>A topic cluster is a group of posts on one subject: one main post that covers the whole subject, and several shorter posts that each answer one question in depth. They all link to each other. Together they show search engines that your site knows the subject, which is what <a class="wikilink" href="https://www.example.com/blog/glossary/topical-authority/">topical authority</a> means.</p>
         <h2>Plan it on one page</h2>
@@ -154,15 +154,27 @@ details details{margin:1rem 0 0}
         <p>Remove the filler words from the web address before you publish.</p>
       </section>
 
-      <details>
+      <details open>
         <summary>Post settings</summary>
         <div>
           <div class="field"><label for="slug">Web address</label><span class="hint" id="slug-hint">www.example.com/blog/planning-a-topic-cluster/</span><input id="slug" aria-describedby="slug-hint" value="planning-a-topic-cluster"></div>
-          <div class="field"><label for="date">Publish date</label><input id="date" type="date" value="2026-10-12"></div>
+          <fieldset>
+            <legend>When it goes live</legend>
+            <span class="hint">At the time you pick, Khalid publishes the post just as if you had pressed Publish. The checks must still pass.</span>
+            <label class="choice"><input type="radio" name="when"><span>As soon as I press Publish</span></label>
+            <label class="choice"><input type="radio" name="when" checked><span>At a time I pick</span></label>
+            <label for="publish-at">Date and time</label><span class="hint" id="publish-at-hint">In your own time zone. This is also the date readers see on the post.</span>
+            <input id="publish-at" type="datetime-local" aria-describedby="publish-at-hint" value="2026-10-12T09:00">
+          </fieldset>
           <div class="field"><label for="author">Author</label><select id="author"><option selected>Asif</option><option>Lena Vogt</option></select></div>
           <div class="field"><label for="category">Category</label><select id="category"><option>On-page SEO</option><option>Technical SEO</option><option selected>Content strategy</option></select></div>
           <div class="field"><label for="description">Description</label><span class="hint" id="desc-hint">The line under the title in search results. 114 of 160 characters.</span><textarea id="description" rows="4" aria-describedby="desc-hint">A topic cluster is one main post and several shorter posts that link to it. How to plan one with a sheet of paper.</textarea></div>
           <div class="field"><label for="review">Review</label><select id="review"><option selected>Draft</option><option>In review</option><option>Approved</option></select></div>
+          <div class="field">
+            <h3 id="preview-title">Show it before it goes live</h3>
+            <p class="hint" id="preview-hint">A preview link lets someone read this draft without signing in. It works for 7 days, and search engines are told not to list it.</p>
+            <button class="btn" type="button" aria-describedby="preview-title preview-hint">Copy preview link</button>
+          </div>
           <details>
             <summary>More settings</summary>
             <div>
@@ -174,7 +186,7 @@ details details{margin:1rem 0 0}
     </aside>
   </div>
 
-  <p class="note">Mockup for the founder's review. Nothing on this page saves. The text is the demo post "Planning a topic cluster in an afternoon" as a draft, before its closing link to "Why internal links matter" was added. The checks are the real messages from Khalid's linter. <a href="index.html">All mockups</a></p>
+  <p class="note">Mockup for the founder's review. Nothing on this page saves. The text is the demo post "Planning a topic cluster in an afternoon" as a draft, before its closing link to "Why internal links matter" was added, set to go live at the demo post's real date. The checks are the real messages from Khalid's linter. <a href="index.html">All mockups</a></p>
 </main>
 </body>
 </html>

@@ -45,8 +45,10 @@ input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border
 code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--bg);padding:.05rem .3rem;border-radius:.25rem}
 .note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
 /* This screen */
-.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:0 1.5rem;max-width:56rem}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(16rem,100%),1fr));gap:0 1.5rem;max-width:56rem}
 table{min-width:42rem}
+/* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
+@media (max-width:40em){table,tbody,tr,td,tbody th{display:block}table{min-width:0}thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}tr{border:1px solid var(--border);border-radius:var(--radius);margin:0 0 .75rem;padding:.4rem 0}td,tbody th{border:0;padding:.35rem .9rem}tbody th{font-size:1rem;color:var(--text)}td[data-label]::before{content:attr(data-label);display:block;font-size:.875rem;font-weight:600;color:var(--muted)}}
 td code{background:var(--surface)}
 </style>
 </head>
@@ -90,9 +92,9 @@ td code{background:var(--surface)}
   <table>
     <thead><tr><th scope="col">Old address</th><th scope="col">Opens</th><th scope="col">Kept in</th><th scope="col"><span class="muted">Action</span></th></tr></thead>
     <tbody>
-      <tr><td><code>/blog/title-tags/</code></td><td>How to write a title tag</td><td><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
-      <tr><td><code>/blog/internal-linking/</code></td><td>Why internal links matter</td><td><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
-      <tr><td><code>/blog/page-speed/</code></td><td>Fixing slow pages, starting with the biggest win</td><td><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
+      <tr><td data-label="Old address"><code>/blog/title-tags/</code></td><td data-label="Opens">How to write a title tag</td><td data-label="Kept in"><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
+      <tr><td data-label="Old address"><code>/blog/internal-linking/</code></td><td data-label="Opens">Why internal links matter</td><td data-label="Kept in"><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
+      <tr><td data-label="Old address"><code>/blog/page-speed/</code></td><td data-label="Opens">Fixing slow pages, starting with the biggest win</td><td data-label="Kept in"><span class="pill quiet">The post's file</span></td><td><a href="editor.html">Edit in the post</a></td></tr>
     </tbody>
   </table>
   </div>

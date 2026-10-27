@@ -50,6 +50,8 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
 /* This screen */
 table{min-width:46rem}
+/* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
+@media (max-width:40em){table,tbody,tr,td,tbody th{display:block}table{min-width:0}thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}tr{border:1px solid var(--border);border-radius:var(--radius);margin:0 0 .75rem;padding:.4rem 0}td,tbody th{border:0;padding:.35rem .9rem}tbody th{font-size:1rem;color:var(--text)}td[data-label]::before{content:attr(data-label);display:block;font-size:.875rem;font-weight:600;color:var(--muted)}}
 .once{border-left:4px solid var(--link);background:var(--bg);border-radius:var(--radius);padding:.75rem 1rem;max-width:68ch}
 .btn.small{min-height:44px;padding:.4rem .8rem;font-size:.9375rem}
 </style>
@@ -96,9 +98,9 @@ table{min-width:46rem}
   <table>
     <thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">May do</th><th scope="col">Last used</th><th scope="col"><span class="muted">Action</span></th></tr></thead>
     <tbody>
-      <tr><td>Web page</td><td><span class="pill quiet">Content key</span><br><span class="muted">Starts with <code>kc_</code></span></td><td>Read live posts</td><td><time datetime="2026-10-27T09:58">Today, 09:58</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
-      <tr><td>SerpDad</td><td><span class="pill quiet">Integration key</span><br><span class="muted">Starts with <code>ki_</code></span></td><td>Write posts</td><td><time datetime="2026-10-26T16:20">Yesterday, 16:20</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
-      <tr><td>Lena</td><td><span class="pill quiet">Staff token</span><br><span class="muted">Starts with <code>ks_</code></span></td><td>Everything an editor may do</td><td><time datetime="2026-10-21T11:05">21 October</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
+      <tr><td>Web page</td><td data-label="Kind"><span class="pill quiet">Content key</span><br><span class="muted">Starts with <code>kc_</code></span></td><td data-label="May do">Read live posts</td><td data-label="Last used"><time datetime="2026-10-27T09:58">Today, 09:58</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
+      <tr><td>SerpDad</td><td data-label="Kind"><span class="pill quiet">Integration key</span><br><span class="muted">Starts with <code>ki_</code></span></td><td data-label="May do">Write posts</td><td data-label="Last used"><time datetime="2026-10-26T16:20">Yesterday, 16:20</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
+      <tr><td>Lena</td><td data-label="Kind"><span class="pill quiet">Staff token</span><br><span class="muted">Starts with <code>ks_</code></span></td><td data-label="May do">Everything an editor may do</td><td data-label="Last used"><time datetime="2026-10-21T11:05">21 October</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
     </tbody>
   </table>
   </div>
