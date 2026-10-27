@@ -644,7 +644,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and a\nchange to head code needs an owner, an admin or `admin:all`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -698,7 +698,7 @@
             }
           },
           "403": {
-            "description": "The key lacks posts:write",
+            "description": "The key lacks posts:write, or changes head code without being an owner or admin",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4879,6 +4879,14 @@
         "type": "object",
         "description": "New values for some of a post's settings. A setting left out keeps\nits value, and `null` clears one that may be empty.",
         "properties": {
+          "access": {
+            "type": "string",
+            "description": "Who may read the body: `public`, or `members`, who are signed in.",
+            "enum": [
+              "public",
+              "members"
+            ]
+          },
           "aliases": {
             "type": [
               "array",
@@ -4947,6 +4955,22 @@
             ],
             "description": "Whether the post is featured."
           },
+          "head_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New head code, or `null` for none. Owners and admins only.",
+            "example": "<meta name=\"verify\" content=\"x\">"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "password",
+            "description": "A new password of 8 to 128 characters that readers must give, or\n`null` to remove it. It is kept only as a hash."
+          },
           "review_state": {
             "oneOf": [
               {
@@ -4976,6 +5000,14 @@
                 "type": "null"
               }
             ]
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A theme template such as `wide`, or `null` for `post.html`.",
+            "example": "wide"
           }
         },
         "additionalProperties": false

@@ -98,7 +98,10 @@ fn every_setting() -> Value {
             "x": {"title": "Anchor text, done right", "description": null, "image": "/media/x.jpg"},
             "facebook": {"title": "Choosing anchor text", "description": "Say where.", "image": null}
         },
-        "aliases": ["/2019/05/anchor-text/"]
+        "aliases": ["/2019/05/anchor-text/"],
+        "access": "members",
+        "template": "wide",
+        "head_code": null
     })
 }
 
@@ -107,7 +110,7 @@ async fn an_edit_saves_every_setting_and_sends_it_back() {
     let (status, json) = edit(json!({"settings": every_setting()})).await;
     assert_eq!(status, StatusCode::OK, "{json}");
     let mut sent_back = every_setting();
-    let unset = json!({"access": "public", "password_protected": false, "template": null, "head_code": null});
+    let unset = json!({"password_protected": false});
     for (name, value) in unset.as_object().unwrap() {
         sent_back[name] = value.clone();
     }
@@ -171,7 +174,10 @@ async fn settings_that_cannot_be_right_are_a_422() {
         json!({"review_state": "published"}),
         json!({"date": "2026-02-30"}),
         json!({"share_cards": {"x": {"title": ""}}}),
-        json!({"password": "never-sent"}),
+        json!({"password": "short"}),
+        json!({"password_protected": true}),
+        json!({"access": "paid"}),
+        json!({"template": "../base"}),
     ];
     for settings in cases {
         let (status, json) = edit(json!({"settings": settings})).await;

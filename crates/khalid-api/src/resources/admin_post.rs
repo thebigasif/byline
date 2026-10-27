@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 
 use super::settings_edit::Change;
 use super::{PostSettings, SettingsEdit, display, display_option};
+use crate::post_password::HashPasswordError;
 use crate::schedule_store::Schedule;
 
 /// Where a post stands.
@@ -320,6 +321,33 @@ impl PostEdit {
     /// other post has it.
     pub fn slug(&self) -> Option<&Slug> {
         self.slug.as_ref()
+    }
+
+    /// Whether the edit sends head code at all, changed or not.
+    pub fn names_head_code(&self) -> bool {
+        self.settings
+            .as_ref()
+            .is_some_and(SettingsEdit::names_head_code)
+    }
+
+    /// Whether the edit changes `post`'s head code, which only owners and
+    /// admins may do. Sending the head code back as it is changes nothing.
+    pub fn changes_head_code(&self, post: &AdminPost) -> bool {
+        let before = post.settings.head_code.as_ref();
+        let changes = |settings: &SettingsEdit| settings.changes_head_code(before);
+        self.settings.as_ref().is_some_and(changes)
+    }
+
+    /// Hashes a new password, so the edit carries only its hash. Call it
+    /// before the edit is saved, on a blocking thread (BL-RUN-7).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HashPasswordError`] when Argon2id cannot hash it.
+    pub fn hash_password(&mut self) -> Result<(), HashPasswordError> {
+        self.settings
+            .as_mut()
+            .map_or(Ok(()), SettingsEdit::hash_password)
     }
 }
 

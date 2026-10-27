@@ -1,11 +1,15 @@
 //! An edit to a post's settings: only the settings it names change.
 
 use chrono::NaiveDate;
-use khalid_core::{AbsoluteUrl, RobotsDirectives, Slug};
+use khalid_core::{
+    AbsoluteUrl, HeadCode, PasswordHash, PostAccess, RobotsDirectives, Slug, TemplateName,
+};
 use serde::{Deserialize, Deserializer};
 use utoipa::ToSchema;
 
+use super::post_settings::access_schema;
 use super::{Alias, FeatureImage, NonBlank, PostSettings, ReviewState, ShareCards};
+use crate::post_password::{HashPasswordError, NewPassword};
 
 /// New values for some of a post's settings. A setting left out keeps
 /// its value, and `null` clears one that may be empty.
@@ -45,13 +49,68 @@ pub struct SettingsEdit {
     /// Every old address that redirects here.
     #[schema(value_type = Option<Vec<String>>, example = json!(["/2019/05/old-title/"]))]
     aliases: Option<Vec<Alias>>,
+    /// `public` or `members`.
+    #[schema(schema_with = access_schema)]
+    access: Option<PostAccess>,
+    /// A new password of 8 to 128 characters that readers must give, or
+    /// `null` to remove it. It is kept only as a hash.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, format = Password)]
+    password: Change<NewPassword>,
+    /// The new password's hash, made by [`SettingsEdit::hash_password`].
+    #[serde(skip)]
+    password_hash: Change<PasswordHash>,
+    /// A theme template such as `wide`, or `null` for `post.html`.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, example = "wide")]
+    template: Change<TemplateName>,
+    /// New head code, or `null` for none. Owners and admins only.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, example = "<meta name=\"verify\" content=\"x\">")]
+    head_code: Change<HeadCode>,
 }
 
 impl SettingsEdit {
-    /// `settings` with the ones this edit names put in their place.
+    /// Whether the edit sends head code at all, changed or not.
+    pub fn names_head_code(&self) -> bool {
+        self.head_code != Change::Keep
+    }
+
+    /// Whether the edit changes head code that is `before` now.
+    pub fn changes_head_code(&self, before: Option<&HeadCode>) -> bool {
+        match &self.head_code {
+            Change::Keep => false,
+            Change::Clear => before.is_some(),
+            Change::Set(code) => before != Some(code),
+        }
+    }
+
+    /// Hashes a new password, or notes its removal, for
+    /// [`applied_to`](Self::applied_to). Slow on purpose: call it on a
+    /// blocking thread (BL-RUN-7).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HashPasswordError`] when Argon2id cannot hash it.
+    pub fn hash_password(&mut self) -> Result<(), HashPasswordError> {
+        self.password_hash = match &self.password {
+            Change::Keep => Change::Keep,
+            Change::Clear => Change::Clear,
+            Change::Set(password) => Change::Set(password.hash()?),
+        };
+        Ok(())
+    }
+
+    /// `settings` with the ones this edit names put in their place. A new
+    /// password counts only once [`hash_password`](Self::hash_password)
+    /// has run.
     #[must_use]
     pub fn applied_to(self, settings: PostSettings) -> PostSettings {
         PostSettings {
+            access: self.access.unwrap_or(settings.access),
+            password: self.password_hash.applied_to(settings.password),
+            template: self.template.applied_to(settings.template),
+            head_code: self.head_code.applied_to(settings.head_code),
             date: self.date.applied_to(settings.date),
             co_authors: self.co_authors.unwrap_or(settings.co_authors),
             excerpt: self.excerpt.applied_to(settings.excerpt),
@@ -62,7 +121,6 @@ impl SettingsEdit {
             robots: self.robots.applied_to(settings.robots),
             share_cards: self.share_cards.unwrap_or(settings.share_cards),
             aliases: self.aliases.unwrap_or(settings.aliases),
-            ..settings
         }
     }
 }
