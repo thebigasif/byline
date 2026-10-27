@@ -11,8 +11,8 @@ use khalid_core::{Clock, Locale, SitePath};
 use crate::storage::LIBRARY_FOLDER;
 use crate::whole_file::write_whole;
 use crate::{
-    ContentKey, FileName, FocalPoint, Folder, Kind, MediaError, MediaItem, MediaType, Original,
-    Pixels, Refusal, Storage,
+    ContentKey, EditMediaError, FileAddress, FileName, FocalPoint, Folder, Kind, MediaEdit,
+    MediaError, MediaItem, MediaType, Original, Pixels, Refusal, Storage,
 };
 
 /// The file beside each item that holds its details.
@@ -29,6 +29,9 @@ pub struct Library {
     locale: Locale,
     clock: Arc<dyn Clock>,
     items: RwLock<BTreeMap<ContentKey, MediaItem>>,
+    /// Held while an edit checks `updated_at` and writes, so two edits of
+    /// one copy can never both pass the check.
+    editing: tokio::sync::Mutex<()>,
 }
 
 /// A file someone sends to the library.
@@ -106,6 +109,7 @@ impl Library {
             locale: locale.clone(),
             clock,
             items: RwLock::new(items),
+            editing: tokio::sync::Mutex::new(()),
         })
     }
 
@@ -170,6 +174,35 @@ impl Library {
         let mut all: Vec<MediaItem> = items.values().cloned().collect();
         all.sort_by(|a, b| b.uploaded_at.cmp(&a.uploaded_at).then(a.id.cmp(&b.id)));
         all
+    }
+
+    /// Changes the details of the item `id` as `edit` says, as `by`, and
+    /// writes them to its `item.toml`. The file itself and its address
+    /// never change.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EditMediaError::NotFound`] for an unknown item,
+    /// [`EditMediaError::Stale`] when the item changed after the copy the
+    /// edit was made on, [`EditMediaError::TooLong`] for alt text or a
+    /// caption over its limit, and [`EditMediaError::Media`] when the file
+    /// cannot be written. Nothing changes on any error.
+    pub async fn edit(
+        &self,
+        id: &ContentKey,
+        edit: MediaEdit,
+        by: &str,
+    ) -> Result<MediaItem, EditMediaError> {
+        let _one_at_a_time = self.editing.lock().await;
+        let item = self.get(id).ok_or(EditMediaError::NotFound)?;
+        let edited = edit.applied(&item, by, self.clock.now())?;
+        self.save(&edited).await?;
+        Ok(edited)
+    }
+
+    /// Where readers fetch `item`'s file.
+    pub fn address(&self, item: &MediaItem) -> FileAddress {
+        self.storage.address(&item.id, &item.name)
     }
 
     /// Writes `item`'s `item.toml`, then keeps it in memory.
