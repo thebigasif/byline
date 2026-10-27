@@ -122,7 +122,7 @@ fn build(
             }
         }
     }
-    let redirects = build_redirects::file(config, content)?;
+    let redirects = build_redirects::file(config, routes, content)?;
     let files = build_files::files(&seo_site, &seo_pages, clock.now())?;
     let search = search_static::files(config, &languages)?;
     for file in files.iter().chain(&redirects).chain(&search) {

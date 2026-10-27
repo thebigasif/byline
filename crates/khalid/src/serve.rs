@@ -148,11 +148,10 @@ fn serve_with(
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let accounts = staff::accounts(database, id, config);
         let staff = khalid_auth::staff_routes(accounts.clone());
-        let stores = (Arc::new(content), door, Arc::new(keys));
         let (api, _) = api::router_with_door_comments_and_staff(
-            stores.0,
-            stores.1,
-            stores.2,
+            Arc::new(content),
+            door,
+            Arc::new(keys),
             moderation,
             staff,
             Arc::new(accounts),

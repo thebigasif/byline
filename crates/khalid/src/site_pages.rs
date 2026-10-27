@@ -355,7 +355,7 @@ impl SitePages {
         if which == Which::All {
             served.pages = site_files::files(config, &seo_site, &seo_pages, SystemClock.now())?;
             served.pages.extend(beside);
-            served.moves = site_files::moves(config, content)?;
+            served.moves = site_files::moves(config, routes, content)?;
         }
         if let Some(theme) = theme {
             if which == Which::All {

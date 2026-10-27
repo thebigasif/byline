@@ -6,6 +6,7 @@
 use chrono::{DateTime, Utc};
 use khalid_content::SiteContent;
 use khalid_core::{Config, UserMessage};
+use khalid_routes::Routes;
 use khalid_seo::{SeoPage, SeoSite};
 use khalid_server::{MediaType, Moved, Page, PagePath};
 
@@ -32,9 +33,13 @@ pub(crate) fn files(
         .collect()
 }
 
-/// Each alias of a dated post, moved to the post's address.
-pub(crate) fn moves(config: &Config, content: &SiteContent) -> Result<Vec<Moved>, UserMessage> {
-    build_redirects::hops(config, content)?
+/// Each alias of a dated post, moved to the address `routes` gives it.
+pub(crate) fn moves(
+    config: &Config,
+    routes: &Routes,
+    content: &SiteContent,
+) -> Result<Vec<Moved>, UserMessage> {
+    build_redirects::hops(config, routes, content)?
         .into_iter()
         .map(|hop| Ok(Moved::new(page_path(&hop.from)?, page_path(&hop.to)?)))
         .collect()

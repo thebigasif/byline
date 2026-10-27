@@ -76,6 +76,23 @@ fn aliases_become_one_line_each_with_the_post_address() {
 }
 
 #[test]
+fn an_alias_lands_where_routes_toml_puts_the_post() {
+    let site = site(&[("why-links-matter", &["/blog/links/"])]);
+    let routes = "[collections.posts]\npermalink = \"/{year}/{slug}/\"\n";
+    fs::write(at(site.path(), "routes.toml"), routes).unwrap();
+    let output = build(&site);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let redirects = fs::read_to_string(at(site.path(), "public/_redirects")).unwrap();
+    assert_eq!(redirects, "/blog/links/ /blog/2026/why-links-matter/ 301\n");
+    assert!(at(site.path(), "public/2026/why-links-matter/index.html").is_file());
+}
+
+#[test]
 fn a_site_without_aliases_has_no_redirects_file() {
     let site = site(&[("why-links-matter", &[])]);
     assert_eq!(build(&site).status.code(), Some(0));

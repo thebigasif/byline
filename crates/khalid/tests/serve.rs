@@ -33,10 +33,12 @@ impl Drop for Server {
     }
 }
 
-/// One answer: its status, its Content Security Policy, and its body.
+/// One answer: its status, its Content Security Policy, where it moves
+/// to, and its body.
 struct Answer {
     status: u16,
     policy: String,
+    location: String,
     body: String,
 }
 
@@ -100,9 +102,14 @@ fn get(server: &Server, path: &str) -> Answer {
         .lines()
         .find_map(|line| line.strip_prefix("content-security-policy: "))
         .unwrap_or_default();
+    let location = head
+        .lines()
+        .find_map(|line| line.strip_prefix("location: "))
+        .unwrap_or_default();
     Answer {
         status: head.split(' ').nth(1).unwrap().parse().unwrap(),
         policy: policy.to_owned(),
+        location: location.to_owned(),
         body: body.to_owned(),
     }
 }
@@ -285,6 +292,28 @@ fn serve_answers_the_sitemaps_feeds_and_aliases_beside_the_pages() {
         assert_eq!(answer.status, 200, "{path}");
         assert!(answer.body.contains(text), "{path}:\n{}", answer.body);
     }
+}
+
+#[test]
+fn serve_moves_an_alias_to_where_routes_toml_puts_the_post() {
+    let site = demo_copy();
+    let mut routes = site.path().to_path_buf();
+    routes.push("routes.toml");
+    fs::write(
+        &routes,
+        "[collections.posts]\npermalink = \"/{year}/{slug}/\"\n",
+    )
+    .unwrap();
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-09-28-what-a-sitemap-does.md");
+    let post = fs::read_to_string(&file).unwrap();
+    let alias = "translation: sitemap\naliases:\n  - /blog/sitemaps-explained/\n";
+    fs::write(&file, post.replace("translation: sitemap\n", alias)).unwrap();
+    let server = start(site.path());
+    let moved = get(&server, "/blog/sitemaps-explained/");
+    assert_eq!(moved.status, 301, "the alias moved to its post");
+    assert_eq!(moved.location, "/blog/2026/what-a-sitemap-does/");
+    assert_eq!(get(&server, &moved.location).status, 200);
 }
 
 #[test]
