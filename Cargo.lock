@@ -2122,6 +2122,8 @@ name = "khalid-audit"
 version = "0.0.0"
 dependencies = [
  "khalid-core",
+ "scraper",
+ "url",
 ]
 
 [[package]]

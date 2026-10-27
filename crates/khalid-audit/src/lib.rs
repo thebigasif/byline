@@ -11,8 +11,10 @@
 
 mod answer;
 mod link;
+mod page;
 mod robots;
 
 pub use answer::{Answer, Source, Unreached};
 pub use link::{Alternate, Image, Link};
+pub use page::Page;
 pub use robots::Robots;

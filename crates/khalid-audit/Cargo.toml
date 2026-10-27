@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+scraper = "0.29"
+url = "2"
 
 [lints]
 workspace = true
