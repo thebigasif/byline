@@ -9,6 +9,11 @@ use khalid_core::Locale;
 
 use crate::content_store::BoxFuture;
 
+#[cfg(any(test, feature = "test-util"))]
+mod memory;
+#[cfg(any(test, feature = "test-util"))]
+pub use memory::MemoryEntries;
+
 /// A file the Admin API keeps whole, in API shape: a page, a snippet or an
 /// author. `New` is a checked new one, and `Edit` a checked change that
 /// carries the `updated_at` of the copy it was made on.
