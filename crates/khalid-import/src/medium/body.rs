@@ -28,10 +28,6 @@ pub enum BodyError {
 /// The markdown of a post's `body`, the HTML Medium wrote, for a site
 /// written in `locale` with slugs in `slugs`. A frame or image whose
 /// address cannot be kept is left out and named in [`Converted::left`].
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the Medium plan, in the next part, calls it")
-)]
 pub(crate) fn medium_body(
     body: &str,
     locale: &Locale,

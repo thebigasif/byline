@@ -22,7 +22,7 @@ pub enum ExportError {
 }
 
 /// Why one file in `posts/` was not read as a post.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum PostFileError {
     /// Its name does not end in `.html`.

@@ -71,7 +71,7 @@ impl Author {
 }
 
 /// A file in `posts/` that is not a Medium post.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct UnreadFile {
     /// Its file name in `posts/`.
