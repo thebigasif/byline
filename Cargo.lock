@@ -896,12 +896,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 
 [[package]]
-name = "dejavu"
-version = "2.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "017b75b5fbc5806d490da36acc5c4d0e4ae1b69890d02f24c268da971813fbc1"
-
-[[package]]
 name = "der-parser"
 version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2052,6 +2046,7 @@ dependencies = [
  "khalid-lint",
  "khalid-mcp",
  "khalid-media",
+ "khalid-mount",
  "khalid-newsletter",
  "khalid-outbound",
  "khalid-render",
@@ -2479,7 +2474,7 @@ dependencies = [
 name = "khalid-share-image"
 version = "0.0.0"
 dependencies = [
- "dejavu",
+ "flate2",
  "insta",
  "khalid-core",
  "png",

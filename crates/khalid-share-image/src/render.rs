@@ -1,9 +1,11 @@
 //! Drawing a card: an SVG laid out here, then shaped and drawn by resvg.
 
 use std::fmt::Write as _;
+use std::io::Read as _;
 use std::iter;
 use std::sync::{Arc, OnceLock};
 
+use flate2::read::GzDecoder;
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{self, fontdb};
 
@@ -61,14 +63,26 @@ pub fn render(card: &ShareCard) -> Result<Vec<u8>, ShareImageError> {
         .map_err(|source| ShareImageError::Encode { source })
 }
 
-/// The embedded font, loaded once. No system font is ever read.
+/// The embedded font, gzipped and loaded once, so the binary carries a
+/// third of the bytes. No system font is ever read.
 fn fonts() -> Arc<fontdb::Database> {
     static FONTS: OnceLock<Arc<fontdb::Database>> = OnceLock::new();
     Arc::clone(FONTS.get_or_init(|| {
         let mut fonts = fontdb::Database::new();
-        fonts.load_font_data(dejavu::sans::bold().to_vec());
+        fonts.load_font_data(bold().to_vec());
         Arc::new(fonts)
     }))
+}
+
+/// The DejaVu Sans Bold face, decompressed from the crate's assets on the
+/// first draw. The same face the `dejavu` crate carries, one file only.
+fn bold() -> Vec<u8> {
+    const GZIPPED: &[u8] = include_bytes!("../assets/DejaVuSans-Bold.ttf.gz");
+    let mut face = Vec::with_capacity(GZIPPED.len() * 2);
+    GzDecoder::new(GZIPPED)
+        .read_to_end(&mut face)
+        .expect("the embedded font is valid gzip");
+    face
 }
 
 /// The whole card as SVG, with the layout mirrored for right to left.
