@@ -1,10 +1,12 @@
 //! The list pages of each language (audit brief G12): each collection's
 //! page where `routes.toml` puts it, each category, tag and channel under
-//! the prefixes and paths it gives them, the archive of every dated post and
+//! the prefixes and paths it gives them, the year, month and day pages its
+//! date patterns make room for, the archive of every dated post and
 //! the page of every author, as `[reader]` in `site.toml` switches the last
 //! two on. A long list is split into pages of [`PER_PAGE`] posts, the first
 //! at the list's own address and the rest at `page/2/` and on.
 
+use chrono::Datelike;
 use khalid_content::{SiteContent, Wikilinks};
 use khalid_core::{Config, Indexing, Locale, RobotsDirectives, UserMessage};
 use khalid_db::IndexedTerm;
@@ -67,6 +69,7 @@ pub(crate) fn add(
         let listed = &language.listed;
         let mut lists = collections((config, routes), content, &locale, listed)?;
         lists.extend(terms(routes, categories, &locale, listed));
+        lists.extend(dates(routes, renderer, &locale, listed)?);
         if reader.archive {
             lists.push(List {
                 rest: "archive/".to_owned(),
@@ -268,18 +271,79 @@ fn collections(
 }
 
 /// Where the page of `collection` sits, after the mount and the language
-/// prefix: the folders of its address pattern before the first placeholder
-/// other than `{collection}`, such as `guides/` for `/guides/{slug}/`.
-/// `None` when that is the home page, which lists every post already.
+/// prefix, such as `guides/` for `/guides/{slug}/`. `None` when that is
+/// the home page, which lists every post already.
 fn collection_rest(routes: &Routes, collection: &str) -> Option<String> {
+    let (folders, _) = shape(routes, collection);
+    (!folders.is_empty()).then_some(folders)
+}
+
+/// What `collection`'s address pattern makes room for: its fixed folders
+/// before the first placeholder other than `{collection}`, such as `news/`
+/// or nothing, and how many of `{year}/`, `{month}/` and `{day}/` follow
+/// them in that order, from 0 to 3.
+fn shape(routes: &Routes, collection: &str) -> (String, usize) {
     let pattern = routes
         .collection(collection)
         .map_or(UNNAMED, |found| found.permalink().as_str());
     let filled = pattern.replace("{collection}", collection);
     let fixed = filled.split('{').next().unwrap_or_default();
     let folders = fixed.rsplit_once('/').map_or("", |(folders, _)| folders);
-    let rest = folders.trim_start_matches('/');
-    (!rest.is_empty()).then(|| format!("{rest}/"))
+    let after = filled.strip_prefix(folders).unwrap_or_default();
+    let depth = (after.trim_start_matches('/').split('/'))
+        .zip(["{year}", "{month}", "{day}"])
+        .take_while(|(segment, wanted)| segment == wanted)
+        .count();
+    let folders = folders.trim_start_matches('/');
+    let folders = if folders.is_empty() {
+        String::new()
+    } else {
+        format!("{folders}/")
+    };
+    (folders, depth)
+}
+
+/// The year, month and day lists of `listed` in `locale`, for each
+/// collection whose address pattern has room for them (see [`shape`]),
+/// such as `news/2026/` and `news/2026/09/`, titled with the words of
+/// `renderer`'s strings, such as "September 2026".
+fn dates(
+    routes: &Routes,
+    renderer: &Renderer,
+    locale: &Locale,
+    listed: &[ListedPost],
+) -> Result<Vec<List>, UserMessage> {
+    let mut lists: Vec<List> = Vec::new();
+    for post in listed {
+        let (base, depth) = shape(routes, &post.collection);
+        if depth == 0 {
+            continue;
+        }
+        let date = post.card.date;
+        let (year, month, day) = (date.year(), date.month(), date.day());
+        let month_name = text(renderer, locale, &format!("month_{month}"))?;
+        let named = |key: &str| -> Result<String, UserMessage> {
+            Ok(text(renderer, locale, key)?
+                .replace("{day}", &day.to_string())
+                .replace("{month}", &month_name)
+                .replace("{year}", &year.to_string()))
+        };
+        let levels = [
+            (format!("{base}{year:04}/"), year.to_string()),
+            (format!("{base}{year:04}/{month:02}/"), named("month_year")?),
+            (
+                format!("{base}{year:04}/{month:02}/{day:02}/"),
+                named("date_format")?,
+            ),
+        ];
+        for (rest, title) in levels.into_iter().take(depth) {
+            let key = format!("date {rest}");
+            add_card(&mut lists, rest, &post.card, || {
+                term_list(title, key, SeoKind::Date, PageBody::Date)
+            });
+        }
+    }
+    Ok(lists)
 }
 
 /// The list of each category, tag and channel of `listed`, in `locale`:
@@ -443,6 +507,21 @@ mod tests {
             },
             author: None,
         }
+    }
+
+    #[test]
+    fn date_folders_count_only_right_after_the_fixed_folders_and_in_order() {
+        let text = "[collections.news]\npermalink = \"/news/{year}/{month}/{slug}/\"\n\n\
+                    [collections.diary]\npermalink = \"/{year}/{month}/{day}/{slug}/\"\n\n\
+                    [collections.odd]\npermalink = \"/odd/{month}/{year}/{slug}/\"\n";
+        let routes = Routes::from_toml(Path::new("routes.toml"), text).unwrap();
+        let shapes: Vec<(String, usize)> = ["news", "diary", "odd", "posts", "notes"]
+            .iter()
+            .map(|collection| shape(&routes, collection))
+            .collect();
+        let want = [("news/", 2), ("", 3), ("odd/", 0), ("", 0), ("notes/", 0)]
+            .map(|(folders, depth)| (folders.to_owned(), depth));
+        assert_eq!(shapes, want);
     }
 
     #[test]

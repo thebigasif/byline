@@ -213,3 +213,35 @@ fn categories_and_channels_sit_where_routes_toml_puts_them() {
     let featured = page(&site, "featured/index.html").unwrap();
     insta::assert_snapshot!(main_of(&featured));
 }
+
+#[test]
+fn a_dated_pattern_gets_year_and_month_pages_kept_out_of_search() {
+    let site = site(1, "");
+    put(
+        site.path(),
+        "routes.toml",
+        "[collections.news]\npermalink = \"/news/{year}/{month}/{slug}/\"\n",
+    );
+    for (slug, date) in [("launch", "2026-09-03"), ("update", "2026-10-01")] {
+        let text = format!(
+            "---\ntitle: News {slug}\nslug: {slug}\ndate: {date}\nauthor: asif\n---\n\n\
+             News {slug} links to [the home page](/blog/).\n"
+        );
+        put(site.path(), &format!("content/en/news/{slug}.md"), &text);
+    }
+    build(&site);
+    let year = page(&site, "news/2026/index.html").unwrap();
+    assert!(year.contains("<h1>2026</h1>"), "{year}");
+    assert_eq!(year.matches(r#"<article class="card">"#).count(), 2);
+    assert!(
+        year.contains("noindex"),
+        "date archives are noindex by default"
+    );
+    let september = page(&site, "news/2026/09/index.html").unwrap();
+    assert!(september.contains("<h1>September 2026</h1>"), "{september}");
+    assert!(september.contains(r#"href="/blog/news/2026/09/launch/""#));
+    assert!(!september.contains("News update"), "{september}");
+    assert!(page(&site, "news/2026/10/index.html").is_some());
+    assert_eq!(page(&site, "news/2026/09/03/index.html"), None);
+    assert!(page(&site, "news/index.html").is_some());
+}
