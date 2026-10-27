@@ -651,3 +651,75 @@ fn a_file_uploaded_through_the_admin_api_is_served_and_kept() {
     let list: Value = serde_json::from_slice(&body).unwrap();
     assert_eq!((status, &list["media"][0]["id"]), (200, &Value::from(id)));
 }
+
+#[test]
+fn the_content_api_refuses_include_and_fields_it_ignores() {
+    let site = demo_copy();
+    let key = new_key(site.path(), &["--kind", "content", "--name", "Web page"]);
+    let server = start(site.path());
+    for parameter in [
+        "include=authors",
+        "fields=title",
+        "include=authors&fields=title",
+    ] {
+        let path = format!("/api/content/v1/posts/?key={key}&{parameter}");
+        let (status, body) = request(&server, "GET", &path, &[], None);
+        assert_eq!(status, 400, "{parameter}: {body}");
+        let problem: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            problem["title"], "The list could not be read",
+            "{parameter}"
+        );
+    }
+}
+
+#[test]
+fn the_content_api_answers_etag_and_304_through_serve() {
+    let site = demo_copy();
+    let key = new_key(site.path(), &["--kind", "content", "--name", "Web page"]);
+    let server = start(site.path());
+    let path = format!("/api/content/v1/posts/slug/fixing-slow-pages/?key={key}");
+    let head = raw_head(&server, &path);
+    let status_line = head.lines().next().unwrap_or_default().to_owned();
+    let etag = head
+        .lines()
+        .find_map(|line| {
+            line.split_once(": ")
+                .filter(|(name, _)| name.eq_ignore_ascii_case("etag"))
+        })
+        .map(|(_, value)| value.trim().to_owned())
+        .expect("a strong ETag on the post");
+    assert!(status_line.contains("200"), "{status_line}");
+    assert!(
+        etag.starts_with('"') && etag.ends_with('"') && etag.len() > 10,
+        "{etag}"
+    );
+
+    let (status, body) = request(&server, "GET", &path, &[("if-none-match", &etag)], None);
+    assert_eq!(status, 304, "the tag matches, so nothing changed");
+    assert!(body.trim().is_empty(), "a 304 carries no body: {body}");
+    let (status, _) = request(
+        &server,
+        "GET",
+        &path,
+        &[("if-none-match", "\"stale\"")],
+        None,
+    );
+    assert_eq!(status, 200, "a stale tag gets the full answer again");
+}
+
+/// The raw answer head for `path`, for headers [`exchange`] does not return.
+#[cfg(test)]
+fn raw_head(server: &Server, path: &str) -> String {
+    let host = &server.host;
+    let mut stream = TcpStream::connect(host).unwrap();
+    stream
+        .write_all(
+            format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n").as_bytes(),
+        )
+        .unwrap();
+    let mut raw = String::new();
+    stream.read_to_string(&mut raw).unwrap();
+    raw.split_once("\r\n\r\n")
+        .map_or(String::new(), |(head, _)| head.to_owned())
+}
