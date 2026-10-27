@@ -8,12 +8,16 @@ use std::path::Path;
 use khalid_content::{ContentTree, read_content};
 use khalid_core::{Config, Environment, SitePath, SystemClock, UserMessage};
 use khalid_lint::{Finding, LintConfig, LintPost, Linter, Report, Score, Severity};
+use khalid_routes::Routes;
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::lint_fix::Repair;
-use crate::{config_message, content_message, lint_fix, lint_input, lint_message, report};
+use crate::lint_input::LintInput;
+use crate::{
+    config_message, content_message, lint_fix, lint_input, lint_message, report, routes_message,
+};
 
 /// Whether `khalid lint` only reports, or makes the safe repairs first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,7 +86,9 @@ fn check(site: &Path, post: Option<&Path>, mode: Mode) -> Result<Outcome, (UserM
     let settings = lint_settings(site).map_err(|message| (message, Exit::Failure))?;
     let linter = Linter::new(&settings, &SystemClock)
         .map_err(|error| (lint_message::of(&error), Exit::Internal))?;
-    let (lint_site, documents) = lint_input::lint_site(&content, &config);
+    let routes = Routes::load(site).map_err(|error| (routes_message::of(&error), Exit::Failure))?;
+    let input = LintInput::new(&content, &config, routes);
+    let (lint_site, documents) = lint_input::lint_site(&content, &config, &input);
     let (report, scores) = match post {
         None => {
             let report = linter.lint_site(&lint_site);

@@ -1,46 +1,95 @@
 //! Turns the content files into the linter's own model (ADR 0019).
 //!
 //! The lint crate never reads files, so this binary maps parsed posts and
-//! their rendered output to `LintPost` and `LintSite`. Wikilinks (task 1.8),
-//! post paths (task 1.9) and the home page's links are not known yet, so the
-//! rules that need them use their fallbacks or skip.
+//! their rendered output to `LintPost` and `LintSite`, as the built page has
+//! them: the slug and address `khalid build` gives each post, its body
+//! rendered with its wikilinks linked, its collection, the site's
+//! collections, and the links of each home page, which lists every dated
+//! post (audit 2, G5).
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::NaiveDate;
-use khalid_content::{Document, PostFront, SiteContent, render};
+use khalid_content::{Document, PostFront, SiteContent, Wikilinks, render_linked};
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
-    GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintLink, LintPost, LintSite, PageRef,
+    GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection, LintLink, LintPost,
+    LintSite, PageRef,
 };
+use khalid_routes::{PostAddress, Routes};
+
+/// What a post is linted against besides itself: the site's routes, and the
+/// pages a wikilink reaches in each language.
+pub(crate) struct LintInput {
+    routes: Routes,
+    links: BTreeMap<Locale, Wikilinks>,
+}
+
+impl LintInput {
+    /// The input for the posts of `content` on the site `config` describes,
+    /// whose addresses follow `routes`.
+    pub(crate) fn new(content: &SiteContent, config: &Config, routes: Routes) -> Self {
+        let links = config
+            .languages()
+            .iter()
+            .map(|locale| {
+                let links = Wikilinks::for_language(content, config, &routes, locale);
+                (locale.clone(), links)
+            })
+            .collect();
+        Self { routes, links }
+    }
+}
 
 /// The site's posts, pages and glossary in the lint model, and the document
 /// each post came from, in the same order.
 pub(crate) fn lint_site<'c>(
     content: &'c SiteContent,
     config: &Config,
+    input: &LintInput,
 ) -> (LintSite, Vec<&'c Document<PostFront>>) {
     let mut site = LintSite::default();
     let mut documents = Vec::new();
     for document in &content.posts {
-        if let Some(post) = lint_post(document, config) {
+        if let Some(post) = lint_post(document, config, input) {
             site.posts.push(post);
             documents.push(document);
         }
     }
+    // Each home page lists every dated post of its language.
+    site.home_links = site
+        .posts
+        .iter()
+        .filter(|post| post.date.is_some())
+        .filter_map(|post| post.path.clone())
+        .collect();
+    let used: BTreeSet<&str> = content
+        .posts
+        .iter()
+        .map(|d| d.collection.as_str())
+        .collect();
+    site.collections = used
+        .into_iter()
+        .filter_map(|name| {
+            let collection = input.routes.collection(name)?;
+            Some(LintCollection::new(name, collection.permalink().as_str()))
+        })
+        .collect();
     for page in &content.pages {
-        if let Some(slug) = slug_of(page.front.slug.as_ref(), &page.path, &page.locale, config) {
+        let front = &page.front;
+        let named = (front.slug.as_ref(), front.title.as_deref());
+        if let Some(slug) = slug_of(named, &page.path, &page.locale, config) {
             site.pages.push(PageRef::new(page.locale.clone(), slug));
         }
     }
     for entry in &content.glossary {
-        let slug = slug_of(
-            entry.front.slug.as_ref(),
-            &entry.path,
-            &entry.locale,
-            config,
-        );
-        if let (Some(term), Some(slug)) = (&entry.front.term, slug) {
+        let front = &entry.front;
+        let named = (front.slug.as_ref(), front.term.as_deref());
+        if let (Some(term), Some(slug)) = (
+            &front.term,
+            slug_of(named, &entry.path, &entry.locale, config),
+        ) {
             site.glossary
                 .push(GlossaryTerm::new(entry.locale.clone(), term, slug));
         }
@@ -55,33 +104,52 @@ pub(crate) fn lint_site<'c>(
 /// One post in the lint model, or `None` when no slug can be made for it or
 /// its body does not render. Reading the site already refuses a broken
 /// block, so a post that got this far renders.
-fn lint_post(document: &Document<PostFront>, config: &Config) -> Option<LintPost> {
+fn lint_post(
+    document: &Document<PostFront>,
+    config: &Config,
+    input: &LintInput,
+) -> Option<LintPost> {
     let parts = PostParts {
         locale: &document.locale,
         path: &document.path,
+        collection: &document.collection,
         front: &document.front,
         body: &document.body,
     };
-    lint_parts(&parts, config)
+    lint_parts(&parts, config, input)
 }
 
 /// A post that may not be a file under `content/` yet, such as a draft
-/// about to be published: its language, where it is or will be, its front
-/// matter and its markdown body.
+/// about to be published: its language, where it is or will be, the
+/// collection it is or will be in, its front matter and its markdown body.
 pub(crate) struct PostParts<'a> {
     pub(crate) locale: &'a Locale,
     pub(crate) path: &'a Path,
+    pub(crate) collection: &'a str,
     pub(crate) front: &'a PostFront,
     pub(crate) body: &'a str,
 }
 
 /// The post made of `parts` in the lint model, or `None` as for
-/// [`lint_post`].
-pub(crate) fn lint_parts(parts: &PostParts<'_>, config: &Config) -> Option<LintPost> {
+/// [`lint_post`]. Its slug and address are the ones `khalid build` gives
+/// its page, and its body is rendered with its wikilinks linked, so its
+/// links are the page's links.
+pub(crate) fn lint_parts(
+    parts: &PostParts<'_>,
+    config: &Config,
+    input: &LintInput,
+) -> Option<LintPost> {
     let front = parts.front;
-    let slug = slug_of(front.slug.as_ref(), parts.path, parts.locale, config)?;
-    let rendered = render(parts.body, parts.locale, config.slugs()).ok()?;
+    let named = (front.slug.as_ref(), front.title.as_deref());
+    let slug = slug_of(named, parts.path, parts.locale, config)?;
+    let none = Wikilinks::new();
+    let links = input.links.get(parts.locale).unwrap_or(&none);
+    let rendered = render_linked(parts.body, parts.locale, config.slugs(), links).ok()?;
+    let address = PostAddress::new(parts.collection, parts.locale, &slug, front.date);
+    let path = input.routes.address(config, &address).ok();
     let mut post = LintPost::new(parts.locale.clone(), slug);
+    post.path = path;
+    post.collection = Some(parts.collection.to_owned());
     post.title.clone_from(&front.title);
     post.description.clone_from(&front.description);
     post.date = front.date;
@@ -118,11 +186,20 @@ pub(crate) fn lint_parts(parts: &PostParts<'_>, config: &Config) -> Option<LintP
     Some(post)
 }
 
-/// The slug from the header, or else from the file name: `index.md` takes
+/// The slug a page is built at: from the header, or else from the title,
+/// as `khalid build` names it, or else from the file name: `index.md` takes
 /// its folder's name, and a leading `2026-09-14-` date is dropped.
-fn slug_of(front: Option<&Slug>, path: &Path, locale: &Locale, config: &Config) -> Option<Slug> {
-    if let Some(slug) = front {
+fn slug_of(
+    (slug, title): (Option<&Slug>, Option<&str>),
+    path: &Path,
+    locale: &Locale,
+    config: &Config,
+) -> Option<Slug> {
+    if let Some(slug) = slug {
         return Some(slug.clone());
+    }
+    if let Some(slug) = title.and_then(|t| Slug::from_title(t, locale, config.slugs()).ok()) {
+        return Some(slug);
     }
     let stem = path.file_stem()?.to_str()?;
     let stem = if stem == "index" {

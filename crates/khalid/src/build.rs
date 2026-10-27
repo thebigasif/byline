@@ -58,7 +58,7 @@ pub(crate) fn run(
         }
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
-    let refused = build_gate::refused(&linter, content, config);
+    let refused = build_gate::refused(&linter, content, config, routes);
     if !refused.is_empty() {
         return build_gate::refuse(output, &refused);
     }

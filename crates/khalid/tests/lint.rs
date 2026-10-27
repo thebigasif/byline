@@ -331,7 +331,7 @@ fn lint_toml_turns_a_block_into_a_warning() {
 /// A post whose `####` heading skips a level, with the two blank lines
 /// before `## Setup` that a repair must leave as they are.
 const JUMPY: &str = "---
-title: Setting up a blog
+title: Setting up
 date: 2026-09-14
 author: asif
 ---
@@ -384,7 +384,7 @@ fn lint_fix_puts_headings_in_order_and_leaves_the_rest() {
 
 /// A post with a figure that has a caption but no description.
 const BARE_FIGURE: &str = "---
-title: A door in Lisbon
+title: Lisbon door
 date: 2026-09-14
 author: asif
 ---
@@ -414,10 +414,10 @@ fn lint_fix_describes_an_image_with_its_caption() {
     );
 }
 
-/// A post with no `slug:`, so its address comes from a file name full of
+/// A post with no `slug:`, so its address comes from a title full of
 /// filler words and a year.
 const WORDY: &str = "---
-title: Start a blog
+title: Start a blog in 2026
 date: 2026-09-14
 author: asif
 ---
@@ -472,7 +472,11 @@ fn lint_fix_adds_to_aliases_and_replaces_the_slug_as_written() {
 
 #[test]
 fn lint_fix_leaves_an_address_another_post_already_has() {
-    let site = site(&[("start-a-blog-in-2026.md", WORDY), ("start-blog.md", WORDY)]);
+    let taken = WORDY.replace("Start a blog in 2026", "Start blog");
+    let site = site(&[
+        ("start-a-blog-in-2026.md", WORDY),
+        ("start-blog.md", &taken),
+    ]);
     let output = khalid(site.path(), &["lint", "--fix", "--json"]);
     let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
     assert_eq!(json["fixed"], Value::Array(Vec::new()), "{json}");

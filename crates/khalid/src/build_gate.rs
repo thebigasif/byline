@@ -8,10 +8,12 @@
 use khalid_content::SiteContent;
 use khalid_core::{Config, UserMessage};
 use khalid_lint::{PublishGate, Report, Verdict};
+use khalid_routes::Routes;
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
+use crate::lint_input::{self, LintInput};
 use crate::{lint, report};
 
 /// The JSON shape of a refused build: the message, then each refused post's
@@ -30,8 +32,10 @@ pub(crate) fn refused(
     gate: &dyn PublishGate,
     content: &SiteContent,
     config: &Config,
+    routes: &Routes,
 ) -> Vec<Report> {
-    let (site, _) = crate::lint_input::lint_site(content, config);
+    let input = LintInput::new(content, config, routes.clone());
+    let (site, _) = lint_input::lint_site(content, config, &input);
     site.posts
         .iter()
         .filter(|post| post.date.is_some() && gate.refuses(post, &site))
