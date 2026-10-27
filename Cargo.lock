@@ -1949,9 +1949,12 @@ version = "0.0.0"
 dependencies = [
  "argon2",
  "chrono",
+ "getrandom 0.4.3",
  "khalid-api",
  "khalid-auth",
  "khalid-core",
+ "sha2 0.11.1",
+ "subtle",
  "thiserror",
  "tokio",
 ]

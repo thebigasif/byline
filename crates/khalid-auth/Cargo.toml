@@ -15,8 +15,11 @@ test-util = []
 [dependencies]
 argon2 = "0.6"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+getrandom = "0.4"
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+sha2 = "0.11"
+subtle = "2"
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 

@@ -15,6 +15,7 @@ mod email;
 mod memory;
 mod password;
 mod permission;
+mod session;
 
 pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
@@ -26,3 +27,7 @@ pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
 pub use permission::{ParsePermissionError, Permission, may_assign, may_manage};
+pub use session::{
+    CLEAR_COOKIE, COOKIE, CSRF_HEADER, CsrfToken, IDLE, LIFETIME, SessionError, SessionHash,
+    SessionStore, SessionStoreError, SessionToken, StoredSession,
+};
