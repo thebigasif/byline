@@ -3,10 +3,15 @@ import { useState } from "react";
 import type { AdminPost } from "../api/posts";
 import { Problem } from "../components/Problem";
 import { en } from "../strings/en";
+import { GoLive } from "./GoLive";
 import { LintPanel } from "./LintPanel";
+import { PostSettings } from "./PostSettings";
+import { PreviewLink } from "./PreviewLink";
 import { PublishButton } from "./PublishButton";
 import { RichText } from "./RichText";
 import { fitsRichText } from "./richText";
+import { scheduledAt } from "./schedule";
+import { type SettingsDraft, withSetting } from "./settings";
 import { type SaveState, useAutosave } from "./useAutosave";
 import { usePublish } from "./usePublish";
 
@@ -25,6 +30,7 @@ export function EditorForm({ post }: Props) {
   const { publishing, publish } = usePublish(post, save, updatedAt);
   const [rich, setRich] = useState(() => fitsRichText(post.markdown));
   const [held, setHeld] = useState(!rich);
+  const [at, setAt] = useState(() => scheduledAt(post));
   const toRich = () => {
     const fits = fitsRichText(draft.markdown);
     setRich(fits);
@@ -38,6 +44,8 @@ export function EditorForm({ post }: Props) {
   const onBlur = () => void save();
   const setTitle = (title: string) => setDraft((current) => ({ ...current, title }));
   const setMarkdown = (markdown: string) => setDraft((current) => ({ ...current, markdown }));
+  const setSetting = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) =>
+    setDraft((current) => ({ ...current, settings: withSetting(current.settings, key, value) }));
 
   return (
     <>
@@ -54,7 +62,11 @@ export function EditorForm({ post }: Props) {
         <span className="hint" role="status">
           {statusText(state, dirty)}
         </span>
-        <PublishButton publishing={publishing} onPublish={() => void publish()} />
+        <PublishButton
+          publishing={publishing}
+          scheduling={at !== ""}
+          onPublish={() => void publish(at)}
+        />
       </div>
       {publishing.problem === null ? null : <Problem message={publishing.problem} />}
       {leaving.status === "blocked" ? (
@@ -100,7 +112,13 @@ export function EditorForm({ post }: Props) {
             />
           )}
         </div>
-        <LintPanel findings={publishing.findings} />
+        <div>
+          <LintPanel findings={publishing.findings} />
+          <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
+            {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}
+            <PreviewLink id={post.id} />
+          </PostSettings>
+        </div>
       </div>
     </>
   );

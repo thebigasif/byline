@@ -95,7 +95,7 @@ describe("writing in the editor", () => {
     const { router } = renderAt("/posts/01JB");
     const text = await screen.findByRole("textbox", { name: en.editor.text });
     fireEvent.change(text, { target: { value: "Not saved yet" } });
-    fireEvent.click(screen.getByRole("link", { name: en.nav.home }));
+    fireEvent.click(screen.getByRole("link", { name: en.nav.dashboard }));
     expect(await screen.findByRole("alertdialog")).toHaveTextContent(en.editor.leave);
     fireEvent.click(screen.getByRole("button", { name: en.editor.stay }));
     expect(router.state.location.pathname).toContain("/posts/01JB");

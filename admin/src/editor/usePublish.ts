@@ -2,6 +2,7 @@ import { type RefObject, useState } from "react";
 import { type AdminPost, problemMessage, savePost } from "../api/posts";
 import { en, type UserMessage } from "../strings/en";
 import { type Finding, lintFindings } from "./lint";
+import { goLiveEdit } from "./schedule";
 
 /** Where publishing stands: the post's status, and what stopped it, if anything. */
 export type Publishing = {
@@ -12,7 +13,7 @@ export type Publishing = {
 };
 
 /**
- * Publishes the post once the draft is saved. A refusal from the publish
+ * Publishes or schedules the post once the draft is saved. A refusal from the publish
  * gate brings back every lint finding, so the writer sees what to fix.
  */
 export function usePublish(
@@ -27,13 +28,18 @@ export function usePublish(
     problem: null,
   });
 
-  const publish = async () => {
+  // `at` is the picked local time, or empty to publish now.
+  const publish = async (at: string) => {
+    if (goLiveEdit("", at) === null) {
+      setPublishing((current) => ({ ...current, findings: [], problem: en.problems.badTime }));
+      return;
+    }
     setPublishing((current) => ({ ...current, busy: true }));
-    if (!(await save())) {
+    const edit = (await save()) ? goLiveEdit(updatedAt.current, at) : null;
+    if (edit === null) {
       setPublishing((current) => ({ ...current, busy: false }));
       return;
     }
-    const edit = { updated_at: updatedAt.current, status: "published" };
     const answer = await savePost(post.id, edit).catch(() => null);
     if (answer !== null && "post" in answer) {
       updatedAt.current = answer.post.updated_at;

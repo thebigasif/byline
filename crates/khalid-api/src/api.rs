@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use axum::middleware;
 use axum::routing::get;
 use axum::{Json, Router};
 use utoipa::openapi::OpenApi as Document;
@@ -9,12 +10,15 @@ use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_axum::router::OpenApiRouter;
 
+use crate::admin_key::{AdminDoor, require_admin_key};
+use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
 use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
+use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::{admin_api, admin_comments, api_version, content_api};
 
 /// The document's title, the schemas every route shares and the ways a
@@ -58,12 +62,23 @@ impl Modify for KeySchemes {
                     "An integration key or staff token, as Khalid followed by the key.",
                 )),
             ),
+            (
+                "staff_session",
+                ApiKey::Cookie(ApiKeyValue::with_description(
+                    "__Host-khalid-session",
+                    "A signed-in staff session. Every request with it also sends the session's \
+                     CSRF token in the x-khalid-csrf header.",
+                )),
+            ),
         ];
         for (name, scheme) in schemes {
             components.add_security_scheme(name, SecurityScheme::ApiKey(scheme));
         }
     }
 }
+
+/// The staff routes and the session check of a site with staff accounts.
+type Staff = (StaffRoutes, Arc<dyn SessionCheck>);
 
 /// The Content API under `/api/content/v1/`, the Admin API under
 /// `/api/admin/v1/`, and `/api/openapi.json`, with the document every
@@ -100,15 +115,71 @@ pub fn router_with_door(
 }
 
 /// [`router_with_door`] for a site that keeps readers' comments, moderated
-/// through `comments`, as `khalid serve` runs it.
+/// through `comments`.
 pub fn router_with_door_and_comments(
     content: Arc<dyn ContentStore>,
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
     comments: Arc<dyn CommentModeration>,
 ) -> (Router, Document) {
-    let admin = admin_api::routes(door, Arc::clone(&keys))
-        .merge(admin_comments::routes(comments, Arc::clone(&keys)));
+    assemble(content, door, keys, comments, None)
+}
+
+/// [`router`] with staff accounts: `staff` routes join the Admin API, and
+/// `sessions` lets a staff session cookie in wherever a key is needed.
+/// Each of `staff.open` and `staff.signed_in` must hold at least one route.
+pub fn router_with_staff(
+    content: Arc<dyn ContentStore>,
+    posts: Arc<dyn PostStore>,
+    keys: Arc<dyn KeyStore>,
+    staff: StaffRoutes,
+    sessions: Arc<dyn SessionCheck>,
+) -> (Router, Document) {
+    let door = Arc::new(PublishDoor::new(posts, Arc::new(Silent)));
+    let comments = Arc::new(NoComments);
+    assemble(content, door, keys, comments, Some((staff, sessions)))
+}
+
+/// [`router_with_door_and_comments`] with staff accounts, as `khalid serve`
+/// runs it. [`router_with_staff`] says what `staff` and `sessions` are.
+pub fn router_with_door_comments_and_staff(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
+    staff: StaffRoutes,
+    sessions: Arc<dyn SessionCheck>,
+) -> (Router, Document) {
+    assemble(content, door, keys, comments, Some((staff, sessions)))
+}
+
+/// Every router above: the Content API, and the Admin API publishing
+/// through `posts` and moderating `comments`. With `staff`, its routes join
+/// the Admin API and a staff session counts wherever a key is needed.
+fn assemble(
+    content: Arc<dyn ContentStore>,
+    posts: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
+    staff: Option<Staff>,
+) -> (Router, Document) {
+    let (routes, sessions) = staff.unzip();
+    let door = AdminDoor {
+        keys: Arc::clone(&keys),
+        sessions,
+    };
+    let mut admin = admin_api::routes(posts, door.clone())
+        .merge(admin_comments::routes(comments, door.clone()));
+    if let Some(staff) = routes {
+        let signed_in = staff
+            .signed_in
+            .route_layer(middleware::from_fn_with_state(door, require_admin_key));
+        let staff = staff
+            .open
+            .merge(signed_in)
+            .route_layer(middleware::from_fn(negotiate_version));
+        admin = admin.merge(staff);
+    }
     let api = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest(content_api::BASE, content_api::routes(content, keys))
         .nest(admin_api::BASE, admin);

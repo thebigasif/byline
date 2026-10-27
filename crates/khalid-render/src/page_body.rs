@@ -5,7 +5,7 @@ use minijinja::value::Serde;
 
 use crate::{
     RenderAuthor, RenderAuthors, RenderGlossary, RenderHome, RenderListing, RenderPage, RenderPost,
-    RenderSearch,
+    RenderSearch, RenderSitemap,
 };
 
 /// The main content of one page. The variant picks the template.
@@ -22,6 +22,12 @@ pub enum PageBody {
     Category(RenderListing),
     /// Every published post across collections, newest first, at `/archive/`.
     Archive(RenderListing),
+    /// One page of a channel, a filtered list such as `/featured/`.
+    Channel(RenderListing),
+    /// One page of the posts of a year, a month or a day, such as `/2026/09/`.
+    Date(RenderListing),
+    /// The HTML sitemap: every listed page of one language.
+    Sitemap(RenderSitemap),
     /// One post.
     Post(Box<RenderPost>),
     /// A page that is not a post, such as About.
@@ -47,6 +53,9 @@ impl PageBody {
             Self::Tag(_) => "tag.html",
             Self::Category(_) => "category.html",
             Self::Archive(_) => "archive.html",
+            Self::Channel(_) => "channel.html",
+            Self::Date(_) => "date.html",
+            Self::Sitemap(_) => "sitemap.html",
             Self::Post(_) => "post.html",
             Self::Page(_) => "page.html",
             Self::Author(_) => "author.html",
@@ -64,7 +73,10 @@ impl PageBody {
             Self::Collection(listing)
             | Self::Tag(listing)
             | Self::Category(listing)
-            | Self::Archive(listing) => Value::from(Serde(listing)),
+            | Self::Archive(listing)
+            | Self::Channel(listing)
+            | Self::Date(listing) => Value::from(Serde(listing)),
+            Self::Sitemap(sitemap) => Value::from(Serde(sitemap)),
             Self::Post(post) => Value::from(Serde(post)),
             Self::Page(page) => Value::from(Serde(page)),
             Self::Author(author) => Value::from(Serde(author)),

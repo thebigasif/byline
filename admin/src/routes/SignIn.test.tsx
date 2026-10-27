@@ -18,7 +18,8 @@ describe("signing in", () => {
     expect(field).toHaveAttribute("type", "password");
     await userEvent.type(field, "ks_0123_abcd");
     await userEvent.click(screen.getByRole("button", { name: en.signIn.submit }));
-    expect(await screen.findByRole("heading", { level: 1, name: en.home.title })).toBeVisible();
+    const heading = await screen.findByRole("heading", { level: 1, name: en.dashboard.title });
+    expect(heading).toBeVisible();
     expect(sessionStorage.getItem("khalid-admin-key")).toBe("ks_0123_abcd");
     expect(await axeViolations()).toEqual([]);
   });
