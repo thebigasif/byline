@@ -239,7 +239,7 @@ pub(crate) struct InitArgs {
     #[arg(long, value_name = "NAME")]
     pub(crate) stack: Option<khalid_mount::Stack>,
 
-    /// Where the blog itself answers, when it is not the website's address [default: blog.<host>]
+    /// Where the blog itself answers, when it is not the website's address [default: blog.host]
     #[arg(long, value_name = "URL")]
     pub(crate) blog: Option<AbsoluteUrl>,
 
