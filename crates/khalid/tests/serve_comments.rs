@@ -1,7 +1,9 @@
 //! Comments on a running `khalid serve`, end to end and with no script: a
 //! reader posts the plain form under a post, the comment waits, a bot's
-//! comment is kept nowhere, a mistake comes back as a page, and a flood is
-//! slowed down (task 5.4, KH-WEB-2, BL-SEC-5).
+//! comment is kept nowhere, a mistake comes back as a page, a flood is
+//! slowed down, and once a moderator approves it through the Admin API the
+//! post page and its schema show it (task 5.4, KH-WEB-2, KH-SEO-3,
+//! BL-SEC-5).
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -138,6 +140,46 @@ fn post_page_with(server: &Server, text: &str) -> String {
         thread::sleep(PAUSE);
     }
     page
+}
+
+#[test]
+fn a_comment_sent_without_script_waits_then_shows_once_approved() {
+    let (_site, server, key) = served_demo();
+    let page = post_page_with(&server, "<form class=\"comment-form\"");
+    assert!(page.contains("action=\"/blog/comments/\""), "{page}");
+    assert!(page.contains("No comments yet."));
+    let sent = comment(
+        &server,
+        "name=Lena&email=&comment=Very+clear%2C+thanks.&website=",
+    );
+    assert_eq!(sent.0, 303);
+    let waiting = queue(&server, &key);
+    assert_eq!(waiting.len(), 1, "{waiting:?}");
+    assert_eq!(waiting[0]["text"], "Very clear, thanks.");
+    assert!(
+        !send(&server, ("GET", POST), &[], "")
+            .2
+            .contains("Very clear")
+    );
+
+    let id = waiting[0]["id"].as_i64().unwrap();
+    let auth = format!("Authorization: Khalid {key}");
+    let approve = format!("/api/admin/v1/comments/{id}/approve/");
+    assert_eq!(send(&server, ("POST", &approve), &[&auth], "").0, 200);
+    let page = post_page_with(&server, "Very clear, thanks.");
+    assert!(page.contains(&format!("id=\"comment-{id}\"")), "{page}");
+    assert!(
+        page.contains("\"@type\":\"Comment\""),
+        "the schema lists it"
+    );
+
+    let delete = format!("/api/admin/v1/comments/{id}/");
+    assert_eq!(send(&server, ("DELETE", &delete), &[&auth], "").0, 204);
+    let page = post_page_with(&server, "No comments yet.");
+    assert!(
+        !page.contains("Very clear"),
+        "a deleted comment leaves the page"
+    );
 }
 
 #[test]

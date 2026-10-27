@@ -3,20 +3,22 @@
 //! from `khalid-comments` to the site database and the pages in memory.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::sync::{Arc, PoisonError, RwLock};
 
 use axum::Router;
 use axum::response::Response;
 use khalid_api::comment_moderation::{CommentModeration, NoComments};
 use khalid_comments::{
-    ApiModeration, Comment, CommentAuthor, Comments, FormRoute, PostFile, PostPage, PostPages,
-    RateLimits, RefusalPages, Thread, form_router,
+    ApiModeration, Comment, CommentAuthor, CommentEvents, CommentStatus, CommentStore, Comments,
+    FormRoute, PostFile, PostPage, PostPages, RateLimits, RefusalPages, Thread, form_router,
+    threads,
 };
 use khalid_core::{Config, Mode, SystemClock};
 use khalid_db::{CommentTable, Database, SiteId};
 use khalid_render::{CommentWriter, PageBody, RenderComment, RenderComments, RenderThread};
 use khalid_seo::SeoComment;
-use khalid_server::{LivePages, SecurityHeaders};
+use khalid_server::{LivePages, Render, SecurityHeaders};
 
 use crate::build_pages::LanguagePages;
 use crate::site_pages::SitePages;
@@ -41,6 +43,16 @@ impl ShownComments {
             .write()
             .unwrap_or_else(PoisonError::into_inner);
         *shown = all;
+    }
+
+    /// Shows `threads` on `post` in place of those shown before.
+    fn show_on(&self, post: PostFile, threads: Vec<Thread>) {
+        let mut shown = self
+            .0
+            .threads
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
+        shown.insert(post, threads);
     }
 }
 
@@ -135,20 +147,65 @@ fn seo_comment(thread: &Thread) -> SeoComment {
     }
 }
 
+/// Renders a post page again when the comments it shows change: with the
+/// approved comments read from `store`, alone when it can be, else with
+/// the whole site.
+#[derive(Debug)]
+struct PageEvents {
+    store: CommentTable,
+    shown: ShownComments,
+    source: SitePages,
+    live: LivePages,
+}
+
+impl CommentEvents for PageEvents {
+    fn shown_changed(&self, post: &PostFile) {
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let (store, shown, post) = (self.store.clone(), self.shown.clone(), post.clone());
+        let (source, live) = (self.source.clone(), self.live.clone());
+        runtime.spawn(async move {
+            let approved = store.with_status(CommentStatus::Approved, Some(&post));
+            match approved.await {
+                Ok(approved) => shown.show_on(post.clone(), threads(approved)),
+                Err(error) => return tracing::warn!(%error, "comments could not be read"),
+            }
+            let alone = source.clone();
+            let file = PathBuf::from(post.as_str());
+            let saved = tokio::task::spawn_blocking(move || alone.render_saved(&[file])).await;
+            match saved {
+                Ok(Ok(Some(pages))) => live.show_saved(pages),
+                _ => {
+                    if let Err(error) = live.refresh(&source).await {
+                        tracing::warn!(%error, "a post page could not show its comments");
+                    }
+                }
+            }
+        });
+    }
+}
+
 /// The comments of a running site: the routes of the reader form and the
 /// Admin API's moderation. A site not in server mode takes no comments:
 /// no form route, and moderation finds nothing.
 pub(crate) async fn start(
     config: &Config,
     (db, site): (&Database, SiteId),
-    (source, _live): (&SitePages, &LivePages),
+    (source, live): (&SitePages, &LivePages),
     security: SecurityHeaders,
 ) -> (Router, Arc<dyn CommentModeration>) {
     let (Some(shown), Some(stylesheet)) = (source.comments(), source.stylesheet()) else {
         return (Router::new(), Arc::new(NoComments));
     };
     let store = CommentTable::new(db.clone(), site);
-    let comments = Comments::new(store, SystemClock);
+    let events = PageEvents {
+        store: store.clone(),
+        shown: shown.clone(),
+        source: source.clone(),
+        live: live.clone(),
+    };
+    let comments = Comments::new(store, SystemClock).with_events(Arc::new(events));
     match comments.shown().await {
         Ok(all) => shown.show_all(all),
         Err(error) => tracing::warn!(%error, "approved comments could not be read"),
