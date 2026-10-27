@@ -1,8 +1,10 @@
 //! What `khalid serve` tells the world when a post goes live, is
-//! scheduled or comes down through the publish door: the matching `post.*`
-//! webhook to every webhook in the site's list that asked for it, and the
-//! post's address to `IndexNow` when `[seo.indexnow]` switches it on (CTO
-//! answers 2026-10-27, section 4).
+//! scheduled, changes while live or comes down through the publish door:
+//! the matching `post.*` webhook to every webhook in the site's list that
+//! asked for it, and the post's address to `IndexNow` when
+//! `[seo.indexnow]` switches it on (CTO answers 2026-10-27, section 4).
+//! A post the linter refuses fires `lint.blocked`, and other events, such
+//! as `comment.added`, go to the webhooks alone.
 //! Failed deliveries are tried again on a timer, to the webhook list as it
 //! stands at each round.
 
@@ -13,6 +15,7 @@ use khalid_api::publish_door::Announce;
 use khalid_api::resources::AdminPost;
 use khalid_core::{AbsoluteUrl, Config, SystemClock, UserMessage};
 use khalid_db::{Database, DeliveryLog, SiteId, WebhookTable};
+use khalid_lint::Report;
 use khalid_outbound::Outbound;
 use khalid_seo::{IndexNow, Retries};
 use khalid_server::{Background, retry_deliveries};
@@ -93,6 +96,24 @@ impl Announce for SiteAnnounce {
     fn unpublished(&self, post: &AdminPost) {
         self.tell(Event::PostUnpublished, post);
     }
+
+    fn edited(&self, post: &AdminPost) {
+        self.tell(Event::PostPublishedEdited, post);
+    }
+
+    fn blocked(&self, post: &AdminPost, report: &Report) {
+        let post = post.clone();
+        let lint = report.clone();
+        self.fire(Event::LintBlocked, Blocked { post, lint });
+    }
+}
+
+/// The resource a `lint.blocked` delivery carries: the post as it stayed,
+/// and every finding, as `khalid lint --json` prints them for one post.
+#[derive(Debug, Serialize)]
+struct Blocked {
+    post: AdminPost,
+    lint: Report,
 }
 
 /// The announcing jobs, stopped before the database closes.
@@ -172,9 +193,9 @@ pub(crate) fn start(
     Ok((telling, Announcing { sending, retrying }))
 }
 
-/// Fires `event` about `post` and, when the post went live or came down,
-/// sends its address to `IndexNow`. A failure is logged; a failed webhook
-/// delivery is retried from the log.
+/// Fires `event` about `post` and, when the post went live, changed or
+/// came down, sends its address to `IndexNow`. A failure is logged; a
+/// failed webhook delivery is retried from the log.
 async fn announce(receivers: Arc<Receivers>, event: Event, post: AdminPost) {
     // The body of a post event: the post in Admin API shape.
     let body = serde_json::json!({ "post": &post });

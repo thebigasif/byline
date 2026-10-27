@@ -35,6 +35,11 @@ impl Announce for Recorder {
     fn unpublished(&self, post: &AdminPost) {
         self.0.lock().unwrap().push(format!("down {}", post.id()));
     }
+
+    fn edited(&self, post: &AdminPost) {
+        let title = post.title();
+        self.0.lock().unwrap().push(format!("edited {title}"));
+    }
 }
 
 /// The router over one draft, sending to `recorder`, with a key that may
@@ -128,6 +133,27 @@ async fn an_edit_that_does_not_publish_is_not_announced() {
     let (status, json) = put(&router, edit).await;
     assert_eq!(status, StatusCode::OK, "{json}");
     assert!(recorder.0.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_change_to_a_live_post_is_announced_as_an_edit() {
+    let recorder = Arc::new(Recorder::default());
+    let router = router(&recorder);
+    let up = json!({"status": "published", "updated_at": "2026-10-20T08:30:00Z"});
+    let (_, json) = put(&router, up).await;
+    let retitle = json!({"title": "Anchor text, chosen well",
+        "updated_at": json["posts"][0]["updated_at"]});
+    let (status, json) = put(&router, retitle).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    let same = json!({"title": "Anchor text, chosen well",
+        "updated_at": json["posts"][0]["updated_at"]});
+    put(&router, same).await;
+    let told = recorder.0.lock().unwrap().clone();
+    assert_eq!(
+        told,
+        ["en.choosing-anchor-text", "edited Anchor text, chosen well"],
+        "an edit that changes nothing is not announced"
+    );
 }
 
 #[tokio::test]

@@ -12,7 +12,7 @@ use std::time::Duration;
 use khalid_core::{AbsoluteUrl, Secret, Slug, SystemClock};
 use khalid_db::{Database, WebhookTable};
 use khalid_webhooks::{Event, SIGNATURE_HEADER, SigningKey, Verifier};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tempfile::TempDir;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
@@ -123,6 +123,30 @@ fn send(
     (status, body.to_owned())
 }
 
+/// A key that may write and publish posts, made by `khalid keys create`.
+#[cfg(test)]
+fn writer_key(site: &Path) -> String {
+    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.to_str().unwrap(), "keys", "create", "--json"])
+        .args(["--name", "SerpDad", "--scope", "posts:write"])
+        .args(["--scope", "posts:publish"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    json["key"].as_str().unwrap().to_owned()
+}
+
+/// Sends `body` as JSON to the Admin API at `path` with `key`; returns the
+/// status and the answer as JSON.
+#[cfg(test)]
+fn api(server: &Server, key: &str, (method, path): (&str, &str), body: &Value) -> (u16, Value) {
+    let auth = format!("Authorization: Khalid {key}");
+    let headers = [auth.as_str(), "Content-Type: application/json"];
+    let (status, answer) = send(server, (method, path), &headers, &body.to_string());
+    (status, serde_json::from_str(&answer).unwrap_or(Value::Null))
+}
+
 /// The deliveries of `event` that reached `receiver`, once there is one,
 /// waiting up to 20 seconds.
 #[cfg(test)]
@@ -181,5 +205,50 @@ async fn a_reader_comment_fires_comment_added_without_their_email() {
     assert!(
         !body.to_string().contains("lena@example.com"),
         "the reader's email stays private: {body}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_change_to_a_live_post_fires_post_published_edited() {
+    let receiver = receiver().await;
+    let (site, secret) = demo_site(&receiver, Event::PostPublishedEdited).await;
+    let key = writer_key(site.path());
+    let server = start(site.path());
+
+    let route = "/api/admin/v1/posts/en.what-a-sitemap-does/";
+    let (status, live) = api(&server, &key, ("GET", route), &Value::Null);
+    assert_eq!(status, 200, "{live}");
+    let retitle = json!({"posts": [{"title": "What a sitemap does for you",
+        "updated_at": live["posts"][0]["updated_at"]}]});
+    let (status, edited) = api(&server, &key, ("PUT", route), &retitle);
+    assert_eq!(status, 200, "{edited}");
+
+    let body = the_delivery(&receiver, Event::PostPublishedEdited, &secret).await;
+    assert_eq!(body["post"]["id"], "en.what-a-sitemap-does", "{body}");
+    assert_eq!(body["post"]["title"], "What a sitemap does for you");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_post_the_linter_refuses_fires_lint_blocked_with_its_findings() {
+    let receiver = receiver().await;
+    let (site, secret) = demo_site(&receiver, Event::LintBlocked).await;
+    let key = writer_key(site.path());
+    let server = start(site.path());
+
+    let new = json!({"posts": [{"title": "A weak post", "markdown": "Short."}]});
+    let (status, made) = api(&server, &key, ("POST", "/api/admin/v1/posts/"), &new);
+    assert_eq!(status, 201, "{made}");
+    let publish = json!({"posts": [{"status": "published",
+        "updated_at": made["posts"][0]["updated_at"]}]});
+    let route = "/api/admin/v1/posts/en.a-weak-post/";
+    let (status, refused) = api(&server, &key, ("PUT", route), &publish);
+    assert_eq!(status, 422, "{refused}");
+
+    let body = the_delivery(&receiver, Event::LintBlocked, &secret).await;
+    assert_eq!(body["post"]["id"], "en.a-weak-post", "{body}");
+    assert_eq!(body["post"]["status"], "draft", "{body}");
+    assert_eq!(
+        body["lint"], refused["lint"],
+        "the same findings the API gave"
     );
 }
