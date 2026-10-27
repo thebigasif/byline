@@ -31,6 +31,7 @@ mod news_sitemap;
 mod page;
 mod redirect_csv;
 mod redirect_explain;
+mod redirect_moves;
 mod redirect_patterns;
 mod redirects;
 mod robots_meta;
@@ -60,6 +61,7 @@ pub use news_sitemap::{NewsEntry, NewsSitemap};
 pub use page::{ArticleType, Crumb, PageKind, PublishState, SeoPage, SitemapListing};
 pub use redirect_csv::{read_redirects_csv, write_redirects_csv};
 pub use redirect_explain::{Explanation, Hop, Matched};
+pub use redirect_moves::{moved_addresses, nearest_page};
 pub use redirect_patterns::{PatternRedirect, PatternRule, RedirectPattern};
 pub use redirects::{
     Destination, Move, Redirect, RedirectEntry, RedirectRule, RedirectTable, Resolution,
