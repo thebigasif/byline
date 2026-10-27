@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::{fmt, fs};
 
 use khalid_content::{ContentTree, Document, SiteContent, check_bodies, parse_post, read_content};
-use khalid_core::{Clock, Config, SystemClock, UserMessage};
+use khalid_core::{Clock, Config, Locale, SystemClock, UserMessage};
 use khalid_render::{
     PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult,
 };
@@ -100,6 +100,13 @@ impl SitePages {
             tree: Mutex::default(),
             searches: Mutex::default(),
         })))
+    }
+
+    /// The text `key` of the strings file for `locale`, as the theme's
+    /// templates read it. `None` on a headless site.
+    pub(crate) fn text(&self, locale: &Locale, key: &str) -> Option<String> {
+        let theme = self.0.theme.as_ref()?;
+        theme.renderer.text(locale, key).map(str::to_owned)
     }
 
     /// The page of a search for `query` that found `results`, rendered into

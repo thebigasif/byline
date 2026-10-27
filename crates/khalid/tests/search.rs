@@ -126,6 +126,17 @@ fn a_search_lists_ranked_marked_results_with_no_script_and_escapes_the_query() {
     assert!(german.contains("Ergebnisse für „Sitemap“"), "{german}");
     assert!(!german.contains(link));
 
+    // While typing, the reader script asks for the same results as JSON,
+    // the last word matched as the start of a word.
+    let (status, head, json) = get(&server, "/blog/search/?q=sitem&typing=1");
+    assert_eq!(status, 200, "{json}");
+    assert!(head.contains("content-type: application/json"), "{head}");
+    let found: Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(found["heading"], "Results for “sitem”");
+    assert_eq!(found["results"][0]["href"], "/blog/what-a-sitemap-does/");
+    let snippet = found["results"][0]["snippet"].as_array().unwrap();
+    assert!(snippet.iter().any(|part| part["kind"] == "match"), "{json}");
+
     let (status, _, body) = get(&server, "/blog/search/?q=%3Cb%3Eunicorn");
     assert_eq!(status, 200);
     assert!(body.contains("Results for “&lt;b&gt;unicorn”"), "{body}");

@@ -14,7 +14,7 @@ use khalid_db::{Database, SearchResults, SiteId};
 use khalid_render::{Highlight, SearchResult};
 use khalid_search::{Analyzer, Completion, Language, Query, Snippet, SnippetPart};
 use khalid_server::{MediaType, SecurityHeaders};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::site_pages::SitePages;
 use crate::{build_pages, search_page};
@@ -38,10 +38,22 @@ pub(crate) struct Search {
     pub(crate) security: SecurityHeaders,
 }
 
-/// The query string of a search page.
+/// The query string of a search page: the words, and `typing` when the
+/// reader script asks while the reader is still typing.
 #[derive(Debug, Deserialize)]
 struct Words {
     q: Option<String>,
+    typing: Option<String>,
+}
+
+/// What the reader script shows while a reader types: the results heading
+/// and the sentence for nothing found, in the page's language, and the
+/// results. The script builds the list from these texts, never markup.
+#[derive(Debug, Serialize)]
+struct Live {
+    heading: String,
+    nothing: String,
+    results: Vec<SearchResult>,
 }
 
 /// The routes that answer each language's search page of the site with
@@ -58,27 +70,29 @@ pub(crate) fn router(config: &Config, search: Search) -> Router {
         let (search, locale, at) = (Arc::clone(&search), locale.clone(), path.clone());
         let answer = move |Asked(words): Asked<Words>| {
             let (search, locale, at) = (Arc::clone(&search), locale.clone(), at.clone());
-            async move { answer(&search, &locale, &at, words.q).await }
+            async move { answer(&search, &locale, &at, words).await }
         };
         router = router.route(&path, get(answer));
     }
     router
 }
 
-/// The results page for `typed` at the search page `path` in `locale`.
-async fn answer(
-    search: &Search,
-    locale: &Locale,
-    path: &str,
-    typed: Option<String>,
-) -> Response<Body> {
-    let typed = typed
+/// The results page for `words` at the search page `path` in `locale`, or
+/// while typing, the results as JSON for the reader script, the last word
+/// matched as the start of a word.
+async fn answer(search: &Search, locale: &Locale, path: &str, words: Words) -> Response<Body> {
+    let completion = match words.typing {
+        Some(_) => Completion::LastWordStarts,
+        None => Completion::WholeWords,
+    };
+    let typed = words
+        .q
         .map(|text| cut(text.trim()))
         .filter(|text| !text.is_empty());
     let analyzer = Analyzer::new(Language::of(locale));
     let query = typed
         .as_deref()
-        .and_then(|text| Query::parse(&analyzer, text, Completion::WholeWords));
+        .and_then(|text| Query::parse(&analyzer, text, completion));
     let mut results = Vec::new();
     if let Some(query) = &query {
         match search.db.search(search.site, locale, query, RESULTS).await {
@@ -89,8 +103,11 @@ async fn answer(
             }
         }
     }
+    if completion == Completion::LastWordStarts {
+        return live(search, locale, typed.as_deref(), results);
+    }
     match search.pages.render_search(path, typed, results) {
-        Ok(Some(html)) => page(&search.security, html),
+        Ok(Some(html)) => page(&search.security, MediaType::Html, html),
         Ok(None) => unavailable(&search.security),
         Err(message) => {
             tracing::warn!(%message, "a search page could not be rendered");
@@ -131,12 +148,34 @@ fn cut(text: &str) -> String {
     text.get(..end).unwrap_or_default().to_owned()
 }
 
-/// A results page with the security headers, never cached.
-fn page(security: &SecurityHeaders, html: String) -> Response<Body> {
-    let mut response = Response::new(Body::from(html));
+/// The results for `typed` as JSON, with the words around them in the
+/// language of `locale`.
+fn live(
+    search: &Search,
+    locale: &Locale,
+    typed: Option<&str>,
+    results: Vec<SearchResult>,
+) -> Response<Body> {
+    let text = |key| search.pages.text(locale, key).unwrap_or_default();
+    let heading = text("search_results").replace("{query}", typed.unwrap_or_default());
+    let found = Live {
+        heading,
+        nothing: text("search_nothing"),
+        results,
+    };
+    match serde_json::to_string(&found) {
+        Ok(json) => page(&search.security, MediaType::Json, json),
+        Err(_) => unavailable(&search.security),
+    }
+}
+
+/// A results page, or results as `kind`, with the security headers, never
+/// cached.
+fn page(security: &SecurityHeaders, kind: MediaType, body: String) -> Response<Body> {
+    let mut response = Response::new(Body::from(body));
     let headers = response.headers_mut();
-    let html = HeaderValue::from_static(MediaType::Html.as_header());
-    headers.insert(header::CONTENT_TYPE, html);
+    let kind = HeaderValue::from_static(kind.as_header());
+    headers.insert(header::CONTENT_TYPE, kind);
     headers.insert(header::CACHE_CONTROL, NOT_KEPT);
     security.apply(headers);
     response
