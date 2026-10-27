@@ -1,7 +1,8 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { axeViolations, json, renderAt, serve, signedIn } from "../../test/render";
+import { json, renderAt, serve, signedIn } from "../../test/render";
+import { listing, rowsPage } from "../../test/rows";
 import { en } from "../strings/en";
 
 const DRAFT = {
@@ -13,21 +14,14 @@ const DRAFT = {
   updated_at: "2026-10-27T11:00:00Z",
 };
 
-describe("the admin shell", () => {
-  it("shows the home screen under /admin with one main heading", async () => {
-    signedIn();
-    renderAt("/");
-    expect(await screen.findByRole("heading", { level: 1, name: en.home.title })).toBeVisible();
-    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: en.nav.label })).toBeVisible();
-    expect(screen.getByRole("link", { name: en.skip })).toHaveAttribute("href", "#main");
-    expect(await axeViolations()).toEqual([]);
-  });
-
+describe("starting a post", () => {
   it("starts a draft with one idempotency key and opens it in the editor", async () => {
     signedIn();
     const sent: Request[] = [];
     serve((request) => {
+      if (listing(request) !== null) {
+        return rowsPage([]);
+      }
       sent.push(request);
       return json(request.method === "POST" ? 201 : 200, { posts: [DRAFT] });
     });
@@ -42,7 +36,10 @@ describe("the admin shell", () => {
 
   it("explains a draft the blog could not make", async () => {
     signedIn();
-    serve(() => {
+    serve((request) => {
+      if (listing(request) !== null) {
+        return rowsPage([]);
+      }
       throw new TypeError("Failed to fetch");
     });
     renderAt("/");

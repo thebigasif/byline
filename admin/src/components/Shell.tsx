@@ -28,7 +28,7 @@ export function Shell() {
           <ul>
             <li>
               <Link to="/" activeOptions={{ exact: true }}>
-                {en.nav.home}
+                {en.nav.dashboard}
               </Link>
             </li>
           </ul>

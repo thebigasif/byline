@@ -64,4 +64,23 @@
   .check.block .tag{color:var(--color-block)}
   .check.warn .tag{color:var(--color-warn)}
   .check p{margin:0 0 .5rem}
+  .muted{color:var(--color-muted)}
+  .card{border:1px solid var(--color-border);border-radius:var(--radius-field);padding:1.25rem}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(12rem,100%),1fr));gap:1rem;margin:0;padding:0;list-style:none}
+  .stats strong{display:block;font-size:1.75rem;line-height:1.2}
+  .posts{list-style:none;padding:0;margin:0 0 1.25rem}
+  .posts li{padding:.6rem 0;border-bottom:1px solid var(--color-border)}
+  .posts li:last-child{border-bottom:0}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%}
+  th,td{text-align:left;padding:.7rem .75rem;border-bottom:1px solid var(--color-border);vertical-align:top}
+  th{font-size:.875rem;color:var(--color-muted);font-weight:600}
+  /* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
+  @media (max-width:40em){
+    table,tbody,tr,td{display:block}
+    thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+    tr{border:1px solid var(--color-border);border-radius:var(--radius-field);margin:0 0 .75rem;padding:.4rem 0}
+    td{border:0;padding:.35rem .9rem}
+    td[data-label]::before{content:attr(data-label);display:block;font-size:.875rem;font-weight:600;color:var(--color-muted)}
+  }
 }
