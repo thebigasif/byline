@@ -10,6 +10,7 @@
 //! traits this crate defines.
 
 mod account;
+mod accounts;
 mod email;
 mod limiter;
 #[cfg(any(test, feature = "test-util"))]
@@ -21,6 +22,7 @@ mod session;
 pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
 };
+pub use accounts::{Accounts, SignInError, SignedIn};
 pub use email::{Email, ParseEmailError};
 pub use limiter::{MAX_FAILURES, SignInLimiter, WINDOW};
 #[cfg(any(test, feature = "test-util"))]

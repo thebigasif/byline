@@ -25,6 +25,7 @@ tokio = { workspace = true, features = ["rt"] }
 
 [dev-dependencies]
 khalid-auth = { path = ".", version = "0.0.0", features = ["test-util"] }
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 tokio.workspace = true
 
 [lints]
