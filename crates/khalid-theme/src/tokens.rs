@@ -108,6 +108,29 @@ pub struct Fonts {
     pub heading: FontStack,
     /// Code.
     pub mono: FontStack,
+    /// Font files the site serves itself, downloaded by the sync (G20).
+    /// Left out of the file when there are none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<FontFileEntry>,
+}
+
+/// One self-hosted font file, as `theme/tokens.toml` writes it and the
+/// renderer reads it back.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FontFileEntry {
+    /// The family the file gives a face, such as `Inter`.
+    pub family: String,
+    /// `normal` or `italic`.
+    pub style: String,
+    /// The weight the file carries, such as `400`.
+    pub weight: String,
+    /// The file name under `theme/fonts/`, such as `inter-latin.woff2`.
+    pub path: String,
+    /// The Unicode range the file covers, so a browser loads only the
+    /// subset a page needs. Left out when the file covers everything.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range: Option<String>,
 }
 
 /// Corners and line length.
@@ -143,6 +166,7 @@ impl Default for ThemeTokens {
                 mono: FontStack::trusted(
                     "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
                 ),
+                files: Vec::new(),
             },
             shape: Shape {
                 radius: Length::trusted("0.375rem"),

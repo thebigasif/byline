@@ -99,3 +99,101 @@ fn a_site_that_names_no_font_finds_nothing() {
 
     assert_eq!(fonts, Typography::default());
 }
+
+#[tokio::test]
+async fn rehostable_fonts_are_downloaded_and_returned_as_files() {
+    use khalid_theme::download as fonts_download;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    let server = wiremock::MockServer::start().await;
+    let port = server.address().port();
+    let loopback = vec![IpAddr::V4(Ipv4Addr::LOCALHOST)];
+    let hosts = [
+        ("fonts.googleapis.test".to_owned(), loopback.clone()),
+        ("fonts.gstatic.test".to_owned(), loopback),
+    ];
+    let resolver = khalid_outbound::Resolver::for_tests(
+        hosts.into(),
+        khalid_outbound::Reach::PublicAndLoopback,
+    );
+    let outbound =
+        khalid_outbound::Outbound::with_resolver(khalid_outbound::Limits::default(), resolver)
+            .unwrap();
+
+    let css = format!(
+        "/* latin */\n@font-face {{ font-family: 'Inter'; font-style: normal; font-weight: 400; src: url(http://fonts.gstatic.test:{port}/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF; }}\n"
+    );
+    wiremock::Mock::given(wiremock::matchers::path("/css2"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_string(css))
+        .mount(&server)
+        .await;
+    wiremock::Mock::given(wiremock::matchers::path("/inter-latin.woff2"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_bytes(b"font bytes".as_slice()))
+        .mount(&server)
+        .await;
+
+    let source = source(
+        "Inter",
+        &format!("http://fonts.googleapis.test:{port}/css2?family=Inter"),
+        FontHost::Google,
+    );
+    let into = tempfile::tempdir().unwrap();
+    let files = fonts_download(&outbound, std::slice::from_ref(&source), into.path())
+        .await
+        .unwrap();
+    assert_eq!(files.len(), 1, "{files:?}");
+    assert_eq!(files[0].family, "Inter");
+    assert_eq!(files[0].path, "inter-latin.woff2");
+    assert_eq!(
+        files[0].range.as_deref(),
+        Some("U+0000-00FF"),
+        "the subset the file covers is kept"
+    );
+    let saved = std::fs::read(within(into.path(), "inter-latin.woff2")).unwrap();
+    assert_eq!(saved, b"font bytes");
+}
+
+#[tokio::test]
+async fn a_font_that_cannot_be_read_is_skipped_not_fatal() {
+    use khalid_theme::download as fonts_download;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    let server = wiremock::MockServer::start().await;
+    let port = server.address().port();
+    let loopback = vec![IpAddr::V4(Ipv4Addr::LOCALHOST)];
+    let hosts = [("fonts.googleapis.test".to_owned(), loopback)];
+    let resolver = khalid_outbound::Resolver::for_tests(
+        hosts.into(),
+        khalid_outbound::Reach::PublicAndLoopback,
+    );
+    let outbound =
+        khalid_outbound::Outbound::with_resolver(khalid_outbound::Limits::default(), resolver)
+            .unwrap();
+
+    wiremock::Mock::given(wiremock::matchers::path("/css2"))
+        .respond_with(wiremock::ResponseTemplate::new(500))
+        .mount(&server)
+        .await;
+
+    let source = source(
+        "Inter",
+        &format!("http://fonts.googleapis.test:{port}/css2?family=Inter"),
+        FontHost::Google,
+    );
+    let into = tempfile::tempdir().unwrap();
+    let files = fonts_download(&outbound, std::slice::from_ref(&source), into.path())
+        .await
+        .unwrap();
+    assert!(
+        files.is_empty(),
+        "a failed download leaves the site working"
+    );
+}
+
+/// `name` inside `dir`.
+#[cfg(test)]
+fn within(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let mut path = dir.to_path_buf();
+    path.push(name);
+    path
+}

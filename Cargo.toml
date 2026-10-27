@@ -87,23 +87,6 @@ codegen-units = 1
 strip = "symbols"
 panic = "abort"
 
-# The share image stack trades speed for size: cards are drawn once and
-# kept by content hash, so a slower draw never reaches a reader.
-[profile.release.package.khalid-share-image]
-opt-level = "s"
-[profile.release.package.resvg]
-opt-level = "s"
-[profile.release.package.usvg]
-opt-level = "s"
-[profile.release.package.tiny-skia]
-opt-level = "s"
-[profile.release.package.rustybuzz]
-opt-level = "s"
-[profile.release.package.fontdb]
-opt-level = "s"
-[profile.release.package.ttf-parser]
-opt-level = "s"
-
 [profile.dev]
 debug = "line-tables-only"
 

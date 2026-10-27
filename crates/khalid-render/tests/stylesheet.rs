@@ -97,3 +97,28 @@ fn the_page_is_light_and_mirrors_for_right_to_left() {
     assert!(css.contains("@media print"));
     assert!(css.contains("prefers-reduced-motion"));
 }
+
+#[test]
+fn self_hosted_fonts_come_with_swap_and_their_subsets() {
+    let tokens = Tokens::from_toml(
+        "[[fonts.files]]\nfamily = \"Inter\"\nstyle = \"normal\"\nweight = \"400\"\npath = \"inter-latin.woff2\"\nrange = \"U+0000-00FF, U+0131, U+2000-206F\"\n",
+    )
+    .unwrap();
+    let css = stylesheet(&tokens).unwrap();
+    let text = std::str::from_utf8(css.body()).unwrap();
+    assert!(
+        text.contains(r#"@font-face { font-family: "Inter"; font-style: normal; font-weight: 400; src: url("assets/fonts/inter-latin.woff2") format("woff2"); font-display: swap;"#),
+        "the face is served from the site, shown with a swap:\n{text}"
+    );
+    assert!(
+        text.contains("unicode-range: U+0000-00FF, U+0131, U+2000-206F;"),
+        "the subset the file covers is named:\n{text}"
+    );
+}
+
+#[test]
+fn no_font_files_means_no_font_face() {
+    let css = stylesheet(&Tokens::default()).unwrap();
+    let text = std::str::from_utf8(css.body()).unwrap();
+    assert!(!text.contains("@font-face { font-family: \""), "{text}");
+}

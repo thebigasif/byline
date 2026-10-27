@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 use khalid_core::{AbsoluteUrl, Locale, UserMessage};
 use khalid_render::Renderer;
 use khalid_theme::{
-    ContrastFix, HeldFont, MAX_CSS_BYTES, SiteSource, SiteTheme, ThemeDiff, ThemeTokens,
-    TokenChange, fetch_site,
+    ContrastFix, FontFileEntry, FontSource, HeldFont, MAX_CSS_BYTES, SiteSource, SiteTheme,
+    ThemeDiff, ThemeTokens, TokenChange, download, fetch_site,
 };
 use serde::Serialize;
 
@@ -124,6 +124,8 @@ struct Synced<'a> {
 pub(crate) struct FromSite {
     /// The tokens, after the contrast pass.
     pub(crate) tokens: ThemeTokens,
+    /// The font files the site loads, for the download that follows.
+    pub(crate) sources: Vec<FontSource>,
     /// What the contrast pass changed.
     pub(crate) fixes: Vec<ContrastFix>,
     /// The site's name, when its home page says it.
@@ -145,9 +147,11 @@ impl FromSite {
     fn of(theme: SiteTheme) -> Self {
         let mut tokens = ThemeTokens::from_theme(&theme);
         let fixes = tokens.fix_contrast();
+        let sources = theme.typography.sources.clone();
         Self {
             tokens,
             fixes,
+            sources,
             name: theme.brand.name,
             notes: Notes {
                 drawn_by_script: theme.drawn_by_script,
@@ -178,11 +182,12 @@ pub(crate) fn run(
     let output = cli.output;
     let found = match from_css {
         Some(file) => css_tokens(file),
-        None => site_tokens(cli, url),
+        None => site_tokens(site, cli, url),
     };
     let FromSite {
         tokens: fresh,
         mut fixes,
+        sources: _,
         name,
         notes,
     } = match found {
@@ -236,14 +241,46 @@ fn preview(site: &Path, tokens: &ThemeTokens, source: Source<'_>) -> Result<Path
 /// The tokens the main site at `url` gives today, after the contrast pass,
 /// what that pass changed, and the site's name. A page drawn by JavaScript
 /// with no stylesheet gives the clean default look (plan section 4.9).
-pub(crate) fn site_tokens(cli: &Cli, url: &AbsoluteUrl) -> Result<FromSite, (UserMessage, Exit)> {
+pub(crate) fn site_tokens(
+    site: &Path,
+    cli: &Cli,
+    url: &AbsoluteUrl,
+) -> Result<FromSite, (UserMessage, Exit)> {
     let source = read(cli, url)?;
     let theme = SiteTheme::from_source(&source);
     if source.stylesheets().is_empty() && !theme.drawn_by_script {
         let message = theme_message::no_stylesheet(url, source.skipped().len());
         return Err((message, Exit::Failure));
     }
-    Ok(FromSite::of(theme))
+    let mut found = FromSite::of(theme);
+    // Fonts the licence lets the blog serve itself are downloaded beside the
+    // tokens, so no reader waits on a third-party server (G20). A font that
+    // cannot be read is skipped; the stack's next font stands in.
+    if !found.sources.is_empty() {
+        let client =
+            outbound::client(cli).map_err(|_| (theme_message::internal(), Exit::Internal))?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|_| (theme_message::internal(), Exit::Internal))?;
+        let mut folder = site.to_path_buf();
+        folder.push("theme");
+        folder.push("fonts");
+        let saved = runtime
+            .block_on(download(&client, &found.sources, &folder))
+            .map_err(|_| (theme_message::internal(), Exit::Internal))?;
+        found.tokens.fonts.files = saved
+            .into_iter()
+            .map(|font| FontFileEntry {
+                family: font.family,
+                style: font.style,
+                weight: font.weight,
+                path: font.path,
+                range: font.range,
+            })
+            .collect();
+    }
+    Ok(found)
 }
 
 /// The tokens the CSS in `file` gives, after the contrast pass. The file
