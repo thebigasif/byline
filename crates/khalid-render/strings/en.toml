@@ -90,3 +90,10 @@ comment_text = "Comment"
 comment_held = "Comments show here once the author approves them."
 comment_send = "Send comment"
 comment_sent = "Thanks. Your comment shows here once it is approved."
+
+# A post readers may not read yet: a password form, or a note for members (task 5.11).
+locked_password_note = "This post is protected by a password. Ask its writer for it."
+locked_password_label = "Password"
+locked_password_button = "Read the post"
+locked_password_wrong = "That password is not right. Check it and try again."
+locked_members_note = "This post is for members. Signing in for readers is not open yet."

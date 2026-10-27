@@ -99,6 +99,65 @@ fn head_code_goes_after_the_seo_head_of_its_post_alone() {
     assert!(!home.contains("verify"), "{home}");
 }
 
+/// The body of the test post, which a locked page must never show.
+const BODY: &str = "An internal link points to";
+
+/// Every file `khalid build` wrote, as text, with its path.
+#[cfg(test)]
+fn every_file(dir: &Path, into: &mut Vec<(PathBuf, String)>) {
+    for entry in fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            every_file(&path, into);
+        } else if let Ok(text) = fs::read_to_string(&path) {
+            into.push((path, text));
+        }
+    }
+}
+
+#[cfg(test)]
+fn nothing_shows_the_body(site: &Path) {
+    let mut files = Vec::new();
+    every_file(&at(site, "public"), &mut files);
+    assert!(files.len() > 5, "{files:?}");
+    for (path, text) in files {
+        assert!(!text.contains(BODY), "{} shows the body", path.display());
+    }
+}
+
+#[test]
+fn a_members_post_shows_its_description_and_a_note_and_no_body_anywhere() {
+    let site = site("access: members\n", &[]);
+    assert_eq!(khalid(site.path()).status.code(), Some(0));
+    let page = post_page(site.path());
+    assert!(
+        page.contains("Internal links help readers find the rest of your site."),
+        "{page}"
+    );
+    assert!(page.contains("This post is for members."), "{page}");
+    assert!(!page.contains("<form class=\"unlock\""), "{page}");
+    nothing_shows_the_body(site.path());
+}
+
+#[test]
+fn a_password_post_shows_a_form_that_works_without_scripts() {
+    let hash = "$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHQ$aGFzaGhhc2g";
+    let site = site(&format!("password_hash: \"{hash}\"\n"), &[]);
+    assert_eq!(khalid(site.path()).status.code(), Some(0));
+    let page = post_page(site.path());
+    assert!(
+        page.contains("<form class=\"unlock\" method=\"post\" action=\"/blog/_unlock/\">"),
+        "{page}"
+    );
+    assert!(page.contains("type=\"password\""), "{page}");
+    assert!(
+        page.contains("<meta name=\"robots\" content=\"noindex"),
+        "{page}"
+    );
+    assert!(!page.contains("argon2"), "{page}");
+    nothing_shows_the_body(site.path());
+}
+
 #[test]
 fn a_template_the_theme_lacks_stops_the_build_and_names_the_file() {
     let site = site("template: narrow\n", &[]);

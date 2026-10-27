@@ -27,7 +27,7 @@ use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::site_page::HeadNonce;
 use crate::{
     assets, build_home, build_message, build_pages, build_seo, content_message, post_files,
-    search_page, serve_message, site_files,
+    post_lock, search_page, serve_message, site_files,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -341,6 +341,8 @@ impl SitePages {
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
         let mut languages = build_pages::pages(config, routes, (content, others), href)?;
+        let renderer = theme.as_ref().map(|theme| &theme.renderer);
+        post_lock::lock(config, content, renderer, &mut languages);
         if let Some(theme) = theme {
             search_page::add(config, &theme.renderer, &mut languages)?;
         }

@@ -54,6 +54,7 @@ mod newsletter;
 mod outbound;
 mod post_files;
 mod post_images;
+mod post_lock;
 mod post_text;
 mod preview;
 mod repair;

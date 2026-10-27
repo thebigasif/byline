@@ -21,7 +21,7 @@ use crate::post_files::Assets;
 use crate::site_page::HeadNonce;
 use crate::{
     assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
-    content_message, lint, lint_message, post_files, post_images, report, search_page,
+    content_message, lint, lint_message, post_files, post_images, post_lock, report, search_page,
     search_static, static_mode,
 };
 
@@ -92,6 +92,8 @@ fn build(
         .map(|(_, css)| assets::href(config, css))
         .unwrap_or_default();
     let mut languages = build_pages::pages(config, routes, (content, &[]), &href)?;
+    let renderer = theme.as_ref().map(|(renderer, _)| renderer);
+    post_lock::lock(config, content, renderer, &mut languages);
     if let Some((renderer, _)) = &theme {
         search_page::add(config, renderer, &mut languages)?;
     }
