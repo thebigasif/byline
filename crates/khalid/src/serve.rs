@@ -108,16 +108,13 @@ fn serve_with(
 ) -> Result<(), (UserMessage, Exit)> {
     let (content, hand_back) = (LiveContent::default(), HandBack::default());
     let (redirects, addresses) = redirect_route::stores((database, id));
-    let to = Destination {
-        folder: site.to_path_buf(),
-        config: config.clone(),
-        db: database.clone(),
-        site: id,
-        live: content.clone(),
-        hand_back: hand_back.clone(),
-        addresses: addresses.clone(),
-        redirects: redirects.clone(),
-    };
+    let to = destination(
+        site,
+        config,
+        (database, id),
+        (&content, &hand_back),
+        (&redirects, &addresses),
+    );
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
     // follows behind the first answer (ADR "khalid serve answers before the
@@ -216,6 +213,38 @@ fn api_router(
     api
 }
 
+/// The pages, with the stylesheet named as a preload on every HTML answer
+/// when the site has one (G20).
+fn with_hint(pages: Pages, source: &SitePages) -> Pages {
+    match source.stylesheet() {
+        Some(href) => pages.with_preloads(vec![href]),
+        None => pages,
+    }
+}
+
+/// Where the Content API's feed writes, as `khalid serve` sets it up.
+fn destination(
+    site: &Path,
+    config: &Config,
+    (database, id): (&Database, SiteId),
+    (live, hand_back): (&LiveContent, &HandBack),
+    (redirects, addresses): (
+        &crate::live_redirects::LiveRedirects,
+        &crate::site_addresses::LiveAddresses,
+    ),
+) -> Destination {
+    Destination {
+        folder: site.to_path_buf(),
+        config: config.clone(),
+        db: database.clone(),
+        site: id,
+        live: live.clone(),
+        hand_back: hand_back.clone(),
+        addresses: addresses.clone(),
+        redirects: redirects.clone(),
+    }
+}
+
 /// The one router the server answers: the APIs, the site's own routes, the
 /// drawn share cards, the admin, the comments and the newsletters.
 fn assembled(
@@ -299,10 +328,7 @@ async fn render_the_rest(
         drop(checked);
         Pages::plain(served.pages, served.not_found)
             .map(|pages| pages.with_moves(served.moves))
-            .map(|pages| match source.stylesheet() {
-                Some(href) => pages.with_preloads(vec![href]),
-                None => pages,
-            })
+            .map(|pages| with_hint(pages, &source))
             .map_err(|_| serve_message::internal())
     });
     let pages = match rendering.await {
