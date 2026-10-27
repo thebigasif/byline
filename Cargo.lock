@@ -2046,7 +2046,6 @@ dependencies = [
  "khalid-lint",
  "khalid-mcp",
  "khalid-media",
- "khalid-mount",
  "khalid-newsletter",
  "khalid-outbound",
  "khalid-render",

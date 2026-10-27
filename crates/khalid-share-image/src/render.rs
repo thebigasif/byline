@@ -69,20 +69,20 @@ fn fonts() -> Arc<fontdb::Database> {
     static FONTS: OnceLock<Arc<fontdb::Database>> = OnceLock::new();
     Arc::clone(FONTS.get_or_init(|| {
         let mut fonts = fontdb::Database::new();
-        fonts.load_font_data(bold().to_vec());
+        if let Ok(face) = bold() {
+            fonts.load_font_data(face);
+        }
         Arc::new(fonts)
     }))
 }
 
-/// The DejaVu Sans Bold face, decompressed from the crate's assets on the
+/// The `DejaVu` Sans Bold face, decompressed from the crate's assets on the
 /// first draw. The same face the `dejavu` crate carries, one file only.
-fn bold() -> Vec<u8> {
+fn bold() -> std::io::Result<Vec<u8>> {
     const GZIPPED: &[u8] = include_bytes!("../assets/DejaVuSans-Bold.ttf.gz");
     let mut face = Vec::with_capacity(GZIPPED.len() * 2);
-    GzDecoder::new(GZIPPED)
-        .read_to_end(&mut face)
-        .expect("the embedded font is valid gzip");
-    face
+    GzDecoder::new(GZIPPED).read_to_end(&mut face)?;
+    Ok(face)
 }
 
 /// The whole card as SVG, with the layout mirrored for right to left.
