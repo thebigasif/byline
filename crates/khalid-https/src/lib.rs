@@ -18,7 +18,7 @@ mod error;
 mod listener;
 mod port_80;
 
-pub use acme::{AccountKey, Acme, AgreedToTerms, Directory, LETS_ENCRYPT_TERMS};
+pub use acme::{AccountKey, Acme, AgreedToTerms, Check, Directory, Issued, LETS_ENCRYPT_TERMS};
 pub use certificate::Certificate;
 pub use certificates::Certificates;
 pub use challenges::Challenges;

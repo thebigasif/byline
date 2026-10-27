@@ -49,6 +49,16 @@ pub enum HttpsError {
         #[source]
         source: serde_json::Error,
     },
+    /// The certificate authority offers none of the checks this server can
+    /// answer.
+    #[error("the certificate authority offers no check this server can answer")]
+    NoCheck,
+    /// The certificate authority did not accept the answer to its check.
+    #[error("the certificate authority did not accept the answer to its check")]
+    Refused {
+        /// What the authority said, if it said anything.
+        detail: Option<String>,
+    },
     /// The TLS settings could not be built.
     #[error("TLS could not be set up")]
     Tls {

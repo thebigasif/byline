@@ -1,5 +1,8 @@
 //! A small ACME service for tests, speaking enough of RFC 8555 to open
-//! accounts. It does not check the requests' signatures.
+//! accounts and fill one order. It checks the answer to its check for real
+//! but not the requests' signatures.
+
+mod order;
 
 use std::sync::{Arc, Mutex};
 
@@ -11,6 +14,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use rcgen::{BasicConstraints, CertificateParams, IsCa, KeyPair};
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
 
@@ -26,29 +30,60 @@ impl AcmeService {
     pub(crate) fn accounts(&self) -> usize {
         self.book.lock().unwrap().accounts
     }
+
+    /// How many certificates were issued.
+    pub(crate) fn issued(&self) -> usize {
+        self.book.lock().unwrap().issued
+    }
 }
 
 /// What the service remembers.
 #[derive(Default)]
 pub(crate) struct Book {
-    pub(crate) base: String,
-    pub(crate) accounts: usize,
+    base: String,
+    accounts: usize,
+    account_key: Option<Value>,
+    domain: String,
+    tls_port: u16,
+    order: &'static str,
+    chain: Option<String>,
+    issued: usize,
+    authority: Option<(CertificateParams, KeyPair)>,
 }
 
 pub(crate) type Shared = Arc<Mutex<Book>>;
 
-/// Starts the service on a free loopback port.
+/// Starts the service on a free loopback port, to open accounts.
 pub(crate) async fn start() -> AcmeService {
+    start_ordering("blog.test", 0).await
+}
+
+/// Starts the service to issue for `domain`, checking it over TLS-ALPN-01
+/// on the server under test at `tls_port`.
+pub(crate) async fn start_ordering(domain: &str, tls_port: u16) -> AcmeService {
     let tcp = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://127.0.0.1:{}", tcp.local_addr().unwrap().port());
+    let key = KeyPair::generate().unwrap();
+    let mut params = CertificateParams::new(Vec::new()).unwrap();
+    params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
     let book = Arc::new(Mutex::new(Book {
         base: base.clone(),
+        domain: domain.to_owned(),
+        tls_port,
+        order: "pending",
+        authority: Some((params, key)),
         ..Book::default()
     }));
     let app = Router::new()
         .route("/dir", get(directory))
         .route("/nonce", get(nonce).head(nonce))
         .route("/account", post(account))
+        .route("/order", post(order::new_order))
+        .route("/order/1", post(order::order))
+        .route("/authz/1", post(order::authorization))
+        .route("/challenge/1", post(order::challenge))
+        .route("/finalize/1", post(order::finalize))
+        .route("/cert/1", post(order::certificate))
         .with_state(Arc::clone(&book));
     tokio::spawn(async move { axum::serve(tcp, app).await });
     AcmeService {
@@ -94,10 +129,11 @@ async fn nonce() -> Response {
 }
 
 async fn account(State(book): State<Shared>, body: String) -> Response {
-    let (_, payload) = opened(&body);
+    let (protected, payload) = opened(&body);
     assert_eq!(payload["termsOfServiceAgreed"], true, "terms agreed");
     let mut book = book.lock().unwrap();
     book.accounts += 1;
+    book.account_key = Some(protected["jwk"].clone());
     let location = format!("{}/account/1", book.base);
     answer(
         StatusCode::CREATED,
