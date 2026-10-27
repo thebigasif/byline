@@ -24,9 +24,7 @@ export function Dashboard() {
       </>
     );
   }
-  if (
-    !(isPage(blocked) && isPage(recent) && isPage(live) && isPage(scheduled) && isPage(drafts))
-  ) {
+  if (!(isPage(blocked) && isPage(recent) && isPage(live) && isPage(scheduled) && isPage(drafts))) {
     return <p role="status">{en.dashboard.loading}</p>;
   }
 
