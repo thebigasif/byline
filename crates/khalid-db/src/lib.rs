@@ -14,40 +14,50 @@
 //! [`WebhookTable`] `khalid serve` announces events to, each post's
 //! schedule, as the [`ScheduleTable`] the publish door keeps, the
 //! newsletter subscribers, as the [`SubscriberTable`] that
-//! `khalid-newsletter` keeps them in, and readers' comments, as the
-//! [`CommentTable`] that `khalid-comments` moderates through.
+//! `khalid-newsletter` keeps them in, readers' comments, as the
+//! [`CommentTable`] that `khalid-comments` moderates through, and the staff
+//! accounts, as the [`AccountTable`], [`SessionTable`], [`LinkTable`] and
+//! [`PasskeyTable`] that `khalid-auth` signs people in with.
 
+mod account_table;
 mod comment_table;
 mod content_index;
 mod database;
 mod db_error;
 mod delivery_log;
 mod key_table;
+mod link_table;
 mod not_found_table;
+mod passkey_table;
 mod posts;
 mod rebuild;
 mod redirect_rows;
 mod schedule_table;
 mod search_find;
 mod search_index;
+mod session_table;
 mod site_id;
 mod site_keys;
 mod site_lists;
 mod subscriber_table;
 mod webhook_table;
 
+pub use account_table::AccountTable;
 pub use comment_table::CommentTable;
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;
 pub use db_error::DbError;
 pub use delivery_log::DeliveryLog;
 pub use key_table::KeyTable;
+pub use link_table::LinkTable;
 pub use not_found_table::NotFoundTable;
+pub use passkey_table::PasskeyTable;
 pub use rebuild::{PostChanges, RebuildSummary};
 pub use redirect_rows::RedirectRows;
 pub use schedule_table::ScheduleTable;
 pub use search_find::{SearchHit, SearchResults};
 pub use search_index::SearchPage;
+pub use session_table::SessionTable;
 pub use site_id::SiteId;
 pub use subscriber_table::SubscriberTable;
 pub use webhook_table::WebhookTable;

@@ -15,11 +15,11 @@ use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::admin_key::{require, require_admin_key};
+use crate::admin_key::{AdminDoor, require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
 use crate::html_source::markdown_from_html;
-use crate::keys::{KeyStore, Principal, Scope};
+use crate::keys::{Principal, Scope};
 use crate::pagination::Meta;
 use crate::post_store::{CreatePostError, UpdatePostError};
 use crate::preview_link::PreviewLink;
@@ -37,12 +37,12 @@ type Posts = Arc<PublishDoor>;
 /// The Admin API routes, each declared with `utoipa::path` and registered
 /// through `routes!` (RULES.md BL-API-4). Every route needs an
 /// integration key or staff token, and checks its own scope.
-pub(crate) fn routes(posts: Posts, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
+pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(browse_admin_posts, create_admin_post))
         .routes(routes!(read_admin_post, edit_admin_post))
         .routes(routes!(make_preview_link))
-        .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
+        .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(posts)
 }

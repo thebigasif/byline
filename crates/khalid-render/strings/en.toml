@@ -90,3 +90,15 @@ comment_text = "Comment"
 comment_held = "Comments show here once the author approves them."
 comment_send = "Send comment"
 comment_sent = "Thanks. Your comment shows here once it is approved."
+# The lists of posts and the page that links every page (G12).
+archive_title = "Archive"
+authors_title = "Authors"
+# The title of page 2 and on of a list. {title} and {current} are filled in.
+paged_title = "{title}, page {current}"
+# The title of a month's list of posts. {month} and {year} are filled in.
+month_year = "{month} {year}"
+sitemap_title = "Sitemap"
+sitemap_posts = "Posts"
+sitemap_pages = "Pages"
+sitemap_archives = "Topics and archives"
+sitemap_empty = "This blog has no pages to list yet."

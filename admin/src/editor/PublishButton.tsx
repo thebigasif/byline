@@ -1,16 +1,23 @@
 import { en } from "../strings/en";
 import type { Publishing } from "./usePublish";
 
-type Props = { publishing: Publishing; onPublish: () => void };
+type Props = { publishing: Publishing; scheduling: boolean; onPublish: () => void };
 
-/** Publishes the post, and says why when the linter stopped it. */
-export function PublishButton({ publishing, onPublish }: Props) {
+function label(busy: boolean, scheduling: boolean): string {
+  if (scheduling) {
+    return busy ? en.editor.scheduling : en.editor.schedule;
+  }
+  return busy ? en.editor.publishing : en.editor.publish;
+}
+
+/** Publishes the post, or schedules it for a picked time, and says why the linter stopped it. */
+export function PublishButton({ publishing, scheduling, onPublish }: Props) {
   const blocked = publishing.findings.some((finding) => finding.severity === "block");
+  const where = { draft: null, published: en.editor.published, scheduled: en.editor.scheduled };
+  const status = where[publishing.status];
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {publishing.status === "published" ? (
-        <span className="hint">{en.editor.published}</span>
-      ) : null}
+      {status === null ? null : <span className="hint">{status}</span>}
       <button
         type="button"
         className="btn primary"
@@ -18,7 +25,7 @@ export function PublishButton({ publishing, onPublish }: Props) {
         aria-describedby={blocked ? "why-blocked" : undefined}
         onClick={onPublish}
       >
-        {publishing.busy ? en.editor.publishing : en.editor.publish}
+        {label(publishing.busy, scheduling)}
       </button>
       {blocked ? (
         <span id="why-blocked" className="hint">
