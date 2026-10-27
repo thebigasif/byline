@@ -15,7 +15,7 @@ use khalid_render::{
 use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 
-use crate::listed_post::ListedPost;
+use crate::listed_post::{ListedPost, ListedTag};
 use crate::{build_home, build_message, build_reader, build_seo};
 
 /// The pages of one language, and the site as they show it.
@@ -252,12 +252,16 @@ fn listed(
     let (locale, front) = (posts.locale, &draft.doc.front);
     let named = (draft.title.clone(), draft.rest.as_str(), draft.date);
     let card = build_home::card(config, locale, posts.people, named, front);
+    let tags = ListedTag::all(&front.tags, locale, config.slugs());
+    let mut topics = build_reader::topics(&draft.slug, draft.date, front, &draft.rendered, slugs);
+    topics.tags = tags.iter().map(|tag| tag.slug.to_string()).collect();
     ListedPost {
         path: draft.doc.path.clone(),
         locale: locale.clone(),
         collection: draft.doc.collection.clone(),
         featured: front.featured,
-        topics: build_reader::topics(&draft.slug, draft.date, front, &draft.rendered, slugs),
+        tags,
+        topics,
         card,
         author: front.author.clone(),
     }

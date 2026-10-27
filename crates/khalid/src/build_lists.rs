@@ -369,15 +369,12 @@ fn terms(
                 term_list(name, key, SeoKind::Category, PageBody::Category)
             });
         }
-        for tag in &post.topics.tags {
-            let rest = format!("{}/{tag}/", routes.tag_prefix());
+        for tag in &post.tags {
+            let slug = &tag.slug;
+            let rest = format!("{}/{slug}/", routes.tag_prefix());
             add_card(&mut lists, rest, &post.card, || {
-                term_list(
-                    tag.clone(),
-                    format!("tag {tag}"),
-                    SeoKind::Tag,
-                    PageBody::Tag,
-                )
+                let key = format!("tag {slug}");
+                term_list(tag.name.clone(), key, SeoKind::Tag, PageBody::Tag)
             });
         }
     }
@@ -488,11 +485,13 @@ mod tests {
     use std::path::Path;
 
     use chrono::NaiveDate;
+    use khalid_core::Slug;
     use khalid_render::PostTopics;
 
     use super::*;
+    use crate::listed_post::ListedTag;
 
-    /// A post with `tags`, which front matter cannot give yet (G13).
+    /// A post with `tags`, each named as its slug.
     fn tagged(slug: &str, tags: &[&str]) -> ListedPost {
         let date = NaiveDate::from_ymd_opt(2026, 9, 1).unwrap();
         ListedPost {
@@ -500,6 +499,12 @@ mod tests {
             locale: Locale::try_new("en").unwrap(),
             collection: "posts".to_owned(),
             featured: false,
+            tags: (tags.iter())
+                .map(|tag| ListedTag {
+                    slug: Slug::try_new(tag).unwrap(),
+                    name: (*tag).to_owned(),
+                })
+                .collect(),
             topics: PostTopics {
                 slug: slug.to_owned(),
                 date,

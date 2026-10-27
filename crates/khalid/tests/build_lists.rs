@@ -247,6 +247,33 @@ fn a_dated_pattern_gets_year_and_month_pages_kept_out_of_search() {
 }
 
 #[test]
+fn each_tag_gets_a_page_at_its_slug_titled_as_the_posts_name_it() {
+    let site = site(1, "");
+    for (slug, tags) in [
+        ("one", "[internal links, Page speed]"),
+        ("two", "internal links"),
+    ] {
+        let text = format!(
+            "---\ntitle: Tagged {slug}\nslug: tagged-{slug}\ndate: 2026-09-1{}\nauthor: asif\n\
+             tags: {tags}\n---\n\nTagged {slug} links to [the home page](/blog/).\n",
+            slug.len()
+        );
+        put(
+            site.path(),
+            &format!("content/en/posts/tagged-{slug}.md"),
+            &text,
+        );
+    }
+    build(&site);
+    let links = page(&site, "tag/internal-links/index.html").unwrap();
+    assert!(links.contains("<h1>internal links</h1>"), "{links}");
+    assert_eq!(links.matches(r#"<article class="card">"#).count(), 2);
+    assert!(links.contains("noindex"), "two posts is a thin archive");
+    let speed = page(&site, "tag/page-speed/index.html").unwrap();
+    assert!(speed.contains("<h1>Page speed</h1>"), "{speed}");
+}
+
+#[test]
 fn the_sitemap_page_links_every_page_search_engines_may_list_by_section() {
     let site = site(2, "");
     put(
