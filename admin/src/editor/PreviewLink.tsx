@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { makePreviewLink, type PreviewLink as Made, problemMessage } from "../api/posts";
+import { type PreviewLink as Made, makePreviewLink, problemMessage } from "../api/posts";
 import { Problem } from "../components/Problem";
 import { day } from "../strings/dates";
 import { en, type UserMessage } from "../strings/en";
@@ -39,7 +39,9 @@ export function PreviewLink({ id }: Props) {
   return (
     <div className="field">
       <h3 id="preview-title">{en.preview.title}</h3>
-      <p className="hint" id="preview-hint">{en.preview.hint}</p>
+      <p className="hint" id="preview-hint">
+        {en.preview.hint}
+      </p>
       <button
         type="button"
         className="btn"

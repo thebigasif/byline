@@ -25,7 +25,9 @@ export function GoLive({ at, onAt }: Props) {
       {picking ? (
         <div className="field">
           <label htmlFor="go-live-at">{en.goLive.at}</label>
-          <span className="hint" id="go-live-at-hint">{en.goLive.atHint}</span>
+          <span className="hint" id="go-live-at-hint">
+            {en.goLive.atHint}
+          </span>
           <input
             id="go-live-at"
             type="datetime-local"
