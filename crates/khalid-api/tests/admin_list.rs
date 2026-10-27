@@ -16,9 +16,11 @@ use khalid_core::Slug;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-/// A key made up for these tests. It opens nothing real.
+/// Keys made up for these tests. They open nothing real.
 const WRITER: &str =
     "ki_1111222233334444_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
+const UPLOADER: &str =
+    "ki_2222333344445555_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
 
 /// Three posts: a weak draft in review, a draft, and a live post.
 #[cfg(test)]
@@ -44,6 +46,7 @@ async fn list(query: &str, key: &str) -> (StatusCode, Value) {
     let token = |text: &str| text.parse::<KeyToken>().unwrap();
     let keys = MemoryKeyStore::new(vec![
         StoredKey::for_integration(&token(WRITER), vec![Scope::PostsWrite], &hashing).unwrap(),
+        StoredKey::for_integration(&token(UPLOADER), vec![Scope::MediaWrite], &hashing).unwrap(),
     ]);
     let (router, _) = api::router(Arc::new(common::store()), Arc::new(posts()), Arc::new(keys));
     let request = Request::get(format!("/api/admin/v1/posts/{query}"))
@@ -58,8 +61,8 @@ async fn list(query: &str, key: &str) -> (StatusCode, Value) {
 
 #[cfg(test)]
 fn ids(json: &Value) -> Vec<&str> {
-    let rows = json["posts"].as_array().unwrap().iter();
-    rows.map(|row| row["id"].as_str().unwrap()).collect()
+    let rows = json["posts"].as_array().unwrap();
+    rows.iter().map(|row| row["id"].as_str().unwrap()).collect()
 }
 
 #[tokio::test]
@@ -70,6 +73,54 @@ async fn the_list_holds_every_post_with_its_lint_and_index_status() {
     let weak = &json["posts"][2];
     assert_eq!(weak["gate"], "refuses");
     assert_eq!(weak["lint"], json!({"blocks": 2, "warnings": 1}));
+    assert_eq!(weak["review_state"], "in_review");
     assert_eq!(weak["index_status"], "not_live");
+    assert_eq!(json["posts"][0]["index_status"], "indexable");
+    assert!(weak.get("markdown").is_none(), "no body in a row");
     assert_eq!(json["meta"]["pagination"]["total"], 3);
+}
+
+#[tokio::test]
+async fn filters_order_and_pages_use_the_shared_grammar() {
+    let cases = [
+        ("?filter=gate:refuses", vec!["weak-draft"]),
+        ("?filter=review_state:in_review", vec!["weak-draft"]),
+        (
+            "?filter=status:draft&order=updated_at%20desc",
+            vec!["other-draft", "weak-draft"],
+        ),
+        ("?filter=index_status:indexable", vec!["live-post"]),
+        ("?order=id&limit=2&page=2", vec!["weak-draft"]),
+    ];
+    for (query, want) in cases {
+        let (status, json) = list(query, WRITER).await;
+        assert_eq!(status, StatusCode::OK, "{query}: {json}");
+        assert_eq!(ids(&json), want, "{query}");
+    }
+    let (_, json) = list("?order=id&limit=2&page=2", WRITER).await;
+    assert_eq!(json["meta"]["pagination"]["pages"], 2);
+}
+
+#[tokio::test]
+async fn a_list_that_cannot_be_answered_is_a_400_naming_the_parameter() {
+    let cases = [
+        ("?filter=markdown:~%27link%27", "filter"),
+        ("?filter=lint.blocks:%3E0", "filter"),
+        ("?order=lint.warnings%20desc", "order"),
+        ("?limit=all", "limit"),
+        ("?limit=500", "limit"),
+        ("?formats=html", "query"),
+        ("?include=authors", "query"),
+    ];
+    for (query, rule) in cases {
+        let (status, json) = list(query, WRITER).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{query}: {json}");
+        assert_eq!(json["rule"], rule, "{query}: {json}");
+    }
+}
+
+#[tokio::test]
+async fn a_key_without_posts_write_cannot_list() {
+    let (status, json) = list("", UPLOADER).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
 }

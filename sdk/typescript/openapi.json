@@ -15,7 +15,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Lists posts in every status as rows of the admin's posts table, with\nthe shared query grammar (RULES.md BL-API-5); any field but `lint` may\nbe filtered and ordered by. Needs `posts:write`.",
+        "summary": "Lists posts in every status as rows of the admin's posts table, with\nthe shared query grammar (RULES.md BL-API-5); any field but `lint` may\nbe filtered and ordered by. A page holds at most 100 rows, because\neach row's findings are counted. Needs `posts:write`.",
         "operationId": "browse_admin_posts",
         "parameters": [
           {
@@ -76,7 +76,7 @@
             }
           },
           "400": {
-            "description": "A list parameter could not be read, or names a field rows do not have",
+            "description": "A list parameter could not be read, names a field rows do not have, is not one the list takes, or is limit=all",
             "content": {
               "application/problem+json": {
                 "schema": {

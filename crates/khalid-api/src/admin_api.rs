@@ -23,7 +23,7 @@ use crate::keys::{KeyStore, Principal, Scope};
 use crate::pagination::Meta;
 use crate::post_store::{CreatePostError, PostStore, UpdatePostError};
 use crate::problem::{Problem, ProblemType};
-use crate::query::{ListQuery, RawListQuery};
+use crate::query::{Limit, ListQuery, RawListQuery};
 use crate::resources::{AdminPost, Listable, NewPost, PostDraft, PostEdit, PostRow};
 
 /// Where the Admin API lives.
@@ -64,6 +64,7 @@ pub(crate) struct PostRows {
 /// `include`, `fields` and `formats`, which mean nothing for a row.
 #[derive(Debug, Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct RowQuery {
     /// `filter=gate:refuses+status:draft`
     filter: Option<String>,
@@ -85,16 +86,37 @@ impl RowQuery {
     }
 }
 
+/// The 400 for a parameter the posts list does not take.
+fn unlisted_parameter() -> Problem {
+    let message = UserMessage::new(
+        "The posts list takes only filter, order, limit and page.",
+        "A row has no body or embedded resources to choose.",
+        "Remove the other parameters, such as include, fields or formats.",
+    );
+    Problem::new(ProblemType::InvalidQuery, &message).with_rule("query")
+}
+
+/// The 400 for `limit=all`.
+fn whole_site() -> Problem {
+    let message = UserMessage::new(
+        "The posts list sends at most 100 posts a page.",
+        "Each post's lint findings are counted, which takes too long for a whole site.",
+        "Use limit=100 and the page parameter, or a filter such as gate:refuses.",
+    );
+    Problem::new(ProblemType::InvalidQuery, &message).with_rule("limit")
+}
+
 /// Lists posts in every status as rows of the admin's posts table, with
 /// the shared query grammar (RULES.md BL-API-5); any field but `lint` may
-/// be filtered and ordered by. Needs `posts:write`.
+/// be filtered and ordered by. A page holds at most 100 rows, because
+/// each row's findings are counted. Needs `posts:write`.
 #[utoipa::path(
     get, path = "/posts/", tag = "admin posts",
     security(("admin_key" = [])),
     params(RowQuery),
     responses(
         (status = 200, description = "One page of posts in every status", body = PostRows),
-        (status = 400, description = "A list parameter could not be read, or names a field rows do not have", body = Problem, content_type = "application/problem+json"),
+        (status = 400, description = "A list parameter could not be read, names a field rows do not have, is not one the list takes, or is limit=all", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
     )
@@ -102,11 +124,15 @@ impl RowQuery {
 async fn browse_admin_posts(
     State(posts): State<Posts>,
     Extension(principal): Extension<Principal>,
-    Query(rows): Query<RowQuery>,
+    rows: Result<Query<RowQuery>, QueryRejection>,
 ) -> Result<Json<PostRows>, Problem> {
     require(&principal, Scope::PostsWrite)?;
+    let Query(rows) = rows.map_err(|_| unlisted_parameter())?;
     let query = ListQuery::try_from(&rows.into_raw())?;
     check_fields(&query, PostRow::FIELDS)?;
+    if query.limit() == Limit::All {
+        return Err(whole_site());
+    }
     let listed = posts
         .list(&query)
         .await

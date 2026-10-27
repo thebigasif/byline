@@ -418,6 +418,16 @@ fn a_post_created_and_published_through_the_admin_api_is_served() {
     assert_eq!(draft["status"], "draft", "{made}");
     let (status, _) = request(&server, "GET", "/blog/choosing-anchor-text/", &[], None);
     assert_eq!(status, 404, "a draft is never served");
+    let drafts = "/api/admin/v1/posts/?filter=status:draft";
+    let (status, body) = request(&server, "GET", drafts, &auth, None);
+    assert_eq!(status, 200, "{body}");
+    let listed: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(
+        listed["posts"][0]["id"], "en.choosing-anchor-text",
+        "{listed}"
+    );
+    assert_eq!(listed["posts"][0]["gate"], "passes", "{listed}");
+    assert_eq!(listed["meta"]["pagination"]["total"], 1, "{listed}");
 
     let path = "/api/admin/v1/posts/en.choosing-anchor-text/";
     let co_authors = serde_json::json!({"posts": [{
