@@ -23,6 +23,7 @@ mod posts;
 mod rebuild;
 mod schedule_table;
 mod site_id;
+mod site_keys;
 mod site_lists;
 mod webhook_table;
 
