@@ -4,7 +4,7 @@ use axum::http::HeaderValue;
 use bytes::Bytes;
 
 use crate::compress::Compressed;
-use crate::{MediaType, PagePath, etag};
+use crate::{MediaType, PagePath, ServerError, etag};
 
 /// Pages may be kept, but must be checked with their tag before reuse, so
 /// an edited post shows on the next visit.
@@ -25,15 +25,28 @@ enum Caching {
 
 /// One rendered page or file, ready to send: its address, its kind, its
 /// bytes and the tag made from them. [`Pages`](crate::Pages) adds its
-/// Brotli copy.
+/// Brotli copy, and then keeps that copy alone.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Page {
     path: PagePath,
     media_type: MediaType,
-    body: Bytes,
+    stored: Stored,
+    /// The length of the plain bytes.
+    len: usize,
+    /// The tag of the plain bytes.
     etag: Option<HeaderValue>,
-    brotli: Option<Compressed>,
     caching: Caching,
+}
+
+/// How a page's bytes are held: one copy, never two.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Stored {
+    /// The plain bytes, before compressing, or when it would not shrink
+    /// them.
+    Plain(Bytes),
+    /// The Brotli copy only. Most readers take it as it is; for the rest it
+    /// is decoded when they ask.
+    Brotli(Compressed),
 }
 
 impl Page {
@@ -43,10 +56,10 @@ impl Page {
         let body = body.into();
         Self {
             etag: etag::of(&body),
+            len: body.len(),
             path,
             media_type,
-            body,
-            brotli: None,
+            stored: Stored::Plain(body),
             caching: Caching::Revalidate,
         }
     }
@@ -61,18 +74,28 @@ impl Page {
         }
     }
 
-    /// The page with its Brotli copy, when its kind is text and compressing
-    /// makes it smaller. When `old` has the same bytes, by its tag, and a
-    /// copy, that copy is shared instead of compressing again.
+    /// The page holding only its Brotli copy, when its kind is text and
+    /// compressing makes it smaller, or as it is. When `old` has the same
+    /// bytes, by its tag, and a copy, that copy is shared instead of
+    /// compressing again.
     pub(crate) fn compressed_like(self, old: Option<&Self>) -> Self {
+        let Stored::Plain(plain) = &self.stored else {
+            return self;
+        };
         let brotli = match old {
             _ if !self.media_type.compresses() => None,
-            Some(old) if old.etag.is_some() && old.etag == self.etag && old.brotli.is_some() => {
-                old.brotli.clone()
+            Some(old) if old.etag.is_some() && old.etag == self.etag && old.brotli().is_some() => {
+                old.brotli().cloned()
             }
-            _ => Compressed::brotli(&self.body, self.etag.as_ref()),
+            _ => Compressed::brotli(plain, self.etag.as_ref()),
         };
-        Self { brotli, ..self }
+        match brotli {
+            Some(copy) => Self {
+                stored: Stored::Brotli(copy),
+                ..self
+            },
+            None => self,
+        }
     }
 
     /// Where the page lives on the site.
@@ -85,9 +108,34 @@ impl Page {
         self.media_type
     }
 
-    /// The bytes sent to a reader.
-    pub fn body(&self) -> &Bytes {
-        &self.body
+    /// The plain bytes sent to a reader that does not take Brotli. When the
+    /// page holds only its Brotli copy, they are decoded from it now.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ServerError::Decompress`] when the Brotli copy cannot be
+    /// decoded, which only a fault in this crate could cause.
+    pub fn body(&self) -> Result<Bytes, ServerError> {
+        match &self.stored {
+            Stored::Plain(plain) => Ok(plain.clone()),
+            Stored::Brotli(copy) => {
+                copy.plain(self.len)
+                    .map_err(|source| ServerError::Decompress {
+                        path: self.path.clone(),
+                        source,
+                    })
+            }
+        }
+    }
+
+    /// The length of the plain bytes.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Whether the page has no bytes at all.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     /// The `ETag` header value, made from the bytes.
@@ -97,7 +145,10 @@ impl Page {
 
     /// The Brotli copy, if the page has one.
     pub(crate) fn brotli(&self) -> Option<&Compressed> {
-        self.brotli.as_ref()
+        match &self.stored {
+            Stored::Brotli(copy) => Some(copy),
+            Stored::Plain(_) => None,
+        }
     }
 
     /// The `Cache-Control` header value.
@@ -106,5 +157,36 @@ impl Page {
             Caching::Revalidate => REVALIDATE,
             Caching::Immutable => IMMUTABLE,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn post(body: &str) -> Page {
+        let path = PagePath::try_new("/blog/what-a-sitemap-does/").unwrap();
+        Page::new(path, MediaType::Html, body.to_owned())
+    }
+
+    #[test]
+    fn a_compressed_page_keeps_only_its_brotli_copy_and_gives_its_bytes_back() {
+        let text = "<p>A sitemap lists the pages you want found.</p>\n".repeat(40);
+        let page = post(&text).compressed_like(None);
+        assert!(
+            matches!(page.stored, Stored::Brotli(_)),
+            "{:?}",
+            page.stored
+        );
+        assert_eq!(page.len(), text.len());
+        assert_eq!(page.body().unwrap(), text.as_bytes());
+    }
+
+    #[test]
+    fn a_page_compressing_cannot_shrink_stays_plain() {
+        let page = post("<p>Hi</p>").compressed_like(None);
+        assert!(matches!(page.stored, Stored::Plain(_)), "{:?}", page.stored);
+        assert!(page.brotli().is_none());
+        assert_eq!(page.body().unwrap(), "<p>Hi</p>".as_bytes());
     }
 }

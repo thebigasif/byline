@@ -1,6 +1,8 @@
 //! The page set readers see now, replaced as a whole when the site changes.
 
-use std::sync::{Arc, PoisonError, RwLock};
+use std::sync::Arc;
+
+use tokio::sync::watch;
 
 use crate::{Page, Pages, Render, ServerError, render_pages};
 
@@ -8,21 +10,29 @@ use crate::{Page, Pages, Render, ServerError, render_pages};
 /// after a change, so a reader never sees half a rebuild. Cloning shares
 /// the same set.
 #[derive(Debug, Clone)]
-pub struct LivePages(Arc<RwLock<Arc<Pages>>>);
+pub struct LivePages(Arc<watch::Sender<Arc<Pages>>>);
 
 impl LivePages {
     /// Serves `pages` until they are replaced.
     pub fn new(pages: Pages) -> Self {
-        Self(Arc::new(RwLock::new(Arc::new(pages))))
+        Self(Arc::new(watch::Sender::new(Arc::new(pages))))
     }
 
     /// The pages being served now.
     pub fn current(&self) -> Arc<Pages> {
-        // A panic cannot happen while the lock is held, since holding it
-        // only reads or swaps an `Arc`, so a poisoned lock still holds a
-        // whole page set.
-        let pages = self.0.read().unwrap_or_else(PoisonError::into_inner);
-        Arc::clone(&pages)
+        Arc::clone(&self.0.borrow())
+    }
+
+    /// The pages being served once they are every page of the site: at
+    /// once, unless the server started with [`Pages::first`] and the rest
+    /// is still being rendered.
+    pub async fn whole(&self) -> Arc<Pages> {
+        let mut served = self.0.subscribe();
+        match served.wait_for(|pages| pages.is_whole()).await {
+            Ok(pages) => Arc::clone(&pages),
+            // The sender lives as long as `self`, so it cannot be closed.
+            Err(_) => self.current(),
+        }
     }
 
     /// Renders the site again with `renderer` and serves the new pages.
@@ -34,16 +44,15 @@ impl LivePages {
     /// not change, so a broken edit never takes the site down.
     pub async fn refresh<R: Render + Clone>(&self, renderer: &R) -> Result<(), ServerError> {
         let pages = render_pages(renderer, Some(self.current())).await?;
-        let mut slot = self.0.write().unwrap_or_else(PoisonError::into_inner);
-        *slot = Arc::new(pages);
+        self.0.send_replace(Arc::new(pages));
         Ok(())
     }
 
     /// Serves the `saved` pages in place of the pages at their addresses,
     /// and every other page as it is (see [`Pages::with_saved`]).
     pub fn show_saved(&self, saved: Vec<Page>) {
-        let mut slot = self.0.write().unwrap_or_else(PoisonError::into_inner);
-        *slot = Arc::new(slot.with_saved(saved));
+        self.0
+            .send_modify(|pages| *pages = Arc::new(pages.with_saved(saved)));
     }
 
     /// Renders the site again with `renderer`, like [`LivePages::refresh`],
@@ -89,12 +98,13 @@ impl LivePages {
     /// Serves `pages` in place of `expected`, unless something else
     /// replaced `expected` first. Says whether `pages` are served now.
     pub fn replace_if_current(&self, expected: &Arc<Pages>, pages: Pages) -> bool {
-        let mut slot = self.0.write().unwrap_or_else(PoisonError::into_inner);
-        if !Arc::ptr_eq(&slot, expected) {
-            return false;
-        }
-        *slot = Arc::new(pages);
-        true
+        self.0.send_if_modified(|served| {
+            if !Arc::ptr_eq(served, expected) {
+                return false;
+            }
+            *served = Arc::new(pages);
+            true
+        })
     }
 }
 

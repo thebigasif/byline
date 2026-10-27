@@ -76,7 +76,7 @@ async fn wait_for(live: &LivePages, path: &str, want: Option<&str>) {
     let read = || {
         let pages = live.current();
         let page = pages.get(path)?;
-        Some(String::from_utf8(page.body().to_vec()).unwrap())
+        Some(String::from_utf8(page.body().unwrap().to_vec()).unwrap())
     };
     let waited = tokio::time::timeout(PATIENCE, async {
         while read().as_deref() != want {
@@ -204,7 +204,7 @@ async fn a_saved_post_shows_before_the_full_render_ends() {
         fs::write(&post, edit).unwrap();
         let shown = tokio::time::timeout(SLOW / 2, async {
             let page = || live.current().get("/blog/what-a-sitemap-does/").cloned();
-            while page().is_none_or(|page| page.body() != edit) {
+            while page().is_none_or(|page| page.body().unwrap() != edit) {
                 tokio::time::sleep(Duration::from_millis(5)).await;
             }
         });

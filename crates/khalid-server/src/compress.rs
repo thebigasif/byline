@@ -1,6 +1,8 @@
 //! Brotli copies of pages, made once when the pages are built, and whether
 //! a browser accepts them.
 
+use std::io;
+
 use axum::http::{HeaderMap, HeaderValue, header};
 use brotli::enc::BrotliEncoderParams;
 use bytes::Bytes;
@@ -12,13 +14,17 @@ use crate::etag;
 /// the same size, so a rebuild of many pages stays quick.
 const QUALITY: i32 = 5;
 
-/// The smallest and largest Brotli window Brotli allows, as powers of two:
-/// 1 KB and 4 MB.
-const WINDOW: (i32, i32) = (10, 22);
+/// The smallest and largest Brotli window used, as powers of two: 128 KB
+/// and 4 MB. Brotli allows windows down to 1 KB, but the `brotli` crate has
+/// no hasher for windows of 64 KB or less at quality 5 and up, and falls
+/// back to one with a 32 MB table, set up again for every page. From
+/// 128 KB it picks a hasher with a table of about 1 MB.
+const WINDOW: (i32, i32) = (17, 22);
 
-/// The smallest Brotli window that holds all of a `len`-byte page, so the
-/// encoder sets up buffers the size of the page, not 4 MB for each one.
-/// A window that covers the whole page compresses it exactly as well.
+/// The smallest Brotli window that holds all of a `len`-byte page, and no
+/// smaller than 128 KB, so the encoder sets up buffers near the size of
+/// the page, not 4 MB or 32 MB for each one. A window that covers the
+/// whole page compresses it exactly as well.
 pub(crate) fn window(len: usize) -> i32 {
     let bits = len.max(1).next_power_of_two().trailing_zeros();
     i32::try_from(bits).map_or(WINDOW.1, |bits| bits.clamp(WINDOW.0, WINDOW.1))
@@ -59,6 +65,14 @@ impl Compressed {
     /// The compressed bytes.
     pub(crate) fn body(&self) -> &Bytes {
         &self.body
+    }
+
+    /// The plain bytes, `len` of them, decoded from this copy.
+    pub(crate) fn plain(&self, len: usize) -> io::Result<Bytes> {
+        let mut input: &[u8] = &self.body;
+        let mut output = Vec::with_capacity(len);
+        brotli::BrotliDecompress(&mut input, &mut output)?;
+        Ok(Bytes::from(output))
     }
 
     /// The tag of the compressed copy.
@@ -104,12 +118,11 @@ mod tests {
 
     #[test]
     fn the_window_holds_the_whole_page_and_no_more() {
-        assert_eq!(window(0), 10, "never below 1 KB");
-        assert_eq!(window(700), 10);
-        assert_eq!(window(1024), 10);
-        assert_eq!(window(1025), 11);
-        assert_eq!(window(7_000), 13);
-        assert_eq!(window(30_000), 15);
+        assert_eq!(window(0), 17, "never below 128 KB");
+        assert_eq!(window(30_000), 17);
+        assert_eq!(window(131_072), 17);
+        assert_eq!(window(131_073), 18);
+        assert_eq!(window(1_000_000), 20);
         assert_eq!(window(50_000_000), 22, "never above 4 MB");
     }
 }

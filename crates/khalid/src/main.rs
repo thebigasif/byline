@@ -11,6 +11,7 @@ mod atomic;
 mod build;
 mod build_files;
 mod build_gate;
+mod build_home;
 mod build_message;
 mod build_pages;
 mod build_reader;
@@ -39,6 +40,7 @@ mod lint;
 mod lint_fix;
 mod lint_input;
 mod lint_message;
+mod listed_post;
 mod mcp;
 mod mcp_content;
 mod mcp_message;
@@ -87,6 +89,7 @@ use crate::cli::{Cli, Command, Output, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
+use crate::post_files::Assets;
 
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -115,7 +118,9 @@ fn run(cli: &Cli) -> Exit {
     };
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder, &environment) {
-            Ok((config, routes, content)) => Some((folder, config, routes, content)),
+            Ok((config, routes, content, assets)) => {
+                Some((folder, config, routes, (content, assets)))
+            }
             Err(message) => return report::failure(cli.output, &message, Exit::Failure),
         },
         None => None,
@@ -123,10 +128,11 @@ fn run(cli: &Cli) -> Exit {
     // The server renders its first pages from the checked content, then
     // drops it, so it takes the content rather than borrowing it.
     let site = match (&cli.command, site) {
-        (Some(Command::Serve { listen }), Some((folder, config, routes, content))) => {
+        (Some(Command::Serve { listen }), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let checked = (&config, &routes);
-            return serve::run(folder, checked, (content, look), *listen, cli.output);
+            let start = (content, assets, look);
+            return serve::run(folder, checked, start, *listen, cli.output);
         }
         (_, site) => site,
     };
@@ -146,7 +152,7 @@ fn run(cli: &Cli) -> Exit {
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, routes, content))) => build::run(
+        (Some(Command::Build { out }), Some((folder, config, routes, (content, _)))) => build::run(
             folder,
             (config, routes, content),
             out.as_deref(),
@@ -210,19 +216,21 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
     }
 }
 
+/// What one check of a site folder read: its settings, routes and content,
+/// and the files beside its folder posts.
+type Checked = (Config, Routes, SiteContent, Assets);
+
 /// Checks the settings, the routes and the content of the `site` folder, and
-/// returns the settings, the routes and the content.
-fn check(
-    site: &Path,
-    environment: &Environment,
-) -> Result<(Config, Routes, SiteContent), UserMessage> {
+/// returns them with the files beside folder posts. The folder is walked
+/// once, and no file's text is kept beyond the content.
+fn check(site: &Path, environment: &Environment) -> Result<Checked, UserMessage> {
     let config = Config::load(site, environment).map_err(|e| config_message::of(&e))?;
     let routes = Routes::load(site).map_err(|error| routes_message::of(&error))?;
-    let content = ContentTree::walk(site)
-        .and_then(|tree| read_content(&tree))
-        .and_then(|content| check_bodies(&content, &config, &routes).map(|()| content))
+    let (content, assets) = ContentTree::walk(site)
+        .and_then(|tree| Ok((read_content(&tree)?, Assets::of(&tree))))
+        .and_then(|read| check_bodies(&read.0, &config, &routes).map(|()| read))
         .map_err(|error| content_message::of(site, &error))?;
-    Ok((config, routes, content))
+    Ok((config, routes, content, assets))
 }
 
 /// The message for a command that works on one site folder when none was given.

@@ -14,6 +14,17 @@ pub struct Pages {
     by_path: BTreeMap<String, Page>,
     not_found: Bytes,
     moved: BTreeMap<String, PagePath>,
+    extent: Extent,
+}
+
+/// How much of the site a page set holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Extent {
+    /// Every page: an address it lacks has nothing behind it.
+    Whole,
+    /// The first pages a starting server answers with, while the rest of
+    /// the site is still being rendered.
+    First,
 }
 
 impl Pages {
@@ -57,7 +68,32 @@ impl Pages {
             by_path,
             not_found: not_found.into(),
             moved: BTreeMap::new(),
+            extent: Extent::Whole,
         })
+    }
+
+    /// The first `pages` a starting server answers with, such as the home
+    /// page, plain, while the rest of the site is rendered. The [`router`]
+    /// holds a request for any address they lack until a whole set is
+    /// served in their place (see [`LivePages::whole`]), so a reader never
+    /// gets a 404 for a page that is about to exist.
+    ///
+    /// [`router`]: crate::router
+    /// [`LivePages::whole`]: crate::LivePages::whole
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ServerError::DuplicatePage`] when two pages share a path.
+    pub fn first(pages: Vec<Page>) -> Result<Self, ServerError> {
+        let mut first = Self::plain(pages, Bytes::new())?;
+        first.extent = Extent::First;
+        Ok(first)
+    }
+
+    /// Whether these are every page of the site, rather than the
+    /// [`Pages::first`] of a starting server.
+    pub fn is_whole(&self) -> bool {
+        self.extent == Extent::Whole
     }
 
     /// The same pages, with each of `moves` answered by 301 where no page
@@ -87,13 +123,14 @@ impl Pages {
             by_path,
             not_found: self.not_found.clone(),
             moved: self.moved.clone(),
+            extent: self.extent,
         }
     }
 
     /// The same pages, with each of `saved` in place of the page at its
     /// address, or added when there was none. The saved pages come without
     /// a Brotli copy; the next full render adds one. Every other page is
-    /// shared, not copied.
+    /// shared, not copied, and first pages stay first.
     #[must_use]
     pub fn with_saved(&self, saved: Vec<Page>) -> Self {
         let mut by_path = self.by_path.clone();
@@ -104,6 +141,7 @@ impl Pages {
             by_path,
             not_found: self.not_found.clone(),
             moved: self.moved.clone(),
+            extent: self.extent,
         }
     }
 
@@ -176,7 +214,7 @@ mod tests {
         let about = Page::new(about, MediaType::Html, "<h1>About this blog</h1>");
         let pages = Pages::new(vec![post("<p>A sitemap lists pages.</p>"), about], "").unwrap();
         let saved = pages.with_saved(vec![post("<p>A sitemap lists posts.</p>")]);
-        let body = |pages: &Pages, path: &str| pages.get(path).unwrap().body().clone();
+        let body = |pages: &Pages, path: &str| pages.get(path).unwrap().body().unwrap();
         let edited = "<p>A sitemap lists posts.</p>".repeat(40);
         assert_eq!(body(&saved, "/blog/what-a-sitemap-does/"), edited);
         assert_eq!(body(&saved, "/blog/about/"), body(&pages, "/blog/about/"));

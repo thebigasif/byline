@@ -58,6 +58,6 @@ async fn compressing_never_puts_back_pages_an_edit_replaced() {
         "the old set does not"
     );
     let page = live.current();
-    let body = page.get(POST).unwrap().body();
-    assert!(String::from_utf8_lossy(body).contains("After the edit."));
+    let body = page.get(POST).unwrap().body().unwrap();
+    assert!(String::from_utf8_lossy(&body).contains("After the edit."));
 }

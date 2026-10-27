@@ -34,6 +34,16 @@ pub enum ServerError {
         #[source]
         source: tokio::task::JoinError,
     },
+    /// A page kept only as its Brotli copy could not be decoded back to its
+    /// plain bytes.
+    #[error("the kept copy of {path} could not be decompressed")]
+    Decompress {
+        /// The page's address.
+        path: PagePath,
+        /// What the decoder reported.
+        #[source]
+        source: std::io::Error,
+    },
     /// Accepting or answering connections failed.
     #[error("the server stopped answering requests")]
     Serve {

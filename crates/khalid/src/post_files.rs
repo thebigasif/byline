@@ -9,10 +9,12 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use khalid_content::{Collection, ContentTree, Language};
-use khalid_core::{SitePath, UserMessage};
+use khalid_core::{Config, SitePath, UserMessage};
 use khalid_render::{BodyHtml, PageBody};
+use khalid_server::{MediaType, Page as Served, PagePath};
 
 use crate::build_pages::{LanguagePages, Page};
+use crate::{build_message, post_images};
 
 /// How a body image starts, up to its address, as `khalid_content::render`
 /// writes it.
@@ -33,18 +35,30 @@ pub(crate) struct PostFile {
     pub(crate) address: String,
 }
 
-/// Every file beside the content file of a page in `languages`, as `tree`
-/// lists them, in page order. Each such page's body, and the copy the
-/// feeds read, point their relative images at those files.
-pub(crate) fn attach(tree: &ContentTree, languages: &mut [LanguagePages]) -> Vec<PostFile> {
-    let assets: BTreeMap<&Path, &[PathBuf]> = tree
-        .languages()
-        .iter()
-        .flat_map(Language::collections)
-        .flat_map(Collection::entries)
-        .filter(|entry| !entry.assets().is_empty())
-        .map(|entry| (entry.path(), entry.assets()))
-        .collect();
+/// The files beside each folder entry of a site, by the entry's content
+/// file, as a walk of the content found them: what [`attach`] needs of a
+/// [`ContentTree`], without the text of every file it read.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Assets(BTreeMap<PathBuf, Vec<PathBuf>>);
+
+impl Assets {
+    /// The files beside each folder entry of `tree`.
+    pub(crate) fn of(tree: &ContentTree) -> Self {
+        let entries = tree
+            .languages()
+            .iter()
+            .flat_map(Language::collections)
+            .flat_map(Collection::entries)
+            .filter(|entry| !entry.assets().is_empty())
+            .map(|entry| (entry.path().to_path_buf(), entry.assets().to_vec()));
+        Self(entries.collect())
+    }
+}
+
+/// Every file beside the content file of a page in `languages`, as
+/// `assets` lists them, in page order. Each such page's body, and the copy
+/// the feeds read, point their relative images at those files.
+pub(crate) fn attach(assets: &Assets, languages: &mut [LanguagePages]) -> Vec<PostFile> {
     let mut files = Vec::new();
     for page in languages
         .iter_mut()
@@ -53,7 +67,7 @@ pub(crate) fn attach(tree: &ContentTree, languages: &mut [LanguagePages]) -> Vec
         let Some((source, found)) = page
             .source
             .as_deref()
-            .and_then(|source| assets.get_key_value(source))
+            .and_then(|source| assets.0.get_key_value(source))
         else {
             continue;
         };
@@ -138,6 +152,34 @@ pub(crate) fn on_disk(site: &Path, file: &PostFile) -> Result<PathBuf, UserMessa
 /// The bytes of `file` in the `site` folder.
 pub(crate) fn read(site: &Path, file: &PostFile) -> Result<Vec<u8>, UserMessage> {
     fs::read(on_disk(site, file)?).map_err(|error| unreadable(&file.source, &error))
+}
+
+/// The files beside folder posts in `assets`, as `khalid serve` answers
+/// them, each at its page's address, and the sizes of their images, which
+/// never change under their names.
+pub(crate) fn served(
+    folder: &Path,
+    config: &Config,
+    assets: &Assets,
+    languages: &mut [LanguagePages],
+) -> Result<Vec<Served>, UserMessage> {
+    let address = |text: &str| PagePath::try_new(text).map_err(|_| build_message::address(text));
+    let beside = attach(assets, languages);
+    let mut pages = Vec::with_capacity(beside.len());
+    for file in &beside {
+        let kind = MediaType::for_file(&file.address);
+        pages.push(Served::new(
+            address(&file.address)?,
+            kind,
+            read(folder, file)?,
+        ));
+    }
+    for size in post_images::attach(folder, config, &beside, languages)? {
+        let kind = MediaType::for_file(&size.address);
+        let bytes = fs::read(&size.path).map_err(|error| unreadable(&size.path, &error))?;
+        pages.push(Served::immutable(address(&size.address)?, kind, bytes));
+    }
+    Ok(pages)
 }
 
 /// The message when a file beside a post cannot be read.
