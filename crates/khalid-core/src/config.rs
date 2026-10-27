@@ -10,7 +10,9 @@ use std::time::Duration;
 use serde::Deserialize;
 
 use crate::toml_location::{field_of, line_of, line_of_key};
-use crate::{AbsoluteUrl, Locale, ParseUrlError, Reader, Secret, SeoSettings};
+use crate::{
+    AbsoluteUrl, Locale, MediaSettings, ParseUrlError, Reader, S3Keys, Secret, SeoSettings,
+};
 
 /// Every setting Khalid reads, checked once at start and then passed by
 /// reference (RULES.md BL-RUN-2).
@@ -29,6 +31,7 @@ pub struct Config {
     languages: Vec<Locale>,
     seo: SeoSettings,
     reader: Reader,
+    media: MediaSettings,
     preview_link_lifetime: Duration,
 }
 
@@ -86,6 +89,8 @@ struct SiteFile {
     seo: SeoSettings,
     #[serde(default)]
     reader: Reader,
+    #[serde(default)]
+    media: MediaSettings,
     preview_link_days: Option<u64>,
     preview_link_hours: Option<u64>,
 }
@@ -182,6 +187,15 @@ impl Config {
         }
         let preview_link_lifetime =
             preview_lifetime(&file).map_err(|(key, problem)| field(key, problem))?;
+        if let Some(s3) = &file.media.s3 {
+            if let Some((key, problem)) = s3.mistake() {
+                return Err(field(key, problem));
+            }
+            if env.s3_keys().is_none() {
+                let missing = "a bucket needs KHALID_S3_ACCESS_KEY_ID and KHALID_S3_SECRET_ACCESS_KEY set in the environment";
+                return Err(field("bucket", missing));
+            }
+        }
         let address = match env.get(Environment::ADDRESS) {
             Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
                 variable: Environment::ADDRESS.to_owned(),
@@ -199,8 +213,14 @@ impl Config {
             languages: file.languages,
             seo: file.seo,
             reader: file.reader,
+            media: file.media,
             preview_link_lifetime,
         })
+    }
+
+    /// Where the media library keeps its files, from `[media]`.
+    pub fn media(&self) -> &MediaSettings {
+        &self.media
     }
 
     /// How long a new preview link works: 7 days unless `site.toml` sets
@@ -268,8 +288,22 @@ impl Environment {
     /// settings set it, so the key never appears on a command line.
     pub const KEY: &str = "KHALID_KEY";
 
+    /// The identity of the key that writes to the media bucket.
+    pub const S3_ACCESS_KEY_ID: &str = "KHALID_S3_ACCESS_KEY_ID";
+
+    /// The secret of the key that writes to the media bucket.
+    pub const S3_SECRET_ACCESS_KEY: &str = "KHALID_S3_SECRET_ACCESS_KEY";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 2] = [Self::ADDRESS, Self::KEY];
+    const ALL: [&str; 4] = [
+        Self::ADDRESS,
+        Self::KEY,
+        Self::S3_ACCESS_KEY_ID,
+        Self::S3_SECRET_ACCESS_KEY,
+    ];
+
+    /// Variables whose values `Debug` hides.
+    const HIDDEN: [&str; 2] = [Self::KEY, Self::S3_SECRET_ACCESS_KEY];
 
     /// Reads Khalid's variables from this process's environment.
     pub fn from_process() -> Self {
@@ -310,6 +344,21 @@ impl Environment {
             .map(|key| Secret::new(key.to_owned()))
     }
 
+    /// The media bucket's two keys, or `None` unless both are set and not
+    /// blank.
+    pub fn s3_keys(&self) -> Option<S3Keys> {
+        let read = |name| {
+            self.get(name)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| Secret::new(value.to_owned()))
+        };
+        Some(S3Keys {
+            access_key_id: read(Self::S3_ACCESS_KEY_ID)?,
+            secret_access_key: read(Self::S3_SECRET_ACCESS_KEY)?,
+        })
+    }
+
     fn get(&self, name: &str) -> Option<&str> {
         self.0.get(name).map(String::as_str)
     }
@@ -318,7 +367,7 @@ impl Environment {
 impl fmt::Debug for Environment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let shown = self.0.iter().map(|(name, value)| {
-            let value: &dyn fmt::Debug = if name == Self::KEY {
+            let value: &dyn fmt::Debug = if Self::HIDDEN.contains(&name.as_str()) {
                 &"[redacted]"
             } else {
                 value

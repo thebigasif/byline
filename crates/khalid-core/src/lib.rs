@@ -13,6 +13,7 @@ mod clock;
 mod config;
 mod indexnow_key;
 mod locale;
+mod media_settings;
 mod reader;
 mod robots;
 mod secret;
@@ -30,6 +31,7 @@ pub use clock::{Clock, SystemClock};
 pub use config::{Config, ConfigError, Environment, Mode, SlugMode};
 pub use indexnow_key::{IndexNowKey, ParseIndexNowKeyError};
 pub use locale::{Locale, ParseLocaleError};
+pub use media_settings::{MediaSettings, S3Keys, S3Settings};
 pub use reader::{HomeSection, Reader};
 pub use robots::{
     Following, ImagePreview, Indexing, ParseRobotsError, PreviewLimit, Restriction,

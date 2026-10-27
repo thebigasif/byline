@@ -61,6 +61,13 @@ pub enum MediaError {
         #[source]
         source: tokio::task::JoinError,
     },
+    /// A request to a bucket could not be signed.
+    #[error("the request to the bucket could not be signed")]
+    Sign {
+        /// What the MAC reported.
+        #[source]
+        source: hmac::digest::InvalidLength,
+    },
     /// A derived file could not be written.
     #[error("could not write {}", path.display())]
     Write {
