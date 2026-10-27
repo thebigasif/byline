@@ -25,8 +25,8 @@ use crate::site_pages::{ContentFeed, SitePages};
 use crate::site_posts::SitePosts;
 use crate::{db, db_message, report, serve_message};
 
-/// How often the site folder is checked for a saved edit (ADR "the server
-/// watches files by polling").
+/// How often the site folder is looked at for a saved edit where the system
+/// has no file events for it (ADR "the server watches files with events").
 const WATCH_EVERY: Duration = Duration::from_millis(500);
 
 /// How long requests in flight may take to finish after a stop signal

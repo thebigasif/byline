@@ -3,10 +3,10 @@
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::{fmt, fs};
 
-use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
+use khalid_content::{ContentTree, Document, SiteContent, check_bodies, parse_post, read_content};
 use khalid_core::{Config, UserMessage};
 use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
@@ -34,6 +34,13 @@ struct Site {
     renderer: Renderer,
     stylesheet: Page,
     feed: Option<ContentFeed>,
+    /// The posts and authors the last full render read, without bodies, so
+    /// a saved post's page can be rendered alone.
+    outline: Mutex<SiteContent>,
+    /// The content files the last full render listed, so a saved post's
+    /// page finds the files beside it without listing the folder again.
+    /// `None` before the first full render.
+    tree: Mutex<Option<ContentTree>>,
 }
 
 /// Where each render also sends the published posts: the content index in
@@ -70,6 +77,8 @@ impl SitePages {
             renderer,
             stylesheet,
             feed,
+            outline: Mutex::default(),
+            tree: Mutex::default(),
         })))
     }
 
@@ -121,22 +130,52 @@ impl SitePages {
         let Site {
             folder,
             config,
-            routes,
-            renderer,
-            stylesheet,
             feed,
+            outline,
+            tree: listed,
+            ..
         } = &*self.0;
         if let Some(feed) = feed {
             let fed = published(&feed.db, feed.site, folder, config, content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
+        let rendered = self.render_of(tree, content, Which::All)?;
+        *outline.lock().unwrap_or_else(PoisonError::into_inner) = outline_of(content);
+        *listed.lock().unwrap_or_else(PoisonError::into_inner) = Some(tree.clone());
+        Ok(rendered)
+    }
+
+    /// The `which` pages made from `content`, with the files `tree` holds
+    /// beside folder posts, and the not-found page of the default language
+    /// when `which` is [`Which::All`]. Only a full render serves those
+    /// files; a saved post's page still points its images at them.
+    fn render_of(
+        &self,
+        tree: &ContentTree,
+        content: &SiteContent,
+        which: Which,
+    ) -> Result<(Vec<Page>, String), UserMessage> {
+        let Site {
+            folder,
+            config,
+            routes,
+            renderer,
+            stylesheet,
+            ..
+        } = &*self.0;
         let mut languages =
             build_pages::pages(config, routes, content, stylesheet.path().as_str())?;
-        let mut pages = vec![stylesheet.clone()];
-        pages.extend(files(folder, config, tree, &mut languages)?);
+        let beside = files(folder, config, tree, &mut languages)?;
+        let mut pages = match which {
+            Which::All => [vec![stylesheet.clone()], beside].concat(),
+            Which::Posts => Vec::new(),
+        };
         let mut not_found = String::new();
         for language in &languages {
             for page in &language.pages {
+                if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
+                    continue;
+                }
                 let html = renderer
                     .render(&language.site, &page.meta, &page.body)
                     .map_err(|error| build_message::render(&error))?;
@@ -153,6 +192,78 @@ impl SitePages {
         }
         Ok((pages, not_found))
     }
+
+    /// The saved `files`, relative to the site folder, read again as posts,
+    /// with every author their pages may name. `None` when one of them is
+    /// not a post the last full render read, or cannot be read now: the
+    /// full render then shows it, or says what is wrong.
+    ///
+    /// Also `None` when a post's page would read more than these files, so
+    /// it could differ from the full render's: when the pages show related
+    /// posts, chosen from every post's links, or when a saved post or an
+    /// author's bio has a wikilink, which may name a page outside them.
+    fn saved_posts(&self, files: &[PathBuf]) -> Option<SiteContent> {
+        if self.0.config.reader().related_posts {
+            return None;
+        }
+        let mut saved = SiteContent::default();
+        {
+            let outline = self
+                .0
+                .outline
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            for file in files {
+                saved
+                    .posts
+                    .push(outline.posts.iter().find(|doc| &doc.path == file)?.clone());
+            }
+            saved.authors.clone_from(&outline.authors);
+        }
+        for doc in &mut saved.posts {
+            let mut path = self.0.folder.clone();
+            path.push(&doc.path);
+            let text = fs::read_to_string(&path).ok()?;
+            let post = parse_post(&doc.path, &text).ok()?;
+            doc.front = post.front;
+            doc.body = post.body;
+        }
+        let bodies = saved.posts.iter().map(|doc| &doc.body);
+        let mut bodies = bodies.chain(saved.authors.iter().map(|doc| &doc.body));
+        if bodies.any(|body| body.contains(WIKILINK)) {
+            return None;
+        }
+        Some(saved)
+    }
+}
+
+/// Which pages a render makes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Which {
+    /// Every page, the stylesheet and the not-found page.
+    All,
+    /// Only the page of each dated post.
+    Posts,
+}
+
+/// How a wikilink starts in markdown, such as `[[link-equity]]`.
+const WIKILINK: &str = "[[";
+
+/// The posts of `content` without their bodies, and its authors whole,
+/// since a post's author box shows their bios: what a saved post's page
+/// needs from the rest of the site, in a fraction of the memory the whole
+/// content takes.
+fn outline_of(content: &SiteContent) -> SiteContent {
+    let mut outline = SiteContent::default();
+    outline.posts = content.posts.iter().map(without_body).collect();
+    outline.authors.clone_from(&content.authors);
+    outline
+}
+
+fn without_body<F: Clone>(doc: &Document<F>) -> Document<F> {
+    let mut doc = doc.clone();
+    doc.body = String::new();
+    doc
 }
 
 /// The files beside folder posts in `tree`, each at its page's address,
@@ -187,6 +298,25 @@ impl Render for SitePages {
         let (pages, not_found) = self.render_all().map_err(Unrendered)?;
         Ok(Rendered::new(pages, not_found))
     }
+
+    /// A saved post's page alone: its own file read again, and the authors
+    /// as the last full render read them. Nothing else on a post's page
+    /// comes from other files, so it is the page the full render will make.
+    fn render_saved(&self, files: &[PathBuf]) -> Result<Option<Vec<Page>>, Unrendered> {
+        let listed = self
+            .0
+            .tree
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        let (Some(tree), Some(saved)) = (listed, self.saved_posts(files)) else {
+            return Ok(None);
+        };
+        let (pages, _) = self
+            .render_of(&tree, &saved, Which::Posts)
+            .map_err(Unrendered)?;
+        Ok(Some(pages))
+    }
 }
 
 /// Why the site could not be rendered after an edit, as a person reads it.
@@ -203,12 +333,13 @@ impl Error for Unrendered {}
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::{Path, PathBuf};
 
     use khalid_core::{Config, Environment};
     use khalid_routes::Routes;
 
-    use super::{ContentTree, SitePages, read_content};
+    use super::{ContentTree, Render, SitePages, read_content};
 
     fn fixture(name: &str) -> PathBuf {
         let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
@@ -253,5 +384,75 @@ mod tests {
         assert!(given.len() > 10, "{} pages", given.len());
         assert_eq!(given, read);
         assert_eq!(given_missing, read_missing);
+    }
+
+    fn copy_dir(from: &Path, into: &Path) {
+        fs::create_dir_all(into).unwrap();
+        for entry in fs::read_dir(from).unwrap() {
+            let entry = entry.unwrap();
+            let mut target = into.to_path_buf();
+            target.push(entry.file_name());
+            if entry.file_type().unwrap().is_dir() {
+                copy_dir(&entry.path(), &target);
+            } else {
+                fs::copy(entry.path(), &target).unwrap();
+            }
+        }
+    }
+
+    /// The paths of the posts the last full render of `source` read.
+    fn outlined(source: &SitePages) -> Vec<PathBuf> {
+        let outline = source.0.outline.lock().unwrap();
+        outline.posts.iter().map(|doc| doc.path.clone()).collect()
+    }
+
+    #[test]
+    fn a_saved_post_alone_renders_the_page_the_full_render_makes() {
+        let site = tempfile::tempdir().unwrap();
+        copy_dir(&fixture("demo-site"), site.path());
+        let mut settings = site.path().to_path_buf();
+        settings.push("site.toml");
+        let text = fs::read_to_string(&settings).unwrap();
+        fs::write(
+            &settings,
+            format!("{text}\n[reader]\nrelated_posts = false\n"),
+        )
+        .unwrap();
+        let source = pages(site.path());
+        let unread = vec![PathBuf::from(
+            "content/en/posts/2026-09-28-what-a-sitemap-does.md",
+        )];
+        assert_eq!(
+            source.render_saved(&unread).unwrap(),
+            None,
+            "no full render yet"
+        );
+
+        let (all, _) = source.render_all().unwrap();
+        let (linking, posts): (Vec<PathBuf>, Vec<PathBuf>) =
+            outlined(&source).into_iter().partition(|path| {
+                let mut file = site.path().to_path_buf();
+                file.push(path);
+                fs::read_to_string(file).unwrap().contains("[[")
+            });
+        assert!(posts.len() >= 3, "{posts:?}");
+        let saved = source.render_saved(&posts).unwrap().unwrap();
+        assert_eq!(saved.len(), posts.len(), "one page per dated post");
+        for page in &saved {
+            assert!(all.contains(page), "{} differs", page.path().as_str());
+        }
+        assert!(!linking.is_empty());
+        assert_eq!(source.render_saved(&linking).unwrap(), None, "a wikilink");
+        let author = vec![PathBuf::from("content/en/authors/asif.md")];
+        assert_eq!(source.render_saved(&author).unwrap(), None);
+    }
+
+    #[test]
+    fn a_saved_post_waits_for_the_full_render_when_posts_show_related_ones() {
+        let source = pages(&fixture("demo-site"));
+        source.render_all().unwrap();
+        let posts = outlined(&source);
+        assert!(!posts.is_empty());
+        assert_eq!(source.render_saved(&posts).unwrap(), None);
     }
 }

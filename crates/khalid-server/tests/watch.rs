@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use khalid_server::{
-    FolderLook, LivePages, MediaType, Page, PagePath, Render, Rendered, render_pages, watch,
+    FolderLook, LivePages, MediaType, Page, PagePath, Render, Rendered, poll, render_pages, watch,
 };
 
 /// How often the tests look at the folder.
@@ -113,6 +113,111 @@ async fn a_saved_post_shows_without_a_restart() {
     fs::remove_file(&added).unwrap();
     wait_for(&live, "/blog/what-hreflang-does/", None).await;
     watching.stop().await;
+}
+
+#[tokio::test]
+async fn a_saved_post_shows_at_once_through_file_events() {
+    let (folder, renderer, live, look) = site().await;
+    // Looking only once an hour, so only a file event can show the save.
+    let watching = watch(
+        folder.path(),
+        &renderer,
+        &live,
+        look,
+        Duration::from_secs(3600),
+    );
+    let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
+    tokio::time::sleep(EVERY * 3).await;
+
+    fs::write(&post, "<h1>What a sitemap is for</h1>").unwrap();
+    wait_for(
+        &live,
+        "/blog/what-a-sitemap-does/",
+        Some("<h1>What a sitemap is for</h1>"),
+    )
+    .await;
+    watching.stop().await;
+}
+
+#[tokio::test]
+async fn looking_at_the_folder_still_shows_a_save() {
+    let (folder, renderer, live, look) = site().await;
+    let watching = poll(folder.path(), &renderer, &live, look, EVERY);
+    let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
+    tokio::time::sleep(EVERY * 3).await;
+
+    fs::write(&post, "<h1>What a sitemap is for</h1>").unwrap();
+    wait_for(
+        &live,
+        "/blog/what-a-sitemap-does/",
+        Some("<h1>What a sitemap is for</h1>"),
+    )
+    .await;
+    watching.stop().await;
+}
+
+/// Like [`Posts`], but its full render takes [`SLOW`], and it renders a
+/// saved post's page alone at once.
+#[derive(Debug)]
+struct SlowSite(Posts);
+
+/// How long a full render of [`SlowSite`] takes.
+const SLOW: Duration = Duration::from_secs(2);
+
+#[cfg(test)]
+impl Render for SlowSite {
+    type Error = std::io::Error;
+
+    fn render(&self) -> Result<Rendered, Self::Error> {
+        std::thread::sleep(SLOW);
+        self.0.render()
+    }
+
+    fn render_saved(&self, files: &[PathBuf]) -> Result<Option<Vec<Page>>, Self::Error> {
+        let mut pages = Vec::new();
+        for file in files {
+            let mut path = self.0.site.clone();
+            path.push(file);
+            let name = file.file_stem().unwrap().to_str().unwrap();
+            let address = PagePath::try_new(&format!("/blog/{name}/")).unwrap();
+            pages.push(Page::new(address, MediaType::Html, fs::read(path)?));
+        }
+        Ok(Some(pages))
+    }
+}
+
+#[tokio::test]
+async fn a_saved_post_shows_before_the_full_render_ends() {
+    let (folder, posts, live, look) = site().await;
+    let renderer = Arc::new(SlowSite(Posts {
+        site: posts.site.clone(),
+        renders: AtomicUsize::new(0),
+    }));
+    let watching = watch(folder.path(), &renderer, &live, look, EVERY);
+    let post = under(folder.path(), "content/en/posts/what-a-sitemap-does.md");
+    tokio::time::sleep(EVERY * 3).await;
+
+    for edit in [
+        "<h1>What a sitemap is for</h1>",
+        "<h1>Why a sitemap helps</h1>",
+    ] {
+        fs::write(&post, edit).unwrap();
+        let shown = tokio::time::timeout(SLOW / 2, async {
+            let page = || live.current().get("/blog/what-a-sitemap-does/").cloned();
+            while page().is_none_or(|page| page.body() != edit) {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        });
+        assert!(shown.await.is_ok(), "{edit} waited for the full render");
+    }
+    watching.stop().await;
+    // The full render that ran last read the last save, so it kept it.
+    wait_for(
+        &live,
+        "/blog/what-a-sitemap-does/",
+        Some("<h1>Why a sitemap helps</h1>"),
+    )
+    .await;
 }
 
 #[tokio::test]

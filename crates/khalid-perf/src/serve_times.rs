@@ -10,15 +10,12 @@ use khalid_core::Clock;
 
 use crate::{Fixture, ServeError, Served, percentile};
 
-/// How long the server rests after its warm-up requests before its memory
-/// is read: longer than the half second between its looks at the folder.
-const SETTLE: Duration = Duration::from_secs(2);
+/// How long after its first answer, with no traffic in between, the
+/// server's memory counts as idle (CTO answers 2026-10-27, section 2).
+const IDLE: Duration = Duration::from_secs(15);
 
-/// How many times the warm-up asks for each page.
-const WARM_UP: usize = 10;
-
-/// The pause between two edits, so each lands at a different point between
-/// two looks at the folder.
+/// The pause between two edits, short enough that an edit can land while
+/// the full render after the one before still runs.
 const BETWEEN_EDITS: Duration = Duration::from_millis(173);
 
 /// The medians of several starts and edits of `khalid serve`.
@@ -41,8 +38,9 @@ impl ServeTimes {
     }
 
     /// Starts `binary` on the generated `site` `rounds` times for the cold
-    /// start, then, on the last start, reads the idle memory and edits its
-    /// first post `rounds` times. The post is put back afterwards.
+    /// start, then, on the last start, reads the idle memory 15 seconds after
+    /// its first answer, with no request in between, and edits its first
+    /// post `rounds` times. The post is put back afterwards.
     ///
     /// # Errors
     ///
@@ -62,12 +60,8 @@ impl ServeTimes {
             last = Some(served);
         }
         let served = last.ok_or(ServeError::NoAddress)?;
-        let post = fixture.post_address(0);
-        for _ in 0..WARM_UP {
-            served.get(served.mount())?;
-            served.get(&post)?;
-        }
-        thread::sleep(SETTLE);
+        // The start's first byte was the server's first answer.
+        thread::sleep(IDLE);
         let idle_memory_mb = served.resident_mb()?;
         let rebuilds = edit_rounds(&served, site, fixture, rounds, clock)?;
         Ok(Self {
@@ -82,7 +76,7 @@ impl ServeTimes {
         self.first_byte_ms
     }
 
-    /// The resident memory after the warm-up.
+    /// The resident memory 15 seconds after the first answer.
     pub fn idle_memory_mb(&self) -> f64 {
         self.idle_memory_mb
     }

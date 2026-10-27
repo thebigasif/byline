@@ -1,6 +1,7 @@
 //! Where pages come from: the site's renderer, run off the async runtime.
 
 use std::error::Error;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -25,6 +26,23 @@ pub trait Render: Send + Sync + 'static {
     /// Returns the renderer's error when a file cannot be read or a page
     /// cannot be rendered.
     fn render(&self) -> Result<Rendered, Self::Error>;
+
+    /// The pages of the saved `files` alone, given relative to the site
+    /// folder, rendered quickly so the watch can show them before the full
+    /// render finishes. `None` when the renderer cannot tell which pages
+    /// those files make, and the default: then only the full render runs.
+    ///
+    /// The full render always follows, so a page that lists the saved
+    /// files, such as the home page, catches up a moment later.
+    ///
+    /// # Errors
+    ///
+    /// Returns the renderer's error when a page cannot be rendered. The
+    /// watch then waits for the full render.
+    fn render_saved(&self, files: &[PathBuf]) -> Result<Option<Vec<Page>>, Self::Error> {
+        let _ = files;
+        Ok(None)
+    }
 }
 
 impl<R: Render + ?Sized> Render for Arc<R> {
@@ -32,6 +50,10 @@ impl<R: Render + ?Sized> Render for Arc<R> {
 
     fn render(&self) -> Result<Rendered, Self::Error> {
         R::render(self)
+    }
+
+    fn render_saved(&self, files: &[PathBuf]) -> Result<Option<Vec<Page>>, Self::Error> {
+        R::render_saved(self, files)
     }
 }
 
