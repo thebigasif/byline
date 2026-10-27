@@ -68,7 +68,14 @@ fn json(result: &ToolResult) -> Value {
 fn each_tool_takes_an_object() {
     let tools = tools(WRITER);
     let names: Vec<&str> = tools.list().iter().map(Tool::name).collect();
-    assert_eq!(names, ["list_posts", "read_post"]);
+    let all = [
+        "list_posts",
+        "read_post",
+        "create_draft",
+        "edit_post",
+        "publish_post",
+    ];
+    assert_eq!(names, all);
     let listed = serde_json::to_value(tools.list()).unwrap();
     for tool in listed.as_array().unwrap() {
         assert_eq!(tool["inputSchema"]["type"], "object", "{tool}");
@@ -139,4 +146,89 @@ async fn a_missing_or_unknown_argument_is_named() {
 async fn an_unknown_tool_is_left_to_the_protocol() {
     let tools = tools(WRITER);
     assert!(tools.call("delete_site", Map::new()).await.is_none());
+}
+
+#[tokio::test]
+async fn create_draft_saves_a_draft_that_read_post_returns() {
+    let tools = tools(WRITER);
+    let draft = json!({ "title": "Redirects", "author": "asif", "markdown": "Keep old links." });
+    let created = call(&tools, "create_draft", &draft).await;
+    assert!(!created.is_failure(), "{}", created.text());
+    let read = call(&tools, "read_post", &json!({ "id": "redirects" })).await;
+    let post = &json(&read)["posts"][0];
+    assert_eq!(post["status"], "draft");
+    assert_eq!(post["markdown"], "Keep old links.");
+}
+
+#[tokio::test]
+async fn a_draft_in_html_is_cleaned_and_stored_as_markdown() {
+    let tools = tools(WRITER);
+    let html = "<p>Read <strong>this</strong>.</p><script>steal()</script>";
+    let created = call(
+        &tools,
+        "create_draft",
+        &json!({ "title": "Html", "html": html }),
+    )
+    .await;
+    assert_eq!(json(&created)["posts"][0]["markdown"], "Read **this**.");
+}
+
+#[tokio::test]
+async fn a_draft_the_api_refuses_comes_back_as_its_problem() {
+    let tools = tools(WRITER);
+    let created = call(
+        &tools,
+        "create_draft",
+        &json!({ "title": " ", "markdown": "x" }),
+    )
+    .await;
+    assert!(created.is_failure());
+    let problem = json(&created);
+    assert_eq!(problem["status"], 422);
+    assert!(problem["fix"].as_str().is_some(), "{problem}");
+}
+
+#[tokio::test]
+async fn edit_post_changes_only_the_fields_sent() {
+    let tools = tools(WRITER);
+    let edit = json!({
+        "id": "en.internal-links",
+        "markdown": "Link often, and say where.",
+        "updated_at": "2026-10-01T09:00:00Z"
+    });
+    let edited = call(&tools, "edit_post", &edit).await;
+    assert!(!edited.is_failure(), "{}", edited.text());
+    let post = &json(&edited)["posts"][0];
+    assert_eq!(post["markdown"], "Link often, and say where.");
+    assert_eq!(post["title"], "Internal links");
+    assert_eq!(post["status"], "draft");
+}
+
+#[tokio::test]
+async fn an_edit_made_on_an_old_copy_is_refused_as_stale() {
+    let tools = tools(WRITER);
+    let at = "2026-09-01T09:00:00Z";
+    let edit = json!({ "id": "en.internal-links", "title": "Old", "updated_at": at });
+    let edited = call(&tools, "edit_post", &edit).await;
+    assert!(edited.is_failure());
+    assert_eq!(json(&edited)["status"], 409);
+}
+
+#[tokio::test]
+async fn edit_post_cannot_publish() {
+    let tools = tools(WRITER);
+    let at = "2026-10-01T09:00:00Z";
+    let edit = json!({ "id": "en.internal-links", "status": "published", "updated_at": at });
+    let edited = call(&tools, "edit_post", &edit).await;
+    assert!(edited.is_failure());
+    assert!(edited.text().contains("status"), "{}", edited.text());
+}
+
+#[tokio::test]
+async fn publish_post_publishes_a_draft() {
+    let tools = tools(WRITER);
+    let publish = json!({ "id": "en.internal-links", "updated_at": "2026-10-01T09:00:00Z" });
+    let published = call(&tools, "publish_post", &publish).await;
+    assert!(!published.is_failure(), "{}", published.text());
+    assert_eq!(json(&published)["posts"][0]["status"], "published");
 }

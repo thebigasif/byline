@@ -4,8 +4,8 @@
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
-use axum::http::header::AUTHORIZATION;
-use axum::http::{HeaderValue, Request};
+use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
+use axum::http::{HeaderValue, Method, Request};
 use khalid_core::Secret;
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use serde_json::{Map, Value, json};
@@ -28,10 +28,35 @@ pub struct ApiTools {
     tools: Vec<Tool>,
 }
 
-/// One request, with the key it carries.
+/// One request, with the key it carries and its JSON body, if any.
 struct Call {
+    method: Method,
     uri: String,
     key: Key,
+    body: Option<Value>,
+}
+
+impl Call {
+    fn get(uri: String, key: Key) -> Self {
+        let method = Method::GET;
+        Self {
+            method,
+            uri,
+            key,
+            body: None,
+        }
+    }
+
+    /// A write with the server's key and a JSON `body`.
+    fn write(method: Method, uri: String, body: Value) -> Self {
+        let key = Key::Writer;
+        Self {
+            method,
+            uri,
+            key,
+            body: Some(body),
+        }
+    }
 }
 
 /// Which key a request carries.
@@ -82,10 +107,17 @@ impl ApiTools {
         };
         let mut authorization = HeaderValue::try_from(format!("{scheme} {}", key.expose())).ok()?;
         authorization.set_sensitive(true);
-        Request::get(call.uri)
-            .header(AUTHORIZATION, authorization)
-            .body(Body::empty())
-            .ok()
+        let builder = Request::builder()
+            .method(call.method)
+            .uri(call.uri)
+            .header(AUTHORIZATION, authorization);
+        let request = match call.body {
+            Some(body) => builder
+                .header(CONTENT_TYPE, "application/json")
+                .body(Body::from(body.to_string())),
+            None => builder.body(Body::empty()),
+        };
+        request.ok()
     }
 }
 
@@ -103,6 +135,9 @@ impl Tools for ApiTools {
             let call = match name {
                 "list_posts" => list_posts(&arguments),
                 "read_post" => read_post(&arguments),
+                "create_draft" => Ok(create_draft(&arguments)),
+                "edit_post" => edit_post(&arguments),
+                "publish_post" => publish_post(&arguments),
                 _ => return None,
             };
             Some(match call {
@@ -114,30 +149,70 @@ impl Tools for ApiTools {
 }
 
 fn list_posts(arguments: &Map<String, Value>) -> Result<Call, ToolResult> {
+    only(arguments, "list_posts", &LIST_ARGUMENTS)?;
     let mut query = form_urlencoded::Serializer::new(String::new());
     for (name, value) in arguments {
-        if !LIST_ARGUMENTS.contains(&name.as_str()) {
-            return Err(ToolResult::failed(&format!(
-                "list_posts does not take {name}. It takes {}.",
-                LIST_ARGUMENTS.join(", ")
-            )));
-        }
         match value {
             Value::String(text) => query.append_pair(name, text),
             other => query.append_pair(name, &other.to_string()),
         };
     }
-    Ok(Call {
-        uri: format!("/api/content/v1/posts/?{}", query.finish()),
-        key: Key::Reader,
-    })
+    let uri = format!("/api/content/v1/posts/?{}", query.finish());
+    Ok(Call::get(uri, Key::Reader))
 }
 
 fn read_post(arguments: &Map<String, Value>) -> Result<Call, ToolResult> {
-    Ok(Call {
-        uri: post_address(arguments, "read_post")?,
-        key: Key::Writer,
-    })
+    let uri = post_address(arguments, "read_post")?;
+    Ok(Call::get(uri, Key::Writer))
+}
+
+/// Sends the arguments as the new post, so the Admin API checks every
+/// field, and turns HTML into markdown when `html` is given.
+fn create_draft(arguments: &Map<String, Value>) -> Call {
+    let query = if arguments.contains_key("html") {
+        "?source=html"
+    } else {
+        ""
+    };
+    let uri = format!("/api/admin/v1/posts/{query}");
+    Call::write(Method::POST, uri, json!({ "posts": [arguments] }))
+}
+
+/// Sends the fields to change. `status` is not one of them, so an edit
+/// never publishes; `publish_post` does.
+fn edit_post(arguments: &Map<String, Value>) -> Result<Call, ToolResult> {
+    only(
+        arguments,
+        "edit_post",
+        &["id", "title", "markdown", "updated_at"],
+    )?;
+    let uri = post_address(arguments, "edit_post")?;
+    let mut edit = arguments.clone();
+    edit.remove("id");
+    Ok(Call::write(Method::PUT, uri, json!({ "posts": [edit] })))
+}
+
+/// Asks the Admin API to publish, which runs the lint publish gate.
+fn publish_post(arguments: &Map<String, Value>) -> Result<Call, ToolResult> {
+    only(arguments, "publish_post", &["id", "updated_at"])?;
+    let uri = post_address(arguments, "publish_post")?;
+    let updated_at = arguments.get("updated_at");
+    let edit = json!({ "status": "published", "updated_at": updated_at });
+    Ok(Call::write(Method::PUT, uri, json!({ "posts": [edit] })))
+}
+
+/// Fails, naming the first argument `tool` does not take.
+fn only(arguments: &Map<String, Value>, tool: &str, takes: &[&str]) -> Result<(), ToolResult> {
+    match arguments
+        .keys()
+        .find(|name| !takes.contains(&name.as_str()))
+    {
+        Some(name) => Err(ToolResult::failed(&format!(
+            "{tool} does not take {name}. It takes {}.",
+            takes.join(", ")
+        ))),
+        None => Ok(()),
+    }
 }
 
 /// The Admin API address of the post the `id` argument names, with the
@@ -178,6 +253,50 @@ fn definitions() -> Vec<Tool> {
                     "id": { "type": "string", "description": "The post's identity, such as en.choosing-anchor-text." }
                 },
                 "required": ["id"],
+                "additionalProperties": false
+            }),
+        ),
+        Tool::new(
+            "create_draft",
+            "Saves a new draft from markdown, or from HTML that is cleaned and turned into markdown.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "title": { "type": "string" },
+                    "markdown": { "type": "string", "description": "The body. Send this or html." },
+                    "html": { "type": "string", "description": "The body as HTML. Send this or markdown." },
+                    "slug": { "type": "string", "description": "Made from the title when left out." },
+                    "author": { "type": "string", "description": "An author's slug. Publishing needs one." }
+                },
+                "required": ["title"],
+                "additionalProperties": false
+            }),
+        ),
+        Tool::new(
+            "edit_post",
+            "Changes a post's title or markdown. Fields left out stay. Refused if the post changed after updated_at.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string" },
+                    "title": { "type": "string" },
+                    "markdown": { "type": "string", "description": "The whole new body." },
+                    "updated_at": { "type": "string", "description": "As read_post gave it." }
+                },
+                "required": ["id", "updated_at"],
+                "additionalProperties": false
+            }),
+        ),
+        Tool::new(
+            "publish_post",
+            "Publishes a draft once the linter lets it through. A refusal lists every finding to fix.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string" },
+                    "updated_at": { "type": "string", "description": "As read_post gave it." }
+                },
+                "required": ["id", "updated_at"],
                 "additionalProperties": false
             }),
         ),
