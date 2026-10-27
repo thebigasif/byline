@@ -62,6 +62,7 @@ impl SettingsEdit {
             robots: self.robots.applied_to(settings.robots),
             share_cards: self.share_cards.unwrap_or(settings.share_cards),
             aliases: self.aliases.unwrap_or(settings.aliases),
+            ..settings
         }
     }
 }

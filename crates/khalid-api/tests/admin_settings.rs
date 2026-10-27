@@ -106,7 +106,12 @@ fn every_setting() -> Value {
 async fn an_edit_saves_every_setting_and_sends_it_back() {
     let (status, json) = edit(json!({"settings": every_setting()})).await;
     assert_eq!(status, StatusCode::OK, "{json}");
-    assert_eq!(json["posts"][0]["settings"], every_setting());
+    let mut sent_back = every_setting();
+    let unset = json!({"access": "public", "password_protected": false, "template": null, "head_code": null});
+    for (name, value) in unset.as_object().unwrap() {
+        sent_back[name] = value.clone();
+    }
+    assert_eq!(json["posts"][0]["settings"], sent_back);
 }
 
 #[tokio::test]

@@ -4591,9 +4591,19 @@
           "featured",
           "review_state",
           "share_cards",
-          "aliases"
+          "aliases",
+          "access",
+          "password_protected"
         ],
         "properties": {
+          "access": {
+            "type": "string",
+            "description": "Who may read the body: `public`, or `members`, who are signed in.",
+            "enum": [
+              "public",
+              "members"
+            ]
+          },
           "aliases": {
             "type": "array",
             "items": {
@@ -4654,6 +4664,18 @@
             "type": "boolean",
             "description": "Whether the post is featured in lists and the featured channel."
           },
+          "head_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Checked HTML added to the post's page head, such as an analytics\ntag. Only owners and admins may change it.",
+            "example": "<meta name=\"verify\" content=\"x\">"
+          },
+          "password_protected": {
+            "type": "boolean",
+            "description": "Whether a reader must give a password to read the body. The\npassword itself is never sent back."
+          },
           "review_state": {
             "$ref": "#/components/schemas/ReviewState",
             "description": "Where the post stands in review."
@@ -4669,6 +4691,14 @@
           "share_cards": {
             "$ref": "#/components/schemas/ShareCards",
             "description": "How the post looks when shared on X and Facebook."
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The theme template the post is shown with, such as `wide` for\n`theme/templates/post-wide.html`, or `null` for `post.html`.",
+            "example": "wide"
           }
         }
       },
