@@ -30,6 +30,7 @@ mod meta_templates;
 mod news_sitemap;
 mod page;
 mod redirect_csv;
+mod redirect_explain;
 mod redirect_patterns;
 mod redirects;
 mod robots_meta;
@@ -57,7 +58,8 @@ pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use news_sitemap::{NewsEntry, NewsSitemap};
 pub use page::{ArticleType, Crumb, PageKind, PublishState, SeoPage, SitemapListing};
-pub use redirect_csv::read_redirects_csv;
+pub use redirect_csv::{read_redirects_csv, write_redirects_csv};
+pub use redirect_explain::{Explanation, Hop, Matched};
 pub use redirect_patterns::{PatternRedirect, PatternRule, RedirectPattern};
 pub use redirects::{
     Destination, Move, Redirect, RedirectEntry, RedirectRule, RedirectTable, Resolution,

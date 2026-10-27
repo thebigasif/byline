@@ -6,7 +6,7 @@ use std::fmt;
 
 use khalid_core::AbsoluteUrl;
 
-use crate::{PatternRedirect, PatternRule, SeoError, UrlPath};
+use crate::{Explanation, Hop, Matched, PatternRedirect, PatternRule, SeoError, UrlPath};
 
 /// The longest chain followed before a table is refused as a loop.
 const MAX_HOPS: usize = 32;
@@ -24,7 +24,7 @@ pub enum Move {
 }
 
 impl Move {
-    fn status(self) -> u16 {
+    pub(crate) fn status(self) -> u16 {
         match self {
             Self::Permanent => 301,
             Self::Found => 302,
@@ -204,6 +204,14 @@ impl RedirectTable {
         Ok(Self::new(rules)?.with_patterns(patterns))
     }
 
+    /// Every rule as a list entry: the exact rules, then the patterns, in
+    /// the order they are tried.
+    pub fn entries(&self) -> Vec<RedirectEntry> {
+        let exact = self.rules.iter().cloned().map(RedirectEntry::Exact);
+        let patterns = self.patterns.iter().cloned().map(RedirectEntry::Pattern);
+        exact.chain(patterns).collect()
+    }
+
     /// The exact rules, in the order given.
     pub fn rules(&self) -> &[RedirectRule] {
         &self.rules
@@ -239,6 +247,51 @@ impl RedirectTable {
             }
         }
         None
+    }
+
+    /// Which rule `path` matches, each hop of its chain with the rule that
+    /// answered it, and the one step a visitor gets: the debug view.
+    pub fn explain(&self, path: &UrlPath) -> Explanation {
+        let first = match self.by_source.get(path) {
+            Some(&rule) => self
+                .rules
+                .get(rule)
+                .map(|exact| (Matched::Exact { rule }, rule, exact.redirect.clone())),
+            None => self.patterns.iter().enumerate().find_map(|(offset, p)| {
+                let rule = self.rules.len() + offset;
+                let pattern = p.pattern.as_str().to_owned();
+                let hit = p.apply(path)?;
+                Some((Matched::Pattern { rule, pattern }, rule, hit))
+            }),
+        };
+        let Some((matched, rule, answer)) = first else {
+            return Explanation::unmatched(path.clone());
+        };
+        let from = path.clone();
+        let mut hops = vec![Hop { from, rule, answer }];
+        while hops.len() < MAX_HOPS {
+            let Some(Redirect::Move {
+                to: Destination::Path(next),
+                ..
+            }) = hops.last().map(|hop| &hop.answer)
+            else {
+                break;
+            };
+            let found = self.by_source.get(next);
+            let Some((rule, exact)) = found.and_then(|&rule| Some((rule, self.rules.get(rule)?)))
+            else {
+                break;
+            };
+            let (from, answer) = (exact.from.clone(), exact.redirect.clone());
+            hops.push(Hop { from, rule, answer });
+        }
+        let answer = self.resolve(path).map(|hit| hit.answer);
+        Explanation {
+            path: path.clone(),
+            matched: Some(matched),
+            hops,
+            answer,
+        }
     }
 
     /// The answer for `path`, or `None` when no rule matches it. Exact

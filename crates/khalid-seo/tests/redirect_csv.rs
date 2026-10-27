@@ -2,7 +2,9 @@
 
 #![cfg(test)]
 
-use khalid_seo::{RedirectEntry, RedirectTable, SeoError, UrlPath, read_redirects_csv};
+use khalid_seo::{
+    RedirectEntry, RedirectTable, SeoError, UrlPath, read_redirects_csv, write_redirects_csv,
+};
 
 /// One row of each kind, in the columns the importers write.
 const EVERY_KIND: &str = "\
@@ -58,12 +60,29 @@ fn every_status_and_both_match_kinds_are_read() {
 }
 
 #[test]
+fn writing_then_reading_gives_the_same_entries() {
+    let entries = read_redirects_csv(EVERY_KIND).unwrap();
+    let written = write_redirects_csv(&entries);
+    assert!(written.starts_with("from,to,status,match\n"));
+    assert!(written.contains("/blog/old-links/,/blog/why-internal-links-matter/,301,exact\n"));
+    assert!(written.contains("/blog/retired-tool/,,410,exact\n"));
+    assert_eq!(read_redirects_csv(&written).unwrap(), entries);
+}
+
+#[test]
+fn a_table_exports_its_exact_rules_then_its_patterns() {
+    let entries = read_redirects_csv(EVERY_KIND).unwrap();
+    let table = RedirectTable::from_entries(entries.clone()).unwrap();
+    assert_eq!(table.entries(), entries);
+}
+
+#[test]
 fn quoted_fields_crlf_endings_and_blank_lines_are_read() {
     let text = "From,To,Status,Match\r\n\r\n\"/blog/a,b/\",\"/blog/say-\"\"hi\"\"/\",301,exact\r\n";
-    let table = RedirectTable::from_entries(read_redirects_csv(text).unwrap()).unwrap();
+    let entries = read_redirects_csv(text).unwrap();
     assert_eq!(
-        answer(&table, "/blog/a,b/"),
-        Some((301, Some("/blog/say-\"hi\"/".to_owned())))
+        write_redirects_csv(&entries),
+        "from,to,status,match\n\"/blog/a,b/\",\"/blog/say-\"\"hi\"\"/\",301,exact\n"
     );
 }
 

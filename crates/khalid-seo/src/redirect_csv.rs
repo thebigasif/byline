@@ -6,6 +6,7 @@
 //! is a path or a web address, empty for 410 and 451; a pattern's `to` may
 //! use its groups as `$1`. `match` may be left out, and means `exact`.
 
+use std::fmt::Write as _;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -15,6 +16,9 @@ use crate::{
     Destination, Move, PatternRedirect, PatternRule, Redirect, RedirectEntry, RedirectPattern,
     RedirectRule, SeoError, UrlPath,
 };
+
+/// The header a list starts with, and the one it is written with.
+const HEADER: &str = "from,to,status,match";
 
 /// One row as read: the line it starts on and its fields.
 type Row = (usize, Vec<String>);
@@ -38,6 +42,33 @@ pub fn read_redirects_csv(text: &str) -> Result<Vec<RedirectEntry>, SeoError> {
         None => return Err(row_problem(1, not_header)),
     }
     rows.map(|(line, fields)| entry(line, &fields)).collect()
+}
+
+/// Writes `entries` as a redirect list, header first, one row each, with
+/// `match` always given.
+pub fn write_redirects_csv(entries: &[RedirectEntry]) -> String {
+    let mut csv = format!("{HEADER}\n");
+    for entry in entries {
+        let (from, to, status, matching) = match entry {
+            RedirectEntry::Exact(rule) => {
+                let to = rule.redirect.location().map(ToString::to_string);
+                let (from, status) = (rule.from.as_str(), rule.redirect.status());
+                (from, to.unwrap_or_default(), status, "exact")
+            }
+            RedirectEntry::Pattern(rule) => {
+                let (to, status) = match &rule.answer {
+                    PatternRedirect::Move { kind, template } => (template.clone(), kind.status()),
+                    PatternRedirect::Gone => (String::new(), 410),
+                    PatternRedirect::LegalBlock => (String::new(), 451),
+                };
+                (rule.pattern.as_str(), to, status, "regex")
+            }
+        };
+        let (from, to) = (field(from), field(&to));
+        // Writing to a String cannot fail.
+        let _ = writeln!(csv, "{from},{to},{status},{matching}");
+    }
+    csv
 }
 
 fn is_header(fields: &[String]) -> bool {
@@ -182,4 +213,13 @@ fn row(chars: &mut Peekable<Chars<'_>>, line: &mut usize) -> Result<Option<Vec<S
     }
     fields.push(field);
     Ok(Some(fields))
+}
+
+/// A CSV field, quoted when it holds a comma, a quote or a line break.
+fn field(text: &str) -> String {
+    if text.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", text.replace('"', "\"\""))
+    } else {
+        text.to_owned()
+    }
 }
