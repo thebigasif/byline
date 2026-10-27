@@ -51,11 +51,13 @@ input[type=checkbox],input[type=radio]{width:1.25rem;min-height:1.25rem;margin:.
 code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface);padding:.05rem .3rem;border-radius:.25rem}
 .note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
 /* This screen */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1rem;margin:0;padding:0;list-style:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(12rem,100%),1fr));gap:1rem;margin:0;padding:0;list-style:none}
 .stats strong{display:block;font-size:1.75rem;line-height:1.2}
 .posts{list-style:none;padding:0;margin:0 0 1.25rem}
 .posts li{padding:.6rem 0;border-bottom:1px solid var(--border)}
 .posts li:last-child{border-bottom:0}
+/* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
+@media (max-width:40em){table,tbody,tr,td,tbody th{display:block}table{min-width:0}thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}tr{border:1px solid var(--border);border-radius:var(--radius);margin:0 0 .75rem;padding:.4rem 0}td,tbody th{border:0;padding:.35rem .9rem}tbody th{font-size:1rem;color:var(--text)}td[data-label]::before{content:attr(data-label);display:block;font-size:.875rem;font-weight:600;color:var(--muted)}}
 </style>
 </head>
 <body>
@@ -104,9 +106,9 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
   <table>
     <thead><tr><th scope="col">Post</th><th scope="col">What happened</th><th scope="col">Who</th><th scope="col">When</th></tr></thead>
     <tbody>
-      <tr><td>Planning a topic cluster in an afternoon</td><td>Published</td><td>Asif</td><td><time datetime="2026-10-12">12 October</time></td></tr>
-      <tr><td>Fixing slow pages, starting with the biggest win</td><td>Published</td><td>Lena Vogt</td><td><time datetime="2026-10-05">5 October</time></td></tr>
-      <tr><td>What a sitemap does, and what it does not</td><td>Published</td><td>Lena Vogt</td><td><time datetime="2026-09-28">28 September</time></td></tr>
+      <tr><td>Planning a topic cluster in an afternoon</td><td data-label="What happened">Published</td><td data-label="Who">Asif</td><td data-label="When"><time datetime="2026-10-12">12 October</time></td></tr>
+      <tr><td>Fixing slow pages, starting with the biggest win</td><td data-label="What happened">Published</td><td data-label="Who">Lena Vogt</td><td data-label="When"><time datetime="2026-10-05">5 October</time></td></tr>
+      <tr><td>What a sitemap does, and what it does not</td><td data-label="What happened">Published</td><td data-label="Who">Lena Vogt</td><td data-label="When"><time datetime="2026-09-28">28 September</time></td></tr>
     </tbody>
   </table>
   </div>
