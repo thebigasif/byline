@@ -2050,6 +2050,7 @@ dependencies = [
  "khalid-api",
  "khalid-core",
  "khalid-lint",
+ "khalid-seo",
  "proptest",
  "serde",
  "serde_json",

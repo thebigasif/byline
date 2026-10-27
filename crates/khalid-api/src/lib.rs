@@ -22,5 +22,6 @@ pub mod preview_link;
 pub mod problem;
 pub mod publish_door;
 pub mod query;
+pub mod redirect_store;
 pub mod resources;
 pub mod schedule_store;
