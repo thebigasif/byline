@@ -5,7 +5,7 @@
 use serde_json::Value;
 
 use crate::ghost::cards::card;
-use crate::ghost::html::Html;
+use crate::pieces::Html;
 
 /// The markups the converter carries, by the tag Mobiledoc names, with
 /// the element each one opens. Others keep their words and lose the

@@ -13,6 +13,7 @@ mod front_matter;
 pub mod ghost;
 mod markdown;
 pub mod medium;
+mod pieces;
 mod redirects;
 mod sentences;
 mod slug;

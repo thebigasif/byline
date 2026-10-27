@@ -6,8 +6,8 @@
 use khalid_core::AbsoluteUrl;
 use serde_json::Value;
 
-use crate::ghost::html::Html;
 use crate::markdown::is_safe;
+use crate::pieces::Html;
 
 /// Cards with no place in Khalid: members, newsletters, products and
 /// podcasts' own players.
