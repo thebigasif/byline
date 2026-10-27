@@ -69,6 +69,9 @@ pub enum Refusal {
     /// on this site.
     #[error("the file is HTML, SVG or XML")]
     Markup,
+    /// The file starts like an accepted image but its pixels cannot be read.
+    #[error("the file starts like an image but cannot be read as one")]
+    Broken,
     /// The file is none of the accepted types.
     #[error("the file is not an accepted type")]
     Unknown,

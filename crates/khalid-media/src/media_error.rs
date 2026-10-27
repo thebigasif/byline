@@ -61,6 +61,15 @@ pub enum MediaError {
         #[source]
         source: tokio::task::JoinError,
     },
+    /// A media item's `item.toml` is not valid.
+    #[error("{} is not a valid media item file", path.display())]
+    Item {
+        /// The file.
+        path: PathBuf,
+        /// What is wrong with it.
+        #[source]
+        source: crate::ParseItemError,
+    },
     /// The bucket could not be reached, or took too long.
     #[error("the bucket could not be reached")]
     Reach {
