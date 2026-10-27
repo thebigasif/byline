@@ -20,6 +20,10 @@ mod config_message;
 mod content_message;
 mod db;
 mod db_message;
+mod doctor;
+mod doctor_check;
+mod doctor_files;
+mod doctor_folder;
 mod exit;
 mod index;
 mod init;
@@ -90,13 +94,8 @@ fn main() -> ExitCode {
 /// Runs the command the person asked for, after checking the site's settings
 /// and reading its content when `--site` names a folder.
 fn run(cli: &Cli) -> Exit {
-    if let Some(Command::Init(args)) = &cli.command {
-        let folder = args
-            .folder
-            .as_deref()
-            .or(cli.site.as_deref())
-            .unwrap_or(Path::new("."));
-        return init::run(folder, args, cli.output);
+    if let Some(exit) = run_unchecked(cli) {
+        return exit;
     }
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
@@ -172,6 +171,28 @@ fn run(cli: &Cli) -> Exit {
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs the commands that do not start from a checked site: `init`, which
+/// makes the site, and `doctor`, which checks the settings, routes and
+/// content itself so it can list every problem instead of stopping at the
+/// first. Returns `None` for every other command.
+fn run_unchecked(cli: &Cli) -> Option<Exit> {
+    match &cli.command {
+        Some(Command::Init(args)) => {
+            let folder = args
+                .folder
+                .as_deref()
+                .or(cli.site.as_deref())
+                .unwrap_or(Path::new("."));
+            Some(init::run(folder, args, cli.output))
+        }
+        Some(command @ Command::Doctor) => Some(match cli.site.as_deref() {
+            Some(folder) => doctor::run(folder, cli),
+            None => report::failure(cli.output, &needs_site(command), Exit::Usage),
+        }),
+        _ => None,
     }
 }
 

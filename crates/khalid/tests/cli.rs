@@ -12,7 +12,6 @@ const COMMANDS: &[&[&str]] = &[
     &["import", "wordpress"],
     &["export"],
     &["mcp"],
-    &["doctor"],
     &["backup"],
     &["audit"],
     &["update"],
