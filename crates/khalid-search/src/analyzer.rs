@@ -83,6 +83,12 @@ impl Analyzer {
     }
 }
 
+/// `word` in lower case without apostrophes and not cut to its stem: how
+/// the start of a word a person is still typing is compared with terms.
+pub(crate) fn unstemmed(word: &str) -> String {
+    word.to_lowercase().replace(['\'', '\u{2019}'], "")
+}
+
 /// Whether `c` belongs inside a word.
 fn is_word_char(c: char) -> bool {
     c.is_alphanumeric()
