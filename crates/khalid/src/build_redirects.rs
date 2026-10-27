@@ -10,11 +10,36 @@ use crate::build_files::SiteFile;
 use crate::build_message;
 use crate::build_pages::{named, prefix};
 
+/// One alias and the address it ends at, each from the site root, mount
+/// folder included. Every alias is a permanent move.
+#[derive(Debug)]
+pub(crate) struct Hop {
+    pub(crate) from: String,
+    pub(crate) to: String,
+    status: String,
+}
+
 /// The redirects file, or `None` when no post has an alias.
 pub(crate) fn file(
     config: &Config,
     content: &SiteContent,
 ) -> Result<Option<SiteFile>, UserMessage> {
+    let hops = hops(config, content)?;
+    if hops.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(SiteFile {
+        file: "_redirects".to_owned(),
+        text: hops
+            .iter()
+            .map(|hop| [&hop.from, " ", &hop.to, " ", &hop.status, "\n"].concat())
+            .collect(),
+    }))
+}
+
+/// Every alias of a dated post, with each chain followed to its end, in
+/// the order of the redirect table. `khalid serve` answers the same hops.
+pub(crate) fn hops(config: &Config, content: &SiteContent) -> Result<Vec<Hop>, UserMessage> {
     let mut rules = Vec::new();
     for doc in content.posts.iter().filter(|doc| doc.front.date.is_some()) {
         let front = &doc.front;
@@ -33,22 +58,19 @@ pub(crate) fn file(
         }
     }
     if rules.is_empty() {
-        return Ok(None);
+        return Ok(Vec::new());
     }
     let table = RedirectTable::new(rules).map_err(|error| build_message::seo(&error))?;
-    Ok(Some(SiteFile {
-        file: "_redirects".to_owned(),
-        text: lines(config, &table),
-    }))
+    Ok(followed(config, &table))
 }
 
 fn path(text: &str) -> Result<UrlPath, UserMessage> {
     UrlPath::try_new(text).map_err(|error| build_message::seo(&error))
 }
 
-/// One `from to status` line per rule, with each chain followed to its end
-/// and every path from the site root, mount folder included.
-fn lines(config: &Config, table: &RedirectTable) -> String {
+/// One hop per rule, with each chain followed to its end and every path
+/// from the site root, mount folder included.
+fn followed(config: &Config, table: &RedirectTable) -> Vec<Hop> {
     let mount = config.mount().trim_end_matches('/');
     table
         .rules()
@@ -60,7 +82,11 @@ fn lines(config: &Config, table: &RedirectTable) -> String {
                 Destination::External(url) => url.to_string(),
                 _ => return None,
             };
-            Some(format!("{mount}{} {to} {}\n", rule.from, answer.status()))
+            Some(Hop {
+                from: format!("{mount}{}", rule.from),
+                to,
+                status: answer.status().to_string(),
+            })
         })
         .collect()
 }

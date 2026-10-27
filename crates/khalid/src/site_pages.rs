@@ -1,5 +1,6 @@
 //! The pages `khalid serve` answers with: the ones `khalid build` writes,
-//! rendered into memory instead of files.
+//! rendered into memory instead of files, with the site's files and moved
+//! addresses.
 
 use std::error::Error;
 use std::fmt;
@@ -7,15 +8,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
-use khalid_core::{Config, UserMessage};
+use khalid_core::{Clock, Config, SystemClock, UserMessage};
 use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
 use khalid_routes::Routes;
-use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
+use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
 use tokio::runtime::Handle;
 
+use crate::build_pages::LanguagePages;
 use crate::site_content::{LiveContent, published};
-use crate::{assets, build_message, build_pages, content_message};
+use crate::{assets, build_message, build_pages, build_seo, content_message, site_files};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
@@ -30,9 +32,24 @@ struct Site {
     folder: PathBuf,
     config: Config,
     routes: Routes,
+    theme: Theme,
+    feed: Option<ContentFeed>,
+}
+
+/// The theme's renderer, and the stylesheet every page links.
+#[derive(Debug)]
+struct Theme {
     renderer: Renderer,
     stylesheet: Page,
-    feed: Option<ContentFeed>,
+}
+
+/// One render of the site: what [`Rendered`] holds, kept apart so that
+/// `khalid serve` can answer before compressing.
+#[derive(Debug)]
+pub(crate) struct Served {
+    pub(crate) pages: Vec<Page>,
+    pub(crate) not_found: String,
+    pub(crate) moves: Vec<Moved>,
 }
 
 /// Where each render also sends the published posts: the content index in
@@ -62,23 +79,27 @@ impl SitePages {
             Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
         let css = assets::site_stylesheet(folder)?;
         let stylesheet = assets::stylesheet_page(&config, &css)?;
+        let theme = Theme {
+            renderer,
+            stylesheet,
+        };
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
             routes,
-            renderer,
-            stylesheet,
+            theme,
             feed,
         })))
     }
 
-    /// Every page of the site at its address, the stylesheet they link, and
-    /// the not-found page of the default language. Checks every body again,
+    /// Every page of the site at its address, the stylesheet they link, the
+    /// site's files, the not-found page of the default language and the
+    /// moved addresses, read from the folder. Checks every body again,
     /// as `khalid --site` does at start, so a saved edit with a broken
     /// wikilink is refused with its file and line, and the pages already
     /// served stay. Reads files and renders,
     /// so it runs off the async runtime (RULES.md BL-RUN-7).
-    pub(crate) fn render_all(&self) -> Result<(Vec<Page>, String), UserMessage> {
+    pub(crate) fn render_all(&self) -> Result<Served, UserMessage> {
         let Site {
             folder,
             config,
@@ -93,54 +114,72 @@ impl SitePages {
     }
 
     /// Every page made from `content`, already read from the site folder,
-    /// and the not-found page, refreshing the feed first when there is one.
-    /// At start, `khalid serve` passes the content it checked, so the folder
-    /// is read once, not twice. `content` must have passed `check_bodies`.
-    pub(crate) fn render_content(
-        &self,
-        content: &SiteContent,
-    ) -> Result<(Vec<Page>, String), UserMessage> {
+    /// with the site's files, the not-found page and the moved addresses,
+    /// refreshing the feed first when there is one. At start, `khalid serve`
+    /// passes the content it checked, so the folder is read once, not twice.
+    /// `content` must have passed `check_bodies`.
+    pub(crate) fn render_content(&self, content: &SiteContent) -> Result<Served, UserMessage> {
         let Site {
             folder,
             config,
             routes,
-            renderer,
-            stylesheet,
+            theme,
             feed,
         } = &*self.0;
         if let Some(feed) = feed {
             let fed = published(&feed.db, feed.site, folder, config, content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
-        let languages = build_pages::pages(config, routes, content, stylesheet.path().as_str())?;
-        let mut pages = vec![stylesheet.clone()];
-        let mut not_found = String::new();
-        for language in &languages {
-            for page in &language.pages {
-                let html = renderer
-                    .render(&language.site, &page.meta, &page.body)
-                    .map_err(|error| build_message::render(&error))?;
-                if matches!(page.body, PageBody::NotFound) {
-                    if &language.site.locale == config.default_language() {
-                        not_found = html;
-                    }
-                    continue;
-                }
-                let path = PagePath::try_new(&page.meta.path)
-                    .map_err(|_| build_message::address(&page.meta.path))?;
-                pages.push(Page::new(path, MediaType::Html, html));
-            }
-        }
-        Ok((pages, not_found))
+        let href = theme.stylesheet.path().as_str();
+        let mut languages = build_pages::pages(config, routes, content, href)?;
+        let seo_site = build_seo::site(config)?;
+        let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+        let mut pages = site_files::files(config, &seo_site, &seo_pages, SystemClock.now())?;
+        pages.push(theme.stylesheet.clone());
+        let not_found = html_pages(theme, config, &languages, &mut pages)?;
+        Ok(Served {
+            pages,
+            not_found,
+            moves: site_files::moves(config, content)?,
+        })
     }
+}
+
+/// Renders each page of `languages` with `theme` into `pages`, and returns
+/// the not-found page of the default language.
+fn html_pages(
+    theme: &Theme,
+    config: &Config,
+    languages: &[LanguagePages],
+    pages: &mut Vec<Page>,
+) -> Result<String, UserMessage> {
+    let mut not_found = String::new();
+    for language in languages {
+        for page in &language.pages {
+            let html = theme
+                .renderer
+                .render(&language.site, &page.meta, &page.body)
+                .map_err(|error| build_message::render(&error))?;
+            if matches!(page.body, PageBody::NotFound) {
+                if &language.site.locale == config.default_language() {
+                    not_found = html;
+                }
+                continue;
+            }
+            let path = PagePath::try_new(&page.meta.path)
+                .map_err(|_| build_message::address(&page.meta.path))?;
+            pages.push(Page::new(path, MediaType::Html, html));
+        }
+    }
+    Ok(not_found)
 }
 
 impl Render for SitePages {
     type Error = Unrendered;
 
     fn render(&self) -> Result<Rendered, Unrendered> {
-        let (pages, not_found) = self.render_all().map_err(Unrendered)?;
-        Ok(Rendered::new(pages, not_found))
+        let served = self.render_all().map_err(Unrendered)?;
+        Ok(Rendered::new(served.pages, served.not_found).with_moves(served.moves))
     }
 }
 
@@ -190,7 +229,7 @@ mod tests {
 
     #[test]
     fn served_pages_link_each_wikilink() {
-        let (pages, _) = pages(&fixture("demo-site")).render_all().unwrap();
+        let pages = pages(&fixture("demo-site")).render_all().unwrap().pages;
         let link = "<a href=\"/blog/glossary/topical-authority/\">Topical authority</a>";
         let linking = pages
             .iter()
@@ -203,10 +242,11 @@ mod tests {
         let demo = fixture("demo-site");
         let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
         let source = pages(&demo);
-        let (given, given_missing) = source.render_content(&content).unwrap();
-        let (read, read_missing) = source.render_all().unwrap();
-        assert!(given.len() > 10, "{} pages", given.len());
-        assert_eq!(given, read);
-        assert_eq!(given_missing, read_missing);
+        let given = source.render_content(&content).unwrap();
+        let read = source.render_all().unwrap();
+        assert!(given.pages.len() > 10, "{} pages", given.pages.len());
+        assert_eq!(given.pages, read.pages);
+        assert_eq!(given.not_found, read.not_found);
+        assert_eq!(given.moves, read.moves);
     }
 }

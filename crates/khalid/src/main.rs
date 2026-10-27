@@ -41,6 +41,7 @@ mod routes_message;
 mod serve;
 mod serve_message;
 mod site_content;
+mod site_files;
 mod site_lists;
 mod site_pages;
 mod site_posts;
