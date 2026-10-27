@@ -48,7 +48,7 @@ async fn routers() -> (Router, Arc<MemoryMailbox>, Router) {
     };
     let links = Links {
         store: Arc::new(MemoryLinks::new()),
-        sender: Arc::<MemoryMailbox>::clone(&mailbox),
+        sender: Some(Arc::<MemoryMailbox>::clone(&mailbox)),
         admin: "https://blog.example.com/admin".to_owned(),
     };
     let (router, store) = make(Some(links));

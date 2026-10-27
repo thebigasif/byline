@@ -146,6 +146,12 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: KeysCommand,
     },
+    /// Make the site's owner, and sign the owner in with a link shown once
+    Staff {
+        /// What to do with staff accounts
+        #[command(subcommand)]
+        command: StaffCommand,
+    },
     /// Bring the site's database up to date, or rebuild its index from the files
     Db {
         /// What to do with the database
@@ -236,6 +242,25 @@ pub(crate) enum KeysCommand {
         #[arg(value_name = "ID", value_parser = |text: &str| KeyId::try_new(text))]
         id: KeyId,
     },
+}
+
+/// The staff commands. Accounts are kept in `data/site.db`.
+#[derive(Debug, Clone, Subcommand)]
+pub(crate) enum StaffCommand {
+    /// Make the owner if the site has none, and show a sign-in link once
+    Owner(OwnerArgs),
+}
+
+/// What `khalid staff owner` takes.
+#[derive(Debug, Clone, Args)]
+pub(crate) struct OwnerArgs {
+    /// The owner's email address, which they sign in with
+    #[arg(long)]
+    pub(crate) email: String,
+
+    /// The owner's name, as the admin shows it
+    #[arg(long)]
+    pub(crate) name: String,
 }
 
 /// What `khalid keys create` takes.
@@ -348,6 +373,9 @@ impl Command {
             Self::Keys {
                 command: KeysCommand::Revoke { .. },
             } => "keys revoke",
+            Self::Staff {
+                command: StaffCommand::Owner(_),
+            } => "staff owner",
             Self::Db {
                 command: DbCommand::Migrate,
             } => "db migrate",

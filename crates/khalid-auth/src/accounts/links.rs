@@ -13,8 +13,9 @@ use crate::{Email, LinkSender, LinkStore, LinkToken, SessionToken};
 pub struct Links {
     /// Where links are kept.
     pub store: Arc<dyn LinkStore>,
-    /// What mails them.
-    pub sender: Arc<dyn LinkSender>,
+    /// What mails them, or `None` while the site has no mail sender. Links
+    /// made another way, such as by `khalid staff owner`, still work.
+    pub sender: Option<Arc<dyn LinkSender>>,
     /// The admin's address.
     pub admin: String,
 }
@@ -47,6 +48,7 @@ impl Accounts {
     /// [`SignInError::Unavailable`] when a store or the sender fails.
     pub async fn send_link(&self, email: &Email, from: Option<IpAddr>) -> Result<(), SignInError> {
         let links = self.links.as_ref().ok_or(SignInError::LinksOff)?;
+        let sender = links.sender.as_ref().ok_or(SignInError::LinksOff)?;
         let now = self.clock.now();
         if let Some(until) = self.limiter.blocked_until(email, from, now) {
             return Err(SignInError::limited(until - now));
@@ -60,7 +62,7 @@ impl Accounts {
             .store
             .create(token.hash(), stored.account.id(), now)
             .await?;
-        links.sender.send(email, token.link(&links.admin)).await?;
+        sender.send(email, token.link(&links.admin)).await?;
         Ok(())
     }
 

@@ -47,7 +47,7 @@ async fn site() -> Site {
     let shared_clock: Arc<dyn Clock> = Arc::<Hands>::clone(&clock);
     let links = Links {
         store: Arc::new(MemoryLinks::new()),
-        sender: Arc::<MemoryMailbox>::clone(&mailbox),
+        sender: Some(Arc::<MemoryMailbox>::clone(&mailbox)),
         admin: "https://blog.example.com/admin/".to_owned(),
     };
     let accounts = Accounts::new(

@@ -2,6 +2,14 @@
 
 Staff accounts for the admin: who may sign in, and what each person may do. A staff member signs in with an email and password, a passkey or a link sent by email. A passkey is a key kept on the person's phone or computer, unlocked by a fingerprint, a face or a PIN.
 
+## How staff get in
+
+1. The owner runs `khalid staff owner --email you@example.com --name "Your name"` on the server. It makes the owner when the site has none and shows a sign-in link once. The link works for 15 minutes, one time.
+2. Signed in, the owner chooses a password or adds a passkey, and invites the rest of the staff.
+3. Invited people sign in by a link sent by email, once the site can send mail, and then do the same.
+
+Staff tokens made with `khalid keys create --kind staff` keep working beside all of this, for tools and agents.
+
 Every account has one role. The roles are the same ones a staff token carries (ADR 0011), so a token and a signed-in person with the same role may do the same things.
 
 ## What each role may do
