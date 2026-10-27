@@ -30,7 +30,8 @@ export function Posts() {
           </div>
         ))}
       </dl>
-      <PostFilters search={search} />
+      {/* A new address, such as after Back, starts the form again from its filters. */}
+      <PostFilters key={`${search.checks}-${search.stage}-${search.index}`} search={search} />
       <PostResults rows={rows} search={search} />
     </>
   );
