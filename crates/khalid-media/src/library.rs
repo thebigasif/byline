@@ -206,6 +206,24 @@ impl Library {
         Ok(edited)
     }
 
+    /// The item `id` and the bytes of its file, when the library has it and
+    /// it is named `name`, so an address with a wrong name finds nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Storage::get`].
+    pub async fn read(
+        &self,
+        id: &ContentKey,
+        name: &str,
+    ) -> Result<Option<(MediaItem, Vec<u8>)>, MediaError> {
+        let Some(item) = self.get(id).filter(|item| item.name.as_str() == name) else {
+            return Ok(None);
+        };
+        let bytes = self.storage.get(&item.id, &item.name).await?;
+        Ok(bytes.map(|bytes| (item, bytes)))
+    }
+
     /// Where readers fetch `item`'s file.
     pub fn address(&self, item: &MediaItem) -> FileAddress {
         self.storage.address(&item.id, &item.name)

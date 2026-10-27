@@ -12,7 +12,7 @@ use std::time::Duration;
 use khalid_api::api;
 use khalid_api::publish_door::PublishDoor;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
-use khalid_core::{Config, Slug, SystemClock, UserMessage};
+use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -29,7 +29,10 @@ use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{announce, db, db_message, preview, report, scheduler, search_route, serve_message};
+use crate::{
+    announce, db, db_message, media_library, preview, report, scheduler, search_route,
+    serve_message,
+};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -59,7 +62,7 @@ pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    (listen, outbound): (SocketAddr, Result<Outbound, OutboundError>),
+    (listen, outbound, bucket_keys): (SocketAddr, Result<Outbound, OutboundError>, Option<S3Keys>),
     output: Output,
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
@@ -75,7 +78,7 @@ pub(crate) fn run(
     let served = serve_with(
         (site, config, routes),
         start,
-        (listen, &outbound, output),
+        (listen, &outbound, output, bucket_keys),
         &runtime,
         (&database, id),
     );
@@ -92,7 +95,7 @@ pub(crate) fn run(
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, outbound, output): (SocketAddr, &Outbound, Output),
+    (listen, outbound, output, bucket_keys): (SocketAddr, &Outbound, Output, Option<S3Keys>),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -151,10 +154,12 @@ fn serve_with(
         let door = Arc::new(door);
         let scheduling = scheduler::start(Arc::clone(&door));
         let shown = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
-        let (api, _) = api::router_with_door(Arc::new(content), door, Arc::new(keys));
+        let (media, files) = media_library::open(site, config, bucket_keys, outbound).await?;
+        let (api, _) = api::router_with_media(Arc::new(content), door, Arc::new(keys), media);
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
         let app = api
+            .merge(files)
             .merge(shown)
             .merge(searches)
             .merge(admin)

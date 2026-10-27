@@ -46,6 +46,7 @@ mod mcp;
 mod mcp_content;
 mod mcp_message;
 mod mcp_tools;
+mod media_library;
 mod new;
 mod new_message;
 mod outbound;
@@ -139,7 +140,7 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve { listen }), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let (checked, start) = ((&config, &routes), (content, assets, look));
-            let to = (*listen, outbound::client(cli));
+            let to = (*listen, outbound::client(cli), environment.s3_keys());
             return serve::run(folder, checked, start, to, cli.output);
         }
         (_, site) => site,
