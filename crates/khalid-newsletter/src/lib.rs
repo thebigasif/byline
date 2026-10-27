@@ -14,6 +14,7 @@
 mod confirmation;
 mod email_address;
 mod mail;
+mod newsletter;
 mod store;
 mod token;
 
@@ -22,6 +23,7 @@ pub use email_address::{EmailAddress, ParseEmailError};
 #[cfg(any(test, feature = "test-util"))]
 pub use mail::MemoryMailer;
 pub use mail::{Mail, MailError, Mailer};
+pub use newsletter::{Newsletter, NewsletterError, NewsletterSite};
 pub use store::{
     BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, Unsubscribed,
 };
