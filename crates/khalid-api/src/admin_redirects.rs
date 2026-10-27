@@ -3,15 +3,17 @@
 
 use std::sync::Arc;
 
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::{Extension, Json, middleware};
 use chrono::{DateTime, Utc};
 use khalid_core::UserMessage;
-use khalid_seo::{Matching, RedirectColumns, RedirectEntry, RedirectTable, SeoError};
+use khalid_seo::{
+    Matched, Matching, Redirect, RedirectColumns, RedirectEntry, RedirectTable, SeoError, UrlPath,
+};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
@@ -28,6 +30,7 @@ pub(crate) fn routes(desk: RedirectDesk, keys: Arc<dyn KeyStore>) -> OpenApiRout
     OpenApiRouter::new()
         .routes(routes!(list_redirects, create_redirect))
         .routes(routes!(remove_redirect))
+        .routes(routes!(explain_redirect))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(desk)
@@ -215,6 +218,113 @@ async fn remove_redirect(
         return Err(Problem::new(ProblemType::NotFound, &message));
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// The address to explain.
+#[derive(Debug, Deserialize, IntoParams)]
+pub(crate) struct ExplainQuery {
+    /// The path, from the site root, such as `/blog/old-links/`.
+    path: String,
+}
+
+/// One hop of a chain in the debug view.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct ExplainedHop {
+    /// The address this hop starts from.
+    from: String,
+    /// The identity of the stored redirect that answered it.
+    redirect: Option<i64>,
+    /// What that redirect answers on its own.
+    status: u16,
+    /// Where it leads, for a move.
+    to: Option<String>,
+}
+
+/// Why an address answers what it answers: the debug view.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct RedirectExplanation {
+    /// The address asked about.
+    path: String,
+    /// The identity of the stored redirect it matched, if any.
+    matched: Option<i64>,
+    /// Each hop from the address to the end of its chain.
+    hops: Vec<ExplainedHop>,
+    /// The one status a visitor gets, if a redirect matched.
+    status: Option<u16>,
+    /// Where a visitor is sent in one step, for a move.
+    to: Option<String>,
+    /// The same, in plain words.
+    text: String,
+}
+
+/// Explains which stored redirect an address matches, every hop of its
+/// chain, and the one step a visitor gets. Aliases in front matter and
+/// pages answer before stored redirects, so they are not shown here.
+/// Needs `settings:write`.
+#[utoipa::path(
+    get, path = "/redirects/explain/", tag = "admin redirects",
+    security(("admin_key" = [])),
+    params(ExplainQuery),
+    responses(
+        (status = 200, description = "Why the address answers what it does", body = RedirectExplanation),
+        (status = 400, description = "The path is not a clean path from the site root", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks settings:write", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn explain_redirect(
+    State(desk): State<RedirectDesk>,
+    Extension(principal): Extension<Principal>,
+    query: Result<Query<ExplainQuery>, QueryRejection>,
+) -> Result<Json<RedirectExplanation>, Problem> {
+    require(&principal, Scope::SettingsWrite)?;
+    let path = query
+        .ok()
+        .and_then(|Query(query)| UrlPath::try_new(&query.path).ok())
+        .ok_or_else(bad_path)?;
+    let stored = desk.store.list().await.map_err(|e| Problem::internal(&e))?;
+    // The table tries exact rules first, then patterns, and numbers them
+    // in that order.
+    let (exact, patterns): (Vec<_>, Vec<_>) = stored
+        .iter()
+        .partition(|s| matches!(s.entry, RedirectEntry::Exact(_)));
+    let ids: Vec<i64> = exact.iter().chain(&patterns).map(|s| s.id).collect();
+    let entries = stored.iter().map(|s| s.entry.clone()).collect();
+    let table = RedirectTable::from_entries(entries).map_err(|e| Problem::internal(&e))?;
+    let explained = table.explain(&path);
+    let id = |rule: usize| ids.get(rule).copied();
+    let matched = explained
+        .matched
+        .as_ref()
+        .and_then(|matched| match matched {
+            Matched::Exact { rule } | Matched::Pattern { rule, .. } => id(*rule),
+            _ => None,
+        });
+    let hops = explained.hops.iter().map(|hop| ExplainedHop {
+        from: hop.from.to_string(),
+        redirect: id(hop.rule),
+        status: hop.answer.status(),
+        to: hop.answer.location().map(ToString::to_string),
+    });
+    let answer = explained.answer.as_ref();
+    Ok(Json(RedirectExplanation {
+        path: path.to_string(),
+        matched,
+        hops: hops.collect(),
+        status: answer.map(Redirect::status),
+        to: answer.and_then(Redirect::location).map(ToString::to_string),
+        text: explained.to_string(),
+    }))
+}
+
+/// The 400 for an address that is not a clean path.
+fn bad_path() -> Problem {
+    let message = UserMessage::new(
+        "The path to explain is not a clean path from the site root.",
+        "Only such a path can match a redirect.",
+        "Send path as it appears after the domain, starting with /, such as /blog/old-links/.",
+    );
+    Problem::new(ProblemType::InvalidQuery, &message).with_rule("path")
 }
 
 /// The 422 for a redirect that cannot be followed.

@@ -541,6 +541,82 @@
         ]
       }
     },
+    "/api/admin/v1/redirects/explain/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Explains which stored redirect an address matches, every hop of its\nchain, and the one step a visitor gets. Aliases in front matter and\npages answer before stored redirects, so they are not shown here.\nNeeds `settings:write`.",
+        "operationId": "explain_redirect",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "description": "The path, from the site root, such as `/blog/old-links/`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Why the address answers what it does",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedirectExplanation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The path is not a clean path from the site root",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/redirects/{id}/": {
       "delete": {
         "tags": [
@@ -3685,6 +3761,41 @@
         },
         "additionalProperties": false
       },
+      "ExplainedHop": {
+        "type": "object",
+        "description": "One hop of a chain in the debug view.",
+        "required": [
+          "from",
+          "status"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The address this hop starts from."
+          },
+          "redirect": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The identity of the stored redirect that answered it."
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "What that redirect answers on its own.",
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it leads, for a move."
+          }
+        }
+      },
       "GlossaryTerms": {
         "type": "object",
         "required": [
@@ -4265,6 +4376,56 @@
             "type": "string",
             "description": "A link to the page that explains this kind of problem.",
             "example": "https://khalid.dev/problems/not-found"
+          }
+        }
+      },
+      "RedirectExplanation": {
+        "type": "object",
+        "description": "Why an address answers what it answers: the debug view.",
+        "required": [
+          "path",
+          "hops",
+          "text"
+        ],
+        "properties": {
+          "hops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExplainedHop"
+            },
+            "description": "Each hop from the address to the end of its chain."
+          },
+          "matched": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The identity of the stored redirect it matched, if any."
+          },
+          "path": {
+            "type": "string",
+            "description": "The address asked about."
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The one status a visitor gets, if a redirect matched.",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "description": "The same, in plain words."
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a visitor is sent in one step, for a move."
           }
         }
       },

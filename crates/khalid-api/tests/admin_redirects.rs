@@ -220,3 +220,63 @@ async fn a_redirect_is_removed_by_its_identity() {
         "{json}"
     );
 }
+
+#[tokio::test]
+async fn the_debug_view_names_the_redirect_that_matched_and_each_hop() {
+    let desk = desk(
+        "/blog/\\d{4}/(.+),/blog/$1,301,regex\n\
+         /blog/old-links/,/blog/internal-links/,301\n\
+         /blog/internal-links/,/blog/why-internal-links-matter/,302\n",
+    )
+    .await;
+    let (_, list) = send(desk.clone(), SETTINGS, get("/api/admin/v1/redirects/")).await;
+    let id = |n: usize| list["redirects"][n]["id"].clone();
+    let uri = "/api/admin/v1/redirects/explain/?path=/blog/2019/old-links/";
+    let (status, json) = send(desk, SETTINGS, get(uri)).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["path"], "/blog/2019/old-links/");
+    assert_eq!(json["matched"], id(0));
+    let hops: Vec<_> = json["hops"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|h| h["redirect"].clone())
+        .collect();
+    assert_eq!(hops, [id(0), id(1), id(2)]);
+    assert_eq!(json["hops"][2]["status"], 302);
+    assert_eq!(json["status"], 302);
+    assert_eq!(json["to"], "/blog/why-internal-links-matter/");
+    let text = json["text"].as_str().unwrap();
+    assert!(text.contains("the pattern /blog/\\d{4}/(.+)."), "{text}");
+    assert!(
+        text.ends_with(
+            "A visitor gets one step: moves for now (302) to /blog/why-internal-links-matter/.\n"
+        ),
+        "{text}"
+    );
+}
+
+#[tokio::test]
+async fn the_debug_view_says_when_nothing_matches_and_refuses_a_bad_path() {
+    let desk = desk("/blog/a/,/blog/b/,301\n").await;
+    let uri = "/api/admin/v1/redirects/explain/?path=/blog/robots-txt/";
+    let (status, json) = send(desk.clone(), SETTINGS, get(uri)).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(
+        (&json["matched"], &json["status"]),
+        (&Value::Null, &Value::Null)
+    );
+    assert_eq!(json["hops"], Value::Array(Vec::new()));
+    assert!(
+        json["text"]
+            .as_str()
+            .unwrap()
+            .contains("matches no redirect rule"),
+        "{json}"
+    );
+
+    let uri = "/api/admin/v1/redirects/explain/?path=blog/no-slash/";
+    let (status, json) = send(desk, SETTINGS, get(uri)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{json}");
+    assert_eq!(json["rule"], "path");
+}
