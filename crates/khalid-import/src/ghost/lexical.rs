@@ -3,6 +3,7 @@
 
 use serde_json::Value;
 
+use crate::ghost::cards::card;
 use crate::ghost::html::Html;
 
 /// The bits of a text node's `format` that the markdown converter carries,
@@ -76,10 +77,12 @@ fn write_node(node: &Value, html: &mut Html) {
             return;
         }
         _ => {
-            if node.get("children").is_none() {
-                html.leave(kind);
+            if !card(kind, node, html) {
+                if node.get("children").is_none() {
+                    html.leave(kind);
+                }
+                children(node, html);
             }
-            children(node, html);
             return;
         }
     };
@@ -106,13 +109,16 @@ fn text(value: &str, format: u64, html: &mut Html) {
 
 #[cfg(test)]
 mod tests {
+    use khalid_core::{Locale, SlugMode};
+
     use super::*;
-    use crate::markdown::body_markdown;
+    use crate::ghost::body::converted;
 
     fn markdown(nodes: &str) -> String {
         let json = format!(r#"{{"root":{{"type":"root","children":[{nodes}]}}}}"#);
         let html = lexical_html(&json).unwrap();
-        body_markdown(&html.text).unwrap().markdown
+        let locale = Locale::try_new("en").unwrap();
+        converted(html, &locale, SlugMode::Ascii).unwrap().markdown
     }
 
     fn text(value: &str, format: u8) -> String {
@@ -208,8 +214,12 @@ mod tests {
             block("mystery", "", &[text("kept words", 0)])
         );
         let html = lexical_html(&json).unwrap();
-        assert_eq!(html.left, ["signup"]);
-        assert!(html.text.contains("kept words"), "{:?}", html.text);
+        let locale = Locale::try_new("en").unwrap();
+        let body = converted(html, &locale, SlugMode::Ascii).unwrap();
+        assert_eq!(
+            (body.markdown.as_str(), body.left),
+            ("kept words\n", vec!["signup".to_owned()])
+        );
         assert!(lexical_html("{\"root\":").is_err());
     }
 }

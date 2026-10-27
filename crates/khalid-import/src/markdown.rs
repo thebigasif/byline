@@ -158,13 +158,14 @@ fn safe_address(handlers: &dyn Handlers, element: Element<'_>) -> Option<Handler
     }
 }
 
-/// `http`, `https`, `mailto`, a relative address or a `#` anchor.
-fn is_safe(address: &str) -> bool {
+/// `http`, `https`, `mailto`, a relative address or a `#` anchor; never an
+/// empty address, which leads nowhere.
+pub(crate) fn is_safe(address: &str) -> bool {
     let address = address.trim().to_ascii_lowercase();
     ["http://", "https://", "mailto:"]
         .iter()
         .any(|scheme| address.starts_with(scheme))
-        || !address.contains(':')
+        || (!address.is_empty() && !address.contains(':'))
 }
 
 /// The names of the shortcodes in `html`, such as `caption` in
@@ -244,6 +245,7 @@ mod tests {
         let html =
             r#"<p><script>steal()</script><a href="javascript:steal()">Starter tips</a></p>"#;
         assert_eq!(markdown(html), "Starter tips\n");
+        assert_eq!(markdown(r#"<p><a href="">Nowhere</a></p>"#), "Nowhere\n");
     }
 
     #[test]
