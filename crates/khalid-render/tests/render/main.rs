@@ -32,6 +32,8 @@ mod image;
 #[cfg(test)]
 mod listing;
 #[cfg(test)]
+mod lists;
+#[cfg(test)]
 mod more_pages;
 #[cfg(test)]
 mod pages;
