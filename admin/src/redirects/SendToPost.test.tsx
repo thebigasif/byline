@@ -28,7 +28,7 @@ const POST: AdminPost = {
 function blog(answer = () => json(200, { posts: [POST] })) {
   const edits: PostEdit[] = [];
   redirectsBlog({
-    "GET /posts/":() => rowsPage([row(), row({ id: POST.id, title: POST.title })]),
+    "GET /posts/": () => rowsPage([row(), row({ id: POST.id, title: POST.title })]),
     "GET /posts/01JB/": () => json(200, { posts: [POST] }),
     "PUT /posts/01JB/": async (request) => {
       const body: { posts: PostEdit[] } = await request.json();
