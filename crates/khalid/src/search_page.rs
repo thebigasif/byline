@@ -38,7 +38,7 @@ pub(crate) fn add(
     languages: &mut [LanguagePages],
 ) -> Result<(), UserMessage> {
     let mode = mode(config);
-    for language in languages {
+    for language in languages.iter_mut() {
         let locale = language.site.locale.clone();
         let title = renderer
             .text(&locale, TITLE)
@@ -67,11 +67,23 @@ pub(crate) fn add(
             seo,
             source: None,
         });
-        if mode == SearchMode::Live {
-            language.site.search = Some(path);
-        }
     }
+    link(config, languages);
     Ok(())
+}
+
+/// Links the search page from the header of every page of `languages`
+/// when the site answers searches, as [`add`] does. The home pages
+/// `khalid serve` renders first take the link this way, so they match the
+/// full render's.
+pub(crate) fn link(config: &Config, languages: &mut [LanguagePages]) {
+    if mode(config) != SearchMode::Live {
+        return;
+    }
+    for language in languages {
+        let path = build_pages::path_of(config, &language.site.locale, REST);
+        language.site.search = Some(path);
+    }
 }
 
 /// Tells search engines where the site answers searches, in the `WebSite`
