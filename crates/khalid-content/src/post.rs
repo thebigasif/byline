@@ -55,10 +55,23 @@ pub struct PostFront {
     /// chosen at build time. At most [`MAX_RELATED`].
     #[serde(default, deserialize_with = "related")]
     pub related: Vec<Slug>,
+    /// The phrase the post wants to be found for in search, such as
+    /// "internal links". The linter checks that the title, description,
+    /// opening and other key places hold it.
+    #[serde(default, deserialize_with = "focus_keyword")]
+    pub focus_keyword: Option<String>,
+    /// Other phrases close to the focus keyword that the post also covers,
+    /// such as "link text". At most [`MAX_SECONDARY_KEYWORDS`].
+    #[serde(default, deserialize_with = "secondary_keywords")]
+    pub secondary_keywords: Vec<String>,
 }
 
 /// The most related posts a post shows, and so the most it may pin.
 pub const MAX_RELATED: usize = 5;
+
+/// The most secondary keywords a post may name. Five keywords in all,
+/// with the focus keyword, as Rank Math allows in its free version.
+pub const MAX_SECONDARY_KEYWORDS: usize = 4;
 
 /// A post as read from its file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -221,6 +234,38 @@ fn related<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Slug>, D::E
         )));
     }
     Ok(slugs)
+}
+
+/// Refuses a keyword with no words in it, with a message a writer
+/// understands.
+fn keyword<E: serde::de::Error>(text: String) -> Result<String, E> {
+    if text.trim().is_empty() {
+        return Err(E::custom(
+            "a keyword needs at least one word, such as internal links; remove the field if the post has none",
+        ));
+    }
+    Ok(text)
+}
+
+/// Reads the focus keyword: one phrase with at least one word.
+fn focus_keyword<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
+    keyword(String::deserialize(deserializer)?).map(Some)
+}
+
+/// Reads the secondary keywords: one phrase or a list, each with at least
+/// one word, at most [`MAX_SECONDARY_KEYWORDS`].
+fn secondary_keywords<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<String>, D::Error> {
+    let texts = match OneOrMany::deserialize(deserializer)? {
+        OneOrMany::One(text) => vec![text],
+        OneOrMany::Many(texts) => texts,
+    };
+    if texts.len() > MAX_SECONDARY_KEYWORDS {
+        return Err(serde::de::Error::custom(format!(
+            "a post has at most {MAX_SECONDARY_KEYWORDS} secondary keywords, and this lists {}; keep the {MAX_SECONDARY_KEYWORDS} closest to the focus keyword",
+            texts.len()
+        )));
+    }
+    texts.into_iter().map(keyword).collect()
 }
 
 /// Reads old paths, each starting with `/`, with a message a writer

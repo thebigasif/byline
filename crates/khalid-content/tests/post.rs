@@ -70,7 +70,47 @@ fn allows_the_fields_the_linter_checks_to_be_missing() {
 fn refuses_an_unknown_field() {
     assert_eq!(
         message("---\ntitle: A\ncolour: blue\n---\n"),
-        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation, aliases, featured, robots, canonical, reviewed_by, related"
+        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation, aliases, featured, robots, canonical, reviewed_by, related, focus_keyword, secondary_keywords"
+    );
+}
+
+#[test]
+fn reads_the_focus_keyword_and_secondary_keywords_as_one_or_a_list() {
+    let text = "---\nfocus_keyword: internal links\nsecondary_keywords:\n  - link text\n  - orphan posts\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), text).unwrap();
+    assert_eq!(post.front.focus_keyword.as_deref(), Some("internal links"));
+    assert_eq!(post.front.secondary_keywords, ["link text", "orphan posts"]);
+    let one = parse_post(
+        Path::new("posts/a.md"),
+        "---\nsecondary_keywords: link text\n---\n",
+    )
+    .unwrap();
+    assert_eq!(one.front.secondary_keywords, ["link text"]);
+    let plain = parse_post(Path::new("posts/a.md"), GOOD).unwrap();
+    assert!(plain.front.focus_keyword.is_none() && plain.front.secondary_keywords.is_empty());
+}
+
+#[test]
+fn refuses_a_blank_focus_keyword() {
+    assert_eq!(
+        message("---\nfocus_keyword: \"  \"\n---\n"),
+        "posts/a.md, line 2, field \"focus_keyword\": a keyword needs at least one word, such as internal links; remove the field if the post has none"
+    );
+}
+
+#[test]
+fn refuses_a_blank_secondary_keyword() {
+    assert_eq!(
+        message("---\nsecondary_keywords: [link text, \"\"]\n---\n"),
+        "posts/a.md, line 2, field \"secondary_keywords\": a keyword needs at least one word, such as internal links; remove the field if the post has none"
+    );
+}
+
+#[test]
+fn refuses_more_than_four_secondary_keywords() {
+    assert_eq!(
+        message("---\nsecondary_keywords: [a, b, c, d, e]\n---\n"),
+        "posts/a.md, line 2, field \"secondary_keywords\": a post has at most 4 secondary keywords, and this lists 5; keep the 4 closest to the focus keyword"
     );
 }
 
