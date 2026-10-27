@@ -1999,12 +1999,15 @@ dependencies = [
  "insta",
  "khalid-admin",
  "khalid-api",
+ "khalid-comments",
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-https",
  "khalid-lint",
  "khalid-mcp",
  "khalid-media",
+ "khalid-newsletter",
  "khalid-outbound",
  "khalid-render",
  "khalid-routes",
@@ -2015,6 +2018,7 @@ dependencies = [
  "khalid-theme",
  "khalid-webhooks",
  "mimalloc",
+ "rcgen",
  "scraper",
  "serde",
  "serde_json",
@@ -2064,6 +2068,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-comments"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "getrandom 0.4.3",
+ "khalid-api",
+ "khalid-comments",
+ "khalid-core",
+ "khalid-outbound",
+ "khalid-webhooks",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror",
+ "tokio",
+ "toml",
+ "tower",
+ "tracing",
+ "wiremock",
+]
+
+[[package]]
 name = "khalid-content"
 version = "0.0.0"
 dependencies = [
@@ -2105,6 +2132,7 @@ dependencies = [
  "chrono",
  "getrandom 0.4.3",
  "khalid-api",
+ "khalid-comments",
  "khalid-core",
  "khalid-newsletter",
  "khalid-search",
@@ -2133,6 +2161,8 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-rustls",

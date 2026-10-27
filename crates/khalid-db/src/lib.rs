@@ -12,10 +12,12 @@
 //! `khalid-webhooks` writes through, and the API keys, as the [`KeyTable`]
 //! that `khalid-api` checks keys against, the site's webhook list, as the
 //! [`WebhookTable`] `khalid serve` announces events to, each post's
-//! schedule, as the [`ScheduleTable`] the publish door keeps, and the
+//! schedule, as the [`ScheduleTable`] the publish door keeps, the
 //! newsletter subscribers, as the [`SubscriberTable`] that
-//! `khalid-newsletter` keeps them in.
+//! `khalid-newsletter` keeps them in, and readers' comments, as the
+//! [`CommentTable`] that `khalid-comments` moderates through.
 
+mod comment_table;
 mod content_index;
 mod database;
 mod db_error;
@@ -32,6 +34,7 @@ mod site_lists;
 mod subscriber_table;
 mod webhook_table;
 
+pub use comment_table::CommentTable;
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;
 pub use db_error::DbError;

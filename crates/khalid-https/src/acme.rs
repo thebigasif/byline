@@ -3,11 +3,15 @@
 
 use std::fmt;
 
-use instant_acme::{Account, AccountCredentials, NewAccount};
+use instant_acme::{
+    Account, AccountCredentials, AuthorizationStatus, ChallengeType, Identifier, NewAccount,
+    NewOrder, OrderStatus, RetryPolicy,
+};
 use khalid_outbound::Outbound;
 
-use crate::HttpsError;
 use crate::acme_http::Through;
+use crate::challenges::DIGEST_LENGTH;
+use crate::{Challenges, Domain, HttpsError};
 
 /// The address of Let's Encrypt's subscriber agreement, which a new account
 /// agrees to.
@@ -122,6 +126,121 @@ impl Acme {
     /// The account's address at the certificate authority.
     pub fn id(&self) -> &str {
         self.account.id()
+    }
+
+    /// Gets a certificate for `domain`, answering the authority's check
+    /// through `challenges` with the first of `checks` it offers. The
+    /// answers are cleared afterwards, whether or not it worked.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HttpsError::NoCheck`] when the authority offers none of
+    /// `checks`, [`HttpsError::Refused`] when it does not accept the
+    /// answer, and [`HttpsError::Acme`] when it cannot be reached.
+    pub async fn issue(
+        &self,
+        domain: &Domain,
+        challenges: &Challenges,
+        checks: &[Check],
+    ) -> Result<Issued, HttpsError> {
+        let issued = self.order(domain, challenges, checks).await;
+        challenges.clear();
+        issued
+    }
+
+    async fn order(
+        &self,
+        domain: &Domain,
+        challenges: &Challenges,
+        checks: &[Check],
+    ) -> Result<Issued, HttpsError> {
+        let acme = |source| HttpsError::Acme { source };
+        let identifiers = [Identifier::Dns(domain.as_str().to_owned())];
+        let mut order = self
+            .account
+            .new_order(&NewOrder::new(&identifiers))
+            .await
+            .map_err(acme)?;
+        let mut authorizations = order.authorizations();
+        while let Some(authorization) = authorizations.next().await {
+            let mut authorization = authorization.map_err(acme)?;
+            if authorization.status == AuthorizationStatus::Valid {
+                continue;
+            }
+            let offered = |check: &Check| {
+                let wanted = check.challenge_type();
+                authorization.challenges.iter().any(|c| c.r#type == wanted)
+            };
+            let check = checks
+                .iter()
+                .copied()
+                .find(offered)
+                .ok_or(HttpsError::NoCheck)?;
+            let mut challenge = authorization
+                .challenge(check.challenge_type())
+                .ok_or(HttpsError::NoCheck)?;
+            let answer = challenge.key_authorization();
+            match check {
+                Check::TlsAlpn => {
+                    let digest = <[u8; DIGEST_LENGTH]>::try_from(answer.digest().as_ref())
+                        .map_err(|_| acme(instant_acme::Error::Str("a digest is not 32 bytes")))?;
+                    challenges.answer_tls(domain.as_str(), &digest)?;
+                }
+                Check::Http => challenges.answer_http(&challenge.token, answer.as_str()),
+            }
+            challenge.set_ready().await.map_err(acme)?;
+        }
+        match order.poll_ready(&RetryPolicy::default()).await {
+            Ok(OrderStatus::Ready) => {}
+            Ok(_) => return Err(HttpsError::Refused { detail: None }),
+            Err(instant_acme::Error::Api(problem)) => {
+                return Err(HttpsError::Refused {
+                    detail: problem.detail,
+                });
+            }
+            Err(source) => return Err(acme(source)),
+        }
+        let key = order.finalize().await.map_err(acme)?;
+        let chain = order
+            .poll_certificate(&RetryPolicy::default())
+            .await
+            .map_err(acme)?;
+        Ok(Issued { chain, key })
+    }
+}
+
+/// How a certificate authority checks that this server answers for the
+/// domain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Check {
+    /// A one-off certificate in the TLS handshake on port 443 (TLS-ALPN-01).
+    TlsAlpn,
+    /// A file at `/.well-known/acme-challenge/` on port 80 (HTTP-01).
+    Http,
+}
+
+impl Check {
+    fn challenge_type(self) -> ChallengeType {
+        match self {
+            Self::TlsAlpn => ChallengeType::TlsAlpn01,
+            Self::Http => ChallengeType::Http01,
+        }
+    }
+}
+
+/// A new certificate as PEM: the chain, then its key. `Debug` shows neither.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Issued {
+    /// The chain, the site's certificate first.
+    pub chain: String,
+    /// The private key. A secret: never print it.
+    pub key: String,
+}
+
+impl fmt::Debug for Issued {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Issued").finish_non_exhaustive()
     }
 }
 
