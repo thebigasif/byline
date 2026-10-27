@@ -73,7 +73,13 @@ fi
 
 if [ -f admin/package.json ]; then
   step "Admin: Biome, TypeScript, Vitest"
-  (cd admin && npx biome ci . && npx tsc --noEmit && npx vitest run)
+  # Run only the tools pinned in admin/node_modules. A bare npx would download and run
+  # whatever unrelated package carries the same name when node_modules is missing.
+  if [ -d admin/node_modules ]; then
+    (cd admin && npm exec --no -- biome ci . && npm exec --no -- tsc --noEmit && npm exec --no -- vitest run)
+  else
+    echo "admin/node_modules is missing, so the admin checks are left to CI. Run npm ci in admin/ to run them here."
+  fi
 fi
 
 printf '\nAll checks passed.\n'
