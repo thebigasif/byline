@@ -28,7 +28,8 @@ const STRANGER: &str =
 fn tools(key: &str) -> ApiTools {
     let token: KeyToken = WRITER.parse().unwrap();
     let hashing = KeyHashing::fast_for_tests();
-    let writer = StoredKey::for_integration(&token, vec![Scope::PostsWrite], &hashing).unwrap();
+    let scopes = vec![Scope::PostsWrite, Scope::PostsPublish];
+    let writer = StoredKey::for_integration(&token, scopes, &hashing).unwrap();
     let (keys, reader) = SessionKeys::new(MemoryKeyStore::new(vec![writer])).unwrap();
     let at: DateTime<Utc> = "2026-10-01T09:00:00Z".parse().unwrap();
     let published = Post::new(

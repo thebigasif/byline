@@ -16,7 +16,17 @@ fn demo() -> (tempfile::TempDir, String) {
     fixture.push("../../fixtures/demo-site");
     let site = tempfile::tempdir().unwrap();
     copy_dir(&fixture, site.path());
-    let key = make_key(site.path(), &["--name", "Claude", "--scope", "posts:write"]);
+    let key = make_key(
+        site.path(),
+        &[
+            "--name",
+            "Claude",
+            "--scope",
+            "posts:write",
+            "--scope",
+            "posts:publish",
+        ],
+    );
     (site, key)
 }
 

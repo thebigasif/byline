@@ -23,6 +23,7 @@ fn scopes_read_and_write_the_names_from_the_api_standard() {
     let names = [
         "content:read",
         "posts:write",
+        "posts:publish",
         "media:write",
         "settings:write",
         "webhooks:manage",
@@ -69,4 +70,18 @@ fn roles_below_admin_write_posts_but_not_settings() {
     }
     assert!(Access::Staff(Role::Writer).allows(Scope::MediaWrite));
     assert!(!Access::Staff(Role::Contributor).allows(Scope::MediaWrite));
+}
+
+#[test]
+fn publishing_is_its_own_scope_held_by_editors_and_above() {
+    for role in [Role::Owner, Role::Admin, Role::Editor] {
+        assert!(Access::Staff(role).allows(Scope::PostsPublish), "{role:?}");
+    }
+    for role in [Role::Writer, Role::Contributor] {
+        assert!(!Access::Staff(role).allows(Scope::PostsPublish), "{role:?}");
+    }
+    let drafts_only = Access::Integration(vec![Scope::PostsWrite]);
+    assert!(!drafts_only.allows(Scope::PostsPublish));
+    let publishes = Access::Integration(vec![Scope::PostsWrite, Scope::PostsPublish]);
+    assert!(publishes.allows(Scope::PostsPublish));
 }

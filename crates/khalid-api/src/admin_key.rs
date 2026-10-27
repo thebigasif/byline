@@ -11,7 +11,7 @@ use axum::response::{IntoResponse, Response};
 use khalid_core::UserMessage;
 
 use crate::keys::{
-    KeyError, KeyKind, KeyStore, KeyStoreError, KeyToken, Principal, Scope, authenticate,
+    Access, KeyError, KeyKind, KeyStore, KeyStoreError, KeyToken, Principal, Scope, authenticate,
 };
 use crate::problem::{Problem, ProblemType};
 use crate::session_check::{CSRF_HEADER, SessionCheck};
@@ -115,6 +115,25 @@ pub(crate) fn require(principal: &Principal, scope: Scope) -> Result<(), Problem
             "Use a key with {}, or make one with that scope.",
             scope.as_str()
         ),
+    );
+    Err(Problem::new(ProblemType::Forbidden, &message).with_rule(scope.as_str()))
+}
+
+/// Refuses with a 403 naming `posts:publish` when `principal` may not
+/// publish. A staff member reads it about their role; a key, about its
+/// scope.
+pub(crate) fn require_publish(principal: &Principal) -> Result<(), Problem> {
+    let scope = Scope::PostsPublish;
+    let Access::Staff(role) = principal.access() else {
+        return require(principal, scope);
+    };
+    if principal.access().allows(scope) {
+        return Ok(());
+    }
+    let message = UserMessage::new(
+        format!("A {} cannot publish posts.", role.as_str()),
+        "Only editors, admins and the owner publish, so an editor checks each post before readers see it.",
+        "Save your changes as a draft and ask an editor to publish it.",
     );
     Err(Problem::new(ProblemType::Forbidden, &message).with_rule(scope.as_str()))
 }

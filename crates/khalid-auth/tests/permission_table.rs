@@ -113,6 +113,7 @@ fn a_role_change_needs_the_right_to_manage_both_the_old_and_the_new_role() {
 fn a_staff_token_and_a_signed_in_account_with_the_same_role_may_do_the_same() {
     let pairs = [
         (Scope::PostsWrite, Permission::WriteOwnPosts),
+        (Scope::PostsPublish, Permission::EditOthersPosts),
         (Scope::MediaWrite, Permission::UploadMedia),
         (Scope::SettingsWrite, Permission::ManageSettings),
         (Scope::WebhooksManage, Permission::ManageIntegrations),
