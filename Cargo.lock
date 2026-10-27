@@ -2109,6 +2109,7 @@ dependencies = [
  "khalid-core",
  "khalid-newsletter",
  "khalid-search",
+ "khalid-seo",
  "khalid-webhooks",
  "sqlx",
  "tempfile",
