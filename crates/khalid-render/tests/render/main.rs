@@ -12,6 +12,8 @@ mod byline;
 #[cfg(test)]
 mod cards;
 #[cfg(test)]
+mod comments;
+#[cfg(test)]
 mod common;
 #[cfg(test)]
 mod contents;

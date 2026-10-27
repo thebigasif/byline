@@ -191,4 +191,6 @@ async fn pages_are_never_kept_framed_or_sent_on_as_a_referrer() {
     let policy = headers[header::CONTENT_SECURITY_POLICY].to_str().unwrap();
     assert!(policy.contains("frame-ancestors 'none'"), "{policy}");
     assert_eq!(headers[header::CONTENT_TYPE], "text/html; charset=utf-8");
+    assert_eq!(headers["cross-origin-opener-policy"], "same-origin");
+    assert!(headers.contains_key("permissions-policy"));
 }

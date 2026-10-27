@@ -39,15 +39,26 @@ impl PostText {
         })
     }
 
-    /// Sets the top-level field `key` to `value`, written as YAML, in place
-    /// when the field is there and last when it is not.
+    /// Sets the top-level field `key` to `value`, written as YAML on one
+    /// line, in place when the field is there and last when it is not. A
+    /// value the field had on the lines below it, such as a list, goes.
     pub(crate) fn set(&mut self, key: &str, value: &str) {
         let line = format!("{key}: {value}");
-        let prefix = format!("{key}:");
-        match self.front.iter_mut().find(|l| l.starts_with(&prefix)) {
-            Some(existing) => *existing = line,
+        match self.remove(key) {
+            Some(at) => self.front.insert(at, line),
             None => self.front.push(line),
         }
+    }
+
+    /// Removes the top-level field `key` and the lines of its value, and
+    /// returns where it was, or `None` when the post has no such field.
+    pub(crate) fn remove(&mut self, key: &str) -> Option<usize> {
+        let prefix = format!("{key}:");
+        let at = self.front.iter().position(|l| l.starts_with(&prefix))?;
+        let below = self.front.iter().skip(at + 1);
+        let value_lines = below.take_while(|l| l.starts_with([' ', '-'])).count();
+        self.front.drain(at..=at + value_lines);
+        Some(at)
     }
 
     /// Replaces the body with `markdown`, after one blank line.
@@ -92,6 +103,20 @@ mod tests {
             "---\ntitle: \"New \\\"one\\\"\"\ndescription: Kept: as is\ndate: 2026-10-26\n---\n\nBody.\n"
         );
         assert_eq!(text.markdown(), "Body.");
+    }
+
+    #[test]
+    fn a_list_is_replaced_whole_and_a_field_can_go() {
+        let file = "---\naliases:\n  - /old/\n  - /older/\ntitle: T\n---\nBody.\n";
+        let mut text = PostText::parse(file).unwrap();
+        text.set("aliases", "[\"/new/\"]");
+        assert_eq!(
+            text.to_text(),
+            "---\naliases: [\"/new/\"]\ntitle: T\n---\nBody.\n"
+        );
+        assert_eq!(text.remove("title"), Some(1));
+        assert_eq!(text.remove("featured"), None);
+        assert_eq!(text.to_text(), "---\naliases: [\"/new/\"]\n---\nBody.\n");
     }
 
     #[test]
