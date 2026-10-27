@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design · Khalid admin mockup</title>
+<style>
+/* Shared admin styles. Each mockup carries its own copy so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--block:#b42318;--block-bg:#fef3f2;--warn:#8a4b00;--warn-bg:#fff8eb;--ok:#1a7f37;--ok-bg:#eefbf1;--radius:.375rem}
+html{background:var(--bg);color:var(--text);font:400 1rem/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;overflow-wrap:break-word}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.skip{position:absolute;left:-100vw}.skip:focus{left:1rem;top:.5rem;background:var(--bg);padding:.5rem 1rem}
+.top{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.brand{font-weight:700}.brand span{color:var(--muted);font-weight:400}
+.shell{display:grid;grid-template-columns:minmax(0,1fr)}
+@media (min-width:60em){.shell{grid-template-columns:13rem minmax(0,1fr)}.side{border-right:1px solid var(--border);min-height:calc(100vh - 3.6rem)}.side ul{flex-direction:column}}
+.side ul{list-style:none;margin:0;padding:.75rem;display:flex;flex-wrap:wrap;gap:.25rem}
+.side a{display:flex;align-items:center;min-height:44px;padding:.5rem .75rem;border-radius:var(--radius);color:var(--text);text-decoration:none}
+.side a:hover{background:var(--surface)}
+.side a[aria-current]{background:var(--tint);color:var(--link);font-weight:600}
+main{padding:1.5rem 1.25rem 3rem;max-width:72rem}
+h1{font-size:clamp(1.5rem,1.2rem + 1.2vw,2rem);line-height:1.2;margin:0 0 .5rem}
+h2{font-size:1.25rem;line-height:1.3;margin:2rem 0 .5rem}
+h3{font-size:1.0625rem;margin:0 0 .25rem}
+p{margin:0 0 1rem}
+.lede{color:var(--muted);max-width:68ch;font-size:1.0625rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);color:var(--text);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.card{border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.pill{display:inline-block;padding:.1rem .6rem;border-radius:999px;font-size:.875rem;font-weight:600;white-space:nowrap}
+.pill.ok{color:var(--ok);background:var(--ok-bg)}.pill.quiet{color:var(--muted);background:var(--surface)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:.7rem .75rem;border-bottom:1px solid var(--border);vertical-align:middle}
+th{font-size:.875rem;color:var(--muted);font-weight:600}
+label,legend{display:block;font-weight:600;margin:0 0 .25rem}
+.hint{display:block;color:var(--muted);font-weight:400;font-size:.9375rem;margin:0 0 .4rem}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--field);border-radius:var(--radius);padding:.5rem .7rem;min-height:44px;width:100%}
+input[type=checkbox],input[type=radio]{width:1.25rem;min-height:1.25rem;margin:.15rem .6rem 0 0;accent-color:var(--link);flex:none}
+.choice{display:flex;align-items:flex-start;font-weight:400;margin:0}
+.field{margin:0 0 1.25rem;max-width:36rem}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.muted{color:var(--muted)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface);padding:.05rem .3rem;border-radius:.25rem}
+.note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* This screen */
+.passed{background:var(--ok-bg);border-left:4px solid var(--ok);border-radius:var(--radius);padding:.75rem 1rem;max-width:68ch}
+.sw{display:inline-block;width:2.25rem;height:2.25rem;border-radius:var(--radius);border:1px solid var(--field);vertical-align:middle}
+.sw-background{background:#fff}.sw-surface{background:#f6f7f9}.sw-text{background:#1f2328}.sw-muted{background:#57606a}.sw-link{background:#0b57d0}.sw-border{background:#d0d7de}
+td input{max-width:8.5rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+table{min-width:44rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:1.5rem}
+.preview{background:#fff;border:1px solid #d0d7de;border-radius:.375rem;padding:1.25rem;max-width:68ch}
+.preview time{color:#57606a;font-size:.9375rem}
+.preview h3{font-size:1.25rem;margin:.25rem 0}
+.preview a{color:#0b57d0}
+.preview .tagline{color:#57606a;margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:1rem 2rem;align-items:flex-start;margin-top:2rem}
+.resync{max-width:36rem}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the main content</a>
+<header class="top">
+  <div class="brand">Khalid <span>· Field Notes on SEO</span></div>
+  <div class="row"><a href="https://www.example.com/blog/">View the blog</a><span class="muted">Asif, owner</span></div>
+</header>
+<div class="shell">
+<nav class="side" aria-label="Admin">
+  <ul>
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="posts.html">Posts</a></li>
+    <li><a href="design.html" aria-current="page">Design</a></li>
+    <li><a href="redirects.html">Redirects</a></li>
+    <li><a href="api-keys.html">API keys</a></li>
+    <li><a href="settings.html">Settings</a></li>
+  </ul>
+</nav>
+<main id="main">
+  <h1>Design</h1>
+  <p class="lede">Your blog wears the colours and fonts of your main site. Theme sync copied them from www.example.com on 26 October 2026. A change here is saved to <code>theme/tokens.toml</code> in your site folder, so git keeps a record of it like any other file.</p>
+
+  <form action="design.html" method="post">
+  <h2>Colours</h2>
+  <p class="passed" role="status"><strong>Every text colour is easy to read.</strong> Each passes WCAG AA, the web's standard for readable pages, which asks for a contrast of 4.5 to 1 between text and its background.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th scope="col">Used for</th><th scope="col"><span class="visually-hidden">Swatch</span></th><th scope="col">Colour</th><th scope="col">Readable?</th><th scope="col">Keep when syncing</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Page background</th><td><span class="sw sw-background"></span></td><td><label class="visually-hidden" for="c-bg">Page background colour</label><input id="c-bg" value="#ffffff"></td><td class="muted">Text is checked against it</td><td><label class="choice"><input type="checkbox"><span class="visually-hidden">Keep page background</span></label></td></tr>
+      <tr><th scope="row">Panels and code</th><td><span class="sw sw-surface"></span></td><td><label class="visually-hidden" for="c-surface">Panels colour</label><input id="c-surface" value="#f6f7f9"></td><td><span class="pill ok">Text on it: 14.7 to 1</span></td><td><label class="choice"><input type="checkbox"><span class="visually-hidden">Keep panels colour</span></label></td></tr>
+      <tr><th scope="row">Text</th><td><span class="sw sw-text"></span></td><td><label class="visually-hidden" for="c-text">Text colour</label><input id="c-text" value="#1f2328"></td><td><span class="pill ok">15.7 to 1</span></td><td><label class="choice"><input type="checkbox"><span class="visually-hidden">Keep text colour</span></label></td></tr>
+      <tr><th scope="row">Quiet text, such as dates</th><td><span class="sw sw-muted"></span></td><td><label class="visually-hidden" for="c-muted">Quiet text colour</label><input id="c-muted" value="#57606a"></td><td><span class="pill ok">6.3 to 1</span></td><td><label class="choice"><input type="checkbox"><span class="visually-hidden">Keep quiet text colour</span></label></td></tr>
+      <tr><th scope="row">Links</th><td><span class="sw sw-link"></span></td><td><label class="visually-hidden" for="c-link">Link colour</label><input id="c-link" value="#0b57d0"></td><td><span class="pill ok">6.3 to 1</span></td><td><label class="choice"><input type="checkbox" checked><span class="visually-hidden">Keep link colour</span></label></td></tr>
+      <tr><th scope="row">Buttons and highlights</th><td><span class="sw sw-link"></span></td><td><label class="visually-hidden" for="c-accent">Accent colour</label><input id="c-accent" value="#0b57d0"></td><td><span class="pill ok">6.3 to 1</span></td><td><label class="choice"><input type="checkbox" checked><span class="visually-hidden">Keep accent colour</span></label></td></tr>
+      <tr><th scope="row">Lines between parts</th><td><span class="sw sw-border"></span></td><td><label class="visually-hidden" for="c-border">Line colour</label><input id="c-border" value="#d0d7de"></td><td class="muted">Not used for text</td><td><label class="choice"><input type="checkbox"><span class="visually-hidden">Keep line colour</span></label></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="grid">
+    <div>
+      <h2>Fonts</h2>
+      <div class="field"><label for="f-body">Text</label><span class="hint" id="f-body-hint">The reader's own system font. It shows at once, with nothing to download.</span><select id="f-body" aria-describedby="f-body-hint"><option selected>System font</option><option>Inter</option><option>Georgia</option></select></div>
+      <div class="field"><label for="f-heading">Headings</label><select id="f-heading"><option selected>System font</option><option>Inter</option><option>Georgia</option></select></div>
+      <h2>Shape</h2>
+      <div class="field"><label for="radius">Corner roundness</label><span class="hint" id="radius-hint">How round the corners of buttons, images and boxes are.</span><input id="radius" aria-describedby="radius-hint" value="0.375rem"></div>
+      <div class="field"><label for="measure">Line length</label><span class="hint" id="measure-hint">The widest a line of text may get. About 68 letters is easy to read.</span><input id="measure" aria-describedby="measure-hint" value="68ch"></div>
+    </div>
+    <div>
+      <h2>How a post looks</h2>
+      <div class="preview" aria-label="Preview of a post on the blog">
+        <time datetime="2026-09-14">14 September 2026</time>
+        <h3><a href="https://www.example.com/blog/why-internal-links-matter/">Why internal links matter</a></h3>
+        <p class="tagline">Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" type="submit">Save changes</button>
+    <div class="resync">
+      <button class="btn" type="submit" formaction="design.html">Sync again from www.example.com</button>
+      <p class="hint">Use this after your main site changes its look. It replaces every colour and font you have not ticked to keep. Two are kept now: links, and buttons and highlights.</p>
+    </div>
+  </div>
+  </form>
+
+  <p class="note">Mockup for the founder's review. Nothing on this page saves. The values are Khalid's default tokens. Logo, icon, cover image, social accounts, menus and the announcement bar live on this screen too; they get their own mockup once this layout has a yes. <a href="index.html">All mockups</a></p>
+</main>
+</div>
+</body>
+</html>

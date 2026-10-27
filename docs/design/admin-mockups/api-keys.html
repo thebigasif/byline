@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API keys · Khalid admin mockup</title>
+<style>
+/* Shared admin styles. Each mockup carries its own copy so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--block:#b42318;--block-bg:#fef3f2;--warn:#8a4b00;--warn-bg:#fff8eb;--ok:#1a7f37;--ok-bg:#eefbf1;--radius:.375rem}
+html{background:var(--bg);color:var(--text);font:400 1rem/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;overflow-wrap:break-word}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.skip{position:absolute;left:-100vw}.skip:focus{left:1rem;top:.5rem;background:var(--bg);padding:.5rem 1rem}
+.top{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.brand{font-weight:700}.brand span{color:var(--muted);font-weight:400}
+.shell{display:grid;grid-template-columns:minmax(0,1fr)}
+@media (min-width:60em){.shell{grid-template-columns:13rem minmax(0,1fr)}.side{border-right:1px solid var(--border);min-height:calc(100vh - 3.6rem)}.side ul{flex-direction:column}}
+.side ul{list-style:none;margin:0;padding:.75rem;display:flex;flex-wrap:wrap;gap:.25rem}
+.side a{display:flex;align-items:center;min-height:44px;padding:.5rem .75rem;border-radius:var(--radius);color:var(--text);text-decoration:none}
+.side a:hover{background:var(--surface)}
+.side a[aria-current]{background:var(--tint);color:var(--link);font-weight:600}
+main{padding:1.5rem 1.25rem 3rem;max-width:72rem}
+h1{font-size:clamp(1.5rem,1.2rem + 1.2vw,2rem);line-height:1.2;margin:0 0 .5rem}
+h2{font-size:1.25rem;line-height:1.3;margin:2rem 0 .5rem}
+p{margin:0 0 1rem}
+.lede{color:var(--muted);max-width:68ch;font-size:1.0625rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);color:var(--text);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.focus{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.5rem}
+.focus>h2:first-child{margin-top:0}
+.pill{display:inline-block;padding:.1rem .6rem;border-radius:999px;font-size:.875rem;font-weight:600;white-space:nowrap}
+.pill.quiet{color:var(--muted);background:var(--surface)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:.7rem .75rem;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:.875rem;color:var(--muted);font-weight:600}
+label,legend{display:block;font-weight:600;margin:0 0 .25rem}
+fieldset{border:0;margin:0 0 1.25rem;padding:0}
+.hint{display:block;color:var(--muted);font-weight:400;font-size:.9375rem;margin:0 0 .4rem}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--field);border-radius:var(--radius);padding:.5rem .7rem;min-height:44px;width:100%}
+input[type=checkbox],input[type=radio]{width:1.25rem;min-height:1.25rem;margin:.15rem .6rem 0 0;accent-color:var(--link);flex:none}
+.choice{display:flex;align-items:flex-start;font-weight:400;margin:0 0 .75rem}
+.choice b{display:block}
+.field{margin:0 0 1.25rem;max-width:36rem}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.muted{color:var(--muted)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface);padding:.05rem .3rem;border-radius:.25rem}
+.note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
+/* This screen */
+table{min-width:46rem}
+.once{border-left:4px solid var(--link);background:var(--bg);border-radius:var(--radius);padding:.75rem 1rem;max-width:68ch}
+.btn.small{min-height:44px;padding:.4rem .8rem;font-size:.9375rem}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the main content</a>
+<header class="top">
+  <div class="brand">Khalid <span>· Field Notes on SEO</span></div>
+  <div class="row"><a href="https://www.example.com/blog/">View the blog</a><span class="muted">Asif, owner</span></div>
+</header>
+<div class="shell">
+<nav class="side" aria-label="Admin">
+  <ul>
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="posts.html">Posts</a></li>
+    <li><a href="design.html">Design</a></li>
+    <li><a href="redirects.html">Redirects</a></li>
+    <li><a href="api-keys.html" aria-current="page">API keys</a></li>
+    <li><a href="settings.html">Settings</a></li>
+  </ul>
+</nav>
+<main id="main">
+  <h1>API keys</h1>
+  <p class="lede">An API key lets another program use your blog: your website's code, SerpDad, or a script a teammate runs. Each key can do only what you allow, and you can switch it off at any time.</p>
+
+  <section class="focus" aria-labelledby="new-title">
+    <h2 id="new-title">Create a key</h2>
+    <form action="api-keys.html" method="post">
+      <div class="field"><label for="name">Name</label><span class="hint" id="name-hint">So you know later which program uses it.</span><input id="name" aria-describedby="name-hint" value="Main site, www.example.com"></div>
+      <fieldset>
+        <legend>What kind of key?</legend>
+        <label class="choice"><input type="radio" name="kind" checked><span><b>Content key</b><span class="hint">Reads posts that are already live, and nothing else. Safe to put in a web page.</span></span></label>
+        <label class="choice"><input type="radio" name="kind"><span><b>Integration key</b><span class="hint">Lets a tool such as SerpDad write posts, upload images or change settings. Keep it secret.</span></span></label>
+        <label class="choice"><input type="radio" name="kind"><span><b>Staff token</b><span class="hint">Lets a person's own script act as them, with the same role they have here. Keep it secret.</span></span></label>
+      </fieldset>
+      <p class="once"><strong>You see a new key only once.</strong> Khalid keeps a scrambled copy that nobody can turn back into the key, not even you. Copy it into the other program straight away.</p>
+      <button class="btn primary" type="submit">Create key</button>
+    </form>
+  </section>
+
+  <h2>Keys in use</h2>
+  <p class="muted">Switching a key off works at once. The program using it is refused from its next request, so make sure it has a new key first.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">May do</th><th scope="col">Last used</th><th scope="col"><span class="muted">Action</span></th></tr></thead>
+    <tbody>
+      <tr><td>Web page</td><td><span class="pill quiet">Content key</span><br><span class="muted">Starts with <code>kc_</code></span></td><td>Read live posts</td><td><time datetime="2026-10-27T09:58">Today, 09:58</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
+      <tr><td>SerpDad</td><td><span class="pill quiet">Integration key</span><br><span class="muted">Starts with <code>ki_</code></span></td><td>Write posts</td><td><time datetime="2026-10-26T16:20">Yesterday, 16:20</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
+      <tr><td>Lena</td><td><span class="pill quiet">Staff token</span><br><span class="muted">Starts with <code>ks_</code></span></td><td>Everything an editor may do</td><td><time datetime="2026-10-21T11:05">21 October</time></td><td><button class="btn small" type="button">Switch off</button></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="note">Mockup for the founder's review. Nothing on this page saves, and no key appears on it, real or made up. The three keys match the examples in Khalid's own tests; the times are examples. <a href="index.html">All mockups</a></p>
+</main>
+</div>
+</body>
+</html>

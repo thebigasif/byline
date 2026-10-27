@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor · Khalid admin mockup</title>
+<style>
+/* Shared admin styles. Each mockup carries its own copy so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--block:#b42318;--block-bg:#fef3f2;--warn:#8a4b00;--warn-bg:#fff8eb;--ok:#1a7f37;--ok-bg:#eefbf1;--radius:.375rem}
+html{background:var(--bg);color:var(--text);font:400 1rem/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;overflow-wrap:break-word}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.skip{position:absolute;left:-100vw}.skip:focus{left:1rem;top:.5rem;background:var(--bg);padding:.5rem 1rem}
+.top{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.brand{font-weight:700}.brand span{color:var(--muted);font-weight:400}
+main{padding:1.5rem 1.25rem 3rem;max-width:80rem;margin:0 auto}
+h1{font-size:clamp(1.5rem,1.2rem + 1.2vw,2rem);line-height:1.2;margin:0 0 .5rem}
+h2{font-size:1.25rem;line-height:1.3;margin:2rem 0 .5rem}
+h3{font-size:1.0625rem;margin:0 0 .25rem}
+p{margin:0 0 1rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);color:var(--text);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.btn:disabled{color:var(--muted);background:var(--surface);border-color:var(--border);cursor:not-allowed}
+label,legend{display:block;font-weight:600;margin:0 0 .25rem}
+fieldset{border:0;margin:0 0 1.25rem;padding:0}
+.hint{display:block;color:var(--muted);font-weight:400;font-size:.9375rem;margin:0 0 .4rem}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--field);border-radius:var(--radius);padding:.5rem .7rem;min-height:44px;width:100%}
+input[type=checkbox],input[type=radio]{width:1.25rem;min-height:1.25rem;margin:.15rem .6rem 0 0;accent-color:var(--link);flex:none}
+.choice{display:flex;align-items:flex-start;font-weight:400;margin:0 0 .6rem}
+.field{margin:0 0 1.25rem}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.muted{color:var(--muted)}
+code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface);padding:.05rem .3rem;border-radius:.25rem}
+.note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* This screen */
+.bar{display:flex;flex-wrap:wrap;gap:.75rem 1rem;align-items:center;justify-content:space-between;margin:0 0 1.5rem}
+.switch{display:inline-flex;border:1px solid var(--field);border-radius:var(--radius);overflow:hidden}
+.switch button{font:inherit;min-height:44px;padding:.5rem 1rem;border:0;background:var(--bg);color:var(--text);cursor:pointer}
+.switch button[aria-pressed=true]{background:var(--tint);color:var(--link);font-weight:600}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:2rem}
+@media (min-width:68em){.layout{grid-template-columns:minmax(0,1fr) 23rem}}
+.doc{max-width:68ch}
+.title{font-size:clamp(1.75rem,1.4rem + 1.5vw,2.5rem);font-weight:700;line-height:1.2;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:.25rem 0 .5rem;margin:0 0 1.5rem}
+.text{font-size:1.125rem;line-height:1.65}
+.text h2{font-size:1.5rem;margin:2rem 0 .75rem}
+.text ol{padding-left:1.5rem}.text li{margin:0 0 .5rem}
+.wikilink{text-decoration:underline dotted;text-underline-offset:.2em}
+.caret{border-left:2px solid var(--text);padding-left:.15rem}
+.slash{position:relative;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 .5rem 1.5rem rgb(31 35 40 / .12);background:var(--bg);max-width:24rem;margin:.25rem 0 1.5rem;font-size:1rem;line-height:1.4}
+.slash h3{font-size:.875rem;color:var(--muted);padding:.75rem 1rem .25rem;margin:0}
+.slash ul{list-style:none;margin:0;padding:0 .25rem .25rem}
+.slash li{display:block;padding:.55rem .75rem;border-radius:var(--radius)}
+.slash li b{display:block;font-weight:600}
+.slash li span{color:var(--muted);font-size:.9375rem}
+.slash li.on{background:var(--tint)}
+.slash li.on b{color:var(--link)}
+.slash p{margin:0;padding:.6rem 1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.875rem}
+.side h2{font-size:1.125rem;margin:0 0 .75rem}
+.check{border-radius:var(--radius);padding:1rem;margin:0 0 1rem;border-left:4px solid}
+.check.block{background:var(--block-bg);border-color:var(--block)}
+.check.warn{background:var(--warn-bg);border-color:var(--warn)}
+.check .tag{font-size:.875rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 .25rem}
+.check.block .tag{color:var(--block)}.check.warn .tag{color:var(--warn)}
+.check p{margin:0 0 .5rem}
+.fits{list-style:none;margin:.5rem 0 0;padding:0}
+.fits li{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between;padding:.4rem 0;border-top:1px solid #f3d1cd}
+.fits .btn{min-height:44px;padding:.4rem .8rem;font-size:.9375rem}
+details{border:1px solid var(--border);border-radius:var(--radius);margin:0 0 1rem}
+summary{cursor:pointer;font-weight:600;padding:.75rem 1rem;min-height:44px}
+details>div{padding:0 1rem 1rem}
+details details{margin:1rem 0 0}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the main content</a>
+<header class="top">
+  <div class="brand">Khalid <span>· Field Notes on SEO</span></div>
+  <div class="row"><a href="posts.html">Back to all posts</a><span class="muted">Asif, owner</span></div>
+</header>
+<main id="main">
+  <h1 class="visually-hidden">Editing the draft "Planning a topic cluster in an afternoon"</h1>
+  <div class="bar">
+    <div class="row">
+      <div class="switch" role="group" aria-label="How to write">
+        <button type="button" aria-pressed="true">Rich text</button>
+        <button type="button" aria-pressed="false">Markdown</button>
+      </div>
+      <span class="muted" role="status">Draft, saved at 10:42</span>
+    </div>
+    <div class="row">
+      <button class="btn" type="button">Preview in your theme</button>
+      <button class="btn primary" type="button" disabled aria-describedby="why-disabled">Publish</button>
+      <span id="why-disabled" class="muted">Fix the one block on the right to publish.</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <article class="doc">
+      <label class="visually-hidden" for="title">Title</label>
+      <input class="title" id="title" value="Planning a topic cluster in an afternoon">
+      <div class="text" aria-label="Post text">
+        <p>A topic cluster is a group of posts on one subject: one main post that covers the whole subject, and several shorter posts that each answer one question in depth. They all link to each other. Together they show search engines that your site knows the subject, which is what <a class="wikilink" href="https://www.example.com/blog/glossary/topical-authority/">topical authority</a> means.</p>
+        <h2>Plan it on one page</h2>
+        <ol>
+          <li><strong>Pick the subject your customers ask about most.</strong> For a bakery that sells online, that might be "sourdough at home".</li>
+          <li><strong>Write the main question at the top:</strong> "How do I bake sourdough at home?" That becomes the main post.</li>
+          <li><strong>List the smaller questions underneath:</strong> how to feed a starter, why the dough is sticky, which flour to buy. Each becomes a short post.</li>
+          <li><strong>Draw the links.</strong> Every short post links to the main post, and the main post links to every short post.</li>
+        </ol>
+        <h2>Write in the right order</h2>
+        <p>Write the short posts first. They are quicker, and they teach you what the main post needs to say. Then write the main post and add the links.</p>
+        <p><span class="caret">/</span></p>
+      </div>
+      <section class="slash" aria-label="Add a block">
+        <h3>Add a block</h3>
+        <ul>
+          <li class="on"><b>Bookmark card</b><span>A preview card made from a link you paste</span></li>
+          <li><b>Heading</b><span>A section title. In markdown, start the line with ##</span></li>
+          <li><b>Image</b><span>A picture with its description and caption</span></li>
+          <li><b>Callout</b><span>A boxed note that stands out from the text</span></li>
+          <li><b>FAQ</b><span>Questions and answers Google can show in results</span></li>
+          <li><b>Table of contents</b><span>A list of this post's headings</span></li>
+        </ul>
+        <p>Type to narrow the list. <kbd>↑</kbd> <kbd>↓</kbd> to move, <kbd>Enter</kbd> to add, <kbd>Esc</kbd> to close.</p>
+      </section>
+    </article>
+
+    <aside class="side" aria-labelledby="checks-title">
+      <h2 id="checks-title">Checks</h2>
+      <section class="check block" aria-label="Block">
+        <p class="tag">Stops publishing</p>
+        <p><strong>This post links to none of your other posts.</strong></p>
+        <p>Internal links are how readers and Google find the rest of your site.</p>
+        <p>Add one link to a related post. These fit:</p>
+        <ul class="fits">
+          <li>Why internal links matter <button class="btn" type="button">Add link</button></li>
+          <li>How to write a title tag <button class="btn" type="button">Add link</button></li>
+          <li>What a sitemap does, and what it does not <button class="btn" type="button">Add link</button></li>
+        </ul>
+      </section>
+      <section class="check warn" aria-label="Warning">
+        <p class="tag">Warning, you can still publish</p>
+        <p><strong>This post links to no other website.</strong></p>
+        <p>Links to good sources show readers and Google where your facts come from.</p>
+        <p>Add a link to a trusted source that backs up a claim in the post.</p>
+      </section>
+      <section class="check warn" aria-label="Warning">
+        <p class="tag">Warning, you can still publish</p>
+        <p><strong>This post's web address holds filler words such as "the" or "of".</strong> Here: "a".</p>
+        <p>Filler words make the address longer without telling readers or Google anything.</p>
+        <p>Remove the filler words from the web address before you publish.</p>
+      </section>
+
+      <details>
+        <summary>Post settings</summary>
+        <div>
+          <div class="field"><label for="slug">Web address</label><span class="hint" id="slug-hint">www.example.com/blog/planning-a-topic-cluster/</span><input id="slug" aria-describedby="slug-hint" value="planning-a-topic-cluster"></div>
+          <div class="field"><label for="date">Publish date</label><input id="date" type="date" value="2026-10-12"></div>
+          <div class="field"><label for="author">Author</label><select id="author"><option selected>Asif</option><option>Lena Vogt</option></select></div>
+          <div class="field"><label for="category">Category</label><select id="category"><option>On-page SEO</option><option>Technical SEO</option><option selected>Content strategy</option></select></div>
+          <div class="field"><label for="description">Description</label><span class="hint" id="desc-hint">The line under the title in search results. 114 of 160 characters.</span><textarea id="description" rows="4" aria-describedby="desc-hint">A topic cluster is one main post and several shorter posts that link to it. How to plan one with a sheet of paper.</textarea></div>
+          <div class="field"><label for="review">Review</label><select id="review"><option selected>Draft</option><option>In review</option><option>Approved</option></select></div>
+          <details>
+            <summary>More settings</summary>
+            <div>
+              <p class="muted">Feature image, canonical address, search engine visibility, share cards for X and Facebook, old addresses, scheduled unpublish, password and head code. Each follows the same pattern: what it does in one line, then the field.</p>
+            </div>
+          </details>
+        </div>
+      </details>
+    </aside>
+  </div>
+
+  <p class="note">Mockup for the founder's review. Nothing on this page saves. The text is the demo post "Planning a topic cluster in an afternoon" as a draft, before its closing link to "Why internal links matter" was added. The checks are the real messages from Khalid's linter. <a href="index.html">All mockups</a></p>
+</main>
+</body>
+</html>
