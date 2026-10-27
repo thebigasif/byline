@@ -13,8 +13,9 @@ use crate::{config_message, content_message, routes_message};
 
 /// Checks the settings, the routes and the content of `site`, in that order.
 /// The content is read only when the settings and the routes load, because
-/// reading it needs both.
-pub(crate) fn check(site: &Path) -> Vec<Finding> {
+/// reading it needs both. Returns the settings too, when they load, for the
+/// checks that need them.
+pub(crate) fn check(site: &Path) -> (Vec<Finding>, Option<Config>) {
     let config = Config::load(site, &Environment::from_process());
     let routes = Routes::load(site);
     let mut found = vec![
@@ -44,7 +45,7 @@ pub(crate) fn check(site: &Path) -> Vec<Finding> {
             "Khalid reads the content with the settings and the routes, so fix those first.",
         ),
     });
-    found
+    (found, config.ok())
 }
 
 /// Reads every content file and checks every block in it.
