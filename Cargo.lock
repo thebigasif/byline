@@ -2203,6 +2203,7 @@ dependencies = [
  "http",
  "image",
  "khalid-core",
+ "khalid-outbound",
  "rayon",
  "serde",
  "sha2 0.11.1",
@@ -2211,6 +2212,7 @@ dependencies = [
  "tokio",
  "toml",
  "webp",
+ "wiremock",
 ]
 
 [[package]]

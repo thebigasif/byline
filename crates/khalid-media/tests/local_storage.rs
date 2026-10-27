@@ -20,7 +20,10 @@ async fn keeps_a_file_whole_in_its_folder_and_reads_it_back() {
     let site = tempfile::tempdir().unwrap();
     let storage = Storage::local(site.path());
     let key = ContentKey::of(PDF);
-    storage.put(&key, &name(), PDF.to_vec()).await.unwrap();
+    storage
+        .put(&key, &name(), MediaType::Pdf, PDF.to_vec())
+        .await
+        .unwrap();
     let mut folder = site.path().to_path_buf();
     folder.push("media");
     folder.push(key.as_str());
@@ -48,8 +51,14 @@ async fn storing_the_same_file_twice_keeps_one_copy() {
     let site = tempfile::tempdir().unwrap();
     let storage = Storage::local(site.path());
     let key = ContentKey::of(PDF);
-    storage.put(&key, &name(), PDF.to_vec()).await.unwrap();
-    storage.put(&key, &name(), PDF.to_vec()).await.unwrap();
+    storage
+        .put(&key, &name(), MediaType::Pdf, PDF.to_vec())
+        .await
+        .unwrap();
+    storage
+        .put(&key, &name(), MediaType::Pdf, PDF.to_vec())
+        .await
+        .unwrap();
     assert_eq!(
         storage.get(&key, &name()).await.unwrap(),
         Some(PDF.to_vec())
