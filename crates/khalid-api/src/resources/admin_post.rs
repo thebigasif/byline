@@ -5,7 +5,7 @@ use khalid_core::Slug;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::{PostSettings, display, display_option};
+use super::{PostSettings, SettingsEdit, display, display_option};
 
 /// Where a post stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -164,11 +164,16 @@ impl AdminPost {
     #[must_use]
     pub fn edited(self, edit: PostEdit, at: DateTime<Utc>, by: &str) -> Self {
         let publishes = edit.publishes();
+        let settings = match edit.settings {
+            Some(change) => change.applied_to(self.settings),
+            None => self.settings,
+        };
         let post = Self {
             title: edit.title.unwrap_or(self.title),
             markdown: edit.markdown.unwrap_or(self.markdown),
             updated_at: at,
             updated_by: Some(by.to_owned()),
+            settings,
             ..self
         };
         if publishes { post.published(at) } else { post }
@@ -176,8 +181,9 @@ impl AdminPost {
 }
 
 /// An edit to a post: the fields to change, and the `updated_at` of the
-/// copy it was made on. Fields left out keep their value. A `status` of
-/// `published` publishes a draft, once the linter lets it through.
+/// copy it was made on. Fields left out keep their value, and `null`
+/// clears one that may be empty. A `status` of `published` publishes a
+/// draft, once the linter lets it through.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PostEdit {
@@ -185,6 +191,8 @@ pub struct PostEdit {
     title: Option<String>,
     /// A new markdown body.
     markdown: Option<String>,
+    /// New values for some settings; the rest keep theirs.
+    settings: Option<SettingsEdit>,
     /// `published` to publish the post. Publishing runs the linter, and a
     /// post with a blocking finding stays a draft.
     #[schema(value_type = Option<String>, example = "published")]

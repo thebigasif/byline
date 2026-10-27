@@ -3702,7 +3702,7 @@
       },
       "PostEdit": {
         "type": "object",
-        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through.",
+        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value, and `null`\nclears one that may be empty. A `status` of `published` publishes a\ndraft, once the linter lets it through.",
         "required": [
           "updated_at"
         ],
@@ -3713,6 +3713,17 @@
               "null"
             ],
             "description": "A new markdown body."
+          },
+          "settings": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SettingsEdit",
+                "description": "New values for some settings; the rest keep theirs."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
             "type": [
@@ -3963,6 +3974,111 @@
             "example": "https://example.com/blog/"
           }
         }
+      },
+      "SettingsEdit": {
+        "type": "object",
+        "description": "New values for some of a post's settings. A setting left out keeps\nits value, and `null` clears one that may be empty.",
+        "properties": {
+          "aliases": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Every old address that redirects here.",
+            "example": [
+              "/2019/05/old-title/"
+            ]
+          },
+          "canonical": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new canonical address, or `null` for the post's own.",
+            "example": "https://example.com/original/"
+          },
+          "co_authors": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The other authors' slugs, all of them.",
+            "example": [
+              "mira"
+            ]
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "A new date, as `YYYY-MM-DD`, or `null` for none.",
+            "example": "2026-11-02"
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new excerpt, or `null` for none."
+          },
+          "feature_image": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FeatureImage",
+                "description": "A new feature image, or `null` for none."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "featured": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the post is featured."
+          },
+          "review_state": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewState",
+                "description": "`draft`, `in_review` or `ready`."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "robots": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New robots directives, or `null` for the site's.",
+            "example": "noindex, nofollow"
+          },
+          "share_cards": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ShareCards",
+                "description": "Both share cards; a card left out uses the post's own title,\nexcerpt and image."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "ShareCard": {
         "type": "object",

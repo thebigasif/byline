@@ -9,6 +9,7 @@ mod menu;
 mod post;
 mod post_settings;
 mod settings;
+mod settings_edit;
 mod term;
 
 pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
@@ -21,6 +22,7 @@ pub use post_settings::{
     Alias, FeatureImage, NonBlank, PostSettings, ReviewState, ShareCard, ShareCards,
 };
 pub use settings::Settings;
+pub use settings_edit::SettingsEdit;
 pub use term::Term;
 
 use std::fmt::Display;
