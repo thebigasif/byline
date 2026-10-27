@@ -12,6 +12,28 @@ export const en = {
     title: "Your blog's admin",
     lede: "Write, check and publish posts here. Each one is saved as a text file on the server.",
   },
+  start: {
+    title: "Start a post",
+    lede: "Give it a working title. It is saved as a draft at once, and nobody sees it until you publish.",
+    label: "Title",
+    submit: "Start writing",
+    starting: "Making the draft",
+  },
+  editor: {
+    heading: "Editing",
+    loading: "Opening the post",
+    title: "Title",
+    text: "Post text",
+    modes: "How to write",
+    rich: "Rich text",
+    markdown: "Markdown",
+    onlyMarkdown:
+      "This post uses blocks the rich-text view cannot show yet, so it stays in markdown. Your blocks stay exactly as written.",
+    saved: "Saved",
+    saving: "Saving",
+    unsaved: "Not saved yet",
+    leave: "Some changes are not saved yet. Leave anyway and lose them?",
+  },
   signIn: {
     title: "Sign in to your blog's admin",
     lede: "The admin works with a staff token, a key that lets one person edit this blog.",
@@ -35,6 +57,16 @@ export const en = {
       what: "The admin could not reach the blog's server.",
       why: "Without the server, nothing can be read or saved.",
       fix: "Check that khalid serve is running, then try again.",
+    },
+    notFound: {
+      what: "This post does not exist.",
+      why: "It may have been deleted, or the address is mistyped.",
+      fix: "Go back home and open the post again.",
+    },
+    notSaved: {
+      what: "The last change was not saved.",
+      why: "The blog did not answer, so the change is only in this tab.",
+      fix: "Keep this tab open; the admin tries again with your next change.",
     },
     page: {
       what: "This screen stopped working.",

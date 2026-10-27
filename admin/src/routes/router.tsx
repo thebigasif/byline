@@ -3,6 +3,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   type RouterHistory,
   redirect,
 } from "@tanstack/react-router";
@@ -31,7 +32,14 @@ const signedIn = createRoute({
 
 const home = createRoute({ getParentRoute: () => signedIn, path: "/", component: Home });
 
-const routeTree = root.addChildren([signIn, signedIn.addChildren([home])]);
+// The editor carries Tiptap, so it loads only when a post is opened.
+const editor = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/posts/$id",
+  component: lazyRouteComponent(() => import("./Editor"), "Editor"),
+});
+
+const routeTree = root.addChildren([signIn, signedIn.addChildren([home, editor])]);
 
 /** Makes the admin's router; a test passes a memory history. */
 export function makeRouter(history: RouterHistory = createBrowserHistory()) {

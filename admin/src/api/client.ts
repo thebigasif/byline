@@ -15,7 +15,8 @@ type Options = {
 export function createApi({ key = readKey, fetch }: Options = {}): Api {
   const api = createClient<paths>({
     baseUrl: globalThis.location.origin,
-    ...(fetch === undefined ? {} : { fetch }),
+    // Looked up on each request, so the page always uses the current fetch.
+    fetch: fetch ?? ((request: Request) => globalThis.fetch(request)),
   });
   api.use({
     onRequest({ request }) {
