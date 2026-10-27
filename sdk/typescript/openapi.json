@@ -10,6 +10,127 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/media/": {
+      "post": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Adds the file sent as the body to the media library; its type is read\nfrom its bytes. A file the library already has answers 200 with that\nitem, so a retry adds no second copy. Needs `media:write`.",
+        "operationId": "upload_media",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "The file's name, made a slug; the extension comes from its content.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folder",
+            "in": "query",
+            "description": "The library folder, such as `guides/2026`. The top when left out.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The file's bytes",
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The library already had this file; the item as it is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The new item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The folder is not up to five slugs joined by /",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file is a type the library refuses, cannot be read, or is too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "post": {
         "tags": [

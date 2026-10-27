@@ -11,6 +11,7 @@ use utoipa_axum::router::OpenApiRouter;
 
 use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
+use crate::media_api::{self, MediaLibrary};
 use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
@@ -85,12 +86,32 @@ pub fn router_with_door(
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
 ) -> (Router, Document) {
+    build(content, door, keys, None)
+}
+
+/// The same router with the site's media library under
+/// `/api/admin/v1/media/`. Without one, as in [`router_with_door`], the
+/// media routes answer that the site has no library.
+pub fn router_with_media(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    media: MediaLibrary,
+) -> (Router, Document) {
+    build(content, door, keys, Some(media))
+}
+
+fn build(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    media: Option<MediaLibrary>,
+) -> (Router, Document) {
+    let admin = admin_api::routes(door, Arc::clone(&keys))
+        .merge(media_api::routes(media, Arc::clone(&keys)));
     let api = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest(
-            content_api::BASE,
-            content_api::routes(content, Arc::clone(&keys)),
-        )
-        .nest(admin_api::BASE, admin_api::routes(door, keys));
+        .nest(content_api::BASE, content_api::routes(content, keys))
+        .nest(admin_api::BASE, admin);
     finish(api)
 }
 
