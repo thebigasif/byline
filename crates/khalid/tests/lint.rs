@@ -107,6 +107,45 @@ fn lint_json_prints_the_report_and_still_exits_1() {
 }
 
 #[test]
+fn lint_prints_each_post_below_100_with_its_score() {
+    let site = site(&[
+        ("2026-09-14-why-internal-links-matter.md", GOOD),
+        ("choosing-link-text.md", UNDATED),
+    ]);
+    let output = khalid(site.path(), &["lint"]);
+    let said = text(&output.stdout);
+    assert!(said.contains("Scores out of 100:"), "{said}");
+    assert!(said.contains("  en/choosing-link-text: 40\n"), "{said}");
+    let one = "content/en/posts/choosing-link-text.md";
+    let said = text(&khalid(site.path(), &["lint", one]).stdout);
+    assert!(said.contains("Score: 40 out of 100.\n"), "{said}");
+    assert!(!said.contains("Scores out of 100:"), "{said}");
+}
+
+#[test]
+fn lint_json_scores_every_post_and_one_post_alone() {
+    let site = site(&[
+        ("2026-09-14-why-internal-links-matter.md", GOOD),
+        ("choosing-link-text.md", UNDATED),
+    ]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let scores = json["scores"].as_array().unwrap();
+    assert_eq!(scores.len(), 2, "{json}");
+    let undated = scores.iter().find(|s| s["slug"] == "choosing-link-text");
+    let undated = undated.unwrap();
+    assert_eq!(undated["locale"], "en");
+    assert_eq!(undated["value"], 40);
+    assert_eq!(undated["lost"][0]["rule"], "no-date");
+
+    let one = "content/en/posts/choosing-link-text.md";
+    let output = khalid(site.path(), &["lint", one, "--json"]);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    assert_eq!(json["score"]["value"], 40, "{json}");
+    assert_eq!(json.get("scores"), None);
+}
+
+#[test]
 fn lint_checks_only_the_post_it_is_given() {
     let site = site(&[
         ("2026-09-14-why-internal-links-matter.md", GOOD),

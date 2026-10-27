@@ -51,10 +51,10 @@ impl Loss {
 impl Score {
     /// The score of `post` from `findings`, which may hold findings about
     /// other posts too; only those about `post` count.
-    pub(crate) fn of(post: &LintPost, findings: &[Finding]) -> Self {
+    pub(crate) fn of<'f>(post: &LintPost, findings: impl IntoIterator<Item = &'f Finding>) -> Self {
         let mut lost: Vec<Loss> = Vec::new();
         let mut refused = false;
-        let own = findings.iter().filter(|finding| {
+        let own = findings.into_iter().filter(|finding| {
             let at = finding.location();
             at.locale == post.locale && at.slug == post.slug
         });

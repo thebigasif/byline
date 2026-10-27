@@ -1,5 +1,7 @@
 //! The engine that runs every rule on every post.
 
+use std::collections::BTreeMap;
+
 use khalid_core::Clock;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
@@ -109,6 +111,7 @@ impl Linter {
     }
 
     /// Runs the post rules on one post: the check before it is published.
+    /// The report carries the post's score, see [`Report::post_score`].
     pub fn lint_post(&self, post: &LintPost, site: &dyn SiteView) -> Report {
         let mut findings = Vec::new();
         for configured in &self.rules {
@@ -116,7 +119,8 @@ impl Linter {
                 findings.push(configured.finding(configured.rule.id(), post, hit));
             }
         }
-        Report { findings }
+        let score = Some(Score::of(post, &findings));
+        Report { findings, score }
     }
 
     /// Whether the publish gate would refuse `post`, the same answer as
@@ -140,11 +144,15 @@ impl Linter {
                 findings.push(configured.finding(configured.rule.id(), post, hit));
             }
         }
-        Report { findings }
+        Report {
+            findings,
+            score: None,
+        }
     }
 
     /// Every rule on every post: the post rules post by post in site order,
-    /// then the site rules.
+    /// then the site rules. Each post's score comes from
+    /// [`Report::scores`].
     pub fn lint_site(&self, site: &dyn SiteView) -> Report {
         let mut findings: Vec<Finding> = site
             .posts()
@@ -152,7 +160,10 @@ impl Linter {
             .flat_map(|post| self.lint_post(post, site).findings)
             .collect();
         findings.extend(self.site_health(site).findings);
-        Report { findings }
+        Report {
+            findings,
+            score: None,
+        }
     }
 }
 
@@ -178,6 +189,8 @@ impl<R: ?Sized> Configured<R> {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Report {
     findings: Vec<Finding>,
+    /// The score of the one post a [`Linter::lint_post`] report is about.
+    score: Option<Score>,
 }
 
 impl Report {
@@ -192,6 +205,33 @@ impl Report {
         Score::of(post, &self.findings)
     }
 
+    /// The score of the post a [`Linter::lint_post`] report is about, or
+    /// `None` for a report on a whole site, which scores each post with
+    /// [`Report::scores`].
+    pub fn post_score(&self) -> Option<&Score> {
+        self.score.as_ref()
+    }
+
+    /// The score of each of `posts`, in their order, as [`Report::score`]
+    /// gives it. The findings are sorted by post once, so scoring every
+    /// post of a large site stays fast.
+    pub fn scores<'p>(&self, posts: &'p [LintPost]) -> Vec<(&'p LintPost, Score)> {
+        let mut by_post: BTreeMap<(&str, &str), Vec<&Finding>> = BTreeMap::new();
+        for finding in &self.findings {
+            let at = finding.location();
+            let key = (at.locale.as_str(), at.slug.as_str());
+            by_post.entry(key).or_default().push(finding);
+        }
+        posts
+            .iter()
+            .map(|post| {
+                let key = (post.locale.as_str(), post.slug.as_str());
+                let own = by_post.get(&key).map(Vec::as_slice).unwrap_or_default();
+                (post, Score::of(post, own.iter().copied()))
+            })
+            .collect()
+    }
+
     /// Whether any finding stops the post from being published.
     pub fn blocks(&self) -> bool {
         self.findings
@@ -200,12 +240,17 @@ impl Report {
     }
 }
 
-/// Serialised as `{"blocks": true, "findings": [...]}`.
+/// Serialised as `{"blocks": true, "findings": [...]}`, with the post's
+/// `"score"` after them when the report is about one post.
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut body = serializer.serialize_struct("Report", 2)?;
+        let fields = if self.score.is_some() { 3 } else { 2 };
+        let mut body = serializer.serialize_struct("Report", fields)?;
         body.serialize_field("blocks", &self.blocks())?;
         body.serialize_field("findings", &self.findings)?;
+        if let Some(score) = &self.score {
+            body.serialize_field("score", score)?;
+        }
         body.end()
     }
 }

@@ -5950,7 +5950,7 @@
               "object",
               "null"
             ],
-            "description": "For a post the linter refused, every finding, as `khalid lint\n--json` prints them."
+            "description": "For a post the linter refused, every finding, as `khalid lint\n--json` prints them for one post, and the post's `score` out of 100\nwith the rules that cost it points."
           },
           "rule": {
             "type": [

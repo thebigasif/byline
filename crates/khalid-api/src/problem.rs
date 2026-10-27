@@ -115,7 +115,8 @@ pub struct Problem {
     #[serde(skip_serializing_if = "Option::is_none")]
     instance: Option<String>,
     /// For a post the linter refused, every finding, as `khalid lint
-    /// --json` prints them.
+    /// --json` prints them for one post, and the post's `score` out of 100
+    /// with the rules that cost it points.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     lint: Option<Box<Report>>,

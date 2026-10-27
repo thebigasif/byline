@@ -106,3 +106,49 @@ fn the_score_serialises_with_what_it_lost() {
         serde_json::json!({"value": 40, "lost": [{"rule": "no-date", "points": 30}]})
     );
 }
+
+#[cfg(test)]
+fn linter() -> Linter {
+    let clock = FixedClock::new(Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap());
+    Linter::new(&LintConfig::default(), &clock).unwrap()
+}
+
+#[test]
+fn a_report_on_one_post_carries_its_score() {
+    let mut post = clean();
+    post.date = None;
+    let mut site = LintSite::default();
+    site.posts.push(post.clone());
+    let report = linter().lint_post(&post, &site);
+    assert_eq!(report.post_score().map(Score::value), Some(40));
+    let json = serde_json::to_value(&report).unwrap();
+    assert_eq!(json["score"]["value"], 40);
+    assert_eq!(json["score"]["lost"][0]["rule"], "no-date");
+}
+
+#[test]
+fn a_report_on_a_site_scores_each_post_once_in_site_order() {
+    let mut undated = clean();
+    undated.date = None;
+    let mut fine = clean();
+    fine.slug = Slug::try_new("another-post").unwrap();
+    let mut site = LintSite::default();
+    site.posts.push(undated);
+    site.posts.push(fine);
+    let report = linter().lint_site(&site);
+    assert_eq!(report.post_score(), None);
+    assert_eq!(serde_json::to_value(&report).unwrap().get("score"), None);
+    let scores: Vec<(&str, u8)> = report
+        .scores(&site.posts)
+        .iter()
+        .map(|(post, score)| (post.slug.as_str(), score.value()))
+        .collect();
+    let one_by_one: Vec<(&str, u8)> = site
+        .posts
+        .iter()
+        .map(|post| (post.slug.as_str(), report.score(post).value()))
+        .collect();
+    assert_eq!(scores, one_by_one);
+    assert_eq!(scores.len(), 2);
+    assert_eq!(scores.first().map(|(_, value)| *value), Some(40));
+}
