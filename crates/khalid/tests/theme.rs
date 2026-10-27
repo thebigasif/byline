@@ -122,6 +122,13 @@ async fn sync_writes_the_tokens_says_where_and_explains_each_contrast_fix() {
     assert!(!tokens.contains("#f0c040"), "{tokens}");
     let brand = format!("[brand]\nlogo = \"{home}logo.svg\"\nicon = \"{home}favicon.ico\"\n");
     assert!(tokens.ends_with(&brand), "{tokens}");
+    let preview = within(site.path(), "data/theme-preview/index.html");
+    let open = format!("Open {} in a browser to see", preview.display());
+    assert!(said.contains(&open), "{said}");
+    let page = fs::read_to_string(&preview).unwrap();
+    assert!(page.contains("How Northwind Bakery will look"), "{page}");
+    let css = fs::read_to_string(within(site.path(), "data/theme-preview/site.css")).unwrap();
+    assert!(css.contains("--color-background: #fbf8f3;"), "{css}");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -140,6 +147,8 @@ async fn sync_with_json_names_the_file_and_each_fix() {
     let body = json(&output);
     let file = within(site.path(), "theme/tokens.toml");
     assert_eq!(body["tokens"], file.display().to_string());
+    let preview = within(site.path(), "data/theme-preview/index.html");
+    assert_eq!(body["preview"], preview.display().to_string());
     assert_eq!(body["site"], home);
     let fix = &body["contrast_fixes"][0];
     assert_eq!(fix["token"], "colors.link");
@@ -242,6 +251,21 @@ async fn a_file_in_the_way_of_the_theme_folder_is_named() {
         said.contains("is a folder you can read and write"),
         "{said}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_preview_that_cannot_be_written_says_the_tokens_were_saved() {
+    let site = site();
+    fs::write(within(site.path(), "data"), "not a folder").unwrap();
+    let (_server, home) = stand_in(HOME, Some(STYLE)).await;
+
+    let output = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains("theme-preview"), "{said}");
+    assert!(said.contains("theme/tokens.toml is saved"), "{said}");
+    assert!(within(site.path(), "theme/tokens.toml").exists());
 }
 
 #[cfg(unix)]

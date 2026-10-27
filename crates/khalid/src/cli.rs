@@ -347,7 +347,8 @@ pub(crate) enum KeyKindArg {
 /// The theme commands.
 #[derive(Debug, Subcommand)]
 pub(crate) enum ThemeCommand {
-    /// Read the main site's colours and fonts into theme/tokens.toml
+    /// Read the main site's colours, fonts, logo and icon into
+    /// theme/tokens.toml, and draw a preview in data/theme-preview/
     Sync {
         /// The main site's address, such as `https://www.example.com`
         url: AbsoluteUrl,

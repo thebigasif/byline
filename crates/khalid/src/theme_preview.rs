@@ -56,19 +56,19 @@ impl PreviewError {
         match self {
             Self::Render(error) => UserMessage::new(
                 format!("Khalid could not draw the theme preview: {error}."),
-                "The preview shows how the blog will look with the copied colours and fonts.",
+                "theme/tokens.toml is saved, but the preview that shows how the blog will look is missing.",
                 "Fix the value or template the message names, then run the sync again.",
             ),
             Self::Path(error) => UserMessage::new(
                 format!("Khalid will not write the preview to {FOLDER}: {error}."),
-                "Khalid writes only inside the site folder, so no other file can change.",
+                "theme/tokens.toml is saved, but Khalid writes only inside the site folder, so there is no preview.",
                 format!(
                     "Make {FOLDER} a plain folder inside the site that you may read, then run the sync again."
                 ),
             ),
             Self::Write { path, source } => UserMessage::new(
                 format!("Khalid could not write {}: {source}.", path.display()),
-                "The preview exists only once its files are written.",
+                "theme/tokens.toml is saved, but the preview exists only once its files are written.",
                 "Check that you may write to the site folder, then run the sync again.",
             ),
         }
