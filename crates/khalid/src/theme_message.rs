@@ -74,15 +74,18 @@ pub(crate) fn drawn_by_script(url: &AbsoluteUrl) -> String {
 
 /// What a person reads about a font the blog may not serve.
 pub(crate) fn held_font(font: &HeldFont) -> String {
-    let service = match font.host() {
-        FontHost::Adobe => "Adobe Fonts",
-        _ => font.server(),
-    };
-    format!(
-        "The font {} comes from {service}, whose licence does not let the blog serve it, \
-         so the blog shows the next font in its list.",
-        font.family()
-    )
+    let family = font.family();
+    match font.host() {
+        FontHost::Adobe => format!(
+            "The font {family} comes from Adobe Fonts, whose licence does not let the blog \
+             serve it, so the blog shows the next font in its list."
+        ),
+        _ => format!(
+            "The font {family} comes from {}, and Khalid cannot tell whether its licence lets \
+             the blog serve it, so the blog shows the next font in its list.",
+            font.server()
+        ),
+    }
 }
 
 /// The message when the CSS file given with `--from-css` cannot be read.

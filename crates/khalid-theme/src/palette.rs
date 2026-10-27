@@ -74,7 +74,8 @@ impl Palette {
     /// such as `--bs-body-bg`, `--color-text`, `--link-color` or
     /// `--brand`, the shortest such name winning. Every `var()` is resolved.
     ///
-    /// When neither says, frequency decides: the most used background, the
+    /// When neither says, and no page rule sets the other of background
+    /// and text, frequency decides: the most used background, the
     /// most used text colour readable on it, and the most used vivid colour
     /// as the accent. A site with a link colour and no other accent uses the
     /// link colour for both.
@@ -91,13 +92,20 @@ impl Palette {
         };
         let named = |role| named(&properties, role);
         let counts = Counts::of(&rules, &properties);
-        let background = declared(&PAGE, &["background-color", "background"])
+        let page_background = declared(&PAGE, &["background-color", "background"]);
+        let page_text = declared(&PAGE, &["color"]);
+        // A page rule that sets one of the two leaves the other to the
+        // browser on purpose, so frequency must not guess it.
+        let guess = page_background.is_none() && page_text.is_none();
+        let background = page_background
             .or_else(|| named(Role::Background))
-            .or_else(|| most(&counts.backgrounds, |_| true));
+            .or_else(|| guess.then(|| most(&counts.backgrounds, |_| true)).flatten());
         let on = background.unwrap_or(WHITE);
-        let text = declared(&PAGE, &["color"])
-            .or_else(|| named(Role::Text))
-            .or_else(|| most(&counts.texts, |color| color.contrast(on) >= TEXT_CONTRAST));
+        let text = page_text.or_else(|| named(Role::Text)).or_else(|| {
+            guess
+                .then(|| most(&counts.texts, |color| color.contrast(on) >= TEXT_CONTRAST))
+                .flatten()
+        });
         let link = declared(&LINKS, &["color"]).or_else(|| named(Role::Link));
         let accent = named(Role::Accent)
             .or_else(|| {

@@ -100,7 +100,9 @@ impl FontHost {
             Ok(url) => match url.host_str() {
                 Some("fonts.googleapis.com" | "fonts.gstatic.com") => Self::Google,
                 Some("use.typekit.net" | "p.typekit.net") => Self::Adobe,
-                _ => Self::Other,
+                // A `data:` font is written inside the site's own CSS.
+                None => Self::SelfHosted,
+                Some(_) => Self::Other,
             },
         }
     }
@@ -183,11 +185,17 @@ impl Typography {
     }
 }
 
-/// The fonts the blog may not serve: every font file on a server whose
-/// licence we do not know, and, when the page links a paid font service
-/// such as an Adobe Fonts kit, the first family of the body and heading
-/// lists that no open source loads.
+/// The text fonts the blog may not serve: the first family of the body and
+/// heading lists, when it is loaded from a server whose licence we do not
+/// know, or, with a paid font service such as an Adobe Fonts kit linked,
+/// when no open source loads it. Icon fonts and other families the text
+/// does not use are left out.
 fn held_fonts(sources: &[FontSource], links: &[&str], lists: [Option<&str>; 2]) -> Vec<HeldFont> {
+    let firsts: Vec<&str> = lists
+        .iter()
+        .flatten()
+        .filter_map(|list| first_family(list))
+        .collect();
     let mut held: Vec<HeldFont> = Vec::new();
     let mut keep = |family: &str, host: FontHost, url: &str| {
         if !held
@@ -205,14 +213,21 @@ fn held_fonts(sources: &[FontSource], links: &[&str], lists: [Option<&str>; 2]) 
             });
         }
     };
+    let used = |family: &str| {
+        firsts
+            .iter()
+            .any(|first| first.eq_ignore_ascii_case(family))
+    };
     for source in sources.iter().filter(|source| !source.host.can_rehost()) {
-        keep(&source.family, source.host, &source.url);
+        if used(&source.family) {
+            keep(&source.family, source.host, &source.url);
+        }
     }
     let services = links
         .iter()
         .filter_map(|link| Some((paid_service(link)?, *link)));
     for (host, link) in services {
-        for first in lists.iter().flatten().filter_map(|list| first_family(list)) {
+        for &first in &firsts {
             let served = sources
                 .iter()
                 .any(|source| source.family.eq_ignore_ascii_case(first));
