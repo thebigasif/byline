@@ -6,6 +6,8 @@
 pub(crate) enum Syntax {
     /// `%%title%%`, as Yoast writes it.
     Double,
+    /// `%title%`, as Rank Math writes it.
+    Single,
 }
 
 /// The values the variables stand for in one post.
@@ -40,6 +42,7 @@ impl Vars<'_> {
 pub(crate) fn fill(text: &str, syntax: Syntax, vars: &Vars<'_>) -> Option<String> {
     let mark = match syntax {
         Syntax::Double => "%%",
+        Syntax::Single => "%",
     };
     let mut filled = String::with_capacity(text.len());
     let mut rest = text;

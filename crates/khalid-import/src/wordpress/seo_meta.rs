@@ -4,13 +4,16 @@
 
 use khalid_core::{AbsoluteUrl, RobotsDirectives};
 
-use crate::wordpress::seo_text::{Syntax, Vars, fill};
+use crate::wordpress::seo_plugins::{Fields, PLUGINS};
+use crate::wordpress::seo_text::{Vars, fill};
 use crate::wordpress::{Item, Site};
 
 /// An SEO plugin whose fields the importer reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum SeoPlugin {
+    /// Rank Math.
+    RankMath,
     /// Yoast SEO.
     Yoast,
 }
@@ -18,7 +21,8 @@ pub enum SeoPlugin {
 /// What the SEO plugins say about one post.
 ///
 /// A site that changed plugins can carry fields from several. Each field
-/// comes from the first plugin, in [`SeoPlugin`] order, that set it.
+/// comes from the first plugin, in [`SeoPlugin`] order, that set it. Yoast
+/// comes last, because the others import its fields when a site switches.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[non_exhaustive]
 pub struct SeoMeta {
@@ -50,32 +54,6 @@ pub struct UnreadField {
     /// Its value as written.
     pub value: String,
 }
-
-/// Where one plugin keeps each field.
-struct Fields {
-    plugin: SeoPlugin,
-    syntax: Syntax,
-    title: &'static [&'static str],
-    description: &'static [&'static str],
-    canonical: &'static [&'static str],
-    focus: &'static [&'static str],
-    primary_category: &'static [&'static str],
-    /// The field named when the robots words cannot be read.
-    robots_key: &'static str,
-    robots: fn(&Item) -> Vec<&str>,
-}
-
-const PLUGINS: [Fields; 1] = [Fields {
-    plugin: SeoPlugin::Yoast,
-    syntax: Syntax::Double,
-    title: &["_yoast_wpseo_title"],
-    description: &["_yoast_wpseo_metadesc"],
-    canonical: &["_yoast_wpseo_canonical"],
-    focus: &["_yoast_wpseo_focuskw"],
-    primary_category: &["_yoast_wpseo_primary_category"],
-    robots_key: "_yoast_wpseo_meta-robots-noindex",
-    robots: yoast_robots,
-}];
 
 impl SeoMeta {
     /// Reads what the SEO plugins stored for `item`, on `site`.
@@ -121,14 +99,27 @@ impl SeoMeta {
             // Plugins write "none" or nothing when no category was chosen.
             self.primary_category = value.parse().ok();
         }
-        let words = (fields.robots)(item);
-        if self.robots.is_none() && !words.is_empty() {
-            let text = words.join(", ");
-            match text.parse::<RobotsDirectives>() {
-                Ok(robots) if robots == RobotsDirectives::default() => {}
-                Ok(robots) => self.robots = Some(robots),
-                Err(_) => self.unread(plugin, fields.robots_key, &text),
+        if self.robots.is_none() {
+            self.robots(item, fields);
+        }
+    }
+
+    /// The robots directives, when one plugin's words differ from the
+    /// defaults, or the field listed as unread.
+    fn robots(&mut self, item: &Item, fields: &Fields) {
+        let words = match (fields.robots)(item) {
+            Ok(words) if words.is_empty() => return,
+            Ok(words) => words,
+            Err(key) => {
+                let value = item.meta(key).unwrap_or_default();
+                return self.unread(fields.plugin, key, value);
             }
+        };
+        let text = words.join(", ");
+        match text.parse::<RobotsDirectives>() {
+            Ok(robots) if robots == RobotsDirectives::default() => {}
+            Ok(robots) => self.robots = Some(robots),
+            Err(_) => self.unread(fields.plugin, fields.robots_key, &text),
         }
     }
 
@@ -163,23 +154,4 @@ fn set<'item>(item: &'item Item, keys: &[&'static str]) -> Option<(&'static str,
     keys.iter()
         .find_map(|key| item.meta(key).map(|value| (*key, value.trim())))
         .filter(|(_, value)| !value.is_empty())
-}
-
-/// Yoast writes 1 for noindex and 2 for an explicit index, 1 for nofollow,
-/// and the rest as a list such as `noarchive,nosnippet`.
-fn yoast_robots(item: &Item) -> Vec<&str> {
-    let mut words = Vec::new();
-    match item.meta("_yoast_wpseo_meta-robots-noindex") {
-        Some("1") => words.push("noindex"),
-        Some("2") => words.push("index"),
-        _ => {}
-    }
-    if item.meta("_yoast_wpseo_meta-robots-nofollow") == Some("1") {
-        words.push("nofollow");
-    }
-    if let Some(advanced) = item.meta("_yoast_wpseo_meta-robots-adv") {
-        let listed = advanced.split(',').map(str::trim);
-        words.extend(listed.filter(|word| !["", "none", "-"].contains(word)));
-    }
-    words
 }

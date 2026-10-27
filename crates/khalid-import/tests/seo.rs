@@ -91,3 +91,57 @@ fn a_variable_that_fills_with_nothing_leaves_the_field_empty() {
     assert_eq!(seo.description, None);
     assert_eq!(seo.unread.len(), 2, "only the title and canonical");
 }
+
+#[test]
+fn rank_math_fields_with_its_serialised_robots() {
+    let seo = seo("rankmath", 30);
+    assert_eq!(
+        seo.title.as_deref(),
+        Some("Feeding a sourdough starter - Northfield Bakery Blog")
+    );
+    assert_eq!(
+        seo.description.as_deref(),
+        Some("How much flour and water a starter needs, and how often.")
+    );
+    assert_eq!(
+        seo.canonical.as_ref().map(AbsoluteUrl::as_str),
+        Some("https://northfield.example.com/starters/")
+    );
+    let words = "noindex, nofollow, noimageindex, max-snippet:160, \
+                 max-video-preview:-1, max-image-preview:large";
+    assert_eq!(seo.robots, Some(robots(words)));
+    assert_eq!(
+        seo.focus_keywords,
+        ["sourdough starter", "levain", "feeding schedule"]
+    );
+    assert_eq!(seo.primary_category, Some(3));
+    assert!(seo.unread.is_empty(), "{:?}", seo.unread);
+}
+
+#[test]
+fn rank_math_comes_before_the_yoast_fields_it_imported() {
+    let seo = seo("rankmath", 31);
+    assert_eq!(
+        seo.title.as_deref(),
+        Some("More rise from the same flour - Northfield")
+    );
+    assert_eq!(
+        seo.description.as_deref(),
+        Some("Get 50% more rise with a warmer proof."),
+        "a lone % is text, not a variable"
+    );
+    assert_eq!(
+        seo.focus_keywords,
+        ["rise"],
+        "Yoast fills what Rank Math left"
+    );
+    assert_eq!(seo.robots, None);
+    assert_eq!(
+        unread(&seo),
+        [(
+            SeoPlugin::RankMath,
+            "rank_math_advanced_robots",
+            r#"a:1:{s:11:"max-snippet";s:3:"160""#
+        )]
+    );
+}

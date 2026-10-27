@@ -2,7 +2,9 @@
 
 mod export;
 mod item;
+mod php;
 mod seo_meta;
+mod seo_plugins;
 mod seo_text;
 mod wxr;
 mod wxr_error;
