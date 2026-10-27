@@ -100,6 +100,7 @@ impl Prepared {
             contents: None,
             originals: BTreeMap::new(),
             related: Vec::new(),
+            comments: None,
             body,
         };
         let meta = PageMeta {

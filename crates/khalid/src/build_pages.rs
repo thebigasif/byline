@@ -307,6 +307,7 @@ fn post_page(
         contents: build_reader::contents(&rendered.headings),
         originals: BTreeMap::new(),
         related,
+        comments: None,
         body: html,
     };
     seo.author = post.authors.first().map(|author| author.name.clone());

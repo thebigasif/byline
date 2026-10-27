@@ -1,0 +1,56 @@
+---
+source: crates/khalid-render/tests/render/comments.rs
+expression: section
+---
+<section class="comments" id="comments" aria-labelledby="comments-title">
+<h2 id="comments-title">Comments</h2>
+<p class="comment-sent" id="comment-sent" role="status">Thanks. Your comment shows here once it is approved.</p>
+<ol class="comment-list">
+<li class="comment" id="comment-1">
+<article class="comment-body">
+<p class="comment-meta"><span class="comment-author">Ben &lt;Reader&gt;</span> <time datetime="2026-10-27">27 October 2026</time></p>
+<p>Useful.</p>
+<p>Thanks!</p>
+</article>
+<ol class="comment-replies">
+<li class="comment" id="comment-2">
+<article class="comment-body">
+<p class="comment-meta"><span class="comment-author">Lena Vogt</span> <span class="comment-staff">From the blog</span> <time datetime="2026-10-27">27 October 2026</time></p>
+<p>Glad it helped.</p>
+</article>
+</li>
+</ol>
+<details class="comment-reply">
+<summary>Reply</summary>
+<form class="comment-form" method="post" action="/blog/comments/">
+<input type="hidden" name="page" value="/blog/what-a-sitemap-does/">
+<input type="hidden" name="parent" value="1">
+<p><label for="comment-1-name">Name</label>
+<input id="comment-1-name" name="name" type="text" required maxlength="80" autocomplete="name"></p>
+<p><label for="comment-1-email">Email, optional and never shown</label>
+<input id="comment-1-email" name="email" type="email" maxlength="254" autocomplete="email"></p>
+<p class="comment-trap" aria-hidden="true"><label for="comment-1-website">Leave this field empty</label>
+<input id="comment-1-website" name="website" type="text" tabindex="-1" autocomplete="off"></p>
+<p><label for="comment-1-text">Comment</label>
+<textarea id="comment-1-text" name="comment" required maxlength="5000" rows="5"></textarea></p>
+<p class="comment-held">Comments show here once the author approves them.</p>
+<p><button type="submit">Send comment</button></p>
+</form>
+</details>
+</li>
+</ol>
+<h3>Leave a comment</h3>
+<form class="comment-form" method="post" action="/blog/comments/">
+<input type="hidden" name="page" value="/blog/what-a-sitemap-does/">
+<p><label for="comment-new-name">Name</label>
+<input id="comment-new-name" name="name" type="text" required maxlength="80" autocomplete="name"></p>
+<p><label for="comment-new-email">Email, optional and never shown</label>
+<input id="comment-new-email" name="email" type="email" maxlength="254" autocomplete="email"></p>
+<p class="comment-trap" aria-hidden="true"><label for="comment-new-website">Leave this field empty</label>
+<input id="comment-new-website" name="website" type="text" tabindex="-1" autocomplete="off"></p>
+<p><label for="comment-new-text">Comment</label>
+<textarea id="comment-new-text" name="comment" required maxlength="5000" rows="5"></textarea></p>
+<p class="comment-held">Comments show here once the author approves them.</p>
+<p><button type="submit">Send comment</button></p>
+</form>
+</section>

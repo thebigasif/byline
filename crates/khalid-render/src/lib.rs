@@ -12,6 +12,7 @@
 
 mod asset;
 mod author;
+mod comments;
 mod contents;
 mod dates;
 mod direction;
@@ -43,6 +44,7 @@ mod tokens;
 
 pub use asset::Asset;
 pub use author::{AuthorEntry, RenderAuthor, RenderAuthors, RenderPage};
+pub use comments::{CommentWriter, RenderComment, RenderComments, RenderThread};
 pub use contents::{Contents, ContentsHeading, HeadingLevel};
 pub use features::{Feature, Features};
 pub use glossary::{GlossaryGroup, GlossaryTerm, RenderGlossary, RenderSearch, SearchResult};
