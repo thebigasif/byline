@@ -12,6 +12,48 @@ pub struct Export {
     pub version: Option<String>,
     /// Every post and page, in file order.
     pub posts: Vec<Post>,
+    /// Every staff user, in file order, whether or not they wrote a post.
+    pub authors: Vec<Author>,
+    /// Every tag, in file order.
+    pub tags: Vec<Tag>,
+}
+
+/// A staff user, who may be the author of posts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Author {
+    /// The id posts use to name them.
+    pub id: String,
+    /// The name shown on posts.
+    pub name: String,
+    /// The slug of their page, `/author/<slug>/` in Ghost.
+    pub slug: String,
+    /// What they wrote about themselves.
+    pub bio: Option<String>,
+    /// Their own website.
+    pub website: Option<String>,
+    /// Their X account, formerly Twitter, as Ghost stores it, such as
+    /// `@maralind`.
+    pub twitter: Option<String>,
+    /// Their Facebook profile, as Ghost stores it, such as `maralind.bakes`.
+    pub facebook: Option<String>,
+}
+
+/// A tag. Ghost's first tag on a post is its primary tag.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Tag {
+    /// The id posts use to name it.
+    pub id: String,
+    /// The name readers see.
+    pub name: String,
+    /// The slug of its page, `/tag/<slug>/` in Ghost.
+    pub slug: String,
+    /// What the tag is about.
+    pub description: Option<String>,
+    /// Whether it is an internal tag, whose name starts with `#`, which
+    /// readers never see and which has no page.
+    pub internal: bool,
 }
 
 /// One post or page of the export.
@@ -47,6 +89,10 @@ pub struct Post {
     pub seo: Seo,
     /// The HTML it added to its own page, which an import never carries.
     pub code_injection: CodeInjection,
+    /// The ids of its authors, the main one first.
+    pub authors: Vec<String>,
+    /// The ids of its tags, the primary one first.
+    pub tags: Vec<String>,
 }
 
 /// Whether an entry is a post or a page.

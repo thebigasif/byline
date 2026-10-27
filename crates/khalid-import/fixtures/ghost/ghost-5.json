@@ -83,6 +83,35 @@
             "email_subject": null
           }
         ],
+        "users": [
+          {
+            "id": "1",
+            "name": "Mara Lind",
+            "slug": "mara",
+            "email": "mara@northfield.example.com",
+            "bio": "Mara bakes the rye.",
+            "website": "https://maralind.example.org",
+            "twitter": "@maralind",
+            "facebook": "maralind.bakes",
+            "status": "active"
+          },
+          { "id": "6650a1f2c3d4e5f6a7b8f002", "name": "Jonas Berg", "slug": "jonas", "bio": "", "status": "active" }
+        ],
+        "tags": [
+          { "id": "6650a1f2c3d4e5f6a7b8a001", "name": "Sourdough", "slug": "sourdough", "description": "Wild yeast, slowly.", "visibility": "public" },
+          { "id": "6650a1f2c3d4e5f6a7b8a002", "name": "Rye", "slug": "rye", "description": null, "visibility": "public" },
+          { "id": "6650a1f2c3d4e5f6a7b8a003", "name": "#newsletter", "slug": "hash-newsletter", "visibility": "internal" }
+        ],
+        "posts_tags": [
+          { "id": "t1", "post_id": "6650a1f2c3d4e5f6a7b8c901", "tag_id": "6650a1f2c3d4e5f6a7b8a002", "sort_order": 1 },
+          { "id": "t2", "post_id": "6650a1f2c3d4e5f6a7b8c901", "tag_id": "6650a1f2c3d4e5f6a7b8a003", "sort_order": 2 },
+          { "id": "t3", "post_id": "6650a1f2c3d4e5f6a7b8c901", "tag_id": "6650a1f2c3d4e5f6a7b8a001", "sort_order": 0 }
+        ],
+        "posts_authors": [
+          { "id": "p1", "post_id": "6650a1f2c3d4e5f6a7b8c901", "author_id": "6650a1f2c3d4e5f6a7b8f002", "sort_order": 1 },
+          { "id": "p2", "post_id": "6650a1f2c3d4e5f6a7b8c901", "author_id": "1", "sort_order": 0 },
+          { "id": "p3", "post_id": "6650a1f2c3d4e5f6a7b8c902", "author_id": "1", "sort_order": 0 }
+        ],
         "settings": [
           { "id": "6650a1f2c3d4e5f6a7b8e001", "key": "title", "value": "Northfield Bakery" },
           { "id": "6650a1f2c3d4e5f6a7b8e002", "key": "codeinjection_head", "value": "" }
