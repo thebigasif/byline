@@ -1893,6 +1893,7 @@ dependencies = [
  "clap",
  "image",
  "insta",
+ "khalid-admin",
  "khalid-api",
  "khalid-content",
  "khalid-core",
@@ -1918,6 +1919,16 @@ dependencies = [
  "toml",
  "tracing",
  "wiremock",
+]
+
+[[package]]
+name = "khalid-admin"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "http-body-util",
+ "tokio",
+ "tower",
 ]
 
 [[package]]

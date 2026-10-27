@@ -150,7 +150,11 @@ fn serve_with(
         let scheduling = scheduler::start(Arc::clone(&door));
         let (api, _) = api::router_with_door(Arc::new(content), door, Arc::new(keys));
         let searches = search_route::router(config, search);
-        let app = api.merge(searches).merge(router(live, security));
+        let admin = khalid_admin::router(khalid_admin::built());
+        let app = api
+            .merge(searches)
+            .merge(admin)
+            .merge(router(live, security));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
