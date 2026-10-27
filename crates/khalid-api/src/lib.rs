@@ -10,6 +10,7 @@ mod admin_api;
 mod admin_key;
 pub mod api;
 mod api_version;
+pub mod comment_moderation;
 pub mod content_api;
 mod content_key;
 pub mod content_store;

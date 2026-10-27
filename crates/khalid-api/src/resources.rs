@@ -4,6 +4,7 @@
 mod admin_post;
 mod author;
 mod collection;
+mod comment;
 mod content_collection;
 mod menu;
 mod post;
@@ -13,6 +14,7 @@ mod term;
 pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
 pub use author::Author;
 pub use collection::Collection;
+pub use comment::{AdminComment, CommentReply, CommentStatus, CommentWriter};
 pub use content_collection::ContentCollection;
 pub use menu::{Menu, MenuLink};
 pub use post::{Bodies, Post};
