@@ -25,7 +25,9 @@ mod media_error;
 mod media_item;
 mod media_type;
 mod original;
+mod storage;
 mod variant;
+mod whole_file;
 
 pub use content_key::ContentKey;
 pub use crop::Crop;
@@ -38,4 +40,5 @@ pub use media_error::MediaError;
 pub use media_item::{MediaItem, ParseItemError, Pixels};
 pub use media_type::{Kind, MediaType, ParseMediaTypeError, Refusal};
 pub use original::Original;
+pub use storage::{FileAddress, LocalStorage, Storage};
 pub use variant::{Format, Variant, widths};
