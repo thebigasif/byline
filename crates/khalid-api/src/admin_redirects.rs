@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::{Extension, Json, middleware};
 use chrono::{DateTime, Utc};
@@ -27,6 +27,7 @@ use crate::redirect_store::{Origin, RedirectStoreError, StoredRedirect};
 pub(crate) fn routes(desk: RedirectDesk, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_redirects, create_redirect))
+        .routes(routes!(remove_redirect))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(desk)
@@ -175,6 +176,45 @@ async fn create_redirect(
         })?;
     let redirects = added.iter().map(AdminRedirect::from).collect();
     Ok((StatusCode::CREATED, Json(AdminRedirects { redirects })))
+}
+
+/// Removes one stored redirect. Needs `settings:write`.
+#[utoipa::path(
+    delete, path = "/redirects/{id}/", tag = "admin redirects",
+    security(("admin_key" = [])),
+    params(("id" = i64, Path, description = "The redirect's identity")),
+    responses(
+        (status = 204, description = "The redirect is gone"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks settings:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No redirect has this identity", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn remove_redirect(
+    State(desk): State<RedirectDesk>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, Problem> {
+    require(&principal, Scope::SettingsWrite)?;
+    // An identity that is not a number names no redirect, so it gets the
+    // same 404 as one already removed.
+    let removed = match id.parse::<i64>() {
+        Ok(id) => desk
+            .store
+            .remove(id)
+            .await
+            .map_err(|e| Problem::internal(&e))?,
+        Err(_) => false,
+    };
+    if !removed {
+        let message = UserMessage::new(
+            "No redirect has this identity.",
+            "It may have been removed already.",
+            "List the redirects to find the one you want.",
+        );
+        return Err(Problem::new(ProblemType::NotFound, &message));
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// The 422 for a redirect that cannot be followed.

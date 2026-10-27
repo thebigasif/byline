@@ -541,6 +541,76 @@
         ]
       }
     },
+    "/api/admin/v1/redirects/{id}/": {
+      "delete": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Removes one stored redirect. Needs `settings:write`.",
+        "operationId": "remove_redirect",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The redirect's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The redirect is gone"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No redirect has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/authors/": {
       "get": {
         "tags": [

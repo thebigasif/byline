@@ -198,3 +198,25 @@ async fn a_loop_or_a_taken_address_is_refused_and_nothing_stored() {
         "{json}"
     );
 }
+
+#[tokio::test]
+async fn a_redirect_is_removed_by_its_identity() {
+    let desk = desk("/blog/a/,/blog/b/,301\n").await;
+    let (_, json) = send(desk.clone(), SETTINGS, get("/api/admin/v1/redirects/")).await;
+    let uri = format!("/api/admin/v1/redirects/{}/", json["redirects"][0]["id"]);
+    let delete = || Request::delete(uri.as_str()).body(Body::empty()).unwrap();
+    let (status, _) = send(desk.clone(), SETTINGS, delete()).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, json) = send(desk.clone(), SETTINGS, delete()).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
+    let (_, json) = send(desk.clone(), SETTINGS, get("/api/admin/v1/redirects/")).await;
+    assert_eq!(json["redirects"], Value::Array(Vec::new()));
+
+    let words = Request::delete("/api/admin/v1/redirects/old-links/").body(Body::empty());
+    let (status, json) = send(desk, SETTINGS, words.unwrap()).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
+    assert!(
+        json["detail"].as_str().unwrap().contains("No redirect"),
+        "{json}"
+    );
+}
