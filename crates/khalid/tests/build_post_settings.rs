@@ -159,6 +159,31 @@ fn a_password_post_shows_a_form_that_works_without_scripts() {
 }
 
 #[test]
+fn a_static_site_shows_a_password_post_locked_with_no_form_to_send() {
+    let hash = "$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHQ$aGFzaGhhc2g";
+    let site = site(&format!("password_hash: \"{hash}\"\n"), &[]);
+    let settings = at(site.path(), "site.toml");
+    let text = fs::read_to_string(&settings).unwrap();
+    fs::write(
+        &settings,
+        text.replace("mode = \"server\"", "mode = \"static\""),
+    )
+    .unwrap();
+    assert_eq!(khalid(site.path()).status.code(), Some(0));
+    let page = post_page(site.path());
+    assert!(
+        !page.contains("_unlock/"),
+        "no form posts to a missing server: {page}"
+    );
+    assert!(
+        page.contains("This form cannot be sent from this site."),
+        "{page}"
+    );
+    assert!(!at(site.path(), "public/_unlocked").exists());
+    nothing_shows_the_body(site.path());
+}
+
+#[test]
 fn a_template_the_theme_lacks_stops_the_build_and_names_the_file() {
     let site = site("template: narrow\n", &[]);
     let output = khalid(site.path());
