@@ -10,6 +10,7 @@
 //! site cannot read.
 
 mod csv;
+mod find;
 mod front_matter;
 pub mod ghost;
 mod markdown;
