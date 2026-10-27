@@ -21,13 +21,18 @@ fn within(dir: &Path, name: &str) -> PathBuf {
     path
 }
 
-/// Copies the folder `from` into `to`, file by file.
+/// Copies the folder `from` into `to`, file by file. A `data` folder is
+/// left out: tests that build the demo site in place fill it with image
+/// sizes, and this copy must start with none.
 #[cfg(test)]
 fn copy(from: &Path, to: &Path) {
     fs::create_dir_all(to).unwrap();
     for entry in fs::read_dir(from).unwrap() {
         let entry = entry.unwrap();
         let name = entry.file_name().into_string().unwrap();
+        if name == "data" {
+            continue;
+        }
         if entry.file_type().unwrap().is_dir() {
             copy(&entry.path(), &within(to, &name));
         } else {

@@ -2,7 +2,7 @@
 //! records of `khalid-render` (ADR 0009), one language at a time.
 
 use std::cmp::Reverse;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use khalid_content::{Document, PostFront, SiteContent, Wikilinks, render_linked};
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
@@ -31,6 +31,19 @@ pub(crate) struct Page {
     /// The page as the SEO outputs read it, before its language versions
     /// are linked by `build_seo::heads`.
     pub(crate) seo: SeoPage,
+    /// The content file it was made from, relative to the site folder, so
+    /// `post_files` can find the files beside it. `None` for lists.
+    pub(crate) source: Option<PathBuf>,
+}
+
+impl Page {
+    /// The page, made from the content file at `path`.
+    fn made_from(self, path: &Path) -> Self {
+        Self {
+            source: Some(path.to_path_buf()),
+            ..self
+        }
+    }
 }
 
 /// Every page of the site, per language in the order of `site.toml`: each
@@ -95,6 +108,7 @@ fn language_pages(
         meta: missing,
         body: PageBody::NotFound,
         seo: missing_seo,
+        source: None,
     });
     Ok(LanguagePages {
         site: render_site(config, locale, stylesheet),
@@ -156,7 +170,7 @@ fn post_pages<'a>(
         seo.author = post.authors.first().map(|author| author.name.clone());
         let meta = meta(config, title, description, path, PageKind::Article)?;
         let body = PageBody::Post(Box::new(post));
-        pages.push(page(locale, config, &rest, meta, body, seo));
+        pages.push(page(locale, config, &rest, meta, body, seo).made_from(&doc.path));
     }
     Ok((pages, cards))
 }
@@ -184,7 +198,8 @@ fn plain_pages(
             updated: None,
             body: body_html(config, links, doc)?,
         };
-        pages.push(page(locale, config, &rest, meta, PageBody::Page(body), seo));
+        let body = PageBody::Page(body);
+        pages.push(page(locale, config, &rest, meta, body, seo).made_from(&doc.path));
     }
     Ok(pages)
 }
@@ -214,7 +229,8 @@ fn glossary_pages(
             updated: None,
             body: body_html(config, links, doc)?,
         };
-        pages.push(page(locale, config, &rest, meta, PageBody::Page(body), seo));
+        let body = PageBody::Page(body);
+        pages.push(page(locale, config, &rest, meta, body, seo).made_from(&doc.path));
     }
     Ok(pages)
 }
@@ -267,7 +283,7 @@ fn author_pages(
             pagination: None,
         };
         let body = PageBody::Author(Box::new(author));
-        pages.push(page(locale, config, &rest, meta, body, seo));
+        pages.push(page(locale, config, &rest, meta, body, seo).made_from(&doc.path));
     }
     Ok(pages)
 }
@@ -405,6 +421,7 @@ fn page(
         meta,
         body,
         seo,
+        source: None,
     }
 }
 

@@ -61,11 +61,12 @@ impl Page {
         }
     }
 
-    /// The page with its Brotli copy, when compressing makes it smaller.
-    /// When `old` has the same bytes, by its tag, and a copy, that copy is
-    /// shared instead of compressing again.
+    /// The page with its Brotli copy, when its kind is text and compressing
+    /// makes it smaller. When `old` has the same bytes, by its tag, and a
+    /// copy, that copy is shared instead of compressing again.
     pub(crate) fn compressed_like(self, old: Option<&Self>) -> Self {
         let brotli = match old {
+            _ if !self.media_type.compresses() => None,
             Some(old) if old.etag.is_some() && old.etag == self.etag && old.brotli.is_some() => {
                 old.brotli.clone()
             }

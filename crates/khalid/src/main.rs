@@ -34,6 +34,8 @@ mod lint_message;
 mod new;
 mod new_message;
 mod outbound;
+mod post_files;
+mod post_images;
 mod post_text;
 mod repair;
 mod report;

@@ -2,9 +2,9 @@
 //! rendered into memory instead of files.
 
 use std::error::Error;
-use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::{fmt, fs};
 
 use khalid_content::{ContentTree, SiteContent, check_bodies, read_content};
 use khalid_core::{Config, UserMessage};
@@ -14,8 +14,9 @@ use khalid_routes::Routes;
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
 use tokio::runtime::Handle;
 
+use crate::build_pages::LanguagePages;
 use crate::site_content::{LiveContent, published};
-use crate::{assets, build_message, build_pages, content_message};
+use crate::{assets, build_message, build_pages, content_message, post_files, post_images};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
@@ -85,19 +86,36 @@ impl SitePages {
             routes,
             ..
         } = &*self.0;
-        let content = ContentTree::walk(folder)
-            .and_then(|tree| read_content(&tree))
+        let tree = self.tree()?;
+        let content = read_content(&tree)
             .and_then(|content| check_bodies(&content, config, routes).map(|()| content))
             .map_err(|error| content_message::of(folder, &error))?;
-        self.render_content(&content)
+        self.render_from(&tree, &content)
     }
 
     /// Every page made from `content`, already read from the site folder,
     /// and the not-found page, refreshing the feed first when there is one.
-    /// At start, `khalid serve` passes the content it checked, so the folder
-    /// is read once, not twice. `content` must have passed `check_bodies`.
+    /// At start, `khalid serve` passes the content it checked, so the posts
+    /// are read once, not twice. The folder is only listed again, for the
+    /// files beside folder posts. `content` must have passed `check_bodies`.
     pub(crate) fn render_content(
         &self,
+        content: &SiteContent,
+    ) -> Result<(Vec<Page>, String), UserMessage> {
+        self.render_from(&self.tree()?, content)
+    }
+
+    /// The list of the site's content files, as found on disk now.
+    fn tree(&self) -> Result<ContentTree, UserMessage> {
+        let folder = &self.0.folder;
+        ContentTree::walk(folder).map_err(|error| content_message::of(folder, &error))
+    }
+
+    /// Every page made from `content`, with the files `tree` holds beside
+    /// folder posts, and the not-found page.
+    fn render_from(
+        &self,
+        tree: &ContentTree,
         content: &SiteContent,
     ) -> Result<(Vec<Page>, String), UserMessage> {
         let Site {
@@ -112,8 +130,10 @@ impl SitePages {
             let fed = published(&feed.db, feed.site, folder, config, content);
             feed.live.replace(feed.runtime.block_on(fed)?);
         }
-        let languages = build_pages::pages(config, routes, content, stylesheet.path().as_str())?;
+        let mut languages =
+            build_pages::pages(config, routes, content, stylesheet.path().as_str())?;
         let mut pages = vec![stylesheet.clone()];
+        pages.extend(files(folder, config, tree, &mut languages)?);
         let mut not_found = String::new();
         for language in &languages {
             for page in &language.pages {
@@ -133,6 +153,31 @@ impl SitePages {
         }
         Ok((pages, not_found))
     }
+}
+
+/// The files beside folder posts in `tree`, each at its page's address,
+/// and the sizes of their images, which never change under their names.
+fn files(
+    folder: &Path,
+    config: &Config,
+    tree: &ContentTree,
+    languages: &mut [LanguagePages],
+) -> Result<Vec<Page>, UserMessage> {
+    let address = |text: &str| PagePath::try_new(text).map_err(|_| build_message::address(text));
+    let beside = post_files::attach(tree, languages);
+    let mut pages = Vec::with_capacity(beside.len());
+    for file in &beside {
+        let kind = MediaType::for_file(&file.address);
+        let bytes = post_files::read(folder, file)?;
+        pages.push(Page::new(address(&file.address)?, kind, bytes));
+    }
+    for size in post_images::attach(folder, config, &beside, languages)? {
+        let kind = MediaType::for_file(&size.address);
+        let bytes =
+            fs::read(&size.path).map_err(|error| post_files::unreadable(&size.path, &error))?;
+        pages.push(Page::immutable(address(&size.address)?, kind, bytes));
+    }
+    Ok(pages)
 }
 
 impl Render for SitePages {
