@@ -10,9 +10,11 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use khalid_api::api;
+use khalid_api::publish_door::PublishDoor;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, SiteId};
+use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
+use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
 use serde::Serialize;
@@ -27,7 +29,7 @@ use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{db, db_message, report, search_route, serve_message};
+use crate::{announce, db, db_message, report, scheduler, search_route, serve_message};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
@@ -45,7 +47,8 @@ struct ServeBody<'a> {
 
 /// Serves the `site` folder, whose `config`, `routes` and content were
 /// checked, on `listen`. The database opens first and closes last, after
-/// every request and the watch have stopped.
+/// every request, the watch, the scheduler and the announcing have stopped. Webhooks and
+/// `IndexNow` are sent through `outbound`, the one shared client.
 ///
 /// `start` holds the checked content, the files beside its folder posts,
 /// and a look at the folder taken before it was read. The first pages are
@@ -56,13 +59,13 @@ pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    listen: SocketAddr,
+    (listen, outbound): (SocketAddr, Result<Outbound, OutboundError>),
     output: Output,
 ) -> Exit {
-    let Ok(runtime) = tokio::runtime::Builder::new_multi_thread()
+    let built = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .build()
-    else {
+        .build();
+    let (Ok(runtime), Ok(outbound)) = (built, outbound) else {
         return report::failure(output, &serve_message::internal(), Exit::Internal);
     };
     let (database, id) = match open(site, &runtime) {
@@ -72,7 +75,7 @@ pub(crate) fn run(
     let served = serve_with(
         (site, config, routes),
         start,
-        (listen, output),
+        (listen, &outbound, output),
         &runtime,
         (&database, id),
     );
@@ -89,7 +92,7 @@ pub(crate) fn run(
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, output): (SocketAddr, Output),
+    (listen, outbound, output): (SocketAddr, &Outbound, Output),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -135,14 +138,25 @@ fn serve_with(
         let rest = (source.clone(), live.clone());
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
+        let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
+        let (telling, announcing) = announce::start(config, (database, id, &file), outbound)
+            .await
+            .map_err(|message| (message, Exit::Failure))?;
         let posts = SitePosts::new(site, config.clone(), SystemClock);
-        let (api, _) = api::router(Arc::new(content), Arc::new(posts), Arc::new(keys));
+        let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+        let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
+            .with_schedules(schedules, SystemClock);
+        let door = Arc::new(door);
+        let scheduling = scheduler::start(Arc::clone(&door));
+        let (api, _) = api::router_with_door(Arc::new(content), door, Arc::new(keys));
         let searches = search_route::router(config, search);
         let app = api.merge(searches).merge(router(live, security));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
         watching.stop().await;
+        scheduling.stop().await;
+        announcing.stop().await;
         if let Some(message) = why.lock().unwrap_or_else(PoisonError::into_inner).take() {
             return Err((message, Exit::Failure));
         }

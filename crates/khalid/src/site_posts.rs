@@ -149,6 +149,8 @@ impl Site {
             });
         }
         let publishes = edit.publishes() && found.status == PostStatus::Draft;
+        let unpublishes =
+            edit.status() == Some(PostStatus::Draft) && found.status == PostStatus::Published;
         let edited = current.clone().edited(edit, self.clock.now(), by);
         let mut text = found.text.clone();
         if edited.title() != current.title() {
@@ -157,16 +159,13 @@ impl Site {
         if edited.markdown() != current.markdown() {
             text.set_body(edited.markdown());
         }
-        let path = if publishes {
-            self.publish(&found, &mut text)?
+        let (path, status) = if publishes {
+            (self.publish(&found, &mut text)?, PostStatus::Published)
+        } else if unpublishes {
+            (self.unpublish(&found, &text)?, PostStatus::Draft)
         } else {
             atomic::replace(&found.path, &text.to_text()).map_err(PostStoreError::new)?;
-            found.path.clone()
-        };
-        let status = if publishes {
-            PostStatus::Published
-        } else {
-            found.status
+            (found.path.clone(), found.status)
         };
         let saved = Found {
             path,
@@ -192,6 +191,21 @@ impl Site {
         fs::remove_file(&found.path).map_err(PostStoreError::new)?;
         folder.push(name);
         Ok(folder)
+    }
+
+    /// Takes a live post down: writes `text` as its draft in `drafts/`,
+    /// then removes it from `content/`. Its date stays in the front matter
+    /// until it is published again. Returns where it now lives.
+    fn unpublish(&self, found: &Found, text: &PostText) -> Result<PathBuf, PostStoreError> {
+        let path = self.draft_path(&found.locale, &found.slug);
+        let folder = path
+            .parent()
+            .ok_or_else(|| failure("a draft has no folder"))?;
+        fs::create_dir_all(folder).map_err(PostStoreError::new)?;
+        let name = format!("{}.md", found.slug);
+        atomic::create(folder, &name, &text.to_text()).map_err(PostStoreError::new)?;
+        fs::remove_file(&found.path).map_err(PostStoreError::new)?;
+        Ok(path)
     }
 
     /// Dates a draft's `text` today, as publishing does, and returns the

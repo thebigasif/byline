@@ -212,7 +212,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -296,7 +296,7 @@
             }
           },
           "422": {
-            "description": "The body could not be read, or the linter refused to publish the post",
+            "description": "The body could not be read, the schedule cannot be kept, or the linter refused to publish the post",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3005,6 +3005,14 @@
             "type": "string",
             "description": "The title."
           },
+          "unpublish_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it comes down again, if it is scheduled to."
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time",
@@ -3658,7 +3666,7 @@
       },
       "PostEdit": {
         "type": "object",
-        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through.",
+        "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value. A `status` of\n`published` publishes a draft, once the linter lets it through;\n`scheduled` with a future `published_at` publishes it then, and\n`draft` takes a scheduled post off its schedule and a live post down.",
         "required": [
           "updated_at"
         ],
@@ -3670,13 +3678,21 @@
             ],
             "description": "A new markdown body."
           },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a `scheduled` post goes live: a time to come, with its offset,\nsuch as `2026-11-03T09:00:00+01:00`."
+          },
           "status": {
             "type": [
               "string",
               "null"
             ],
-            "description": "`published` to publish the post. Publishing runs the linter, and a\npost with a blocking finding stays a draft.",
-            "example": "published"
+            "description": "`published` to publish the post now, `scheduled` to publish it at\n`published_at`, or `draft` to cancel a schedule and take a live post\ndown. Publishing runs\nthe linter, and a post with a blocking finding stays a draft.",
+            "example": "scheduled"
           },
           "title": {
             "type": [
@@ -3684,6 +3700,14 @@
               "null"
             ],
             "description": "A new title."
+          },
+          "unpublish_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the post comes down again: a time to come, after\n`published_at` for a scheduled post."
           },
           "updated_at": {
             "type": "string",

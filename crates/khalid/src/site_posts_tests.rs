@@ -236,3 +236,26 @@ async fn linting_judges_a_post_and_writes_nothing() {
         "the draft is not dated"
     );
 }
+
+#[tokio::test]
+async fn status_draft_takes_a_live_post_back_into_drafts() {
+    let (site, posts) = demo();
+    let post = posts
+        .get("en.why-internal-links-matter")
+        .await
+        .unwrap()
+        .unwrap();
+    let down = edit(json!({"status": "draft", "updated_at": post.updated_at()}));
+    let draft = posts.update(post.id(), down, "k").await.unwrap();
+    assert_eq!(draft.status(), PostStatus::Draft);
+    assert_eq!(draft.published_at(), None);
+    let live = "content/en/posts/2026-09-14-why-internal-links-matter.md";
+    assert!(!within(site.path(), live).exists());
+    let text = fs::read_to_string(within(
+        site.path(),
+        "drafts/en/why-internal-links-matter.md",
+    ));
+    assert!(text.unwrap().contains("\nAn internal link is a link"));
+    let read = posts.get(post.id()).await.unwrap().unwrap();
+    assert_eq!(read.status(), PostStatus::Draft);
+}

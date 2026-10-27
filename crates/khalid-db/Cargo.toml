@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+getrandom = "0.4"
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-search = { path = "../khalid-search", version = "0.0.0" }

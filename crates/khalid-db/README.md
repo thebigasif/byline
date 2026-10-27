@@ -34,6 +34,7 @@ A test reads the table below and checks it lists every table in the schema, once
 | `webhooks` | visitor | The addresses that receive each event, with the secret that signs deliveries |
 | `webhook_deliveries` | visitor | Each delivery of an event: the bytes sent, where it stands and when it is due again |
 | `webhook_attempts` | visitor | Every attempt at a delivery, with the status that came back or why there was none |
+| `post_schedules` | visitor | When each post goes live and when it comes down, named by its identity so a rebuild keeps it |
 | `form_submissions` | visitor | What people sent through forms on the site |
 | `subscribers` | visitor | Newsletter subscribers and whether they confirmed |
 | `comments` | visitor | Comments on posts, named by the post's path so they survive a rebuild |
