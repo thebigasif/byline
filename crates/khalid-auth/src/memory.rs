@@ -8,7 +8,7 @@ use khalid_api::keys::Role;
 
 use crate::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, Email, PasswordHash,
-    StoredAccount,
+    SessionHash, SessionStore, SessionStoreError, StoredAccount, StoredSession,
 };
 
 /// Staff accounts in memory, numbered from 1 in the order they are made.
@@ -140,5 +140,100 @@ impl AccountStore for MemoryAccounts {
             self.change(to, |row| row.account.set_role(Role::Owner));
         }
         ready(Ok(valid))
+    }
+}
+
+/// Sessions in memory.
+#[derive(Debug, Default)]
+pub struct MemorySessions {
+    rows: Mutex<Vec<(SessionHash, StoredSession)>>,
+}
+
+impl MemorySessions {
+    /// No sessions yet.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// How many sessions are stored, live or not.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.rows().len()
+    }
+
+    /// Whether no session is stored.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    #[expect(
+        clippy::expect_used,
+        reason = "a test double; a poisoned lock means a test already failed"
+    )]
+    fn rows(&self) -> MutexGuard<'_, Vec<(SessionHash, StoredSession)>> {
+        self.rows.lock().expect("lock poisoned")
+    }
+}
+
+impl SessionStore for MemorySessions {
+    fn begin(
+        &self,
+        hash: SessionHash,
+        account: AccountId,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'_, Result<(), SessionStoreError>> {
+        let session = StoredSession {
+            account,
+            created_at: at,
+            last_seen_at: at,
+        };
+        self.rows().push((hash, session));
+        ready(Ok(()))
+    }
+
+    fn find(
+        &self,
+        hash: SessionHash,
+    ) -> BoxFuture<'_, Result<Option<StoredSession>, SessionStoreError>> {
+        let rows = self.rows();
+        let found = rows
+            .iter()
+            .find(|(row, _)| *row == hash)
+            .map(|(_, session)| *session);
+        ready(Ok(found))
+    }
+
+    fn touch(
+        &self,
+        hash: SessionHash,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'_, Result<(), SessionStoreError>> {
+        for (row, session) in self.rows().iter_mut() {
+            if *row == hash {
+                session.last_seen_at = at;
+            }
+        }
+        ready(Ok(()))
+    }
+
+    fn end(&self, hash: SessionHash) -> BoxFuture<'_, Result<bool, SessionStoreError>> {
+        let mut rows = self.rows();
+        let before = rows.len();
+        rows.retain(|(row, _)| *row != hash);
+        ready(Ok(rows.len() < before))
+    }
+
+    fn end_all(
+        &self,
+        account: AccountId,
+        keep: Option<SessionHash>,
+    ) -> BoxFuture<'_, Result<u64, SessionStoreError>> {
+        let mut rows = self.rows();
+        let before = rows.len();
+        rows.retain(|(row, session)| session.account != account || Some(*row) == keep);
+        let ended = u64::try_from(before - rows.len()).unwrap_or(u64::MAX);
+        ready(Ok(ended))
     }
 }

@@ -11,6 +11,7 @@
 
 mod account;
 mod email;
+mod limiter;
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
 mod password;
@@ -21,8 +22,9 @@ pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
 };
 pub use email::{Email, ParseEmailError};
+pub use limiter::{MAX_FAILURES, SignInLimiter, WINDOW};
 #[cfg(any(test, feature = "test-util"))]
-pub use memory::MemoryAccounts;
+pub use memory::{MemoryAccounts, MemorySessions};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
