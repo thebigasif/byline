@@ -5,16 +5,19 @@ use std::fmt;
 use std::net::IpAddr;
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use khalid_core::Clock;
 
+mod links;
 mod take_back;
 
+pub use links::Links;
 pub use take_back::FRESH;
 
 use crate::{
-    Account, AccountStore, AccountStoreError, CsrfToken, Email, Password, PasswordError,
-    PasswordHashing, SessionError, SessionStore, SessionStoreError, SessionToken, SignInLimiter,
+    Account, AccountStore, AccountStoreError, CsrfToken, Email, LinkStoreError, Password,
+    PasswordError, PasswordHashing, SendLinkError, SessionError, SessionStore, SessionStoreError,
+    SessionToken, SignInLimiter,
 };
 
 /// A signed-in session, new or checked: whose it is, and its CSRF token.
@@ -37,6 +40,7 @@ pub struct Accounts {
     hashing: PasswordHashing,
     clock: Arc<dyn Clock>,
     limiter: Arc<SignInLimiter>,
+    links: Option<Links>,
 }
 
 impl fmt::Debug for Accounts {
@@ -62,6 +66,7 @@ impl Accounts {
             hashing,
             clock,
             limiter: Arc::new(SignInLimiter::new()),
+            links: None,
         }
     }
 
@@ -82,9 +87,7 @@ impl Accounts {
     ) -> Result<(SessionToken, SignedIn), SignInError> {
         let now = self.clock.now();
         if let Some(until) = self.limiter.blocked_until(email, from, now) {
-            return Err(SignInError::Limited {
-                minutes: (until - now).num_minutes().saturating_add(1),
-            });
+            return Err(SignInError::limited(until - now));
         }
         let stored = self.store.find_by_email(email).await?;
         let (account, hash) = match stored {
@@ -184,6 +187,9 @@ pub enum SignInError {
         /// Minutes until the next attempt is counted.
         minutes: i64,
     },
+    /// This site cannot send sign-in links: it has no mail sender.
+    #[error("this site cannot send sign-in links")]
+    LinksOff,
     /// A store, the random source or the password check failed.
     #[error("the sign-in could not be checked")]
     Unavailable {
@@ -191,6 +197,15 @@ pub enum SignInError {
         #[source]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+}
+
+impl SignInError {
+    /// Too many attempts, for `wait` more: rounded up to whole minutes.
+    fn limited(wait: TimeDelta) -> Self {
+        Self::Limited {
+            minutes: wait.num_minutes().saturating_add(1),
+        }
+    }
 }
 
 macro_rules! unavailable_from {
@@ -207,5 +222,7 @@ unavailable_from!(
     AccountStoreError,
     SessionStoreError,
     PasswordError,
-    SessionError
+    SessionError,
+    LinkStoreError,
+    SendLinkError
 );
