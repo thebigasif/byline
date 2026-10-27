@@ -49,6 +49,7 @@ mod mcp_message;
 mod mcp_tools;
 mod new;
 mod new_message;
+mod newsletter;
 mod outbound;
 mod post_files;
 mod post_images;

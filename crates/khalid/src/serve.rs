@@ -30,7 +30,7 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, preview, report, scheduler, search_route,
+    announce, comment_pages, db, db_message, newsletter, preview, report, scheduler, search_route,
     serve_message,
 };
 
@@ -128,6 +128,7 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
+    let newsletters = newsletter::router(config).map_err(|message| (message, Exit::Internal))?;
     let served = runtime.block_on(async {
         let listener = TcpListener::bind(listen)
             .await
@@ -156,6 +157,7 @@ fn serve_with(
             .merge(searches)
             .merge(admin)
             .merge(comments)
+            .merge(newsletters)
             .merge(router(live, security));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
