@@ -118,7 +118,7 @@ describe("the posts screen", () => {
     await userEvent.click(await screen.findByRole("link", { name: en.posts.write }));
     expect(await screen.findByRole("heading", { level: 1, name: en.posts.write })).toBeVisible();
     expect(screen.getByLabelText(en.start.label)).toBeVisible();
-    expect(router.state.location.pathname).toBe("/admin/new");
+    expect(router.state.location.pathname).toBe("/new");
     expect(await axeViolations()).toEqual([]);
   });
 });
