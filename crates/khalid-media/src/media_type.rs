@@ -3,11 +3,14 @@
 
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 /// A megabyte as the size limits count it.
 const MB: u64 = 1024 * 1024;
 
-/// A type the media library accepts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// A type the media library accepts, written as its `Content-Type`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "&'static str")]
 #[non_exhaustive]
 pub enum MediaType {
     /// A JPEG image.
@@ -179,6 +182,20 @@ impl FromStr for MediaType {
             .into_iter()
             .find(|found| found.mime() == text)
             .ok_or_else(|| ParseMediaTypeError(text.to_owned()))
+    }
+}
+
+impl TryFrom<String> for MediaType {
+    type Error = ParseMediaTypeError;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        text.parse()
+    }
+}
+
+impl From<MediaType> for &'static str {
+    fn from(media_type: MediaType) -> Self {
+        media_type.mime()
     }
 }
 

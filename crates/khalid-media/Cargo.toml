@@ -13,6 +13,7 @@ fast_image_resize = { version = "6", default-features = false, features = ["std"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 rayon = "1"
+serde.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 webp = { version = "0.3", default-features = false }
 sha2 = "0.11"
