@@ -42,7 +42,12 @@ export function CsvRedirects() {
 
   const upload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (file === null || busy) {
+    if (busy) {
+      return;
+    }
+    if (file === null) {
+      setDone(null);
+      setFailed(en.problems.noFile);
       return;
     }
     setBusy(true);
@@ -78,7 +83,6 @@ export function CsvRedirects() {
             id="csv"
             type="file"
             accept=".csv,text/csv"
-            required
             aria-describedby="csv-hint"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
