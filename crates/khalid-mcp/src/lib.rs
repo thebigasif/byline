@@ -5,8 +5,12 @@
 //! tool methods. What each tool does comes from a [`Tools`] the caller
 //! gives it, so the protocol knows nothing about posts, keys or files.
 
+mod api_tools;
 mod server;
+mod session_keys;
 mod tool;
 
+pub use api_tools::ApiTools;
 pub use server::{MAX_MESSAGE, ServeError, Server};
+pub use session_keys::SessionKeys;
 pub use tool::{BoxFuture, Tool, ToolResult, Tools};
