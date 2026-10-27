@@ -4,6 +4,15 @@
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum LockError {
+    /// A built-in notes file is not valid. The crate's tests rule this out.
+    #[error("the static mode notes for {language} cannot be read")]
+    Notes {
+        /// The file's language, such as `de`.
+        language: String,
+        /// What the TOML reader found.
+        #[source]
+        source: toml::de::Error,
+    },
     /// A form starts but never ends, so the page cannot be locked safely.
     #[error("the form at byte {offset} has no closing </form> tag")]
     Unclosed {

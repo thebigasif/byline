@@ -1,0 +1,5 @@
+# What a German reader sees where a form was. The same keys as en.toml.
+comments = "Kommentare sind auf dieser Website nicht möglich."
+newsletter = "Anmeldungen per E-Mail sind auf dieser Website nicht möglich."
+forms = "Dieses Formular kann auf dieser Website nicht gesendet werden."
+search = "Die Suche steht auf dieser Website nicht zur Verfügung."
