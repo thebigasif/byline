@@ -50,15 +50,23 @@ struct Redirecting {
     misses: MissLog,
 }
 
-/// The site's stored redirects in `db`: the desk the Admin
-/// API's redirect routes use, and `router`, which serves the `live` pages
-/// under `mount`, with stored redirects answering in place of its 404s.
+/// The site's stored redirects in `db`, serving no rules until [`start`]
+/// reads them, and its page addresses, empty until the first render.
+pub(crate) fn stores((db, site): (&Database, SiteId)) -> (LiveRedirects, LiveAddresses) {
+    let rows = Arc::new(RedirectRows::new(db.clone(), site));
+    (LiveRedirects::new(rows), LiveAddresses::default())
+}
+
+/// The site's stored `redirects`, read now: the desk the Admin API's
+/// redirect routes use, with the 404 log in `db`, and `router`, which
+/// serves the `live` pages under `mount`, with stored redirects answering
+/// in place of its 404s.
 pub(crate) async fn start(
     (db, site): (&Database, SiteId),
     (router, live, mount): (Router, LivePages, &str),
-    addresses: LiveAddresses,
+    (redirects, addresses): (LiveRedirects, LiveAddresses),
 ) -> (RedirectDesk, Router) {
-    let redirects = LiveRedirects::load(Arc::new(RedirectRows::new(db.clone(), site))).await;
+    redirects.reload().await;
     let log: Arc<dyn NotFoundLog> = Arc::new(NotFoundTable::new(db.clone(), site));
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     let misses = MissLog::start(Arc::clone(&log), Arc::clone(&clock));

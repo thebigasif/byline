@@ -20,14 +20,13 @@ pub(crate) struct LiveRedirects {
 }
 
 impl LiveRedirects {
-    /// Reads `store` once and serves the table it makes.
-    pub(crate) async fn load(store: Arc<dyn RedirectStore>) -> Self {
-        let live = Self {
+    /// The redirects in `store`, serving no rules until the first
+    /// [`LiveRedirects::reload`].
+    pub(crate) fn new(store: Arc<dyn RedirectStore>) -> Self {
+        Self {
             store,
             table: Arc::new(watch::channel(Arc::new(RedirectTable::default())).0),
-        };
-        live.reload().await;
-        live
+        }
     }
 
     /// The table being served now.
@@ -38,7 +37,7 @@ impl LiveRedirects {
     /// Reads the rows again and serves the table they make. Rows that
     /// cannot be read, or that make no table, such as two writers racing
     /// into a loop, leave the last table served, and the log says why.
-    async fn reload(&self) {
+    pub(crate) async fn reload(&self) {
         let entries = match self.store.list().await {
             Ok(stored) => stored.into_iter().map(|s| s.entry).collect(),
             Err(error) => {
@@ -119,7 +118,8 @@ mod tests {
             .unwrap();
         let store = Arc::new(store);
         let shared: Arc<dyn RedirectStore> = store;
-        let live = LiveRedirects::load(shared).await;
+        let live = LiveRedirects::new(shared);
+        live.reload().await;
         assert_eq!(status(&live, "/blog/a/"), Some(301));
 
         let added = live

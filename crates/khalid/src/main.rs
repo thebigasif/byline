@@ -72,6 +72,7 @@ mod site_files;
 mod site_lists;
 mod site_pages;
 mod site_posts;
+mod slug_moves;
 mod slug_repair;
 mod static_mode;
 mod theme_check;

@@ -259,3 +259,70 @@ fn a_404_is_logged_and_redirected_in_one_step_for_good() {
         "{head}"
     );
 }
+
+/// Changes the slug in the front matter of the English post `file`.
+#[cfg(test)]
+fn rename(site: &Path, file: &str, from: &str, to: &str) {
+    let mut path = site.to_path_buf();
+    path.push(format!("content/en/posts/{file}"));
+    let text = fs::read_to_string(&path).unwrap();
+    fs::write(
+        &path,
+        text.replace(&format!("slug: {from}\n"), &format!("slug: {to}\n")),
+    )
+    .unwrap();
+}
+
+/// Waits for `from` to answer 301 to `to`, as a renamed post's old address
+/// does once the edit is seen.
+#[cfg(test)]
+fn moves(server: &Server, from: &str, to: &str) {
+    let mut last = String::new();
+    for _ in 0..200 {
+        let (status, head, _) = send(server, "GET", from, None, None);
+        if status == 301 && head.contains(&format!("\r\nlocation: {to}\r\n")) {
+            return;
+        }
+        last = head;
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    panic!("{from} never moved to {to}: {last}");
+}
+
+#[test]
+fn a_renamed_post_keeps_its_old_address_while_serving_and_across_a_restart() {
+    let site = demo_copy();
+    let server = start(site.path());
+    let title = "2026-09-21-how-to-write-a-title-tag.md";
+    rename(
+        site.path(),
+        title,
+        "how-to-write-a-title-tag",
+        "writing-title-tags",
+    );
+    moves(
+        &server,
+        "/blog/how-to-write-a-title-tag/",
+        "/blog/writing-title-tags/",
+    );
+    drop(server);
+
+    let sitemap = "2026-09-28-what-a-sitemap-does.md";
+    rename(
+        site.path(),
+        sitemap,
+        "what-a-sitemap-does",
+        "sitemaps-explained",
+    );
+    let server = start(site.path());
+    moves(
+        &server,
+        "/blog/what-a-sitemap-does/",
+        "/blog/sitemaps-explained/",
+    );
+    moves(
+        &server,
+        "/blog/how-to-write-a-title-tag/",
+        "/blog/writing-title-tags/",
+    );
+}

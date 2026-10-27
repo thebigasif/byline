@@ -26,7 +26,6 @@ use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
 use crate::post_files::Assets;
-use crate::site_addresses::LiveAddresses;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
@@ -101,7 +100,7 @@ fn serve_with(
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
     let content = LiveContent::default();
-    let addresses = LiveAddresses::default();
+    let (redirects, addresses) = redirect_route::stores((database, id));
     let to = Destination {
         folder: site.to_path_buf(),
         config: config.clone(),
@@ -109,6 +108,7 @@ fn serve_with(
         site: id,
         live: content.clone(),
         addresses: addresses.clone(),
+        redirects: redirects.clone(),
     };
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
@@ -158,7 +158,8 @@ fn serve_with(
         let scheduling = scheduler::start(Arc::clone(&door));
         let shown = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let pages = (router(live.clone(), security), live, config.mount());
-        let (desk, pages) = redirect_route::start((database, id), pages, addresses).await;
+        let stored = redirect_route::start((database, id), pages, (redirects, addresses));
+        let (desk, pages) = stored.await;
         let (api, _) = api::router_with_redirects(Arc::new(content), door, Arc::new(keys), desk);
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
