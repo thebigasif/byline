@@ -152,4 +152,26 @@ mod tests {
         );
         assert_eq!(distance("kitten", "sitting"), 3);
     }
+
+    #[test]
+    fn a_typo_in_a_long_list_names_the_field_it_may_mean() {
+        let allowed = "one of title, slug, date, author, category, description, \
+            translation, aliases, featured, robots, canonical, reviewed_by, related";
+        assert_eq!(
+            unknown_fix("titles", 2, allowed),
+            "Remove `titles` on line 2, or rename it `title`."
+        );
+        assert_eq!(
+            unknown_fix("mod", 1, "one of `server`, `static`"),
+            "Remove `mod` on line 1, or use one of `server`, `static`."
+        );
+    }
+
+    #[test]
+    fn distance_counts_the_letters_to_change() {
+        assert_eq!(distance("titles", "title"), 1);
+        assert_eq!(distance("", "date"), 4);
+        assert_eq!(distance("slug", "slug"), 0);
+        assert_eq!(distance("authors", "author"), 1);
+    }
 }

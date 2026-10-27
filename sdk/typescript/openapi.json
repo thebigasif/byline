@@ -1241,7 +1241,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled. A change to head code needs an owner, an\nadmin or `admin:all`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -1295,7 +1295,7 @@
             }
           },
           "403": {
-            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post",
+            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, or changes head code without being an owner or admin",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7262,9 +7262,19 @@
           "featured",
           "review_state",
           "share_cards",
-          "aliases"
+          "aliases",
+          "access",
+          "password_protected"
         ],
         "properties": {
+          "access": {
+            "type": "string",
+            "description": "Who may read the body: `public`, or `members`, who are signed in.",
+            "enum": [
+              "public",
+              "members"
+            ]
+          },
           "aliases": {
             "type": "array",
             "items": {
@@ -7325,6 +7335,18 @@
             "type": "boolean",
             "description": "Whether the post is featured in lists and the featured channel."
           },
+          "head_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Checked HTML added to the post's page head, such as an analytics\ntag. Only owners and admins may change it.",
+            "example": "<meta name=\"verify\" content=\"x\">"
+          },
+          "password_protected": {
+            "type": "boolean",
+            "description": "Whether a reader must give a password to read the body. The\npassword itself is never sent back."
+          },
           "review_state": {
             "$ref": "#/components/schemas/ReviewState",
             "description": "Where the post stands in review."
@@ -7340,6 +7362,14 @@
           "share_cards": {
             "$ref": "#/components/schemas/ShareCards",
             "description": "How the post looks when shared on X and Facebook."
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The theme template the post is shown with, such as `wide` for\n`theme/templates/post-wide.html`, or `null` for `post.html`.",
+            "example": "wide"
           }
         }
       },
@@ -7625,6 +7655,14 @@
         "type": "object",
         "description": "New values for some of a post's settings. A setting left out keeps\nits value, and `null` clears one that may be empty.",
         "properties": {
+          "access": {
+            "type": "string",
+            "description": "Who may read the body: `public`, or `members`, who are signed in.",
+            "enum": [
+              "public",
+              "members"
+            ]
+          },
           "aliases": {
             "type": [
               "array",
@@ -7693,6 +7731,22 @@
             ],
             "description": "Whether the post is featured."
           },
+          "head_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New head code, or `null` for none. Owners and admins only.",
+            "example": "<meta name=\"verify\" content=\"x\">"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "password",
+            "description": "A new password of 8 to 128 characters that readers must give, or\n`null` to remove it. It is kept only as a hash."
+          },
           "review_state": {
             "oneOf": [
               {
@@ -7722,6 +7776,14 @@
                 "type": "null"
               }
             ]
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A theme template such as `wide`, or `null` for `post.html`.",
+            "example": "wide"
           }
         },
         "additionalProperties": false

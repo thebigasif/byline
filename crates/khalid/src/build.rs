@@ -18,9 +18,10 @@ use serde::Serialize;
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::post_files::Assets;
+use crate::site_page::HeadNonce;
 use crate::{
     assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
-    content_message, lint, lint_message, post_files, post_images, report, search_page,
+    content_message, lint, lint_message, post_files, post_images, post_lock, report, search_page,
     search_static, static_mode,
 };
 
@@ -91,6 +92,8 @@ fn build(
         .map(|(_, css)| assets::href(config, css))
         .unwrap_or_default();
     let mut languages = build_pages::pages(config, routes, (content, &[]), &href)?;
+    let renderer = theme.as_ref().map(|(renderer, _)| renderer);
+    post_lock::lock(config, content, renderer, &mut languages);
     if let Some((renderer, _)) = &theme {
         search_page::add(config, renderer, &mut languages)?;
     }
@@ -112,9 +115,7 @@ fn build(
         write_asset(out, css)?;
         for language in &languages {
             for page in &language.pages {
-                let html = renderer
-                    .render(&language.site, &page.meta, &page.body)
-                    .map_err(|error| build_message::render(&error))?;
+                let html = page.rendered(renderer, &language.site, HeadNonce::Static)?;
                 let html =
                     static_mode::lock(locks.as_ref(), html, &language.site.locale, &page.file)?;
                 write(out, &page.file, &html)?;

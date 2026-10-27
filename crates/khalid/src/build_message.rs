@@ -4,7 +4,7 @@ use std::io;
 use std::path::Path;
 
 use khalid_content::BlockError;
-use khalid_core::UserMessage;
+use khalid_core::{TemplateName, UserMessage};
 use khalid_render::RenderError;
 use khalid_routes::AddressError;
 use khalid_seo::SeoError;
@@ -84,6 +84,20 @@ pub(crate) fn render(error: &RenderError) -> UserMessage {
         format!("Khalid could not render a page: {error}."),
         "A site is built only when every page renders, so nothing broken goes live.",
         "Check the templates in theme/templates, or remove the one named, then build again.",
+    )
+}
+
+/// The message when the post at `source` asks for a template the theme
+/// does not have.
+pub(crate) fn no_template(source: &Path, name: &TemplateName) -> UserMessage {
+    let file = name.file_name();
+    UserMessage::new(
+        format!(
+            "{} asks for the template {name}, and theme/templates/{file} does not exist.",
+            source.display()
+        ),
+        "A site is built only when every page renders, so nothing broken goes live.",
+        format!("Add theme/templates/{file}, or remove the template line from the post."),
     )
 }
 

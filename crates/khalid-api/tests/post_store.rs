@@ -48,6 +48,10 @@ fn a_new_admin_post_is_a_draft_in_api_shape() {
                 "robots": null,
                 "share_cards": {"x": null, "facebook": null},
                 "aliases": [],
+                "access": "public",
+                "password_protected": false,
+                "template": null,
+                "head_code": null,
             },
         })
     );

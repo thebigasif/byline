@@ -58,6 +58,7 @@ mod newsletter;
 mod outbound;
 mod post_files;
 mod post_images;
+mod post_lock;
 mod post_text;
 mod preview;
 mod redirect_route;
@@ -78,6 +79,7 @@ mod site_addresses;
 mod site_content;
 mod site_files;
 mod site_lists;
+mod site_page;
 mod site_pages;
 mod site_posts;
 mod slug_moves;
@@ -97,6 +99,7 @@ mod theme_message;
 )]
 mod theme_preview;
 mod theme_sync;
+mod unlock;
 
 use std::ffi::OsString;
 use std::path::Path;

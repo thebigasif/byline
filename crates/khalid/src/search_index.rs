@@ -12,6 +12,7 @@ use khalid_db::{Database, DbError, IndexedPost, SearchPage, SiteId};
 use khalid_search::{Analyzer, Language};
 
 use crate::build_pages;
+use crate::post_lock::Lock;
 use crate::site_content::Catalog;
 
 /// How many pages one transaction writes, so a save waiting for the writer
@@ -97,7 +98,12 @@ fn page(folder: &Path, config: &Config, row: &IndexedPost) -> Result<SearchPage,
     let file = SitePath::within(folder, &row.path)?;
     let text = fs::read_to_string(file.as_path())?;
     let post = parse_post(file.relative(), &text)?;
-    let rendered = render(&post.body, &row.locale, config.slugs())?;
+    // A locked post is found by its title alone, so no result shows its body.
+    let markdown = match Lock::of(&post.front) {
+        Some(_) => "",
+        None => post.body.as_str(),
+    };
+    let rendered = render(markdown, &row.locale, config.slugs())?;
     let title = row.title.clone().unwrap_or_else(|| row.slug.to_string());
     let headings: Vec<&str> = rendered
         .headings

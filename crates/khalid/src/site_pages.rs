@@ -15,7 +15,7 @@ use khalid_render::{
     PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult,
 };
 use khalid_routes::Routes;
-use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
+use khalid_server::{Moved, Page, Render, Rendered};
 
 use crate::build_pages::LanguagePages;
 use crate::comment_pages::{self, ShownComments};
@@ -24,9 +24,11 @@ use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
+use crate::site_page::HeadNonce;
+use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_message, build_pages, build_seo, content_message, post_files,
-    search_page, serve_message, site_files,
+    post_lock, search_page, serve_message, site_files,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -57,6 +59,8 @@ struct Site {
     searches: Mutex<Vec<SearchShell>>,
     /// The comments post pages show, or `None` when the site takes none.
     comments: Option<ShownComments>,
+    /// The password posts of the last full render, for the password form.
+    gate: Gate,
 }
 
 /// What a saved post's page needs from the rest of the site, in a fraction
@@ -119,6 +123,7 @@ impl SitePages {
             outline: Mutex::default(),
             assets: Mutex::default(),
             searches: Mutex::default(),
+            gate: Gate::default(),
             comments,
         })))
     }
@@ -218,6 +223,12 @@ impl SitePages {
         let mut pages = vec![theme.stylesheet.clone()];
         html_pages(theme, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
+    }
+
+    /// The password posts the password form checks, as the last full
+    /// render found them.
+    pub(crate) fn gate(&self) -> Gate {
+        self.0.gate.clone()
     }
 
     /// The page the draft of post `slug` in `locale` would have if it went
@@ -340,6 +351,8 @@ impl SitePages {
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
         let mut languages = build_pages::pages(config, routes, (content, others), href)?;
+        let renderer = theme.as_ref().map(|theme| &theme.renderer);
+        post_lock::lock(config, content, renderer, &mut languages);
         if let Some(theme) = theme {
             search_page::add(config, &theme.renderer, &mut languages)?;
         }
@@ -347,6 +360,10 @@ impl SitePages {
         let beside = post_files::served(folder, config, assets, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+        post_lock::share_heads(&mut languages);
+        if which == Which::All {
+            self.0.gate.replace(&languages);
+        }
         let mut served = Served {
             pages: Vec::new(),
             not_found: HEADLESS_NOT_FOUND.to_owned(),
@@ -503,19 +520,19 @@ fn html_pages(
             if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
                 continue;
             }
-            let html = theme
-                .renderer
-                .render(&language.site, &page.meta, &page.body)
-                .map_err(|error| build_message::render(&error))?;
+            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
             if matches!(page.body, PageBody::NotFound) {
                 if &language.site.locale == config.default_language() {
                     not_found = html;
                 }
                 continue;
             }
-            let path = PagePath::try_new(&page.meta.path)
-                .map_err(|_| build_message::address(&page.meta.path))?;
-            pages.push(Page::new(path, MediaType::Html, html));
+            pages.push(page.served_at(&page.meta.path, html)?);
+        }
+        for unlocked in &language.unlocked {
+            let page = &unlocked.page;
+            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
+            pages.push(page.served_at(&post_lock::hidden(&page.meta.path), html)?);
         }
     }
     Ok(not_found)
@@ -543,6 +560,14 @@ impl Render for SitePages {
         let (Some(assets), Some((saved, others))) = (kept, self.saved_posts(files)) else {
             return Ok(None);
         };
+        // A post that is or was locked changes the password posts the
+        // form checks, which only the full render keeps.
+        let locked = |doc: &Document<PostFront>| {
+            post_lock::Lock::of(&doc.front).is_some() || self.0.gate.guards(&doc.path)
+        };
+        if saved.posts.iter().any(locked) {
+            return Ok(None);
+        }
         let (served, _) = self
             .render_of(&assets, (&saved, &others), Which::Posts)
             .map_err(Unrendered)?;

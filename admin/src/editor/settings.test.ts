@@ -15,6 +15,8 @@ const POST: AdminPost = {
     co_authors: ["lena-vogt"],
     featured: false,
     review_state: "draft",
+    access: "public",
+    password_protected: false,
     share_cards: {},
     aliases: [],
     date: "2026-10-12",

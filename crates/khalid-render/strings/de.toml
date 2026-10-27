@@ -80,3 +80,10 @@ sitemap_posts = "Beiträge"
 sitemap_pages = "Seiten"
 sitemap_archives = "Themen und Archive"
 sitemap_empty = "Dieser Blog hat noch keine Seiten."
+
+# Ein Beitrag, den Lesende noch nicht lesen dürfen (Aufgabe 5.11).
+locked_password_note = "Dieser Beitrag ist mit einem Passwort geschützt. Frag die Person, die ihn geschrieben hat."
+locked_password_label = "Passwort"
+locked_password_button = "Beitrag lesen"
+locked_password_wrong = "Das Passwort stimmt nicht. Prüfe es und versuche es noch einmal."
+locked_members_note = "Dieser Beitrag ist für Mitglieder. Die Anmeldung für Lesende ist noch nicht offen."

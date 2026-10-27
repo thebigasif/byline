@@ -15,6 +15,7 @@ use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
 use khalid_api::redirect_desk::RedirectDesk;
 use khalid_api::session_check::SessionCheck;
+use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
@@ -36,7 +37,7 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, staff,
+    report, scheduler, search_route, serve_message, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -155,7 +156,9 @@ fn serve_with(
         let scheduling = scheduler::start(Arc::clone(&door));
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let (media, files) = media_library::open(site, config, bucket_keys, outbound).await?;
-        let pages = (router(live.clone(), security), live, config.mount());
+        let shown_pages = router(live.clone(), security);
+        let unlocked = unlocking((site, config), (database, id), &source, shown_pages).await?;
+        let pages = (unlocked, live, config.mount());
         let stored = redirect_route::start((database, id), pages, (redirects, addresses));
         let (desk, pages) = stored.await;
         let desks = (moderation, media, desk);
@@ -229,6 +232,34 @@ async fn publish_door(
         .with_schedules(schedules, SystemClock)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
     Ok((Arc::new(door), announcing))
+}
+
+/// `pages`, the site's page router, with the password form and the cookie
+/// check of `source`'s password posts. The cookies are signed with the
+/// site's preview key under their own label, and marked `Secure` when the
+/// site's address is `https`.
+async fn unlocking(
+    (site, config): (&Path, &Config),
+    (database, id): (&Database, SiteId),
+    source: &SitePages,
+    pages: axum::Router,
+) -> Result<axum::Router, (UserMessage, Exit)> {
+    let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
+    let key = database.preview_key(id, &SystemClock).await;
+    let key = key.map_err(|error| (db_message::of(&file, &error), Exit::Failure))?;
+    let transport = if config.address().as_str().starts_with("https://") {
+        Transport::Https
+    } else {
+        Transport::Http
+    };
+    let signer = UnlockSigner::new(&key, transport, SystemClock);
+    Ok(unlock::router(
+        config,
+        source.gate(),
+        signer,
+        pages,
+        SystemClock,
+    ))
 }
 
 /// Renders every page from the `checked` content on a blocking thread

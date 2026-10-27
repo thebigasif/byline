@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use khalid_core::Locale;
+use khalid_core::{Locale, TemplateName};
 use minijinja::value::Serde;
 use minijinja::{AutoEscape, Environment, UndefinedBehavior, context};
 
@@ -88,7 +88,40 @@ impl Renderer {
         meta: &PageMeta,
         body: &PageBody,
     ) -> Result<String, RenderError> {
-        let name = body.template();
+        self.render_named(body.template(), site, meta, body)
+    }
+
+    /// Renders one page like [`render`](Self::render), but with the theme's
+    /// post template `template`, such as `post-wide.html` for `wide`, in
+    /// place of the page type's own.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RenderError::Render`] when the theme has no such template,
+    /// which [`has_template`](Self::has_template) tells beforehand, or when
+    /// it fails.
+    pub fn render_as(
+        &self,
+        template: &TemplateName,
+        site: &RenderSite,
+        meta: &PageMeta,
+        body: &PageBody,
+    ) -> Result<String, RenderError> {
+        self.render_named(&template.file_name(), site, meta, body)
+    }
+
+    /// Whether the theme has the post template `template`.
+    pub fn has_template(&self, template: &TemplateName) -> bool {
+        self.env.get_template(&template.file_name()).is_ok()
+    }
+
+    fn render_named(
+        &self,
+        name: &str,
+        site: &RenderSite,
+        meta: &PageMeta,
+        body: &PageBody,
+    ) -> Result<String, RenderError> {
         let template = self
             .env
             .get_template(name)

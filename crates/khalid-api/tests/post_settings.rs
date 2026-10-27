@@ -17,7 +17,8 @@ fn settings_never_set_are_empty_false_and_draft() {
     let empty = json!({
         "date": null, "co_authors": [], "excerpt": null, "feature_image": null,
         "featured": false, "review_state": "draft", "canonical": null, "robots": null,
-        "share_cards": {"x": null, "facebook": null}, "aliases": [],
+        "share_cards": {"x": null, "facebook": null}, "aliases": [], "access": "public",
+        "password_protected": false, "template": null, "head_code": null,
     });
     assert_eq!(json, empty);
 }

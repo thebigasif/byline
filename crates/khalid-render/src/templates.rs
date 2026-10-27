@@ -4,7 +4,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use khalid_core::SitePath;
+use khalid_core::{SitePath, TemplateName};
 use rust_embed::RustEmbed;
 
 use crate::RenderError;
@@ -39,13 +39,16 @@ pub(crate) fn defaults() -> Vec<Source> {
     sources
 }
 
-/// The templates in `site_root/theme/templates/`, in name order. A missing
+/// The templates in `site_root/theme/templates/`, in name order: files that
+/// replace a default, and post templates such as `post-wide.html` that a
+/// post asks for with `template: wide`. A missing
 /// folder means no replacements.
 ///
 /// # Errors
 ///
-/// Returns [`RenderError::UnknownTemplate`] for a file or folder whose name no
-/// default template has, [`RenderError::ThemePath`] when a symlink leads out
+/// Returns [`RenderError::UnknownTemplate`] for a file or folder whose name is
+/// neither a post template nor one that
+/// a default template has, [`RenderError::ThemePath`] when a symlink leads out
 /// of the site folder, and [`RenderError::ReadTemplate`] when a file cannot
 /// be read.
 pub(crate) fn overrides(site_root: &Path) -> Result<Vec<Source>, RenderError> {
@@ -67,7 +70,7 @@ pub(crate) fn overrides(site_root: &Path) -> Result<Vec<Source>, RenderError> {
             source,
         })?;
         let name = entry.file_name().to_string_lossy().into_owned();
-        if Defaults::get(&name).is_none() {
+        if Defaults::get(&name).is_none() && !is_post_template(&name) {
             return Err(RenderError::UnknownTemplate { name });
         }
         let path = SitePath::within(site_root, &format!("{THEME_TEMPLATES}/{name}"))?.resolve()?;
@@ -77,4 +80,13 @@ pub(crate) fn overrides(site_root: &Path) -> Result<Vec<Source>, RenderError> {
     }
     sources.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(sources)
+}
+
+/// Whether `name` is a post template a post may ask for, such as
+/// `post-wide.html` for `template: wide`.
+fn is_post_template(name: &str) -> bool {
+    let inner = name
+        .strip_prefix("post-")
+        .and_then(|n| n.strip_suffix(".html"));
+    inner.is_some_and(|inner| TemplateName::try_new(inner).is_ok())
 }

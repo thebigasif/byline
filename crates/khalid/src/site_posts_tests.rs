@@ -366,6 +366,68 @@ async fn a_setting_the_files_cannot_hold_is_refused_and_nothing_changes() {
 }
 
 #[tokio::test]
+async fn access_password_template_and_head_code_go_into_the_file() {
+    let (site, posts) = demo();
+    let mut templates = within(site.path(), "theme/templates");
+    fs::create_dir_all(&templates).unwrap();
+    templates.push("post-wide.html");
+    fs::write(&templates, "{% extends \"post.html\" %}").unwrap();
+    let code = "<script>\n// a comment\ngo(\"x\");\n</script>";
+    let settings = json!({
+        "access": "members",
+        "password": "generated-for-this-test",
+        "template": "wide",
+        "head_code": code,
+    });
+    let made = posts.create(good_draft(), "k", None).await.unwrap();
+    let mut change = edit(json!({"settings": settings, "updated_at": made.updated_at()}));
+    change.hash_password().unwrap();
+    let saved = posts.update(made.id(), change, "k").await.unwrap();
+    let file = within(site.path(), "drafts/en/choosing-anchor-text.md");
+    let text = fs::read_to_string(&file).unwrap();
+    for line in [
+        "access: members\n",
+        "password_hash: \"$argon2id$",
+        "template: wide\n",
+        "head_code: \"<script>\\n// a comment\\ngo(\\\"x\\\");\\n</script>\"\n",
+    ] {
+        assert!(text.contains(line), "{line} in {text}");
+    }
+    assert!(!text.contains("generated-for-this-test"), "{text}");
+    let read = posts.get(saved.id()).await.unwrap().unwrap();
+    assert_eq!(read.settings(), saved.settings());
+    assert_eq!(
+        read.settings().head_code.as_ref().unwrap().to_string(),
+        code
+    );
+
+    let clear = json!({"access": "public", "password": null, "template": null, "head_code": null});
+    let mut change = edit(json!({"settings": clear, "updated_at": read.updated_at()}));
+    change.hash_password().unwrap();
+    posts.update(read.id(), change, "k").await.unwrap();
+    let text = fs::read_to_string(&file).unwrap();
+    for field in ["access:", "password_hash:", "template:", "head_code:"] {
+        assert!(!text.contains(field), "{field} in {text}");
+    }
+}
+
+#[tokio::test]
+async fn a_template_the_theme_lacks_is_refused() {
+    let (_site, posts) = demo();
+    let refused = edited_draft(&posts, json!({"settings": {"template": "wide"}})).await;
+    assert!(
+        matches!(
+            refused,
+            Err(UpdatePostError::Unsupported {
+                setting: "template",
+                ..
+            })
+        ),
+        "{refused:?}"
+    );
+}
+
+#[tokio::test]
 async fn a_new_slug_moves_a_draft_but_not_a_live_post() {
     let (site, posts) = demo();
     let moved = edited_draft(&posts, json!({"slug": "anchor-text-guide"})).await;

@@ -30,7 +30,7 @@ khalid-static = { path = "../khalid-static", version = "0.0.0" }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 khalid-theme = { path = "../khalid-theme", version = "0.0.0" }
 khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0" }
-axum = { version = "0.8", default-features = false, features = ["query"] }
+axum = { version = "0.8", default-features = false, features = ["form", "query"] }
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4", features = ["derive"] }
 mimalloc = { version = "0.1", features = ["no_thp"] }
