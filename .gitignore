@@ -9,6 +9,7 @@ dist/
 *.db-wal
 *.db-shm
 **/data/media/
+**/data/share/
 /sites/
 # Secrets and env
 .env
