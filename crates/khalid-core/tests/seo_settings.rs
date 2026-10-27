@@ -1,11 +1,12 @@
 //! The `[seo]` table of `site.toml`: which archive pages search engines may
-//! list (KH-SEO-9), and whether changed pages are sent to `IndexNow`
-//! (KH-SEO-11).
+//! list (KH-SEO-9), whether changed pages are sent to `IndexNow`
+//! (KH-SEO-11), and what links to other sites get (KH-SEO-10).
 
 use std::path::Path;
 
 use khalid_core::{
-    AbsoluteUrl, ArchiveIndex, Config, Environment, IndexNowKey, IndexNowSettings, Indexing,
+    AbsoluteUrl, ArchiveIndex, Config, DomainName, Environment, ExternalRel, IndexNowKey,
+    IndexNowSettings, Indexing, LinkOpening, LinkSettings,
 };
 
 const SITE: &str = r#"name = "Field Notes on SEO"
@@ -138,6 +139,61 @@ fn indexnow_keys_are_eight_to_128_letters_digits_and_hyphens() {
         "../../etc",
     ] {
         assert!(IndexNowKey::try_new(bad).is_err(), "{bad:?}");
+    }
+}
+
+#[test]
+fn links_get_nothing_added_without_the_links_table() {
+    let config = read("").unwrap();
+    assert_eq!(config.seo().links, LinkSettings::default());
+    assert_eq!(config.seo().links.open, LinkOpening::SameTab);
+}
+
+#[test]
+fn reads_each_link_setting() {
+    let config = read(
+        r#"
+[seo.links]
+rel = ["nofollow", "ugc"]
+open = "new-tab"
+affiliate_domains = ["Amazon.com", "shareasale.com"]
+internal_domains = ["shop.example.com"]
+"#,
+    )
+    .unwrap();
+    let links = &config.seo().links;
+    assert_eq!(links.rel, [ExternalRel::NoFollow, ExternalRel::Ugc]);
+    assert_eq!(links.open, LinkOpening::NewTab);
+    let names: Vec<&str> = links
+        .affiliate_domains
+        .iter()
+        .map(DomainName::as_str)
+        .collect();
+    assert_eq!(names, ["amazon.com", "shareasale.com"]);
+    assert_eq!(links.internal_domains[0].as_str(), "shop.example.com");
+}
+
+#[test]
+fn refuses_an_address_where_a_domain_name_belongs() {
+    assert_eq!(
+        read("\n[seo.links]\naffiliate_domains = [\"https://amazon.com/\"]\n").unwrap_err(),
+        "site.toml, line 8, field \"affiliate_domains\": `https://amazon.com/` is not a domain name, expected a name such as amazon.com, with no https:// and no path"
+    );
+}
+
+#[test]
+fn domain_names_are_letters_digits_hyphens_and_inner_dots() {
+    for good in ["amazon.com", "AMAZON.co.uk", "my-shop.example"] {
+        assert!(DomainName::try_new(good).is_ok(), "{good:?}");
+    }
+    for bad in [
+        "",
+        ".amazon.com",
+        "amazon.com.",
+        "amazon.com/x",
+        "amazon com",
+    ] {
+        assert!(DomainName::try_new(bad).is_err(), "{bad:?}");
     }
 }
 
