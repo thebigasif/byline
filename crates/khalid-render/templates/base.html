@@ -24,7 +24,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="{{ image.alt }}">
 {% else %}<meta name="twitter:card" content="summary">
-{% endif %}{% endif %}</head>
+{% endif %}{% endif %}{% if site.script %}<script src="{{ site.script.src }}" integrity="{{ site.script.integrity }}" defer data-copied="{{ t.link_copied }}" data-close="{{ t.close }}"></script>
+{% endif %}</head>
 <body>
 <a class="skip-link" href="#main">{{ t.skip_link }}</a>
 <header class="site-header">
@@ -34,6 +35,7 @@
 {% for link in site.nav.primary %}<li><a href="{{ link.href }}"{% if link.href == meta.path %} aria-current="page"{% endif %}>{{ link.label }}</a></li>
 {% endfor %}</ul>
 </nav>
+{% endif %}{% if site.search and "search_shortcut" in site.features %}<a class="search-link" href="{{ site.search }}">{{ t.search_link }}</a>
 {% endif %}</header>
 <main id="main" tabindex="-1">
 {% block main %}{% endblock %}

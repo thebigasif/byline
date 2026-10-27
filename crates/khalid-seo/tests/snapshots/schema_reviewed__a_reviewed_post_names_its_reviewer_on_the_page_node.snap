@@ -1,0 +1,35 @@
+---
+source: crates/khalid-seo/tests/schema_reviewed.rs
+expression: page_and_reviewer.to_json()
+---
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://www.example.com/blog/why-internal-links-matter/#webpage",
+      "name": "Why internal links matter",
+      "url": "https://www.example.com/blog/why-internal-links-matter/",
+      "isPartOf": {
+        "@id": "https://www.example.com/blog/#website"
+      },
+      "inLanguage": "en",
+      "breadcrumb": {
+        "@id": "https://www.example.com/blog/why-internal-links-matter/#breadcrumb"
+      },
+      "description": "Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.",
+      "datePublished": "2026-09-14T08:00:00Z",
+      "dateModified": "2026-10-02T16:00:00Z",
+      "reviewedBy": {
+        "@id": "https://www.example.com/blog/authors/mara-lind/#person"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://www.example.com/blog/authors/mara-lind/#person",
+      "name": "Mara Lind",
+      "url": "https://www.example.com/blog/authors/mara-lind/",
+      "jobTitle": "Search quality reviewer"
+    }
+  ]
+}

@@ -19,9 +19,10 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use khalid_core::{AbsoluteUrl, Locale};
 use khalid_render::{
-    Alternate, BodyHtml, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink, PageBody, PageKind,
-    PageMeta, PostCard, RenderAuthor, RenderGlossary, RenderListing, RenderPage, RenderPost,
-    RenderSearch, RenderSite, Renderer, Robots, Tokens, stylesheet,
+    Alternate, AuthorEntry, BodyHtml, Features, GlossaryGroup, GlossaryTerm, Link, Nav, NavLink,
+    PageBody, PageKind, PageMeta, Person, PostCard, ReadingTime, RenderAuthor, RenderAuthors,
+    RenderGlossary, RenderHome, RenderListing, RenderPage, RenderPost, RenderSearch, RenderSite,
+    Renderer, Robots, ScriptTag, Tokens, TopicGroup, reader_script, stylesheet,
 };
 
 type Fallible<T> = Result<T, Box<dyn Error>>;
@@ -35,6 +36,8 @@ struct Lang {
     name: &'static str,
     glossary: &'static str,
     search: &'static str,
+    authors: &'static str,
+    archive: &'static str,
 }
 
 const LANGUAGES: [Lang; 2] = [
@@ -44,6 +47,8 @@ const LANGUAGES: [Lang; 2] = [
         name: "English",
         glossary: "Glossary",
         search: "Search",
+        authors: "Authors",
+        archive: "Archive",
     },
     Lang {
         tag: "de",
@@ -51,6 +56,8 @@ const LANGUAGES: [Lang; 2] = [
         name: "Deutsch",
         glossary: "Glossar",
         search: "Suche",
+        authors: "Autorinnen und Autoren",
+        archive: "Beitragsarchiv",
     },
 ];
 
@@ -168,6 +175,7 @@ struct Demo {
     fixture: PathBuf,
     renderer: Renderer,
     stylesheet: String,
+    script: ScriptTag,
     pages: usize,
     /// Each `translation` key's path in every language that has it.
     translations: BTreeMap<String, BTreeMap<&'static str, String>>,
@@ -210,12 +218,16 @@ impl Demo {
             nav: Nav {
                 primary: vec![
                     link(lang.glossary, format!("{}glossary/", lang.prefix)),
-                    link(lang.search, format!("{}search/", lang.prefix)),
+                    link(lang.authors, format!("{}authors/", lang.prefix)),
+                    link(lang.archive, format!("{}archive/", lang.prefix)),
                 ],
                 footer: Vec::new(),
             },
             main_site: Some(link("example.com", format!("{ADDRESS}/"))),
             share_image: None,
+            features: Features::all(),
+            search: Some(format!("{}search/", lang.prefix)),
+            script: Some(self.script.clone()),
         })
     }
 
@@ -317,9 +329,80 @@ impl Demo {
                 .collect(),
             pagination: None,
         };
-        let home = PageBody::Home(pick("Field Notes on SEO", &|_, _| true));
+        let used: BTreeSet<String> = cards
+            .iter()
+            .map(|(_, category, _)| category.clone())
+            .collect();
+        let topics = used
+            .iter()
+            .map(|slug| Link {
+                name: self.category_name(lang, slug),
+                href: format!("{}category/{slug}/", lang.prefix),
+            })
+            .collect();
+        let home = PageBody::Home(RenderHome {
+            listing: pick("Field Notes on SEO", &|_, _| true),
+            sections: Vec::new(),
+            topics: vec![TopicGroup {
+                name: None,
+                links: topics,
+            }],
+        });
         self.page(lang, (lang.prefix, None), "Field Notes on SEO", &home)?;
-        for author in &authors {
+        self.author_pages(lang, &authors, &cards)?;
+        let archive = PageBody::Archive(pick(lang.archive, &|_, _| true));
+        let path = format!("{}archive/", lang.prefix);
+        self.page(lang, (&path, None), lang.archive, &archive)?;
+        for slug in used {
+            let name = self.category_name(lang, &slug);
+            let path = format!("{}category/{slug}/", lang.prefix);
+            let body = PageBody::Category(pick(&name, &|_, category| category == slug));
+            self.page(lang, (&path, None), &name, &body)?;
+        }
+        self.glossary_and_search(lang)
+    }
+
+    /// The authors page, then each author's page with their posts and the
+    /// other authors. `cards` holds each post's author, category and card.
+    fn author_pages(
+        &mut self,
+        lang: &Lang,
+        authors: &[Doc],
+        cards: &[(String, String, PostCard)],
+    ) -> Fallible<()> {
+        let posts_by = |slug: &str| -> Vec<PostCard> {
+            cards
+                .iter()
+                .filter(|(author, _, _)| author == slug)
+                .map(|(_, _, card)| card.clone())
+                .collect()
+        };
+        let people: Vec<Person> = authors
+            .iter()
+            .map(|author| Person {
+                name: author.field("name"),
+                href: format!("{}authors/{}/", lang.prefix, author.field("slug")),
+                role: Some(author.field("role")),
+                image: None,
+                bio: None,
+                profiles: Vec::new(),
+            })
+            .collect();
+        let entries = authors
+            .iter()
+            .zip(&people)
+            .map(|(author, person)| AuthorEntry {
+                person: person.clone(),
+                posts: posts_by(&author.field("slug")).len(),
+            })
+            .collect();
+        let everyone = PageBody::Authors(RenderAuthors {
+            title: lang.authors.to_owned(),
+            authors: entries,
+        });
+        let path = format!("{}authors/", lang.prefix);
+        self.page(lang, (&path, None), lang.authors, &everyone)?;
+        for (author, person) in authors.iter().zip(&people) {
             let slug = author.field("slug");
             let page = RenderAuthor {
                 name: author.field("name"),
@@ -327,8 +410,13 @@ impl Demo {
                 image: None,
                 bio: markdown(&author.body, &format!("{}glossary/", lang.prefix)),
                 profiles: Vec::new(),
-                posts: pick("", &|by, _| by == slug).posts,
+                posts: posts_by(&slug),
                 pagination: None,
+                others: people
+                    .iter()
+                    .filter(|other| *other != person)
+                    .cloned()
+                    .collect(),
             };
             let (path, name) = (format!("{}authors/{slug}/", lang.prefix), page.name.clone());
             self.page(
@@ -338,17 +426,7 @@ impl Demo {
                 &PageBody::Author(Box::new(page)),
             )?;
         }
-        let used: BTreeSet<String> = cards
-            .iter()
-            .map(|(_, category, _)| category.clone())
-            .collect();
-        for slug in used {
-            let name = self.category_name(lang, &slug);
-            let path = format!("{}category/{slug}/", lang.prefix);
-            let body = PageBody::Category(pick(&name, &|_, category| category == slug));
-            self.page(lang, (&path, None), &name, &body)?;
-        }
-        self.glossary_and_search(lang)
+        Ok(())
     }
 
     fn category_name(&self, lang: &Lang, slug: &str) -> String {
@@ -444,37 +522,47 @@ impl Demo {
     fn post(&mut self, lang: &Lang, post: &Doc, authors: &[Doc]) -> Fallible<PostCard> {
         let path = format!("{}{}/", lang.prefix, post.field("slug"));
         let author = post.field("author");
-        let name = authors
-            .iter()
-            .find(|a| a.field("slug") == author)
-            .map_or(author.clone(), |a| a.field("name"));
+        let file = authors.iter().find(|a| a.field("slug") == author);
         let date = NaiveDate::parse_from_str(&post.field("date"), "%Y-%m-%d")?;
+        let body = markdown(&post.body, &format!("{}glossary/", lang.prefix));
         let record = RenderPost {
             title: post.field("title"),
             date,
             updated: None,
-            authors: vec![Link {
-                name,
+            reading_time: ReadingTime::of(&body, &Locale::try_new(lang.tag)?),
+            authors: vec![Person {
+                name: file.map_or(author.clone(), |a| a.field("name")),
                 href: format!("{}authors/{author}/", lang.prefix),
+                role: file.map(|a| a.field("role")),
+                image: None,
+                bio: None,
+                profiles: Vec::new(),
             }],
+            reviewers: Vec::new(),
             category: Some(Link {
                 name: self.category_name(lang, &post.field("category")),
                 href: format!("{}category/{}/", lang.prefix, post.field("category")),
             }),
             tags: Vec::new(),
             image: None,
-            body: markdown(&post.body, &format!("{}glossary/", lang.prefix)),
+            contents: None,
+            originals: BTreeMap::new(),
+            related: Vec::new(),
+            body,
         };
         let (title, key) = (record.title.clone(), post.field("translation"));
-        let body = PageBody::Post(Box::new(record));
-        self.page(lang, (&path, Some(&key)), &title, &body)?;
-        Ok(PostCard {
+        let card = PostCard {
             title: post.field("title"),
-            href: path,
+            href: path.clone(),
             date,
             excerpt: post.field("description"),
             image: None,
-        })
+            author: record.authors.first().cloned(),
+            category: record.category.clone(),
+        };
+        let body = PageBody::Post(Box::new(record));
+        self.page(lang, (&path, Some(&key)), &title, &body)?;
+        Ok(card)
     }
 }
 
@@ -495,10 +583,15 @@ fn main() -> Fallible<()> {
     file.push(format!("blog/assets/{}", css.name()));
     fs::create_dir_all(file.parent().ok_or("no folder")?)?;
     fs::write(file, css.body())?;
+    let js = reader_script()?;
+    let mut file = out.clone();
+    file.push(format!("blog/assets/{}", js.name()));
+    fs::write(file, js.body())?;
     let mut demo = Demo {
         out: out.clone(),
         renderer: Renderer::new()?,
         stylesheet: format!("/blog/assets/{}", css.name()),
+        script: ScriptTag::new(&js, "/blog/assets/"),
         pages: 0,
         translations: BTreeMap::new(),
         categories: category_names(&fixture)?,

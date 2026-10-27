@@ -47,7 +47,18 @@ pub struct PostFront {
     /// The address search engines should credit instead of this post, such
     /// as the original of a post first published elsewhere.
     pub canonical: Option<AbsoluteUrl>,
+    /// The slugs of the authors who checked the post, shown as "Reviewed
+    /// by" and written as `reviewedBy` in the page's JSON-LD.
+    #[serde(default, deserialize_with = "slugs")]
+    pub reviewed_by: Vec<Slug>,
+    /// The slugs of the posts shown under this one, in place of the ones
+    /// chosen at build time. At most [`MAX_RELATED`].
+    #[serde(default, deserialize_with = "related")]
+    pub related: Vec<Slug>,
 }
+
+/// The most related posts a post shows, and so the most it may pin.
+pub const MAX_RELATED: usize = 5;
 
 /// A post as read from its file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,6 +183,44 @@ pub(crate) fn date<'de, D: Deserializer<'de>>(
                 "the date must be a real day written as YYYY-MM-DD, such as 2026-09-14",
             )
         })
+}
+
+/// One slug or a list of them, as a writer may write either.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum OneOrMany {
+    One(String),
+    Many(Vec<String>),
+}
+
+/// Reads one slug or a list of slugs, with a message a writer understands.
+fn slugs<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Slug>, D::Error> {
+    let texts = match OneOrMany::deserialize(deserializer)? {
+        OneOrMany::One(text) => vec![text],
+        OneOrMany::Many(texts) => texts,
+    };
+    texts
+        .iter()
+        .map(|text| {
+            Slug::try_new(text).map_err(|_| {
+                serde::de::Error::custom(format!(
+                    "{text:?} is not a slug; name the file in authors/ or posts/ without .md, such as lena-vogt"
+                ))
+            })
+        })
+        .collect()
+}
+
+/// Reads the pinned related posts: slugs, at most [`MAX_RELATED`].
+fn related<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Slug>, D::Error> {
+    let slugs = slugs(deserializer)?;
+    if slugs.len() > MAX_RELATED {
+        return Err(serde::de::Error::custom(format!(
+            "a post shows at most {MAX_RELATED} related posts, and this lists {}; keep the {MAX_RELATED} that matter most",
+            slugs.len()
+        )));
+    }
+    Ok(slugs)
 }
 
 /// Reads old paths, each starting with `/`, with a message a writer

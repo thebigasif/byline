@@ -1,5 +1,6 @@
-{#- The shared shape of every list of posts. home.html, collection.html,
-    tag.html and category.html extend it, so a theme can change one or all. -#}
+{#- The shared shape of every list of posts. collection.html, tag.html and
+    category.html extend it, so a theme can change one or all. home.html has
+    its own shape, for its sections and topic links. -#}
 {% extends "base.html" %}
 {% block main %}
 {% from "card.html" import cards, pages -%}

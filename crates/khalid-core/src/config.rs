@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::toml_location::{field_of, line_of, line_of_key};
-use crate::{AbsoluteUrl, Locale, ParseUrlError, SeoSettings};
+use crate::{AbsoluteUrl, Locale, ParseUrlError, Reader, SeoSettings};
 
 /// Every setting Khalid reads, checked once at start and then passed by
 /// reference (RULES.md BL-RUN-2).
@@ -26,6 +26,7 @@ pub struct Config {
     default_language: Locale,
     languages: Vec<Locale>,
     seo: SeoSettings,
+    reader: Reader,
 }
 
 /// Whether Khalid runs a server or writes plain HTML.
@@ -66,6 +67,8 @@ struct SiteFile {
     languages: Vec<Locale>,
     #[serde(default)]
     seo: SeoSettings,
+    #[serde(default)]
+    reader: Reader,
 }
 
 fn root_mount() -> String {
@@ -145,6 +148,7 @@ impl Config {
             default_language: file.default_language,
             languages: file.languages,
             seo: file.seo,
+            reader: file.reader,
         })
     }
 
@@ -186,6 +190,11 @@ impl Config {
     /// The SEO settings, from `[seo]`.
     pub fn seo(&self) -> &SeoSettings {
         &self.seo
+    }
+
+    /// Which reader features the default templates show, from `[reader]`.
+    pub fn reader(&self) -> &Reader {
+        &self.reader
     }
 }
 

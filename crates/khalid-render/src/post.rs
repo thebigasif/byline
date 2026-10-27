@@ -1,11 +1,13 @@
 //! One post, as its page shows it.
 
+use std::collections::BTreeMap;
+
 use chrono::NaiveDate;
 use minijinja::Value;
 use serde::Serialize;
 
-use crate::RenderImage;
 use crate::serde_display::{display, display_option};
+use crate::{Contents, Person, PostCard, ReadingTime, RenderImage};
 
 /// One post: its heading, dates, people, topics and body.
 ///
@@ -20,14 +22,27 @@ pub struct RenderPost {
     /// The day it last changed in a way readers should know about.
     #[serde(serialize_with = "display_option")]
     pub updated: Option<NaiveDate>,
+    /// How long it takes to read, from [`ReadingTime::of`] its body.
+    pub reading_time: ReadingTime,
     /// Who wrote it, first author first.
-    pub authors: Vec<Link>,
+    pub authors: Vec<Person>,
+    /// Who checked it, from `reviewed_by` in its front matter, linked to
+    /// their author pages.
+    pub reviewers: Vec<Link>,
     /// The one category it belongs to, if any.
     pub category: Option<Link>,
     /// Its tags, in the order the writer gave them.
     pub tags: Vec<Link>,
     /// The lead image under the heading, usually loaded at once.
     pub image: Option<RenderImage>,
+    /// The table of contents, from [`Contents::of`] the body's headings.
+    pub contents: Option<Contents>,
+    /// For each body image drawn smaller than its original, its address as
+    /// the body writes it and the address of its largest version, which
+    /// the image links to.
+    pub originals: BTreeMap<String, String>,
+    /// The posts shown under this one, from [`related`](crate::related).
+    pub related: Vec<PostCard>,
     /// The post's HTML, already sanitised.
     pub body: BodyHtml,
 }

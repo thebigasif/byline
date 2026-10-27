@@ -5,6 +5,8 @@ use std::fmt::Write as _;
 use std::io::{self, Write as _};
 use std::sync::Arc;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use sha2::{Digest, Sha256};
@@ -93,6 +95,14 @@ impl Asset {
     /// The Brotli copy, the smallest.
     pub fn brotli(&self) -> &[u8] {
         &self.brotli
+    }
+
+    /// The file's SHA-256 as a Subresource Integrity value, such as
+    /// `sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=`. A tag that
+    /// carries it loads only these exact bytes, and a Content Security
+    /// Policy can allow the file by the same value.
+    pub fn integrity(&self) -> String {
+        format!("sha256-{}", STANDARD.encode(Sha256::digest(&self.body)))
     }
 }
 

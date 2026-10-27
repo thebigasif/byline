@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block main %}
-{% from "image.html" import picture %}
+{% from "image.html" import picture, avatar %}
 {% from "card.html" import cards, pages -%}
 <article class="author">
 <header class="author-header">
@@ -21,4 +21,16 @@
 {% else %}<p>{{ t.no_posts }}</p>
 {% endif %}{% if page.pagination %}{{ pages(page.pagination) }}
 {% endif %}</section>
-{% endblock %}
+{% if page.others and "authors_page" in site.features %}<section aria-labelledby="other-authors">
+<h2 id="other-authors">{{ t.other_authors }}</h2>
+<ul class="people-list" role="list">
+{% for person in page.others %}<li class="person-card">
+{% if person.image %}{{ avatar(person.image) }}
+{% endif %}<div>
+<p class="person-name"><a href="{{ person.href }}">{{ person.name }}</a></p>
+{% if person.role %}<p class="person-role">{{ person.role }}</p>
+{% endif %}</div>
+</li>
+{% endfor %}</ul>
+</section>
+{% endif %}{% endblock %}

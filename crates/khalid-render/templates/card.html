@@ -1,14 +1,19 @@
 {#- cards(posts, level): a list of post cards, each titled with a heading
-    of that level, used by every list and the author page. -#}
-{% from "image.html" import picture %}
+    of that level, used by every list and the author page. Rich cards show
+    the author, the date and the category above the title, in that order. -#}
+{% from "image.html" import picture, avatar %}
 {% macro cards(posts, level=2) -%}
 <ul class="cards" role="list">
 {% for post in posts %}<li>
 <article class="card">
 {% if post.image %}{{ picture(post.image) }}
-{% endif %}<h{{ level }}><a href="{{ post.href }}">{{ post.title }}</a></h{{ level }}>
+{% endif %}{% if "rich_cards" in site.features %}<p class="card-meta">{% if post.author %}<span class="card-author">{% if post.author.image %}{{ avatar(post.author.image) }}{% endif %}{{ post.author.name }}</span>
+{% endif %}<time datetime="{{ post.date }}">{{ post.date | date }}</time>{% if post.category %}
+<a href="{{ post.category.href }}">{{ post.category.name }}</a>{% endif %}</p>
+<h{{ level }}><a href="{{ post.href }}">{{ post.title }}</a></h{{ level }}>
+{% else %}<h{{ level }}><a href="{{ post.href }}">{{ post.title }}</a></h{{ level }}>
 <p><time datetime="{{ post.date }}">{{ post.date | date }}</time></p>
-<p>{{ post.excerpt }}</p>
+{% endif %}<p>{{ post.excerpt }}</p>
 </article>
 </li>
 {% endfor %}</ul>
