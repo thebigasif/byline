@@ -8,8 +8,9 @@ use khalid_content::ContentError;
 use khalid_core::{AbsoluteUrl, Config, ParseSlugError, RobotsDirectives, Slug};
 
 use crate::wordpress::item_file::{Place, Source, item_file};
+use crate::wordpress::redirect_map::redirect_map;
 use crate::wordpress::site_files::{author_files, categories_file};
-use crate::wordpress::{Export, ItemKind, ItemStatus, SlugOrigin, UnreadField};
+use crate::wordpress::{Export, ItemKind, ItemStatus, MapEntry, SlugOrigin, UnreadField};
 use khalid_routes::{AddressError, Routes};
 
 /// Everything an import of one export would write.
@@ -20,6 +21,8 @@ pub struct Plan {
     pub files: Vec<PlannedFile>,
     /// What became of each item that came in, in export order.
     pub items: Vec<ImportedItem>,
+    /// Where every old address leads, posts and pages first in export order.
+    pub redirects: Vec<MapEntry>,
     /// Each item that could not come in, with the reason.
     pub failed: Vec<FailedItem>,
 }
@@ -120,7 +123,8 @@ pub enum ItemError {
 /// for review and scheduled posts under `drafts/<lang>/`, and published
 /// pages under `content/<lang>/pages/`. Each author gets a file, and the
 /// categories go into `categories.toml`. A published post whose old
-/// address lies inside the blog, on the same host, keeps it as an alias.
+/// address lies inside the blog, on the same host, keeps it as an alias,
+/// and [`Plan::redirects`] says where every old address leads.
 pub fn plan(export: &Export, site: &Config, routes: &Routes) -> Plan {
     let from = Source {
         export,
@@ -147,5 +151,6 @@ pub fn plan(export: &Export, site: &Config, routes: &Routes) -> Plan {
     }
     plan.files.extend(author_files(export, site));
     plan.files.extend(categories_file(export, site));
+    plan.redirects = redirect_map(export, &plan.items, site, routes);
     plan
 }
