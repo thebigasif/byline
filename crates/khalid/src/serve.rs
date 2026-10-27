@@ -18,7 +18,7 @@ use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
+use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
@@ -196,8 +196,8 @@ fn serve_with(
 }
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
-/// comment moderation, media library, stored redirects and staff accounts
-/// of site `id`.
+/// comment moderation, media library, stored redirects, webhooks and staff
+/// accounts of site `id`.
 fn api_router(
     (content, door): (LiveContent, Arc<PublishDoor>),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
@@ -210,6 +210,11 @@ fn api_router(
         comments,
         media: Some(media),
         redirects,
+        webhooks: Some(Arc::new(WebhookTable::new(
+            database.clone(),
+            id,
+            SystemClock,
+        ))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
