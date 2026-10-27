@@ -21,7 +21,7 @@ use crate::html_source::markdown_from_html;
 use crate::keys::{KeyStore, Principal, Scope};
 use crate::post_store::{CreatePostError, UpdatePostError};
 use crate::problem::{Problem, ProblemType};
-use crate::publish_door::PublishDoor;
+use crate::publish_door::{PublishDoor, ScheduleError};
 use crate::resources::{AdminPost, NewPost, PostDraft, PostEdit};
 
 /// Where the Admin API lives.
@@ -69,7 +69,6 @@ async fn read_admin_post(
 ) -> Result<Json<AdminPosts>, Problem> {
     require(&principal, Scope::PostsWrite)?;
     let post = posts
-        .posts()
         .get(&id)
         .await
         .map_err(|error| Problem::internal(&error))?;
@@ -86,7 +85,8 @@ pub(crate) struct EditPosts {
 }
 
 /// Edits one post, and publishes it with `"status": "published"` once
-/// the linter lets it through. The edit carries the `updated_at` of the copy it was
+/// the linter lets it through, or with `"status": "scheduled"` and a
+/// future `published_at` at that time. The edit carries the `updated_at` of the copy it was
 /// made on; when the post changed since, the answer is a 409 naming who
 /// changed it and when (RULES.md BL-API-7). Needs `posts:write`.
 #[utoipa::path(
@@ -100,7 +100,7 @@ pub(crate) struct EditPosts {
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The post changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
-        (status = 422, description = "The body could not be read, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, the schedule cannot be kept, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
     )
 )]
 async fn edit_admin_post(
@@ -122,6 +122,7 @@ async fn edit_admin_post(
             updated_by,
         }) => Err(stale(updated_at, updated_by.as_deref())),
         Err(UpdatePostError::Refused(report)) => Err(refused(report)),
+        Err(UpdatePostError::Schedule(error)) => Err(unschedulable(error)),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
     }
 }
@@ -134,6 +135,16 @@ fn refused(report: Report) -> Problem {
         "Fix each finding marked block, then publish again.",
     );
     Problem::new(ProblemType::LintBlocked, &message).with_lint(report)
+}
+
+/// The 422 for an edit whose schedule cannot be kept.
+fn unschedulable(error: ScheduleError) -> Problem {
+    let message = UserMessage::new(
+        format!("The schedule in this edit cannot be kept: {error}."),
+        "A post goes live or comes down only at a time still to come, and nothing was changed.",
+        "Send status scheduled with a later published_at, and any unpublish_at after it.",
+    );
+    Problem::new(ProblemType::InvalidBody, &message).with_rule("published_at")
 }
 
 /// A new post, wrapped the way the Admin API wraps posts: exactly one.

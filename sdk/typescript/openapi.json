@@ -212,7 +212,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -296,7 +296,7 @@
             }
           },
           "422": {
-            "description": "The body could not be read, or the linter refused to publish the post",
+            "description": "The body could not be read, the schedule cannot be kept, or the linter refused to publish the post",
             "content": {
               "application/problem+json": {
                 "schema": {
