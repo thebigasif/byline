@@ -67,4 +67,4 @@ pub use site::{Nav, NavLink, RenderSite};
 pub use sitemap::{RenderSitemap, SitemapGroup, SitemapSection};
 pub use stylesheet::stylesheet;
 pub use token_values::{Color, FontStack, Length, ParseTokenError};
-pub use tokens::{Colors, ContrastFailure, Fonts, Shape, TokenName, Tokens};
+pub use tokens::{Brand, Colors, ContrastFailure, Fonts, Shape, TokenName, Tokens};

@@ -139,6 +139,34 @@ impl From<Length> for String {
     }
 }
 
+/// The logo and icon are full `http` or `https` addresses, as the renderer
+/// reads them, so a `javascript:` or `data:` link never reaches a page.
+pub(crate) mod address {
+    use khalid_core::AbsoluteUrl;
+
+    use super::{Deserialize, Deserializer, Serializer};
+
+    #[expect(
+        clippy::ref_option,
+        reason = "serde's `with` attribute passes the value by reference"
+    )]
+    pub(crate) fn serialize<S: Serializer>(
+        url: &Option<AbsoluteUrl>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        match url {
+            Some(url) => serializer.serialize_some(url.as_str()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<AbsoluteUrl>, D::Error> {
+        Option::<AbsoluteUrl>::deserialize(deserializer)
+    }
+}
+
 /// Colours in the file are `#rrggbb` or `#rgb`, nothing else, as the
 /// renderer reads them.
 pub(crate) mod hex {

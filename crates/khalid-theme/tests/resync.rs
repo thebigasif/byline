@@ -7,6 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use common::{sync, sync_edited};
+use khalid_core::AbsoluteUrl;
 use khalid_theme::{Rgb, ThemeTokens, TokenChange, TokenName};
 
 const STYLESHEET: &str = "/wp-content/themes/northwind/style.css";
@@ -93,6 +94,21 @@ fn a_site_that_did_not_change_gives_an_empty_diff_even_with_locked_values() {
 }
 
 #[test]
+fn a_logo_found_for_the_first_time_is_added_and_the_diff_says_so() {
+    let mut site = ThemeTokens::default();
+    site.brand.logo = Some(AbsoluteUrl::parse("https://a.example/logo.svg").unwrap());
+    let mut tokens = ThemeTokens::default();
+
+    let diff = tokens.resync(&site);
+
+    assert_eq!(tokens, site);
+    assert_eq!(
+        diff.to_string(),
+        "brand.logo changed from none to https://a.example/logo.svg.\n"
+    );
+}
+
+#[test]
 fn every_token_can_be_locked() {
     let mut text = ThemeTokens::default().to_toml();
     for (from, to) in [
@@ -111,6 +127,8 @@ fn every_token_can_be_locked() {
     ] {
         text = text.replace(from, to);
     }
+    text.push_str("\n[brand]\nlogo = \"https://a.example/logo.svg\"\n");
+    text.push_str("icon = \"https://a.example/icon.png\"\n");
     let site = ThemeTokens::from_toml(&text).unwrap();
     let mut tokens = ThemeTokens::default();
     tokens.locked = TokenName::ALL.to_vec();

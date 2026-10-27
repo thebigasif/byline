@@ -8,6 +8,27 @@ fn source(family: &str, url: &str, host: FontHost) -> FontSource {
 }
 
 #[test]
+fn only_text_fonts_from_an_unknown_server_are_held_and_inline_fonts_never_are() {
+    let css = [
+        "@font-face { font-family: InterVariable; src: url(https://static.gnome.org/Inter.woff2) }",
+        "@font-face { font-family: Pythonicon; src: url(https://cdn.example.org/icons.woff) }",
+        "@font-face { font-family: Brand; src: url(data:font/woff2;base64,d09GMgAB) }",
+        "body { font-family: InterVariable, sans-serif }",
+        "h1 { font-family: Brand, serif }",
+    ]
+    .join("\n");
+
+    let fonts = Typography::from_css(&[&css], &[]);
+
+    let held: Vec<(&str, &str)> = fonts
+        .held
+        .iter()
+        .map(|font| (font.family(), font.server()))
+        .collect();
+    assert_eq!(held, [("InterVariable", "static.gnome.org")]);
+}
+
+#[test]
 fn finds_body_and_heading_families_from_rules_and_properties() {
     let fonts = Typography::from_css(
         &[":root { --font-sans: 'Inter', system-ui, sans-serif; }\n\

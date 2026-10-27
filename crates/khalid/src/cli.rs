@@ -348,10 +348,16 @@ pub(crate) enum KeyKindArg {
 /// The theme commands.
 #[derive(Debug, Subcommand)]
 pub(crate) enum ThemeCommand {
-    /// Read the main site's colours and fonts into theme/tokens.toml
+    /// Read the main site's colours, fonts, logo and icon into
+    /// theme/tokens.toml, and draw a preview in data/theme-preview/
     Sync {
         /// The main site's address, such as `https://www.example.com`
         url: AbsoluteUrl,
+        /// Take the colours and fonts from this CSS file instead of the
+        /// site, such as its variables copied from a browser, for a site
+        /// that draws its pages with JavaScript. Nothing is fetched.
+        #[arg(long, value_name = "FILE")]
+        from_css: Option<PathBuf>,
     },
     /// Compare theme/tokens.toml with the main site and check its contrast
     Check {

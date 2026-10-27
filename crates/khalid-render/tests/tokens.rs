@@ -4,7 +4,8 @@
 use std::fs;
 use std::path::PathBuf;
 
-use khalid_render::{RenderError, Tokens};
+use khalid_core::AbsoluteUrl;
+use khalid_render::{Brand, RenderError, Tokens};
 
 #[test]
 fn a_site_without_tokens_gets_light_defaults_that_pass_contrast() {
@@ -143,6 +144,28 @@ fn a_locked_list_of_token_names_is_read_and_a_wrong_name_is_refused_with_its_lin
         matches!(error, RenderError::Tokens { line: Some(2), .. }),
         "{error:?}"
     );
+}
+
+#[test]
+fn the_logo_and_icon_are_web_addresses_and_may_be_locked() {
+    let tokens = Tokens::from_toml(
+        "locked = [\"brand.logo\", \"brand.icon\"]\n\n[brand]\n\
+         logo = \"https://northwind.example/logo.svg\"\n",
+    )
+    .unwrap();
+    let logo = tokens.brand.logo.as_ref().map(AbsoluteUrl::as_str);
+    assert_eq!(logo, Some("https://northwind.example/logo.svg"));
+    assert_eq!(tokens.brand.icon, None);
+    assert_eq!(tokens.locked.len(), 2);
+    assert_eq!(Tokens::default().brand, Brand::default());
+
+    for text in [
+        "[brand]\nicon = \"data:image/png;base64,AAAA\"",
+        "[brand]\nlogo = \"/logo.svg\"",
+        "[brand]\ncover = \"https://a.example/c.png\"",
+    ] {
+        assert!(Tokens::from_toml(text).is_err(), "{text}");
+    }
 }
 
 #[test]

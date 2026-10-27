@@ -10,9 +10,12 @@ use serde_json::Value;
 use wiremock::matchers::path;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-/// A home page that links one stylesheet on its own site.
+/// A home page that links one stylesheet on its own site, with a logo and
+/// an icon.
 const HOME: &str = r#"<!doctype html><html><head><title>Northwind Bakery</title>
-<link rel="stylesheet" href="/style.css"></head><body><h1>Bread</h1></body></html>"#;
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/style.css"></head><body>
+<header><img src="/logo.svg" alt="Northwind"></header><h1>Bread</h1></body></html>"#;
 
 /// A warm theme whose pale amber link is too faint to read on the page.
 const STYLE: &str = "body { background: #fbf8f3; color: #2b2118; }\na { color: #f0c040; }\n";
@@ -117,6 +120,15 @@ async fn sync_writes_the_tokens_says_where_and_explains_each_contrast_fix() {
     let tokens = fs::read_to_string(&file).unwrap();
     assert!(tokens.contains("background = \"#fbf8f3\""), "{tokens}");
     assert!(!tokens.contains("#f0c040"), "{tokens}");
+    let brand = format!("[brand]\nlogo = \"{home}logo.svg\"\nicon = \"{home}favicon.ico\"\n");
+    assert!(tokens.ends_with(&brand), "{tokens}");
+    let preview = within(site.path(), "data/theme-preview/index.html");
+    let open = format!("Open {} in a browser to see", preview.display());
+    assert!(said.contains(&open), "{said}");
+    let page = fs::read_to_string(&preview).unwrap();
+    assert!(page.contains("How Northwind Bakery will look"), "{page}");
+    let css = fs::read_to_string(within(site.path(), "data/theme-preview/site.css")).unwrap();
+    assert!(css.contains("--color-background: #fbf8f3;"), "{css}");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -135,6 +147,8 @@ async fn sync_with_json_names_the_file_and_each_fix() {
     let body = json(&output);
     let file = within(site.path(), "theme/tokens.toml");
     assert_eq!(body["tokens"], file.display().to_string());
+    let preview = within(site.path(), "data/theme-preview/index.html");
+    assert_eq!(body["preview"], preview.display().to_string());
     assert_eq!(body["site"], home);
     let fix = &body["contrast_fixes"][0];
     assert_eq!(fix["token"], "colors.link");
@@ -223,6 +237,65 @@ async fn a_page_with_no_stylesheet_writes_nothing() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_site_drawn_by_javascript_gets_the_clean_default_and_the_way_to_paste_its_css() {
+    let site = site();
+    let app = r#"<!doctype html><html><head><title>Acme</title>
+<link rel="icon" href="/favicon.ico"></head><body><div id="root"></div>
+<script src="/static/js/main.js"></script></body></html>"#;
+    let (_server, home) = stand_in(app, None).await;
+
+    let human = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+    let output = khalid(
+        site.path(),
+        &["--json", "theme", "sync", &home],
+        Names::StandIn,
+    )
+    .await;
+
+    assert_eq!(human.status.code(), Some(0), "{}", text(&human.stderr));
+    let said = text(&human.stdout);
+    assert!(said.contains("draws its pages with JavaScript"), "{said}");
+    assert!(said.contains("clean default"), "{said}");
+    assert!(
+        said.contains(&format!("khalid theme sync {home} --from-css")),
+        "{said}"
+    );
+    let tokens = fs::read_to_string(within(site.path(), "theme/tokens.toml")).unwrap();
+    assert!(tokens.contains("background = \"#ffffff\""), "{tokens}");
+    assert!(tokens.contains("favicon.ico"), "{tokens}");
+    assert_eq!(json(&output)["drawn_by_script"], true);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_font_the_blog_may_not_serve_is_named_in_plain_words() {
+    let site = site();
+    let kit = HOME.replace(
+        "<link rel=\"stylesheet\" href=\"/style.css\">",
+        "<link rel=\"stylesheet\" href=\"https://use.typekit.net/kxv2mqa.css\">\n\
+         <link rel=\"stylesheet\" href=\"/style.css\">",
+    );
+    let style = format!("{STYLE}body {{ font-family: proxima-nova, Arial, sans-serif; }}\n");
+    let (_server, home) = stand_in(&kit, Some(&style)).await;
+
+    let human = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+    let output = khalid(
+        site.path(),
+        &["--json", "theme", "sync", &home],
+        Names::StandIn,
+    )
+    .await;
+
+    assert_eq!(human.status.code(), Some(0), "{}", text(&human.stderr));
+    let said = text(&human.stdout);
+    let line = "The font proxima-nova comes from Adobe Fonts, whose licence does not let \
+                the blog serve it, so the blog shows the next font in its list.";
+    assert!(said.contains(line), "{said}");
+    let held = &json(&output)["held_fonts"][0];
+    assert_eq!(held["family"], "proxima-nova");
+    assert_eq!(held["server"], "use.typekit.net");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_file_in_the_way_of_the_theme_folder_is_named() {
     let site = site();
     fs::write(within(site.path(), "theme"), "not a folder").unwrap();
@@ -237,6 +310,68 @@ async fn a_file_in_the_way_of_the_theme_folder_is_named() {
         said.contains("is a folder you can read and write"),
         "{said}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn from_css_reads_pasted_variables_and_never_fetches_the_site() {
+    let site = site();
+    let pasted = within(site.path(), "pasted.css");
+    let variables = ":root { --color-background: #fdfcfa; --color-text: #1e2a3a; }\n";
+    fs::write(&pasted, variables).unwrap();
+    let css = pasted.display().to_string();
+    let home = "https://northwind.invalid/";
+
+    let args = ["theme", "sync", home, "--from-css", &css];
+    let output = khalid(site.path(), &args, Names::Real).await;
+
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(
+        said.contains(&format!("from the CSS in {css} into")),
+        "{said}"
+    );
+    let tokens = fs::read_to_string(within(site.path(), "theme/tokens.toml")).unwrap();
+    assert!(tokens.contains("background = \"#fdfcfa\""), "{tokens}");
+    assert!(tokens.contains("text = \"#1e2a3a\""), "{tokens}");
+    let page = within(site.path(), "data/theme-preview/index.html");
+    let page = fs::read_to_string(page).unwrap();
+    assert!(page.contains("How northwind.invalid will look"), "{page}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn from_css_with_a_missing_file_names_it_and_writes_nothing() {
+    let site = site();
+    let missing = within(site.path(), "nothing-here.css");
+    let css = missing.display().to_string();
+
+    let args = [
+        "theme",
+        "sync",
+        "https://northwind.invalid/",
+        "--from-css",
+        &css,
+    ];
+    let output = khalid(site.path(), &args, Names::Real).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains(&format!("could not read {css}")), "{said}");
+    assert!(!within(site.path(), "theme/tokens.toml").exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_preview_that_cannot_be_written_says_the_tokens_were_saved() {
+    let site = site();
+    fs::write(within(site.path(), "data"), "not a folder").unwrap();
+    let (_server, home) = stand_in(HOME, Some(STYLE)).await;
+
+    let output = khalid(site.path(), &["theme", "sync", &home], Names::StandIn).await;
+
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(said.contains("theme-preview"), "{said}");
+    assert!(said.contains("theme/tokens.toml is saved"), "{said}");
+    assert!(within(site.path(), "theme/tokens.toml").exists());
 }
 
 #[cfg(unix)]

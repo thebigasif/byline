@@ -2,7 +2,8 @@
 
 use std::fs;
 
-use khalid_theme::{FontStack, Length, ThemeTokens, TokenName};
+use khalid_core::AbsoluteUrl;
+use khalid_theme::{FontStack, Length, SiteTheme, ThemeTokens, TokenName};
 
 #[cfg(test)]
 fn defaults_file() -> String {
@@ -54,11 +55,40 @@ fn a_locked_list_is_read_written_back_above_the_tables_and_checked_by_name() {
 
     let names: Vec<&str> = tokens.locked.iter().map(|name| name.as_str()).collect();
     assert_eq!(names, ["colors.link", "fonts.heading"]);
-    assert_eq!(TokenName::ALL.len(), 12);
+    assert_eq!(TokenName::ALL.len(), 14);
     assert_eq!(tokens.to_toml(), text);
     let wrong = defaults_file().replace("[colors]", "locked = [\"colors.lnk\"]\n\n[colors]");
     let error = ThemeTokens::from_toml(&wrong).unwrap_err();
     assert_eq!(error.line(), Some(6), "{error}");
+}
+
+#[test]
+fn the_logo_and_icon_come_from_the_site_and_are_written_last_and_only_when_found() {
+    let mut theme = SiteTheme::default();
+    let logo = AbsoluteUrl::parse("https://northwind.example/logo.svg").unwrap();
+    let icon = AbsoluteUrl::parse("https://northwind.example/favicon.ico").unwrap();
+    let touch = AbsoluteUrl::parse("https://northwind.example/apple-touch-icon.png").unwrap();
+    theme.brand.logo = Some(logo.clone());
+    theme.brand.icons = vec![icon.clone(), touch];
+
+    let tokens = ThemeTokens::from_theme(&theme);
+
+    assert_eq!(tokens.brand.logo, Some(logo));
+    assert_eq!(tokens.brand.icon, Some(icon));
+    let text = tokens.to_toml();
+    let brand = "[brand]\nlogo = \"https://northwind.example/logo.svg\"\n\
+                 icon = \"https://northwind.example/favicon.ico\"\n";
+    assert!(text.ends_with(brand), "{text}");
+    assert_eq!(ThemeTokens::from_toml(&text).unwrap(), tokens);
+    assert!(!ThemeTokens::default().to_toml().contains("[brand]"));
+    let script = format!(
+        "{}\n[brand]\nlogo = \"javascript:alert(1)\"\n",
+        defaults_file()
+    );
+    assert_eq!(
+        ThemeTokens::from_toml(&script).unwrap_err().line(),
+        Some(25)
+    );
 }
 
 #[test]

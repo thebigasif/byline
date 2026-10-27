@@ -34,6 +34,34 @@ pub struct Typography {
     pub heading: Option<String>,
     /// Every font file or font service the CSS and links load, in page order.
     pub sources: Vec<FontSource>,
+    /// The fonts the blog may not serve itself, such as an Adobe Fonts
+    /// family. The blog shows the next font in the list instead.
+    pub held: Vec<HeldFont>,
+}
+
+/// A font whose licence keeps it on the server that sells it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeldFont {
+    family: String,
+    host: FontHost,
+    server: String,
+}
+
+impl HeldFont {
+    /// The family name, such as `proxima-nova`.
+    pub fn family(&self) -> &str {
+        &self.family
+    }
+
+    /// Who serves it.
+    pub fn host(&self) -> FontHost {
+        self.host
+    }
+
+    /// The server's host name, such as `use.typekit.net`.
+    pub fn server(&self) -> &str {
+        &self.server
+    }
 }
 
 /// One font family and where it is loaded from.
@@ -72,7 +100,9 @@ impl FontHost {
             Ok(url) => match url.host_str() {
                 Some("fonts.googleapis.com" | "fonts.gstatic.com") => Self::Google,
                 Some("use.typekit.net" | "p.typekit.net") => Self::Adobe,
-                _ => Self::Other,
+                // A `data:` font is written inside the site's own CSS.
+                None => Self::SelfHosted,
+                Some(_) => Self::Other,
             },
         }
     }
@@ -141,13 +171,100 @@ impl Typography {
             sources.extend(faces.filter_map(from_face));
         }
         sources.extend(links.iter().flat_map(|link| from_link(link)));
+        let body =
+            declared(&PAGE).or_else(|| named(&properties, &["body", "base", "sans", "text"]));
+        let heading = declared(&HEADINGS)
+            .or_else(|| named(&properties, &["heading", "headings", "display", "title"]));
+        let held = held_fonts(&sources, links, [body.as_deref(), heading.as_deref()]);
         Self {
-            body: declared(&PAGE).or_else(|| named(&properties, &["body", "base", "sans", "text"])),
-            heading: declared(&HEADINGS)
-                .or_else(|| named(&properties, &["heading", "headings", "display", "title"])),
+            body,
+            heading,
             sources,
+            held,
         }
     }
+}
+
+/// The text fonts the blog may not serve: the first family of the body and
+/// heading lists, when it is loaded from a server whose licence we do not
+/// know, or, with a paid font service such as an Adobe Fonts kit linked,
+/// when no open source loads it. Icon fonts and other families the text
+/// does not use are left out.
+fn held_fonts(sources: &[FontSource], links: &[&str], lists: [Option<&str>; 2]) -> Vec<HeldFont> {
+    let firsts: Vec<&str> = lists
+        .iter()
+        .flatten()
+        .filter_map(|list| first_family(list))
+        .collect();
+    let mut held: Vec<HeldFont> = Vec::new();
+    let mut keep = |family: &str, host: FontHost, url: &str| {
+        if !held
+            .iter()
+            .any(|font| font.family.eq_ignore_ascii_case(family))
+        {
+            let server = Url::parse(url)
+                .ok()
+                .and_then(|url| url.host_str().map(str::to_owned))
+                .unwrap_or_default();
+            held.push(HeldFont {
+                family: family.to_owned(),
+                host,
+                server,
+            });
+        }
+    };
+    let used = |family: &str| {
+        firsts
+            .iter()
+            .any(|first| first.eq_ignore_ascii_case(family))
+    };
+    for source in sources.iter().filter(|source| !source.host.can_rehost()) {
+        if used(&source.family) {
+            keep(&source.family, source.host, &source.url);
+        }
+    }
+    let services = links
+        .iter()
+        .filter_map(|link| Some((paid_service(link)?, *link)));
+    for (host, link) in services {
+        for &first in &firsts {
+            let served = sources
+                .iter()
+                .any(|source| source.family.eq_ignore_ascii_case(first));
+            if !served {
+                keep(first, host, link);
+            }
+        }
+    }
+    held
+}
+
+/// Who serves a link to a paid font service, or `None` for any other link.
+fn paid_service(url: &str) -> Option<FontHost> {
+    let url = Url::parse(url).ok()?;
+    match url.host_str()? {
+        "use.typekit.net" | "p.typekit.net" => Some(FontHost::Adobe),
+        "fast.fonts.net" | "use.fonts.com" | "cloud.typography.com" => Some(FontHost::Other),
+        _ => None,
+    }
+}
+
+/// The first family of a font list without its quotes, or `None` when it
+/// is a generic family that every computer has.
+fn first_family(list: &str) -> Option<&str> {
+    let first = split_top(list, |c| c == ',').into_iter().next()?;
+    let first = first.trim().trim_matches('"');
+    let generic = [
+        "serif",
+        "sans-serif",
+        "monospace",
+        "system-ui",
+        "ui-sans-serif",
+        "ui-serif",
+        "ui-monospace",
+        "-apple-system",
+    ];
+    (!first.is_empty() && !generic.contains(&first)).then_some(first)
 }
 
 /// The family list of the property with the shortest name that has `font`
