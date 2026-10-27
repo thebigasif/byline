@@ -2,7 +2,7 @@
 //! written, so a dry run and the real run see the same thing (ADR "an
 //! import maps every old address").
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::NaiveDateTime;
 use khalid_content::ContentError;
@@ -13,7 +13,8 @@ use crate::ghost::post_file::{Source, post_file};
 use crate::ghost::redirect_map::{MapEntry, REDIRECTS_CSV, ghost_csv, redirect_map};
 use crate::ghost::site_files::author_files;
 use crate::ghost::{BodyError, Export, Post, PostKind, PostStatus, Visibility};
-use crate::{Place, PlannedFile, SlugOrigin};
+use crate::write::write_files;
+use crate::{Place, PlannedFile, SlugOrigin, WriteError};
 
 /// Everything an import of one Ghost export would write.
 #[derive(Debug, Default)]
@@ -33,6 +34,9 @@ pub struct Plan {
     pub redirects: Vec<MapEntry>,
     /// How many author files the plan writes.
     pub authors: usize,
+    /// How many public tags the export has. Their archives are not mapped
+    /// until posts can hold tags.
+    pub tags: usize,
 }
 
 /// A post or page that came in.
@@ -198,6 +202,7 @@ pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Rou
     }
     let credited = author_files(export, &plan.posts, site);
     plan.authors = credited.len();
+    plan.tags = export.tags.iter().filter(|tag| !tag.internal).count();
     plan.redirects = redirect_map(export, &plan.posts, &credited, old_site, site);
     plan.files
         .extend(credited.into_iter().map(|known| known.file));
@@ -206,6 +211,22 @@ pub fn plan(export: &Export, old_site: &AbsoluteUrl, site: &Config, routes: &Rou
         text: ghost_csv(&plan.redirects),
     });
     plan
+}
+
+impl Plan {
+    /// Writes every planned file into the site folder at `site`, each one
+    /// atomically: to a temporary file in the same folder, synced, then
+    /// renamed. Returns the files written, from the site folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WriteError::Exists`] when any planned file exists already,
+    /// before anything is written; [`WriteError::Path`] when a planned path
+    /// leads outside the site folder, also before anything is written; and
+    /// [`WriteError::Write`] when a file cannot be written.
+    pub fn write(&self, site: &Path) -> Result<Vec<PathBuf>, WriteError> {
+        write_files(&self.files, site)
+    }
 }
 
 /// Where a post's file goes, or why it stays behind.

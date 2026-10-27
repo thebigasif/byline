@@ -12,6 +12,7 @@ mod plan;
 mod post_file;
 mod read;
 mod redirect_map;
+mod report;
 mod site_files;
 
 pub use body::BodyError;
@@ -23,3 +24,4 @@ pub use plan::{
 };
 pub use read::{ExportError, read_export};
 pub use redirect_map::{MapEntry, MapSource, REDIRECTS_CSV};
+pub use report::Report;

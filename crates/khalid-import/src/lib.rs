@@ -12,6 +12,7 @@ mod front_matter;
 pub mod ghost;
 mod markdown;
 mod redirects;
+mod sentences;
 mod slug;
 pub mod wordpress;
 mod write;

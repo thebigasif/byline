@@ -3,6 +3,7 @@
 
 use std::fmt;
 
+use crate::sentences::{count, list};
 use crate::wordpress::{LeftReason, Plan, SkipReason};
 use crate::{MapTarget, Place, SlugOrigin};
 
@@ -114,20 +115,6 @@ impl fmt::Display for Report<'_> {
             .map(|rule| format!("{} {}, {}", rule.id, rule.url, skipped(&rule.reason)))
             .collect();
         list(f, "Redirect rules left behind", &rules)
-    }
-}
-
-/// `n` with the word that fits it.
-fn count(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
-}
-
-/// A line that counts `entries`, then lists them when there are any.
-fn list(f: &mut fmt::Formatter<'_>, label: &str, entries: &[String]) -> fmt::Result {
-    if entries.is_empty() {
-        writeln!(f, "{label}: 0.")
-    } else {
-        writeln!(f, "{label}: {}.", entries.join("; "))
     }
 }
 
