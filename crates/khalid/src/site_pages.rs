@@ -8,14 +8,13 @@ use std::{fmt, fs};
 
 use khalid_content::{ContentTree, Document, SiteContent, check_bodies, parse_post, read_content};
 use khalid_core::{Config, UserMessage};
-use khalid_db::{Database, SiteId};
 use khalid_render::{PageBody, Renderer};
 use khalid_routes::Routes;
 use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
-use tokio::runtime::Handle;
 
 use crate::build_pages::LanguagePages;
-use crate::site_content::{LiveContent, published};
+use crate::content_feed::ContentFeed;
+use crate::site_content::Catalog;
 use crate::{assets, build_message, build_pages, content_message, post_files, post_images};
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -43,23 +42,10 @@ struct Site {
     tree: Mutex<Option<ContentTree>>,
 }
 
-/// Where each render also sends the published posts: the content index in
-/// the site's database, and the posts the Content API answers with.
-#[derive(Debug)]
-pub(crate) struct ContentFeed {
-    /// The runtime the database belongs to. Renders run off it, on the
-    /// main thread at start and on a blocking thread after, so they wait
-    /// for the database through it.
-    pub(crate) runtime: Handle,
-    pub(crate) db: Database,
-    pub(crate) site: SiteId,
-    pub(crate) live: LiveContent,
-}
-
 impl SitePages {
     /// The pages of the site in `folder`, with its checked `config` and
-    /// `routes`. With a `feed`, each render also refreshes the index and the
-    /// Content API.
+    /// `routes`. With a `feed`, each render also hands the Content API what
+    /// it read.
     pub(crate) fn new(
         folder: &Path,
         config: Config,
@@ -103,7 +89,7 @@ impl SitePages {
     }
 
     /// Every page made from `content`, already read from the site folder,
-    /// and the not-found page, refreshing the feed first when there is one.
+    /// and the not-found page, then hands the feed its catalog when there is one.
     /// At start, `khalid serve` passes the content it checked, so the posts
     /// are read once, not twice. The folder is only listed again, for the
     /// files beside folder posts. `content` must have passed `check_bodies`.
@@ -121,7 +107,8 @@ impl SitePages {
     }
 
     /// Every page made from `content`, with the files `tree` holds beside
-    /// folder posts, and the not-found page.
+    /// folder posts, and the not-found page. Only a full render hands the
+    /// feed its catalog, so the Content API never sees part of the site.
     fn render_from(
         &self,
         tree: &ContentTree,
@@ -135,13 +122,18 @@ impl SitePages {
             tree: listed,
             ..
         } = &*self.0;
-        if let Some(feed) = feed {
-            let fed = published(&feed.db, feed.site, folder, config, content);
-            feed.live.replace(feed.runtime.block_on(fed)?);
-        }
+        // The catalog holds no post body, so it is quick to make here, and
+        // the Content API's store is built from it in the background.
+        let catalog = match feed {
+            Some(_) => Some(Catalog::of(folder, config, content)?),
+            None => None,
+        };
         let rendered = self.render_of(tree, content, Which::All)?;
         *outline.lock().unwrap_or_else(PoisonError::into_inner) = outline_of(content);
         *listed.lock().unwrap_or_else(PoisonError::into_inner) = Some(tree.clone());
+        if let (Some(feed), Some(catalog)) = (feed, catalog) {
+            feed.send(catalog);
+        }
         Ok(rendered)
     }
 

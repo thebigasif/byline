@@ -2,7 +2,7 @@
 
 use std::path::{Component, Path};
 
-use khalid_content::{ContentHash, ContentTree, read_content};
+use khalid_content::{ContentHash, ContentTree, SiteContent, read_content};
 use khalid_core::UserMessage;
 use khalid_db::{ContentIndex, IndexedAuthor, IndexedPost};
 
@@ -10,7 +10,7 @@ use crate::{categories, content_message};
 
 /// The collection whose entries are posts. Other collections get their own
 /// schemas and join the index with them.
-const POSTS: &str = "posts";
+pub(crate) const POSTS: &str = "posts";
 
 /// Every post and author of every language in the `site` folder, and the
 /// categories in its `categories.toml`, ready for the database.
@@ -18,6 +18,12 @@ pub(crate) fn of(site: &Path) -> Result<ContentIndex, UserMessage> {
     let content = |error| content_message::of(site, &error);
     let tree = ContentTree::walk(site).map_err(content)?;
     let read = read_content(&tree).map_err(content)?;
+    of_content(site, &read)
+}
+
+/// The same index as [`of`], from the content already `read` from the
+/// `site` folder, so no post is read twice.
+pub(crate) fn of_content(site: &Path, read: &SiteContent) -> Result<ContentIndex, UserMessage> {
     let mut index = ContentIndex::default();
     for doc in read.posts.iter().filter(|doc| doc.collection == POSTS) {
         let front = &doc.front;

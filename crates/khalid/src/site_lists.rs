@@ -1,46 +1,44 @@
 //! The Content API's site lists on a running site: authors, tags and
-//! categories from the index in `data/site.db`, collections from the content,
-//! and settings and menus from `site.toml`.
+//! categories from the content index, collections from the content, and
+//! settings and menus from `site.toml`.
 
-use std::path::Path;
+use std::collections::BTreeMap;
 
 use khalid_api::content_store::SiteResources;
 use khalid_api::resources::{Author, ContentCollection, Menu, Settings, Term};
 use khalid_content::SiteContent;
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
-use khalid_db::{Database, IndexedTerm, SiteId};
+use khalid_db::{ContentIndex, IndexedTerm};
 
-use crate::{build_message, build_pages, db_message, index};
+use crate::{build_message, build_pages, index};
 
 /// The menus every page has. Nothing fills them yet, so they are empty, as
 /// on the pages themselves.
 const MENUS: [&str; 2] = ["primary", "footer"];
 
-/// The site's lists, read from the index of `site` in `db` after a rebuild
-/// of the `folder`, with each author's role, introduction and profiles from
+/// The site's lists from its `index`, the rows a rebuild writes to
+/// `data/site.db`, with each author's role, introduction and profiles from
 /// `content`.
 ///
 /// # Errors
 ///
-/// Returns what, why and fix when the index cannot be read or an address
-/// cannot be made from the site's settings.
-pub(crate) async fn of(
-    db: &Database,
-    site: SiteId,
-    folder: &Path,
+/// Returns what, why and fix when an address cannot be made from the site's
+/// settings.
+pub(crate) fn of(
     config: &Config,
+    index: &ContentIndex,
     content: &SiteContent,
 ) -> Result<SiteResources, UserMessage> {
-    let unusable = |error| db_message::of(folder, &error);
+    let docs: BTreeMap<String, _> = content
+        .authors
+        .iter()
+        .filter_map(|doc| Some((index::slashed(&doc.path)?, doc)))
+        .collect();
     let mut authors = Vec::new();
-    for row in db.authors(site).await.map_err(unusable)? {
+    for row in &index.authors {
         let url = address(config, &row.locale, &format!("authors/{}/", row.slug))?;
-        let mut author = Author::new(row.slug, &row.name, row.locale).with_url(url);
-        let doc = content
-            .authors
-            .iter()
-            .find(|doc| index::slashed(&doc.path).as_deref() == Some(row.path.as_str()));
-        if let Some(doc) = doc {
+        let mut author = Author::new(row.slug.clone(), &row.name, row.locale.clone()).with_url(url);
+        if let Some(doc) = docs.get(&row.path) {
             if let Some(role) = &doc.front.role {
                 author = author.with_role(role);
             }
@@ -52,12 +50,12 @@ pub(crate) async fn of(
         }
         authors.push(author);
     }
-    let terms = |rows: Vec<IndexedTerm>| -> Vec<Term> {
-        let term = |row: IndexedTerm| Term::new(row.slug, &row.name, row.locale);
-        rows.into_iter().map(term).collect()
+    let terms = |rows: &[IndexedTerm]| -> Vec<Term> {
+        let term = |row: &IndexedTerm| Term::new(row.slug.clone(), &row.name, row.locale.clone());
+        rows.iter().map(term).collect()
     };
-    let tags = terms(db.tags(site).await.map_err(unusable)?);
-    let categories = terms(db.categories(site).await.map_err(unusable)?);
+    let tags = terms(&index.tags);
+    let categories = terms(&index.categories);
     let home = address(config, config.default_language(), "")?;
     let settings = Settings::new(
         config.name(),
@@ -155,4 +153,39 @@ fn address(config: &Config, locale: &Locale, rest: &str) -> Result<AbsoluteUrl, 
     let path = build_pages::path_of(config, locale, rest);
     let address = format!("{}{path}", config.address().as_str().trim_end_matches('/'));
     AbsoluteUrl::parse(&address).map_err(|_| build_message::address(&address))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use khalid_content::{ContentTree, read_content};
+    use khalid_core::Environment;
+
+    use super::*;
+
+    #[test]
+    fn the_lists_come_from_the_index_and_the_content_without_the_database() {
+        let mut demo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        demo.push("../../fixtures/demo-site");
+        let config = Config::load(&demo, &Environment::empty()).unwrap();
+        let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
+        let indexed = index::of_content(&demo, &content).unwrap();
+        let lists = of(&config, &indexed, &content).unwrap();
+
+        let authors = serde_json::to_value(lists.authors()).unwrap();
+        assert_eq!(authors.as_array().unwrap().len(), 4, "{authors}");
+        assert_eq!(authors[2]["id"], "en.asif", "{authors}");
+        assert_eq!(authors[2]["role"], "Founder of SerpDad", "{authors}");
+        assert!(
+            lists.categories().len() > 1,
+            "{} categories",
+            lists.categories().len()
+        );
+        assert!(
+            lists.collections().len() > 1,
+            "{} collections",
+            lists.collections().len()
+        );
+    }
 }

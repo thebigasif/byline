@@ -2,7 +2,7 @@
 
 The SQLite file at `data/site.db` in a site folder. Content files are the source of truth (ADR 0001). This file holds two kinds of tables:
 
-- **derived**: computed from the files under `content/`. `khalid db rebuild` empties these tables and fills them again from the files. Deleting `data/site.db` loses nothing in them.
+- **derived**: computed from the files under `content/`. `khalid db rebuild` empties these tables and fills them again from the files, and after a save `khalid serve` writes again only the rows of the posts that changed (`Database::update`). Deleting `data/site.db` loses nothing in them.
 - **visitor**: created by people while the site runs, such as comments, subscribers and accounts. A rebuild never touches them, and they never point at a derived row, so a rebuild cannot delete them by cascade. A visitor row that needs content names it by its path.
 
 Every table has a `site_id` that points at `sites`. Schema changes are new files in `migrations/`; an existing migration is never edited (RULES.md BL-DB-2). ADR 0010 explains the layout.
