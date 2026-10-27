@@ -245,3 +245,20 @@ fn a_dated_pattern_gets_year_and_month_pages_kept_out_of_search() {
     assert_eq!(page(&site, "news/2026/09/03/index.html"), None);
     assert!(page(&site, "news/index.html").is_some());
 }
+
+#[test]
+fn the_sitemap_page_links_every_page_search_engines_may_list_by_section() {
+    let site = site(2, "");
+    put(
+        site.path(),
+        "content/en/pages/about.md",
+        "---\ntitle: About\nslug: about\n---\n\nWho writes here, and why.\n",
+    );
+    build(&site);
+    let sitemap = page(&site, "sitemap/index.html").unwrap();
+    assert!(
+        !sitemap.contains("/blog/archive/"),
+        "the archive is noindex"
+    );
+    insta::assert_snapshot!(main_of(&sitemap));
+}

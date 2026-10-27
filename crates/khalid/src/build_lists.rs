@@ -15,7 +15,7 @@ use khalid_render::{
     RenderListing, Renderer,
 };
 use khalid_routes::{ChannelFilter, Routes};
-use khalid_seo::PageKind as SeoKind;
+use khalid_seo::{PageKind as SeoKind, TranslationKey};
 
 use crate::build_pages::{self, LanguagePages, Page};
 use crate::listed_post::ListedPost;
@@ -146,7 +146,7 @@ fn paged(
         seo.excerpt = description;
         seo.item_count = total;
         seo.robots.clone_from(&list.robots);
-        seo.translation = build_seo::translation(Some(&translation))?;
+        seo.translation = list_key(&translation)?;
         let body = (list.body)(RenderListing {
             title,
             intro: list.intro.clone().filter(|_| number == 1),
@@ -200,7 +200,7 @@ fn authors(
         PageKind::Website,
     )?;
     let mut seo = build_seo::page(SeoKind::Page, locale, REST, &title)?;
-    seo.translation = build_seo::translation(Some("authors"))?;
+    seo.translation = list_key("authors")?;
     Ok(Page {
         file: format!("{}{REST}index.html", build_pages::prefix(config, locale)),
         meta,
@@ -457,8 +457,19 @@ fn readable(name: &str) -> String {
     })
 }
 
+/// The translation key a list page's versions share, such as
+/// `list:archive`. The prefix keeps it apart from the keys people write in
+/// front matter, where `archive` or `sitemap` may name a post.
+///
+/// # Errors
+///
+/// Returns what, why and fix for an empty `name`, which no caller passes.
+pub(crate) fn list_key(name: &str) -> Result<Option<TranslationKey>, UserMessage> {
+    build_seo::translation(Some(&format!("list:{name}")))
+}
+
 /// The text `key` of the strings file for `locale`.
-fn text(renderer: &Renderer, locale: &Locale, key: &str) -> Result<String, UserMessage> {
+pub(crate) fn text(renderer: &Renderer, locale: &Locale, key: &str) -> Result<String, UserMessage> {
     renderer
         .text(locale, key)
         .map(str::to_owned)

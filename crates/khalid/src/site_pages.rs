@@ -25,8 +25,8 @@ use crate::post_files::Assets;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::{
-    assets, build_home, build_lists, build_message, build_pages, build_seo, categories,
-    content_message, post_files, search_page, serve_message, site_files,
+    assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
+    categories, content_message, post_files, search_page, serve_message, site_files,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -348,12 +348,14 @@ impl SitePages {
                 let categories = categories::of(folder)?;
                 let sources = (content, categories.as_slice());
                 build_lists::add((config, routes), &theme.renderer, sources, &mut languages)?;
+                build_sitemap::add(config, &theme.renderer, &mut languages)?;
             }
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
         let beside = post_files::served(folder, config, assets, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+        build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
         let mut served = Served {
             pages: Vec::new(),
             not_found: HEADLESS_NOT_FOUND.to_owned(),

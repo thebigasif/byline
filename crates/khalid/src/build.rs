@@ -20,8 +20,8 @@ use crate::exit::Exit;
 use crate::post_files::Assets;
 use crate::{
     assets, build_files, build_gate, build_lists, build_message, build_pages, build_redirects,
-    build_seo, categories, content_message, lint, lint_message, post_files, post_images, report,
-    search_page, search_static, static_mode,
+    build_seo, build_sitemap, categories, content_message, lint, lint_message, post_files,
+    post_images, report, search_page, search_static, static_mode,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -96,6 +96,7 @@ fn build(
         let categories = categories::of(site)?;
         let sources = (content, categories.as_slice());
         build_lists::add((config, routes), renderer, sources, &mut languages)?;
+        build_sitemap::add(config, renderer, &mut languages)?;
     }
     // The checked content keeps no assets, so the tree is read again for
     // them. A headless site gets them too: its feeds point at them.
@@ -109,6 +110,7 @@ fn build(
     }
     let seo_site = build_seo::site(config)?;
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+    build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
     let mut written = 0;
     let locks = static_mode::locks(config.mode())?;
     if let Some((renderer, css)) = &theme {

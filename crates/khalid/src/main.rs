@@ -19,6 +19,7 @@ mod build_pages;
 mod build_reader;
 mod build_redirects;
 mod build_seo;
+mod build_sitemap;
 mod categories;
 mod cli;
 mod comment_pages;

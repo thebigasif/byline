@@ -287,6 +287,55 @@ fn serve_answers_the_sitemaps_feeds_and_aliases_beside_the_pages() {
     }
 }
 
+/// Writes `text` to `rel` inside `site`, making its folders first.
+#[cfg(test)]
+fn put(site: &Path, rel: &str, text: &str) {
+    let mut file = site.to_path_buf();
+    file.push(rel);
+    fs::create_dir_all(file.parent().unwrap()).unwrap();
+    fs::write(file, text).unwrap();
+}
+
+#[test]
+fn serve_answers_every_list_page_where_routes_toml_puts_it() {
+    let site = demo_copy();
+    put(
+        site.path(),
+        "routes.toml",
+        "[taxonomies]\ncategory = \"topic\"\n\n\
+         [collections.news]\npermalink = \"/news/{year}/{month}/{slug}/\"\n\n\
+         [channels.from-lena]\npath = \"/from-lena/\"\nfilter = { author = \"lena-vogt\" }\n",
+    );
+    put(
+        site.path(),
+        "content/en/news/_index.md",
+        "---\ntitle: News\n---\n\nWhat changed on Field Notes, month by month.\n",
+    );
+    put(
+        site.path(),
+        "content/en/news/launch.md",
+        "---\ntitle: Field Notes is live\nslug: launch\ndate: 2026-09-03\nauthor: asif\n---\n\n\
+         The blog is live. Start at [the home page](/blog/).\n",
+    );
+    let server = start(site.path());
+    for (path, text) in [
+        ("/blog/archive/", "<h1>Archive</h1>"),
+        ("/blog/de/archive/", "lang=\"de\""),
+        ("/blog/authors/", "<h1>Authors</h1>"),
+        ("/blog/sitemap/", "<h1>Sitemap</h1>"),
+        ("/blog/topic/technical-seo/", "<h1>Technical SEO</h1>"),
+        ("/blog/from-lena/", "<h1>From lena</h1>"),
+        ("/blog/news/", "month by month."),
+        ("/blog/news/2026/", "<h1>2026</h1>"),
+        ("/blog/news/2026/09/", "Field Notes is live</a>"),
+    ] {
+        let answer = get(&server, path);
+        assert_eq!(answer.status, 200, "{path}");
+        assert!(answer.body.contains(text), "{path}:\n{}", answer.body);
+    }
+    assert_eq!(get(&server, "/blog/category/technical-seo/").status, 404);
+}
+
 #[test]
 fn serve_answers_the_admin_app_at_admin_with_its_own_policy() {
     let site = demo_copy();
