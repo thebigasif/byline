@@ -30,3 +30,13 @@ Where the bytes of a typical slow page go.
 4. **Layout that jumps.** Give every image a width and height, so the text does not move while the page loads.
 
 Fix the first cause on your slowest page, measure again, and move on. Faster pages also get crawled more often, which helps [your sitemap](/blog/what-a-sitemap-does/) do its job.
+
+::::faq
+:::question{text="How fast should a page load?"}
+Aim for the main content to show within 2.5 seconds on a phone.
+:::
+
+:::question{text="Which page should I fix first?"}
+The slowest page that brings in the most readers.
+:::
+::::

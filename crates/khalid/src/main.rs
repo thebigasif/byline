@@ -17,6 +17,7 @@ mod build_message;
 mod build_pages;
 mod build_reader;
 mod build_redirects;
+mod build_schema;
 mod build_seo;
 mod categories;
 mod cli;

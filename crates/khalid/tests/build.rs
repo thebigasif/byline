@@ -426,6 +426,19 @@ fn a_posts_lead_image_is_drawn_at_once_and_shared() {
     assert!(!plain.contains("fetchpriority"), "{plain}");
 }
 
+#[test]
+fn a_posts_faq_block_reaches_its_json_ld() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let post = page(out.path(), "fixing-slow-pages/index.html");
+    let (_, graph) = post.split_once("application/ld+json").expect(&post);
+    let (graph, _) = graph.split_once("</script>").unwrap();
+    assert!(graph.contains("\"FAQPage\""), "{graph}");
+    assert!(graph.contains("Which page should I fix first?"), "{graph}");
+}
+
 /// Every `.html` file under `folder`.
 #[cfg(test)]
 fn html_files(folder: &Path, found: &mut Vec<PathBuf>) {
