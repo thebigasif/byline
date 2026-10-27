@@ -1,11 +1,17 @@
 //! Where every old address of a `WordPress` site leads in Khalid: posts,
-//! pages, images' pages and category archives, each once.
+//! pages, images' pages, category archives and the Redirection plugin's
+//! rules, each once.
 
-use khalid_core::Config;
+use std::fmt::Write as _;
+
+use khalid_core::{AbsoluteUrl, Config};
 use khalid_routes::Routes;
 
 use crate::wordpress::names::{category_slug, path_of};
-use crate::wordpress::{Export, ImportedItem, ItemKind, MoveStatus};
+use crate::wordpress::{
+    Export, ImportedItem, ItemKind, MoveStatus, Redirection, RedirectionRule, RuleSource,
+    RuleTarget,
+};
 
 /// One old address and where it leads.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,10 +80,12 @@ struct Live<'a> {
     same: bool,
 }
 
-/// The whole map: posts and pages in export order, then images' pages and
+/// The whole map: the plugin's rules first, because they answered before
+/// `WordPress` did, then posts and pages in export order, images' pages and
 /// category archives. An address already listed is not listed again.
 pub(crate) fn redirect_map(
     export: &Export,
+    redirection: Option<&Redirection>,
     items: &[ImportedItem],
     site: &Config,
     routes: &Routes,
@@ -98,7 +106,8 @@ pub(crate) fn redirect_map(
             })
         })
         .collect();
-    let mut map = Vec::new();
+    let rules = redirection.map_or(&[][..], |redirection| redirection.rules.as_slice());
+    let mut map: Vec<MapEntry> = rules.iter().map(|rule| rule_entry(rule, &live)).collect();
     for item in &live {
         let to = if item.same {
             MapTarget::Kept
@@ -144,6 +153,35 @@ pub(crate) fn redirect_map(
     map
 }
 
+/// A Redirection rule as an entry, its target sent straight to the new
+/// address when it pointed at a post that moved, so no chain is left.
+fn rule_entry(rule: &RedirectionRule, live: &[Live<'_>]) -> MapEntry {
+    let (from, matching) = match &rule.from {
+        RuleSource::Path(path) => (path.clone(), Matching::Exact),
+        RuleSource::Pattern(pattern) => (pattern.clone(), Matching::Pattern),
+    };
+    let to = match &rule.to {
+        RuleTarget::Moved { to, status } => {
+            let old =
+                AbsoluteUrl::parse(to).map_or_else(|_| to.clone(), |url| path_of(&url).to_owned());
+            let post = live.iter().find(|item| item.old == old);
+            let to = post.map_or_else(|| to.clone(), |post| post.new.clone());
+            MapTarget::Moved {
+                to,
+                status: *status,
+            }
+        }
+        RuleTarget::Gone => MapTarget::Gone,
+        RuleTarget::Unavailable => MapTarget::Unavailable,
+    };
+    MapEntry {
+        from,
+        matching,
+        to,
+        source: MapSource::Rule(rule.id),
+    }
+}
+
 /// A permanent move to `to`.
 fn moved(to: &str) -> MapTarget {
     MapTarget::Moved {
@@ -182,4 +220,42 @@ fn category_path(slug: &str, export: &Export) -> String {
     }
     chain.reverse();
     format!("/category/{}/", chain.join("/"))
+}
+/// The map as CSV for the host or the redirect manager: every entry that
+/// redirects, with its status and whether it matches a path or a pattern.
+pub(crate) fn redirects_csv(map: &[MapEntry]) -> String {
+    let mut csv = String::from("from,to,status,match\n");
+    for entry in map {
+        let (to, status) = match &entry.to {
+            MapTarget::Moved { to, status } => (
+                to.as_str(),
+                match status {
+                    MoveStatus::Found => "302",
+                    MoveStatus::Temporary => "307",
+                    MoveStatus::Permanent => "301",
+                },
+            ),
+            MapTarget::Gone => ("", "410"),
+            MapTarget::Unavailable => ("", "451"),
+            MapTarget::Kept => continue,
+        };
+        let matching = if entry.matching == Matching::Pattern {
+            "regex"
+        } else {
+            "exact"
+        };
+        let (from, to) = (field(&entry.from), field(to));
+        // Writing to a String cannot fail.
+        let _ = writeln!(csv, "{from},{to},{status},{matching}");
+    }
+    csv
+}
+
+/// A CSV field, quoted when it holds a comma, a quote or a line break.
+fn field(text: &str) -> String {
+    if text.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", text.replace('"', "\"\""))
+    } else {
+        text.to_owned()
+    }
 }

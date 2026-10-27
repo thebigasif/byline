@@ -19,7 +19,7 @@ mod wxr_error;
 
 pub use export::{Author, Export, Site, Term};
 pub use item::{Item, ItemKind, ItemStatus, Meta};
-pub use plan::{FailedItem, Held, ImportedItem, ItemError, Plan, PlannedFile, plan};
+pub use plan::{FailedItem, Held, ImportedItem, ItemError, Plan, PlannedFile, REDIRECTS_CSV, plan};
 pub use post_slug::SlugOrigin;
 pub use redirect_map::{MapEntry, MapSource, MapTarget, Matching};
 pub use redirection::{

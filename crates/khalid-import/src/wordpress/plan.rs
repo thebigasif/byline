@@ -8,9 +8,11 @@ use khalid_content::ContentError;
 use khalid_core::{AbsoluteUrl, Config, ParseSlugError, RobotsDirectives, Slug};
 
 use crate::wordpress::item_file::{Place, Source, item_file};
-use crate::wordpress::redirect_map::redirect_map;
+use crate::wordpress::redirect_map::{redirect_map, redirects_csv};
 use crate::wordpress::site_files::{author_files, categories_file};
-use crate::wordpress::{Export, ItemKind, ItemStatus, MapEntry, SlugOrigin, UnreadField};
+use crate::wordpress::{
+    Export, ItemKind, ItemStatus, MapEntry, Redirection, SlugOrigin, UnreadField,
+};
 use khalid_routes::{AddressError, Routes};
 
 /// Everything an import of one export would write.
@@ -114,8 +116,13 @@ pub enum ItemError {
     Address(#[source] AddressError),
 }
 
+/// The redirect map's file, from the site folder, for the host or the
+/// redirect manager.
+pub const REDIRECTS_CSV: &str = "import/wordpress-redirects.csv";
+
 /// Works out the files an import of `export` into `site`, with its
-/// `routes`, would write. Nothing is written; every file is read back with
+/// `routes` and the Redirection plugin's rules when there are any, would
+/// write. Nothing is written; every content file is read back with
 /// `khalid-content` first, and an item whose file does not read back is
 /// listed in [`Plan::failed`].
 ///
@@ -123,9 +130,16 @@ pub enum ItemError {
 /// for review and scheduled posts under `drafts/<lang>/`, and published
 /// pages under `content/<lang>/pages/`. Each author gets a file, and the
 /// categories go into `categories.toml`. A published post whose old
-/// address lies inside the blog, on the same host, keeps it as an alias,
-/// and [`Plan::redirects`] says where every old address leads.
-pub fn plan(export: &Export, site: &Config, routes: &Routes) -> Plan {
+/// address lies inside the blog, on the same host, keeps it as an alias;
+/// [`Plan::redirects`] says where every old address leads, and
+/// [`REDIRECTS_CSV`] holds every entry that redirects (ADR "an import maps
+/// every old address").
+pub fn plan(
+    export: &Export,
+    redirection: Option<&Redirection>,
+    site: &Config,
+    routes: &Routes,
+) -> Plan {
     let from = Source {
         export,
         site,
@@ -151,6 +165,10 @@ pub fn plan(export: &Export, site: &Config, routes: &Routes) -> Plan {
     }
     plan.files.extend(author_files(export, site));
     plan.files.extend(categories_file(export, site));
-    plan.redirects = redirect_map(export, &plan.items, site, routes);
+    plan.redirects = redirect_map(export, redirection, &plan.items, site, routes);
+    plan.files.push(PlannedFile {
+        path: PathBuf::from(REDIRECTS_CSV),
+        text: redirects_csv(&plan.redirects),
+    });
     plan
 }
