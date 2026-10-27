@@ -38,6 +38,13 @@ impl Announce for Recorder {
     fn unpublished(&self, post: &AdminPost) {
         self.0.lock().unwrap().push(format!("down {}", post.id()));
     }
+
+    fn blocked(&self, post: &AdminPost, _report: &Report) {
+        self.0
+            .lock()
+            .unwrap()
+            .push(format!("blocked {}", post.id()));
+    }
 }
 
 /// The stores a site keeps across restarts, and who was told what.
@@ -190,5 +197,9 @@ async fn a_post_the_linter_refuses_stays_a_draft_and_is_not_tried_again() {
     assert_eq!(site.door(11).run_due().await.unwrap(), []);
     let post = site.door(11).get(ID).await.unwrap().unwrap();
     assert_eq!(post.status(), PostStatus::Draft);
-    assert_eq!(site.told(), Vec::<String>::new());
+    assert_eq!(
+        site.told(),
+        [format!("blocked {ID}")],
+        "lint.blocked fires once, and nothing went live"
+    );
 }

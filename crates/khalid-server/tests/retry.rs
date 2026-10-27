@@ -1,6 +1,9 @@
 //! The retry timer sends a failed webhook delivery again once it is due,
-//! and not before. The receiver is a wiremock server on loopback.
+//! and not before, to the webhooks in the list as it reads it each round.
+//! The receiver is a wiremock server on loopback.
 
+use std::convert::Infallible;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -37,8 +40,26 @@ async fn received(server: &MockServer) -> usize {
     server.received_requests().await.unwrap().len()
 }
 
-#[tokio::test]
-async fn a_failed_delivery_is_sent_again_once_it_is_due() {
+/// Waits up to ten seconds for `server` to have `count` requests.
+#[cfg(test)]
+async fn reaches(server: &MockServer, count: usize) -> bool {
+    let reached = tokio::time::timeout(Duration::from_secs(10), async {
+        while received(server).await < count {
+            tokio::time::sleep(EVERY).await;
+        }
+    });
+    reached.await.is_ok()
+}
+
+/// A receiver that fails the first delivery, a dispatcher on a hand clock
+/// at `at(0)`, and the one webhook whose first delivery failed.
+#[cfg(test)]
+async fn failed_once() -> (
+    MockServer,
+    Arc<Dispatcher<MemoryDeliveryStore>>,
+    HandClock,
+    Webhook,
+) {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(503))
@@ -61,31 +82,28 @@ async fn a_failed_delivery_is_sent_again_once_it_is_due() {
     ))
     .unwrap();
     let url = AbsoluteUrl::parse(&server.uri()).unwrap();
-    let hooks = vec![Webhook::new(
-        WebhookId::new(1),
-        url,
-        key,
-        vec![Event::PostPublished],
-    )];
+    let hook = Webhook::new(WebhookId::new(1), url, key, vec![Event::PostPublished]);
     let post = json!({"post": {"title": "What a sitemap does"}});
     dispatcher
-        .publish(&hooks, Event::PostPublished, &post)
+        .publish(std::slice::from_ref(&hook), Event::PostPublished, &post)
         .await
         .unwrap();
     assert_eq!(received(&server).await, 1);
+    (server, dispatcher, clock, hook)
+}
 
-    let retrying = retry_deliveries(Arc::clone(&dispatcher), hooks, EVERY);
+#[tokio::test]
+async fn a_failed_delivery_is_sent_again_once_it_is_due() {
+    let (server, dispatcher, clock, hook) = failed_once().await;
+    let hooks = vec![hook];
+    let list = move || std::future::ready(Ok::<_, Infallible>(hooks.clone()));
+    let retrying = retry_deliveries(Arc::clone(&dispatcher), list, EVERY);
     tokio::time::sleep(EVERY * 5).await;
     assert_eq!(received(&server).await, 1, "not due for a minute");
 
     *clock.0.lock().unwrap() = at(60);
-    let retried = tokio::time::timeout(Duration::from_secs(10), async {
-        while received(&server).await < 2 {
-            tokio::time::sleep(EVERY).await;
-        }
-    });
     assert!(
-        retried.await.is_ok(),
+        reaches(&server, 2).await,
         "the due delivery was never sent again"
     );
     tokio::time::sleep(EVERY * 5).await;
@@ -95,4 +113,36 @@ async fn a_failed_delivery_is_sent_again_once_it_is_due() {
         2,
         "delivered once, then left alone"
     );
+}
+
+#[tokio::test]
+async fn the_timer_reads_the_webhook_list_afresh_each_round() {
+    let (server, dispatcher, clock, hook) = failed_once().await;
+    let listed = Arc::new(AtomicBool::new(false));
+    let list = {
+        let listed = Arc::clone(&listed);
+        move || {
+            let hooks = if listed.load(Ordering::SeqCst) {
+                vec![hook.clone()]
+            } else {
+                Vec::new()
+            };
+            std::future::ready(Ok::<_, Infallible>(hooks))
+        }
+    };
+    let retrying = retry_deliveries(Arc::clone(&dispatcher), list, EVERY);
+    *clock.0.lock().unwrap() = at(60);
+    tokio::time::sleep(EVERY * 5).await;
+    assert_eq!(
+        received(&server).await,
+        1,
+        "a webhook missing from the list is not sent to"
+    );
+
+    listed.store(true, Ordering::SeqCst);
+    assert!(
+        reaches(&server, 2).await,
+        "a webhook added to the list was never retried"
+    );
+    retrying.stop().await;
 }

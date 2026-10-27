@@ -115,6 +115,17 @@ impl AdminPost {
         Self { settings, ..self }
     }
 
+    /// Whether `other` reads the same: every field equal but when and by
+    /// whom it last changed.
+    pub fn reads_as(&self, other: &Self) -> bool {
+        let stamped = Self {
+            updated_at: self.updated_at,
+            updated_by: self.updated_by.clone(),
+            ..other.clone()
+        };
+        *self == stamped
+    }
+
     /// The identity.
     pub fn id(&self) -> &str {
         &self.id

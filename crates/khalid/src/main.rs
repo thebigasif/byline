@@ -37,6 +37,8 @@ mod doctor_folder;
 mod doctor_robots;
 mod exit;
 mod https_message;
+mod import;
+mod import_rest;
 mod index;
 mod init;
 mod init_message;
@@ -76,12 +78,17 @@ mod search_index;
 mod search_page;
 mod search_route;
 mod search_static;
+mod seo_crawl_settings;
+mod seo_graph_settings;
+mod seo_head_settings;
+mod seo_settings;
 mod serve;
 mod serve_https;
 mod serve_message;
 mod settings_text;
 mod share_images;
 mod site_addresses;
+mod site_config;
 mod site_content;
 mod site_files;
 mod site_lists;
@@ -100,6 +107,7 @@ mod theme_message;
 mod theme_preview;
 mod theme_sync;
 mod unlock;
+mod webhooks;
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -202,9 +210,13 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Theme { command }), Some((folder, config, ..))) => {
             theme(folder, config, command, cli)
         }
+        (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
+            import::run(folder, (config, routes), args, cli)
+        }
         (
             Some(
                 command @ (Command::Db { .. }
+                | Command::Import(_)
                 | Command::Theme { .. }
                 | Command::Serve(_)
                 | Command::Keys { .. }
@@ -249,8 +261,9 @@ fn access(folder: &Path, config: &Config, command: &Command, output: Output) -> 
 /// Runs the commands that do not start from a checked site: `init`, which
 /// makes the site, `agents`, which needs none, and `doctor`, which checks
 /// the settings, routes and content itself so it can list every problem
-/// instead of stopping at the first, and `redirects`, which needs only the
-/// settings and the database. Returns `None` for every other command.
+/// instead of stopping at the first, `redirects`, which needs only the
+/// settings and the database, and `webhooks`, which needs only the
+/// database. Returns `None` for every other command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -270,6 +283,10 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(folder) => redirects::run(folder, command, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
         }),
+        Some(asked @ Command::Webhooks { command }) => Some(match cli.site.as_deref() {
+            Some(folder) => webhooks::run(folder, command, cli.output),
+            None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
+        }),
         _ => None,
     }
 }
@@ -282,7 +299,7 @@ type Checked = (Config, Routes, SiteContent, Assets);
 /// returns them with the files beside folder posts. The folder is walked
 /// once, and no file's text is kept beyond the content.
 fn check(site: &Path, environment: &Environment) -> Result<Checked, UserMessage> {
-    let config = Config::load(site, environment).map_err(|e| config_message::of(&e))?;
+    let config = site_config::load(site, environment)?;
     let routes = Routes::load(site).map_err(|error| routes_message::of(&error))?;
     let (content, assets) = ContentTree::walk(site)
         .and_then(|tree| Ok((read_content(&tree)?, Assets::of(&tree))))

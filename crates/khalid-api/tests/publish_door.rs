@@ -35,6 +35,30 @@ impl Announce for Recorder {
     fn unpublished(&self, post: &AdminPost) {
         self.0.lock().unwrap().push(format!("down {}", post.id()));
     }
+
+    fn edited(&self, post: &AdminPost) {
+        let title = post.title();
+        self.0.lock().unwrap().push(format!("edited {title}"));
+    }
+
+    fn deleted(&self, post: &AdminPost) {
+        self.0
+            .lock()
+            .unwrap()
+            .push(format!("deleted {}", post.id()));
+    }
+}
+
+/// Deletes the post, as last changed at `seen`; returns the status.
+#[cfg(test)]
+async fn delete(router: &axum::Router, seen: &str) -> StatusCode {
+    let request = Request::delete(format!(
+        "/api/admin/v1/posts/en.choosing-anchor-text/?updated_at={seen}"
+    ))
+    .header("authorization", format!("Khalid {WRITER}"))
+    .body(Body::empty())
+    .unwrap();
+    router.clone().oneshot(request).await.unwrap().status()
 }
 
 /// The router over one draft, sending to `recorder`, with a key that may
@@ -121,25 +145,41 @@ async fn a_live_post_taken_down_is_announced_once() {
 }
 
 #[tokio::test]
-async fn a_live_post_deleted_is_announced_as_taken_down() {
+async fn a_live_post_deleted_is_announced_as_taken_down_and_deleted() {
     let recorder = Arc::new(Recorder::default());
     let router = router(&recorder);
     let up = json!({"status": "published", "updated_at": "2026-10-20T08:30:00Z"});
     let (_, json) = put(&router, up).await;
     let seen = json["posts"][0]["updated_at"].as_str().unwrap();
-    let request = Request::delete(format!(
-        "/api/admin/v1/posts/en.choosing-anchor-text/?updated_at={seen}"
-    ))
-    .header("authorization", format!("Khalid {WRITER}"))
-    .body(Body::empty())
-    .unwrap();
-    let response = router.clone().oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert_eq!(delete(&router, seen).await, StatusCode::NO_CONTENT);
     let told = recorder.0.lock().unwrap().clone();
     assert_eq!(
         told,
-        ["en.choosing-anchor-text", "down en.choosing-anchor-text"]
+        [
+            "en.choosing-anchor-text",
+            "down en.choosing-anchor-text",
+            "deleted en.choosing-anchor-text"
+        ]
     );
+}
+
+#[tokio::test]
+async fn a_draft_deleted_is_announced_as_deleted_alone() {
+    let recorder = Arc::new(Recorder::default());
+    let router = router(&recorder);
+    let stale = delete(&router, "2026-10-19T08:30:00Z").await;
+    assert_eq!(
+        stale,
+        StatusCode::CONFLICT,
+        "a stale delete deletes nothing"
+    );
+    assert!(recorder.0.lock().unwrap().is_empty());
+    assert_eq!(
+        delete(&router, "2026-10-20T08:30:00Z").await,
+        StatusCode::NO_CONTENT
+    );
+    let told = recorder.0.lock().unwrap().clone();
+    assert_eq!(told, ["deleted en.choosing-anchor-text"]);
 }
 
 #[tokio::test]
@@ -150,6 +190,27 @@ async fn an_edit_that_does_not_publish_is_not_announced() {
     let (status, json) = put(&router, edit).await;
     assert_eq!(status, StatusCode::OK, "{json}");
     assert!(recorder.0.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_change_to_a_live_post_is_announced_as_an_edit() {
+    let recorder = Arc::new(Recorder::default());
+    let router = router(&recorder);
+    let up = json!({"status": "published", "updated_at": "2026-10-20T08:30:00Z"});
+    let (_, json) = put(&router, up).await;
+    let retitle = json!({"title": "Anchor text, chosen well",
+        "updated_at": json["posts"][0]["updated_at"]});
+    let (status, json) = put(&router, retitle).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    let same = json!({"title": "Anchor text, chosen well",
+        "updated_at": json["posts"][0]["updated_at"]});
+    put(&router, same).await;
+    let told = recorder.0.lock().unwrap().clone();
+    assert_eq!(
+        told,
+        ["en.choosing-anchor-text", "edited Anchor text, chosen well"],
+        "an edit that changes nothing is not announced"
+    );
 }
 
 #[tokio::test]

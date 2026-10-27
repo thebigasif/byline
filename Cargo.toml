@@ -91,15 +91,9 @@ panic = "abort"
 # kept by content hash, so a slower draw never reaches a reader.
 [profile.release.package.khalid-share-image]
 opt-level = "s"
-[profile.release.package.resvg]
-opt-level = "s"
-[profile.release.package.usvg]
-opt-level = "s"
 [profile.release.package.tiny-skia]
 opt-level = "s"
 [profile.release.package.rustybuzz]
-opt-level = "s"
-[profile.release.package.fontdb]
 opt-level = "s"
 [profile.release.package.ttf-parser]
 opt-level = "s"
