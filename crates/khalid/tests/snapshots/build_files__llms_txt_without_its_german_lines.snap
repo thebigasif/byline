@@ -16,7 +16,12 @@ expression: "english.join(\"\\n\")"
 
 - [About Field Notes](https://www.example.com/blog/about/): Who writes Field Notes on SEO, and why.
 - [Topical authority](https://www.example.com/blog/glossary/topical-authority/)
+- [Authors](https://www.example.com/blog/authors/)
+- [Sitemap](https://www.example.com/blog/sitemap/)
 
 ## Optional
 
 - [Asif](https://www.example.com/blog/authors/asif/)
+- [Content strategy](https://www.example.com/blog/category/content-strategy/)
+- [Technical SEO](https://www.example.com/blog/category/technical-seo/)
+- [On-page SEO](https://www.example.com/blog/category/on-page-seo/)

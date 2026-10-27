@@ -1,0 +1,29 @@
+---
+source: crates/khalid/tests/build_lists.rs
+expression: main_of(&guides)
+---
+ id="main" tabindex="-1">
+
+<h1>Guides</h1>
+<div class="intro">
+<p>Start with <a href="/blog/post-1/">the newest post</a>, then work down.</p>
+
+</div>
+<ul class="cards" role="list">
+<li>
+<article class="card">
+<p class="card-meta"><span class="card-author">Asif</span>
+<time datetime="2026-09-12">12 September 2026</time></p>
+<h2><a href="/blog/guides/guide-12/">Guide 12</a></h2>
+<p></p>
+</article>
+</li>
+<li>
+<article class="card">
+<p class="card-meta"><span class="card-author">Asif</span>
+<time datetime="2026-09-10">10 September 2026</time></p>
+<h2><a href="/blog/guides/guide-10/">Guide 10</a></h2>
+<p></p>
+</article>
+</li>
+</ul>
