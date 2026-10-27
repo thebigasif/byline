@@ -2196,6 +2196,7 @@ dependencies = [
 name = "khalid-media"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "divan",
  "fast_image_resize",
  "image",
@@ -2206,6 +2207,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "toml",
  "webp",
 ]
 
