@@ -48,6 +48,11 @@ impl SessionToken {
         Ok(Self(Secret::new(hex(&bytes))))
     }
 
+    /// The token's text, for a sign-in link to carry.
+    pub(crate) fn expose(&self) -> &str {
+        self.0.expose()
+    }
+
     /// What the store keeps.
     #[must_use]
     pub fn hash(&self) -> SessionHash {

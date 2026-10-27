@@ -13,6 +13,7 @@ mod account;
 mod accounts;
 mod email;
 mod limiter;
+mod magic_link;
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
 mod password;
@@ -27,8 +28,11 @@ pub use account::{
 pub use accounts::{Accounts, FRESH, SignInError, SignedIn};
 pub use email::{Email, ParseEmailError};
 pub use limiter::{MAX_FAILURES, SignInLimiter, WINDOW};
+pub use magic_link::{
+    LINK_LIFETIME, LinkSender, LinkStore, LinkStoreError, LinkToken, SendLinkError,
+};
 #[cfg(any(test, feature = "test-util"))]
-pub use memory::{MemoryAccounts, MemorySessions};
+pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemorySessions};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };

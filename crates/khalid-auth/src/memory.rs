@@ -5,10 +5,12 @@ use std::sync::{Mutex, MutexGuard};
 use chrono::{DateTime, Utc};
 use khalid_api::content_store::BoxFuture;
 use khalid_api::keys::Role;
+use khalid_core::Secret;
 
 use crate::{
-    Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, Email, PasswordHash,
-    SessionHash, SessionStore, SessionStoreError, StoredAccount, StoredSession,
+    Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, Email, LINK_LIFETIME,
+    LinkSender, LinkStore, LinkStoreError, PasswordHash, SendLinkError, SessionHash, SessionStore,
+    SessionStoreError, StoredAccount, StoredSession,
 };
 
 /// Staff accounts in memory, numbered from 1 in the order they are made.
@@ -235,5 +237,99 @@ impl SessionStore for MemorySessions {
         rows.retain(|(row, session)| session.account != account || Some(*row) == keep);
         let ended = u64::try_from(before - rows.len()).unwrap_or(u64::MAX);
         ready(Ok(ended))
+    }
+}
+
+/// Sign-in links in memory.
+#[derive(Debug, Default)]
+pub struct MemoryLinks {
+    /// Each unused link: its hash, its account, and when it was made.
+    rows: Mutex<Vec<(SessionHash, AccountId, DateTime<Utc>)>>,
+}
+
+impl MemoryLinks {
+    /// No links yet.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[expect(
+        clippy::expect_used,
+        reason = "a test double; a poisoned lock means a test already failed"
+    )]
+    fn rows(&self) -> MutexGuard<'_, Vec<(SessionHash, AccountId, DateTime<Utc>)>> {
+        self.rows.lock().expect("lock poisoned")
+    }
+}
+
+impl LinkStore for MemoryLinks {
+    fn create(
+        &self,
+        hash: SessionHash,
+        account: AccountId,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'_, Result<(), LinkStoreError>> {
+        self.rows().push((hash, account, at));
+        ready(Ok(()))
+    }
+
+    fn redeem(
+        &self,
+        hash: SessionHash,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'_, Result<Option<AccountId>, LinkStoreError>> {
+        let mut rows = self.rows();
+        let found = rows.iter().position(|(row, _, _)| *row == hash);
+        // A used link is gone; an expired one is found and refused.
+        let redeemed = found.map(|index| rows.swap_remove(index));
+        let account = redeemed
+            .filter(|(_, _, made)| at < *made + LINK_LIFETIME)
+            .map(|(_, account, _)| account);
+        ready(Ok(account))
+    }
+}
+
+/// A mailbox that keeps every sign-in link it is asked to send.
+#[derive(Debug, Default)]
+pub struct MemoryMailbox {
+    sent: Mutex<Vec<(Email, String)>>,
+}
+
+impl MemoryMailbox {
+    /// Nothing sent yet.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Every link sent, with its address, in order.
+    ///
+    /// # Panics
+    ///
+    /// When a test panicked while sending, which poisons the mailbox.
+    #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "a test double; a poisoned lock means a test already failed"
+    )]
+    pub fn sent(&self) -> Vec<(Email, String)> {
+        self.sent.lock().expect("lock poisoned").clone()
+    }
+}
+
+impl LinkSender for MemoryMailbox {
+    #[expect(
+        clippy::expect_used,
+        reason = "a test double; a poisoned lock means a test already failed"
+    )]
+    fn send<'a>(
+        &'a self,
+        to: &'a Email,
+        link: Secret<String>,
+    ) -> BoxFuture<'a, Result<(), SendLinkError>> {
+        let mut sent = self.sent.lock().expect("lock poisoned");
+        sent.push((to.clone(), link.expose().clone()));
+        ready(Ok(()))
     }
 }
