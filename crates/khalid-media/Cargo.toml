@@ -11,6 +11,8 @@ publish.workspace = true
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["serde"] }
 fast_image_resize = { version = "6", default-features = false, features = ["std"] }
+hmac = "0.13"
+http = "1"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
 rayon = "1"

@@ -2199,6 +2199,8 @@ dependencies = [
  "chrono",
  "divan",
  "fast_image_resize",
+ "hmac",
+ "http",
  "image",
  "khalid-core",
  "rayon",
