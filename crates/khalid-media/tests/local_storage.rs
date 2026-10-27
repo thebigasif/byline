@@ -20,7 +20,10 @@ async fn keeps_a_file_whole_in_its_folder_and_reads_it_back() {
     let site = tempfile::tempdir().unwrap();
     let storage = Storage::local(site.path());
     let key = ContentKey::of(PDF);
-    storage.put(&key, &name(), PDF.to_vec()).await.unwrap();
+    storage
+        .put(&key, &name(), MediaType::Pdf, PDF.to_vec())
+        .await
+        .unwrap();
     let mut folder = site.path().to_path_buf();
     folder.push("media");
     folder.push(key.as_str());
@@ -48,8 +51,14 @@ async fn storing_the_same_file_twice_keeps_one_copy() {
     let site = tempfile::tempdir().unwrap();
     let storage = Storage::local(site.path());
     let key = ContentKey::of(PDF);
-    storage.put(&key, &name(), PDF.to_vec()).await.unwrap();
-    storage.put(&key, &name(), PDF.to_vec()).await.unwrap();
+    storage
+        .put(&key, &name(), MediaType::Pdf, PDF.to_vec())
+        .await
+        .unwrap();
+    storage
+        .put(&key, &name(), MediaType::Pdf, PDF.to_vec())
+        .await
+        .unwrap();
     assert_eq!(
         storage.get(&key, &name()).await.unwrap(),
         Some(PDF.to_vec())
@@ -62,6 +71,6 @@ fn a_local_file_is_served_by_the_site_under_media() {
     let key = ContentKey::parse("3f2a9c1e0b57d0aa").unwrap();
     assert_eq!(
         storage.address(&key, &name()),
-        FileAddress::OnSite("media/3f2a9c1e0b57d0aa/crm-checklist.pdf".to_owned())
+        FileAddress::OnSite("media/library/3f2a9c1e0b57d0aa/crm-checklist.pdf".to_owned())
     );
 }

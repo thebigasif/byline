@@ -15,9 +15,11 @@ use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
+use crate::media_api::{self, MediaLibrary};
 use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
+use crate::resources::MediaItems;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::{admin_api, admin_comments, api_version, content_api};
 
@@ -29,7 +31,7 @@ use crate::{admin_api, admin_comments, api_version, content_api};
         title = "Khalid API",
         description = "The Content API and the Admin API of a Khalid blog."
     ),
-    components(schemas(Problem)),
+    components(schemas(Problem, MediaItems)),
     modifiers(&KeySchemes)
 )]
 pub(crate) struct ApiDoc;
@@ -78,7 +80,7 @@ impl Modify for KeySchemes {
 }
 
 /// The staff routes and the session check of a site with staff accounts.
-type Staff = (StaffRoutes, Arc<dyn SessionCheck>);
+pub type Staff = (StaffRoutes, Arc<dyn SessionCheck>);
 
 /// The Content API under `/api/content/v1/`, the Admin API under
 /// `/api/admin/v1/`, and `/api/openapi.json`, with the document every
@@ -115,14 +117,27 @@ pub fn router_with_door(
 }
 
 /// [`router_with_door`] for a site that keeps readers' comments, moderated
-/// through `comments`.
+/// through `comments`. Without a media library, the media routes answer
+/// that the site has none.
 pub fn router_with_door_and_comments(
     content: Arc<dyn ContentStore>,
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
     comments: Arc<dyn CommentModeration>,
 ) -> (Router, Document) {
-    assemble(content, door, keys, comments, None)
+    assemble(content, door, keys, comments, None, None)
+}
+
+/// [`router_with_door_and_comments`] with the site's media library under
+/// `/api/admin/v1/media/`.
+pub fn router_with_media(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
+    media: MediaLibrary,
+) -> (Router, Document) {
+    assemble(content, door, keys, comments, Some(media), None)
 }
 
 /// [`router`] with staff accounts: `staff` routes join the Admin API, and
@@ -137,11 +152,12 @@ pub fn router_with_staff(
 ) -> (Router, Document) {
     let door = Arc::new(PublishDoor::new(posts, Arc::new(Silent)));
     let comments = Arc::new(NoComments);
-    assemble(content, door, keys, comments, Some((staff, sessions)))
+    let staff = Some((staff, sessions));
+    assemble(content, door, keys, comments, None, staff)
 }
 
-/// [`router_with_door_and_comments`] with staff accounts, as `khalid serve`
-/// runs it. [`router_with_staff`] says what `staff` and `sessions` are.
+/// [`router_with_door_and_comments`] with staff accounts.
+/// [`router_with_staff`] says what `staff` and `sessions` are.
 pub fn router_with_door_comments_and_staff(
     content: Arc<dyn ContentStore>,
     door: Arc<PublishDoor>,
@@ -150,17 +166,33 @@ pub fn router_with_door_comments_and_staff(
     staff: StaffRoutes,
     sessions: Arc<dyn SessionCheck>,
 ) -> (Router, Document) {
-    assemble(content, door, keys, comments, Some((staff, sessions)))
+    assemble(content, door, keys, comments, None, Some((staff, sessions)))
+}
+
+/// [`router_with_media`] with staff accounts, as `khalid serve` runs it:
+/// `staff` holds the staff routes and the session check that
+/// [`router_with_staff`] describes.
+pub fn router_with_media_and_staff(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
+    media: MediaLibrary,
+    staff: Staff,
+) -> (Router, Document) {
+    assemble(content, door, keys, comments, Some(media), Some(staff))
 }
 
 /// Every router above: the Content API, and the Admin API publishing
-/// through `posts` and moderating `comments`. With `staff`, its routes join
-/// the Admin API and a staff session counts wherever a key is needed.
+/// through `posts`, moderating `comments` and keeping `media`. With
+/// `staff`, its routes join the Admin API and a staff session counts
+/// wherever a key is needed.
 fn assemble(
     content: Arc<dyn ContentStore>,
     posts: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
     comments: Arc<dyn CommentModeration>,
+    media: Option<MediaLibrary>,
     staff: Option<Staff>,
 ) -> (Router, Document) {
     let (routes, sessions) = staff.unzip();
@@ -169,7 +201,8 @@ fn assemble(
         sessions,
     };
     let mut admin = admin_api::routes(posts, door.clone())
-        .merge(admin_comments::routes(comments, door.clone()));
+        .merge(admin_comments::routes(comments, door.clone()))
+        .merge(media_api::routes(media, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

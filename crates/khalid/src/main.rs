@@ -48,6 +48,7 @@ mod mcp;
 mod mcp_content;
 mod mcp_message;
 mod mcp_tools;
+mod media_library;
 mod memory;
 mod new;
 mod new_message;
@@ -156,7 +157,8 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve(args)), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let (checked, start) = ((&config, &routes), (content, assets, look));
-            return serve_https::serve(cli, folder, checked, start, args);
+            let bucket_keys = environment.s3_keys();
+            return serve_https::serve(cli, folder, checked, start, (args, bucket_keys));
         }
         (_, site) => site,
     };

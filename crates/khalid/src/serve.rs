@@ -8,10 +8,14 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
+use axum::Router;
 use khalid_api::api;
+use khalid_api::comment_moderation::CommentModeration;
+use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
+use khalid_api::session_check::SessionCheck;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
-use khalid_core::{Config, Slug, SystemClock, UserMessage};
+use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -30,8 +34,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, newsletter, preview, report, scheduler, search_route,
-    serve_message, staff,
+    announce, comment_pages, db, db_message, media_library, newsletter, preview, report, scheduler,
+    search_route, serve_message, staff,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -62,7 +66,7 @@ pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    (listen, outbound): (&Listen, Result<Outbound, OutboundError>),
+    (listen, outbound, bucket_keys): (&Listen, Result<Outbound, OutboundError>, Option<S3Keys>),
     output: Output,
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
@@ -79,7 +83,7 @@ pub(crate) fn run(
     let served = serve_with(
         (site, config, routes),
         start,
-        (listen, &outbound, output),
+        (listen, &outbound, output, bucket_keys),
         &runtime,
         (&database, id),
     );
@@ -96,7 +100,7 @@ pub(crate) fn run(
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, outbound, output): (&Listen, &Outbound, Output),
+    (listen, outbound, output, bucket_keys): (&Listen, &Outbound, Output, Option<S3Keys>),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -146,20 +150,17 @@ fn serve_with(
         let (door, announcing) = publish_door((site, config), (database, id), outbound).await?;
         let scheduling = scheduler::start(Arc::clone(&door));
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
-        let accounts = staff::accounts(database, id, config);
-        let staff = khalid_auth::staff_routes(accounts.clone());
-        let stores = (Arc::new(content), door, Arc::new(keys));
-        let (api, _) = api::router_with_door_comments_and_staff(
-            stores.0,
-            stores.1,
-            stores.2,
+        let (media, files) = media_library::open(site, config, bucket_keys, outbound).await?;
+        let api = api_router(
+            (content, door, keys),
             moderation,
-            staff,
-            Arc::new(accounts),
+            media,
+            (database, id, config),
         );
         let searches = search_route::router(config, search);
         let admin = khalid_admin::router(khalid_admin::built());
         let app = api
+            .merge(files)
             .merge(previews)
             .merge(searches)
             .merge(admin)
@@ -186,6 +187,23 @@ fn serve_with(
         tracing::warn!(?error, "the Content API's task stopped early");
     }
     served
+}
+
+/// The Content API and the Admin API as `khalid serve` runs them, with the
+/// media library and the staff accounts of site `id`.
+fn api_router(
+    (content, door, keys): (LiveContent, Arc<PublishDoor>, KeyTable),
+    moderation: Arc<dyn CommentModeration>,
+    media: MediaLibrary,
+    (database, id, config): (&Database, SiteId, &Config),
+) -> Router {
+    let accounts = staff::accounts(database, id, config);
+    let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
+    let staff = (khalid_auth::staff_routes(accounts), sessions);
+    let stores = (Arc::new(content), door, Arc::new(keys));
+    let (api, _) =
+        api::router_with_media_and_staff(stores.0, stores.1, stores.2, moderation, media, staff);
+    api
 }
 
 /// The publish door the Admin API, the scheduler and preview links share.

@@ -7,7 +7,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 
 use khalid_content::SiteContent;
-use khalid_core::{Config, Mode, SystemClock, UserMessage};
+use khalid_core::{Config, Mode, S3Keys, SystemClock, UserMessage};
 use khalid_https::{AgreedToTerms, Directory, Domain, Https, HttpsFolder, Listening};
 use khalid_outbound::Outbound;
 use khalid_routes::Routes;
@@ -52,17 +52,18 @@ pub(crate) enum Terms {
 }
 
 /// `khalid serve` with `args`, on the `site` folder with its checked
-/// settings, routes and content.
+/// settings, routes and content, and the media bucket's keys if the
+/// environment has them.
 pub(crate) fn serve(
     cli: &Cli,
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    args: &ServeArgs,
+    (args, bucket_keys): (&ServeArgs, Option<S3Keys>),
 ) -> Exit {
     match listen(cli, config.mode(), args) {
         Ok(listen) => {
-            let to = (&listen, outbound::client(cli));
+            let to = (&listen, outbound::client(cli), bucket_keys);
             serve::run(site, (config, routes), start, to, cli.output)
         }
         Err(message) => report::failure(cli.output, &message, Exit::Failure),

@@ -5,23 +5,32 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use khalid_core::{AbsoluteUrl, SitePath};
+use std::sync::Arc;
 
+use khalid_core::{Clock, S3Keys, S3Settings, SitePath};
+use khalid_outbound::Outbound;
+
+use crate::s3_storage::S3Storage;
 use crate::whole_file::write_whole;
-use crate::{ContentKey, FileName, MediaError};
+use crate::{ContentKey, FileName, MediaError, MediaType};
 
 /// The folder in a site that holds the library.
 pub(crate) const LIBRARY_FOLDER: &str = "media";
+
+/// Where the site serves library files, below where the blog is mounted.
+/// It is not `media/` itself, where the sizes made of post images are
+/// served by key, so the two can never answer for one address.
+pub const LIBRARY_ADDRESS: &str = "media/library";
 
 /// Where readers fetch a stored file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum FileAddress {
     /// A path the site itself serves, relative to where the blog is
-    /// mounted, such as `media/3f2a9c1e0b57d0aa/choosing-a-crm.jpg`.
+    /// mounted, such as `media/library/3f2a9c1e0b57d0aa/choosing-a-crm.jpg`.
     OnSite(String),
-    /// A full address on another server, such as a bucket's.
-    Elsewhere(AbsoluteUrl),
+    /// A full address on another server, such as a bucket's public one.
+    Elsewhere(String),
 }
 
 /// Where the library keeps files' bytes. Every file is stored as
@@ -32,6 +41,8 @@ pub enum FileAddress {
 pub enum Storage {
     /// In the site's `media/` folder, beside each file's `item.toml`.
     Local(LocalStorage),
+    /// In an S3-compatible bucket, with only `item.toml` in `media/`.
+    S3(Arc<S3Storage>),
 }
 
 impl Storage {
@@ -42,20 +53,36 @@ impl Storage {
         })
     }
 
-    /// Stores `bytes` as the file `name` of the item `key`. Storing the same
-    /// file again leaves one copy.
+    /// Files in the bucket `settings` names, signed with `keys` at the time
+    /// `clock` gives and sent through `outbound`, so the bucket's address
+    /// must be public.
+    pub fn s3(
+        settings: &S3Settings,
+        keys: S3Keys,
+        outbound: Outbound,
+        clock: Arc<dyn Clock>,
+    ) -> Self {
+        Self::S3(Arc::new(S3Storage::new(settings, keys, outbound, clock)))
+    }
+
+    /// Stores `bytes`, a file of `media_type`, as the file `name` of the item
+    /// `key`. Storing the same file again leaves one copy.
     ///
     /// # Errors
     ///
-    /// Returns [`MediaError::Write`] when the file cannot be written, and
-    /// [`MediaError::Worker`] when the thread that writes it stops.
+    /// Returns [`MediaError::Write`] when a local file cannot be written,
+    /// [`MediaError::Worker`] when the thread that writes it stops, and
+    /// [`MediaError::Reach`] or [`MediaError::Bucket`] when a bucket cannot
+    /// be reached or refuses the file.
     pub async fn put(
         &self,
         key: &ContentKey,
         name: &FileName,
+        media_type: MediaType,
         bytes: Vec<u8>,
     ) -> Result<(), MediaError> {
         match self {
+            Self::S3(bucket) => bucket.put(key, name, bytes, media_type).await,
             Self::Local(local) => {
                 let path = local.path(key, name)?;
                 blocking(move || match write_whole(&path, &bytes) {
@@ -72,14 +99,17 @@ impl Storage {
     ///
     /// # Errors
     ///
-    /// Returns [`MediaError::Read`] when the file exists but cannot be read,
-    /// and [`MediaError::Worker`] when the thread that reads it stops.
+    /// Returns [`MediaError::Read`] when a local file exists but cannot be
+    /// read, [`MediaError::Worker`] when the thread that reads it stops, and
+    /// [`MediaError::Reach`] or [`MediaError::Bucket`] when a bucket cannot
+    /// be reached or refuses.
     pub async fn get(
         &self,
         key: &ContentKey,
         name: &FileName,
     ) -> Result<Option<Vec<u8>>, MediaError> {
         match self {
+            Self::S3(bucket) => bucket.get(key, name).await,
             Self::Local(local) => {
                 let path = local.path(key, name)?;
                 blocking(move || match fs::read(&path) {
@@ -95,7 +125,8 @@ impl Storage {
     /// Where readers fetch the file `name` of the item `key`.
     pub fn address(&self, key: &ContentKey, name: &FileName) -> FileAddress {
         match self {
-            Self::Local(_) => FileAddress::OnSite(stored_as(LIBRARY_FOLDER, key, name)),
+            Self::Local(_) => FileAddress::OnSite(stored_as(LIBRARY_ADDRESS, key, name)),
+            Self::S3(bucket) => FileAddress::Elsewhere(bucket.address(key, name)),
         }
     }
 }

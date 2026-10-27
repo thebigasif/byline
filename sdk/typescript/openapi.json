@@ -341,6 +341,435 @@
         ]
       }
     },
+    "/api/admin/v1/media/": {
+      "get": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Lists the media library, newest upload first, with the shared list\ngrammar: `filter`, `order`, `limit` and `page` (RULES.md BL-API-5).\n`filter=alt:null+kind:image` finds images still waiting for alt text.\nNeeds `media:write`.",
+        "operationId": "list_media",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=tag:news+featured:true`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`include=authors,tags`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "`fields=title,slug`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=published_at desc,title`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formats",
+            "in": "query",
+            "description": "`formats=html,plaintext`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15` or `limit=all`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Adds the file sent as the body to the media library; its type is read\nfrom its bytes. A file the library already has answers 200 with that\nitem, so a retry adds no second copy. Needs `media:write`.",
+        "operationId": "upload_media",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "The file's name, made a slug; the extension comes from its content.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folder",
+            "in": "query",
+            "description": "The library folder, such as `guides/2026`. The top when left out.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The file's bytes",
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The library already had this file; the item as it is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The new item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The folder is not up to five slugs joined by /",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file is a type the library refuses, cannot be read, or is too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/media/{id}/": {
+      "get": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Reads one item of the media library. Needs `media:write`.",
+        "operationId": "read_media",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The item's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No item has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Changes an item's alt text, caption, focal point or folder; a field left\nout stays. The edit carries the `updated_at` of the copy it was made on,\nand is a 409 when the item changed since (RULES.md BL-API-7). Needs\n`media:write`.",
+        "operationId": "edit_media",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The item's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The item as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No item has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The item changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "get": {
         "tags": [
@@ -4517,6 +4946,127 @@
           }
         }
       },
+      "AdminMedia": {
+        "type": "object",
+        "description": "A file in the media library with the details kept beside it.",
+        "required": [
+          "id",
+          "name",
+          "folder",
+          "type",
+          "kind",
+          "bytes",
+          "alt",
+          "caption",
+          "focal_point",
+          "url",
+          "uploaded_at",
+          "uploaded_by",
+          "updated_at",
+          "updated_by"
+        ],
+        "properties": {
+          "alt": {
+            "type": "string",
+            "description": "What an image shows, for readers who cannot see it."
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The size in bytes as stored.",
+            "minimum": 0
+          },
+          "caption": {
+            "type": "string",
+            "description": "The line shown under it."
+          },
+          "focal_point": {
+            "$ref": "#/components/schemas/FocalPointBody",
+            "description": "The part of an image every crop keeps."
+          },
+          "folder": {
+            "type": "string",
+            "description": "The library folder, or empty for the top."
+          },
+          "height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The height in pixels, for images.",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "A hash of the uploaded bytes, the same for the same file."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`image`, `video`, `audio` or `file`."
+          },
+          "name": {
+            "type": "string",
+            "description": "The file name it is served under."
+          },
+          "type": {
+            "type": "string",
+            "description": "The `Content-Type`, read from the bytes."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When its details last changed. An edit sends this back."
+          },
+          "updated_by": {
+            "type": "string",
+            "description": "Who changed them."
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was uploaded."
+          },
+          "uploaded_by": {
+            "type": "string",
+            "description": "Who uploaded it."
+          },
+          "url": {
+            "type": "string",
+            "description": "Where readers fetch the file."
+          },
+          "width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The width in pixels, for images.",
+            "minimum": 0
+          }
+        },
+        "example": {
+          "id": "3f2a9c1e0b57d0aa",
+          "name": "choosing-a-crm.jpg",
+          "folder": "guides",
+          "type": "image/jpeg",
+          "kind": "image",
+          "bytes": 48213,
+          "width": 1600,
+          "height": 900,
+          "alt": "A sales team comparing two CRM dashboards on one screen",
+          "caption": "",
+          "focal_point": {
+            "x": 500,
+            "y": 500
+          },
+          "url": "https://www.example.com/blog/media/library/3f2a9c1e0b57d0aa/choosing-a-crm.jpg",
+          "uploaded_at": "2026-10-27T08:00:00Z",
+          "uploaded_by": "asif",
+          "updated_at": "2026-10-27T08:00:00Z",
+          "updated_by": "asif"
+        }
+      },
       "AdminPost": {
         "type": "object",
         "description": "A post in Admin API shape: any status, with its markdown source and\nthe `updated_at` an edit must send back (RULES.md BL-API-7).",
@@ -5034,6 +5584,29 @@
         },
         "additionalProperties": false
       },
+      "FocalPointBody": {
+        "type": "object",
+        "description": "A point in an image in thousandths of its width and height, from the top\nleft. `{ \"x\": 500, \"y\": 500 }` is the centre.",
+        "required": [
+          "x",
+          "y"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Thousandths of the width from the left, 0 to 1000.",
+            "minimum": 0
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Thousandths of the height from the top, 0 to 1000.",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "Gate": {
         "type": "string",
         "description": "The lint publish gate's answer for a post as it stands.",
@@ -5173,6 +5746,107 @@
             "format": "int32",
             "description": "Findings the writer should see, which do not stop it.",
             "minimum": 0
+          }
+        }
+      },
+      "MediaEditBody": {
+        "type": "object",
+        "description": "A change to an item's details. A field left out stays as it is.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "alt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New alt text, up to 1000 characters; empty clears it."
+          },
+          "caption": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new caption, up to 2000 characters; empty clears it."
+          },
+          "focal_point": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FocalPointBody",
+                "description": "A new focal point."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new folder, such as `guides/2026`, or empty for the top."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy the edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "MediaEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps resources: exactly one.",
+        "required": [
+          "media"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaEditBody"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
+      },
+      "MediaItems": {
+        "type": "object",
+        "description": "Media items, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "media"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMedia"
+            },
+            "description": "The item or items."
+          }
+        }
+      },
+      "MediaList": {
+        "type": "object",
+        "description": "A page of the media library with its pagination.",
+        "required": [
+          "media",
+          "meta"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMedia"
+            },
+            "description": "The items on this page."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta",
+            "description": "Where this page sits in the list."
           }
         }
       },
