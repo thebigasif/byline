@@ -116,7 +116,7 @@ fn serve_with(
         SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))?;
     let keys = KeyTable::new(database.clone(), id, SystemClock);
     let served = runtime.block_on(async {
-        let (listener, address) = serve_https::open(listen).await?;
+        let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
         let live = LivePages::new(first);
         let (failed, failure) = oneshot::channel();

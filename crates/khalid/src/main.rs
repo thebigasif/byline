@@ -30,6 +30,7 @@ mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
 mod exit;
+mod https_message;
 mod index;
 mod init;
 mod init_message;

@@ -7,6 +7,7 @@ use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 use khalid_api::keys::{KeyId, Role, Scope};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
+use khalid_https::Domain;
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -150,12 +151,30 @@ pub(crate) enum Command {
     },
 }
 
-/// What `khalid serve` takes.
+/// What `khalid serve` takes: plain HTTP on an address, or HTTPS for a
+/// domain with its own certificate.
 #[derive(Debug, Args)]
 pub(crate) struct ServeArgs {
     /// The address and port to answer on over plain HTTP
     #[arg(long, value_name = "ADDRESS", default_value = "127.0.0.1:8080")]
     pub(crate) listen: SocketAddr,
+    /// Answer over HTTPS for this domain on ports 443 and 80, with a free
+    /// certificate from Let's Encrypt that Khalid gets and renews
+    #[arg(long, value_name = "DOMAIN", conflicts_with = "listen")]
+    pub(crate) domain: Option<Domain>,
+    /// Agree to Let's Encrypt's subscriber agreement without being asked,
+    /// such as in a service or a container
+    #[arg(long, requires = "domain")]
+    pub(crate) accept_terms: bool,
+    /// The address for HTTPS instead of port 443 on every address
+    #[arg(long, value_name = "ADDRESS", requires = "domain", hide = true)]
+    pub(crate) https_listen: Option<SocketAddr>,
+    /// The address for plain HTTP instead of port 80 on every address
+    #[arg(long, value_name = "ADDRESS", requires = "domain", hide = true)]
+    pub(crate) http_listen: Option<SocketAddr>,
+    /// Another ACME directory than Let's Encrypt's, such as its staging one
+    #[arg(long, value_name = "URL", requires = "domain", hide = true)]
+    pub(crate) acme_directory: Option<String>,
 }
 
 /// What `khalid init` takes. Each flag answers one of the four questions, and
