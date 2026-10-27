@@ -161,6 +161,23 @@ fn the_environment_overrides_the_address() {
 }
 
 #[test]
+fn the_environment_carries_an_agents_key_as_a_secret() {
+    let made_for_this_test = "ki_0123456789abcdef_generated";
+    let env = Environment::from_pairs(&[(Environment::KEY, made_for_this_test)]);
+    let key = env.key().unwrap();
+    assert_eq!(key.expose(), made_for_this_test);
+    assert!(!format!("{env:?}").contains(made_for_this_test), "{env:?}");
+    assert!(format!("{env:?}").contains("KHALID_KEY"), "{env:?}");
+}
+
+#[test]
+fn an_empty_key_in_the_environment_is_no_key() {
+    assert!(Environment::empty().key().is_none());
+    let env = Environment::from_pairs(&[(Environment::KEY, "  ")]);
+    assert!(env.key().is_none());
+}
+
+#[test]
 fn refuses_an_address_in_the_environment_that_is_not_a_url() {
     let env = Environment::from_pairs(&[("KHALID_ADDRESS", "blog.example.org")]);
     let error = Config::from_toml(Path::new("site.toml"), DEMO, &env).unwrap_err();
