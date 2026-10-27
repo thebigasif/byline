@@ -7,9 +7,11 @@
 //! about content files, markdown, SQL or templates.
 
 mod admin_api;
+mod admin_comments;
 mod admin_key;
 pub mod api;
 mod api_version;
+pub mod comment_moderation;
 pub mod content_api;
 mod content_key;
 pub mod content_store;
@@ -17,11 +19,13 @@ mod etag;
 mod html_source;
 pub mod keys;
 pub mod media_api;
+pub mod not_found_log;
 pub mod pagination;
 pub mod post_store;
 pub mod preview_link;
 pub mod problem;
 pub mod publish_door;
 pub mod query;
+pub mod redirect_store;
 pub mod resources;
 pub mod schedule_store;

@@ -1,0 +1,50 @@
+{#- comments(comments): under a post, its approved comments with one level
+    of replies, a reply form under each comment, and the form for a new
+    comment. Every form is plain HTML and works with scripts off. A theme
+    replaces this file to change comments everywhere. -#}
+{% macro comment_body(comment) -%}
+<article class="comment-body">
+<p class="comment-meta"><span class="comment-author">{{ comment.author }}</span>{% if comment.writer == "staff" %} <span class="comment-staff">{{ t.comment_staff }}</span>{% endif %} <time datetime="{{ comment.date }}">{{ comment.date | date }}</time></p>
+{% for paragraph in comment.paragraphs %}<p>{{ paragraph }}</p>
+{% endfor %}</article>
+{%- endmacro %}
+{% macro comment_form(comments, parent) -%}
+{% set key = parent if parent else "new" -%}
+<form class="comment-form" method="post" action="{{ comments.action }}">
+<input type="hidden" name="page" value="{{ comments.page }}">
+{% if parent %}<input type="hidden" name="parent" value="{{ parent }}">
+{% endif %}<p><label for="comment-{{ key }}-name">{{ t.comment_name }}</label>
+<input id="comment-{{ key }}-name" name="name" type="text" required maxlength="80" autocomplete="name"></p>
+<p><label for="comment-{{ key }}-email">{{ t.comment_email }}</label>
+<input id="comment-{{ key }}-email" name="email" type="email" maxlength="254" autocomplete="email"></p>
+<p class="comment-trap" aria-hidden="true"><label for="comment-{{ key }}-website">{{ t.comment_trap }}</label>
+<input id="comment-{{ key }}-website" name="website" type="text" tabindex="-1" autocomplete="off"></p>
+<p><label for="comment-{{ key }}-text">{{ t.comment_text }}</label>
+<textarea id="comment-{{ key }}-text" name="comment" required maxlength="5000" rows="5"></textarea></p>
+<p class="comment-held">{{ t.comment_held }}</p>
+<p><button type="submit">{{ t.comment_send }}</button></p>
+</form>
+{%- endmacro %}
+{% macro comments_section(comments) -%}
+<section class="comments" id="comments" aria-labelledby="comments-title">
+<h2 id="comments-title">{{ t.comments }}</h2>
+<p class="comment-sent" id="comment-sent" role="status">{{ t.comment_sent }}</p>
+{% if comments.threads %}<ol class="comment-list">
+{% for thread in comments.threads %}<li class="comment" id="comment-{{ thread.comment.id }}">
+{{ comment_body(thread.comment) }}
+{% if thread.replies %}<ol class="comment-replies">
+{% for reply in thread.replies %}<li class="comment" id="comment-{{ reply.id }}">
+{{ comment_body(reply) }}
+</li>
+{% endfor %}</ol>
+{% endif %}<details class="comment-reply">
+<summary>{{ t.comment_reply }}</summary>
+{{ comment_form(comments, thread.comment.id) }}
+</details>
+</li>
+{% endfor %}</ol>
+{% else %}<p class="comments-none">{{ t.comments_none }}</p>
+{% endif %}<h3>{{ t.comment_leave }}</h3>
+{{ comment_form(comments, none) }}
+</section>
+{%- endmacro %}

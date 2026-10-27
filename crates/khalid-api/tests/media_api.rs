@@ -10,6 +10,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use chrono::{TimeZone, Utc};
 use khalid_api::api;
+use khalid_api::comment_moderation::NoComments;
 use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
 use khalid_api::media_api::MediaLibrary;
 use khalid_api::post_store::MemoryPostStore;
@@ -50,7 +51,7 @@ async fn app(site: Option<&Path>) -> Router {
     let library = Library::open(site, Storage::local(site), &english, Arc::new(clock));
     let library = Arc::new(library.await.unwrap());
     let media = MediaLibrary::new(library, "https://www.example.com/blog");
-    api::router_with_media(content, door, keys, media).0
+    api::router_with_media(content, door, keys, Arc::new(NoComments), media).0
 }
 
 /// Posts `body` to `uri` with `key`, and reads the answer.

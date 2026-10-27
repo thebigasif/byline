@@ -1,0 +1,18 @@
+# What a reader sees when a comment cannot be sent. One short sentence each.
+# Every language file has exactly these keys. {minutes} is a number.
+title = "Your comment was not sent"
+name_missing = "Please give your name."
+name_too_long = "Please shorten your name to 80 letters."
+email_invalid = "Please check your email address, or leave it empty."
+text_missing = "Please write your comment."
+text_too_long = "Please shorten your comment to 5,000 letters."
+parent_gone = "The comment you answered is no longer shown, so please send yours on its own."
+too_many = "You sent several comments in a short time, so please try again in {minutes} minutes."
+no_post = "This page does not take comments."
+unavailable = "Comments cannot be sent right now, so please try again in a few minutes."
+name = "Name"
+email = "Email, optional and never shown"
+comment = "Comment"
+honeypot = "Leave this field empty"
+send = "Send comment"
+back = "Back to the post"
