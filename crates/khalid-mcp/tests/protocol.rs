@@ -1,10 +1,11 @@
 //! The Model Context Protocol as an agent speaks it: one JSON-RPC message
 //! per line on stdin, one answer per line on stdout (KH-API-5).
 
-use khalid_mcp::{ServeError, Server, Tool, Tools};
-use serde_json::{Value, json};
+use khalid_mcp::{BoxFuture, ServeError, Server, Tool, ToolResult, Tools};
+use serde_json::{Map, Value, json};
 
-/// One tool, `echo`, that answers with its `text` argument.
+/// One tool, `echo`, that answers with its `text` argument, or fails when
+/// the text is empty.
 #[derive(Debug)]
 struct Echo(Vec<Tool>);
 
@@ -22,6 +23,21 @@ impl Echo {
 impl Tools for Echo {
     fn list(&self) -> &[Tool] {
         &self.0
+    }
+
+    fn call<'a>(
+        &'a self,
+        name: &'a str,
+        arguments: Map<String, Value>,
+    ) -> BoxFuture<'a, Option<ToolResult>> {
+        let text = arguments.get("text").and_then(Value::as_str);
+        let answer = match (name, text) {
+            ("echo", Some("")) => Some(ToolResult::failed("The text is empty.")),
+            ("echo", Some(text)) => Some(ToolResult::done(text)),
+            ("echo", None) => Some(ToolResult::failed("The text is missing.")),
+            _ => None,
+        };
+        Box::pin(std::future::ready(answer))
     }
 }
 
@@ -108,6 +124,46 @@ async fn tools_list_names_each_tool_with_its_input_schema() {
     assert_eq!(tools[0]["description"], "Answers with the text.");
     assert_eq!(tools[0]["inputSchema"]["required"], json!(["text"]));
     assert_eq!(tools.as_array().map(Vec::len), Some(1));
+}
+
+#[tokio::test]
+async fn a_tool_call_answers_with_text() {
+    let call = json!({ "name": "echo", "arguments": { "text": "Hallo" } });
+    let answers = session(&[request(3, "tools/call", &call)]).await;
+    assert_eq!(
+        answers[0]["result"],
+        json!({ "content": [{ "type": "text", "text": "Hallo" }], "isError": false })
+    );
+}
+
+#[tokio::test]
+async fn a_tool_that_fails_says_so_in_its_result() {
+    let call = json!({ "name": "echo", "arguments": { "text": "" } });
+    let answers = session(&[request(4, "tools/call", &call)]).await;
+    assert_eq!(answers[0]["result"]["isError"], true);
+    assert_eq!(
+        answers[0]["result"]["content"][0]["text"],
+        "The text is empty."
+    );
+}
+
+#[tokio::test]
+async fn a_call_without_arguments_reaches_the_tool_with_none() {
+    let answers = session(&[request(5, "tools/call", &json!({ "name": "echo" }))]).await;
+    assert_eq!(
+        answers[0]["result"]["content"][0]["text"],
+        "The text is missing."
+    );
+}
+
+#[tokio::test]
+async fn an_unknown_tool_is_invalid_params() {
+    let call = json!({ "name": "delete_everything", "arguments": {} });
+    let answers = session(&[request(6, "tools/call", &call)]).await;
+    assert_eq!(answers[0]["error"]["code"], -32602);
+    assert_eq!(answers[0]["id"], 6);
+    let message = answers[0]["error"]["message"].as_str().unwrap();
+    assert!(message.contains("delete_everything"), "{message}");
 }
 
 #[tokio::test]

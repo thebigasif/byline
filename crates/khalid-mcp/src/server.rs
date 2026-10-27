@@ -1,7 +1,7 @@
 //! The stdio transport and the methods a Khalid server answers.
 
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::tool::Tools;
@@ -22,6 +22,7 @@ const NEWEST: &str = "2025-11-25";
 const PARSE_ERROR: i64 = -32_700;
 const INVALID_REQUEST: i64 = -32_600;
 const METHOD_NOT_FOUND: i64 = -32_601;
+const INVALID_PARAMS: i64 = -32_602;
 
 /// A server that answers on one pair of streams.
 #[derive(Debug, Clone, Copy)]
@@ -56,6 +57,14 @@ struct Request {
     method: String,
     #[serde(default)]
     params: Value,
+}
+
+/// The parameters of `tools/call`.
+#[derive(Deserialize)]
+struct Call {
+    name: String,
+    #[serde(default)]
+    arguments: Map<String, Value>,
 }
 
 impl<'t> Server<'t> {
@@ -107,7 +116,7 @@ impl<'t> Server<'t> {
             if line.iter().all(u8::is_ascii_whitespace) {
                 continue;
             }
-            if let Some(answer) = self.answer(&line) {
+            if let Some(answer) = self.answer(&line).await {
                 let mut bytes = answer.to_string().into_bytes();
                 bytes.push(b'\n');
                 output.write_all(&bytes).await.map_err(ServeError::Write)?;
@@ -117,7 +126,7 @@ impl<'t> Server<'t> {
     }
 
     /// The answer to one message, or `None` for a notification.
-    fn answer(&self, line: &[u8]) -> Option<Value> {
+    async fn answer(&self, line: &[u8]) -> Option<Value> {
         let Ok(message) = serde_json::from_slice::<Value>(line) else {
             return Some(failure(
                 &Value::Null,
@@ -138,6 +147,7 @@ impl<'t> Server<'t> {
             "initialize" => Ok(self.initialize(&request.params)),
             "ping" => Ok(json!({})),
             "tools/list" => Ok(json!({ "tools": self.tools.list() })),
+            "tools/call" => self.call(request.params).await,
             method => Err((METHOD_NOT_FOUND, format!("There is no method {method}."))),
         };
         Some(match answer {
@@ -160,6 +170,20 @@ impl<'t> Server<'t> {
             "serverInfo": { "name": self.name, "version": self.version },
             "instructions": self.instructions,
         })
+    }
+
+    /// Runs the tool `params` names. A tool that fails answers with a
+    /// result marked as an error; only a call no tool can take is a
+    /// JSON-RPC error.
+    async fn call(&self, params: Value) -> Result<Value, (i64, String)> {
+        let call: Call = serde_json::from_value(params).map_err(|_| {
+            let reason = "tools/call needs a tool name and an arguments object.";
+            (INVALID_PARAMS, reason.to_owned())
+        })?;
+        match self.tools.call(&call.name, call.arguments).await {
+            Some(result) => Ok(result.to_json()),
+            None => Err((INVALID_PARAMS, format!("There is no tool {}.", call.name))),
+        }
     }
 }
 

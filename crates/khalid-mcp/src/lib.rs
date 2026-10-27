@@ -9,4 +9,4 @@ mod server;
 mod tool;
 
 pub use server::{MAX_MESSAGE, ServeError, Server};
-pub use tool::{Tool, Tools};
+pub use tool::{BoxFuture, Tool, ToolResult, Tools};
