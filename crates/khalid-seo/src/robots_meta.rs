@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use khalid_core::{Indexing, RobotsDirectives};
+use khalid_core::{ArchiveIndex, Indexing, RobotsDirectives};
 
 use crate::{PageKind, SeoPage};
 
@@ -29,6 +29,24 @@ impl Default for IndexPolicy {
                 (PageKind::NotFound, Indexing::NoIndex),
             ]),
             thin_archive_below: 3,
+        }
+    }
+}
+
+impl From<&ArchiveIndex> for IndexPolicy {
+    /// The policy `[seo.index]` in `site.toml` asks for. The not-found page
+    /// is never indexed, whatever the settings say.
+    fn from(settings: &ArchiveIndex) -> Self {
+        Self {
+            by_kind: BTreeMap::from([
+                (PageKind::Tag, settings.tags),
+                (PageKind::Category, settings.categories),
+                (PageKind::Author, settings.authors),
+                (PageKind::Date, settings.dates),
+                (PageKind::Search, settings.search),
+                (PageKind::NotFound, Indexing::NoIndex),
+            ]),
+            thin_archive_below: settings.thin_archives_below,
         }
     }
 }

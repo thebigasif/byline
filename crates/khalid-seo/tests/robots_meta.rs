@@ -1,7 +1,8 @@
 //! Robots directives per page and the index policy per page type (task 1.13, KH-SEO-9).
 
 use khalid_core::{
-    Following, ImagePreview, Indexing, Locale, PreviewLimit, Restriction, RobotsDirectives,
+    ArchiveIndex, Following, ImagePreview, Indexing, Locale, PreviewLimit, Restriction,
+    RobotsDirectives,
 };
 use khalid_seo::{IndexPolicy, PageKind, SeoPage, UrlPath};
 
@@ -76,4 +77,58 @@ fn a_page_s_own_directives_replace_the_policy_whole() {
         "index, nofollow, noarchive, nosnippet, max-snippet:-1, \
          max-image-preview:none, max-video-preview:30"
     );
+}
+
+#[test]
+fn the_default_settings_give_the_default_policy() {
+    let from_settings = IndexPolicy::from(&ArchiveIndex::default());
+    let default = IndexPolicy::default();
+    assert_eq!(from_settings.thin_archive_below, default.thin_archive_below);
+    for kind in [
+        PageKind::Home,
+        PageKind::Post,
+        PageKind::Page,
+        PageKind::Author,
+        PageKind::Tag,
+        PageKind::Category,
+        PageKind::Collection,
+        PageKind::Date,
+        PageKind::Search,
+        PageKind::GlossaryIndex,
+        PageKind::GlossaryTerm,
+        PageKind::NotFound,
+    ] {
+        for posts in [None, Some(1), Some(5)] {
+            let page = page(kind, posts);
+            assert_eq!(
+                from_settings.directives_for(&page),
+                default.directives_for(&page),
+                "{kind:?} with {posts:?} posts"
+            );
+        }
+    }
+}
+
+#[test]
+fn each_archive_setting_reaches_its_page_type() {
+    let mut settings = ArchiveIndex::default();
+    settings.tags = Indexing::NoIndex;
+    settings.categories = Indexing::NoIndex;
+    settings.authors = Indexing::NoIndex;
+    settings.dates = Indexing::Index;
+    settings.search = Indexing::Index;
+    settings.thin_archives_below = 0;
+    let policy = IndexPolicy::from(&settings);
+    for (kind, want) in [
+        (PageKind::Tag, Indexing::NoIndex),
+        (PageKind::Category, Indexing::NoIndex),
+        (PageKind::Author, Indexing::NoIndex),
+        (PageKind::Date, Indexing::Index),
+        (PageKind::Search, Indexing::Index),
+        (PageKind::NotFound, Indexing::NoIndex),
+        (PageKind::Post, Indexing::Index),
+    ] {
+        let got = policy.directives_for(&page(kind, Some(1))).indexing;
+        assert_eq!(got, want, "{kind:?}");
+    }
 }

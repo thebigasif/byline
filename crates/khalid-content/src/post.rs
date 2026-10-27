@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use chrono::NaiveDate;
-use khalid_core::Slug;
+use khalid_core::{AbsoluteUrl, RobotsDirectives, Slug};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
@@ -41,6 +41,12 @@ pub struct PostFront {
     /// Whether the post is featured, for the featured channel and lists.
     #[serde(default)]
     pub featured: bool,
+    /// The post's own robots directives, such as `noindex, nofollow`, in
+    /// place of the site's defaults.
+    pub robots: Option<RobotsDirectives>,
+    /// The address search engines should credit instead of this post, such
+    /// as the original of a post first published elsewhere.
+    pub canonical: Option<AbsoluteUrl>,
 }
 
 /// A post as read from its file.

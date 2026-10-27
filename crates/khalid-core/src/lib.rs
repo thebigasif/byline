@@ -13,6 +13,7 @@ mod config;
 mod locale;
 mod robots;
 mod secret;
+mod seo_settings;
 mod site_path;
 mod slug;
 mod slug_from_title;
@@ -30,6 +31,7 @@ pub use robots::{
     RobotsDirectives,
 };
 pub use secret::Secret;
+pub use seo_settings::{ArchiveIndex, SeoSettings};
 pub use site_path::{SitePath, SitePathError};
 pub use slug::{ParseSlugError, Slug};
 pub use user_message::UserMessage;

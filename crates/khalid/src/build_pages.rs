@@ -156,6 +156,8 @@ fn post_pages<'a>(
         seo.excerpt.clone_from(&description);
         seo.published = Some(build_seo::midnight(date));
         seo.translation = build_seo::translation(front.translation.as_deref())?;
+        seo.robots.clone_from(&front.robots);
+        seo.canonical.clone_from(&front.canonical);
         seo.content_html = full_addresses(config, html.as_str());
         let post = RenderPost {
             title: title.clone(),

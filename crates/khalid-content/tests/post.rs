@@ -6,6 +6,7 @@
 use std::path::Path;
 
 use khalid_content::parse_post;
+use khalid_core::AbsoluteUrl;
 
 const GOOD: &str = "---
 title: Why internal links matter
@@ -69,7 +70,7 @@ fn allows_the_fields_the_linter_checks_to_be_missing() {
 fn refuses_an_unknown_field() {
     assert_eq!(
         message("---\ntitle: A\ncolour: blue\n---\n"),
-        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation, aliases, featured"
+        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation, aliases, featured, robots, canonical"
     );
 }
 
@@ -130,6 +131,41 @@ fn reads_aliases_and_featured() {
     assert!(post.front.featured);
     let plain = parse_post(Path::new("posts/a.md"), "---\ntitle: A\n---\n").unwrap();
     assert!(plain.front.aliases.is_empty() && !plain.front.featured);
+}
+
+#[test]
+fn reads_robots_and_canonical() {
+    let text = "---\ntitle: A\nrobots: noindex, nofollow\ncanonical: https://moz.com/blog/internal-links\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), text).unwrap();
+    assert_eq!(
+        post.front
+            .robots
+            .map(|robots| robots.to_string())
+            .as_deref(),
+        Some("noindex, nofollow")
+    );
+    assert_eq!(
+        post.front.canonical.as_ref().map(AbsoluteUrl::as_str),
+        Some("https://moz.com/blog/internal-links")
+    );
+    let plain = parse_post(Path::new("posts/a.md"), "---\ntitle: A\n---\n").unwrap();
+    assert!(plain.front.robots.is_none() && plain.front.canonical.is_none());
+}
+
+#[test]
+fn refuses_a_robots_word_it_does_not_know() {
+    assert_eq!(
+        message("---\ntitle: A\nrobots: noindex, nofolow\n---\n"),
+        "posts/a.md, line 3, field \"robots\": \"nofolow\" is not a robots directive; use index, noindex, follow, nofollow, noarchive, nosnippet, noimageindex, notranslate, max-snippet, max-image-preview or max-video-preview"
+    );
+}
+
+#[test]
+fn refuses_a_canonical_that_is_not_a_full_address() {
+    assert_eq!(
+        message("---\ntitle: A\ncanonical: /blog/internal-links/\n---\n"),
+        "posts/a.md, line 3, field \"canonical\": the address is not a full URL starting with https://"
+    );
 }
 
 #[test]
