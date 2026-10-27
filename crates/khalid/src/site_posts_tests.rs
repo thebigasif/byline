@@ -237,6 +237,50 @@ async fn linting_judges_a_post_and_writes_nothing() {
     );
 }
 
+/// The list `filter` and `order` ask for, every row on one page.
+fn query(filter: Option<&str>, order: &str) -> ListQuery {
+    let mut raw = khalid_api::query::RawListQuery::default();
+    raw.filter = filter.map(str::to_owned);
+    raw.order = Some(order.to_owned());
+    raw.limit = Some("all".to_owned());
+    ListQuery::try_from(&raw).unwrap()
+}
+
+#[tokio::test]
+async fn the_list_holds_drafts_and_live_posts_with_their_lint_counts() {
+    let (_site, posts) = demo();
+    let weak = PostDraft::new("A weak post", None, "No link and no author.");
+    posts.create(weak, "k", None).await.unwrap();
+    posts.create(good_draft(), "k", None).await.unwrap();
+    let all = posts.list(&query(None, "id")).await.unwrap();
+    let json = serde_json::to_value(all.items()).unwrap();
+    let rows = json.as_array().unwrap();
+    let row = |id: &str| rows.iter().find(|row| row["id"] == id).unwrap().clone();
+    let weak = row("en.a-weak-post");
+    assert_eq!(weak["status"], "draft", "{weak}");
+    assert_eq!(weak["index_status"], "not_live");
+    assert_eq!(weak["gate"], "refuses", "{weak}");
+    assert!(weak["lint"]["blocks"].as_u64().unwrap() >= 2, "{weak}");
+    let good = row("en.choosing-anchor-text");
+    assert_eq!(good["lint"]["blocks"], 0, "a good draft would pass: {good}");
+    let live = row("en.why-internal-links-matter");
+    assert_eq!(live["status"], "published", "{live}");
+    assert_eq!(live["lint"]["blocks"], 0, "{live}");
+    assert_eq!(live["index_status"], "indexable", "{live}");
+    let live_count = rows
+        .iter()
+        .filter(|row| row["status"] == "published")
+        .count();
+    assert_eq!(all.total(), u64::try_from(live_count + 2).unwrap());
+
+    let blocked = posts
+        .list(&query(Some("gate:refuses"), "id"))
+        .await
+        .unwrap();
+    let ids: Vec<&str> = blocked.items().iter().map(PostRow::id).collect();
+    assert_eq!(ids, ["en.a-weak-post"]);
+}
+
 /// The draft made from [`good_draft`], edited with `fields`.
 async fn edited_draft(posts: &SitePosts, mut fields: Value) -> Result<AdminPost, UpdatePostError> {
     let made = posts.create(good_draft(), "k", None).await.unwrap();

@@ -19,7 +19,7 @@ pub use collection::Collection;
 pub use content_collection::ContentCollection;
 pub use menu::{Menu, MenuLink};
 pub use post::{Bodies, Post};
-pub use post_row::{IndexStatus, LintCounts, PostRow};
+pub use post_row::{Gate, IndexStatus, LintCounts, PostRow};
 pub use post_settings::{
     Alias, FeatureImage, NonBlank, PostSettings, ReviewState, ShareCard, ShareCards,
 };

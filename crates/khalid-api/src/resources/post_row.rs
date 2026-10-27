@@ -10,6 +10,27 @@ use utoipa::ToSchema;
 use super::{AdminPost, Listable, PostStatus, ReviewState, display, display_option};
 use crate::query::{FieldValues, Literal};
 
+/// The lint publish gate's answer for a post as it stands.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Gate {
+    /// No blocking finding: the post may go live.
+    #[default]
+    Passes,
+    /// At least one blocking finding: the post stays a draft.
+    Refuses,
+}
+
+impl Gate {
+    /// The name the API uses, such as `refuses`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Passes => "passes",
+            Self::Refuses => "refuses",
+        }
+    }
+}
+
 /// How many lint findings a post has, by severity. A post with any
 /// `blocks` cannot be published.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, ToSchema)]
@@ -46,6 +67,15 @@ impl LintCounts {
     /// Warnings.
     pub fn warnings(self) -> u32 {
         self.warnings
+    }
+
+    /// What the gate answers for a post with these findings.
+    pub fn gate(self) -> Gate {
+        if self.blocks > 0 {
+            Gate::Refuses
+        } else {
+            Gate::Passes
+        }
     }
 }
 
@@ -120,15 +150,21 @@ pub struct PostRow {
     updated_at: DateTime<Utc>,
     /// Who made the last change.
     updated_by: Option<String>,
-    /// Its lint findings, counted.
+    /// Whether the lint publish gate lets it go live. A list filters by
+    /// this, such as `gate:refuses`.
+    gate: Gate,
+    /// Its lint findings, counted. Counting takes every rule, so a list
+    /// counts only the rows on the page it sends, and cannot filter or
+    /// order by the counts.
     lint: LintCounts,
     /// Whether search engines may list it.
     index_status: IndexStatus,
 }
 
 impl PostRow {
-    /// The row for `post`, whose lint findings are `lint`.
-    pub fn new(post: &AdminPost, lint: LintCounts) -> Self {
+    /// The row for `post`, whose gate answer is `gate`, with no findings
+    /// counted yet; [`PostRow::with_lint`] adds them.
+    pub fn new(post: &AdminPost, gate: Gate) -> Self {
         Self {
             id: post.id().to_owned(),
             slug: post.slug().clone(),
@@ -140,14 +176,26 @@ impl PostRow {
             published_at: post.published_at(),
             updated_at: post.updated_at(),
             updated_by: post.updated_by().map(str::to_owned),
-            lint,
+            gate,
+            lint: LintCounts::default(),
             index_status: IndexStatus::of(post),
         }
+    }
+
+    /// The same row with its findings counted as `lint`.
+    #[must_use]
+    pub fn with_lint(self, lint: LintCounts) -> Self {
+        Self { lint, ..self }
     }
 
     /// The post's identity.
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    /// The lint publish gate's answer.
+    pub fn gate(&self) -> Gate {
+        self.gate
     }
 
     /// Its lint findings, counted.
@@ -165,7 +213,6 @@ impl FieldValues for PostRow {
     fn values(&self, field: &str) -> Vec<Literal> {
         let text = |value: &str| vec![Literal::Text(value.to_owned())];
         let time = |at: &DateTime<Utc>| text(&at.to_rfc3339_opts(SecondsFormat::Secs, true));
-        let count = |n: u32| vec![Literal::Integer(i64::from(n))];
         match field {
             "id" => text(&self.id),
             "slug" => text(self.slug.as_str()),
@@ -176,8 +223,7 @@ impl FieldValues for PostRow {
             "featured" => vec![Literal::Bool(self.featured)],
             "published_at" => self.published_at.iter().flat_map(time).collect(),
             "updated_at" => time(&self.updated_at),
-            "lint.blocks" => count(self.lint.blocks),
-            "lint.warnings" => count(self.lint.warnings),
+            "gate" => text(self.gate.as_str()),
             "index_status" => text(self.index_status.as_str()),
             _ => Vec::new(),
         }
@@ -195,8 +241,7 @@ impl Listable for PostRow {
         "featured",
         "published_at",
         "updated_at",
-        "lint.blocks",
-        "lint.warnings",
+        "gate",
         "index_status",
     ];
 

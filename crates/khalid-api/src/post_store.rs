@@ -6,8 +6,9 @@ use chrono::{DateTime, Utc};
 use khalid_core::Slug;
 use khalid_lint::Report;
 
-use crate::content_store::BoxFuture;
-use crate::resources::{AdminPost, PostDraft, PostEdit};
+use crate::content_store::{BoxFuture, Listed};
+use crate::query::ListQuery;
+use crate::resources::{AdminPost, PostDraft, PostEdit, PostRow};
 
 /// Posts in every status, for the Admin API. Task 1.15 implements it on
 /// the content files and the index, writing each file atomically
@@ -20,6 +21,21 @@ pub trait PostStore: Send + Sync {
     ///
     /// Returns [`PostStoreError`] when the posts cannot be read.
     fn get<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<AdminPost>, PostStoreError>>;
+
+    /// One page of the posts, in every status, as rows of the admin's
+    /// posts table with their lint counts, filtered and ordered as `query`
+    /// says. The caller has checked the query's fields against
+    /// [`PostRow`]'s; [`select`](crate::content_store::select) does the
+    /// rest for a store that reads every post.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PostStoreError`] when the posts or the lint settings
+    /// cannot be read.
+    fn list<'a>(
+        &'a self,
+        query: &'a ListQuery,
+    ) -> BoxFuture<'a, Result<Listed<PostRow>, PostStoreError>>;
 
     /// Applies `edit`, made by `by`, to post `id`, but only when the post
     /// has not changed since the copy the edit was made on (BL-API-7). The
@@ -141,16 +157,20 @@ mod memory {
     use khalid_core::{Clock, Locale, Slug, SlugMode, SystemClock};
 
     use super::{
-        AdminPost, BoxFuture, CreatePostError, PostDraft, PostEdit, PostStore, PostStoreError,
-        UpdatePostError,
+        AdminPost, BoxFuture, CreatePostError, ListQuery, Listed, PostDraft, PostEdit, PostRow,
+        PostStore, PostStoreError, UpdatePostError,
     };
+    use crate::content_store::select;
+    use crate::resources::LintCounts;
 
     /// Posts held in memory, for tests. It runs no publish gate: an edit
-    /// that publishes always goes live.
+    /// that publishes always goes live, and a post's lint counts are
+    /// whatever [`MemoryPostStore::with_lint`] gave it, or none.
     #[derive(Debug)]
     pub struct MemoryPostStore {
         posts: Mutex<Vec<AdminPost>>,
         seen: Mutex<BTreeMap<String, String>>,
+        lint: BTreeMap<String, LintCounts>,
         clock: Box<dyn Clock>,
     }
 
@@ -166,8 +186,28 @@ mod memory {
             Self {
                 posts: Mutex::new(posts),
                 seen: Mutex::new(BTreeMap::new()),
+                lint: BTreeMap::new(),
                 clock: Box::new(SystemClock),
             }
+        }
+
+        /// The same store, listing post `id` with `counts` lint findings.
+        #[must_use]
+        pub fn with_lint(mut self, id: &str, counts: LintCounts) -> Self {
+            self.lint.insert(id.to_owned(), counts);
+            self
+        }
+
+        fn rows(&self, query: &ListQuery) -> Listed<PostRow> {
+            let rows: Vec<PostRow> = self
+                .posts()
+                .iter()
+                .map(|post| {
+                    let counts = self.lint.get(post.id()).copied().unwrap_or_default();
+                    PostRow::new(post, counts.gate()).with_lint(counts)
+                })
+                .collect();
+            select(rows.iter(), query)
         }
 
         /// The same store, stamping edits with `clock`.
@@ -253,6 +293,13 @@ mod memory {
         ) -> BoxFuture<'a, Result<Option<AdminPost>, PostStoreError>> {
             let found = self.posts().iter().find(|post| post.id() == id).cloned();
             Box::pin(std::future::ready(Ok(found)))
+        }
+
+        fn list<'a>(
+            &'a self,
+            query: &'a ListQuery,
+        ) -> BoxFuture<'a, Result<Listed<PostRow>, PostStoreError>> {
+            Box::pin(std::future::ready(Ok(self.rows(query))))
         }
 
         fn update<'a>(

@@ -4,7 +4,7 @@
 use chrono::{TimeZone, Utc};
 use khalid_api::query::{FieldValues, Filter};
 use khalid_api::resources::{
-    AdminPost, IndexStatus, LintCounts, PostRow, PostSettings, ReviewState,
+    AdminPost, Gate, IndexStatus, LintCounts, PostRow, PostSettings, ReviewState,
 };
 use khalid_core::Slug;
 use serde_json::json;
@@ -34,12 +34,14 @@ fn a_row_has_the_columns_and_no_body() {
     let post = draft("anchor-text")
         .with_settings(settings)
         .with_updated_by("Asif");
-    let json = serde_json::to_value(PostRow::new(&post, LintCounts::new(2, 1))).unwrap();
+    let json =
+        serde_json::to_value(PostRow::new(&post, Gate::Refuses).with_lint(LintCounts::new(2, 1)))
+            .unwrap();
     let want = json!({
         "id": "anchor-text", "slug": "anchor-text", "title": "Choosing anchor text",
         "author": null, "status": "draft", "review_state": "in_review", "featured": false,
         "published_at": null, "updated_at": "2026-10-20T08:30:00Z", "updated_by": "Asif",
-        "lint": {"blocks": 2, "warnings": 1}, "index_status": "not_live",
+        "gate": "refuses", "lint": {"blocks": 2, "warnings": 1}, "index_status": "not_live",
     });
     assert_eq!(json, want);
 }
@@ -69,12 +71,12 @@ fn the_shared_filter_grammar_reaches_every_column() {
     featured.featured = true;
     featured.review_state = ReviewState::Ready;
     let rows = [
-        PostRow::new(&draft("weak"), LintCounts::new(3, 0)),
-        PostRow::new(&live("strong", featured), LintCounts::new(0, 2)),
+        PostRow::new(&draft("weak"), Gate::Refuses),
+        PostRow::new(&live("strong", featured), Gate::Passes),
     ];
     let cases = [
-        ("lint.blocks:>0", "weak"),
-        ("lint.warnings:2", "strong"),
+        ("gate:refuses", "weak"),
+        ("gate:passes", "strong"),
         ("status:draft", "weak"),
         ("review_state:ready+featured:true", "strong"),
         ("index_status:not_live", "weak"),

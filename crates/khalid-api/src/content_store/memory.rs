@@ -70,10 +70,11 @@ impl ContentStore for MemoryContentStore {
     }
 }
 
-/// One page of the `items` that match `query`'s filter, in its order. With
+/// One page of the `items` that match `query`'s filter, in its order, for a
+/// store that holds its items in memory or reads them all. With
 /// no order, the newest `published_at` comes first, and items without one
 /// keep the order they came in.
-pub(crate) fn select<'a, T: FieldValues + Clone + 'a>(
+pub fn select<'a, T: FieldValues + Clone + 'a>(
     items: impl Iterator<Item = &'a T>,
     query: &ListQuery,
 ) -> Listed<T> {
