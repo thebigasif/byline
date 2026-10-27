@@ -32,7 +32,9 @@ export const en = {
     saved: "Saved",
     saving: "Saving",
     unsaved: "Not saved yet",
-    leave: "Some changes are not saved yet. Leave anyway and lose them?",
+    leave: "Some changes are not saved yet. Leaving now loses them.",
+    stay: "Stay on this post",
+    leaveAnyway: "Leave and lose them",
   },
   signIn: {
     title: "Sign in to your blog's admin",

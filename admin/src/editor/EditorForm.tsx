@@ -1,19 +1,72 @@
+import { useBlocker } from "@tanstack/react-router";
 import { useState } from "react";
 import type { AdminPost } from "../api/posts";
+import { Problem } from "../components/Problem";
 import { en } from "../strings/en";
+import { RichText } from "./RichText";
+import { fitsRichText } from "./richText";
+import { type SaveState, useAutosave } from "./useAutosave";
 
 type Props = { post: AdminPost };
 
-/** The words of a post a writer changes in the editor. */
-export type Draft = { title: string; markdown: string };
+function statusText(state: SaveState, dirty: boolean): string {
+  if (state.kind === "saving") {
+    return en.editor.saving;
+  }
+  return dirty || state.kind === "failed" ? en.editor.unsaved : en.editor.saved;
+}
 
-/** The title and text of one post. */
+/** The title and text of one post, saved as the writer goes. */
 export function EditorForm({ post }: Props) {
-  const [draft, setDraft] = useState<Draft>({ title: post.title, markdown: post.markdown });
+  const { draft, setDraft, dirty, state, save } = useAutosave(post);
+  const [rich, setRich] = useState(() => fitsRichText(post.markdown));
+  const [held, setHeld] = useState(!rich);
+  const toRich = () => {
+    const fits = fitsRichText(draft.markdown);
+    setRich(fits);
+    setHeld(!fits);
+  };
+  const leaving = useBlocker({
+    shouldBlockFn: () => dirty,
+    enableBeforeUnload: dirty,
+    withResolver: true,
+  });
+  const onBlur = () => void save();
+  const setMarkdown = (markdown: string) => setDraft((current) => ({ ...current, markdown }));
 
   return (
     <>
       <h1 className="sr-only">{`${en.editor.heading} ${draft.title}`}</h1>
+      <div className="bar">
+        <fieldset className="switch" aria-label={en.editor.modes}>
+          <button type="button" aria-pressed={rich} onClick={toRich}>
+            {en.editor.rich}
+          </button>
+          <button type="button" aria-pressed={!rich} onClick={() => setRich(false)}>
+            {en.editor.markdown}
+          </button>
+        </fieldset>
+        <span className="hint" role="status">
+          {statusText(state, dirty)}
+        </span>
+      </div>
+      {leaving.status === "blocked" ? (
+        <div className="problem" role="alertdialog" aria-labelledby="leave-what">
+          <p id="leave-what">
+            <strong>{en.editor.leave}</strong>
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" className="btn primary" onClick={leaving.reset}>
+              {en.editor.stay}
+            </button>
+            <button type="button" className="btn" onClick={leaving.proceed}>
+              {en.editor.leaveAnyway}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {held ? <p className="hint">{en.editor.onlyMarkdown}</p> : null}
+      {state.kind === "failed" ? <Problem message={state.message} /> : null}
       <label className="sr-only" htmlFor="title">
         {en.editor.title}
       </label>
@@ -22,15 +75,21 @@ export function EditorForm({ post }: Props) {
         className="title"
         value={draft.title}
         onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+        onBlur={onBlur}
       />
-      <textarea
-        className="source"
-        aria-label={en.editor.text}
-        value={draft.markdown}
-        onChange={(event) => setDraft((current) => ({ ...current, markdown: event.target.value }))}
-        rows={24}
-        spellCheck
-      />
+      {rich ? (
+        <RichText markdown={draft.markdown} onChange={setMarkdown} onBlur={onBlur} />
+      ) : (
+        <textarea
+          className="source"
+          aria-label={en.editor.text}
+          value={draft.markdown}
+          onChange={(event) => setMarkdown(event.target.value)}
+          onBlur={onBlur}
+          rows={24}
+          spellCheck
+        />
+      )}
     </>
   );
 }
