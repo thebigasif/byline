@@ -38,6 +38,7 @@ mod doctor_robots;
 mod exit;
 mod https_message;
 mod import;
+mod import_rest;
 mod index;
 mod init;
 mod init_message;
@@ -210,7 +211,7 @@ fn run(cli: &Cli) -> Exit {
             theme(folder, config, command, cli)
         }
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
-            import::run(folder, (config, routes), args, cli.output)
+            import::run(folder, (config, routes), args, cli)
         }
         (
             Some(

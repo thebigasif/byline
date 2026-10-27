@@ -366,7 +366,7 @@ pub(crate) struct ImportArgs {
 
     #[arg(
         value_name = "EXPORT",
-        help = "The export: a WordPress or Ghost file, the unpacked Medium or Substack folder, or a folder of markdown"
+        help = "The export: a WordPress or Ghost file, a WordPress site's address for its published posts, the unpacked Medium or Substack folder, or a folder of markdown"
     )]
     pub(crate) export: PathBuf,
 

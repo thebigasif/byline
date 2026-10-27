@@ -8,15 +8,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use khalid_api::redirect_store::Origin;
-use khalid_core::{Config, UserMessage};
+use khalid_core::{AbsoluteUrl, Config, UserMessage};
 use khalid_import::{PlannedFile, WriteError, folder, ghost, medium, substack, wordpress};
 use khalid_routes::Routes;
 use khalid_seo::read_redirects_csv;
 use serde::Serialize;
 
-use crate::cli::{ImportArgs, ImportSource, Output, Run};
+use crate::cli::{Cli, ImportArgs, ImportSource, Output, Run};
 use crate::exit::Exit;
-use crate::{redirects, report};
+use crate::{import_rest, redirects, report};
 
 /// The JSON shape of `khalid import --json`.
 #[derive(Serialize)]
@@ -84,14 +84,9 @@ type Done = Result<Exit, (UserMessage, Exit)>;
 
 /// Runs `khalid import` on the checked site in `site`: a dry run prints the
 /// report, and a real run writes the files and stores the redirects.
-pub(crate) fn run(
-    site: &Path,
-    checked: (&Config, &Routes),
-    args: &ImportArgs,
-    output: Output,
-) -> Exit {
-    let (config, routes) = checked;
-    planned(args, config, routes)
+pub(crate) fn run(site: &Path, checked: (&Config, &Routes), args: &ImportArgs, cli: &Cli) -> Exit {
+    let (config, routes, output) = (checked.0, checked.1, cli.output);
+    planned(args, (config, routes), cli)
         .and_then(|plan| match args.run {
             Run::Dry => Ok(answer(&plan.report(), None, output)),
             Run::Write => import(site, &plan, output),
@@ -191,13 +186,20 @@ fn answer(said: &str, done: Option<(&[PathBuf], usize)>, output: Output) -> Exit
 /// Reads the export the person named and plans the import.
 fn planned(
     args: &ImportArgs,
-    config: &Config,
-    routes: &Routes,
+    (config, routes): (&Config, &Routes),
+    cli: &Cli,
 ) -> Result<Plan, (UserMessage, Exit)> {
     let export = args.export.as_path();
     match args.source {
         ImportSource::Wordpress => {
-            let wxr = wordpress::read_wxr(&read(export)?).map_err(|e| unreadable(export, &e))?;
+            let named = export.to_string_lossy();
+            let wxr = if import_rest::is_address(&named) {
+                let site = AbsoluteUrl::parse(&named).map_err(|e| unreadable(export, &e))?;
+                let answers = import_rest::answers(cli, &site)?;
+                wordpress::read_rest(&answers).map_err(|e| unreadable(export, &e))?
+            } else {
+                wordpress::read_wxr(&read(export)?).map_err(|e| unreadable(export, &e))?
+            };
             let rules = match &args.redirection {
                 Some(file) => Some(
                     wordpress::read_redirection(&read(file)?).map_err(|e| unreadable(file, &e))?,
