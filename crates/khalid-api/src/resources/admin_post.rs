@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::{display, display_option};
+use crate::schedule_store::Schedule;
 
 /// Where a post stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -42,6 +43,8 @@ pub struct AdminPost {
     markdown: String,
     /// When it went or goes live; empty for a draft.
     published_at: Option<DateTime<Utc>>,
+    /// When it comes down again, if it is scheduled to.
+    unpublish_at: Option<DateTime<Utc>>,
     /// When it last changed. An edit sends this back unchanged.
     updated_at: DateTime<Utc>,
     /// Who made the last change: a staff name or a key's identity.
@@ -65,9 +68,34 @@ impl AdminPost {
             status: PostStatus::Draft,
             markdown: markdown.to_owned(),
             published_at: None,
+            unpublish_at: None,
             updated_at,
             updated_by: None,
         }
+    }
+
+    /// The same post with `schedule`: a post not yet live with a publish
+    /// time is `scheduled` for that time, and any unpublish time is shown.
+    #[must_use]
+    pub fn with_schedule(self, schedule: &Schedule) -> Self {
+        let unpublish_at = schedule.unpublish_at();
+        match schedule.publish_at() {
+            Some(at) if self.status != PostStatus::Published => Self {
+                status: PostStatus::Scheduled,
+                published_at: Some(at),
+                unpublish_at,
+                ..self
+            },
+            _ => Self {
+                unpublish_at,
+                ..self
+            },
+        }
+    }
+
+    /// When it comes down again, if it is scheduled to.
+    pub fn unpublish_at(&self) -> Option<DateTime<Utc>> {
+        self.unpublish_at
     }
 
     /// The identity.
@@ -162,7 +190,9 @@ impl AdminPost {
 
 /// An edit to a post: the fields to change, and the `updated_at` of the
 /// copy it was made on. Fields left out keep their value. A `status` of
-/// `published` publishes a draft, once the linter lets it through.
+/// `published` publishes a draft, once the linter lets it through;
+/// `scheduled` with a future `published_at` publishes it then, and
+/// `draft` takes a scheduled post off its schedule.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PostEdit {
@@ -170,10 +200,17 @@ pub struct PostEdit {
     title: Option<String>,
     /// A new markdown body.
     markdown: Option<String>,
-    /// `published` to publish the post. Publishing runs the linter, and a
-    /// post with a blocking finding stays a draft.
-    #[schema(value_type = Option<String>, example = "published")]
+    /// `published` to publish the post now, `scheduled` to publish it at
+    /// `published_at`, or `draft` to cancel a schedule. Publishing runs
+    /// the linter, and a post with a blocking finding stays a draft.
+    #[schema(value_type = Option<String>, example = "scheduled")]
     status: Option<PostStatus>,
+    /// When a `scheduled` post goes live: a time to come, with its offset,
+    /// such as `2026-11-03T09:00:00+01:00`.
+    published_at: Option<DateTime<Utc>>,
+    /// When the post comes down again: a time to come, after
+    /// `published_at` for a scheduled post.
+    unpublish_at: Option<DateTime<Utc>>,
     /// The `updated_at` of the copy the edit was made on.
     updated_at: DateTime<Utc>,
 }
@@ -184,9 +221,39 @@ impl PostEdit {
         self.updated_at
     }
 
-    /// Whether the edit asks to publish the post.
+    /// The status asked for, if any.
+    pub fn status(&self) -> Option<PostStatus> {
+        self.status
+    }
+
+    /// When a scheduled post is to go live, if given.
+    pub fn published_at(&self) -> Option<DateTime<Utc>> {
+        self.published_at
+    }
+
+    /// When the post is to come down, if given.
+    pub fn unpublish_at(&self) -> Option<DateTime<Utc>> {
+        self.unpublish_at
+    }
+
+    /// Whether the edit asks to publish the post now.
     pub fn publishes(&self) -> bool {
         self.status == Some(PostStatus::Published)
+    }
+
+    /// The same edit without its status and times, for the store, which
+    /// keeps the file; the schedule is kept apart.
+    #[must_use]
+    pub fn without_schedule(self) -> Self {
+        let status = self
+            .status
+            .filter(|status| *status == PostStatus::Published);
+        Self {
+            status,
+            published_at: None,
+            unpublish_at: None,
+            ..self
+        }
     }
 }
 
