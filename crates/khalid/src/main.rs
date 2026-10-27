@@ -6,6 +6,7 @@
 //! which this binary calls the same way the API does.
 
 mod agents;
+mod announce;
 mod assets;
 mod atomic;
 mod build;
@@ -126,7 +127,8 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve { listen }), Some((folder, config, routes, content))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let checked = (&config, &routes);
-            return serve::run(folder, checked, (content, look), *listen, cli.output);
+            let to = (*listen, outbound::client(cli));
+            return serve::run(folder, checked, (content, look), to, cli.output);
         }
         (_, site) => site,
     };

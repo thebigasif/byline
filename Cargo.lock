@@ -1905,6 +1905,7 @@ dependencies = [
  "khalid-seo",
  "khalid-server",
  "khalid-theme",
+ "khalid-webhooks",
  "mimalloc",
  "scraper",
  "serde",

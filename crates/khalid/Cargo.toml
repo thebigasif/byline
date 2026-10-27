@@ -22,6 +22,7 @@ khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 khalid-theme = { path = "../khalid-theme", version = "0.0.0" }
+khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0" }
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4", features = ["derive"] }
 mimalloc = "0.1"
@@ -52,6 +53,10 @@ required-features = ["test-util"]
 
 [[test]]
 name = "doctor_address"
+required-features = ["test-util"]
+
+[[test]]
+name = "serve_publish"
 required-features = ["test-util"]
 
 [lints]
