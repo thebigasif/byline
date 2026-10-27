@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminPost } from "../api/posts";
+import { localInput } from "./schedule";
 import { sameSettings, settingsDraft, settingsEdit, withSetting } from "./settings";
 
 const POST: AdminPost = {
@@ -22,7 +23,7 @@ const POST: AdminPost = {
 
 describe("the settings panel's draft", () => {
   it("holds each setting as its field shows it", () => {
-    expect(settingsDraft(POST)).toEqual({
+    expect(settingsDraft(POST)).toMatchObject({
       slug: "planning-a-topic-cluster",
       author: "asif",
       coAuthors: "lena-vogt",
@@ -61,5 +62,61 @@ describe("the settings panel's draft", () => {
     const saved = settingsDraft(POST);
     const edit = settingsEdit(saved, withSetting(saved, "date", ""));
     expect(edit).toEqual({ settings: { date: null } });
+  });
+});
+
+describe("more settings", () => {
+  const SHOWN: AdminPost = {
+    ...POST,
+    unpublish_at: "2026-12-01T09:00:00Z",
+    settings: {
+      ...POST.settings,
+      feature_image: { src: "/media/cluster.jpg", alt: "Index cards on a desk" },
+      share_cards: { x: { title: "Plan a cluster in an afternoon" } },
+      aliases: ["/2019/05/clusters/", "/clusters/"],
+    },
+  };
+
+  it("holds the image, cards and old addresses as their fields show them", () => {
+    expect(settingsDraft(SHOWN)).toMatchObject({
+      imageSrc: "/media/cluster.jpg",
+      imageAlt: "Index cards on a desk",
+      imageCaption: "",
+      xTitle: "Plan a cluster in an afternoon",
+      facebookTitle: "",
+      aliases: "/2019/05/clusters/\n/clusters/",
+      unpublishAt: localInput("2026-12-01T09:00:00Z"),
+    });
+  });
+
+  it("sends the whole image and both cards when one of their fields changed", () => {
+    const saved = settingsDraft(SHOWN);
+    let now = withSetting(saved, "imageCaption", "Planning on paper");
+    now = withSetting(now, "facebookDescription", "One main post, several short ones.");
+    now = withSetting(now, "aliases", "/clusters/\n\n");
+    now = withSetting(now, "robots", "noindex");
+    now = withSetting(now, "unpublishAt", "");
+    expect(settingsEdit(saved, now)).toEqual({
+      unpublish_at: null,
+      settings: {
+        feature_image: {
+          src: "/media/cluster.jpg",
+          alt: "Index cards on a desk",
+          caption: "Planning on paper",
+        },
+        share_cards: {
+          x: { title: "Plan a cluster in an afternoon", description: null, image: null },
+          facebook: { title: null, description: "One main post, several short ones.", image: null },
+        },
+        aliases: ["/clusters/"],
+        robots: "noindex",
+      },
+    });
+  });
+
+  it("clears the image when its address is emptied", () => {
+    const saved = settingsDraft(SHOWN);
+    const edit = settingsEdit(saved, withSetting(saved, "imageSrc", " "));
+    expect(edit).toEqual({ settings: { feature_image: null } });
   });
 });

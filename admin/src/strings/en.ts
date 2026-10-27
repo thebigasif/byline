@@ -97,6 +97,63 @@ export const en = {
       `The line under the title in search results, on cards and in feeds. ${count} of 160 characters.`,
     review: "Review",
     reviewHint: "Where the post is on its way to readers. Ready means someone has checked it.",
+    more: {
+      title: "More settings",
+      groups: {
+        image: "Feature image",
+        search: "Search engines and old addresses",
+        x: "Share card on X",
+        facebook: "Share card on Facebook",
+        down: "Taking it down",
+      },
+      fields: {
+        imageSrc: {
+          label: "Image",
+          hint: "The picture at the top of the post and on its cards, such as /media/cluster.jpg.",
+        },
+        imageAlt: {
+          label: "What the image shows",
+          hint: "Read aloud to readers who cannot see it. The image needs it.",
+        },
+        imageCaption: {
+          label: "Caption",
+          hint: "The line under the image. Leave it empty for none.",
+        },
+        canonical: {
+          label: "Canonical address",
+          hint: "If this post first appeared elsewhere, that address, so search engines credit it.",
+        },
+        robots: {
+          label: "Search engine visibility",
+          hint: "Whether search engines may list this post and follow its links.",
+        },
+        aliases: {
+          label: "Old addresses",
+          hint: "Addresses on this blog that should lead here, one per line, such as /2019/05/old-title/.",
+        },
+        xTitle: { label: "Headline on X", hint: "Leave it empty to use the title." },
+        xDescription: { label: "Line on X", hint: "Leave it empty to use the description." },
+        xImage: { label: "Image on X", hint: "Leave it empty to use the feature image." },
+        facebookTitle: { label: "Headline on Facebook", hint: "Leave it empty to use the title." },
+        facebookDescription: {
+          label: "Line on Facebook",
+          hint: "Leave it empty to use the description.",
+        },
+        facebookImage: {
+          label: "Image on Facebook",
+          hint: "Leave it empty to use the feature image.",
+        },
+        unpublishAt: {
+          label: "Take it down at",
+          hint: "In your own time zone. At this time the post stops being public. Leave it empty to keep it up.",
+        },
+      },
+      robots: [
+        { value: "", label: "Use the blog's setting" },
+        { value: "noindex", label: "Keep it out of search results" },
+        { value: "noindex, nofollow", label: "Keep it out, and do not follow its links" },
+      ],
+    },
   },
   goLive: {
     title: "When it goes live",

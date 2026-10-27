@@ -89,4 +89,28 @@ describe("the post settings panel", () => {
     expect(edits[0]?.settings).toEqual({ co_authors: ["lena-vogt"] });
     expect(screen.getByRole("status")).toHaveTextContent(en.editor.unsaved);
   });
+
+  it("folds away the rarer settings and saves the image and visibility from them", async () => {
+    signedIn();
+    const edits = blog();
+    renderAt("/posts/01JB");
+    const more = await screen.findByText(en.settings.more.title);
+    fireEvent.click(more);
+    const fields = en.settings.more.fields;
+    const src = screen.getByLabelText(fields.imageSrc.label);
+    expect(src).toHaveAccessibleDescription(fields.imageSrc.hint);
+    fireEvent.change(src, { target: { value: "/media/cluster.jpg" } });
+    fireEvent.change(screen.getByLabelText(fields.imageAlt.label), {
+      target: { value: "Index cards on a desk" },
+    });
+    const robots = screen.getByLabelText(fields.robots.label);
+    fireEvent.change(robots, { target: { value: "noindex" } });
+    fireEvent.blur(robots);
+    await waitFor(() => expect(edits).toHaveLength(1));
+    expect(edits[0]?.settings).toEqual({
+      feature_image: { src: "/media/cluster.jpg", alt: "Index cards on a desk", caption: null },
+      robots: "noindex",
+    });
+    expect(await axeViolations()).toEqual([]);
+  });
 });

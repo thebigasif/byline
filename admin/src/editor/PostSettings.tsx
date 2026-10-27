@@ -1,5 +1,6 @@
 import type { ChangeEvent, ReactNode } from "react";
 import { en } from "../strings/en";
+import { MoreSettings } from "./MoreSettings";
 import { SettingField } from "./SettingField";
 import { REVIEW_STATES, type SettingsDraft, type TextSetting } from "./settings";
 
@@ -69,6 +70,7 @@ export function PostSettings({ settings, onSetting, onBlur, children }: Props) {
           </select>
         </SettingField>
         {children}
+        <MoreSettings settings={settings} onSetting={onSetting} onBlur={onBlur} />
       </div>
     </details>
   );
