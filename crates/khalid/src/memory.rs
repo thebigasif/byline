@@ -65,6 +65,18 @@ impl HandBack {
     }
 }
 
+/// Asks Linux to back this process's memory with 4 KB pages only, never
+/// 2 MB huge pages. Where the system hands out huge pages unasked, as on
+/// CI's runners, the kernel fills whole 2 MB pages around the little
+/// memory an idle server still uses, and each counts whole. Call it before
+/// the content is read. Elsewhere it does nothing.
+pub(crate) fn small_pages_only() {
+    #[cfg(target_os = "linux")]
+    if let Err(error) = rustix::thread::disable_transparent_huge_pages(true) {
+        tracing::debug!(%error, "huge pages stay on, so idle memory may be higher");
+    }
+}
+
 /// Ends a short-lived thread. As a thread ends, mimalloc collects its heap
 /// and returns every freed page whose delay has passed, from every thread.
 /// The thread allocates one byte so that it has a heap to collect.
@@ -132,5 +144,15 @@ mod tests {
     #[test]
     fn ending_a_thread_returns() {
         end_a_thread();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn huge_pages_are_off_once_asked() {
+        small_pages_only();
+        assert_eq!(
+            rustix::thread::transparent_huge_pages_are_disabled().ok(),
+            Some(true)
+        );
     }
 }

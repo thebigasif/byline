@@ -2015,6 +2015,7 @@ dependencies = [
  "khalid-theme",
  "khalid-webhooks",
  "mimalloc",
+ "rustix",
  "scraper",
  "serde",
  "serde_json",
