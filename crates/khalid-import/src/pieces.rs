@@ -1,8 +1,14 @@
-//! A Ghost document as it is written out: HTML for the markdown converter,
-//! which cleans it with `ammonia`, markdown cards, and Khalid's own blocks
-//! where a card has one.
+//! A body as it is written out, whatever the source: HTML for the
+//! markdown converter, which cleans it with `ammonia`, markdown cards,
+//! code, and Khalid's own blocks where the source has one. [`converted`]
+//! makes the pieces one markdown body.
 
-use std::mem;
+use std::{io, mem};
+
+use khalid_content::BlockError;
+use khalid_core::{Locale, SlugMode};
+
+use crate::markdown::body_markdown;
 
 /// One piece of a body, in order.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -131,4 +137,80 @@ impl Html {
             self.pieces.push(Piece::Html(text));
         }
     }
+}
+
+/// A body as markdown, with the kinds of content left out.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Converted {
+    /// The markdown.
+    pub(crate) markdown: String,
+    /// The kinds of content that have no place in Khalid, such as `signup`.
+    pub(crate) left: Vec<String>,
+}
+
+/// The markdown of `html`, for a site written in `locale` with slugs in
+/// `slugs`. HTML pieces go through the crate's cleaner and converter; a
+/// markdown card is rendered first, its own lines that look like blocks
+/// escaped, then cleaned the same way, so it cannot carry a script or an
+/// unsafe link; and a block's body is cleaned between its fences.
+///
+/// # Errors
+///
+/// Returns the converter's error when HTML cannot be read, and the
+/// block's error when a markdown card holds a block Khalid cannot read,
+/// each as the caller's own error type.
+pub(crate) fn converted<E>(html: Html, locale: &Locale, slugs: SlugMode) -> Result<Converted, E>
+where
+    E: From<io::Error> + From<BlockError>,
+{
+    let (pieces, left) = html.finish();
+    let mut parts = Vec::with_capacity(pieces.len());
+    for piece in pieces {
+        let part = match piece {
+            Piece::Html(text) => clean(&text)?,
+            Piece::Markdown(text) => {
+                let escaped: Vec<String> = text
+                    .lines()
+                    .map(|line| match line.trim_start().strip_prefix("::") {
+                        Some(rest) => format!("\\::{rest}"),
+                        None => line.to_owned(),
+                    })
+                    .collect();
+                let rendered = khalid_content::render(&escaped.join("\n"), locale, slugs)?;
+                clean(&rendered.html)?
+            }
+            Piece::Code { language, code } => {
+                // The fence is longer than any run of backticks in the
+                // code, so the code cannot close it.
+                let longest = code.split(|c| c != '`').map(str::len).max();
+                let fence = "`".repeat(longest.unwrap_or(0).max(2).saturating_add(1));
+                format!(
+                    "{fence}{language}\n{}\n{fence}",
+                    code.trim_end_matches('\n')
+                )
+            }
+            Piece::Lines(markdown) => markdown,
+            Piece::Block { line, body: None } => line,
+            Piece::Block {
+                line,
+                body: Some(body),
+            } => match clean(&body)? {
+                inside if inside.is_empty() => format!("{line}\n:::"),
+                inside => format!("{line}\n{inside}\n:::"),
+            },
+        };
+        if !part.trim().is_empty() {
+            parts.push(part);
+        }
+    }
+    Ok(Converted {
+        markdown: format!("{}\n", parts.join("\n\n")),
+        left,
+    })
+}
+
+/// `html` cleaned and written as markdown, without its last line break.
+fn clean(html: &str) -> io::Result<String> {
+    let body = body_markdown(html)?;
+    Ok(body.markdown.trim_end().to_owned())
 }

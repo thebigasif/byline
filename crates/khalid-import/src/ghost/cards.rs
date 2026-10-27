@@ -5,8 +5,8 @@
 use serde_json::Value;
 
 use crate::ghost::blocks::block_card;
-use crate::ghost::html::Html;
 use crate::markdown::is_safe;
+use crate::pieces::Html;
 
 /// Writes the card `kind`, whose fields are in `card`, and says whether
 /// `kind` names a card at all.

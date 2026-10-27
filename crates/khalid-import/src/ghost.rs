@@ -5,7 +5,6 @@ mod body;
 mod cards;
 mod export;
 mod held;
-mod html;
 mod lexical;
 mod mobiledoc;
 mod plan;

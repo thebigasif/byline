@@ -4,7 +4,7 @@
 use serde_json::Value;
 
 use crate::ghost::cards::card;
-use crate::ghost::html::Html;
+use crate::pieces::Html;
 
 /// The bits of a text node's `format` that the markdown converter carries,
 /// with the element each one opens, outermost first. Strikethrough (4),
