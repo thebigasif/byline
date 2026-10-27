@@ -57,6 +57,9 @@ INSERT INTO webhook_deliveries (id, site_id, webhook_id, event, url, body, first
 INSERT INTO webhook_attempts (site_id, delivery_id, number, at, status, reason) VALUES
     (1, 1, 1, '2026-10-26T09:00:00.000000Z', 503, NULL),
     (2, 2, 1, '2026-10-26T09:00:00.000000Z', 204, NULL);
+INSERT INTO post_schedules (site_id, post_id, publish_at, unpublish_at) VALUES
+    (1, 'en.choosing-anchor-text', '2026-11-03T08:00:00Z', NULL),
+    (2, 'en.choosing-anchor-text', NULL, '2026-12-01T00:00:00Z');
 INSERT INTO form_submissions (site_id, form, fields, status, created_at) VALUES
     (1, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z'),
     (2, 'contact', '{"message":"Hello"}', 'received', '2026-10-26T09:00:00Z');

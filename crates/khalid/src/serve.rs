@@ -13,7 +13,7 @@ use khalid_api::api;
 use khalid_api::publish_door::PublishDoor;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, SiteId};
+use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
@@ -142,7 +142,9 @@ fn serve_with(
             .await
             .map_err(|message| (message, Exit::Failure))?;
         let posts = SitePosts::new(site, config.clone(), SystemClock);
-        let door = PublishDoor::new(Arc::new(posts), Arc::new(telling));
+        let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+        let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
+            .with_schedules(schedules, SystemClock);
         let (api, _) = api::router_with_door(Arc::new(content), Arc::new(door), Arc::new(keys));
         let app = api.merge(router(live, security));
         let stopped = khalid_server::serve(listener, app, stop(), GRACE).await;

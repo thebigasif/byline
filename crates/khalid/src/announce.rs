@@ -1,7 +1,8 @@
-//! What `khalid serve` tells the world when a post goes live through the
-//! publish door: the `post.published` webhook to every webhook in the
-//! site's list that asked for it, and the post's address to `IndexNow` when
-//! `[seo.indexnow]` switches it on (CTO answers 2026-10-27, section 4).
+//! What `khalid serve` tells the world when a post goes live or is
+//! scheduled through the publish door: the `post.published` or
+//! `post.scheduled` webhook to every webhook in the site's list that asked
+//! for it, and a live post's address to `IndexNow` when `[seo.indexnow]`
+//! switches it on (CTO answers 2026-10-27, section 4).
 //! Failed deliveries are tried again on a timer.
 
 use std::path::Path;
@@ -47,11 +48,22 @@ pub(crate) struct SiteAnnounce {
     sending: Sending,
 }
 
-impl Announce for SiteAnnounce {
-    fn published(&self, post: &AdminPost) {
+impl SiteAnnounce {
+    /// Sends `event` about `post` on a task of its own.
+    fn tell(&self, event: Event, post: &AdminPost) {
         let mut sending = self.sending.lock().unwrap_or_else(PoisonError::into_inner);
         while sending.try_join_next().is_some() {}
-        sending.spawn(announce(Arc::clone(&self.receivers), post.clone()));
+        sending.spawn(announce(Arc::clone(&self.receivers), event, post.clone()));
+    }
+}
+
+impl Announce for SiteAnnounce {
+    fn published(&self, post: &AdminPost) {
+        self.tell(Event::PostPublished, post);
+    }
+
+    fn scheduled(&self, post: &AdminPost) {
+        self.tell(Event::PostScheduled, post);
     }
 }
 
@@ -128,14 +140,14 @@ pub(crate) async fn start(
     Ok((telling, Announcing { sending, retrying }))
 }
 
-/// Fires `post.published` and sends the post's address to `IndexNow`.
-/// A failure is logged; a failed webhook delivery is retried from the log.
-async fn announce(receivers: Arc<Receivers>, post: AdminPost) {
+/// Fires `event` about `post` and, when the post went live, sends its
+/// address to `IndexNow`. A failure is logged; a failed webhook delivery
+/// is retried from the log.
+async fn announce(receivers: Arc<Receivers>, event: Event, post: AdminPost) {
     // The body of a post event: the post in Admin API shape.
     let body = serde_json::json!({ "post": &post });
     let webhooks = async {
         let listed = receivers.webhooks.list().await.map_err(|e| e.to_string())?;
-        let event = Event::PostPublished;
         let sent = receivers.dispatcher.publish(&listed, event, &body).await;
         sent.map_err(|e| e.to_string())
     };
@@ -143,6 +155,9 @@ async fn announce(receivers: Arc<Receivers>, post: AdminPost) {
         let Some(indexnow) = &receivers.indexnow else {
             return Ok(());
         };
+        if event != Event::PostPublished {
+            return Ok(());
+        }
         let url = post_url(&receivers.config, &post).ok_or("the post has no address")?;
         let sent = indexnow
             .send(&receivers.outbound, &Retries::default(), &[url])
@@ -152,7 +167,7 @@ async fn announce(receivers: Arc<Receivers>, post: AdminPost) {
     };
     let (webhooks, search) = tokio::join!(webhooks, search);
     if let Err(error) = webhooks {
-        tracing::warn!(id = post.id(), %error, "post.published could not be logged or sent");
+        tracing::warn!(id = post.id(), %event, %error, "a post event could not be logged or sent");
     }
     if let Err(error) = search {
         tracing::warn!(id = post.id(), %error, "the post's address did not reach IndexNow");
