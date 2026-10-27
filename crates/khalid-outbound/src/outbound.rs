@@ -85,17 +85,49 @@ impl Outbound {
     ///
     /// Returns [`OutboundError::Client`] when the TLS setup fails.
     pub fn with_resolver(limits: Limits, resolver: Resolver) -> Result<Self, OutboundError> {
+        Self::build(limits, resolver, None)
+    }
+
+    /// A client that resolves names through `resolver` and trusts only the
+    /// PEM certificate `root`, such as a test certificate authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OutboundError::Client`] when `root` is not a PEM
+    /// certificate or the TLS setup fails.
+    #[cfg(any(test, feature = "test-util"))]
+    pub fn trusting(
+        limits: Limits,
+        resolver: Resolver,
+        root: &[u8],
+    ) -> Result<Self, OutboundError> {
+        let root = reqwest::Certificate::from_pem(root)
+            .map_err(|source| OutboundError::Client { source })?;
+        Self::build(limits, resolver, Some(root))
+    }
+
+    /// The client, trusting `root` alone when there is one, and the
+    /// system's certificate authorities otherwise.
+    fn build(
+        limits: Limits,
+        resolver: Resolver,
+        root: Option<reqwest::Certificate>,
+    ) -> Result<Self, OutboundError> {
         // Installing fails when a provider is already in place, which is fine.
         drop(rustls::crypto::ring::default_provider().install_default());
         let max = limits.max_redirects;
         let reach = resolver.reach();
         let redirects = Policy::custom(move |attempt| follow(attempt, max, reach));
-        let client = RawClient::builder()
+        let mut builder = RawClient::builder()
             .timeout(limits.timeout)
             .connect_timeout(limits.connect_timeout)
             .redirect(redirects)
             .dns_resolver(Arc::new(Guarded(resolver.clone())))
-            .no_proxy()
+            .no_proxy();
+        if let Some(root) = root {
+            builder = builder.tls_certs_only([root]);
+        }
+        let client = builder
             .build()
             .map_err(|source| OutboundError::Client { source })?;
         Ok(Self {
@@ -151,10 +183,45 @@ impl Outbound {
             .await
     }
 
+    /// Sends `request` as given, with its method, headers and body, and
+    /// reads the whole answer with its status and headers within the
+    /// limits. This is for a protocol that reads response headers, such as
+    /// ACME's nonces and locations. Redirects are followed through the same
+    /// guard as for [`Outbound::get`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OutboundError::Http`] when the request cannot be sent as
+    /// given, such as an address with no host, and otherwise the errors
+    /// [`Outbound::get`] returns.
+    pub async fn exchange(
+        &self,
+        request: http::Request<Vec<u8>>,
+    ) -> Result<http::Response<Vec<u8>>, OutboundError> {
+        if let Some(host) = request.uri().host() {
+            self.check_host(host)?;
+        }
+        let request =
+            reqwest::Request::try_from(request).map_err(|source| OutboundError::Http { source })?;
+        let mut response = self.client.execute(request).await.map_err(classify)?;
+        let status = response.status();
+        let headers = std::mem::take(response.headers_mut());
+        let body = self.read_body(response).await?;
+        let mut answer = http::Response::new(body);
+        *answer.status_mut() = status;
+        *answer.headers_mut() = headers;
+        Ok(answer)
+    }
+
     /// Refuses a URL whose host is a literal address the guard does not
     /// allow. A host name is checked when it resolves.
     fn check_literal(&self, url: &AbsoluteUrl) -> Result<(), OutboundError> {
-        let host = url.host().trim_matches(['[', ']']);
+        self.check_host(url.host())
+    }
+
+    /// Refuses a host that is a literal address the guard does not allow.
+    fn check_host(&self, host: &str) -> Result<(), OutboundError> {
+        let host = host.trim_matches(['[', ']']);
         match host.parse::<IpAddr>() {
             Ok(address) if !self.resolver.reach().allows(address) => Err(OutboundError::Blocked {
                 host: host.to_owned(),
@@ -166,8 +233,14 @@ impl Outbound {
 
     /// Sends a prepared request and reads its body within the size cap.
     async fn send(&self, request: RequestBuilder) -> Result<Fetched, OutboundError> {
-        let mut response = request.send().await.map_err(classify)?;
+        let response = request.send().await.map_err(classify)?;
         let status = response.status().as_u16();
+        let body = self.read_body(response).await?;
+        Ok(Fetched { status, body })
+    }
+
+    /// Reads a response's body within the size cap.
+    async fn read_body(&self, mut response: reqwest::Response) -> Result<Vec<u8>, OutboundError> {
         let limit = self.limits.max_body_bytes;
         let mut body = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(classify)? {
@@ -176,7 +249,7 @@ impl Outbound {
             }
             body.extend_from_slice(&chunk);
         }
-        Ok(Fetched { status, body })
+        Ok(body)
     }
 }
 
