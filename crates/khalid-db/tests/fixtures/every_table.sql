@@ -68,8 +68,8 @@ INSERT INTO subscriber_lists (site_id, subscriber_id, list, joined_at) VALUES
 INSERT INTO subscriber_tokens (site_id, subscriber_id, purpose, token_hash, created_at) VALUES
     (1, 1, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z'),
     (2, 2, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z');
-INSERT INTO comments (site_id, post_path, author_name, author_email, body, status, created_at) VALUES
-    (1, 'content/en/posts/old-post.md', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z'),
-    (2, 'content/en/posts/old-post.md', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z');
+INSERT INTO comments (site_id, post_path, author_kind, author_name, author_email, body, status, created_at) VALUES
+    (1, 'content/en/posts/old-post.md', 'reader', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z'),
+    (2, 'content/en/posts/old-post.md', 'reader', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z');
 INSERT INTO analytics_counts (site_id, day, path, referrer_group, views) VALUES
     (1, '2026-10-26', '/blog/old-post/', 'search', 12), (2, '2026-10-26', '/blog/old-post/', 'search', 12);
