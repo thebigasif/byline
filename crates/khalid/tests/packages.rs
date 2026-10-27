@@ -60,17 +60,27 @@ fn copy_dir(from: &Path, into: &Path) {
 /// Runs a package's command line: `program` must be where the package puts
 /// the binary, `site` and `listen` are swapped for the test's own, and
 /// `--json` is added so the test can read the address the server took.
+/// With no `listen`, the command ends in `serve` and takes the default
+/// address, so the test adds a free port.
 #[cfg(test)]
-fn start(args: &[String], program: &str, site: (&str, &Path), listen: &str) -> Server {
+fn start(args: &[String], program: &str, site: (&str, &Path), listen: Option<&str>) -> Server {
     let (first, rest) = args.split_first().unwrap();
     assert_eq!(first, program, "the package runs Khalid from {first}");
     assert!(rest.iter().any(|arg| arg == site.0), "{rest:?}");
-    assert!(rest.iter().any(|arg| arg == listen), "{rest:?}");
-    let swapped = rest.iter().map(|arg| match arg.as_str() {
-        arg if arg == site.0 => site.1.to_str().unwrap().to_owned(),
-        arg if arg == listen => "127.0.0.1:0".to_owned(),
-        arg => arg.to_owned(),
-    });
+    let mut swapped: Vec<String> = rest
+        .iter()
+        .map(|arg| match arg.as_str() {
+            arg if arg == site.0 => site.1.to_str().unwrap().to_owned(),
+            arg if Some(arg) == listen => "127.0.0.1:0".to_owned(),
+            arg => arg.to_owned(),
+        })
+        .collect();
+    if let Some(listen) = listen {
+        assert!(rest.iter().any(|arg| arg == listen), "{rest:?}");
+    } else {
+        assert_eq!(rest.last().map(String::as_str), Some("serve"), "{rest:?}");
+        swapped.extend(["--listen".to_owned(), "127.0.0.1:0".to_owned()]);
+    }
     let mut child = Command::new(env!("CARGO_BIN_EXE_khalid"))
         .args(swapped)
         .arg("--json")
@@ -126,7 +136,7 @@ fn the_systemd_unit_command_serves_the_demo_site() {
         &args,
         "/usr/local/bin/khalid",
         ("/var/lib/khalid", site.path()),
-        "127.0.0.1:8080",
+        Some("127.0.0.1:8080"),
     );
     let (status, body) = get(&server, "/blog/");
     assert_eq!(status, 200);
@@ -156,7 +166,7 @@ fn a_site_made_as_the_deploy_guide_says_is_served_by_the_unit_command() {
         &args,
         "/usr/local/bin/khalid",
         ("/var/lib/khalid", site.path()),
-        "127.0.0.1:8080",
+        Some("127.0.0.1:8080"),
     );
     assert_eq!(get(&server, "/").0, 200);
 }
@@ -228,7 +238,12 @@ fn the_image_command_serves_the_demo_site() {
     let mut args = docker_array(&dockerfile, "ENTRYPOINT");
     args.extend(docker_array(&dockerfile, "CMD"));
     let site = demo_copy();
-    let server = start(&args, "/khalid", ("/site", site.path()), "0.0.0.0:8080");
+    let server = start(
+        &args,
+        "/khalid",
+        ("/site", site.path()),
+        Some("0.0.0.0:8080"),
+    );
     let (status, body) = get(&server, "/blog/");
     assert_eq!(status, 200);
     assert!(body.contains("Field Notes on SEO"), "{body}");
@@ -289,4 +304,26 @@ fn the_compose_file_runs_the_image_on_the_site_folder_and_port() {
         assert!(lines.contains(&wanted), "compose.yaml has no line {wanted}");
     }
     assert!(compose.contains("docker compose run --rm khalid init /site "));
+}
+
+/// KH-INS-1: a fresh machine serves a site following only the README. The
+/// lines after the install line run as written, in a temp folder.
+#[test]
+fn the_readme_install_steps_make_a_site_that_serves() {
+    let readme = fs::read_to_string(repo_file("README.md")).unwrap();
+    let init = "khalid init blog --address https://blog.example.com --yes";
+    let serve = "khalid --site blog serve";
+    assert!(readme.contains(&format!("{init}\n{serve}\n")), "{readme}");
+    let folder = tempfile::tempdir().unwrap();
+    let mut site = folder.path().to_path_buf();
+    site.push("blog");
+    let made = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["init", site.to_str().unwrap()])
+        .args(["--address", "https://blog.example.com", "--yes"])
+        .output()
+        .unwrap();
+    assert!(made.status.success(), "{made:?}");
+    let args: Vec<String> = serve.split(' ').map(str::to_owned).collect();
+    let server = start(&args, "khalid", ("blog", &site), None);
+    assert_eq!(get(&server, "/").0, 200);
 }
