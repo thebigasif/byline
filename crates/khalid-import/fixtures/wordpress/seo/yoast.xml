@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Two posts with the custom fields Yoast SEO writes. -->
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+	<title>Northfield Bakery Blog</title>
+	<link>https://northfield.example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<item>
+		<title><![CDATA[Why rye bread needs time]]></title>
+		<wp:post_id>20</wp:post_id>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_title]]></wp:meta_key><wp:meta_value><![CDATA[%%title%% %%sep%% %%sitename%% %%page%%]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_metadesc]]></wp:meta_key><wp:meta_value><![CDATA[Rye ferments slowly. Here is how long to wait, and why it pays off.]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_canonical]]></wp:meta_key><wp:meta_value><![CDATA[https://northfield.example.com/rye-guide/]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_meta-robots-noindex]]></wp:meta_key><wp:meta_value><![CDATA[1]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_meta-robots-nofollow]]></wp:meta_key><wp:meta_value><![CDATA[1]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_meta-robots-adv]]></wp:meta_key><wp:meta_value><![CDATA[noarchive,nosnippet]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_focuskw]]></wp:meta_key><wp:meta_value><![CDATA[rye bread]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_primary_category]]></wp:meta_key><wp:meta_value><![CDATA[4]]></wp:meta_value></wp:postmeta>
+	</item>
+	<item>
+		<title><![CDATA[Ten loaves to bake this year]]></title>
+		<wp:post_id>21</wp:post_id>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<excerpt:encoded xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"><![CDATA[From a soft white loaf to a dark rye.]]></excerpt:encoded>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_title]]></wp:meta_key><wp:meta_value><![CDATA[Ten loaves for %%currentyear%%]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_metadesc]]></wp:meta_key><wp:meta_value><![CDATA[%%excerpt%%]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_canonical]]></wp:meta_key><wp:meta_value><![CDATA[rye-guide]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_meta-robots-noindex]]></wp:meta_key><wp:meta_value><![CDATA[2]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_meta-robots-adv]]></wp:meta_key><wp:meta_value><![CDATA[none]]></wp:meta_value></wp:postmeta>
+	</item>
+</channel>
+</rss>

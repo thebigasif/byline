@@ -2,10 +2,13 @@
 
 mod export;
 mod item;
+mod seo_meta;
+mod seo_text;
 mod wxr;
 mod wxr_error;
 
 pub use export::{Author, Export, Site, Term};
 pub use item::{Item, ItemKind, ItemStatus, Meta};
+pub use seo_meta::{SeoMeta, SeoPlugin, UnreadField};
 pub use wxr::read_wxr;
 pub use wxr_error::WxrError;
