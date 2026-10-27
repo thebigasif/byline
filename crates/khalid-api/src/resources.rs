@@ -4,19 +4,29 @@
 mod admin_post;
 mod author;
 mod collection;
+mod comment;
 mod content_collection;
 mod menu;
 mod post;
+mod post_row;
+mod post_settings;
 mod settings;
+mod settings_edit;
 mod term;
 
 pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
 pub use author::Author;
 pub use collection::Collection;
+pub use comment::{AdminComment, CommentReply, CommentStatus, CommentWriter};
 pub use content_collection::ContentCollection;
 pub use menu::{Menu, MenuLink};
 pub use post::{Bodies, Post};
+pub use post_row::{Gate, IndexStatus, LintCounts, PostRow};
+pub use post_settings::{
+    Alias, FeatureImage, NonBlank, PostSettings, ReviewState, ShareCard, ShareCards,
+};
 pub use settings::Settings;
+pub use settings_edit::SettingsEdit;
 pub use term::Term;
 
 use std::fmt::Display;

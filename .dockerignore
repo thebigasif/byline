@@ -1,0 +1,10 @@
+# What `docker build` leaves out: build output, installed packages, sites
+# and their derived data, and anything that may hold a secret.
+.git
+target
+admin/node_modules
+admin/dist
+sites
+**/data
+.env
+.env.*

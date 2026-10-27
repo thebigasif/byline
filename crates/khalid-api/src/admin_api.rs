@@ -17,13 +17,16 @@ use utoipa_axum::routes;
 
 use crate::admin_key::{require, require_admin_key};
 use crate::api_version::negotiate_version;
+use crate::content_api::check_fields;
 use crate::html_source::markdown_from_html;
 use crate::keys::{KeyStore, Principal, Scope};
+use crate::pagination::Meta;
 use crate::post_store::{CreatePostError, UpdatePostError};
 use crate::preview_link::PreviewLink;
 use crate::problem::{Problem, ProblemType};
 use crate::publish_door::{PublishDoor, ScheduleError};
-use crate::resources::{AdminPost, NewPost, PostDraft, PostEdit};
+use crate::query::{Limit, ListQuery, RawListQuery};
+use crate::resources::{AdminPost, Listable, NewPost, PostDraft, PostEdit, PostRow};
 
 /// Where the Admin API lives.
 pub(crate) const BASE: &str = "/api/admin/v1";
@@ -36,7 +39,7 @@ type Posts = Arc<PublishDoor>;
 /// integration key or staff token, and checks its own scope.
 pub(crate) fn routes(posts: Posts, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(create_admin_post))
+        .routes(routes!(browse_admin_posts, create_admin_post))
         .routes(routes!(read_admin_post, edit_admin_post))
         .routes(routes!(make_preview_link))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
@@ -49,6 +52,99 @@ pub(crate) fn routes(posts: Posts, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
 pub(crate) struct AdminPosts {
     /// The post or posts.
     posts: Vec<AdminPost>,
+}
+
+/// One page of the admin's posts table, as every list is wrapped.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct PostRows {
+    /// The rows on this page.
+    posts: Vec<PostRow>,
+    /// Pagination.
+    meta: Meta,
+}
+
+/// The list parameters a posts table takes: the shared grammar's, less
+/// `include`, `fields` and `formats`, which mean nothing for a row.
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RowQuery {
+    /// `filter=gate:refuses+status:draft`
+    filter: Option<String>,
+    /// `order=updated_at desc`
+    order: Option<String>,
+    /// `limit=15`, from 1 to 100
+    limit: Option<String>,
+    /// `page=2`
+    page: Option<String>,
+}
+
+impl RowQuery {
+    /// The same parameters, for the shared grammar to check.
+    fn into_raw(self) -> RawListQuery {
+        let mut raw = RawListQuery::default();
+        (raw.filter, raw.order) = (self.filter, self.order);
+        (raw.limit, raw.page) = (self.limit, self.page);
+        raw
+    }
+}
+
+/// The 400 for a parameter the posts list does not take.
+fn unlisted_parameter() -> Problem {
+    let message = UserMessage::new(
+        "The posts list takes only filter, order, limit and page.",
+        "A row has no body or embedded resources to choose.",
+        "Remove the other parameters, such as include, fields or formats.",
+    );
+    Problem::new(ProblemType::InvalidQuery, &message).with_rule("query")
+}
+
+/// The 400 for `limit=all`.
+fn whole_site() -> Problem {
+    let message = UserMessage::new(
+        "The posts list sends at most 100 posts a page.",
+        "Each post's lint findings are counted, which takes too long for a whole site.",
+        "Use limit=100 and the page parameter, or a filter such as gate:refuses.",
+    );
+    Problem::new(ProblemType::InvalidQuery, &message).with_rule("limit")
+}
+
+/// Lists posts in every status as rows of the admin's posts table, with
+/// the shared query grammar (RULES.md BL-API-5); any field but `lint` may
+/// be filtered and ordered by. A page holds at most 100 rows, because
+/// each row's findings are counted. Needs `posts:write`.
+#[utoipa::path(
+    get, path = "/posts/", tag = "admin posts",
+    security(("admin_key" = [])),
+    params(RowQuery),
+    responses(
+        (status = 200, description = "One page of posts in every status", body = PostRows),
+        (status = 400, description = "A list parameter could not be read, names a field rows do not have, is not one the list takes, or is limit=all", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn browse_admin_posts(
+    State(posts): State<Posts>,
+    Extension(principal): Extension<Principal>,
+    rows: Result<Query<RowQuery>, QueryRejection>,
+) -> Result<Json<PostRows>, Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let Query(rows) = rows.map_err(|_| unlisted_parameter())?;
+    let query = ListQuery::try_from(&rows.into_raw())?;
+    check_fields(&query, PostRow::FIELDS)?;
+    if query.limit() == Limit::All {
+        return Err(whole_site());
+    }
+    let listed = posts
+        .list(&query)
+        .await
+        .map_err(|error| Problem::internal(&error))?;
+    let meta = Meta::new(query.page(), query.limit(), listed.total());
+    Ok(Json(PostRows {
+        posts: listed.into_items(),
+        meta,
+    }))
 }
 
 /// Reads one post in any status. Needs `posts:write`.
@@ -101,8 +197,8 @@ pub(crate) struct EditPosts {
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
-        (status = 409, description = "The post changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
-        (status = 422, description = "The body could not be read, the schedule cannot be kept, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The post changed after the copy the edit was made on, or another post has the new slug", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, a setting is not valid, the schedule cannot be kept, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
     )
 )]
 async fn edit_admin_post(
@@ -123,6 +219,11 @@ async fn edit_admin_post(
             updated_at,
             updated_by,
         }) => Err(stale(updated_at, updated_by.as_deref())),
+        Err(UpdatePostError::SlugTaken(slug)) => Err(slug_taken(
+            slug.as_str(),
+            "Send a different slug, or leave slug out to keep the one it has.",
+        )),
+        Err(UpdatePostError::Unsupported { setting, why }) => Err(unsupported(setting, why)),
         Err(UpdatePostError::Refused(report)) => Err(refused(report)),
         Err(UpdatePostError::Schedule(error)) => Err(unschedulable(error)),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
@@ -266,7 +367,10 @@ async fn create_admin_post(
         .create(draft, principal.id().as_str(), idempotency)
         .await;
     let post = made.map_err(|error| match error {
-        CreatePostError::SlugTaken(slug) => slug_taken(slug.as_str()),
+        CreatePostError::SlugTaken(slug) => slug_taken(
+            slug.as_str(),
+            "Send a different slug, or leave slug out to have one made from the title.",
+        ),
         CreatePostError::NoSlug => {
             invalid_body("the title has no letters or digits to make a slug from")
         }
@@ -341,11 +445,22 @@ fn idempotency_key(headers: &HeaderMap) -> Result<Option<&str>, Problem> {
     }
 }
 
-fn slug_taken(slug: &str) -> Problem {
+/// The 422 for a change the store cannot keep, naming it in `rule`.
+fn unsupported(setting: &'static str, why: &'static str) -> Problem {
+    let message = UserMessage::new(
+        format!("This site cannot save {setting} yet."),
+        why,
+        format!("Send the edit again without {setting}; nothing was changed."),
+    );
+    Problem::new(ProblemType::InvalidBody, &message).with_rule(setting)
+}
+
+/// The 409 for a slug another post has, with `fix` saying what to send.
+fn slug_taken(slug: &str, fix: &'static str) -> Problem {
     let message = UserMessage::new(
         format!("Another post already has the slug {slug}."),
         "Two posts cannot share one address.",
-        "Send a different slug, or leave slug out to have one made from the title.",
+        fix,
     );
     Problem::new(ProblemType::Conflict, &message).with_rule("slug")
 }

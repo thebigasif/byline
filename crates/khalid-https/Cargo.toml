@@ -9,30 +9,32 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-axum = { version = "0.8", default-features = false, features = ["tokio"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 http = "1"
 http-body-util = "0.1"
 instant-acme = { version = "0.8", default-features = false, features = ["ring", "rcgen"] }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 rcgen = { version = "0.14", default-features = false, features = ["ring"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rustls-pki-types = { version = "1", features = ["std"] }
 serde_json.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["net"] }
+tokio = { workspace = true, features = ["net", "fs", "io-util"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
 tracing.workspace = true
 x509-parser = { version = "0.18", default-features = false }
 
 [dev-dependencies]
-axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 base64 = "0.22"
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
-rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem", "x509-parser"] }
+sha2 = "0.11"
+tempfile = "3"
 tokio = { workspace = true, features = ["io-util"] }
 tower = { version = "0.5", default-features = false, features = ["util"] }
 

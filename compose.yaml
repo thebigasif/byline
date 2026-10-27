@@ -1,0 +1,30 @@
+# Runs Khalid with Docker Compose. The guide is in docs/deploy.md.
+#
+# Make the site once, in ./site next to this file:
+#   mkdir site
+#   docker compose run --rm khalid init /site --address https://blog.example.com --yes
+# Then start it, and again after every reboot:
+#   docker compose up -d
+
+services:
+  khalid:
+    image: ghcr.io/thebigasif/khalid:latest
+    # Builds the image from this repository when it cannot be pulled.
+    build: .
+    restart: unless-stopped
+    # Your own user, so the files in ./site stay yours. `id -u` and `id -g`
+    # print the numbers.
+    user: "${KHALID_UID:-1000}:${KHALID_GID:-1000}"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./site:/site
+    # environment:
+    #   KHALID_ADDRESS: https://blog.example.com
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
