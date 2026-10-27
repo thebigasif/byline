@@ -1,0 +1,59 @@
+# Khalid for AI agents
+
+Khalid is a blog engine. This guide tells an agent, such as Claude Code, how to work on a Khalid blog safely. It is built into `khalid`, so it always matches the version you run.
+
+## The site is a folder of text files
+
+- `site.toml` holds the settings: the name, the address, the languages.
+- `content/<language>/posts/` holds the published posts, one markdown file each, named `<date>-<slug>.md`.
+- `content/<language>/authors/` holds one file per author. A post names its author by that file's slug.
+- `drafts/<language>/<slug>.md` holds drafts. Nothing reads them but the Admin API, so they are never shown to readers.
+- `data/` and `public/` are made by Khalid from the files. Never write into them.
+
+A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It is the same for its draft and for the published post.
+
+## Two ways in
+
+**The command line.** Every command takes `--site <folder>` and `--json`. With `--json`, the result is one JSON value on stdout, and a failure is `{"error": {"what": ..., "why": ..., "fix": ...}}`. The exit code is 0 when it worked, 1 when something blocks and you must act, 2 when the command line was wrong, and 3 for a fault inside Khalid. Run `khalid --help` for every command. The ones you will use most:
+
+- `khalid lint [post]` checks one post or the whole site. `--fix` makes the safe repairs.
+- `khalid build` writes the site as HTML, and writes nothing when a dated post is blocked.
+- `khalid serve` runs the blog and the APIs.
+- `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it.
+
+**The MCP server.** `khalid --site <folder> mcp` speaks the Model Context Protocol on stdin and stdout. Each tool sends the request the HTTP API would get, so it obeys the same rules, keys and checks.
+
+## Connect over MCP
+
+1. Make a key once: `khalid --site <folder> keys create --scope posts:write --name Claude`. The key is shown once, and Khalid keeps only a hash of it.
+2. Give the key to the server in the `KHALID_KEY` environment variable, never on the command line and never in a file inside the site. In Claude Code: `claude mcp add khalid --env KHALID_KEY=<key> -- khalid --site <folder> mcp`.
+
+The server checks the key when it starts. A missing, revoked or read-only key stops it with a message on stderr.
+
+## The tools
+
+- `list_posts` lists published posts, newest first. It takes `filter` (such as `tag:news+featured:true`), `order` (such as `published_at desc`), `limit` and `page`. Drafts are not listed.
+- `read_post` reads one post in any status by `id`, with its markdown and its `updated_at`.
+- `create_draft` saves a new draft. Send `title` and `markdown`, or `html` instead of markdown, which is cleaned and turned into markdown. Add `author`, and `slug` if the one made from the title is not right.
+- `edit_post` changes the `title` or the whole `markdown` of a post. Send the `updated_at` you last read. It never publishes.
+- `lint_post` runs the checks `publish_post` runs, without publishing and without changing anything. A draft is checked as it would go live today.
+- `publish_post` publishes a draft, with its `id` and `updated_at`, once the linter lets it through.
+
+Every answer is the API's own JSON. A tool that fails returns an error result holding the API's problem: a `detail` that says what happened and why, and a `fix` that says what to do.
+
+## Writing a post that publishes
+
+1. `create_draft` with a title, an author and the body.
+2. `lint_post`. Each finding has a `rule`, a `severity` and `what`, `why` and `fix`. A finding with severity `block` stops publishing; `warn` does not.
+3. Fix every blocking finding with `edit_post`, using the `updated_at` from the last answer, and lint again.
+4. `publish_post`. If it is refused, the answer lists every finding, and the post stays a draft.
+
+Blocking rules include a post with no title, no author, no date, or no link to another post on the site. Link to other posts with site addresses, such as `/blog/why-internal-links-matter/`.
+
+When an edit is refused with status 409, someone changed the post after you read it. Read it again with `read_post`, make your change to the new copy, and send its new `updated_at`.
+
+## Rules for agents
+
+- Never print, log or save a key.
+- Change content through the tools or the command line, not by writing into `data/` or `public/`.
+- Leave publishing to `publish_post`, so the linter always decides what goes live.

@@ -5,6 +5,7 @@
 //! read. It must not know business rules. Those live in the library crates,
 //! which this binary calls the same way the API does.
 
+mod agents;
 mod assets;
 mod atomic;
 mod build;
@@ -186,9 +187,10 @@ fn run(cli: &Cli) -> Exit {
 }
 
 /// Runs the commands that do not start from a checked site: `init`, which
-/// makes the site, and `doctor`, which checks the settings, routes and
-/// content itself so it can list every problem instead of stopping at the
-/// first. Returns `None` for every other command.
+/// makes the site, `agents`, which needs none, and `doctor`, which checks
+/// the settings, routes and content itself so it can list every problem
+/// instead of stopping at the first. Returns `None` for every other
+/// command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -199,6 +201,7 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
                 .unwrap_or(Path::new("."));
             Some(init::run(folder, args, cli.output))
         }
+        Some(Command::Agents) => Some(agents::run(cli.output)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),

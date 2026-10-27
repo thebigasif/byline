@@ -110,6 +110,8 @@ pub(crate) enum Command {
     /// Speak the Model Context Protocol on stdin and stdout, for agents.
     /// Acts with the key in the `KHALID_KEY` environment variable
     Mcp,
+    /// Print the guide for AI agents: the files, the commands and the MCP tools
+    Agents,
     /// Check the site and its public address, and say how to fix each problem
     Doctor {
         /// Check only the files, without fetching the blog's public address
@@ -332,6 +334,7 @@ impl Command {
             Self::Import { .. } => "import",
             Self::Export => "export",
             Self::Mcp => "mcp",
+            Self::Agents => "agents",
             Self::Doctor { .. } => "doctor",
             Self::Backup => "backup",
             Self::Audit => "audit",

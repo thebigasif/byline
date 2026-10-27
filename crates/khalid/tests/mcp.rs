@@ -212,3 +212,24 @@ fn a_missing_read_only_or_revoked_key_stops_it_before_any_message() {
         assert!(message.contains(says), "{says}: {message}");
     }
 }
+
+#[test]
+fn the_agents_guide_explains_every_tool_the_server_offers() {
+    let (site, key) = demo();
+    let mut session = Session::start(site.path(), &key);
+    let tools = session.ask("tools/list", &json!({}));
+    drop(session.finish());
+    let guide = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .arg("agents")
+        .output()
+        .unwrap();
+    assert_eq!(guide.status.code(), Some(0), "{}", text(&guide.stderr));
+    let guide = text(&guide.stdout);
+    for tool in tools["result"]["tools"].as_array().unwrap() {
+        let name = tool["name"].as_str().unwrap();
+        assert!(
+            guide.contains(&format!("`{name}`")),
+            "the guide never names {name}"
+        );
+    }
+}
