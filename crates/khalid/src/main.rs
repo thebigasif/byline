@@ -44,12 +44,14 @@ mod lint_fix;
 mod lint_input;
 mod lint_message;
 mod listed_post;
+mod live_redirects;
 mod mcp;
 mod mcp_content;
 mod mcp_message;
 mod mcp_tools;
 mod media_library;
 mod memory;
+mod miss_log;
 mod new;
 mod new_message;
 mod newsletter;
@@ -58,6 +60,8 @@ mod post_files;
 mod post_images;
 mod post_text;
 mod preview;
+mod redirect_route;
+mod redirects;
 mod repair;
 mod report;
 mod routes_message;
@@ -70,11 +74,13 @@ mod serve;
 mod serve_https;
 mod serve_message;
 mod settings_text;
+mod site_addresses;
 mod site_content;
 mod site_files;
 mod site_lists;
 mod site_pages;
 mod site_posts;
+mod slug_moves;
 mod slug_repair;
 mod staff;
 mod staff_message;
@@ -234,8 +240,8 @@ fn access(folder: &Path, config: &Config, command: &Command, output: Output) -> 
 /// Runs the commands that do not start from a checked site: `init`, which
 /// makes the site, `agents`, which needs none, and `doctor`, which checks
 /// the settings, routes and content itself so it can list every problem
-/// instead of stopping at the first. Returns `None` for every other
-/// command.
+/// instead of stopping at the first, and `redirects`, which needs only the
+/// settings and the database. Returns `None` for every other command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -250,6 +256,10 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
+        }),
+        Some(asked @ Command::Redirects { command }) => Some(match cli.site.as_deref() {
+            Some(folder) => redirects::run(folder, command, cli.output),
+            None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
         }),
         _ => None,
     }

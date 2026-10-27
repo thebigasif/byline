@@ -9,10 +9,11 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use axum::Router;
-use khalid_api::api;
+use khalid_api::api::{self, AdminDesks};
 use khalid_api::comment_moderation::CommentModeration;
 use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
+use khalid_api::redirect_desk::RedirectDesk;
 use khalid_api::session_check::SessionCheck;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
@@ -34,8 +35,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, preview, report, scheduler,
-    search_route, serve_message, staff,
+    announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
+    report, scheduler, search_route, serve_message, staff,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -105,6 +106,7 @@ fn serve_with(
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
     let (content, hand_back) = (LiveContent::default(), HandBack::default());
+    let (redirects, addresses) = redirect_route::stores((database, id));
     let to = Destination {
         folder: site.to_path_buf(),
         config: config.clone(),
@@ -112,6 +114,8 @@ fn serve_with(
         site: id,
         live: content.clone(),
         hand_back: hand_back.clone(),
+        addresses: addresses.clone(),
+        redirects: redirects.clone(),
     };
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
@@ -151,22 +155,19 @@ fn serve_with(
         let scheduling = scheduler::start(Arc::clone(&door));
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let (media, files) = media_library::open(site, config, bucket_keys, outbound).await?;
-        let api = api_router(
-            (content, door, keys),
-            moderation,
-            media,
-            (database, id, config),
-        );
-        let searches = search_route::router(config, search);
-        let admin = khalid_admin::router(khalid_admin::built());
+        let pages = (router(live.clone(), security), live, config.mount());
+        let stored = redirect_route::start((database, id), pages, (redirects, addresses));
+        let (desk, pages) = stored.await;
+        let desks = (moderation, media, desk);
+        let api = api_router((content, door, keys), desks, (database, id, config));
         let app = api
             .merge(files)
             .merge(previews)
-            .merge(searches)
-            .merge(admin)
+            .merge(search_route::router(config, search))
+            .merge(khalid_admin::router(khalid_admin::built()))
             .merge(comments)
             .merge(newsletters)
-            .merge(router(live, security));
+            .merge(pages);
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
@@ -190,19 +191,22 @@ fn serve_with(
 }
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
-/// media library and the staff accounts of site `id`.
+/// comment moderation, media library, stored redirects and staff accounts
+/// of site `id`.
 fn api_router(
     (content, door, keys): (LiveContent, Arc<PublishDoor>, KeyTable),
-    moderation: Arc<dyn CommentModeration>,
-    media: MediaLibrary,
+    (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
     (database, id, config): (&Database, SiteId, &Config),
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
     let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
     let staff = (khalid_auth::staff_routes(accounts), sessions);
-    let stores = (Arc::new(content), door, Arc::new(keys));
-    let (api, _) =
-        api::router_with_media_and_staff(stores.0, stores.1, stores.2, moderation, media, staff);
+    let desks = AdminDesks {
+        comments,
+        media: Some(media),
+        redirects,
+    };
+    let (api, _) = api::router_for_serve(Arc::new(content), door, Arc::new(keys), desks, staff);
     api
 }
 

@@ -156,6 +156,32 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: DbCommand,
     },
+    /// Bring in, take out and explain the site's stored redirects
+    Redirects {
+        /// What to do with the redirects
+        #[command(subcommand)]
+        command: RedirectsCommand,
+    },
+}
+
+/// The redirect commands. Stored redirects live in `data/site.db`;
+/// `khalid serve` reads them when it starts.
+#[derive(Debug, Clone, Subcommand)]
+pub(crate) enum RedirectsCommand {
+    /// Store every redirect in a CSV file with the columns from,to,status,match, or none
+    Import {
+        /// The CSV file, such as the import/wordpress-redirects.csv an import wrote
+        #[arg(value_name = "FILE")]
+        file: PathBuf,
+    },
+    /// Print every stored redirect as CSV, to keep or open in a spreadsheet
+    Export,
+    /// Say which stored redirect an address matches, and where a reader ends up
+    Explain {
+        /// The address from the site root, such as /blog/old-links/
+        #[arg(value_name = "PATH")]
+        path: String,
+    },
 }
 
 /// What `khalid serve` takes: plain HTTP on an address, or HTTPS for a
@@ -406,6 +432,15 @@ impl Command {
             Self::Db {
                 command: DbCommand::Rebuild,
             } => "db rebuild",
+            Self::Redirects {
+                command: RedirectsCommand::Import { .. },
+            } => "redirects import",
+            Self::Redirects {
+                command: RedirectsCommand::Export,
+            } => "redirects export",
+            Self::Redirects {
+                command: RedirectsCommand::Explain { .. },
+            } => "redirects explain",
         }
     }
 }

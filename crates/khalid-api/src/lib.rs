@@ -9,6 +9,9 @@
 mod admin_api;
 mod admin_comments;
 mod admin_key;
+mod admin_not_found;
+mod admin_redirect_csv;
+mod admin_redirects;
 pub mod api;
 mod api_version;
 pub mod comment_moderation;
@@ -26,6 +29,7 @@ pub mod preview_link;
 pub mod problem;
 pub mod publish_door;
 pub mod query;
+pub mod redirect_desk;
 pub mod redirect_store;
 pub mod resources;
 pub mod schedule_store;

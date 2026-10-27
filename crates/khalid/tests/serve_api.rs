@@ -227,11 +227,14 @@ const RESOURCES: [&str; 18] = [
 /// The methods a route could answer.
 const METHODS: [&str; 5] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
-/// Whether an answer came from an API handler: those answer JSON or a
-/// problem, and every other address gets the site's HTML pages.
+/// Whether an answer came from an API handler: those answer JSON, a
+/// problem, or a CSV export, and every other address gets the site's HTML
+/// pages.
 #[cfg(test)]
 fn from_a_handler(media: &str) -> bool {
-    media.starts_with("application/json") || media.starts_with("application/problem+json")
+    media.starts_with("application/json")
+        || media.starts_with("application/problem+json")
+        || media.starts_with("text/csv")
 }
 
 /// Brief B-API-4's done line: `khalid serve` answers `/api/openapi.json`

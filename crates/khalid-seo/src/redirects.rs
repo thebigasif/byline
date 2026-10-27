@@ -137,8 +137,9 @@ impl Resolution {
     }
 }
 
-/// The site's redirects, checked for duplicates and loops.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// The site's redirects, checked for duplicates and loops. The default
+/// table has no rules.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RedirectTable {
     rules: Vec<RedirectRule>,
     by_source: BTreeMap<UrlPath, usize>,

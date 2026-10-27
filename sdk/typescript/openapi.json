@@ -770,6 +770,174 @@
         ]
       }
     },
+    "/api/admin/v1/not-found/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Lists the addresses that answered 404, most requested first, each with\nthe nearest page. Needs `settings:write`.",
+        "operationId": "list_misses",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "path",
+            "description": "From 1 to 1,000; 100 when left out.",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The logged addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMisses"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The limit is not from 1 to 1,000",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/not-found/redirect/": {
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "\"Redirect this\": stores a permanent move from an address that answered\n404 to the page given, or to the nearest page, and drops the address\nfrom the log. Needs `settings:write`.",
+        "operationId": "redirect_miss",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedirectMiss"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The address already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The address or page is not a clean path, or no page is near",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "get": {
         "tags": [
@@ -1244,6 +1412,440 @@
           },
           "422": {
             "description": "This site makes no preview links",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Lists every stored redirect, oldest first. Aliases in front matter are\nnot listed; they live in their posts. Needs `settings:write`.",
+        "operationId": "list_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Stores one redirect made by hand. It is checked against every stored\nredirect, so it can neither take an address that has one nor close a\nloop. Needs `settings:write`.",
+        "operationId": "create_redirect",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRedirects"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The address already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The redirect cannot be followed or would close a loop",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/explain/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Explains which stored redirect an address matches, every hop of its\nchain, and the one step a visitor gets. Aliases in front matter and\npages answer before stored redirects, so they are not shown here.\nNeeds `settings:write`.",
+        "operationId": "explain_redirect",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "description": "The path, from the site root, such as `/blog/old-links/`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Why the address answers what it does",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedirectExplanation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The path is not a clean path from the site root",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/export/": {
+      "get": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Every stored redirect as a CSV list, oldest first, to\nopen in a spreadsheet or import elsewhere. Needs `settings:write`.",
+        "operationId": "export_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The list, header first",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/import/": {
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Stores every redirect in a CSV list, or none. The list is checked row\nby row, then together with every stored redirect, so it can neither\ntake a used address nor close a loop. Needs `settings:write`.",
+        "operationId": "import_redirects",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "A header from,to,status,match (match may be left out), then one redirect a row",
+          "content": {
+            "text/csv": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "from,to,status,match\n/blog/old-links/,/blog/why-internal-links-matter/,301,exact\n"
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Every redirect in the list, stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An address in the list already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A row cannot be read or followed, or the list would close a loop",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/redirects/{id}/": {
+      "delete": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "Removes one stored redirect. Needs `settings:write`.",
+        "operationId": "remove_redirect",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The redirect's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The redirect is gone"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No redirect has this identity",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5067,6 +5669,63 @@
           "updated_by": "asif"
         }
       },
+      "AdminMiss": {
+        "type": "object",
+        "description": "An address that answered 404, as the Admin API shows it.",
+        "required": [
+          "path",
+          "hits",
+          "first_seen",
+          "last_seen"
+        ],
+        "properties": {
+          "first_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The first request."
+          },
+          "hits": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many requests it answered.",
+            "minimum": 0
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The latest request."
+          },
+          "nearest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page \"redirect this\" would send it to, or null when no page is\nnear enough to guess.",
+            "example": "/blog/why-internal-links-matter/"
+          },
+          "path": {
+            "type": "string",
+            "description": "The address as requested.",
+            "example": "/blog/internal-links/"
+          }
+        }
+      },
+      "AdminMisses": {
+        "type": "object",
+        "description": "The 404 log as the Admin API wraps it.",
+        "required": [
+          "misses"
+        ],
+        "properties": {
+          "misses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMiss"
+            },
+            "description": "The addresses, most requested first."
+          }
+        }
+      },
       "AdminPost": {
         "type": "object",
         "description": "A post in Admin API shape: any status, with its markdown source and\nthe `updated_at` an edit must send back (RULES.md BL-API-7).",
@@ -5156,6 +5815,77 @@
               "$ref": "#/components/schemas/AdminPost"
             },
             "description": "The post or posts."
+          }
+        }
+      },
+      "AdminRedirect": {
+        "type": "object",
+        "description": "A stored redirect as the Admin API shows it.",
+        "required": [
+          "id",
+          "from",
+          "status",
+          "match",
+          "origin",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made."
+          },
+          "from": {
+            "type": "string",
+            "description": "The path it starts from, or a regular expression over the path.",
+            "example": "/blog/old-links/"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The identity to remove it by.",
+            "example": 12
+          },
+          "match": {
+            "type": "string",
+            "description": "`exact` or `regex`.",
+            "example": "exact"
+          },
+          "origin": {
+            "type": "string",
+            "description": "`manual`, `import` or `slug_change`.",
+            "example": "manual"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "301, 302, 307, 410 or 451.",
+            "example": 301,
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a move leads: a path, a web address, or a pattern's template\nwith `$1` for its first group. Empty for 410 and 451.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        }
+      },
+      "AdminRedirects": {
+        "type": "object",
+        "description": "Redirects as the Admin API wraps them.",
+        "required": [
+          "redirects"
+        ],
+        "properties": {
+          "redirects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminRedirect"
+            },
+            "description": "The redirects, oldest first."
           }
         }
       },
@@ -5551,6 +6281,41 @@
             "format": "int64",
             "description": "Sessions ended, this one included.",
             "minimum": 0
+          }
+        }
+      },
+      "ExplainedHop": {
+        "type": "object",
+        "description": "One hop of a chain in the debug view.",
+        "required": [
+          "from",
+          "status"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The address this hop starts from."
+          },
+          "redirect": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The identity of the stored redirect that answered it."
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "What that redirect answers on its own.",
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it leads, for a move."
           }
         }
       },
@@ -6022,6 +6787,61 @@
           }
         },
         "additionalProperties": false
+      },
+      "NewRedirect": {
+        "type": "object",
+        "description": "One new redirect, in the columns [`AdminRedirect`] shows.",
+        "required": [
+          "from",
+          "status"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The path it starts from, or a regular expression over the path.",
+            "example": "/blog/old-links/"
+          },
+          "match": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`exact`, the default, or `regex`.",
+            "example": "exact"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "301, 302, 307, 410 or 451.",
+            "example": 301,
+            "minimum": 0
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a move leads. Leave it out for 410 and 451.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewRedirects": {
+        "type": "object",
+        "description": "The body of a new redirect: exactly one.",
+        "required": [
+          "redirects"
+        ],
+        "properties": {
+          "redirects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewRedirect"
+            },
+            "description": "The one redirect to store."
+          }
+        }
       },
       "NonBlank": {
         "type": "string",
@@ -6649,6 +7469,79 @@
             "example": "https://khalid.dev/problems/not-found"
           }
         }
+      },
+      "RedirectExplanation": {
+        "type": "object",
+        "description": "Why an address answers what it answers: the debug view.",
+        "required": [
+          "path",
+          "hops",
+          "text"
+        ],
+        "properties": {
+          "hops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExplainedHop"
+            },
+            "description": "Each hop from the address to the end of its chain."
+          },
+          "matched": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The identity of the stored redirect it matched, if any."
+          },
+          "path": {
+            "type": "string",
+            "description": "The address asked about."
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The one status a visitor gets, if a redirect matched.",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "description": "The same, in plain words."
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where a visitor is sent in one step, for a move."
+          }
+        }
+      },
+      "RedirectMiss": {
+        "type": "object",
+        "description": "The address to redirect, and where to.",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The address that answered 404.",
+            "example": "/blog/internal-links/"
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page to send it to. Leave it out for the nearest page.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        },
+        "additionalProperties": false
       },
       "ReviewState": {
         "type": "string",

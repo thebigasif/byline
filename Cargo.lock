@@ -2063,6 +2063,7 @@ dependencies = [
  "khalid-theme",
  "khalid-webhooks",
  "mimalloc",
+ "percent-encoding",
  "rcgen",
  "rustix",
  "scraper",

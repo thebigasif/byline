@@ -19,9 +19,13 @@ use crate::media_api::{self, MediaLibrary};
 use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
+use crate::redirect_desk::RedirectDesk;
 use crate::resources::MediaItems;
 use crate::session_check::{SessionCheck, StaffRoutes};
-use crate::{admin_api, admin_comments, api_version, content_api};
+use crate::{
+    admin_api, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects, api_version,
+    content_api,
+};
 
 /// The document's title, the schemas every route shares and the ways a
 /// key may be sent.
@@ -108,12 +112,28 @@ pub fn router_with_comments(
 
 /// The same router, publishing through `door`, which `khalid serve` shares
 /// with its scheduler so every post that goes live is announced.
+/// Its redirect routes keep nothing; see [`router_with_redirects`].
 pub fn router_with_door(
     content: Arc<dyn ContentStore>,
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
 ) -> (Router, Document) {
     router_with_door_and_comments(content, door, keys, Arc::new(NoComments))
+}
+
+/// The same router, with the redirect routes under
+/// `/api/admin/v1/redirects/` reading and writing through `redirects`.
+pub fn router_with_redirects(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    redirects: RedirectDesk,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        redirects,
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
 }
 
 /// [`router_with_door`] for a site that keeps readers' comments, moderated
@@ -125,7 +145,11 @@ pub fn router_with_door_and_comments(
     keys: Arc<dyn KeyStore>,
     comments: Arc<dyn CommentModeration>,
 ) -> (Router, Document) {
-    assemble(content, door, keys, comments, None, None)
+    let desks = AdminDesks {
+        comments,
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
 }
 
 /// [`router_with_door_and_comments`] with the site's media library under
@@ -137,7 +161,12 @@ pub fn router_with_media(
     comments: Arc<dyn CommentModeration>,
     media: MediaLibrary,
 ) -> (Router, Document) {
-    assemble(content, door, keys, comments, Some(media), None)
+    let desks = AdminDesks {
+        comments,
+        media: Some(media),
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
 }
 
 /// [`router`] with staff accounts: `staff` routes join the Admin API, and
@@ -151,9 +180,8 @@ pub fn router_with_staff(
     sessions: Arc<dyn SessionCheck>,
 ) -> (Router, Document) {
     let door = Arc::new(PublishDoor::new(posts, Arc::new(Silent)));
-    let comments = Arc::new(NoComments);
     let staff = Some((staff, sessions));
-    assemble(content, door, keys, comments, None, staff)
+    assemble(content, door, keys, AdminDesks::none(), staff)
 }
 
 /// [`router_with_door_and_comments`] with staff accounts.
@@ -166,33 +194,65 @@ pub fn router_with_door_comments_and_staff(
     staff: StaffRoutes,
     sessions: Arc<dyn SessionCheck>,
 ) -> (Router, Document) {
-    assemble(content, door, keys, comments, None, Some((staff, sessions)))
+    let desks = AdminDesks {
+        comments,
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, Some((staff, sessions)))
 }
 
-/// [`router_with_media`] with staff accounts, as `khalid serve` runs it:
-/// `staff` holds the staff routes and the session check that
+/// The Admin API's stores beside posts, as `khalid serve` holds them.
+pub struct AdminDesks {
+    /// Readers' comments, moderated under `/api/admin/v1/comments/`.
+    pub comments: Arc<dyn CommentModeration>,
+    /// The media library, or `None` when the media routes answer that the
+    /// site has none.
+    pub media: Option<MediaLibrary>,
+    /// The stored redirects and the 404 log.
+    pub redirects: RedirectDesk,
+}
+
+impl std::fmt::Debug for AdminDesks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AdminDesks")
+            .field("media", &self.media)
+            .field("redirects", &self.redirects)
+            .finish_non_exhaustive()
+    }
+}
+
+impl AdminDesks {
+    /// No comments, no media library and no stored redirects.
+    pub fn none() -> Self {
+        Self {
+            comments: Arc::new(NoComments),
+            media: None,
+            redirects: RedirectDesk::none(),
+        }
+    }
+}
+
+/// The whole router as `khalid serve` runs it: every store in `desks`,
+/// and `staff`, the staff routes and the session check that
 /// [`router_with_staff`] describes.
-pub fn router_with_media_and_staff(
+pub fn router_for_serve(
     content: Arc<dyn ContentStore>,
     door: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
-    comments: Arc<dyn CommentModeration>,
-    media: MediaLibrary,
+    desks: AdminDesks,
     staff: Staff,
 ) -> (Router, Document) {
-    assemble(content, door, keys, comments, Some(media), Some(staff))
+    assemble(content, door, keys, desks, Some(staff))
 }
 
 /// Every router above: the Content API, and the Admin API publishing
-/// through `posts`, moderating `comments` and keeping `media`. With
-/// `staff`, its routes join the Admin API and a staff session counts
-/// wherever a key is needed.
+/// through `posts` and keeping what `desks` hold. With `staff`, its routes
+/// join the Admin API and a staff session counts wherever a key is needed.
 fn assemble(
     content: Arc<dyn ContentStore>,
     posts: Arc<PublishDoor>,
     keys: Arc<dyn KeyStore>,
-    comments: Arc<dyn CommentModeration>,
-    media: Option<MediaLibrary>,
+    desks: AdminDesks,
     staff: Option<Staff>,
 ) -> (Router, Document) {
     let (routes, sessions) = staff.unzip();
@@ -200,9 +260,13 @@ fn assemble(
         keys: Arc::clone(&keys),
         sessions,
     };
+    let redirects = desks.redirects;
     let mut admin = admin_api::routes(posts, door.clone())
-        .merge(admin_comments::routes(comments, door.clone()))
-        .merge(media_api::routes(media, door.clone()));
+        .merge(admin_comments::routes(desks.comments, door.clone()))
+        .merge(media_api::routes(desks.media, door.clone()))
+        .merge(admin_not_found::routes(redirects.clone(), door.clone()))
+        .merge(admin_redirect_csv::routes(redirects.clone(), door.clone()))
+        .merge(admin_redirects::routes(redirects, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

@@ -34,6 +34,7 @@ axum = { version = "0.8", default-features = false, features = ["query"] }
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4", features = ["derive"] }
 mimalloc = { version = "0.1", features = ["no_thp"] }
+percent-encoding = "2"
 serde.workspace = true
 serde_json.workspace = true
 tempfile = "3"
@@ -52,6 +53,7 @@ rustix = { version = "1", default-features = false, features = ["std", "thread"]
 test-util = ["khalid-outbound/test-util"]
 
 [dev-dependencies]
+khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 insta = "1"
