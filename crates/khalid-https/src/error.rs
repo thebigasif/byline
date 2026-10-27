@@ -59,6 +59,10 @@ pub enum HttpsError {
         /// What the authority said, if it said anything.
         detail: Option<String>,
     },
+    /// A new account is needed, and its owner has not agreed to the
+    /// certificate authority's terms.
+    #[error("a new account needs its owner's yes to the certificate authority's terms")]
+    TermsNotAgreed,
     /// A file in the HTTPS folder cannot be read or written.
     #[error("{} cannot be read or written", path.display())]
     Folder {

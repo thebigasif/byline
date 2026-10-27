@@ -13,7 +13,7 @@ use std::time::Duration;
 use acme_service::{AcmeService, Offer, start_ordering};
 use khalid_core::FixedClock;
 use khalid_https::{
-    AccountKey, Acme, AgreedToTerms, Certificate, Certificates, Check, Directory, Domain,
+    AccountKey, Acme, AgreedToTerms, Certificate, Certificates, Check, Directory, Domain, Https,
     HttpsError, HttpsFolder, Renewal, TlsListener, port_80,
 };
 use khalid_outbound::{Limits, Outbound, Reach, Resolver};
@@ -241,4 +241,97 @@ async fn an_inward_directory_is_refused_by_the_outbound_guard() {
         .unwrap_err();
 
     assert!(matches!(error, HttpsError::Acme { .. }), "{error:?}");
+}
+
+/// HTTPS for `NAME` from `service`, keeping its files in `site`.
+#[cfg(test)]
+fn https(service: &AcmeService, site: &tempfile::TempDir) -> Https {
+    Https {
+        domain: Domain::try_new(NAME).unwrap(),
+        folder: HttpsFolder::new(site.path().to_path_buf()),
+        directory: Directory::Other(service.directory.clone()),
+    }
+}
+
+/// A TLS port and a port 80 on loopback, and their numbers.
+#[cfg(test)]
+async fn ports() -> ((TcpListener, TcpListener), (u16, u16)) {
+    let tls = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let plain = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let numbers = (
+        tls.local_addr().unwrap().port(),
+        plain.local_addr().unwrap().port(),
+    );
+    ((tls, plain), numbers)
+}
+
+/// Starts `https` and accepts on its listener in the background, closing
+/// what it accepts; then whether a visitor gets a certificate on `port`.
+#[cfg(test)]
+async fn start_and_visit(
+    https: &Https,
+    listeners: (TcpListener, TcpListener),
+    port: u16,
+) -> Result<bool, HttpsError> {
+    let clock = FixedClock::new("2026-10-27T00:00:00Z".parse().unwrap());
+    let mut listener = https
+        .start(&outbound(), Some(AgreedToTerms), listeners, clock)
+        .await?;
+    tokio::spawn(async move {
+        loop {
+            drop(axum::serve::Listener::accept(&mut listener).await);
+        }
+    });
+    Ok(common::tls_handshake(port, NAME, b"http/1.1")
+        .await
+        .is_some())
+}
+
+#[tokio::test]
+async fn the_first_start_gets_saves_and_serves_a_certificate() {
+    let site = tempfile::tempdir().unwrap();
+    let (listeners, numbers) = ports().await;
+    let service = start_ordering(NAME, Offer::TlsAlpn, numbers).await;
+    let https = https(&service, &site);
+
+    let served = start_and_visit(&https, listeners, numbers.0).await.unwrap();
+
+    assert!(served, "a visitor gets the certificate");
+    assert!(https.folder.certificate().await.unwrap().is_some());
+    assert!(https.has_account().await.unwrap());
+    assert_eq!(service.issued(), 1);
+}
+
+#[tokio::test]
+async fn a_restart_serves_the_saved_certificate_without_ordering_again() {
+    let site = tempfile::tempdir().unwrap();
+    let (listeners, numbers) = ports().await;
+    let service = start_ordering(NAME, Offer::Http, numbers).await;
+    let https = https(&service, &site);
+    start_and_visit(&https, listeners, numbers.0).await.unwrap();
+
+    let (again, numbers) = ports().await;
+    let served = start_and_visit(&https, again, numbers.0).await.unwrap();
+
+    assert!(served, "a visitor gets the saved certificate");
+    assert_eq!(service.issued(), 1);
+    assert_eq!(service.accounts(), 1);
+}
+
+#[tokio::test]
+async fn no_account_is_opened_without_the_owners_yes() {
+    let site = tempfile::tempdir().unwrap();
+    let (listeners, numbers) = ports().await;
+    let service = start_ordering(NAME, Offer::TlsAlpn, numbers).await;
+    let https = https(&service, &site);
+    let clock = FixedClock::new("2026-10-27T00:00:00Z".parse().unwrap());
+
+    let error = https
+        .start(&outbound(), None, listeners, clock)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, HttpsError::TermsNotAgreed), "{error:?}");
+    assert!(!https.has_account().await.unwrap());
+    assert_eq!(service.accounts(), 0);
 }
