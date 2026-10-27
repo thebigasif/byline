@@ -1,0 +1,15 @@
+[package]
+name = "khalid-static"
+version = "0.0.0"
+description = "Static mode: the features a static site cannot have, and its pages without their forms."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[lints]
+workspace = true

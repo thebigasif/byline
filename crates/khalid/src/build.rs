@@ -19,7 +19,7 @@ use crate::cli::Output;
 use crate::exit::Exit;
 use crate::{
     assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
-    content_message, lint, lint_message, post_files, post_images, report,
+    content_message, lint, lint_message, post_files, post_images, report, static_mode,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -30,6 +30,9 @@ const PUBLIC: &str = "public";
 struct BuildBody {
     out: String,
     pages: usize,
+    /// The features a static site has off, each with what, why and fix.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    off: Vec<static_mode::Off>,
 }
 
 /// Renders the `site` folder, whose `config`, `routes` and `content` were
@@ -171,11 +174,15 @@ fn inside(path: &Path, folder: &Path) -> bool {
 }
 
 /// Says how many pages were written and where, or for a headless site that
-/// only its files were.
+/// only its files were, and for a static site which features are off.
 fn success(output: Output, out: &Path, pages: usize, mode: Mode) -> Exit {
     let shown = out.display().to_string();
+    let off = static_mode::off(mode);
     let said = if mode.has_pages() {
-        format!("Built {pages} pages in {shown}.\n")
+        format!(
+            "Built {pages} pages in {shown}.\n{}",
+            static_mode::human(&off)
+        )
     } else {
         format!(
             "Built the feeds, sitemaps and redirects in {shown}. The site is headless, so Khalid writes no pages.\n"
@@ -183,6 +190,13 @@ fn success(output: Output, out: &Path, pages: usize, mode: Mode) -> Exit {
     };
     match output {
         Output::Human => report::text(&said, Exit::Success),
-        Output::Json => report::json(&BuildBody { out: shown, pages }, Exit::Success),
+        Output::Json => report::json(
+            &BuildBody {
+                out: shown,
+                pages,
+                off,
+            },
+            Exit::Success,
+        ),
     }
 }

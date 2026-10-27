@@ -60,6 +60,7 @@ mod site_lists;
 mod site_pages;
 mod site_posts;
 mod slug_repair;
+mod static_mode;
 mod theme_check;
 mod theme_message;
 #[cfg_attr(

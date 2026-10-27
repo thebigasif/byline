@@ -17,7 +17,7 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 **The command line.** Every command takes `--site <folder>` and `--json`. With `--json`, the result is one JSON value on stdout, and a failure is `{"error": {"what": ..., "why": ..., "fix": ...}}`. The exit code is 0 when it worked, 1 when something blocks and you must act, 2 when the command line was wrong, and 3 for a fault inside Khalid. Run `khalid --help` for every command. The ones you will use most:
 
 - `khalid lint [post]` checks one post or the whole site. `--fix` makes the safe repairs.
-- `khalid build` writes the site as HTML, and writes nothing when a dated post is blocked.
+- `khalid build` writes the site as HTML, and writes nothing when a dated post is blocked. With `mode = "static"` in `site.toml`, the output lists the features a static site has off, under `off` with `--json`.
 - `khalid serve` runs the blog and the APIs.
 - `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it.
 
