@@ -49,5 +49,9 @@ wiremock = "0.6"
 name = "theme"
 required-features = ["test-util"]
 
+[[test]]
+name = "doctor_address"
+required-features = ["test-util"]
+
 [lints]
 workspace = true

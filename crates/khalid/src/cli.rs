@@ -109,8 +109,16 @@ pub(crate) enum Command {
     Export,
     /// Speak the Model Context Protocol on stdin and stdout, for agents
     Mcp,
-    /// Check the site's settings, routes, content, database, theme and folders, and say how to fix each problem
-    Doctor,
+    /// Check the site and its public address, and say how to fix each problem
+    Doctor {
+        /// Check only the files, without fetching the blog's public address
+        #[arg(
+            long = "offline",
+            action = ArgAction::SetTrue,
+            value_parser = BoolValueParser::new().map(|offline| if offline { Network::Offline } else { Network::Fetch }),
+        )]
+        network: Network,
+    },
     /// Write one archive of the site folder
     Backup,
     /// Crawl the site the way SEO tools do and score it
@@ -286,6 +294,15 @@ pub(crate) enum ImportSource {
     Markdown,
 }
 
+/// Whether `khalid doctor` fetches the blog's public address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Network {
+    /// Fetch it, to check the blog answers there.
+    Fetch,
+    /// Stay offline, because `--offline` was given.
+    Offline,
+}
+
 /// Which version `khalid update` installs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UpdateTarget {
@@ -314,7 +331,7 @@ impl Command {
             Self::Import { .. } => "import",
             Self::Export => "export",
             Self::Mcp => "mcp",
-            Self::Doctor => "doctor",
+            Self::Doctor { .. } => "doctor",
             Self::Backup => "backup",
             Self::Audit => "audit",
             Self::Update { .. } => "update",

@@ -13,13 +13,14 @@ use tempfile::TempDir;
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
 /// Every check, in the order doctor runs them.
-const CHECKS: [&str; 6] = [
+const CHECKS: [&str; 7] = [
     "settings",
     "routes",
     "content",
     "database",
     "theme",
     "permissions",
+    "address",
 ];
 
 /// Runs the binary from the repository root.
@@ -40,7 +41,7 @@ fn text(bytes: &[u8]) -> String {
 /// Runs doctor with `--json` on `site` and returns the exit code and the body.
 #[cfg(test)]
 fn doctor_json(site: &str) -> (Option<i32>, Value) {
-    let output = khalid(&["--site", site, "doctor", "--json"]);
+    let output = khalid(&["--site", site, "doctor", "--offline", "--json"]);
     assert!(output.stderr.is_empty(), "{}", text(&output.stderr));
     let body = serde_json::from_slice(&output.stdout).unwrap();
     (output.status.code(), body)
@@ -79,7 +80,7 @@ fn invalid_sites() -> Vec<(String, String)> {
 
 #[test]
 fn the_demo_site_passes_every_check_and_exits_0() {
-    let output = khalid(&["--site", "fixtures/demo-site", "doctor"]);
+    let output = khalid(&["--site", "fixtures/demo-site", "doctor", "--offline"]);
     let said = text(&output.stdout);
     assert_eq!(
         output.status.code(),
@@ -94,6 +95,7 @@ fn the_demo_site_passes_every_check_and_exits_0() {
         "Database: ok.",
         "Theme: ok.",
         "Permissions: ok.",
+        "Public address: skipped.",
     ] {
         assert!(said.contains(heading), "no {heading:?} in:\n{said}");
     }
@@ -120,9 +122,17 @@ fn the_demo_site_in_json_lists_each_check_in_order() {
     assert_eq!(names, CHECKS, "{body}");
     for name in CHECKS {
         let found = check(&body, name);
-        assert_eq!(found["status"], "ok", "{found}");
+        let want = if name == "address" { "skipped" } else { "ok" };
+        assert_eq!(found["status"], want, "{found}");
         assert!(found["summary"].as_str().unwrap().ends_with('.'), "{found}");
     }
+    assert!(
+        check(&body, "address")["summary"]
+            .as_str()
+            .unwrap()
+            .contains("--offline"),
+        "{body}"
+    );
 }
 
 #[test]
@@ -167,7 +177,12 @@ fn the_human_report_prints_each_problem_as_what_why_fix() {
         .into_iter()
         .find(|(site, _)| site == name)
         .unwrap();
-    let output = khalid(&["--site", &format!("fixtures/invalid/{name}"), "doctor"]);
+    let output = khalid(&[
+        "--site",
+        &format!("fixtures/invalid/{name}"),
+        "doctor",
+        "--offline",
+    ]);
     let said = text(&output.stdout);
     assert_eq!(output.status.code(), Some(1), "{said}");
     assert!(said.contains("Routes: a problem."), "{said}");

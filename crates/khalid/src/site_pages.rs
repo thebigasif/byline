@@ -1,5 +1,6 @@
 //! The pages `khalid serve` answers with: the ones `khalid build` writes,
-//! rendered into memory instead of files.
+//! rendered into memory instead of files, with the site's files and moved
+//! addresses. A headless site has the files and moves and no HTML page.
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
@@ -7,15 +8,19 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::{fmt, fs};
 
 use khalid_content::{ContentTree, Document, SiteContent, check_bodies, parse_post, read_content};
-use khalid_core::{Config, UserMessage};
+use khalid_core::{Clock, Config, SystemClock, UserMessage};
 use khalid_render::{PageBody, Renderer};
 use khalid_routes::Routes;
-use khalid_server::{MediaType, Page, PagePath, Render, Rendered};
+use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
 
 use crate::build_pages::LanguagePages;
 use crate::content_feed::ContentFeed;
 use crate::site_content::Catalog;
-use crate::{assets, build_message, build_pages, content_message, post_files, post_images};
+use crate::site_files::HEADLESS_NOT_FOUND;
+use crate::{
+    assets, build_message, build_pages, build_seo, content_message, post_files, post_images,
+    site_files,
+};
 
 /// Renders every page of one site from its files. Cloning shares it.
 ///
@@ -30,8 +35,8 @@ struct Site {
     folder: PathBuf,
     config: Config,
     routes: Routes,
-    renderer: Renderer,
-    stylesheet: Page,
+    /// `None` on a headless site, whose theme is never read.
+    theme: Option<Theme>,
     feed: Option<ContentFeed>,
     /// The posts the last full render read, without bodies, and its
     /// authors, so a saved post's page can be rendered alone.
@@ -40,6 +45,22 @@ struct Site {
     /// page finds the files beside it without listing the folder again.
     /// `None` before the first full render.
     tree: Mutex<Option<ContentTree>>,
+}
+
+/// The theme's renderer, and the stylesheet every page links.
+#[derive(Debug)]
+struct Theme {
+    renderer: Renderer,
+    stylesheet: Page,
+}
+
+/// One render of the site: what [`Rendered`] holds, kept apart so that
+/// `khalid serve` can answer before compressing.
+#[derive(Debug)]
+pub(crate) struct Served {
+    pub(crate) pages: Vec<Page>,
+    pub(crate) not_found: String,
+    pub(crate) moves: Vec<Moved>,
 }
 
 impl SitePages {
@@ -52,29 +73,37 @@ impl SitePages {
         routes: Routes,
         feed: Option<ContentFeed>,
     ) -> Result<Self, UserMessage> {
-        let renderer =
-            Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
-        let css = assets::site_stylesheet(folder)?;
-        let stylesheet = assets::stylesheet_page(&config, &css)?;
+        let theme = if config.mode().has_pages() {
+            let renderer =
+                Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
+            let css = assets::site_stylesheet(folder)?;
+            let stylesheet = assets::stylesheet_page(&config, &css)?;
+            Some(Theme {
+                renderer,
+                stylesheet,
+            })
+        } else {
+            None
+        };
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
             routes,
-            renderer,
-            stylesheet,
+            theme,
             feed,
             outline: Mutex::default(),
             tree: Mutex::default(),
         })))
     }
 
-    /// Every page of the site at its address, the stylesheet they link, and
-    /// the not-found page of the default language. Checks every body again,
+    /// Every page of the site at its address, the stylesheet they link, the
+    /// site's files, the not-found page of the default language and the
+    /// moved addresses, read from the folder. Checks every body again,
     /// as `khalid --site` does at start, so a saved edit with a broken
     /// wikilink is refused with its file and line, and the pages already
     /// served stay. Reads files and renders,
     /// so it runs off the async runtime (RULES.md BL-RUN-7).
-    pub(crate) fn render_all(&self) -> Result<(Vec<Page>, String), UserMessage> {
+    pub(crate) fn render_all(&self) -> Result<Served, UserMessage> {
         let Site {
             folder,
             config,
@@ -89,14 +118,12 @@ impl SitePages {
     }
 
     /// Every page made from `content`, already read from the site folder,
-    /// and the not-found page, then hands the feed its catalog when there is one.
-    /// At start, `khalid serve` passes the content it checked, so the posts
-    /// are read once, not twice. The folder is only listed again, for the
-    /// files beside folder posts. `content` must have passed `check_bodies`.
-    pub(crate) fn render_content(
-        &self,
-        content: &SiteContent,
-    ) -> Result<(Vec<Page>, String), UserMessage> {
+    /// with the site's files, the not-found page and the moved addresses,
+    /// then hands the feed its catalog when there is one. At start, `khalid
+    /// serve` passes the content it checked, so the posts are read once, not
+    /// twice. The folder is only listed again, for the files beside folder
+    /// posts. `content` must have passed `check_bodies`.
+    pub(crate) fn render_content(&self, content: &SiteContent) -> Result<Served, UserMessage> {
         self.render_from(&self.tree()?, content)
     }
 
@@ -107,13 +134,14 @@ impl SitePages {
     }
 
     /// Every page made from `content`, with the files `tree` holds beside
-    /// folder posts, and the not-found page. Only a full render hands the
-    /// feed its catalog, so the Content API never sees part of the site.
+    /// folder posts, the site's files, the not-found page and the moved
+    /// addresses. Only a full render hands the feed its catalog, so the
+    /// Content API never sees part of the site.
     fn render_from(
         &self,
         tree: &ContentTree,
         content: &SiteContent,
-    ) -> Result<(Vec<Page>, String), UserMessage> {
+    ) -> Result<Served, UserMessage> {
         let Site {
             folder,
             config,
@@ -138,51 +166,48 @@ impl SitePages {
     }
 
     /// The `which` pages made from `content`, with the files `tree` holds
-    /// beside folder posts, and the not-found page of the default language
-    /// when `which` is [`Which::All`]. Only a full render serves those
-    /// files; a saved post's page still points its images at them.
+    /// beside folder posts, the site's files, the moved addresses and the
+    /// not-found page of the default language when `which` is
+    /// [`Which::All`]. Only a full render serves those files; a saved
+    /// post's page still points its images at them. A headless site has no
+    /// HTML page, as `khalid build` writes none.
     fn render_of(
         &self,
         tree: &ContentTree,
         content: &SiteContent,
         which: Which,
-    ) -> Result<(Vec<Page>, String), UserMessage> {
+    ) -> Result<Served, UserMessage> {
         let Site {
             folder,
             config,
             routes,
-            renderer,
-            stylesheet,
+            theme,
             ..
         } = &*self.0;
-        let mut languages =
-            build_pages::pages(config, routes, content, stylesheet.path().as_str())?;
+        let href = theme
+            .as_ref()
+            .map_or("", |theme| theme.stylesheet.path().as_str());
+        let mut languages = build_pages::pages(config, routes, content, href)?;
         let beside = files(folder, config, tree, &mut languages)?;
-        let mut pages = match which {
-            Which::All => [vec![stylesheet.clone()], beside].concat(),
-            Which::Posts => Vec::new(),
+        let seo_site = build_seo::site(config)?;
+        let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
+        let mut served = Served {
+            pages: Vec::new(),
+            not_found: HEADLESS_NOT_FOUND.to_owned(),
+            moves: Vec::new(),
         };
-        let mut not_found = String::new();
-        for language in &languages {
-            for page in &language.pages {
-                if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
-                    continue;
-                }
-                let html = renderer
-                    .render(&language.site, &page.meta, &page.body)
-                    .map_err(|error| build_message::render(&error))?;
-                if matches!(page.body, PageBody::NotFound) {
-                    if &language.site.locale == config.default_language() {
-                        not_found = html;
-                    }
-                    continue;
-                }
-                let path = PagePath::try_new(&page.meta.path)
-                    .map_err(|_| build_message::address(&page.meta.path))?;
-                pages.push(Page::new(path, MediaType::Html, html));
-            }
+        if which == Which::All {
+            served.pages = site_files::files(config, &seo_site, &seo_pages, SystemClock.now())?;
+            served.pages.extend(beside);
+            served.moves = site_files::moves(config, content)?;
         }
-        Ok((pages, not_found))
+        if let Some(theme) = theme {
+            if which == Which::All {
+                served.pages.push(theme.stylesheet.clone());
+            }
+            served.not_found = html_pages(theme, config, &languages, which, &mut served.pages)?;
+        }
+        Ok(served)
     }
 
     /// The saved `files`, relative to the site folder, read again as posts,
@@ -283,12 +308,46 @@ fn files(
     Ok(pages)
 }
 
+/// Renders the `which` pages of `languages` with `theme` into `pages`, and
+/// returns the not-found page of the default language, empty unless
+/// `which` is [`Which::All`].
+fn html_pages(
+    theme: &Theme,
+    config: &Config,
+    languages: &[LanguagePages],
+    which: Which,
+    pages: &mut Vec<Page>,
+) -> Result<String, UserMessage> {
+    let mut not_found = String::new();
+    for language in languages {
+        for page in &language.pages {
+            if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
+                continue;
+            }
+            let html = theme
+                .renderer
+                .render(&language.site, &page.meta, &page.body)
+                .map_err(|error| build_message::render(&error))?;
+            if matches!(page.body, PageBody::NotFound) {
+                if &language.site.locale == config.default_language() {
+                    not_found = html;
+                }
+                continue;
+            }
+            let path = PagePath::try_new(&page.meta.path)
+                .map_err(|_| build_message::address(&page.meta.path))?;
+            pages.push(Page::new(path, MediaType::Html, html));
+        }
+    }
+    Ok(not_found)
+}
+
 impl Render for SitePages {
     type Error = Unrendered;
 
     fn render(&self) -> Result<Rendered, Unrendered> {
-        let (pages, not_found) = self.render_all().map_err(Unrendered)?;
-        Ok(Rendered::new(pages, not_found))
+        let served = self.render_all().map_err(Unrendered)?;
+        Ok(Rendered::new(served.pages, served.not_found).with_moves(served.moves))
     }
 
     /// A saved post's page alone: its own file read again, with the authors
@@ -305,10 +364,10 @@ impl Render for SitePages {
         let (Some(tree), Some(saved)) = (listed, self.saved_posts(files)) else {
             return Ok(None);
         };
-        let (pages, _) = self
+        let served = self
             .render_of(&tree, &saved, Which::Posts)
             .map_err(Unrendered)?;
-        Ok(Some(pages))
+        Ok(Some(served.pages))
     }
 }
 
@@ -359,7 +418,7 @@ mod tests {
 
     #[test]
     fn served_pages_link_each_wikilink() {
-        let (pages, _) = pages(&fixture("demo-site")).render_all().unwrap();
+        let pages = pages(&fixture("demo-site")).render_all().unwrap().pages;
         let link = "<a href=\"/blog/glossary/topical-authority/\">Topical authority</a>";
         let linking = pages
             .iter()
@@ -372,11 +431,12 @@ mod tests {
         let demo = fixture("demo-site");
         let content = read_content(&ContentTree::walk(&demo).unwrap()).unwrap();
         let source = pages(&demo);
-        let (given, given_missing) = source.render_content(&content).unwrap();
-        let (read, read_missing) = source.render_all().unwrap();
-        assert!(given.len() > 10, "{} pages", given.len());
-        assert_eq!(given, read);
-        assert_eq!(given_missing, read_missing);
+        let given = source.render_content(&content).unwrap();
+        let read = source.render_all().unwrap();
+        assert!(given.pages.len() > 10, "{} pages", given.pages.len());
+        assert_eq!(given.pages, read.pages);
+        assert_eq!(given.not_found, read.not_found);
+        assert_eq!(given.moves, read.moves);
     }
 
     fn copy_dir(from: &Path, into: &Path) {
@@ -421,7 +481,7 @@ mod tests {
             "no full render yet"
         );
 
-        let (all, _) = source.render_all().unwrap();
+        let all = source.render_all().unwrap().pages;
         let (linking, posts): (Vec<PathBuf>, Vec<PathBuf>) =
             outlined(&source).into_iter().partition(|path| {
                 let mut file = site.path().to_path_buf();
