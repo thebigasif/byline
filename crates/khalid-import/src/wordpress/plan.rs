@@ -7,9 +7,10 @@ use chrono::NaiveDateTime;
 use khalid_content::ContentError;
 use khalid_core::{AbsoluteUrl, Config, ParseSlugError, RobotsDirectives, Slug};
 
-use crate::wordpress::item_file::{Place, item_file};
+use crate::wordpress::item_file::{Place, Source, item_file};
 use crate::wordpress::site_files::{author_files, categories_file};
 use crate::wordpress::{Export, ItemKind, ItemStatus, SlugOrigin, UnreadField};
+use khalid_routes::{AddressError, Routes};
 
 /// Everything an import of one export would write.
 #[derive(Debug, Default)]
@@ -39,6 +40,9 @@ pub struct PlannedFile {
 pub struct ImportedItem {
     /// Its id in the export.
     pub id: u64,
+    /// Its address from the site root, such as `/blog/rye/`, once it is
+    /// published; none for a draft.
+    pub address: Option<String>,
     /// The file it became, from the site folder.
     pub path: PathBuf,
     /// Its slug in Khalid.
@@ -102,18 +106,27 @@ pub enum ItemError {
     /// The file the import would write does not read back as content.
     #[error("the file made from it does not read back as content")]
     Content(#[source] ContentError),
+    /// Its address could not be made from the site's routes.
+    #[error("its address could not be made from the site's routes")]
+    Address(#[source] AddressError),
 }
 
-/// Works out the files an import of `export` into `site` would write.
-/// Nothing is written; every file is read back with `khalid-content` first,
-/// and an item whose file does not read back is listed in
-/// [`Plan::failed`].
+/// Works out the files an import of `export` into `site`, with its
+/// `routes`, would write. Nothing is written; every file is read back with
+/// `khalid-content` first, and an item whose file does not read back is
+/// listed in [`Plan::failed`].
 ///
 /// Published posts go under `content/<lang>/posts/`, drafts, posts waiting
 /// for review and scheduled posts under `drafts/<lang>/`, and published
 /// pages under `content/<lang>/pages/`. Each author gets a file, and the
-/// categories go into `categories.toml`.
-pub fn plan(export: &Export, site: &Config) -> Plan {
+/// categories go into `categories.toml`. A published post whose old
+/// address lies inside the blog, on the same host, keeps it as an alias.
+pub fn plan(export: &Export, site: &Config, routes: &Routes) -> Plan {
+    let from = Source {
+        export,
+        site,
+        routes,
+    };
     let mut plan = Plan::default();
     for item in &export.items {
         let place = match (&item.kind, &item.status) {
@@ -124,7 +137,7 @@ pub fn plan(export: &Export, site: &Config) -> Plan {
             (ItemKind::Page, ItemStatus::Publish) => Place::Page,
             _ => continue,
         };
-        match item_file(item, export, site, place) {
+        match item_file(item, from, place) {
             Ok((file, imported)) => {
                 plan.files.push(file);
                 plan.items.push(imported);

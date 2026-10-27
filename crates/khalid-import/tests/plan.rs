@@ -5,11 +5,19 @@ use std::path::Path;
 
 use khalid_core::{AbsoluteUrl, Config, Environment};
 use khalid_import::wordpress::{Held, ItemError, ItemStatus, SlugOrigin, plan, read_wxr};
+use khalid_routes::Routes;
 
 #[cfg(test)]
 fn site() -> Config {
-    let toml = "name = \"Northfield Bakery\"\naddress = \"https://northfield.example.com\"\nmount = \"/blog/\"\nmode = \"server\"\ndefault_language = \"en\"\nlanguages = [\"en\"]\n";
-    Config::from_toml(Path::new("site.toml"), toml, &Environment::empty()).unwrap()
+    site_at("/blog/")
+}
+
+#[cfg(test)]
+fn site_at(mount: &str) -> Config {
+    let toml = format!(
+        "name = \"Northfield Bakery\"\naddress = \"https://northfield.example.com\"\nmount = \"{mount}\"\nmode = \"server\"\ndefault_language = \"en\"\nlanguages = [\"en\"]\n"
+    );
+    Config::from_toml(Path::new("site.toml"), &toml, &Environment::empty()).unwrap()
 }
 
 #[cfg(test)]
@@ -20,7 +28,7 @@ fn basic() -> khalid_import::wordpress::Export {
 
 #[test]
 fn a_published_post_becomes_a_dated_file_with_its_front_matter() {
-    let plan = plan(&basic(), &site());
+    let plan = plan(&basic(), &site(), &Routes::default());
     let file = &plan.files[0];
     assert_eq!(
         file.path,
@@ -44,7 +52,7 @@ fn a_published_post_becomes_a_dated_file_with_its_front_matter() {
 
 #[test]
 fn the_post_keeps_its_slug_and_lists_what_front_matter_cannot_hold() {
-    let plan = plan(&basic(), &site());
+    let plan = plan(&basic(), &site(), &Routes::default());
     let post = &plan.items[0];
     assert_eq!((post.id, post.slug.as_str()), (10, "keep-a-starter-alive"));
     assert_eq!(post.slug_origin, SlugOrigin::Kept);
@@ -71,7 +79,7 @@ fn search_titles_and_odd_text_are_carried() {
         "<wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_title]]></wp:meta_key><wp:meta_value><![CDATA[Starters &amp; you]]></wp:meta_value></wp:postmeta>\n<wp:postmeta><wp:meta_key><![CDATA[_thumbnail_id]]>",
     )
     .replace("How to keep a starter alive", "Bread &amp; \"butter\": a starter");
-    let plan = plan(&read_wxr(&text).unwrap(), &site());
+    let plan = plan(&read_wxr(&text).unwrap(), &site(), &Routes::default());
     assert!(
         plan.files[0]
             .text
@@ -89,7 +97,7 @@ fn search_titles_and_odd_text_are_carried() {
 fn a_published_post_with_no_date_is_listed_not_written() {
     let mut export = basic();
     export.items[0].published = None;
-    let plan = plan(&export, &site());
+    let plan = plan(&export, &site(), &Routes::default());
     let posts = Path::new("content/en/posts");
     assert!(!plan.files.iter().any(|file| file.path.starts_with(posts)));
     assert_eq!(plan.failed.len(), 1);
@@ -99,7 +107,7 @@ fn a_published_post_with_no_date_is_listed_not_written() {
 
 #[test]
 fn pages_drafts_authors_and_categories_get_their_files() {
-    let plan = plan(&basic(), &site());
+    let plan = plan(&basic(), &site(), &Routes::default());
     let paths: Vec<&Path> = plan.files.iter().map(|file| file.path.as_path()).collect();
     assert_eq!(
         paths,
@@ -139,7 +147,7 @@ fn pages_drafts_authors_and_categories_get_their_files() {
 
 #[test]
 fn every_planned_file_reads_back_with_the_site_s_types() {
-    let plan = plan(&basic(), &site());
+    let plan = plan(&basic(), &site(), &Routes::default());
     for file in &plan.files {
         let path = file.path.to_string_lossy();
         if path.contains("/authors/") {
@@ -164,11 +172,65 @@ fn every_planned_file_reads_back_with_the_site_s_types() {
 fn a_scheduled_post_waits_in_drafts_with_its_time() {
     let mut export = basic();
     export.items[0].status = ItemStatus::Future;
-    let plan = plan(&export, &site());
+    let plan = plan(&export, &site(), &Routes::default());
     assert_eq!(
         plan.files[0].path,
         Path::new("drafts/en/keep-a-starter-alive.md")
     );
     let due = export.items[0].published.unwrap();
     assert_eq!(plan.items[0].held.last(), Some(&Held::Scheduled(due)));
+}
+
+#[test]
+fn every_published_item_knows_its_new_address() {
+    let plan = plan(&basic(), &site(), &Routes::default());
+    let addresses: Vec<Option<&str>> = plan
+        .items
+        .iter()
+        .map(|item| item.address.as_deref())
+        .collect();
+    assert_eq!(
+        addresses,
+        [
+            Some("/blog/keep-a-starter-alive/"),
+            Some("/blog/about/"),
+            None
+        ],
+        "a draft has no address yet"
+    );
+    assert!(
+        !plan.files[0].text.contains("aliases"),
+        "the old address is outside /blog/"
+    );
+}
+
+#[test]
+fn an_old_address_inside_the_blog_becomes_an_alias() {
+    let plan = plan(&basic(), &site_at("/"), &Routes::default());
+    assert!(
+        plan.files[0]
+            .text
+            .contains("description: \"A starter needs food, warmth and time.\"\naliases:\n  - \"/2024/03/keep-a-starter-alive/\"\nfeatured: true\n"),
+        "{}",
+        plan.files[0].text
+    );
+}
+
+#[test]
+fn an_address_that_does_not_change_needs_no_alias() {
+    let text = fs::read_to_string(format!(
+        "{}/fixtures/wordpress/basic.xml",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap()
+    .replace(
+        "example.com/2024/03/keep-a-starter-alive/<",
+        "example.com/keep-a-starter-alive/<",
+    );
+    let plan = plan(&read_wxr(&text).unwrap(), &site_at("/"), &Routes::default());
+    assert!(
+        !plan.files[0].text.contains("aliases"),
+        "{}",
+        plan.files[0].text
+    );
 }
