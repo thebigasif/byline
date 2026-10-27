@@ -49,6 +49,17 @@ impl Limits {
         Self { timeout, ..self }
     }
 
+    /// The same limits with at most `max` redirects followed. With 0, no
+    /// redirect is followed and each comes back as the answer, with its
+    /// status and `Location`, for a caller that checks every hop itself.
+    #[must_use]
+    pub fn with_redirects(self, max: usize) -> Self {
+        Self {
+            max_redirects: max,
+            ..self
+        }
+    }
+
     /// The largest body read before the request is refused.
     pub fn max_body_bytes(&self) -> usize {
         self.max_body_bytes
@@ -117,7 +128,11 @@ impl Outbound {
         drop(rustls::crypto::ring::default_provider().install_default());
         let max = limits.max_redirects;
         let reach = resolver.reach();
-        let redirects = Policy::custom(move |attempt| follow(attempt, max, reach));
+        let redirects = if max == 0 {
+            Policy::none()
+        } else {
+            Policy::custom(move |attempt| follow(attempt, max, reach))
+        };
         let mut builder = RawClient::builder()
             .timeout(limits.timeout)
             .connect_timeout(limits.connect_timeout)
