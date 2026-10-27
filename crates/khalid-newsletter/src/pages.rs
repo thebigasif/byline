@@ -85,6 +85,11 @@ impl Pages {
         })
     }
 
+    /// The mount path the pages answer under, such as `/blog/`.
+    pub fn mount(&self) -> &str {
+        self.site.links.mount()
+    }
+
     /// `page` as a whole HTML document.
     pub fn html(&self, page: Page<'_>) -> String {
         let Some(w) = self.words.page(&self.site.locale) else {

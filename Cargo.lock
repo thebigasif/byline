@@ -2072,6 +2072,7 @@ dependencies = [
 name = "khalid-newsletter"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
  "getrandom 0.4.3",
  "khalid-core",
@@ -2083,6 +2084,8 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+ "tower",
+ "tracing",
 ]
 
 [[package]]
