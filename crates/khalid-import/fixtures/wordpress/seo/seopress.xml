@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- A post with the custom fields SEOPress writes. -->
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+	<title>Northfield Bakery Blog</title>
+	<link>https://northfield.example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<item>
+		<title><![CDATA[Which flour to buy]]></title>
+		<wp:post_id>50</wp:post_id>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_titles_title]]></wp:meta_key><wp:meta_value><![CDATA[%%post_title%% %%sep%% %%sitetitle%%]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_titles_desc]]></wp:meta_key><wp:meta_value><![CDATA[Strong flour, plain flour and rye: what each one is for.]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_robots_canonical]]></wp:meta_key><wp:meta_value><![CDATA[https://northfield.example.com/flour/]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_robots_index]]></wp:meta_key><wp:meta_value><![CDATA[yes]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_robots_follow]]></wp:meta_key><wp:meta_value><![CDATA[yes]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_robots_archive]]></wp:meta_key><wp:meta_value><![CDATA[yes]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_robots_snippet]]></wp:meta_key><wp:meta_value><![CDATA[yes]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_robots_imageindex]]></wp:meta_key><wp:meta_value><![CDATA[yes]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_analysis_target_kw]]></wp:meta_key><wp:meta_value><![CDATA[bread flour,strong flour]]></wp:meta_value></wp:postmeta>
+		<wp:postmeta><wp:meta_key><![CDATA[_seopress_robots_primary_cat]]></wp:meta_key><wp:meta_value><![CDATA[none]]></wp:meta_value></wp:postmeta>
+	</item>
+</channel>
+</rss>

@@ -1,0 +1,32 @@
+[package]
+name = "khalid-import"
+version = "0.0.0"
+description = "Importers that turn another blog's export into Khalid content files, one module per source."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+ammonia = "4"
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-content = { path = "../khalid-content", version = "0.0.0" }
+khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
+htmd = "0.5"
+roxmltree = "0.20"
+serde.workspace = true
+serde_json.workspace = true
+percent-encoding = "2"
+thiserror.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
+proptest = "1"
+serde-saphyr = "2"
+tempfile = "3"
+toml = "0.9"

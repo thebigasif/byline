@@ -1992,6 +1992,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-import"
+version = "0.0.0"
+dependencies = [
+ "ammonia",
+ "chrono",
+ "htmd",
+ "khalid-content",
+ "khalid-core",
+ "khalid-routes",
+ "percent-encoding",
+ "proptest",
+ "roxmltree 0.20.0",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
 name = "khalid-lint"
 version = "0.0.0"
 dependencies = [
