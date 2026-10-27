@@ -60,7 +60,7 @@ fn the_report_counts_everything_in_plain_words() {
          Old addresses mapped: 13, of which 13 move and 0 stay the same.\n\
          Items with fields their files cannot hold yet: 1, listed with each item.\n\
          Items that could not come in: 0.\n\
-         Items left behind: 12, an uploaded file whose page leads to its post; 14, a nav_menu_item, which Khalid has no place for.\n\
+         Items left behind: an uploaded file whose page leads to its post (1: 12); a nav_menu_item, which Khalid has no place for (1: 14).\n\
          Redirect rules left behind: 8 /old-menu/, which answers 404 as Khalid already does; 9 /members/, which depends on the visitor (login); 10 /draft-page/, which is switched off; 11 /shop/, which is switched off; 12 /ping/, which does not redirect (nothing).\n"
     );
 }

@@ -106,12 +106,7 @@ impl fmt::Display for Report<'_> {
             .map(|item| format!("{}, {}", item.id, item.error))
             .collect();
         list(f, "Items that could not come in", &failed)?;
-        let left: Vec<String> = plan
-            .left_behind
-            .iter()
-            .map(|item| format!("{}, {}", item.id, left(&item.reason)))
-            .collect();
-        list(f, "Items left behind", &left)?;
+        list(f, "Items left behind", &grouped(plan))?;
         let rules: Vec<String> = plan
             .skipped_rules
             .iter()
@@ -133,6 +128,41 @@ fn list(f: &mut fmt::Formatter<'_>, label: &str, entries: &[String]) -> fmt::Res
     } else {
         writeln!(f, "{label}: {}.", entries.join("; "))
     }
+}
+
+/// The items left behind, one entry per reason in the order reasons first
+/// appear, each with how many and the first few ids.
+fn grouped(plan: &Plan) -> Vec<String> {
+    /// How many ids an entry names before it says how many more there are.
+    const SHOWN: usize = 3;
+    let mut reasons: Vec<(&LeftReason, Vec<u64>)> = Vec::new();
+    for item in &plan.left_behind {
+        match reasons
+            .iter_mut()
+            .find(|(reason, _)| *reason == &item.reason)
+        {
+            Some((_, ids)) => ids.push(item.id),
+            None => reasons.push((&item.reason, vec![item.id])),
+        }
+    }
+    reasons
+        .into_iter()
+        .map(|(reason, ids)| {
+            let shown: Vec<String> = ids.iter().take(SHOWN).map(u64::to_string).collect();
+            let more = ids.len().saturating_sub(SHOWN);
+            let tail = if more == 0 {
+                String::new()
+            } else {
+                format!(" and {more} more")
+            };
+            format!(
+                "{} ({}: {}{tail})",
+                left(reason),
+                ids.len(),
+                shown.join(", ")
+            )
+        })
+        .collect()
 }
 
 fn left(reason: &LeftReason) -> String {
