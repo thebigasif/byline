@@ -1984,6 +1984,7 @@ dependencies = [
  "chrono",
  "khalid-api",
  "khalid-core",
+ "khalid-search",
  "khalid-webhooks",
  "sqlx",
  "tempfile",

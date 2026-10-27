@@ -19,6 +19,7 @@ mod delivery_log;
 mod key_table;
 mod posts;
 mod rebuild;
+mod search_index;
 mod site_id;
 mod site_lists;
 
@@ -28,4 +29,5 @@ pub use db_error::DbError;
 pub use delivery_log::DeliveryLog;
 pub use key_table::KeyTable;
 pub use rebuild::{PostChanges, RebuildSummary};
+pub use search_index::SearchPage;
 pub use site_id::SiteId;

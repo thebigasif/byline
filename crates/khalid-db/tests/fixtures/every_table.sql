@@ -31,6 +31,11 @@ INSERT INTO lint_results (site_id, path, rule, severity, line, message) VALUES
     (2, 'content/en/posts/old-post.md', 'no-description', 'warn', NULL, 'This post has no description.');
 INSERT INTO alias_redirects (site_id, from_path, to_path) VALUES
     (1, '/2025/old-post/', 'content/en/posts/old-post.md'), (2, '/2025/old-post/', 'content/en/posts/old-post.md');
+INSERT INTO search_pages (id, site_id, locale, path, href, title, body, title_words, heading_words, body_words) VALUES
+    (1, 1, 'en', 'content/en/posts/old-post.md', '/blog/old-post/', 'Old post', 'Words.', 2, 0, 1),
+    (2, 2, 'en', 'content/en/posts/old-post.md', '/blog/old-post/', 'Old post', 'Words.', 2, 0, 1);
+INSERT INTO search_terms (site_id, term, page_id, in_title, in_headings, in_body) VALUES
+    (1, 'old', 1, 1, 0, 0), (2, 'old', 2, 1, 0, 0);
 
 INSERT INTO redirects (site_id, from_path, to_url, status, origin, created_at) VALUES
     (1, '/old/', '/blog/old-post/', 301, 'manual', '2026-10-26T09:00:00Z'),

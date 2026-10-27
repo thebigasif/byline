@@ -23,6 +23,8 @@ A test reads the table below and checks it lists every table in the schema, once
 | `links` | derived | The link graph: every link in every file, with its anchor text and where it resolves |
 | `lint_results` | derived | What the linter found in each file |
 | `alias_redirects` | derived | Old addresses from `aliases` in front matter, each pointing at its file |
+| `search_pages` | derived | Each published page site search can find: its address, title, plain-text body and words per field |
+| `search_terms` | derived | The search index: each term, the pages that hold it, and how often in the title, headings and body |
 | `redirects` | visitor | Redirects made in the admin, brought in by an import, or added when a slug changes |
 | `not_found_log` | visitor | Every address that answered 404, with its hit count and when it was first and last seen |
 | `users` | visitor | Staff accounts, with an Argon2id password hash when the account has a password |
