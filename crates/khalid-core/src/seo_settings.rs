@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::{AbsoluteUrl, IndexNowKey, Indexing};
+use crate::{AbsoluteUrl, IndexNowKey, Indexing, LinkSettings};
 
 /// The SEO settings. Every one has a default, so the table may be left out:
 ///
@@ -13,6 +13,9 @@ use crate::{AbsoluteUrl, IndexNowKey, Indexing};
 ///
 /// [seo.indexnow]
 /// key = "3f9c0b5e2a8d4c71"
+///
+/// [seo.links]
+/// affiliate_domains = ["amazon.com"]
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -23,6 +26,8 @@ pub struct SeoSettings {
     /// Where changed pages are sent, from `[seo.indexnow]`. `None`, the
     /// default, sends nothing.
     pub indexnow: Option<IndexNowSettings>,
+    /// What links to other sites get, from `[seo.links]`.
+    pub links: LinkSettings,
 }
 
 /// `IndexNow`, switched on by its table in `site.toml`.

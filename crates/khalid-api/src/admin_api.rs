@@ -15,6 +15,7 @@ use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
+use crate::admin_delete;
 use crate::admin_key::{AdminDoor, require, require_admin_key, require_publish};
 use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
@@ -40,7 +41,11 @@ type Posts = Arc<PublishDoor>;
 pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(browse_admin_posts, create_admin_post))
-        .routes(routes!(read_admin_post, edit_admin_post))
+        .routes(routes!(
+            read_admin_post,
+            edit_admin_post,
+            admin_delete::delete_admin_post
+        ))
         .routes(routes!(make_preview_link))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
@@ -528,7 +533,7 @@ fn invalid_body(reason: &str) -> Problem {
     Problem::new(ProblemType::InvalidBody, &message)
 }
 
-fn stale(updated_at: DateTime<Utc>, updated_by: Option<&str>) -> Problem {
+pub(crate) fn stale(updated_at: DateTime<Utc>, updated_by: Option<&str>) -> Problem {
     let when = updated_at.format("%Y-%m-%d %H:%M UTC");
     let message = UserMessage::new(
         format!(
@@ -541,7 +546,7 @@ fn stale(updated_at: DateTime<Utc>, updated_by: Option<&str>) -> Problem {
     Problem::new(ProblemType::Conflict, &message).with_rule("updated_at")
 }
 
-fn missing(path: &str) -> Problem {
+pub(crate) fn missing(path: &str) -> Problem {
     let message = UserMessage::new(
         "No post has this identity.",
         "It may have been deleted, or the identity may be mistyped.",

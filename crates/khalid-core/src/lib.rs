@@ -15,6 +15,7 @@ mod clock;
 mod config;
 mod head_code;
 mod indexnow_key;
+mod link_settings;
 mod locale;
 mod media_settings;
 mod post_access;
@@ -35,6 +36,7 @@ pub use clock::{Clock, SystemClock};
 pub use config::{Config, ConfigError, Environment, Mode, SlugMode};
 pub use head_code::{HeadCode, HeadCodeError};
 pub use indexnow_key::{IndexNowKey, ParseIndexNowKeyError};
+pub use link_settings::{DomainName, ExternalRel, LinkOpening, LinkSettings, ParseDomainNameError};
 pub use locale::{Locale, ParseLocaleError};
 pub use media_settings::{MediaSettings, S3Keys, S3Settings};
 pub use post_access::{

@@ -1,0 +1,17 @@
+---
+source: crates/khalid/tests/build_lists.rs
+expression: main_of(&featured)
+---
+ id="main" tabindex="-1">
+
+<h1>Featured</h1>
+<ul class="cards" role="list">
+<li>
+<article class="card">
+<p class="card-meta"><span class="card-author">Asif</span>
+<time datetime="2026-09-20">20 September 2026</time></p>
+<h2><a href="/blog/linked/">Linked</a></h2>
+<p></p>
+</article>
+</li>
+</ul>
