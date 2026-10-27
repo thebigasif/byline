@@ -3,7 +3,8 @@
 //! webhook to every webhook in the site's list that asked for it, and the
 //! post's address to `IndexNow` when `[seo.indexnow]` switches it on (CTO
 //! answers 2026-10-27, section 4).
-//! Failed deliveries are tried again on a timer.
+//! Failed deliveries are tried again on a timer, to the webhook list as it
+//! stands at each round.
 
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -109,7 +110,7 @@ pub(crate) async fn start(
     outbound: &Outbound,
 ) -> Result<(SiteAnnounce, Announcing), UserMessage> {
     let webhooks = WebhookTable::new(db.clone(), site, SystemClock);
-    let listed = webhooks
+    webhooks
         .list()
         .await
         .map_err(|error| db_message::of(file, &error))?;
@@ -128,7 +129,14 @@ pub(crate) async fn start(
         ),
         None => None,
     };
-    let retrying = retry_deliveries(Arc::clone(&dispatcher), listed, RETRY_EVERY);
+    let list = {
+        let webhooks = webhooks.clone();
+        move || {
+            let webhooks = webhooks.clone();
+            async move { webhooks.list().await }
+        }
+    };
+    let retrying = retry_deliveries(Arc::clone(&dispatcher), list, RETRY_EVERY);
     let receivers = Arc::new(Receivers {
         config: config.clone(),
         webhooks,
