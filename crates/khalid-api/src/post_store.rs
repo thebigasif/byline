@@ -31,7 +31,8 @@ pub trait PostStore: Send + Sync {
     ///
     /// Returns [`UpdatePostError::Stale`] naming the last change when the
     /// post changed after that copy, [`UpdatePostError::SlugTaken`] when
-    /// the edit's new slug is another post's, [`UpdatePostError::NotFound`] when no
+    /// the edit's new slug is another post's, [`UpdatePostError::Unsupported`]
+    /// when the store cannot keep a change, [`UpdatePostError::NotFound`] when no
     /// post has that identity, [`UpdatePostError::Refused`] with the lint
     /// report when the gate refuses, and [`UpdatePostError::Store`] when the
     /// posts cannot be read or written.
@@ -94,6 +95,15 @@ pub enum UpdatePostError {
     /// The edit gives the post a slug another post has.
     #[error("another post has the slug {0}")]
     SlugTaken(Slug),
+    /// The store cannot keep one of the edit's changes, such as a setting
+    /// its files have no field for yet. Nothing was saved.
+    #[error("the store cannot keep {setting}: {why}")]
+    Unsupported {
+        /// The field or setting, as the edit names it, such as `co_authors`.
+        setting: &'static str,
+        /// Why, in one plain sentence for the person who sent it.
+        why: &'static str,
+    },
     /// The edit publishes the post, and the lint publish gate refused it.
     /// The post stays as it was.
     #[error("the linter refused to publish the post")]

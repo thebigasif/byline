@@ -56,6 +56,7 @@ mod report;
 mod routes_message;
 mod serve;
 mod serve_message;
+mod settings_text;
 mod site_content;
 mod site_files;
 mod site_lists;

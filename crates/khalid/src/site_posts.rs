@@ -20,6 +20,7 @@ use khalid_lint::{Linter, Report, Verdict};
 
 use crate::lint_input::{PostParts, lint_parts, lint_site};
 use crate::post_text::{PostText, quoted};
+use crate::settings_text::{put, settings_of, write_settings};
 use crate::{atomic, lint};
 
 /// The folder of drafts at the top of a site.
@@ -114,6 +115,7 @@ impl Site {
             .and_then(|meta| meta.modified())
             .map_err(PostStoreError::new)?;
         let id = format!("{}.{}", found.locale, found.slug);
+        let settings = settings_of(&post.front);
         let title = post.front.title.unwrap_or_default();
         let admin = AdminPost::new(
             &id,
@@ -122,7 +124,8 @@ impl Site {
             found.text.markdown(),
             changed.into(),
         )
-        .with_author(post.front.author);
+        .with_author(post.front.author)
+        .with_settings(settings);
         Ok(match (found.status, post.front.date) {
             (PostStatus::Published, Some(date)) => admin.published(
                 DateTime::from_naive_utc_and_offset(date.and_time(NaiveTime::MIN), Utc),
@@ -157,6 +160,24 @@ impl Site {
         if edited.markdown() != current.markdown() {
             text.set_body(edited.markdown());
         }
+        if edited.author() != current.author() {
+            put(
+                &mut text,
+                "author",
+                edited.author().map(ToString::to_string),
+            );
+        }
+        write_settings(
+            &mut text,
+            current.settings(),
+            edited.settings(),
+            found.status,
+        )?;
+        let found = if edited.slug() == current.slug() {
+            found
+        } else {
+            self.moved(found, edited.slug(), &mut text)?
+        };
         let path = if publishes {
             self.publish(&found, &mut text)?
         } else {
@@ -175,6 +196,38 @@ impl Site {
             ..found
         };
         Ok(Self::admin_post(&saved)?.with_updated_by(by))
+    }
+
+    /// Moves the draft `found` to its file for `slug`, with `text`, which
+    /// gains the new slug. Its identity changes with the slug.
+    fn moved(
+        &self,
+        found: Found,
+        slug: &Slug,
+        text: &mut PostText,
+    ) -> Result<Found, UpdatePostError> {
+        if found.status != PostStatus::Draft {
+            let why = "A live post's address cannot change yet, because links to the old one would break.";
+            let setting = "slug";
+            return Err(UpdatePostError::Unsupported { setting, why });
+        }
+        if self.find(&format!("{}.{slug}", found.locale))?.is_some() {
+            return Err(UpdatePostError::SlugTaken(slug.clone()));
+        }
+        text.set("slug", slug.as_str());
+        let path = self.draft_path(&found.locale, slug);
+        let folder = path
+            .parent()
+            .ok_or_else(|| failure("a draft has no folder"))?;
+        atomic::create(folder, &format!("{slug}.md"), &text.to_text())
+            .map_err(PostStoreError::new)?;
+        fs::remove_file(&found.path).map_err(PostStoreError::new)?;
+        let slug = slug.clone();
+        Ok(Found {
+            slug,
+            path,
+            ..found
+        })
     }
 
     /// Dates the draft today, runs the lint publish gate on it as it would

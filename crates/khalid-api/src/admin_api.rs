@@ -123,6 +123,7 @@ async fn edit_admin_post(
             slug.as_str(),
             "Send a different slug, or leave slug out to keep the one it has.",
         )),
+        Err(UpdatePostError::Unsupported { setting, why }) => Err(unsupported(setting, why)),
         Err(UpdatePostError::Refused(report)) => Err(refused(report)),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
     }
@@ -281,6 +282,16 @@ fn idempotency_key(headers: &HeaderMap) -> Result<Option<&str>, Problem> {
             "Idempotency-Key must be 1 to 255 visible characters",
         )),
     }
+}
+
+/// The 422 for a change the store cannot keep, naming it in `rule`.
+fn unsupported(setting: &'static str, why: &'static str) -> Problem {
+    let message = UserMessage::new(
+        format!("This site cannot save {setting} yet."),
+        why,
+        format!("Send the edit again without {setting}; nothing was changed."),
+    );
+    Problem::new(ProblemType::InvalidBody, &message).with_rule(setting)
 }
 
 /// The 409 for a slug another post has, with `fix` saying what to send.
