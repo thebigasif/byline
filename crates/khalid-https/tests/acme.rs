@@ -13,7 +13,7 @@ use std::time::Duration;
 use acme_service::{AcmeService, Offer, start_ordering};
 use khalid_https::{
     AccountKey, Acme, AgreedToTerms, Certificate, Certificates, Check, Directory, Domain,
-    HttpsError, TlsListener, port_80,
+    HttpsError, HttpsFolder, TlsListener, port_80,
 };
 use khalid_outbound::{Limits, Outbound, Reach, Resolver};
 use tokio::net::TcpListener;
@@ -145,10 +145,11 @@ async fn a_saved_account_key_signs_in_again_without_a_new_account() {
         .await
         .unwrap();
 
-    let saved = key.to_json().unwrap();
-    let again = Acme::sign_in(&outbound(), AccountKey::from_json(&saved).unwrap())
-        .await
-        .unwrap();
+    let site = tempfile::tempdir().unwrap();
+    let folder = HttpsFolder::new(site.path().to_path_buf());
+    folder.save_account(&key).await.unwrap();
+    let saved = folder.account().await.unwrap().unwrap();
+    let again = Acme::sign_in(&outbound(), saved).await.unwrap();
 
     assert_eq!(again.id(), first.id());
     assert_eq!(service.accounts(), 1);

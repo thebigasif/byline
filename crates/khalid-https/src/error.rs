@@ -59,6 +59,15 @@ pub enum HttpsError {
         /// What the authority said, if it said anything.
         detail: Option<String>,
     },
+    /// A file in the HTTPS folder cannot be read or written.
+    #[error("{} cannot be read or written", path.display())]
+    Folder {
+        /// The file or folder.
+        path: std::path::PathBuf,
+        /// What the system reported.
+        #[source]
+        source: std::io::Error,
+    },
     /// The TLS settings could not be built.
     #[error("TLS could not be set up")]
     Tls {
