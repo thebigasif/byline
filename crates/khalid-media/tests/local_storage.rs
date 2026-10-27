@@ -71,6 +71,6 @@ fn a_local_file_is_served_by_the_site_under_media() {
     let key = ContentKey::parse("3f2a9c1e0b57d0aa").unwrap();
     assert_eq!(
         storage.address(&key, &name()),
-        FileAddress::OnSite("media/3f2a9c1e0b57d0aa/crm-checklist.pdf".to_owned())
+        FileAddress::OnSite("media/library/3f2a9c1e0b57d0aa/crm-checklist.pdf".to_owned())
     );
 }

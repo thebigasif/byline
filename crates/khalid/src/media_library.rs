@@ -16,7 +16,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use khalid_api::media_api::MediaLibrary;
 use khalid_core::{Config, S3Keys, SystemClock, UserMessage};
-use khalid_media::{ContentKey, FileAddress, Library, Storage};
+use khalid_media::{ContentKey, FileAddress, LIBRARY_ADDRESS, Library, Storage};
 use khalid_outbound::Outbound;
 
 use crate::exit::Exit;
@@ -77,9 +77,9 @@ async fn opened(
     Ok((library, api))
 }
 
-/// Serves `library`'s files under `<mount>media/<key>/<name>`.
+/// Serves `library`'s files under `<mount>media/library/<key>/<name>`.
 fn router(library: Arc<Library>, config: &Config) -> Router {
-    let route = format!("{}media/{{key}}/{{name}}", config.mount());
+    let route = format!("{}{LIBRARY_ADDRESS}/{{key}}/{{name}}", config.mount());
     Router::new().route(&route, get(file)).with_state(library)
 }
 

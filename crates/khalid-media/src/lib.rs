@@ -48,5 +48,5 @@ pub use media_type::{Kind, MediaType, ParseMediaTypeError, Refusal};
 pub use original::Original;
 pub use s3_storage::S3Storage;
 pub use sig_v4::{SigV4, Signed};
-pub use storage::{FileAddress, LocalStorage, Storage};
+pub use storage::{FileAddress, LIBRARY_ADDRESS, LocalStorage, Storage};
 pub use variant::{Format, Variant, widths};

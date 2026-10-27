@@ -94,7 +94,7 @@ async fn an_upload_is_added_once() {
     let item = &body["media"][0];
     let id = item["id"].as_str().unwrap();
     assert_eq!(item["folder"], "guides");
-    let url = format!("https://www.example.com/blog/media/{id}/crm-checklist.pdf");
+    let url = format!("https://www.example.com/blog/media/library/{id}/crm-checklist.pdf");
     assert_eq!(item["url"], url.as_str());
     let (status, again) = post(&app, "/api/admin/v1/media/?name=copy", UPLOADER, PDF).await;
     assert_eq!(status, StatusCode::OK, "the same file is not added twice");

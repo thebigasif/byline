@@ -530,7 +530,7 @@ fn a_file_uploaded_through_the_admin_api_is_served_and_kept() {
     assert_eq!(status, 201, "{}", String::from_utf8_lossy(&body));
     let made: Value = serde_json::from_slice(&body).unwrap();
     let id = made["media"][0]["id"].as_str().unwrap().to_owned();
-    let path = format!("/blog/media/{id}/crm-checklist.pdf");
+    let path = format!("/blog/media/library/{id}/crm-checklist.pdf");
     let url = format!("https://www.example.com{path}");
     assert_eq!(made["media"][0]["url"], url.as_str());
 
@@ -541,7 +541,7 @@ fn a_file_uploaded_through_the_admin_api_is_served_and_kept() {
         head.contains("immutable") && head.contains("nosniff"),
         "{head}"
     );
-    let wrong = format!("/blog/media/{id}/another-name.pdf");
+    let wrong = format!("/blog/media/library/{id}/another-name.pdf");
     assert_eq!(raw(&server, "GET", &wrong, "", b"").0, 404);
 
     drop(server);

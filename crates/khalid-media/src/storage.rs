@@ -17,12 +17,17 @@ use crate::{ContentKey, FileName, MediaError, MediaType};
 /// The folder in a site that holds the library.
 pub(crate) const LIBRARY_FOLDER: &str = "media";
 
+/// Where the site serves library files, below where the blog is mounted.
+/// It is not `media/` itself, where the sizes made of post images are
+/// served by key, so the two can never answer for one address.
+pub const LIBRARY_ADDRESS: &str = "media/library";
+
 /// Where readers fetch a stored file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum FileAddress {
     /// A path the site itself serves, relative to where the blog is
-    /// mounted, such as `media/3f2a9c1e0b57d0aa/choosing-a-crm.jpg`.
+    /// mounted, such as `media/library/3f2a9c1e0b57d0aa/choosing-a-crm.jpg`.
     OnSite(String),
     /// A full address on another server, such as a bucket's public one.
     Elsewhere(String),
@@ -120,7 +125,7 @@ impl Storage {
     /// Where readers fetch the file `name` of the item `key`.
     pub fn address(&self, key: &ContentKey, name: &FileName) -> FileAddress {
         match self {
-            Self::Local(_) => FileAddress::OnSite(stored_as(LIBRARY_FOLDER, key, name)),
+            Self::Local(_) => FileAddress::OnSite(stored_as(LIBRARY_ADDRESS, key, name)),
             Self::S3(bucket) => FileAddress::Elsewhere(bucket.address(key, name)),
         }
     }

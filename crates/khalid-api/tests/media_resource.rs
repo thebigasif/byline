@@ -28,7 +28,7 @@ fn item() -> MediaItem {
 
 #[test]
 fn an_item_on_the_site_has_the_blogs_address_before_its_path() {
-    let path = "media/3f2a9c1e0b57d0aa/choosing-a-crm.jpg".to_owned();
+    let path = "media/library/3f2a9c1e0b57d0aa/choosing-a-crm.jpg".to_owned();
     let shown = AdminMedia::new(
         &item(),
         FileAddress::OnSite(path),
@@ -49,7 +49,7 @@ fn an_item_on_the_site_has_the_blogs_address_before_its_path() {
             "alt": "A sales team comparing two CRM dashboards on one screen",
             "caption": "",
             "focal_point": { "x": 620, "y": 350 },
-            "url": "https://www.example.com/blog/media/3f2a9c1e0b57d0aa/choosing-a-crm.jpg",
+            "url": "https://www.example.com/blog/media/library/3f2a9c1e0b57d0aa/choosing-a-crm.jpg",
             "uploaded_at": "2026-10-27T08:00:00Z",
             "uploaded_by": "asif",
             "updated_at": "2026-10-27T09:30:00Z",

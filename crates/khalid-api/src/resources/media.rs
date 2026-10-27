@@ -33,7 +33,7 @@ pub struct FocalPointBody {
     "alt": "A sales team comparing two CRM dashboards on one screen",
     "caption": "",
     "focal_point": { "x": 500, "y": 500 },
-    "url": "https://www.example.com/blog/media/3f2a9c1e0b57d0aa/choosing-a-crm.jpg",
+    "url": "https://www.example.com/blog/media/library/3f2a9c1e0b57d0aa/choosing-a-crm.jpg",
     "uploaded_at": "2026-10-27T08:00:00Z",
     "uploaded_by": "asif",
     "updated_at": "2026-10-27T08:00:00Z",

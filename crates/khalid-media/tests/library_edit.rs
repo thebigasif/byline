@@ -59,7 +59,7 @@ async fn an_edit_changes_only_what_it_names_and_survives_a_restart() {
     );
     assert_eq!(
         library.address(&edited),
-        FileAddress::OnSite(format!("media/{}/checklist.pdf", item.id)),
+        FileAddress::OnSite(format!("media/library/{}/checklist.pdf", item.id)),
         "moving to another folder keeps the address"
     );
 }
