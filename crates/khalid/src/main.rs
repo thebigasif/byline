@@ -42,6 +42,14 @@ mod lint_fix;
 mod lint_input;
 mod lint_message;
 mod listed_post;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "khalid serve answers through it in the next part of this stack"
+    )
+)]
+mod live_redirects;
 mod mcp;
 mod mcp_content;
 mod mcp_message;
@@ -63,6 +71,14 @@ mod search_route;
 mod search_static;
 mod serve;
 mod serve_message;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "khalid serve answers through it in the next part of this stack"
+    )
+)]
+mod site_addresses;
 mod site_content;
 mod site_files;
 mod site_lists;

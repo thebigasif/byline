@@ -44,6 +44,7 @@ tracing.workspace = true
 test-util = ["khalid-outbound/test-util"]
 
 [dev-dependencies]
+khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 insta = "1"
