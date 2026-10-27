@@ -176,7 +176,7 @@
 
 ## Phase 2 work pulled forward
 
-The linter depends on nothing in progress, so it is built now, in parallel, from plan section 6 and KH-LNT-1, KH-LNT-2, KH-LNT-3 and KH-LNT-6. `crates/khalid-lint` depends on `khalid-core` only and reads its own input model (ADR 0011). Each part lands as its own pull request.
+The linter depends on nothing in progress, so it is built now, in parallel, from plan section 6 and KH-LNT-1, KH-LNT-2, KH-LNT-3 and KH-LNT-6. `crates/khalid-lint` depends on `khalid-core` only and reads its own input model (ADR 0019). Each part lands as its own pull request.
 
 ### 2.1 The rule engine
 

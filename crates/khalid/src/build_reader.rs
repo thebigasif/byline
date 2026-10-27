@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 
 use chrono::NaiveDate;
-use khalid_content::{Heading, PostFront, Rendered, SiteContent};
+use khalid_content::{Heading, PostFront, Rendered, SiteContent, Wikilinks};
 use khalid_core::{AbsoluteUrl, Config, Locale, Reader, Slug, UserMessage};
 use khalid_render::{
     Contents, ContentsHeading, Feature, Features, HeadingLevel, Link, Person, PostTopics,
@@ -41,6 +41,7 @@ pub(crate) fn features(reader: &Reader) -> Features {
 /// profiles, as bylines, author boxes and author pages show them.
 pub(crate) fn people(
     config: &Config,
+    links: &Wikilinks,
     content: &SiteContent,
     locale: &Locale,
 ) -> Result<BTreeMap<Slug, Person>, UserMessage> {
@@ -53,7 +54,7 @@ pub(crate) fn people(
             href: path_of(config, locale, &format!("authors/{slug}/")),
             role: front.role.clone(),
             image: None,
-            bio: Some(body_html(config, doc)?),
+            bio: Some(body_html(config, links, doc)?),
             profiles: front
                 .same_as
                 .iter()

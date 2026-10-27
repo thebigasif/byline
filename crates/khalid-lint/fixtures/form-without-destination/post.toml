@@ -1,0 +1,10 @@
+# A form with nowhere to send its answers is flagged; one that emails them
+# is fine.
+extends = "clean"
+
+[[forms]]
+id = "contact"
+
+[[forms]]
+id = "quote"
+destinations = ["email"]

@@ -57,6 +57,19 @@ pub struct LintPost {
     /// The body as plain text, with markup removed.
     #[serde(default)]
     pub body_text: String,
+    /// Old paths that redirect to this post, such as `/2019/05/old-title/`,
+    /// from `aliases` in the header.
+    #[serde(default)]
+    pub aliases: Vec<String>,
+    /// The forms in the body, in order.
+    #[serde(default)]
+    pub forms: Vec<LintForm>,
+    /// The phrase the post wants to be found for, such as "internal links",
+    /// from the header.
+    pub focus: Option<String>,
+    /// The collection the post belongs to, such as `guides`, from the
+    /// folder it lives in.
+    pub collection: Option<String>,
 }
 
 impl LintPost {
@@ -79,8 +92,46 @@ impl LintPost {
             wikilinks: Vec::new(),
             word_count: 0,
             body_text: String::new(),
+            aliases: Vec::new(),
+            forms: Vec::new(),
+            focus: None,
+            collection: None,
         }
     }
+}
+
+/// A form in a post's body, and where its answers go.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct LintForm {
+    /// The name the form's answers are kept under.
+    pub id: String,
+    /// Where each answer is delivered. Empty when the site sends them
+    /// nowhere.
+    #[serde(default)]
+    pub destinations: Vec<FormDestination>,
+}
+
+impl LintForm {
+    /// The form `id`, delivering to `destinations`.
+    pub fn new(id: impl Into<String>, destinations: Vec<FormDestination>) -> Self {
+        Self {
+            id: id.into(),
+            destinations,
+        }
+    }
+}
+
+/// A way a form's answers reach a person, written `email` or `webhook`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum FormDestination {
+    /// An email to an address the site sets.
+    Email,
+    /// A request to an address another service listens on, such as Zapier.
+    Webhook,
 }
 
 /// A topic group, often called a cluster: one main post, the pillar, and the
@@ -190,6 +241,10 @@ pub struct LintLink {
     pub text: String,
     /// Whether the link stays on this site.
     pub kind: LinkKind,
+    /// The words of the link's `rel` attribute, such as `nofollow`, as
+    /// written. Empty when the link has none, as markdown links do.
+    #[serde(default)]
+    pub rel: Vec<String>,
 }
 
 impl LintLink {
@@ -199,6 +254,7 @@ impl LintLink {
             target: target.into(),
             text: text.into(),
             kind,
+            rel: Vec::new(),
         }
     }
 }
