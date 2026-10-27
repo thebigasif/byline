@@ -1,0 +1,42 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT count(*) AS pages, coalesce(sum(title_words), 0) AS \"title!: i64\", coalesce(sum(heading_words), 0) AS \"headings!: i64\", coalesce(sum(body_words), 0) AS \"body!: i64\" FROM search_pages WHERE site_id = ?1 AND locale = ?2",
+  "describe": {
+    "columns": [
+      {
+        "name": "pages",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "title!: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "headings!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "body!: i64",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "79b739aa2385f878fd70cf5413107e546843044041ba24f556139382f20ecdcb"
+}
