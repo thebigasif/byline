@@ -9,8 +9,9 @@ use khalid_core::Secret;
 
 use crate::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, Email, LINK_LIFETIME,
-    LinkSender, LinkStore, LinkStoreError, PasswordHash, SendLinkError, SessionHash, SessionStore,
-    SessionStoreError, StoredAccount, StoredSession,
+    LinkSender, LinkStore, LinkStoreError, PasskeyStore, PasskeyStoreError, PasswordHash,
+    Registration, SendLinkError, SessionHash, SessionStore, SessionStoreError, StoredAccount,
+    StoredPasskey, StoredSession,
 };
 
 /// Staff accounts in memory, numbered from 1 in the order they are made.
@@ -330,6 +331,91 @@ impl LinkSender for MemoryMailbox {
     ) -> BoxFuture<'a, Result<(), SendLinkError>> {
         let mut sent = self.sent.lock().expect("lock poisoned");
         sent.push((to.clone(), link.expose().clone()));
+        ready(Ok(()))
+    }
+}
+
+/// Passkeys in memory, oldest first.
+#[derive(Debug, Default)]
+pub struct MemoryPasskeys {
+    rows: Mutex<Vec<StoredPasskey>>,
+}
+
+impl MemoryPasskeys {
+    /// No passkeys yet.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[expect(
+        clippy::expect_used,
+        reason = "a test double; a poisoned lock means a test already failed"
+    )]
+    fn rows(&self) -> MutexGuard<'_, Vec<StoredPasskey>> {
+        self.rows.lock().expect("lock poisoned")
+    }
+}
+
+impl PasskeyStore for MemoryPasskeys {
+    fn add<'a>(
+        &'a self,
+        account: AccountId,
+        registration: &'a Registration,
+        name: &'a str,
+        _at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<bool, PasskeyStoreError>> {
+        let mut rows = self.rows();
+        if rows
+            .iter()
+            .any(|row| row.credential_id == registration.credential_id)
+        {
+            return ready(Ok(false));
+        }
+        rows.push(StoredPasskey {
+            account,
+            credential_id: registration.credential_id.clone(),
+            public_key: registration.public_key.clone(),
+            sign_count: registration.sign_count,
+            name: name.to_owned(),
+        });
+        ready(Ok(true))
+    }
+
+    fn find<'a>(
+        &'a self,
+        credential_id: &'a [u8],
+    ) -> BoxFuture<'a, Result<Option<StoredPasskey>, PasskeyStoreError>> {
+        let rows = self.rows();
+        let found = rows.iter().find(|row| row.credential_id == credential_id);
+        ready(Ok(found.cloned()))
+    }
+
+    fn of(
+        &self,
+        account: AccountId,
+    ) -> BoxFuture<'_, Result<Vec<StoredPasskey>, PasskeyStoreError>> {
+        let rows = self.rows();
+        ready(Ok(rows
+            .iter()
+            .filter(|row| row.account == account)
+            .cloned()
+            .collect()))
+    }
+
+    fn used<'a>(
+        &'a self,
+        credential_id: &'a [u8],
+        sign_count: u32,
+        _at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<(), PasskeyStoreError>> {
+        let mut rows = self.rows();
+        for row in rows
+            .iter_mut()
+            .filter(|row| row.credential_id == credential_id)
+        {
+            row.sign_count = sign_count;
+        }
         ready(Ok(()))
     }
 }

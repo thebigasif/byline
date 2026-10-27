@@ -4,7 +4,8 @@
 
 use ciborium::Value;
 use khalid_auth::{
-    Challenge, PasskeyError, PublicKey, Registration, RelyingParty, verify_registration,
+    Challenge, PasskeyError, PublicKey, Registration, RelyingParty, verify_assertion,
+    verify_registration,
 };
 use ring::rand::SystemRandom;
 use ring::signature::{ECDSA_P256_SHA256_ASN1_SIGNING, EcdsaKeyPair, Ed25519KeyPair, KeyPair};
@@ -172,16 +173,29 @@ fn register(
     verify_registration(&party(), asked.unwrap_or(&challenge), &client, &object)
 }
 
+/// Signs `soft` in and checks the answer against `key` at `stored`.
+#[cfg(test)]
+fn sign_in(soft: &mut Soft, key: &PublicKey, stored: u32) -> Result<u32, PasskeyError> {
+    let challenge = Challenge::generate().unwrap();
+    let (client, data, signature) = soft.sign_in(&challenge, ORIGIN);
+    verify_assertion(
+        &party(),
+        &challenge,
+        &client,
+        &data,
+        &signature,
+        (key, stored),
+    )
+}
+
 #[test]
-fn a_passkey_registers_with_the_key_its_signatures_check_against() {
+fn a_passkey_registers_and_then_signs_in_with_either_kind_of_key() {
     for mut soft in [Soft::es256(), Soft::ed25519()] {
         let registered = register(&soft, ORIGIN, None).unwrap();
         assert_eq!(registered.credential_id, soft.id);
         let key = PublicKey::from_stored(&registered.public_key.to_stored()).unwrap();
-        let challenge = Challenge::generate().unwrap();
-        let (client, data, signature) = soft.sign_in(&challenge, ORIGIN);
-        let signed = [data.as_slice(), Sha256::digest(&client).as_slice()].concat();
-        assert!(key.verifies(&signed, &signature));
+        assert_eq!(sign_in(&mut soft, &key, 0), Ok(1));
+        assert_eq!(sign_in(&mut soft, &key, 1), Ok(2));
     }
 }
 
@@ -212,4 +226,42 @@ fn a_registration_for_another_site_or_challenge_is_refused() {
     let (client, _) = Soft::es256().register(&other, ORIGIN);
     let garbage = verify_registration(&party(), &other, &client, b"not cbor");
     assert_eq!(garbage.err(), Some(PasskeyError::Malformed));
+}
+
+#[test]
+fn a_bad_signature_another_key_a_replay_or_the_wrong_ceremony_is_refused() {
+    let mut soft = Soft::es256();
+    let key = register(&soft, ORIGIN, None).unwrap().public_key;
+    let other = register(&Soft::es256(), ORIGIN, None).unwrap().public_key;
+    assert_eq!(
+        sign_in(&mut soft, &other, 0),
+        Err(PasskeyError::BadSignature)
+    );
+    assert_eq!(
+        sign_in(&mut soft, &key, 5),
+        Err(PasskeyError::Replayed),
+        "the counter went back"
+    );
+    let challenge = Challenge::generate().unwrap();
+    let (_, data, mut signature) = soft.sign_in(&challenge, ORIGIN);
+    let (client, _) = soft.register(&challenge, ORIGIN);
+    let wrong = verify_assertion(&party(), &challenge, &client, &data, &signature, (&key, 0));
+    assert_eq!(wrong, Err(PasskeyError::WrongCeremony));
+    let client = client_data("webauthn.get", &challenge, ORIGIN);
+    if let Some(last) = signature.last_mut() {
+        *last ^= 1;
+    }
+    let forged = verify_assertion(&party(), &challenge, &client, &data, &signature, (&key, 0));
+    assert_eq!(forged, Err(PasskeyError::BadSignature));
+}
+
+#[test]
+fn a_counter_that_stays_at_zero_is_a_synced_passkey_and_allowed() {
+    let mut soft = Soft {
+        step: 0,
+        ..Soft::es256()
+    };
+    let key = register(&soft, ORIGIN, None).unwrap().public_key;
+    assert_eq!(sign_in(&mut soft, &key, 0), Ok(0));
+    assert_eq!(sign_in(&mut soft, &key, 0), Ok(0));
 }

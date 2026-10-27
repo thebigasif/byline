@@ -109,6 +109,39 @@ pub fn verify_registration(
     })
 }
 
+/// Checks a sign-in with a stored passkey whose key is `key` and whose
+/// counter stands at `stored_count`, and returns the new counter. The
+/// bytes are what `navigator.credentials.get` returned for `challenge`.
+///
+/// # Errors
+///
+/// Returns a [`PasskeyError`] naming the first check that failed;
+/// [`PasskeyError::Replayed`] when the counter did not move forward,
+/// which means the passkey may have been copied.
+pub fn verify_assertion(
+    party: &RelyingParty,
+    challenge: &Challenge,
+    client_data: &[u8],
+    authenticator_data: &[u8],
+    signature: &[u8],
+    stored: (&PublicKey, u32),
+) -> Result<u32, PasskeyError> {
+    let (key, stored_count) = stored;
+    check_client_data(party, challenge, client_data, "webauthn.get")?;
+    let data = check_authenticator_data(party, authenticator_data)?;
+    let signed = [authenticator_data, Sha256::digest(client_data).as_slice()].concat();
+    if !key.verifies(&signed, signature) {
+        return Err(PasskeyError::BadSignature);
+    }
+    // A counter of zero on both sides means the passkey does not count,
+    // as synced passkeys do not.
+    let count = data.sign_count();
+    if (count != 0 || stored_count != 0) && count <= stored_count {
+        return Err(PasskeyError::Replayed);
+    }
+    Ok(count)
+}
+
 /// What the browser says it was asked, in `clientDataJSON`.
 #[derive(Debug, Deserialize)]
 struct ClientData {

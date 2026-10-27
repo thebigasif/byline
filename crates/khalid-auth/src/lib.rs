@@ -17,6 +17,7 @@ mod magic_link;
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
 mod passkey;
+mod passkey_store;
 mod password;
 mod permission;
 mod routes;
@@ -33,11 +34,12 @@ pub use magic_link::{
     LINK_LIFETIME, LinkSender, LinkStore, LinkStoreError, LinkToken, SendLinkError,
 };
 #[cfg(any(test, feature = "test-util"))]
-pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemorySessions};
+pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemoryPasskeys, MemorySessions};
 pub use passkey::{
     AuthenticatorData, Challenge, PasskeyError, PublicKey, Registration, RelyingParty,
-    verify_registration,
+    verify_assertion, verify_registration,
 };
+pub use passkey_store::{PasskeyStore, PasskeyStoreError, StoredPasskey};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
