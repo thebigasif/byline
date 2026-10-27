@@ -1,6 +1,8 @@
 //! Ghost: the JSON file that Settings, Import/Export writes.
 
 mod export;
+mod html;
+mod lexical;
 mod read;
 
 pub use export::{
