@@ -2000,6 +2000,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "khalid-api",
+ "khalid-auth",
  "khalid-core",
  "khalid-webhooks",
  "sqlx",
