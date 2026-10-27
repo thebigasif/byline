@@ -15,6 +15,21 @@ export const en = {
   redirects: {
     title: "Redirects",
     lede: "A redirect sends visitors and Google from an old web address to a new one. When you rename a post, a redirect keeps old links working and keeps the post's place in search results.",
+    misses: {
+      title: "Addresses that found nothing",
+      lede: 'These addresses on your blog answered "page not found" (a 404). Visitors and Google gave up on them. Send each one to the page Khalid suggests, or leave it.',
+      loading: "Reading the addresses that found nothing",
+      none: "No address on your blog has answered page not found yet.",
+      path: "Address",
+      hits: "Visits",
+      last: "Last visit",
+      nearest: "Suggested page",
+      action: "Action",
+      noneNear: "None near enough to guess",
+      send: (path: string) => `Redirect it there: ${path}`,
+      sendText: "Redirect it there",
+      sent: (path: string, to: string) => `Done. ${path} now opens ${to}.`,
+    },
     kept: {
       title: "Redirects Khalid keeps",
       lede: "Redirects you imported, made from the list above, or that Khalid made when a post's address changed. Khalid follows chains for you: if an old address points to another old address, visitors still go straight to the page in one step.",

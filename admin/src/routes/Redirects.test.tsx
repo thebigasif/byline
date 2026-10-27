@@ -13,6 +13,7 @@ const GONE = kept({ id: 14, from: "/blog/old-offer/", to: null, status: 410, ori
 function keeping(stored: StoredRedirect[]) {
   let list = [...stored];
   return redirectsBlog({
+    "GET /not-found/": () => json(200, { misses: [] }),
     "GET /redirects/": () => json(200, { redirects: list }),
     "DELETE /redirects/13/": () => {
       list = list.filter((redirect) => redirect.id !== 13);
@@ -77,7 +78,10 @@ describe("the redirects Khalid keeps", () => {
       detail: "Redirects need the settings:write scope.",
       fix: "Sign in with an owner or admin staff token.",
     };
-    redirectsBlog({ "GET /redirects/": () => json(403, lacks) });
+    redirectsBlog({
+      "GET /not-found/": () => json(200, { misses: [] }),
+      "GET /redirects/": () => json(403, lacks),
+    });
     renderAt("/redirects");
     expect(await screen.findByRole("alert")).toHaveTextContent(lacks.title);
   });
