@@ -1,9 +1,12 @@
 //! A file in the media library, as the Admin API sends it.
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SecondsFormat, Utc};
 use khalid_media::{FileAddress, Kind, MediaItem};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+use crate::pagination::Meta;
+use crate::query::{FieldValues, Literal};
 
 /// A point in an image in thousandths of its width and height, from the top
 /// left. `{ "x": 500, "y": 500 }` is the centre.
@@ -103,7 +106,34 @@ pub struct MediaItems {
     pub media: Vec<AdminMedia>,
 }
 
+/// A page of the media library with its pagination.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct MediaList {
+    /// The items on this page.
+    pub media: Vec<AdminMedia>,
+    /// Where this page sits in the list.
+    pub meta: Meta,
+}
+
 impl AdminMedia {
+    /// The fields a list's `filter` and `order` may name.
+    pub const FIELDS: &'static [&'static str] = &[
+        "id",
+        "name",
+        "folder",
+        "type",
+        "kind",
+        "bytes",
+        "width",
+        "height",
+        "alt",
+        "caption",
+        "uploaded_at",
+        "uploaded_by",
+        "updated_at",
+        "updated_by",
+    ];
+
     /// `item` as the API sends it, fetched at `address`, with a file on the
     /// site itself under `site`, such as `https://www.example.com/blog/`.
     pub fn new(item: &MediaItem, address: FileAddress, site: &str) -> Self {
@@ -138,6 +168,42 @@ impl AdminMedia {
             uploaded_by: item.uploaded_by.clone(),
             updated_at: item.updated_at,
             updated_by: item.updated_by.clone(),
+        }
+    }
+}
+
+impl FieldValues for AdminMedia {
+    /// Empty alt text or caption has no value, so `alt:null` finds every
+    /// image still waiting for its alt text.
+    fn values(&self, field: &str) -> Vec<Literal> {
+        let text = |value: &str| match value {
+            "" => Vec::new(),
+            value => vec![Literal::Text(value.to_owned())],
+        };
+        let number = |value: Option<u64>| {
+            value
+                .and_then(|value| i64::try_from(value).ok())
+                .map(Literal::Integer)
+                .into_iter()
+                .collect()
+        };
+        let time = |at: &DateTime<Utc>| text(&at.to_rfc3339_opts(SecondsFormat::Secs, true));
+        match field {
+            "id" => text(&self.id),
+            "name" => text(&self.name),
+            "folder" => text(&self.folder),
+            "type" => text(&self.media_type),
+            "kind" => text(&self.kind),
+            "bytes" => number(Some(self.bytes)),
+            "width" => number(self.width.map(u64::from)),
+            "height" => number(self.height.map(u64::from)),
+            "alt" => text(&self.alt),
+            "caption" => text(&self.caption),
+            "uploaded_at" => time(&self.uploaded_at),
+            "uploaded_by" => text(&self.uploaded_by),
+            "updated_at" => time(&self.updated_at),
+            "updated_by" => text(&self.updated_by),
+            _ => Vec::new(),
         }
     }
 }

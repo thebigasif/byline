@@ -152,6 +152,54 @@ async fn needs_a_key_with_media_write_and_a_library() {
     );
 }
 
+#[tokio::test]
+async fn lists_the_library_with_the_shared_grammar() {
+    let site = tempfile::tempdir().unwrap();
+    let app = app(Some(site.path())).await;
+    let notes = b"Keyword research checklist\n1. Seed terms\n2. Search intent\n";
+    let zip = b"PK\x03\x04\x14\x00\x00\x00\x08\x00";
+    post(&app, UPLOAD, UPLOADER, PDF).await;
+    post(
+        &app,
+        "/api/admin/v1/media/?name=notes&folder=notes",
+        UPLOADER,
+        notes,
+    )
+    .await;
+    post(
+        &app,
+        "/api/admin/v1/media/?name=pack&folder=notes",
+        UPLOADER,
+        zip,
+    )
+    .await;
+    let list = |query: &str| {
+        let uri = format!("/api/admin/v1/media/?{query}");
+        let app = app.clone();
+        async move { send(&app, "GET", &uri, UPLOADER, b"").await }
+    };
+    let names = |body: &Value| -> Vec<String> {
+        let items = body["media"].as_array().unwrap();
+        items
+            .iter()
+            .map(|item| item["name"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    let (status, all) = list("").await;
+    assert_eq!(status, StatusCode::OK, "{all}");
+    assert_eq!(all["meta"]["pagination"]["total"], 3);
+    let (_, in_notes) = list("filter=folder:notes&order=bytes%20desc").await;
+    assert_eq!(names(&in_notes), ["notes.txt", "pack.zip"]);
+    let (_, first) = list("filter=alt:null&order=name&limit=1").await;
+    assert_eq!(names(&first), ["crm-checklist.pdf"]);
+    assert_eq!(first["meta"]["pagination"]["pages"], 3);
+    let (status, body) = list("filter=colour:blue").await;
+    assert_eq!(
+        (status, &body["rule"]),
+        (StatusCode::BAD_REQUEST, &"filter".into())
+    );
+}
+
 /// The body of an edit of the copy changed at `updated_at`, with `fields`.
 #[cfg(test)]
 fn edit(updated_at: &Value, fields: &Value) -> Vec<u8> {

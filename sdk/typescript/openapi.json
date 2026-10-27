@@ -11,6 +11,134 @@
   },
   "paths": {
     "/api/admin/v1/media/": {
+      "get": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Lists the media library, newest upload first, with the shared list\ngrammar: `filter`, `order`, `limit` and `page` (RULES.md BL-API-5).\n`filter=alt:null+kind:image` finds images still waiting for alt text.\nNeeds `media:write`.",
+        "operationId": "list_media",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "`filter=tag:news+featured:true`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`include=authors,tags`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "`fields=title,slug`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`order=published_at desc,title`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formats",
+            "in": "query",
+            "description": "`formats=html,plaintext`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "`limit=15` or `limit=all`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "`page=2`",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A list parameter could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "admin media"
@@ -3950,6 +4078,27 @@
               "$ref": "#/components/schemas/AdminMedia"
             },
             "description": "The item or items."
+          }
+        }
+      },
+      "MediaList": {
+        "type": "object",
+        "description": "A page of the media library with its pagination.",
+        "required": [
+          "media",
+          "meta"
+        ],
+        "properties": {
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMedia"
+            },
+            "description": "The items on this page."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta",
+            "description": "Where this page sits in the list."
           }
         }
       },

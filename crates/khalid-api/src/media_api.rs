@@ -22,9 +22,13 @@ use utoipa_axum::routes;
 use crate::admin_api::BASE;
 use crate::admin_key::{require, require_admin_key};
 use crate::api_version::negotiate_version;
+use crate::content_api::check_fields;
+use crate::content_store::select;
 use crate::keys::{KeyStore, Principal, Scope};
+use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
-use crate::resources::{AdminMedia, MediaEditBody, MediaEdits, MediaItems};
+use crate::query::{ListQuery, RawListQuery};
+use crate::resources::{AdminMedia, MediaEditBody, MediaEdits, MediaItems, MediaList};
 
 /// A site's media library, and the address its own files are served under.
 #[derive(Debug, Clone)]
@@ -55,7 +59,7 @@ type Media = Option<MediaLibrary>;
 /// The media routes. Each needs `media:write`.
 pub(crate) fn routes(media: Media, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(upload_media))
+        .routes(routes!(upload_media, list_media))
         .routes(routes!(read_media, edit_media))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
@@ -117,6 +121,42 @@ async fn upload_media(
         media: vec![media.shown(&item)],
     };
     Ok((status, [(LOCATION, location)], Json(items)))
+}
+
+/// Lists the media library, newest upload first, with the shared list
+/// grammar: `filter`, `order`, `limit` and `page` (RULES.md BL-API-5).
+/// `filter=alt:null+kind:image` finds images still waiting for alt text.
+/// Needs `media:write`.
+#[utoipa::path(
+    get, path = "/media/", tag = "admin media",
+    security(("admin_key" = [])),
+    params(RawListQuery),
+    responses(
+        (status = 200, description = "One page of the library", body = MediaList),
+        (status = 400, description = "A list parameter could not be read", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks media:write", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn list_media(
+    State(media): State<Media>,
+    Extension(principal): Extension<Principal>,
+    Query(raw): Query<RawListQuery>,
+) -> Result<Json<MediaList>, Problem> {
+    require(&principal, Scope::MediaWrite)?;
+    let media = media.ok_or_else(no_library)?;
+    let query = ListQuery::try_from(&raw)?;
+    check_fields(&query, AdminMedia::FIELDS)?;
+    let all: Vec<AdminMedia> = media
+        .library
+        .items()
+        .iter()
+        .map(|item| media.shown(item))
+        .collect();
+    let listed = select(all.iter(), &query);
+    let meta = Meta::new(query.page(), query.limit(), listed.total());
+    let media = listed.into_items();
+    Ok(Json(MediaList { media, meta }))
 }
 
 /// Reads one item of the media library. Needs `media:write`.
