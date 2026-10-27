@@ -125,26 +125,46 @@ struct Counts {
 }
 
 impl Counts {
+    /// Counts every colour for the accent, and the page background and text
+    /// only from utility classes and inline styles, which is where a site
+    /// with hashed class names sets them. A colour on an element rule such
+    /// as `pre.screen` or `table.nav` belongs to that box, not the page.
     fn of(rules: &[&Rule], properties: &CustomProperties) -> Self {
         let mut counts = Self::default();
-        let declarations = rules.iter().flat_map(|rule| &rule.declarations);
-        for declaration in declarations.filter(|d| !d.property.starts_with("--")) {
-            let property = declaration.property.as_str();
-            for color in Rgb::all_in(&properties.resolve(&declaration.value)) {
-                let add = |map: &mut BTreeMap<Rgb, usize>| {
-                    let count = map.entry(color).or_default();
-                    *count = count.saturating_add(1);
-                };
-                add(&mut counts.all);
-                match property {
-                    "background" | "background-color" => add(&mut counts.backgrounds),
-                    "color" => add(&mut counts.texts),
-                    _ => {}
+        for rule in rules {
+            let page_wide = is_utility(&rule.prelude);
+            let declarations = rule.declarations.iter();
+            for declaration in declarations.filter(|d| !d.property.starts_with("--")) {
+                let property = declaration.property.as_str();
+                for color in Rgb::all_in(&properties.resolve(&declaration.value)) {
+                    let add = |map: &mut BTreeMap<Rgb, usize>| {
+                        let count = map.entry(color).or_default();
+                        *count = count.saturating_add(1);
+                    };
+                    add(&mut counts.all);
+                    match property {
+                        "background" | "background-color" if page_wide => {
+                            add(&mut counts.backgrounds);
+                        }
+                        "color" if page_wide => add(&mut counts.texts),
+                        _ => {}
+                    }
                 }
             }
         }
         counts
     }
+}
+
+/// Whether a rule's selectors are each one class, such as `.bg-white`, or
+/// the page's inline styles, which theme sync reads as `[style]`.
+fn is_utility(prelude: &str) -> bool {
+    prelude == "[style]"
+        || prelude.split(',').all(|selector| {
+            let selector = selector.trim();
+            selector.starts_with('.')
+                && !selector.contains(|c: char| c.is_whitespace() || matches!(c, '>' | '+' | '~'))
+        })
 }
 
 /// The most used colour in `counts` that passes `keep`. A tie goes to the
