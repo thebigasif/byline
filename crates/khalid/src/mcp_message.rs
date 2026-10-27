@@ -5,7 +5,8 @@
 use khalid_core::UserMessage;
 
 /// How to make a key for an agent, the same in every message.
-const MAKE_A_KEY: &str = "khalid keys create --scope posts:write --name Claude";
+const MAKE_A_KEY: &str =
+    "khalid keys create --scope posts:write --scope posts:publish --name Claude";
 
 pub(crate) fn no_key() -> UserMessage {
     UserMessage::new(

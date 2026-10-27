@@ -1,0 +1,3 @@
+### Changed
+
+- Publishing through the Admin API needs the new `posts:publish` scope. The owner, admins and editors hold it; writers and contributors do not, so a contributor's publish is refused with a 403 that says "A contributor cannot publish posts." and to ask an editor. Publishing, scheduling, taking a post down and editing a post that is live all need it; writing a draft still needs only `posts:write`. An integration key made with only `posts:write` now stages drafts and cannot publish them: make a new one with `khalid keys create --scope posts:write --scope posts:publish` (KH-EDT-4, KH-EDT-7).

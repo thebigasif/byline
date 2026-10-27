@@ -25,7 +25,7 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 
 ## Connect over MCP
 
-1. Make a key once: `khalid --site <folder> keys create --scope posts:write --name Claude`. The key is shown once, and Khalid keeps only a hash of it.
+1. Make a key once: `khalid --site <folder> keys create --scope posts:write --scope posts:publish --name Claude`. Leave out `posts:publish` for an agent that should only write drafts for a person to publish. The key is shown once, and Khalid keeps only a hash of it.
 2. Give the key to the server in the `KHALID_KEY` environment variable, never on the command line and never in a file inside the site. In Claude Code: `claude mcp add khalid --env KHALID_KEY=<key> -- khalid --site <folder> mcp`.
 
 The server checks the key when it starts. A missing, revoked or read-only key stops it with a message on stderr.

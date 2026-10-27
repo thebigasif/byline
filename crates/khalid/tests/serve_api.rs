@@ -395,7 +395,14 @@ fn a_post_created_and_published_through_the_admin_api_is_served() {
     let content_key = new_key(site.path(), &["--kind", "content", "--name", "Web page"]);
     let admin_key = new_key(
         site.path(),
-        &["--name", "SerpDad", "--scope", "posts:write"],
+        &[
+            "--name",
+            "SerpDad",
+            "--scope",
+            "posts:write",
+            "--scope",
+            "posts:publish",
+        ],
     );
     let server = start(site.path());
     let before = english_posts(&server, &content_key);
@@ -465,7 +472,14 @@ fn a_weak_post_is_refused_with_its_findings_and_never_served() {
     let site = demo_copy();
     let admin_key = new_key(
         site.path(),
-        &["--name", "SerpDad", "--scope", "posts:write"],
+        &[
+            "--name",
+            "SerpDad",
+            "--scope",
+            "posts:write",
+            "--scope",
+            "posts:publish",
+        ],
     );
     let server = start(site.path());
     let authorization = format!("Khalid {admin_key}");

@@ -9,7 +9,7 @@ The API is the only door (CLAUDE.md). This file fixes the shape so every endpoin
 | Content API | `/api/content/v1/` | Content key in `Authorization: Khalid-Content <key>` or `?key=`, safe in browsers | Read public content |
 | Admin API | `/api/admin/v1/` | Integration key or staff token in `Authorization: Khalid <token>`, or the admin session cookie plus CSRF | Read and write everything |
 | oEmbed | `/api/oembed` | None | Embed cards for other sites |
-| Publish target | Part of the Admin API | Integration key with the `posts:write` scope | SerpDad and other tools stage drafts |
+| Publish target | Part of the Admin API | Integration key with the `posts:write` scope, and `posts:publish` to publish | SerpDad and other tools stage drafts |
 
 ## Shape
 
@@ -25,7 +25,7 @@ The API is the only door (CLAUDE.md). This file fixes the shape so every endpoin
 
 ## Keys and scopes
 
-Integration keys are created in the admin or with `khalid keys create`. Each key has scopes: `content:read`, `posts:write`, `media:write`, `settings:write`, `webhooks:manage`, `subscribers:write`, `admin:all`. Keys are stored hashed and shown once. Staff tokens carry the user's role. For example, `khalid --site <folder> keys create --name SerpDad --scope posts:write` makes an integration key, `--kind content` a content key and `--kind staff --role editor` a staff token, and `khalid keys revoke <id>` stops one at once.
+Integration keys are created in the admin or with `khalid keys create`. Each key has scopes: `content:read`, `posts:write`, `posts:publish`, `media:write`, `settings:write`, `webhooks:manage`, `subscribers:write`, `admin:all`. Keys are stored hashed and shown once. Staff tokens carry the user's role. For example, `khalid --site <folder> keys create --name SerpDad --scope posts:write` makes an integration key that writes drafts, `--scope posts:write --scope posts:publish` one that also publishes them, `--kind content` a content key and `--kind staff --role editor` a staff token, and `khalid keys revoke <id>` stops one at once.
 
 ## Webhooks
 

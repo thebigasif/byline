@@ -43,7 +43,12 @@ async fn put(posts: impl PostStore + 'static, body: &Value) -> (StatusCode, Valu
     let token: KeyToken = WRITER.parse().unwrap();
     let hashing = KeyHashing::fast_for_tests();
     let keys = MemoryKeyStore::new(vec![
-        StoredKey::for_integration(&token, vec![Scope::PostsWrite], &hashing).unwrap(),
+        StoredKey::for_integration(
+            &token,
+            vec![Scope::PostsWrite, Scope::PostsPublish],
+            &hashing,
+        )
+        .unwrap(),
     ]);
     let (router, _) = api::router(Arc::new(common::store()), Arc::new(posts), Arc::new(keys));
     let request = Request::put("/api/admin/v1/posts/en.choosing-anchor-text/")
@@ -148,7 +153,12 @@ async fn a_new_post_keeps_its_author() {
     let token: KeyToken = WRITER.parse().unwrap();
     let hashing = KeyHashing::fast_for_tests();
     let keys = MemoryKeyStore::new(vec![
-        StoredKey::for_integration(&token, vec![Scope::PostsWrite], &hashing).unwrap(),
+        StoredKey::for_integration(
+            &token,
+            vec![Scope::PostsWrite, Scope::PostsPublish],
+            &hashing,
+        )
+        .unwrap(),
     ]);
     let posts = MemoryPostStore::default();
     let (router, _) = api::router(Arc::new(common::store()), Arc::new(posts), Arc::new(keys));

@@ -8,8 +8,11 @@ use std::str::FromStr;
 pub enum Scope {
     /// `content:read`: read published content.
     ContentRead,
-    /// `posts:write`: create and edit posts, including `SerpDad`'s drafts.
+    /// `posts:write`: create and edit drafts, including `SerpDad`'s.
     PostsWrite,
+    /// `posts:publish`: publish, schedule and take down posts, and edit a
+    /// post that is live or scheduled.
+    PostsPublish,
     /// `media:write`: upload images and files.
     MediaWrite,
     /// `settings:write`: change site settings.
@@ -24,9 +27,10 @@ pub enum Scope {
 
 impl Scope {
     /// Every scope, in the order the API standard lists them.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::ContentRead,
         Self::PostsWrite,
+        Self::PostsPublish,
         Self::MediaWrite,
         Self::SettingsWrite,
         Self::WebhooksManage,
@@ -39,6 +43,7 @@ impl Scope {
         match self {
             Self::ContentRead => "content:read",
             Self::PostsWrite => "posts:write",
+            Self::PostsPublish => "posts:publish",
             Self::MediaWrite => "media:write",
             Self::SettingsWrite => "settings:write",
             Self::WebhooksManage => "webhooks:manage",
@@ -74,7 +79,9 @@ pub enum Role {
     Admin,
     /// Edits and publishes everyone's posts and media.
     Editor,
-    /// Writes and publishes their own posts.
+    /// Writes posts and uploads media. Publishing their own posts waits
+    /// until the API knows who wrote each post; until then an editor
+    /// publishes them.
     Writer,
     /// Writes drafts for others to publish.
     Contributor,
@@ -104,7 +111,11 @@ impl Role {
     fn allows(self, scope: Scope) -> bool {
         match self {
             Self::Owner | Self::Admin => true,
-            Self::Editor | Self::Writer => matches!(
+            Self::Editor => matches!(
+                scope,
+                Scope::ContentRead | Scope::PostsWrite | Scope::PostsPublish | Scope::MediaWrite
+            ),
+            Self::Writer => matches!(
                 scope,
                 Scope::ContentRead | Scope::PostsWrite | Scope::MediaWrite
             ),

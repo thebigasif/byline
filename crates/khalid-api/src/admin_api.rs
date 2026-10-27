@@ -15,7 +15,7 @@ use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::admin_key::{AdminDoor, require, require_admin_key};
+use crate::admin_key::{AdminDoor, require, require_admin_key, require_publish};
 use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
 use crate::html_source::markdown_from_html;
@@ -26,7 +26,7 @@ use crate::preview_link::PreviewLink;
 use crate::problem::{Problem, ProblemType};
 use crate::publish_door::{PublishDoor, ScheduleError};
 use crate::query::{Limit, ListQuery, RawListQuery};
-use crate::resources::{AdminPost, Listable, NewPost, PostDraft, PostEdit, PostRow};
+use crate::resources::{AdminPost, Listable, NewPost, PostDraft, PostEdit, PostRow, PostStatus};
 
 /// Where the Admin API lives.
 pub(crate) const BASE: &str = "/api/admin/v1";
@@ -186,7 +186,9 @@ pub(crate) struct EditPosts {
 /// the linter lets it through, or with `"status": "scheduled"` and a
 /// future `published_at` at that time. The edit carries the `updated_at` of the copy it was
 /// made on; when the post changed since, the answer is a 409 naming who
-/// changed it and when (RULES.md BL-API-7). Needs `posts:write`.
+/// changed it and when (RULES.md BL-API-7). Needs `posts:write`, and
+/// `posts:publish` to publish, schedule or take down a post, or to edit one
+/// that is live or scheduled.
 #[utoipa::path(
     put, path = "/posts/{id}/", tag = "admin posts",
     security(("admin_key" = [])),
@@ -195,7 +197,7 @@ pub(crate) struct EditPosts {
     responses(
         (status = 200, description = "The post as saved", body = AdminPosts),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
-        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The post changed after the copy the edit was made on, or another post has the new slug", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "The body could not be read, a setting is not valid, the schedule cannot be kept, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
@@ -212,6 +214,9 @@ async fn edit_admin_post(
     let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
     let [edit] = <[PostEdit; 1]>::try_from(body.posts)
         .map_err(|_| invalid_body("posts must hold exactly one post"))?;
+    if !principal.access().allows(Scope::PostsPublish) && publishes(&posts, &id, &edit).await? {
+        require_publish(&principal)?;
+    }
     match posts.edit(&id, edit, principal.id().as_str()).await {
         Ok(post) => Ok(Json(AdminPosts { posts: vec![post] })),
         Err(UpdatePostError::NotFound) => Err(missing(uri.path())),
@@ -228,6 +233,24 @@ async fn edit_admin_post(
         Err(UpdatePostError::Schedule(error)) => Err(unschedulable(error)),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
     }
+}
+
+/// Whether `edit` to post `id` changes what readers see, which needs
+/// `posts:publish`: it publishes, schedules or sets a time to take the
+/// post down, or the post is already live or scheduled.
+async fn publishes(posts: &Posts, id: &str, edit: &PostEdit) -> Result<bool, Problem> {
+    let asks = matches!(
+        edit.status(),
+        Some(PostStatus::Published | PostStatus::Scheduled)
+    );
+    if asks || edit.unpublish_at().is_some() {
+        return Ok(true);
+    }
+    let post = posts
+        .get(id)
+        .await
+        .map_err(|error| Problem::internal(&error))?;
+    Ok(post.is_some_and(|post| post.status() != PostStatus::Draft))
 }
 
 /// The 422 for a post the linter refused to publish, with every finding.

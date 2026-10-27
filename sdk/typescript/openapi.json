@@ -644,7 +644,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -698,7 +698,7 @@
             }
           },
           "403": {
-            "description": "The key lacks posts:write",
+            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post",
             "content": {
               "application/problem+json": {
                 "schema": {

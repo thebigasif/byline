@@ -55,7 +55,12 @@ fn router(recorder: &Arc<Recorder>) -> axum::Router {
     let token: KeyToken = WRITER.parse().unwrap();
     let hashing = KeyHashing::fast_for_tests();
     let keys = MemoryKeyStore::new(vec![
-        StoredKey::for_integration(&token, vec![Scope::PostsWrite], &hashing).unwrap(),
+        StoredKey::for_integration(
+            &token,
+            vec![Scope::PostsWrite, Scope::PostsPublish],
+            &hashing,
+        )
+        .unwrap(),
     ]);
     let (router, _) =
         api::router_with_door(Arc::new(common::store()), Arc::new(door), Arc::new(keys));

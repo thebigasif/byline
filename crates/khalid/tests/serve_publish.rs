@@ -70,12 +70,28 @@ async fn demo_site(receiver: &MockServer) -> (TempDir, Secret<String>) {
     (temp, secret)
 }
 
-/// A key that may write posts, made by `khalid keys create`.
+/// A key that may write and publish posts, made by `khalid keys create`.
 #[cfg(test)]
 fn writer_key(site: &Path) -> String {
+    new_key(
+        site,
+        &[
+            "--name",
+            "SerpDad",
+            "--scope",
+            "posts:write",
+            "--scope",
+            "posts:publish",
+        ],
+    )
+}
+
+/// A key made by `khalid keys create` with `args`.
+#[cfg(test)]
+fn new_key(site: &Path, args: &[&str]) -> String {
     let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
         .args(["--site", site.to_str().unwrap(), "keys", "create", "--json"])
-        .args(["--name", "SerpDad", "--scope", "posts:write"])
+        .args(args)
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(0));
@@ -188,6 +204,33 @@ async fn a_post_published_through_the_api_fires_the_webhook_and_indexnow() {
         search["urlList"],
         json!(["https://www.example.com/blog/choosing-anchor-text/"])
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_contributor_writes_a_draft_but_publishing_it_is_a_403() {
+    let receiver = MockServer::start().await;
+    let (site, _) = demo_site(&receiver).await;
+    let staff = ["--kind", "staff", "--name", "Lena", "--role", "contributor"];
+    let contributor = new_key(site.path(), &staff);
+    let server = start(site.path());
+
+    let new = json!({"posts": [{"title": "Choosing anchor text", "author": "asif",
+        "markdown": "Anchor text is the visible words of a link.\n\n\
+        Read [why internal links matter](/blog/why-internal-links-matter/) first."}]});
+    let (status, made) = send(&server, &contributor, "POST", "/api/admin/v1/posts/", &new);
+    assert_eq!(status, 201, "a contributor writes drafts: {made}");
+    let publish = json!({"posts": [{"status": "published",
+        "updated_at": made["posts"][0]["updated_at"]}]});
+    let route = "/api/admin/v1/posts/en.choosing-anchor-text/";
+    let (status, refused) = send(&server, &contributor, "PUT", route, &publish);
+    assert_eq!(status, 403, "{refused}");
+    assert_eq!(refused["rule"], "posts:publish");
+    let detail = refused["detail"].as_str().unwrap_or_default();
+    assert!(
+        detail.starts_with("A contributor cannot publish posts."),
+        "{refused}"
+    );
+    assert_eq!(page(&server, "/blog/choosing-anchor-text/").0, 404);
 }
 
 #[tokio::test(flavor = "multi_thread")]
