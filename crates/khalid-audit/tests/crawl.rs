@@ -1,7 +1,7 @@
 //! The crawl: from the home page, following links the way a search engine
 //! does, staying inside the blog, and reading each page once.
 
-mod support;
+pub mod support;
 
 use khalid_audit::{Answer, Crawl, Limit, Outcome, Source, Unreached, crawl};
 use khalid_core::AbsoluteUrl;

@@ -6,15 +6,17 @@ use khalid_audit::{Answer, Crawl, Limit, Source, Unreached, crawl};
 use khalid_core::AbsoluteUrl;
 
 /// The blog's home page in every test.
-pub(crate) const HOME: &str = "https://www.example.com/blog/";
+pub const HOME: &str = "https://www.example.com/blog/";
 
 /// A site held in memory: each address with its answer, and 404 for the
 /// rest.
-pub(crate) struct Memory(BTreeMap<String, Answer>);
+#[derive(Debug)]
+pub struct Memory(BTreeMap<String, Answer>);
 
 #[cfg(test)]
 impl Memory {
-    pub(crate) fn new(pages: &[(&str, Answer)]) -> Self {
+    /// The site with `pages`, each an address and its answer.
+    pub fn new(pages: &[(&str, Answer)]) -> Self {
         Self(
             pages
                 .iter()
@@ -36,26 +38,30 @@ impl Source for Memory {
 
 /// A 200 HTML answer whose body is `body`, with a title.
 #[cfg(test)]
-pub(crate) fn html(body: &str) -> Answer {
+pub fn html(body: &str) -> Answer {
     page("<title>A page</title>", body)
 }
 
 /// A 200 HTML answer with `head` and `body`.
 #[cfg(test)]
-pub(crate) fn page(head: &str, body: &str) -> Answer {
+pub fn page(head: &str, body: &str) -> Answer {
     let page =
         format!("<!doctype html><html lang=\"en\"><head>{head}</head><body>{body}</body></html>");
     Answer::new(200, page.into_bytes()).with_header("content-type", "text/html; charset=utf-8")
 }
 
 /// `text` as an address.
+///
+/// # Panics
+///
+/// Panics when `text` is not an address, which only a wrong test does.
 #[cfg(test)]
-pub(crate) fn url(text: &str) -> AbsoluteUrl {
+pub fn url(text: &str) -> AbsoluteUrl {
     AbsoluteUrl::parse(text).unwrap()
 }
 
 /// The crawl of `pages` from [`HOME`].
 #[cfg(test)]
-pub(crate) async fn crawled(pages: &[(&str, Answer)]) -> Crawl {
+pub async fn crawled(pages: &[(&str, Answer)]) -> Crawl {
     crawl(&Memory::new(pages), &url(HOME), Limit::default()).await
 }

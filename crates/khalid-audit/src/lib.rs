@@ -10,14 +10,21 @@
 //! crawler does.
 
 mod answer;
+mod audit;
+mod check;
 mod crawl;
+mod issue;
 mod link;
 mod page;
+mod page_checks;
 mod robots;
 mod visit;
 
 pub use answer::{Answer, Source, Unreached};
+pub use audit::audit;
+pub use check::{Category, Check, Severity};
 pub use crawl::{Crawl, Limit, crawl};
+pub use issue::Issue;
 pub use link::{Alternate, Image, Link};
 pub use page::Page;
 pub use robots::Robots;
