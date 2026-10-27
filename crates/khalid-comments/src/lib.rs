@@ -5,8 +5,8 @@
 //! [`ReaderEmail`], [`CommentText`]), how a posted form is read into one
 //! ([`CommentForm`]) with its honeypot, and how approved comments are
 //! shown one level deep ([`threads`]). [`RateLimits`] keeps one network
-//! address from sending many, without keeping the address. The comments
-//! are kept in a [`CommentStore`].
+//! address from sending many, without keeping the address. [`Comments`]
+//! sends, moderates and shows comments over a [`CommentStore`].
 //!
 //! Comments are visitor data: they live in the site database, never in
 //! `content/`, and name their post by its file ([`PostFile`]) so they
@@ -17,6 +17,7 @@
 mod comment;
 mod comment_form;
 mod comment_store;
+mod comments;
 mod field_problem;
 mod fields;
 #[cfg(any(test, feature = "test-util"))]
@@ -27,6 +28,7 @@ mod thread;
 pub use comment::{Comment, CommentAuthor, CommentId, CommentStatus, ParseStatusError, PostFile};
 pub use comment_form::{CommentForm, FormComment, Reading};
 pub use comment_store::{CommentStore, CommentStoreError, NewComment};
+pub use comments::{Comments, CommentsError};
 pub use field_problem::FieldProblem;
 pub use fields::{AuthorName, CommentText, ReaderEmail};
 #[cfg(any(test, feature = "test-util"))]
