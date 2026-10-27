@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use khalid_core::{Clock, SystemClock};
-use khalid_seo::{RedirectEntry, SeoError, UrlPath};
+use khalid_seo::{RedirectEntry, RedirectTable, SeoError, UrlPath};
 
 use crate::content_store::BoxFuture;
 use crate::not_found_log::{Miss, NotFoundLog, NotFoundLogError};
@@ -70,7 +70,71 @@ pub struct RedirectDesk {
     pub(crate) clock: Arc<dyn Clock>,
 }
 
+/// Why redirects were not stored. Nothing is stored when any is refused.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum StoreRefusal {
+    /// With the stored redirects they make no table: a loop, or two rules
+    /// for one address.
+    #[error(transparent)]
+    Table(SeoError),
+    /// An address already has a stored redirect.
+    #[error("the address {from:?} already has a redirect")]
+    Taken {
+        /// The address, or the pattern as written.
+        from: String,
+    },
+    /// The store could not be read or written.
+    #[error(transparent)]
+    Storage(RedirectStoreError),
+}
+
+impl From<RedirectStoreError> for StoreRefusal {
+    fn from(error: RedirectStoreError) -> Self {
+        match error {
+            RedirectStoreError::Taken { from } => Self::Taken { from },
+            error => Self::Storage(error),
+        }
+    }
+}
+
 impl RedirectDesk {
+    /// The table every stored redirect makes, as the server answers it.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreRefusal::Storage`] when the store cannot be read, and
+    /// [`StoreRefusal::Table`] when the stored rows make no table.
+    pub async fn table(&self) -> Result<RedirectTable, StoreRefusal> {
+        let stored = self.store.list().await?;
+        let entries = stored.into_iter().map(|s| s.entry).collect();
+        RedirectTable::from_entries(entries).map_err(StoreRefusal::Table)
+    }
+
+    /// Stores `entries`, made by `origin` now, once they are checked
+    /// together with every stored redirect, so none takes a used address
+    /// or closes a loop. The Admin API and the command line both store
+    /// through here.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreRefusal::Table`] for a loop or an address given twice,
+    /// [`StoreRefusal::Taken`] for an address that already has a rule,
+    /// and [`StoreRefusal::Storage`] when the store fails.
+    pub async fn store_checked(
+        &self,
+        entries: Vec<RedirectEntry>,
+        origin: Origin,
+    ) -> Result<Vec<StoredRedirect>, StoreRefusal> {
+        let stored = self.store.list().await?;
+        let all = stored
+            .into_iter()
+            .map(|s| s.entry)
+            .chain(entries.iter().cloned());
+        RedirectTable::from_entries(all.collect()).map_err(StoreRefusal::Table)?;
+        Ok(self.store.add(entries, origin, self.clock.now()).await?)
+    }
+
     /// The desk over a site's stores, pages and clock.
     pub fn new(
         store: Arc<dyn RedirectStore>,

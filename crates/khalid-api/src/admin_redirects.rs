@@ -21,8 +21,8 @@ use crate::admin_key::{require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::keys::{KeyStore, Principal, Scope};
 use crate::problem::{Problem, ProblemType};
-use crate::redirect_desk::RedirectDesk;
-use crate::redirect_store::{Origin, RedirectStoreError, StoredRedirect};
+use crate::redirect_desk::{RedirectDesk, StoreRefusal};
+use crate::redirect_store::{Origin, StoredRedirect};
 
 /// The redirect routes, each declared with `utoipa::path` (RULES.md
 /// BL-API-4), behind an integration key or staff token.
@@ -177,18 +177,12 @@ pub(crate) async fn store_checked(
     entries: Vec<RedirectEntry>,
     origin: Origin,
 ) -> Result<AdminRedirects, Problem> {
-    let stored = desk.store.list().await.map_err(|e| Problem::internal(&e))?;
-    let all = stored
-        .into_iter()
-        .map(|s| s.entry)
-        .chain(entries.iter().cloned());
-    RedirectTable::from_entries(all.collect()).map_err(|error| refused(&error))?;
     let added = desk
-        .store
-        .add(entries, origin, desk.clock.now())
+        .store_checked(entries, origin)
         .await
-        .map_err(|error| match error {
-            RedirectStoreError::Taken { from } => taken(&from),
+        .map_err(|refusal| match refusal {
+            StoreRefusal::Table(error) => refused(&error),
+            StoreRefusal::Taken { from } => taken(&from),
             error => Problem::internal(&error),
         })?;
     let redirects = added.iter().map(AdminRedirect::from).collect();
