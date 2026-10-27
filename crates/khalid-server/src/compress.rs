@@ -56,8 +56,11 @@ impl Compressed {
         if output.len() >= body.len() {
             return None;
         }
+        // The buffer was sized before compressing, about a fifth more than
+        // the copy needs; the copy, kept as long as the page, takes only its
+        // own bytes.
         Some(Self {
-            body: Bytes::from(output),
+            body: Bytes::copy_from_slice(&output),
             etag: plain_tag.and_then(|tag| etag::with_suffix(tag, "-br")),
         })
     }
