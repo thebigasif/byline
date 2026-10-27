@@ -221,4 +221,38 @@ checks! {
     /// A page has no structured data.
     StructuredDataMissing => "structured-data-missing", StructuredData, Notice, "No structured data",
         "Keep the default head, which describes every page in JSON-LD.";
+    /// A page the blog links to answers 400 to 499.
+    Page4xx => "page-4xx", Crawlability, Error, "4XX page",
+        "Bring the page back, or redirect its address to the closest page and fix the links to it.";
+    /// A page the blog links to answers 500 or above.
+    Page5xx => "page-5xx", Crawlability, Error, "5XX page",
+        "Check the server log for this address and fix what fails there.";
+    /// A page the blog links to gave no answer.
+    PageUnreached => "page-unreached", Crawlability, Error, "Page timed out or failed",
+        "Check the server answers this address quickly, then run the audit again.";
+    /// A page sits more than three clicks from the home page.
+    TooDeep => "too-deep", Crawlability, Notice, "Page is more than 3 clicks from home",
+        "Link to the page from a page closer to home, such as a pillar post or a list.";
+    /// A page links to a page of the blog that is broken.
+    BrokenLink => "broken-link", InternalLinks, Error, "Page has links to broken page",
+        "Change the link to a page that exists, or remove it.";
+    /// Only one other page links to a page, without `nofollow`.
+    OneInboundLink => "one-inbound-link", InternalLinks, Notice,
+        "Page has only one dofollow incoming internal link",
+        "Link to the page from one or two related posts.";
+    /// A page links to an address of the blog that redirects.
+    LinksToRedirect => "links-to-redirect", Redirects, Notice, "Page has links to redirect",
+        "Change the link to the address it redirects to.";
+    /// A redirect leads to another redirect.
+    RedirectChain => "redirect-chain", Redirects, Warning, "Redirect chain",
+        "Point the first redirect straight at the last address.";
+    /// Redirects lead back to an address already passed.
+    RedirectLoop => "redirect-loop", Redirects, Error, "Redirect loop",
+        "Remove one of the redirects so the chain ends at a page.";
+    /// An image a page shows is broken.
+    ImageBroken => "image-broken", Images, Error, "Image broken",
+        "Put the image back, or change the page to one that exists.";
+    /// A stylesheet or script a page loads is broken.
+    ResourceBroken => "resource-broken", Resources, Error, "CSS or JavaScript file broken",
+        "Build the site again, so every file a page loads is there.";
 }

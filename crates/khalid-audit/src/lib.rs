@@ -16,6 +16,7 @@ mod check;
 mod crawl;
 mod issue;
 mod link;
+mod link_checks;
 mod page;
 mod page_checks;
 mod robots;

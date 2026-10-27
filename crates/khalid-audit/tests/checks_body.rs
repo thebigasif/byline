@@ -21,13 +21,22 @@ fn words(count: usize) -> String {
     format!("<h1>Links</h1><p>{}</p>", "word ".repeat(count))
 }
 
+/// The body checks' issues on one page, leaving out the low text ratio of
+/// these short pages and what the whole-crawl checks find, since the test
+/// site has no page behind its links.
 #[cfg(test)]
 async fn found(head: &str, body: &str, thresholds: Thresholds) -> Vec<(Check, String)> {
     let crawl = crawled(&[(HOME, page(head, body))]).await;
+    let left_out = [
+        Check::LowTextRatio,
+        Check::BrokenLink,
+        Check::ImageBroken,
+        Check::ResourceBroken,
+    ];
     audit(&crawl, thresholds)
         .iter()
         .map(|issue| (issue.check(), issue.detail().to_owned()))
-        .filter(|(check, _)| *check != Check::LowTextRatio)
+        .filter(|(check, _)| !left_out.contains(check))
         .collect()
 }
 
