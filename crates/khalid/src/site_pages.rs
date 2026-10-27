@@ -9,7 +9,9 @@ use std::{fmt, fs};
 
 use khalid_content::{ContentTree, Document, SiteContent, check_bodies, parse_post, read_content};
 use khalid_core::{Clock, Config, SystemClock, UserMessage};
-use khalid_render::{PageBody, Renderer};
+use khalid_render::{
+    PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult,
+};
 use khalid_routes::Routes;
 use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
 
@@ -45,6 +47,9 @@ struct Site {
     /// page finds the files beside it without listing the folder again.
     /// `None` before the first full render.
     tree: Mutex<Option<ContentTree>>,
+    /// The search page of each language as the last full render made it,
+    /// which a search's results are rendered into.
+    searches: Mutex<Vec<SearchShell>>,
 }
 
 /// The theme's renderer, and the stylesheet every page links.
@@ -93,7 +98,43 @@ impl SitePages {
             feed,
             outline: Mutex::default(),
             tree: Mutex::default(),
+            searches: Mutex::default(),
         })))
+    }
+
+    /// The page of a search for `query` that found `results`, rendered into
+    /// the search page at `path` as the last full render made it. `None`
+    /// before the first full render, or when `path` has no search page.
+    pub(crate) fn render_search(
+        &self,
+        path: &str,
+        query: Option<String>,
+        results: Vec<SearchResult>,
+    ) -> Result<Option<String>, UserMessage> {
+        let Some(theme) = &self.0.theme else {
+            return Ok(None);
+        };
+        let shell = self
+            .0
+            .searches
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .find(|shell| shell.meta.path == path)
+            .cloned();
+        let Some(SearchShell { site, meta }) = shell else {
+            return Ok(None);
+        };
+        let body = PageBody::Search(RenderSearch {
+            title: meta.title.clone(),
+            mode: SearchMode::Live,
+            action: meta.path.clone(),
+            query,
+            results,
+        });
+        let html = theme.renderer.render(&site, &meta, &body);
+        html.map(Some)
+            .map_err(|error| build_message::render(&error))
     }
 
     /// Every page of the site at its address, the stylesheet they link, the
@@ -207,6 +248,12 @@ impl SitePages {
         if let Some(theme) = theme {
             if which == Which::All {
                 served.pages.push(theme.stylesheet.clone());
+                let shells = search_shells(&languages);
+                *self
+                    .0
+                    .searches
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = shells;
             }
             served.not_found = html_pages(theme, config, &languages, which, &mut served.pages)?;
         }
@@ -268,6 +315,30 @@ enum Which {
 
 /// How a wikilink starts in markdown, such as `[[link-equity]]`.
 const WIKILINK: &str = "[[";
+
+/// A language's search page without results: the site as its pages show it
+/// and the page's head, with its title and its SEO tags.
+#[derive(Debug, Clone)]
+struct SearchShell {
+    site: RenderSite,
+    meta: PageMeta,
+}
+
+/// The search page of each of `languages`.
+fn search_shells(languages: &[LanguagePages]) -> Vec<SearchShell> {
+    let mut shells = Vec::new();
+    for language in languages {
+        let searches = language
+            .pages
+            .iter()
+            .filter(|page| matches!(page.body, PageBody::Search(_)));
+        shells.extend(searches.map(|page| SearchShell {
+            site: language.site.clone(),
+            meta: page.meta.clone(),
+        }));
+    }
+    shells
+}
 
 /// The posts of `content` without their bodies, and its authors whole,
 /// since a post's author box shows their bios: what a saved post's page
