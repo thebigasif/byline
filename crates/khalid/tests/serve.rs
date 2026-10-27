@@ -341,6 +341,29 @@ fn serve_answers_robots_txt_at_the_host_root_for_a_blog_in_a_folder() {
 }
 
 #[test]
+fn serve_gives_body_links_the_sites_link_policy() {
+    let site = demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let mut text = fs::read_to_string(&settings).unwrap();
+    text.push_str("\n[seo.links]\nrel = [\"nofollow\"]\naffiliate_domains = [\"amazon.com\"]\n");
+    fs::write(&settings, text).unwrap();
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-09-28-what-a-sitemap-does.md");
+    let mut post = fs::read_to_string(&file).unwrap();
+    post.push_str("\nRead [the book](https://www.amazon.com/dp/B0C1234567) or ");
+    post.push_str("[the guide](https://developers.google.com/search).\n");
+    fs::write(&file, post).unwrap();
+    let server = start(site.path());
+    let page = get(&server, "/blog/what-a-sitemap-does/");
+    assert_eq!(page.status, 200);
+    let book = "<a href=\"https://www.amazon.com/dp/B0C1234567\" rel=\"nofollow sponsored\">";
+    let guide = "<a href=\"https://developers.google.com/search\" rel=\"nofollow\">";
+    assert!(page.body.contains(book), "{}", page.body);
+    assert!(page.body.contains(guide), "{}", page.body);
+}
+
+#[test]
 fn serve_answers_the_admin_app_at_admin_with_its_own_policy() {
     let site = demo_copy();
     let server = start(site.path());

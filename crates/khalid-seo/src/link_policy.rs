@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use khalid_core::AbsoluteUrl;
+use khalid_core::{AbsoluteUrl, DomainName, ExternalRel, LinkOpening, LinkSettings};
 
 use crate::{SeoError, SeoSite};
 
@@ -157,6 +157,81 @@ impl LinkPolicy {
         LinkAttributes {
             rel,
             target: self.external_target,
+        }
+    }
+
+    /// `html` with each `<a>` tag given the `rel` and `target` this policy
+    /// gives its `href`, by [`LinkPolicy::attributes_for`]. A tag that
+    /// already has `rel` or `target` keeps its own. Everything else is left
+    /// as it is.
+    ///
+    /// `html` is a rendered body, whose attribute values are quoted with
+    /// `"` and escape `"` and `>`, so a tag ends at the first `>`.
+    pub fn apply_to_html(&self, site: &SeoSite, html: &str) -> String {
+        if self == &Self::default() {
+            return html.to_owned();
+        }
+        let mut out = String::with_capacity(html.len() + html.len() / 8);
+        let mut rest = html;
+        while let Some(start) = rest.find("<a ") {
+            let (before, from_tag) = rest.split_at(start);
+            out.push_str(before);
+            let Some(end) = from_tag.find('>') else {
+                rest = from_tag;
+                break;
+            };
+            let (tag, after) = from_tag.split_at(end);
+            out.push_str(tag);
+            if let Some(href) = attribute(tag, "href") {
+                let link = self.attributes_for(site, &href.replace("&amp;", "&"));
+                if let Some(rel) = link.rel().filter(|_| attribute(tag, "rel").is_none()) {
+                    out.push_str(" rel=\"");
+                    out.push_str(&rel);
+                    out.push('"');
+                }
+                if let Some(target) = link.target().filter(|_| attribute(tag, "target").is_none()) {
+                    out.push_str(" target=\"");
+                    out.push_str(target);
+                    out.push('"');
+                }
+            }
+            rest = after;
+        }
+        out.push_str(rest);
+        out
+    }
+}
+
+/// The value of the attribute `name` in the opening tag `tag`, as written.
+fn attribute<'tag>(tag: &'tag str, name: &str) -> Option<&'tag str> {
+    let (_, value) = tag.split_once(&format!(" {name}=\""))?;
+    value.split_once('"').map(|(value, _)| value)
+}
+
+impl From<&LinkSettings> for LinkPolicy {
+    fn from(settings: &LinkSettings) -> Self {
+        let domains = |names: &[DomainName]| -> Vec<Domain> {
+            names
+                .iter()
+                .map(|name| Domain(name.as_str().to_owned()))
+                .collect()
+        };
+        Self {
+            external_rel: settings
+                .rel
+                .iter()
+                .map(|rel| match rel {
+                    ExternalRel::NoFollow => LinkRel::NoFollow,
+                    ExternalRel::Sponsored => LinkRel::Sponsored,
+                    ExternalRel::Ugc => LinkRel::Ugc,
+                })
+                .collect(),
+            external_target: match settings.open {
+                LinkOpening::SameTab => LinkTarget::SameTab,
+                LinkOpening::NewTab => LinkTarget::NewTab,
+            },
+            affiliate_domains: domains(&settings.affiliate_domains),
+            internal_domains: domains(&settings.internal_domains),
         }
     }
 }

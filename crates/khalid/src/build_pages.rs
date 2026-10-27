@@ -3,6 +3,7 @@
 
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
+use std::mem;
 use std::path::{Path, PathBuf};
 
 use chrono::NaiveDate;
@@ -192,8 +193,9 @@ fn post_pages(
         let (title, slug) = named(config, doc, front.slug.as_ref(), front.title.as_deref())?;
         let entry = PostAddress::new(&doc.collection, locale, &slug, Some(date));
         let rest = routed(config, routes, locale, &entry, &doc.path)?;
-        let rendered = render_linked(&doc.body, &doc.locale, config.slugs(), links)
+        let mut rendered = render_linked(&doc.body, &doc.locale, config.slugs(), links)
             .map_err(|error| build_message::block(&doc.path, &error))?;
+        rendered.html = build_seo::with_link_policy(config, mem::take(&mut rendered.html));
         drafts.push(Draft {
             doc,
             date,
@@ -472,15 +474,18 @@ pub(crate) fn routed(
 
 /// A document's body as HTML, with raw HTML escaped, maths drawn as `MathML`
 /// and each wikilink a link to the page `links` gives it, by
-/// `khalid_content::render_linked`. `main` has checked every wikilink
-/// reaches a page, so none falls back to plain text.
+/// `khalid_content::render_linked`, and each link given the site's link
+/// policy. `main` has checked every wikilink reaches a page, so none falls
+/// back to plain text.
 pub(crate) fn body_html<F>(
     config: &Config,
     links: &Wikilinks,
     doc: &Document<F>,
 ) -> Result<BodyHtml, UserMessage> {
     render_linked(&doc.body, &doc.locale, config.slugs(), links)
-        .map(|rendered| BodyHtml::from_sanitised(rendered.html))
+        .map(|rendered| {
+            BodyHtml::from_sanitised(build_seo::with_link_policy(config, rendered.html))
+        })
         .map_err(|error| build_message::block(&doc.path, &error))
 }
 
