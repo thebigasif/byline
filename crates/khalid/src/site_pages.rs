@@ -15,7 +15,7 @@ use khalid_render::{
     PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult,
 };
 use khalid_routes::Routes;
-use khalid_server::{MediaType, Moved, Page, PagePath, Render, Rendered};
+use khalid_server::{Moved, Page, Render, Rendered};
 
 use crate::build_pages::LanguagePages;
 use crate::comment_pages::{self, ShownComments};
@@ -504,16 +504,6 @@ fn without_body<F: Clone>(doc: &Document<F>) -> Document<F> {
     doc
 }
 
-/// `html`, rendered from `page`, as the server keeps it at `address`: with
-/// a nonce slot when the page has head code.
-fn served_at(address: &str, page: &build_pages::Page, html: String) -> Result<Page, UserMessage> {
-    let path = PagePath::try_new(address).map_err(|_| build_message::address(address))?;
-    Ok(match page.head_code {
-        Some(_) => Page::with_nonce_slot(path, MediaType::Html, html),
-        None => Page::new(path, MediaType::Html, html),
-    })
-}
-
 /// Renders the `which` pages of `languages` with `theme` into `pages`, and
 /// returns the not-found page of the default language, empty unless
 /// `which` is [`Which::All`].
@@ -537,12 +527,12 @@ fn html_pages(
                 }
                 continue;
             }
-            pages.push(served_at(&page.meta.path, page, html)?);
+            pages.push(page.served_at(&page.meta.path, html)?);
         }
         for unlocked in &language.unlocked {
             let page = &unlocked.page;
             let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
-            pages.push(served_at(&post_lock::hidden(&page.meta.path), page, html)?);
+            pages.push(page.served_at(&post_lock::hidden(&page.meta.path), html)?);
         }
     }
     Ok(not_found)
