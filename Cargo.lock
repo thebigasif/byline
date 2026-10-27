@@ -1947,8 +1947,12 @@ dependencies = [
 name = "khalid-auth"
 version = "0.0.0"
 dependencies = [
+ "argon2",
  "khalid-api",
+ "khalid-auth",
+ "khalid-core",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

@@ -8,9 +8,20 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# Fast password hashing and in-memory stores, for this crate's tests and other crates' tests.
+test-util = []
+
 [dependencies]
+argon2 = "0.6"
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
+khalid-core = { path = "../khalid-core", version = "0.0.0" }
 thiserror.workspace = true
+tokio = { workspace = true, features = ["rt"] }
+
+[dev-dependencies]
+khalid-auth = { path = ".", version = "0.0.0", features = ["test-util"] }
+tokio.workspace = true
 
 [lints]
 workspace = true
