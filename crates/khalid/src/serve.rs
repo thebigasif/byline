@@ -29,9 +29,7 @@ use crate::post_files::Assets;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::{
-    announce, db, db_message, preview, report, scheduler, search_route, serve_message,
-};
+use crate::{announce, db, db_message, preview, report, scheduler, search_route, serve_message};
 
 /// How often the site folder is looked at for a saved edit where the system
 /// has no file events for it (ADR "the server watches files with events").
