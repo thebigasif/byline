@@ -1,10 +1,11 @@
 //! Serving until told to stop, then stopping gracefully.
 
+use std::fmt::Debug;
 use std::future::{Future, IntoFuture, pending};
 use std::time::Duration;
 
 use axum::Router;
-use tokio::net::TcpListener;
+use axum::serve::Listener;
 use tokio::sync::oneshot;
 
 use crate::ServerError;
@@ -22,6 +23,9 @@ pub enum Stopped {
 /// Answers requests on `listener` with `router` until `shutdown` completes,
 /// then stops gracefully (RULES.md BL-RUN-10).
 ///
+/// The listener is a plain `tokio::net::TcpListener`, or one that wraps each
+/// connection, such as the TLS listener `khalid serve --domain` uses.
+///
 /// When `shutdown` completes, the server stops accepting connections and
 /// finishes the requests it has. Connections still open after `grace` are
 /// closed. The caller then flushes its queues and closes the database.
@@ -29,13 +33,15 @@ pub enum Stopped {
 /// # Errors
 ///
 /// Returns [`ServerError::Serve`] when the listener fails.
-pub async fn serve<F>(
-    listener: TcpListener,
+pub async fn serve<L, F>(
+    listener: L,
     router: Router,
     shutdown: F,
     grace: Duration,
 ) -> Result<Stopped, ServerError>
 where
+    L: Listener,
+    L::Addr: Debug,
     F: Future<Output = ()> + Send + 'static,
 {
     let (signalled, on_signal) = oneshot::channel::<()>();
