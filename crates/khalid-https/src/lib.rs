@@ -17,6 +17,7 @@ mod domain;
 mod error;
 mod listener;
 mod port_80;
+mod renew;
 mod store;
 
 pub use acme::{AccountKey, Acme, AgreedToTerms, Check, Directory, Issued, LETS_ENCRYPT_TERMS};
@@ -27,4 +28,5 @@ pub use domain::{Domain, DomainError};
 pub use error::HttpsError;
 pub use listener::TlsListener;
 pub use port_80::port_80;
+pub use renew::{Next, Renewal, next};
 pub use store::HttpsFolder;

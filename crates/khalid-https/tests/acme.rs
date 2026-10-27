@@ -11,9 +11,10 @@ mod common;
 use std::time::Duration;
 
 use acme_service::{AcmeService, Offer, start_ordering};
+use khalid_core::FixedClock;
 use khalid_https::{
     AccountKey, Acme, AgreedToTerms, Certificate, Certificates, Check, Directory, Domain,
-    HttpsError, HttpsFolder, TlsListener, port_80,
+    HttpsError, HttpsFolder, Renewal, TlsListener, port_80,
 };
 use khalid_outbound::{Limits, Outbound, Reach, Resolver};
 use tokio::net::TcpListener;
@@ -110,6 +111,70 @@ async fn a_wrong_answer_to_either_check_is_refused_and_nothing_is_issued() {
         );
         assert_eq!(service.issued(), 0);
     }
+}
+
+/// A renewal for `NAME` through a new account at `service`, answering
+/// through `certificates` and saving to `folder`, whose account key is
+/// saved there too.
+#[cfg(test)]
+async fn renewal(
+    service: &AcmeService,
+    certificates: &Certificates,
+    folder: &HttpsFolder,
+) -> Renewal {
+    let directory = Directory::Other(service.directory.clone());
+    let (acme, key) = Acme::sign_up(&outbound(), &directory, AgreedToTerms)
+        .await
+        .unwrap();
+    folder.save_account(&key).await.unwrap();
+    Renewal {
+        acme,
+        domain: Domain::try_new(NAME).unwrap(),
+        certificates: certificates.clone(),
+        folder: folder.clone(),
+        checks: vec![Check::TlsAlpn],
+    }
+}
+
+#[tokio::test]
+async fn a_renewal_serves_and_saves_its_certificate() {
+    let certificates = Certificates::new();
+    let service = start_ordering(NAME, Offer::TlsAlpn, serve(&certificates).await).await;
+    let site = tempfile::tempdir().unwrap();
+    let folder = HttpsFolder::new(site.path().to_path_buf());
+
+    let renewed = renewal(&service, &certificates, &folder)
+        .await
+        .renew()
+        .await
+        .unwrap();
+
+    let served = certificates.current().map(|c| c.not_after());
+    let saved = folder.certificate().await.unwrap().map(|c| c.not_after());
+    assert_eq!(served, Some(renewed.not_after()));
+    assert_eq!(saved, Some(renewed.not_after()));
+    assert!(folder.account().await.unwrap().is_some());
+}
+
+#[tokio::test]
+async fn keeping_renewed_gets_a_certificate_when_there_is_none() {
+    let certificates = Certificates::new();
+    let service = start_ordering(NAME, Offer::TlsAlpn, serve(&certificates).await).await;
+    let site = tempfile::tempdir().unwrap();
+    let folder = HttpsFolder::new(site.path().to_path_buf());
+    let clock = FixedClock::new("2026-10-27T00:00:00Z".parse().unwrap());
+
+    let keeping = renewal(&service, &certificates, &folder).await;
+    let task = tokio::spawn(keeping.keep_renewed(clock));
+    let mut waited = 0;
+    while certificates.current().is_none() && waited < 200 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        waited += 1;
+    }
+    task.abort();
+
+    assert!(certificates.current().is_some_and(|c| c.covers(NAME)));
+    assert_eq!(service.issued(), 1);
 }
 
 /// The outbound client, reaching the test service on loopback.
