@@ -193,3 +193,145 @@ fn init_refuses_a_mount_path_before_writing_anything() {
     }
     assert!(!site.exists());
 }
+
+#[test]
+fn init_prints_the_proxy_rule_when_the_mount_is_a_folder() {
+    let temp = tempfile::tempdir().unwrap();
+    let site = at(temp.path(), "blog");
+    let output = khalid(&[
+        "init",
+        path(&site),
+        "--address",
+        "https://www.example.com",
+        "--mount",
+        "/blog/",
+        "--stack",
+        "nginx",
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(
+        said.contains("location /blog/ {"),
+        "the nginx rule:\n{said}"
+    );
+    assert!(
+        said.contains("proxy_pass "),
+        "the rule passes /blog/ to Khalid:\n{said}"
+    );
+    assert!(
+        said.contains("https://blog.example.com"),
+        "the rule names the blog's own address:\n{said}"
+    );
+}
+
+#[test]
+fn init_prints_the_webflow_rule_for_a_mounted_webflow_site() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = khalid(&[
+        "init",
+        path(temp.path()),
+        "--address",
+        "https://www.example.com",
+        "--mount",
+        "/notes/",
+        "--stack",
+        "webflow",
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(
+        said.contains("url.pathname.startsWith(\"/notes/\")"),
+        "the Worker checks the mount:\n{said}"
+    );
+    assert!(
+        said.contains("X-Forwarded-Host"),
+        "the Worker keeps the reader's host:\n{said}"
+    );
+}
+
+#[test]
+fn init_prints_the_shopify_rule_for_a_mounted_shopify_site() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = khalid(&[
+        "init",
+        path(temp.path()),
+        "--address",
+        "https://www.example.com",
+        "--mount",
+        "/journal/",
+        "--stack",
+        "shopify",
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    assert!(
+        text(&output.stdout).contains("url.pathname.startsWith(\"/journal/\")"),
+        "the Worker checks the mount"
+    );
+}
+
+#[test]
+fn init_with_json_prints_the_rule_and_its_parts() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = khalid(&[
+        "init",
+        path(temp.path()),
+        "--address",
+        "https://www.example.com",
+        "--mount",
+        "/blog/",
+        "--stack",
+        "caddy",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["proxy"]["stack"], "caddy", "{json}");
+    assert_eq!(json["proxy"]["mount"], "/blog/", "{json}");
+    assert!(
+        json["proxy"]["rule"]
+            .as_str()
+            .unwrap()
+            .contains("reverse_proxy"),
+        "{json}"
+    );
+}
+
+#[test]
+fn init_prints_no_rule_when_the_blog_is_the_whole_site() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = khalid(&[
+        "init",
+        path(temp.path()),
+        "--address",
+        "https://www.example.com",
+        "--stack",
+        "nginx",
+        "--json",
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(json.get("proxy").is_none(), "no mount, no rule: {json}");
+}
+
+#[test]
+fn init_refuses_a_stack_it_does_not_know() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = khalid(&[
+        "init",
+        path(temp.path()),
+        "--address",
+        "https://www.example.com",
+        "--mount",
+        "/blog/",
+        "--stack",
+        "drupal",
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = text(&output.stderr);
+    assert!(stderr.contains("drupal"), "{stderr}");
+    assert!(
+        stderr.contains("shopify"),
+        "the known stacks are listed: {stderr}"
+    );
+    assert!(!at(temp.path(), "site.toml").exists());
+}
