@@ -10,9 +10,12 @@
 //! callers read the content and hand it over as a [`ContentIndex`]. It also
 //! keeps the webhook delivery log, as the [`DeliveryLog`] that
 //! `khalid-webhooks` writes through, and the API keys, as the [`KeyTable`]
-//! that `khalid-api` checks keys against, and the newsletter subscribers, as
-//! the [`SubscriberTable`] that `khalid-newsletter` keeps them in.
+//! that `khalid-api` checks keys against, the newsletter subscribers, as
+//! the [`SubscriberTable`] that `khalid-newsletter` keeps them in, and
+//! readers' comments, as the [`CommentTable`] that `khalid-comments`
+//! moderates through.
 
+mod comment_table;
 mod content_index;
 mod database;
 mod db_error;
@@ -24,6 +27,7 @@ mod site_id;
 mod site_lists;
 mod subscriber_table;
 
+pub use comment_table::CommentTable;
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;
 pub use db_error::DbError;
