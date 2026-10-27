@@ -145,25 +145,26 @@ fn serve_with(
         announce(output, config, &format!("{address}{}", config.mount()));
         let live = LivePages::new(first);
         hand_back.start(live.replacements());
-        let shown = (&source, &live);
-        let (comments, moderation) =
-            comment_pages::start(config, (database, id), shown, security.clone()).await;
         let (failed, failure) = oneshot::channel();
-        let rest = (source.clone(), live.clone());
-        tokio::spawn(render_the_rest(rest, (checked, assets), failed));
+        tokio::spawn(render_the_rest((source.clone(), live.clone()), (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
-        let (door, announcing) = publish_door((site, config), (database, id), outbound).await?;
+        // Each part reads the database or the folder alone, so all open at once.
+        let shown = (&source, &live);
+        let commenting = comment_pages::start(config, (database, id), shown, security.clone());
+        let shown_pages = router(live.clone(), security.clone());
+        let ((comments, moderation), (door, announcing), (media, files), unlocked) = tokio::try_join!(
+            async { Ok(commenting.await) },
+            publish_door((site, config), (database, id), outbound),
+            media_library::open(site, config, bucket_keys, outbound),
+            unlocking((site, config), (database, id), &source, shown_pages),
+        )?;
         let scheduling = scheduler::start(Arc::clone(&door));
-        let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
-        let (media, files) = media_library::open(site, config, bucket_keys, outbound).await?;
-        let shown_pages = router(live.clone(), security);
-        let unlocked = unlocking((site, config), (database, id), &source, shown_pages).await?;
+        let previews = preview::router(Arc::clone(&door), source.clone(), config, security);
         let pages = (unlocked, live, config.mount());
-        let stored = redirect_route::start((database, id), pages, (redirects, addresses));
-        let (desk, pages) = stored.await;
+        let (desk, pages) =
+            redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let desks = (moderation, media, desk);
-        let api = api_router((content, door, keys), desks, (database, id, config));
-        let app = api
+        let app = api_router((content, door, keys), desks, (database, id, config))
             .merge(files)
             .merge(previews)
             .merge(search_route::router(config, search))
