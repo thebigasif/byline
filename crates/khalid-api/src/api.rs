@@ -9,11 +9,12 @@ use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_axum::router::OpenApiRouter;
 
+use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
 use crate::post_store::PostStore;
 use crate::problem::Problem;
-use crate::{admin_api, api_version, content_api};
+use crate::{admin_api, admin_comments, api_version, content_api};
 
 /// The document's title, the schemas every route shares and the ways a
 /// key may be sent.
@@ -71,12 +72,22 @@ pub fn router(
     posts: Arc<dyn PostStore>,
     keys: Arc<dyn KeyStore>,
 ) -> (Router, Document) {
+    router_with_comments(content, posts, keys, Arc::new(NoComments))
+}
+
+/// [`router`] for a site that keeps readers' comments, moderated through
+/// `comments` under `/api/admin/v1/comments/`. The document is the same.
+pub fn router_with_comments(
+    content: Arc<dyn ContentStore>,
+    posts: Arc<dyn PostStore>,
+    keys: Arc<dyn KeyStore>,
+    comments: Arc<dyn CommentModeration>,
+) -> (Router, Document) {
+    let admin = admin_api::routes(posts, Arc::clone(&keys))
+        .merge(admin_comments::routes(comments, Arc::clone(&keys)));
     let api = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest(
-            content_api::BASE,
-            content_api::routes(content, Arc::clone(&keys)),
-        )
-        .nest(admin_api::BASE, admin_api::routes(posts, keys));
+        .nest(content_api::BASE, content_api::routes(content, keys))
+        .nest(admin_api::BASE, admin);
     finish(api)
 }
 
