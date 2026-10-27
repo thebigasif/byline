@@ -27,5 +27,5 @@ pub use database::Database;
 pub use db_error::DbError;
 pub use delivery_log::DeliveryLog;
 pub use key_table::KeyTable;
-pub use rebuild::RebuildSummary;
+pub use rebuild::{PostChanges, RebuildSummary};
 pub use site_id::SiteId;

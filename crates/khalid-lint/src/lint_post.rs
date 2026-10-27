@@ -70,6 +70,10 @@ pub struct LintPost {
     /// The collection the post belongs to, such as `guides`, from the
     /// folder it lives in.
     pub collection: Option<String>,
+    /// The properties Google needs that the page's structured data lacks,
+    /// as `khalid-seo`'s check of the page's graph reports them.
+    #[serde(default)]
+    pub structured_data_gaps: Vec<StructuredDataGap>,
 }
 
 impl LintPost {
@@ -96,6 +100,29 @@ impl LintPost {
             forms: Vec::new(),
             focus: None,
             collection: None,
+            structured_data_gaps: Vec::new(),
+        }
+    }
+}
+
+/// A property Google needs that a node of the page's structured data does
+/// not have.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct StructuredDataGap {
+    /// The type of the node, such as `Event`.
+    pub kind: String,
+    /// The missing property, or the choice of them, such as `startDate`.
+    pub property: String,
+}
+
+impl StructuredDataGap {
+    /// The node of type `kind` lacks `property`.
+    pub fn new(kind: impl Into<String>, property: impl Into<String>) -> Self {
+        Self {
+            kind: kind.into(),
+            property: property.into(),
         }
     }
 }

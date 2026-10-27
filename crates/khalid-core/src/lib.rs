@@ -11,6 +11,7 @@ mod absolute_url;
 mod clock;
 mod config;
 mod locale;
+mod reader;
 mod robots;
 mod secret;
 mod seo_settings;
@@ -26,6 +27,7 @@ pub use clock::FixedClock;
 pub use clock::{Clock, SystemClock};
 pub use config::{Config, ConfigError, Environment, Mode, SlugMode};
 pub use locale::{Locale, ParseLocaleError};
+pub use reader::{HomeSection, Reader};
 pub use robots::{
     Following, ImagePreview, Indexing, ParseRobotsError, PreviewLimit, Restriction,
     RobotsDirectives,

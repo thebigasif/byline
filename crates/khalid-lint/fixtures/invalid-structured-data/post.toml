@@ -1,0 +1,11 @@
+# The page's structured data lacks two properties Google needs, as
+# `khalid-seo`'s check reports them: one finding each, and each blocks.
+extends = "clean"
+
+[[structured_data_gaps]]
+kind = "Event"
+property = "startDate"
+
+[[structured_data_gaps]]
+kind = "Product"
+property = "review, aggregateRating or offers"

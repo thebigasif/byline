@@ -1,0 +1,2 @@
+block invalid-structured-data: Event needs startDate
+block invalid-structured-data: Product needs review, aggregateRating or offers

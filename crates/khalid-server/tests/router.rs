@@ -3,7 +3,7 @@
 use axum::body::Body;
 use axum::http::{Method, Request, Response, StatusCode, header};
 use http_body_util::BodyExt;
-use khalid_server::{MediaType, Page, PagePath, Pages, SecurityHeaders, router};
+use khalid_server::{MediaType, Moved, Page, PagePath, Pages, SecurityHeaders, router};
 use tower::ServiceExt;
 
 #[cfg(test)]
@@ -139,6 +139,32 @@ async fn never_redirects_to_another_site() {
         assert_eq!(response.status(), StatusCode::NOT_FOUND, "{uri}");
         assert!(response.headers().get(header::LOCATION).is_none(), "{uri}");
     }
+}
+
+#[tokio::test]
+async fn an_old_address_moves_permanently_to_its_new_one() {
+    let path = |text: &str| PagePath::try_new(text).unwrap();
+    let pages = demo().with_moves(vec![
+        Moved::new(
+            path("/blog/sitemaps-explained/"),
+            path("/blog/what-a-sitemap-does/"),
+        ),
+        Moved::new(path("/blog/"), path("/blog/what-a-sitemap-does/")),
+    ]);
+    let request = |uri: &str| Request::get(uri).body(Body::empty()).unwrap();
+    let app = router(pages, SecurityHeaders::default());
+    let moved = app
+        .clone()
+        .oneshot(request("/blog/sitemaps-explained/?ref=feed"))
+        .await
+        .unwrap();
+    assert_eq!(moved.status(), StatusCode::MOVED_PERMANENTLY);
+    assert_eq!(
+        header(&moved, &header::LOCATION),
+        "/blog/what-a-sitemap-does/?ref=feed"
+    );
+    let page = app.oneshot(request("/blog/")).await.unwrap();
+    assert_eq!(page.status(), StatusCode::OK, "a page wins over a move");
 }
 
 #[tokio::test]

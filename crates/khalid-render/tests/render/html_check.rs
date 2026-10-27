@@ -10,8 +10,9 @@ fn select<'a>(html: &'a Html, selector: &str) -> Vec<ElementRef<'a>> {
 /// BL-WEB-2 and BL-WEB-5 without a browser: the HTML parses without a single
 /// error, there is one `h1` and headings do not skip levels, `lang` and `dir`
 /// are set, landmarks are labelled, the skip link lands, ids are unique,
-/// images reserve their space, every link and form goes somewhere, and there
-/// is no script and no inline style.
+/// images reserve their space, every link and form goes somewhere, a script
+/// is only the one deferred file checked by its hash, and there is no inline
+/// script or style.
 pub(crate) fn assert_valid_page(page: &str) {
     let html = Html::parse_document(page);
     assert!(
@@ -112,10 +113,21 @@ fn assert_elements(html: &Html) {
             "every form has an action"
         );
     }
-    assert!(
-        select(html, "script").is_empty(),
-        "no script on a public page"
-    );
+    let scripts = select(html, "script");
+    assert!(scripts.len() <= 1, "at most the one reader script");
+    for script in scripts {
+        let tag = script.value();
+        assert!(
+            ["src", "integrity", "defer"]
+                .iter()
+                .all(|attribute| tag.attr(attribute).is_some()),
+            "a script is a deferred file checked by its hash"
+        );
+        assert!(
+            script.inner_html().is_empty(),
+            "no inline script, so the CSP needs no exception"
+        );
+    }
 }
 
 /// A page that passes every check, for the tests that break one.
@@ -130,6 +142,20 @@ fn the_checker_accepts_a_good_page() {
 #[should_panic(expected = "exactly one h1")]
 fn the_checker_refuses_a_second_h1() {
     assert_valid_page(&GOOD.replace("<h1>Hi</h1>", "<h1>Hi</h1><h1>Again</h1>"));
+}
+
+#[test]
+#[should_panic(expected = "no inline script")]
+fn the_checker_refuses_an_inline_script() {
+    let script = r#"<script src="/a.js" integrity="sha256-x" defer>alert(1)</script>"#;
+    assert_valid_page(&GOOD.replace("</head>", &format!("{script}</head>")));
+}
+
+#[test]
+#[should_panic(expected = "checked by its hash")]
+fn the_checker_refuses_a_script_without_its_hash() {
+    let script = r#"<script src="/a.js" defer></script>"#;
+    assert_valid_page(&GOOD.replace("</head>", &format!("{script}</head>")));
 }
 
 #[test]

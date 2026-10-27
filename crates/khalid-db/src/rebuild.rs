@@ -1,5 +1,7 @@
 //! Rebuilding the content index from the files (ADR 0001, ADR 0010).
 
+use std::collections::BTreeSet;
+
 use khalid_core::Slug;
 use sqlx::{Sqlite, Transaction};
 
@@ -66,6 +68,75 @@ impl Database {
             posts: index.posts.len(),
         })
     }
+
+    /// Brings the site's index up to `index` after `changes`, in one
+    /// transaction: the posts named in `changes` are written again or
+    /// removed, with their translation keys, and the authors, categories
+    /// and tags are written again whole. Every other post row is left as it
+    /// is, so a save costs the same on a site of ten posts or ten thousand.
+    /// A failed update leaves the index as it was.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DbError::Query`] when a row cannot be written, for the
+    /// same reasons as [`Database::rebuild`].
+    pub async fn update(
+        &self,
+        site: SiteId,
+        index: &ContentIndex,
+        changes: &PostChanges,
+    ) -> Result<RebuildSummary, DbError> {
+        let mut tx = self.writer.begin().await?;
+        let row = site.as_row();
+        for path in changes.written.iter().chain(&changes.removed) {
+            sqlx::query!(
+                "DELETE FROM translations WHERE site_id = ?1 AND path = ?2",
+                row,
+                path
+            )
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query!(
+                "DELETE FROM posts WHERE site_id = ?1 AND path = ?2",
+                row,
+                path
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+        let written = index
+            .posts
+            .iter()
+            .filter(|post| changes.written.contains(&post.path));
+        for post in written {
+            insert_post(&mut tx, site, post).await?;
+        }
+        sqlx::query!("DELETE FROM tags WHERE site_id = ?1", row)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query!("DELETE FROM categories WHERE site_id = ?1", row)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query!("DELETE FROM authors WHERE site_id = ?1", row)
+            .execute(&mut *tx)
+            .await?;
+        insert_lists(&mut tx, site, index).await?;
+        tx.commit().await?;
+        Ok(RebuildSummary {
+            posts: index.posts.len(),
+        })
+    }
+}
+
+/// The posts that changed since the index was last written, by the path
+/// each file has in the index.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct PostChanges {
+    /// Files that are new or were edited, written again from the index.
+    pub written: BTreeSet<String>,
+    /// Files that are gone, whose rows are removed.
+    pub removed: BTreeSet<String>,
 }
 
 /// Writes one post and, when it has one, its translation key.

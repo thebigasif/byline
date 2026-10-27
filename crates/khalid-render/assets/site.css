@@ -74,13 +74,13 @@ main:focus { outline: none; }
 .site-name { color: var(--color-text); font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; text-decoration: none; }
 
 /* Menus: plain lists of links, each a 44 px touch target. */
-nav ul, .tags, .cards, .author-profiles, .letters ul {
+nav ul, .tags, .cards, .author-profiles, .letters ul, .people {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
-nav a, .tags a, .author-profiles a, .site-name, .skip-link {
+nav a, .tags a, .author-profiles a, .person a, .person-name a, .card-meta a, .search-link, .site-name, .skip-link {
   display: inline-flex;
   align-items: center;
   min-block-size: 44px;
@@ -104,14 +104,67 @@ nav a { min-inline-size: 44px; }
 .post-header .image { margin-block: 1.5rem 0; }
 .post-meta { color: var(--color-muted); font-size: 0.9375rem; }
 .post-meta p, .post-meta address { margin-block: 0 0.25rem; font-style: normal; }
+.people { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-block-end: 0.5rem; }
+.person { display: flex; align-items: center; gap: 0.625rem; }
+.person-role { display: block; margin-block-start: -0.5rem; }
+.reviewed-by a { font-weight: 600; }
+.reading-time time { white-space: nowrap; }
+.avatar { inline-size: 2.75rem; block-size: 2.75rem; border-radius: 50%; object-fit: cover; }
 .post-body > :first-child, .page-body > :first-child { margin-block-start: 0; }
 .post-footer { margin-block-start: 2.5rem; }
 .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .tags a { padding-inline: 0.75rem; background: var(--color-surface); border-radius: var(--radius); text-decoration: none; }
 
+/* Home page sections and the row of topic links. */
+.home-section { margin-block-end: 2.5rem; }
+.view-all a { display: inline-flex; align-items: center; min-block-size: 44px; }
+.topics { margin-block-start: 3rem; }
+
+/* The related posts under a post. */
+.related { margin-block-start: 1rem; }
+
+/* The author box at the end of a post. */
+.author-box { margin-block-start: 2.5rem; padding: 1.25rem; background: var(--color-surface); border-radius: var(--radius); }
+.author-box h2 { margin-block-start: 0; font-size: 1.25rem; }
+.person-card { display: flex; gap: 1rem; align-items: start; margin-block-end: 1rem; }
+.person-name { margin-block-end: 0; font-weight: 700; }
+.people-list { display: grid; gap: 1rem; margin: 0 0 2rem; padding: 0; list-style: none; }
+.people-list .person-card { margin-block-end: 0; }
+.people-list p { margin-block-end: 0; }
+
+/* The # link on each heading: always shown and muted, so it never needs hover. */
+.heading-link { display: inline-flex; align-items: center; justify-content: center; min-inline-size: 44px; min-block-size: 44px; margin-block: -0.5rem; color: var(--color-muted); font-weight: 400; text-decoration: none; }
+h2[id], h3[id] { scroll-margin-block-start: 1rem; }
+
+/* What the reader script adds: a status line, the enlarged image, the section being read. */
+.reader-status { position: fixed; inset-block-end: 1rem; inset-inline: 1rem; margin: 0 auto; max-inline-size: max-content; padding: 0.5rem 1rem; background: var(--color-text); color: var(--color-background); border-radius: var(--radius); }
+.reader-status:empty { clip-path: inset(50%); padding: 0; }
+.lightbox { max-inline-size: min(96vw, 80rem); padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-background); }
+.lightbox::backdrop { background: rgb(255 255 255 / 0.92); }
+.lightbox figure { margin: 0; }
+.lightbox img { max-block-size: 82vh; margin-inline: auto; }
+.lightbox button { display: block; min-inline-size: 44px; min-block-size: 44px; margin-inline-start: auto; padding-inline: 1rem; font: inherit; }
+.toc-side a[aria-current] { font-weight: 700; }
+
+/* Table of contents: a details block on phones, a sticky column when there is room. */
+.toc-inline { margin-block-end: 2rem; padding-inline: 1rem; background: var(--color-surface); border-radius: var(--radius); }
+.toc-inline summary { display: flex; align-items: center; min-block-size: 44px; font-weight: 700; cursor: pointer; }
+.toc-inline ol, .toc-side ol { margin: 0; padding-inline-start: 1.25rem; }
+.toc-inline a, .toc-side a { display: inline-flex; align-items: center; min-block-size: 44px; }
+.toc-title { margin-block-end: 0; font-weight: 700; }
+.toc-side { display: none; }
+@media (min-width: 70rem) {
+  main:has(.post-with-toc) { max-inline-size: calc(var(--measure) + 18rem); }
+  .post-with-toc { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; column-gap: 3rem; }
+  .post-with-toc > * { grid-column: 1; }
+  .post-with-toc > .toc-side { display: block; grid-column: 2; grid-row: 1 / span 9; align-self: start; position: sticky; inset-block-start: 1rem; max-block-size: calc(100vh - 2rem); overflow-y: auto; font-size: 0.9375rem; }
+  .toc-inline { display: none; }
+}
+
 /* Images keep their space: width and height are in the HTML. */
 .image { margin-inline: 0; }
 .image img { inline-size: 100%; border-radius: var(--radius); }
+.enlarge { display: block; cursor: zoom-in; }
 figcaption { margin-block-start: 0.5rem; color: var(--color-muted); font-size: 0.9375rem; }
 
 /* Lists of posts. Cards change shape by their own width, wherever they sit. */
@@ -123,6 +176,9 @@ figcaption { margin-block-start: 0.5rem; color: var(--color-muted); font-size: 0
 .card h2 a:hover, .card h3 a:hover { text-decoration: underline; }
 .card p { margin-block-end: 0.25rem; }
 .card time { color: var(--color-muted); font-size: 0.9375rem; }
+.card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 1rem; color: var(--color-muted); font-size: 0.9375rem; }
+.card-author { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--color-text); }
+.card-meta .avatar { inline-size: 2rem; block-size: 2rem; }
 @container (min-width: 36rem) {
   .card:has(.image) { display: grid; grid-template-columns: 12rem 1fr; gap: 0 1.5rem; }
   .card .image { grid-row: span 4; margin: 0; }

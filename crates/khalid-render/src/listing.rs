@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 use serde::{Serialize, Serializer};
 
 use crate::serde_display::display;
-use crate::{BodyHtml, RenderImage};
+use crate::{BodyHtml, Link, Person, RenderImage};
 
 /// One page of a list of posts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -33,6 +33,10 @@ pub struct PostCard {
     pub excerpt: String,
     /// A small image, always lazy.
     pub image: Option<RenderImage>,
+    /// The first author, whose name and photo the card shows.
+    pub author: Option<Person>,
+    /// The post's primary category.
+    pub category: Option<Link>,
 }
 
 /// The pages of a list and which one this is. The current page is always one

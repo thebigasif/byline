@@ -22,17 +22,32 @@ expression: main_of(&page)
 <ul class="cards" role="list">
 <li>
 <article class="card">
+<p class="card-meta"><span class="card-author">Lena Vogt</span>
+<time datetime="2026-09-28">28 September 2026</time>
+<a href="/blog/category/technical-seo/">Technical SEO</a></p>
 <h3><a href="/blog/what-a-sitemap-does/">What a sitemap does, and what it does not</a></h3>
-<p><time datetime="2026-09-28">28 September 2026</time></p>
 <p>A sitemap lists the pages you want search engines to know about.</p>
 </article>
 </li>
 <li>
 <article class="card">
+<p class="card-meta"><span class="card-author">Lena Vogt</span>
+<time datetime="2026-09-21">21 September 2026</time>
+<a href="/blog/category/technical-seo/">Technical SEO</a></p>
 <h3><a href="/blog/how-to-write-a-title-tag/">How to write a title tag</a></h3>
-<p><time datetime="2026-09-21">21 September 2026</time></p>
 <p>The title tag is the blue link in search results.</p>
 </article>
+</li>
+</ul>
+</section>
+<section aria-labelledby="other-authors">
+<h2 id="other-authors">Other authors</h2>
+<ul class="people-list" role="list">
+<li class="person-card">
+<div>
+<p class="person-name"><a href="/blog/authors/asif/">Asif</a></p>
+<p class="person-role">Founder, SerpDad</p>
+</div>
 </li>
 </ul>
 </section>

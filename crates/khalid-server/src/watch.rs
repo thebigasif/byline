@@ -1,15 +1,17 @@
 //! Watching the site folder, and rendering the pages again when a file
-//! changes.
+//! changes: by file events where the system has them, and by looking at
+//! the folder where it does not.
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use tokio::sync::oneshot;
 use tokio::time::MissedTickBehavior;
 
+use crate::watch_events::{Events, follow_events};
 use crate::{Background, LivePages, Render};
 
 /// The folders at the top of a site that Khalid writes itself: the
@@ -19,7 +21,7 @@ const OWN_FOLDERS: [&str; 2] = ["data", "public"];
 
 /// Every file under the site folder, with its size and when it last
 /// changed.
-type Snapshot = BTreeMap<PathBuf, (u64, Option<SystemTime>)>;
+pub(crate) type Snapshot = BTreeMap<PathBuf, (u64, Option<SystemTime>)>;
 
 /// What the site folder held at one moment: every file [`watch`] looks at,
 /// with its size and when it last changed.
@@ -38,19 +40,53 @@ impl FolderLook {
     }
 }
 
-/// Looks at every file under `site` each `every`, and when one was added,
-/// removed or changed since the look before, starting with `since`,
-/// renders the pages again with `renderer` and serves them through `live`.
+/// Renders the pages again with `renderer` and serves them through `live`
+/// whenever a file under `site` is added, removed or changed after the
+/// look `since`.
+///
+/// It listens for the system's file events, so a save shows at once
+/// (CTO answers 2026-10-27, section 1). Where file events cannot be had,
+/// such as on some network drives, it falls back to [`poll`], looking at
+/// the folder each `every`.
 ///
 /// Hidden files and folders, such as `.git` and editor swap files, and
 /// the `data/` and `public/` folders Khalid writes itself, are left out,
 /// so the server's own writes never cause a rebuild. A render that fails
 /// is logged and the pages readers see stay as they were; the next save
 /// tries again. Must be called inside the tokio runtime.
-///
-/// Comparing sizes and change times needs no file-event service, so it
-/// works the same on every system, in containers and on network drives.
 pub fn watch<R: Render + Clone>(
+    site: &Path,
+    renderer: &R,
+    live: &LivePages,
+    since: FolderLook,
+    every: Duration,
+) -> Background {
+    let (site, renderer, live) = (Arc::<Path>::from(site), renderer.clone(), live.clone());
+    Background::spawn(move |stopped| async move {
+        let root = Arc::clone(&site);
+        // Setting the watch up walks the folders, so it runs off the
+        // runtime (RULES.md BL-RUN-7).
+        match tokio::task::spawn_blocking(move || Events::start(&root)).await {
+            Ok(Ok(events)) => follow_events(site, renderer, live, since.0, events, stopped).await,
+            Ok(Err(error)) => {
+                tracing::info!(
+                    %error,
+                    "file events are not available here, so the server looks at the folder for changes"
+                );
+                poll_until_stopped(site, renderer, live, since.0, every, stopped).await;
+            }
+            Err(_) => poll_until_stopped(site, renderer, live, since.0, every, stopped).await,
+        }
+    })
+}
+
+/// Like [`watch`], but only by looking at every file under `site` each
+/// `every` and comparing sizes and change times with the look before.
+///
+/// This needs no file-event service, so it works the same on every
+/// system, in containers and on network drives. [`watch`] falls back to
+/// it. Must be called inside the tokio runtime.
+pub fn poll<R: Render + Clone>(
     site: &Path,
     renderer: &R,
     live: &LivePages,
@@ -59,11 +95,11 @@ pub fn watch<R: Render + Clone>(
 ) -> Background {
     let (site, renderer, live) = (Arc::from(site), renderer.clone(), live.clone());
     Background::spawn(move |stopped| {
-        watch_until_stopped(site, renderer, live, since.0, every, stopped)
+        poll_until_stopped(site, renderer, live, since.0, every, stopped)
     })
 }
 
-async fn watch_until_stopped<R: Render + Clone>(
+async fn poll_until_stopped<R: Render + Clone>(
     site: Arc<Path>,
     renderer: R,
     live: LivePages,
@@ -85,19 +121,25 @@ async fn watch_until_stopped<R: Render + Clone>(
             continue;
         }
         seen = now;
-        match live.refresh(&renderer).await {
-            Ok(()) => tracing::info!("a file changed, so the pages were rendered again"),
-            Err(error) => tracing::warn!(
-                ?error,
-                "a file changed but the pages could not be rendered, so readers keep the last good pages"
-            ),
-        }
+        refresh(&live, &renderer).await;
+    }
+}
+
+/// Renders the pages again and serves them, or logs why it could not and
+/// keeps the pages readers see.
+pub(crate) async fn refresh<R: Render + Clone>(live: &LivePages, renderer: &R) {
+    match live.refresh(renderer).await {
+        Ok(()) => tracing::info!("a file changed, so the pages were rendered again"),
+        Err(error) => tracing::warn!(
+            ?error,
+            "a file changed but the pages could not be rendered, so readers keep the last good pages"
+        ),
     }
 }
 
 /// Reads the folder on a blocking thread (RULES.md BL-RUN-7). `None` when
 /// that thread stopped, which skips one look.
-async fn snapshot(site: &Arc<Path>) -> Option<Snapshot> {
+pub(crate) async fn snapshot(site: &Arc<Path>) -> Option<Snapshot> {
     let site = Arc::clone(site);
     tokio::task::spawn_blocking(move || scan(&site)).await.ok()
 }
@@ -131,11 +173,38 @@ fn scan(root: &Path) -> Snapshot {
     seen
 }
 
-/// Whether `path` is hidden, or one of Khalid's own folders at the top of
-/// the site.
-fn is_left_out(root: &Path, path: &Path) -> bool {
-    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+/// Whether `path`, under `root`, is hidden or sits in a hidden folder, or
+/// in one of Khalid's own folders at the top of the site. A path outside
+/// `root` is never left out.
+pub(crate) fn is_left_out(root: &Path, path: &Path) -> bool {
+    let Ok(below) = path.strip_prefix(root) else {
         return false;
     };
-    name.starts_with('.') || (path.parent() == Some(root) && OWN_FOLDERS.contains(&name))
+    let mut names = below.components().filter_map(|part| match part {
+        Component::Normal(name) => name.to_str(),
+        _ => None,
+    });
+    let Some(top) = names.next() else {
+        return false;
+    };
+    OWN_FOLDERS.contains(&top) || top.starts_with('.') || names.any(|name| name.starts_with('.'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hidden_and_own_files_are_left_out() {
+        let root = Path::new("/srv/site");
+        let left_out = |path: &str| is_left_out(root, Path::new(path));
+        assert!(left_out("/srv/site/data/site.db"));
+        assert!(left_out("/srv/site/public/index.html"));
+        assert!(left_out("/srv/site/.git/index"));
+        assert!(left_out("/srv/site/content/en/posts/.what.md.swp"));
+        assert!(!left_out("/srv/site/content/en/posts/what.md"));
+        assert!(!left_out("/srv/site/content/en/data/what.md"));
+        assert!(!left_out("/srv/site/site.toml"));
+        assert!(!left_out("/elsewhere/data/site.db"));
+    }
 }

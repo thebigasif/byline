@@ -178,6 +178,8 @@ fn the_content_api_lists_the_demo_posts_and_shows_an_edit() {
         ]
     );
     assert_eq!(listed["meta"]["pagination"]["total"], 5, "{listed}");
+    let html = posts[0]["html"].as_str().unwrap_or_default();
+    assert!(html.contains("<p>"), "each body is rendered on request");
 
     let (status, _) = request(&server, "GET", "/api/content/v1/posts/", &[], None);
     assert_eq!(status, 401, "no key, no posts");

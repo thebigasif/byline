@@ -1,10 +1,10 @@
-//! An author's page and a plain page such as About.
+//! An author's page, the page of every author, and a plain page such as About.
 
 use chrono::NaiveDate;
 use serde::Serialize;
 
 use crate::serde_display::display_option;
-use crate::{BodyHtml, Link, Pagination, PostCard, RenderImage};
+use crate::{BodyHtml, Link, Pagination, Person, PostCard, RenderImage};
 
 /// An author's page: who they are, where else they write, and their posts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -23,6 +23,27 @@ pub struct RenderAuthor {
     pub posts: Vec<PostCard>,
     /// Links to the other pages of their posts.
     pub pagination: Option<Pagination>,
+    /// The site's other authors, shown at the end of the page.
+    pub others: Vec<Person>,
+}
+
+/// The page of every author: `/authors/`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RenderAuthors {
+    /// The heading, shown as the page's one `h1`, such as `Authors`.
+    pub title: String,
+    /// Every author, in the order the site lists them.
+    pub authors: Vec<AuthorEntry>,
+}
+
+/// One author on the authors page: who they are and how many posts they
+/// have written.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AuthorEntry {
+    /// Their name, page, role and photo.
+    pub person: Person,
+    /// How many published posts name them as an author.
+    pub posts: usize,
 }
 
 /// A page that is not a post, such as About or Contact.

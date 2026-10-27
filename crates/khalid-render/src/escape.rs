@@ -21,6 +21,15 @@ pub(crate) fn format(
     escape_formatter(out, state, value)
 }
 
+/// `text` made safe inside a double-quoted attribute, for filters that
+/// write HTML themselves.
+pub(crate) fn attribute(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
 fn write_escaped(out: &mut Output<'_>, text: &str) -> std::fmt::Result {
     let mut rest = text;
     while let Some(index) = rest.find(['&', '<', '>', '"', '\'']) {

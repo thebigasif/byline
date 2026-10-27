@@ -31,7 +31,7 @@ pub use content_error::ContentError;
 pub use content_hash::ContentHash;
 pub use embed::{EMBED_PROVIDERS, EmbedProvider};
 pub use form::{FieldKind, FormField};
-pub use post::{Post, PostFront, parse_post};
+pub use post::{MAX_RELATED, Post, PostFront, parse_post};
 pub use render::{Heading, Image, Link, Rendered, render, render_linked};
 pub use schemas::{
     AuthorFront, CaseStudyFront, ChangelogFront, GlossaryFront, IndexFront, PageFront, SnippetFront,

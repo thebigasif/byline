@@ -1,0 +1,10 @@
+---
+source: crates/khalid-render/tests/render/enlarge.rs
+expression: "part(&page, \"<figure>\", \"</figure>\")"
+---
+<figure>
+<a class="enlarge" href="/blog/media/sitemap-2400.png"><img src="/blog/media/sitemap-800.png" alt="A sitemap drawn as a tree of pages" width="800" height="450" srcset="/blog/media/sitemap-800.png 800w" sizes="100vw" loading="lazy" decoding="async" /></a>
+<figcaption>
+<p>Every page you want found, in one list.</p>
+</figcaption>
+</figure>

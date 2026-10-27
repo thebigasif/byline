@@ -25,8 +25,8 @@ const BROTLI: HeaderValue = HeaderValue::from_static("br");
 
 /// The router that answers every request from `pages`.
 ///
-/// `GET` and `HEAD` get the page, a redirect to its clean address, or the
-/// not-found page with status 404. A page carries an `ETag` made from its
+/// `GET` and `HEAD` get the page, a redirect to its clean address, a 301
+/// for an address that moved, or the not-found page with status 404. A page carries an `ETag` made from its
 /// bytes, and a request whose `If-None-Match` names it gets 304 with no
 /// body. A page is cached as `no-cache`, and a [`Page::immutable`] file for
 /// a year. Any other method gets 405. Every response, whatever its status,
@@ -66,7 +66,8 @@ fn respond(pages: &Pages, request: &Request<Body>) -> Response<Body> {
     let uri = request.uri();
     match resolve(pages, uri.path(), uri.query()) {
         Resolved::Page(page) => page_response(page, request.headers(), send_body),
-        Resolved::Redirect(location) => redirect(&location),
+        Resolved::Redirect(location) => redirect(StatusCode::PERMANENT_REDIRECT, &location),
+        Resolved::Moved(location) => redirect(StatusCode::MOVED_PERMANENTLY, &location),
         Resolved::NotFound => file(
             StatusCode::NOT_FOUND,
             MediaType::Html,
@@ -129,11 +130,11 @@ fn file(code: StatusCode, media_type: MediaType, body: &Bytes, send: SendBody) -
     response
 }
 
-fn redirect(location: &str) -> Response<Body> {
+fn redirect(code: StatusCode, location: &str) -> Response<Body> {
     let Ok(value) = HeaderValue::try_from(location) else {
         return status(StatusCode::NOT_FOUND);
     };
-    let mut response = status(StatusCode::PERMANENT_REDIRECT);
+    let mut response = status(code);
     response.headers_mut().insert(header::LOCATION, value);
     response
 }

@@ -1,18 +1,39 @@
 {% extends "base.html" %}
 {% block main %}
-{% from "image.html" import picture -%}
-<article class="post">
+{% from "image.html" import picture, avatar -%}
+{% from "contents.html" import contents_list -%}
+{% from "author_box.html" import author_box -%}
+{% from "card.html" import cards -%}
+{% set toc = page.contents and "table_of_contents" in site.features -%}
+{% if toc %}<article class="post post-with-toc">{% else %}<article class="post">{% endif %}
 <header class="post-header">
 <h1>{{ page.title }}</h1>
 <div class="post-meta">
-<address>{{ t.by }} {% for author in page.authors %}<a rel="author" href="{{ author.href }}">{{ author.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</address>
-<p>{{ t.published }} <time datetime="{{ page.date }}">{{ page.date | date }}</time>{% if page.updated %}. {{ t.updated }} <time datetime="{{ page.updated }}">{{ page.updated | date }}</time>{% endif %}</p>
-{% if page.category %}<p>{{ t.in_category }} <a href="{{ page.category.href }}">{{ page.category.name }}</a></p>
+{% if "byline" in site.features %}<address>
+<ul class="people" role="list" aria-label="{{ t.written_by }}">
+{% for author in page.authors %}<li class="person">{% if author.image %}{{ avatar(author.image) }}{% endif %}<span><a rel="author" href="{{ author.href }}">{{ author.name }}</a>{% if author.role %}<span class="person-role">{{ author.role }}</span>{% endif %}</span></li>
+{% endfor %}</ul>
+</address>
+{% else %}<address>{{ t.by }} {% for author in page.authors %}<a rel="author" href="{{ author.href }}">{{ author.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</address>
+{% endif %}{% if page.reviewers and "reviewed_by" in site.features %}<p class="reviewed-by">{{ t.reviewed_by }} {% for reviewer in page.reviewers %}<a href="{{ reviewer.href }}">{{ reviewer.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% endif %}<p>{{ t.published }} <time datetime="{{ page.date }}">{{ page.date | date }}</time>{% if page.updated %}. {{ t.updated }} <time datetime="{{ page.updated }}">{{ page.updated | date }}</time>{% endif %}</p>
+{% if "reading_time" in site.features %}<p class="reading-time"><time datetime="PT{{ page.reading_time.minutes }}M">{{ t.reading_time | replace("{minutes}", page.reading_time.minutes | string) }}</time></p>
+{% endif %}{% if page.category %}<p>{{ t.in_category }} <a href="{{ page.category.href }}">{{ page.category.name }}</a></p>
 {% endif %}</div>
 {% if page.image %}{{ picture(page.image) }}
 {% endif %}</header>
-<div class="post-body">
-{{ page.body }}
+{% if toc %}<details class="toc-inline">
+<summary>{{ t.contents }}</summary>
+<nav aria-label="{{ t.contents }}">
+{{ contents_list(page.contents) }}
+</nav>
+</details>
+<nav class="toc-side" aria-label="{{ t.contents }}">
+<p class="toc-title">{{ t.contents }}</p>
+{{ contents_list(page.contents) }}
+</nav>
+{% endif %}<div class="post-body">
+{% set body = page.body %}{% if "heading_links" in site.features %}{% set body = body | heading_links(t.heading_link) %}{% endif %}{% if "enlarge_images" in site.features and page.originals %}{% set body = body | enlarge(page.originals) %}{% endif %}{{ body }}
 </div>
 {% if page.tags %}<footer class="post-footer">
 <h2>{{ t.tags }}</h2>
@@ -20,5 +41,10 @@
 {% for tag in page.tags %}<li><a href="{{ tag.href }}" rel="tag">{{ tag.name }}</a></li>
 {% endfor %}</ul>
 </footer>
+{% endif %}{% if "author_box" in site.features and page.authors %}{{ author_box(page.authors, page.reviewers if "reviewed_by" in site.features else []) }}
 {% endif %}</article>
-{% endblock %}
+{% if "related_posts" in site.features and page.related %}<section class="related">
+<h2>{{ t.related_posts }}</h2>
+{{ cards(page.related, 3) }}
+</section>
+{% endif %}{% endblock %}
