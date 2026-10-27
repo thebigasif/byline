@@ -390,3 +390,111 @@ async fn an_unknown_passkey_or_a_site_without_passkeys_signs_nobody_in() {
         Err(SignInError::PasskeysOff)
     ));
 }
+
+/// The challenge in an options answer, read the way a browser would.
+#[cfg(test)]
+fn challenge_in(options: &serde_json::Value) -> Challenge {
+    let text = options["challenge"].as_str().unwrap();
+    let client = serde_json::json!({ "type": "webauthn.get", "challenge": text, "origin": ORIGIN });
+    Challenge::answered_in(client.to_string().as_bytes()).unwrap()
+}
+
+#[cfg(test)]
+async fn call(
+    router: &axum::Router,
+    uri: &str,
+    session: Option<&SessionToken>,
+    body: serde_json::Value,
+) -> (u16, serde_json::Value) {
+    let mut request = axum::http::Request::post(uri).header("content-type", "application/json");
+    if let Some(token) = session {
+        let cookie = token.set_cookie();
+        let pair = cookie.expose().split(';').next().unwrap().to_owned();
+        request = request
+            .header("cookie", pair)
+            .header("x-khalid-csrf", token.csrf().as_str());
+    }
+    let request = request
+        .body(axum::body::Body::from(body.to_string()))
+        .unwrap();
+    let response = tower::ServiceExt::oneshot(router.clone(), request)
+        .await
+        .unwrap();
+    let status = response.status().as_u16();
+    let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null),
+    )
+}
+
+#[tokio::test]
+async fn a_passkey_is_added_and_used_over_the_admin_api() {
+    let (accounts, _, _, token) = site().await;
+    let (router, _) = khalid_api::api::router_with_staff(
+        Arc::new(khalid_api::content_store::MemoryContentStore::new(
+            Vec::new(),
+        )),
+        Arc::new(khalid_api::post_store::MemoryPostStore::default()),
+        Arc::new(khalid_api::keys::MemoryKeyStore::new(Vec::new())),
+        khalid_auth::staff_routes(accounts.clone()),
+        Arc::new(accounts),
+    );
+    let mut soft = Soft::es256();
+    let b64 = |bytes: &[u8]| {
+        base64::Engine::encode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, bytes)
+    };
+    let (status, options) = call(
+        &router,
+        "/api/admin/v1/session/passkeys/options/",
+        Some(&token),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        (status, options["algorithms"].clone()),
+        (200, serde_json::json!([-7, -8])),
+        "{options}"
+    );
+    let (client, object) = soft.register(&challenge_in(&options), ORIGIN);
+    let body = serde_json::json!({ "name": "Laptop", "client_data": b64(&client), "attestation_object": b64(&object) });
+    let (status, json) = call(
+        &router,
+        "/api/admin/v1/session/passkeys/",
+        Some(&token),
+        body.clone(),
+    )
+    .await;
+    assert_eq!(status, 201, "{json}");
+    let (status, _) = call(&router, "/api/admin/v1/session/passkeys/", None, body).await;
+    assert_eq!(status, 401, "adding a passkey needs the session");
+    let (status, options) = call(
+        &router,
+        "/api/admin/v1/session/passkey/options/",
+        None,
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!((status, options["rp_id"].as_str()), (200, Some(RP)));
+    let (client, data, signature) = soft.sign_in(&challenge_in(&options), ORIGIN);
+    let body = serde_json::json!({
+        "credential_id": b64(&soft.id), "client_data": b64(&client),
+        "authenticator_data": b64(&data), "signature": b64(&signature),
+    });
+    let (status, json) = call(
+        &router,
+        "/api/admin/v1/session/passkey/",
+        None,
+        body.clone(),
+    )
+    .await;
+    assert_eq!(
+        (status, json["account"]["role"].as_str()),
+        (200, Some("owner")),
+        "{json}"
+    );
+    let (status, _) = call(&router, "/api/admin/v1/session/passkey/", None, body).await;
+    assert_eq!(status, 401, "a challenge is answered once");
+}

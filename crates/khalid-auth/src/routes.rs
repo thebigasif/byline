@@ -2,6 +2,7 @@
 //! `/api/admin/v1/`: signing in and out, and managing staff (BL-API-4).
 
 mod links;
+mod passkeys;
 mod staff;
 mod staff_changes;
 mod take_back;
@@ -31,12 +32,16 @@ pub fn staff_routes(accounts: Accounts) -> StaffRoutes {
             .routes(routes!(sign_in))
             .routes(routes!(links::send_link))
             .routes(routes!(links::redeem_link))
+            .routes(routes!(passkeys::sign_in_options))
+            .routes(routes!(passkeys::passkey_sign_in))
             .with_state(accounts.clone()),
         signed_in: OpenApiRouter::new()
             .routes(routes!(current_session, take_back::sign_out))
             .routes(routes!(take_back::sign_out_everywhere))
             .routes(routes!(take_back::change_password))
             .routes(routes!(staff::list_staff, staff::invite))
+            .routes(routes!(passkeys::passkey_options))
+            .routes(routes!(passkeys::add_passkey))
             .routes(routes!(
                 staff_changes::change_role,
                 staff_changes::remove_staff
