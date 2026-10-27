@@ -19,7 +19,7 @@ use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::{
     assets, build_message, build_pages, build_seo, content_message, post_files, post_images,
-    site_files,
+    search_page, site_files,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -188,6 +188,9 @@ impl SitePages {
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
         let mut languages = build_pages::pages(config, routes, content, href)?;
+        if let Some(theme) = theme {
+            search_page::add(config, &theme.renderer, &mut languages)?;
+        }
         let beside = files(folder, config, tree, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
