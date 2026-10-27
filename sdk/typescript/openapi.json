@@ -91,6 +91,93 @@
         ]
       }
     },
+    "/api/admin/v1/not-found/redirect/": {
+      "post": {
+        "tags": [
+          "admin redirects"
+        ],
+        "summary": "\"Redirect this\": stores a permanent move from an address that answered\n404 to the page given, or to the nearest page, and drops the address\nfrom the log. Needs `settings:write`.",
+        "operationId": "redirect_miss",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedirectMiss"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The stored redirect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRedirects"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The address already has a redirect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The address or page is not a clean path, or no page is near",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "post": {
         "tags": [
@@ -4712,6 +4799,29 @@
             "description": "Where a visitor is sent in one step, for a move."
           }
         }
+      },
+      "RedirectMiss": {
+        "type": "object",
+        "description": "The address to redirect, and where to.",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The address that answered 404.",
+            "example": "/blog/internal-links/"
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page to send it to. Leave it out for the nearest page.",
+            "example": "/blog/why-internal-links-matter/"
+          }
+        },
+        "additionalProperties": false
       },
       "Settings": {
         "type": "object",

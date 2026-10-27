@@ -1,24 +1,28 @@
-//! The 404 log through the Admin API, each address with the page nearest
-//! to it (KH-SEO-8). Needs `settings:write`.
+//! The 404 log through the Admin API, and "redirect this": one step from
+//! an address that found nothing to a permanent move (KH-SEO-8). Both
+//! routes need `settings:write`.
 
 use std::sync::Arc;
 
-use axum::extract::rejection::QueryRejection;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Query, State};
+use axum::http::StatusCode;
 use axum::{Extension, Json, middleware};
 use chrono::{DateTime, Utc};
 use khalid_core::UserMessage;
-use khalid_seo::{UrlPath, nearest_page};
+use khalid_seo::{Destination, Move, Redirect, RedirectEntry, RedirectRule, UrlPath, nearest_page};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::admin_key::{require, require_admin_key};
+use crate::admin_redirects::{AdminRedirects, store_checked};
 use crate::api_version::negotiate_version;
 use crate::keys::{KeyStore, Principal, Scope};
 use crate::problem::{Problem, ProblemType};
 use crate::redirect_desk::RedirectDesk;
+use crate::redirect_store::Origin;
 
 /// How many logged addresses a list holds when none is asked for.
 const DEFAULT_LIMIT: u32 = 100;
@@ -30,6 +34,7 @@ const MAX_LIMIT: u32 = 1_000;
 pub(crate) fn routes(desk: RedirectDesk, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_misses))
+        .routes(routes!(redirect_miss))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(desk)
@@ -121,4 +126,80 @@ async fn list_misses(
     Ok(Json(AdminMisses {
         misses: misses.collect(),
     }))
+}
+
+/// The address to redirect, and where to.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RedirectMiss {
+    /// The address that answered 404.
+    #[schema(example = "/blog/internal-links/")]
+    path: String,
+    /// The page to send it to. Leave it out for the nearest page.
+    #[serde(default)]
+    #[schema(example = "/blog/why-internal-links-matter/")]
+    to: Option<String>,
+}
+
+/// "Redirect this": stores a permanent move from an address that answered
+/// 404 to the page given, or to the nearest page, and drops the address
+/// from the log. Needs `settings:write`.
+#[utoipa::path(
+    post, path = "/not-found/redirect/", tag = "admin redirects",
+    security(("admin_key" = [])),
+    request_body = RedirectMiss,
+    responses(
+        (status = 201, description = "The stored redirect", body = AdminRedirects),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks settings:write", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The address already has a redirect", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The address or page is not a clean path, or no page is near", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn redirect_miss(
+    State(desk): State<RedirectDesk>,
+    Extension(principal): Extension<Principal>,
+    body: Result<Json<RedirectMiss>, JsonRejection>,
+) -> Result<(StatusCode, Json<AdminRedirects>), Problem> {
+    require(&principal, Scope::SettingsWrite)?;
+    let Json(body) = body.map_err(|rejection| unreadable(&rejection.body_text()))?;
+    let from = UrlPath::try_new(&body.path).map_err(|e| unreadable(&e.to_string()))?;
+    let to = if let Some(to) = body.to.as_deref() {
+        UrlPath::try_new(to).map_err(|e| unreadable(&e.to_string()))?
+    } else {
+        let pages = desk.pages.addresses().await;
+        let pages = pages.map_err(|e| Problem::internal(&e))?;
+        nearest_page(&from, &pages).cloned().ok_or_else(none_near)?
+    };
+    let moved = Redirect::Move {
+        kind: Move::Permanent,
+        to: Destination::Path(to),
+    };
+    let entry = RedirectEntry::Exact(RedirectRule::new(from, moved));
+    let added = store_checked(&desk, vec![entry], Origin::Manual).await?;
+    desk.log
+        .forget(&body.path)
+        .await
+        .map_err(|e| Problem::internal(&e))?;
+    Ok((StatusCode::CREATED, Json(added)))
+}
+
+/// The 422 for a body that cannot be read.
+fn unreadable(reason: &str) -> Problem {
+    let message = UserMessage::new(
+        format!("This address cannot be redirected: {reason}."),
+        "Nothing was stored.",
+        "Send path as it was requested, starting with /, and to as a page's path if you choose one.",
+    );
+    Problem::new(ProblemType::InvalidBody, &message)
+}
+
+/// The 422 when no page is near enough to guess.
+fn none_near() -> Problem {
+    let message = UserMessage::new(
+        "No page is near this address, so Khalid will not guess where it should go.",
+        "A guess that is wrong sends readers and search engines to the wrong page.",
+        "Send to with the page it should go to, or leave it as a 404.",
+    );
+    Problem::new(ProblemType::InvalidBody, &message)
 }

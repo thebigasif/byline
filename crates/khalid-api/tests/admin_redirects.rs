@@ -368,6 +368,14 @@ async fn a_list_with_a_bad_row_a_loop_or_a_taken_address_stores_nothing() {
     }
 }
 
+#[cfg(test)]
+fn redirect_this(body: &Value) -> Request<Body> {
+    Request::post("/api/admin/v1/not-found/redirect/")
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
 #[tokio::test]
 async fn the_log_lists_misses_most_hit_first_with_the_nearest_page() {
     let (status, json) = send(desk("").await, SETTINGS, get("/api/admin/v1/not-found/")).await;
@@ -392,4 +400,41 @@ async fn the_log_lists_misses_most_hit_first_with_the_nearest_page() {
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{json}");
+}
+
+#[tokio::test]
+async fn redirect_this_sends_a_miss_to_its_nearest_page_in_one_step() {
+    let desk = desk("").await;
+    let body = json!({"path": "/blog/internal-links/"});
+    let (status, json) = send(desk.clone(), SETTINGS, redirect_this(&body)).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    let made = &json["redirects"][0];
+    assert_eq!(made["from"], "/blog/internal-links/");
+    assert_eq!(made["to"], "/blog/why-internal-links-matter/");
+    assert_eq!(
+        (&made["status"], &made["origin"]),
+        (&json!(301), &json!("manual"))
+    );
+    let (_, json) = send(desk, SETTINGS, get("/api/admin/v1/not-found/")).await;
+    assert_eq!(json["misses"].as_array().unwrap().len(), 1, "{json}");
+}
+
+#[tokio::test]
+async fn redirect_this_takes_a_chosen_page_and_explains_when_none_is_near() {
+    let desk = desk("").await;
+    let chosen = json!({"path": "/blog/wp-login.php", "to": "/blog/"});
+    let (status, json) = send(desk.clone(), SETTINGS, redirect_this(&chosen)).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["redirects"][0]["to"], "/blog/");
+
+    let none_near = json!({"path": "/blog/xyz/"});
+    let (status, json) = send(desk.clone(), SETTINGS, redirect_this(&none_near)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+    assert!(
+        json["detail"].as_str().unwrap().contains("No page is near"),
+        "{json}"
+    );
+    let bad = json!({"path": "blog/no-slash/"});
+    let (status, _) = send(desk, SETTINGS, redirect_this(&bad)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
 }
