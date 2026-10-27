@@ -1904,6 +1904,7 @@ dependencies = [
  "khalid-routes",
  "khalid-seo",
  "khalid-server",
+ "khalid-static",
  "khalid-theme",
  "mimalloc",
  "scraper",
@@ -2189,6 +2190,16 @@ dependencies = [
  "png",
  "resvg",
  "thiserror",
+]
+
+[[package]]
+name = "khalid-static"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "serde",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]

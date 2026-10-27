@@ -12,7 +12,7 @@ use serde::Serialize;
 use crate::cli::{Cli, Network, Output};
 use crate::doctor_check::{Check, Finding, Outcome, Status};
 use crate::exit::Exit;
-use crate::{doctor_address, doctor_files, doctor_folder, report};
+use crate::{doctor_address, doctor_files, doctor_folder, report, static_mode};
 
 /// The JSON shape of a doctor run.
 #[derive(Serialize)]
@@ -25,6 +25,9 @@ struct DoctorBody<'a> {
     problems: usize,
     /// Every check, in the order it ran.
     checks: Vec<CheckBody<'a>>,
+    /// The features a static site has off, each with what, why and fix.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    off: Vec<static_mode::Off>,
 }
 
 /// The JSON shape of one check. `summary` is there when it passed or was
@@ -55,11 +58,16 @@ impl<'a> From<&'a Finding> for CheckBody<'a> {
 }
 
 /// Runs every check on the `site` folder, then fetches its public address
-/// unless `network` says to stay offline, and reports them all.
+/// unless `network` says to stay offline, and reports them all, with the
+/// features a static site has off.
 pub(crate) fn run(site: &Path, network: Network, cli: &Cli) -> Exit {
     let (mut findings, config) = doctor_files::check(site);
     findings.extend(doctor_folder::check(site));
     findings.push(doctor_address::check(config.as_ref(), network, cli));
+    let off = config
+        .as_ref()
+        .map(|config| static_mode::off(config.mode()))
+        .unwrap_or_default();
     let problems = findings
         .iter()
         .filter(|finding| finding.status() == Status::Problem)
@@ -76,16 +84,18 @@ pub(crate) fn run(site: &Path, network: Network, cli: &Cli) -> Exit {
                 ok: problems == 0,
                 problems,
                 checks: findings.iter().map(CheckBody::from).collect(),
+                off,
             },
             exit,
         ),
-        Output::Human => report::text(&human(site, &findings, problems), exit),
+        Output::Human => report::text(&human(site, &findings, &off, problems), exit),
     }
 }
 
 /// The report for a person: a line per check, each problem as what, why and
-/// fix below its check, and a last line that says what to do next.
-fn human(site: &Path, findings: &[Finding], problems: usize) -> String {
+/// fix below its check, the features that are `off`, and a last line that
+/// says what to do next.
+fn human(site: &Path, findings: &[Finding], off: &[static_mode::Off], problems: usize) -> String {
     let mut said = format!("Checked the site in {}.\n", site.display());
     for finding in findings {
         let title = finding.check.title();
@@ -101,6 +111,7 @@ fn human(site: &Path, findings: &[Finding], problems: usize) -> String {
             ),
         };
     }
+    said.push_str(&static_mode::human(off));
     let _ = match problems {
         0 => writeln!(said, "No problems found."),
         1 => writeln!(

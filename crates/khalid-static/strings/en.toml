@@ -1,0 +1,6 @@
+# What a reader sees where a form was, on a page Khalid built in static mode.
+# One sentence each. Every language file has exactly these keys.
+comments = "Comments are not open on this site."
+newsletter = "Signing up by email is not open on this site."
+forms = "This form cannot be sent from this site."
+search = "Search is not available on this site."
