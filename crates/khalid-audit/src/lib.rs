@@ -11,9 +11,11 @@
 
 mod answer;
 mod audit;
+mod audit_error;
 mod body_checks;
 mod check;
 mod crawl;
+mod folder;
 mod head_link_checks;
 mod issue;
 mod link;
@@ -28,8 +30,10 @@ mod visit;
 
 pub use answer::{Answer, Source, Unreached};
 pub use audit::audit;
+pub use audit_error::AuditError;
 pub use check::{Category, Check, Severity};
 pub use crawl::{Crawl, Limit, crawl};
+pub use folder::Folder;
 pub use issue::Issue;
 pub use link::{Alternate, Image, Link};
 pub use page::Page;

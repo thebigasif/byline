@@ -2122,10 +2122,13 @@ name = "khalid-audit"
 version = "0.0.0"
 dependencies = [
  "khalid-core",
+ "percent-encoding",
  "roxmltree 0.20.0",
  "scraper",
  "serde",
  "serde_json",
+ "tempfile",
+ "thiserror",
  "tokio",
  "url",
 ]
