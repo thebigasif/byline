@@ -18,6 +18,7 @@ use serde::Serialize;
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::post_files::Assets;
+use crate::post_photos::Shown;
 use crate::{
     assets, build_files, build_gate, build_message, build_pages, build_redirects, build_seo,
     content_message, lint, lint_message, post_files, post_images, report, search_page,
@@ -101,7 +102,8 @@ fn build(
     for file in &beside {
         copy(&post_files::on_disk(site, file)?, out, &file.file)?;
     }
-    for size in post_images::attach(site, config, &beside, &mut languages)? {
+    let mut shown = Shown::default();
+    for size in post_images::attach(site, config, &beside, &mut languages, &mut shown)? {
         copy(&size.path, out, &size.file)?;
     }
     let seo_site = build_seo::site(config)?;

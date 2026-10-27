@@ -290,7 +290,7 @@ fn post_page(
     seo.excerpt.clone_from(&description);
     seo.published = Some(build_seo::midnight(date));
     build_seo::from_front(&mut seo, front)?;
-    seo.content_html = full_addresses(config, &rendered.html);
+    seo.content_html = build_seo::full_addresses(config, &rendered.html);
     let (reviewers, profiles) = build_reader::reviewers(front, people, config)?;
     seo.reviewers = profiles;
     let html = BodyHtml::from_sanitised(rendered.html);
@@ -399,6 +399,10 @@ fn author_pages(
         let rest = format!("authors/{slug}/");
         let path = path_of(config, locale, &rest);
         let meta = meta(config, name.clone(), String::new(), path, PageKind::Website)?;
+        let photo = front
+            .photo
+            .as_deref()
+            .and_then(|src| LeadImage::try_new(src, &name));
         let profiles = front
             .same_as
             .iter()
@@ -436,7 +440,9 @@ fn author_pages(
                 .collect(),
         };
         let body = PageBody::Author(Box::new(author));
-        pages.push(page(locale, config, &rest, meta, body, seo).made_from(&doc.path));
+        let mut page = page(locale, config, &rest, meta, body, seo).made_from(&doc.path);
+        page.lead = photo;
+        pages.push(page);
     }
     Ok(pages)
 }
@@ -493,28 +499,6 @@ pub(crate) fn body_html<F>(
     render_linked(&doc.body, &doc.locale, config.slugs(), links)
         .map(|rendered| BodyHtml::from_sanitised(rendered.html))
         .map_err(|error| build_message::block(&doc.path, &error))
-}
-
-/// `html` with each `href` and `src` that starts at the site root, such as
-/// `/blog/about/`, made a full address on the site's host, for feed readers,
-/// which have no page to read such a path against. A body escapes `"` in its
-/// text, so `="/` can only end an attribute name.
-fn full_addresses(config: &Config, html: &str) -> String {
-    let origin = config.address().as_str().trim_end_matches('/');
-    let mut out = String::with_capacity(html.len());
-    let mut rest = html;
-    while let Some((before, after)) = rest.split_once("=\"/") {
-        out.push_str(before);
-        out.push_str("=\"");
-        let named = before.ends_with(" href") || before.ends_with(" src");
-        if named && !after.starts_with('/') {
-            out.push_str(origin);
-        }
-        out.push('/');
-        rest = after;
-    }
-    out.push_str(rest);
-    out
 }
 
 /// The head of a page at `path`, indexable, with no alternates yet.

@@ -22,6 +22,7 @@ use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
 use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
+use crate::post_photos::Shown;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::{
@@ -68,6 +69,9 @@ struct Outline {
     content: SiteContent,
     /// Every dated post, which related posts are chosen from.
     listed: Vec<ListedPost>,
+    /// The lead images and author photos the full render drew, which cards
+    /// and bylines on a saved post's page show.
+    shown: Shown,
 }
 
 /// The theme's renderer, and the stylesheet every page links.
@@ -263,7 +267,9 @@ impl SitePages {
             .retain(|other| &other.locale != locale || other.front.slug.as_ref() != Some(slug));
         content.posts.push(doc);
         let assets = Assets::of(&tree);
-        let (served, _) = self.render_of(&assets, (&content, &[]), Which::Posts)?;
+        let mut shown = Shown::default();
+        let which = Which::Posts;
+        let (served, _) = self.render_of(&assets, (&content, &[]), which, &mut shown)?;
         let address = build_pages::path_of(config, locale, &format!("{slug}/"));
         let page = served
             .pages
@@ -303,10 +309,12 @@ impl SitePages {
             Some(_) => Some(Catalog::of(folder, config, content)?),
             None => None,
         };
-        let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All)?;
+        let mut shown = Shown::default();
+        let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All, &mut shown)?;
         *outline.lock().unwrap_or_else(PoisonError::into_inner) = Outline {
             content: outline_of(content),
             listed,
+            shown,
         };
         *kept.lock().unwrap_or_else(PoisonError::into_inner) = Some(assets);
         if let (Some(feed), Some(catalog)) = (feed, catalog) {
@@ -322,12 +330,14 @@ impl SitePages {
     /// Related posts are chosen among those and `others`. Only a full
     /// render serves the files; a saved post's page still points its
     /// images at them. A headless site has no HTML page, as `khalid build`
-    /// writes none.
+    /// writes none. Cards and bylines show the images in `shown`, which
+    /// gains the ones these pages draw.
     fn render_of(
         &self,
         assets: &Assets,
         (content, others): (&SiteContent, &[ListedPost]),
         which: Which,
+        shown: &mut Shown,
     ) -> Result<(Served, Vec<ListedPost>), UserMessage> {
         let Site {
             folder,
@@ -344,7 +354,7 @@ impl SitePages {
             search_page::add(config, &theme.renderer, &mut languages)?;
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
-        let beside = post_files::served(folder, config, assets, &mut languages)?;
+        let beside = post_files::served(folder, config, assets, &mut languages, shown)?;
         let seo_site = build_seo::site(config)?;
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
         let mut served = Served {
@@ -543,8 +553,13 @@ impl Render for SitePages {
         let (Some(assets), Some((saved, others))) = (kept, self.saved_posts(files)) else {
             return Ok(None);
         };
+        let outline = self.0.outline.lock();
+        let mut shown = outline
+            .unwrap_or_else(PoisonError::into_inner)
+            .shown
+            .clone();
         let (served, _) = self
-            .render_of(&assets, (&saved, &others), Which::Posts)
+            .render_of(&assets, (&saved, &others), Which::Posts, &mut shown)
             .map_err(Unrendered)?;
         Ok(Some(served.pages))
     }

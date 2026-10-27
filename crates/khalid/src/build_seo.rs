@@ -45,6 +45,28 @@ pub(crate) fn page(
     Ok(SeoPage::new(kind, locale.clone(), path, title))
 }
 
+/// `html` with each `href` and `src` that starts at the site root, such as
+/// `/blog/about/`, made a full address on the site's host, for feed readers,
+/// which have no page to read such a path against. A body escapes `"` in its
+/// text, so `="/` can only end an attribute name.
+pub(crate) fn full_addresses(config: &Config, html: &str) -> String {
+    let origin = config.address().as_str().trim_end_matches('/');
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some((before, after)) = rest.split_once("=\"/") {
+        out.push_str(before);
+        out.push_str("=\"");
+        let named = before.ends_with(" href") || before.ends_with(" src");
+        if named && !after.starts_with('/') {
+            out.push_str(origin);
+        }
+        out.push('/');
+        rest = after;
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Copies what a post's `front` matter says about search into `seo`: its
 /// translation key, robots, canonical, search title and sitemap listing.
 /// The search title may use the meta template variables, such as `{site}`.

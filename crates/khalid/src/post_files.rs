@@ -14,6 +14,7 @@ use khalid_render::{BodyHtml, PageBody};
 use khalid_server::{MediaType, Page as Served, PagePath};
 
 use crate::build_pages::{LanguagePages, Page};
+use crate::post_photos::Shown;
 use crate::{build_message, post_images};
 
 /// How a body image starts, up to its address, as `khalid_content::render`
@@ -156,12 +157,14 @@ pub(crate) fn read(site: &Path, file: &PostFile) -> Result<Vec<u8>, UserMessage>
 
 /// The files beside folder posts in `assets`, as `khalid serve` answers
 /// them, each at its page's address, and the sizes of their images, which
-/// never change under their names.
+/// never change under their names. Cards and names take their images from
+/// `shown`, which gains the ones these pages draw.
 pub(crate) fn served(
     folder: &Path,
     config: &Config,
     assets: &Assets,
     languages: &mut [LanguagePages],
+    shown: &mut Shown,
 ) -> Result<Vec<Served>, UserMessage> {
     let address = |text: &str| PagePath::try_new(text).map_err(|_| build_message::address(text));
     let beside = attach(assets, languages);
@@ -174,7 +177,7 @@ pub(crate) fn served(
             read(folder, file)?,
         ));
     }
-    for size in post_images::attach(folder, config, &beside, languages)? {
+    for size in post_images::attach(folder, config, &beside, languages, shown)? {
         let kind = MediaType::for_file(&size.address);
         let bytes = fs::read(&size.path).map_err(|error| unreadable(&size.path, &error))?;
         pages.push(Served::immutable(address(&size.address)?, kind, bytes));

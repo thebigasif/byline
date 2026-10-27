@@ -15,6 +15,7 @@ use khalid_server::MediaType;
 
 use crate::build_pages::{LanguagePages, Page};
 use crate::post_files::{self, IMAGE, PostFile};
+use crate::post_photos::{self, Shown};
 
 /// The folder under the mount, and in the output folder, that holds every size.
 const FOLDER: &str = "media/";
@@ -46,11 +47,17 @@ struct Picture {
 /// Makes the sizes of each image among `files` that the `site` folder's
 /// `data/media/` lacks, off the async runtime (RULES.md BL-RUN-7), draws
 /// the body images of `languages` showing one, and returns every size once.
+///
+/// The lead images and author photos drawn are added to `shown`, which may
+/// hold those of an earlier render, and every card and name on the pages
+/// gets its image from it, so a saved post's page rendered alone shows the
+/// same images as the full render.
 pub(crate) fn attach(
     site: &Path,
     config: &Config,
     files: &[PostFile],
     languages: &mut [LanguagePages],
+    shown: &mut Shown,
 ) -> Result<Vec<MediaFile>, UserMessage> {
     let cache = MediaCache::new(site);
     let mut pictures = BTreeMap::new();
@@ -71,28 +78,34 @@ pub(crate) fn attach(
     for language in languages.iter_mut().filter(|_| !pictures.is_empty()) {
         for page in &mut language.pages {
             post_files::rewrite(page, |html| drawn(html, &pictures));
-            lead(config, page, &pictures);
+            if let Some(image) = lead(config, page, &pictures) {
+                shown.add(page, image);
+            }
         }
     }
+    post_photos::attach(languages, shown);
     Ok(sizes.into_values().collect())
 }
 
-/// Draws the lead image of the post on `page`, when it is a file beside the
-/// post with its sizes among `pictures`: fetched at once with high priority,
-/// as the one large image at the top (BL-WEB-5), and shared as the page's
-/// Open Graph and X image. A lead image anywhere else is left out until it
-/// has sizes, so no page shifts while it loads.
-fn lead(config: &Config, page: &mut Page, pictures: &BTreeMap<String, Picture>) {
-    let Some(image) = &page.lead else {
-        return;
-    };
+/// Draws the lead image of a post, or the photo of an author, at the top
+/// of `page`, when it is a file beside the page's file with its sizes among
+/// `pictures`: fetched at once with high priority, as the one large image
+/// at the top (BL-WEB-5), and shared as the page's Open Graph and X image.
+/// Returns what it drew. An image anywhere else is left out until it has
+/// sizes, so no page shifts while it loads.
+fn lead(
+    config: &Config,
+    page: &mut Page,
+    pictures: &BTreeMap<String, Picture>,
+) -> Option<RenderImage> {
+    let image = page.lead.as_ref()?;
     let name = image.src.trim_start_matches("./");
     let address = format!("{}{name}", page.meta.path);
-    let (Some(picture), PageBody::Post(post)) = (pictures.get(&address), &mut page.body) else {
-        tracing::warn!(image = %image.src, page = %page.meta.path, "the lead image is not a file beside the post, so it is left out");
-        return;
+    let Some(picture) = pictures.get(&address) else {
+        tracing::warn!(image = %image.src, page = %page.meta.path, "the lead image is not a file beside its page, so it is left out");
+        return None;
     };
-    post.image = Some(RenderImage {
+    let drawn = RenderImage {
         alt: image.alt.clone(),
         caption: image.caption.clone(),
         width: picture.width,
@@ -102,7 +115,12 @@ fn lead(config: &Config, page: &mut Page, pictures: &BTreeMap<String, Picture>) 
         webp: Some(picture.webp.clone()),
         fallback: picture.fallback.clone(),
         loading: Loading::Eager,
-    });
+    };
+    match &mut page.body {
+        PageBody::Post(post) => post.image = Some(drawn.clone()),
+        PageBody::Author(author) => author.image = Some(drawn.clone()),
+        _ => return None,
+    }
     let origin = config.address().as_str().trim_end_matches('/');
     let widest = picture.fallback.widest();
     let shared = widest.and_then(|file| {
@@ -112,6 +130,7 @@ fn lead(config: &Config, page: &mut Page, pictures: &BTreeMap<String, Picture>) 
         Some(ShareImage::new(url, file.width, height, &image.alt))
     });
     page.seo.share_image = shared;
+    Some(drawn)
 }
 
 /// The picture `image` makes, and its files. `None` without the WebP and
