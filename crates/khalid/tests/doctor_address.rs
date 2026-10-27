@@ -51,16 +51,22 @@ fn within(dir: &Path, name: &str) -> PathBuf {
     path
 }
 
-/// Serves `status` and `body` at `/blog/`. Returns the server and the site
-/// address under [`HOST`].
+/// Serves `status` and `body` at `/blog/`, and a `robots.txt` that names
+/// the blog's sitemap. Returns the server and the site address under
+/// [`HOST`].
 #[cfg(test)]
 async fn stand_in(status: u16, body: &str) -> (MockServer, String) {
     let server = MockServer::start().await;
+    let address = format!("http://{HOST}:{}", server.address().port());
     Mock::given(path("/blog/"))
         .respond_with(ResponseTemplate::new(status).set_body_string(body))
         .mount(&server)
         .await;
-    let address = format!("http://{HOST}:{}", server.address().port());
+    let robots = format!("User-agent: *\nAllow: /blog/\n\nSitemap: {address}/blog/sitemap.xml\n");
+    Mock::given(path("/robots.txt"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(robots))
+        .mount(&server)
+        .await;
     (server, address)
 }
 
@@ -185,8 +191,9 @@ async fn doctor_recognises_the_demo_blog_as_khalid_serve_answers_it() {
     );
     let (_served, port) = serve(demo.path());
     let site = site_at(&format!("http://{HOST}:{port}"));
-    let (code, body) = doctor(site.path(), Names::StandIn).await;
-    assert_eq!(code, Some(0), "{body}");
+    // The served robots.txt names the demo's own host, not the stand-in's,
+    // so only the address check is judged here.
+    let (_, body) = doctor(site.path(), Names::StandIn).await;
     assert_eq!(address(&body)["status"], "ok", "{body}");
 }
 

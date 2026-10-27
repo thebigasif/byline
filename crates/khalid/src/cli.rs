@@ -115,6 +115,7 @@ pub(crate) enum Command {
     /// Check the site and its public address, and say how to fix each problem
     Doctor {
         /// Check only the files, without fetching the blog's public address
+        /// or the host's robots.txt
         #[arg(
             long = "offline",
             action = ArgAction::SetTrue,
@@ -348,7 +349,8 @@ pub(crate) enum ImportSource {
     Markdown,
 }
 
-/// Whether `khalid doctor` fetches the blog's public address.
+/// Whether `khalid doctor` fetches the blog's public address and the host's
+/// `robots.txt`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Network {
     /// Fetch it, to check the blog answers there.
