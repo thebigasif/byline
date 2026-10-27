@@ -2064,11 +2064,18 @@ dependencies = [
 name = "khalid-https"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
+ "khalid-core",
+ "khalid-outbound",
+ "khalid-server",
  "rcgen",
  "rustls",
  "rustls-pki-types",
  "thiserror",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
  "x509-parser",
 ]
 

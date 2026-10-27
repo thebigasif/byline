@@ -1,6 +1,6 @@
 //! Why HTTPS could not be set up.
 
-/// Why a certificate could not be read.
+/// Why a certificate could not be read or the TLS listener set up.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum HttpsError {
@@ -24,6 +24,13 @@ pub enum HttpsError {
     /// The key is of a kind TLS cannot sign with.
     #[error("the private key cannot be used for TLS")]
     Key {
+        /// What the TLS library reported.
+        #[source]
+        source: rustls::Error,
+    },
+    /// The TLS settings could not be built.
+    #[error("TLS could not be set up")]
+    Tls {
         /// What the TLS library reported.
         #[source]
         source: rustls::Error,

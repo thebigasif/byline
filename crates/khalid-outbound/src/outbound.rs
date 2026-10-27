@@ -85,17 +85,49 @@ impl Outbound {
     ///
     /// Returns [`OutboundError::Client`] when the TLS setup fails.
     pub fn with_resolver(limits: Limits, resolver: Resolver) -> Result<Self, OutboundError> {
+        Self::build(limits, resolver, None)
+    }
+
+    /// A client that resolves names through `resolver` and trusts only the
+    /// PEM certificate `root`, such as a test certificate authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OutboundError::Client`] when `root` is not a PEM
+    /// certificate or the TLS setup fails.
+    #[cfg(any(test, feature = "test-util"))]
+    pub fn trusting(
+        limits: Limits,
+        resolver: Resolver,
+        root: &[u8],
+    ) -> Result<Self, OutboundError> {
+        let root = reqwest::Certificate::from_pem(root)
+            .map_err(|source| OutboundError::Client { source })?;
+        Self::build(limits, resolver, Some(root))
+    }
+
+    /// The client, trusting `root` alone when there is one, and the
+    /// system's certificate authorities otherwise.
+    fn build(
+        limits: Limits,
+        resolver: Resolver,
+        root: Option<reqwest::Certificate>,
+    ) -> Result<Self, OutboundError> {
         // Installing fails when a provider is already in place, which is fine.
         drop(rustls::crypto::ring::default_provider().install_default());
         let max = limits.max_redirects;
         let reach = resolver.reach();
         let redirects = Policy::custom(move |attempt| follow(attempt, max, reach));
-        let client = RawClient::builder()
+        let mut builder = RawClient::builder()
             .timeout(limits.timeout)
             .connect_timeout(limits.connect_timeout)
             .redirect(redirects)
             .dns_resolver(Arc::new(Guarded(resolver.clone())))
-            .no_proxy()
+            .no_proxy();
+        if let Some(root) = root {
+            builder = builder.tls_certs_only([root]);
+        }
+        let client = builder
             .build()
             .map_err(|source| OutboundError::Client { source })?;
         Ok(Self {
