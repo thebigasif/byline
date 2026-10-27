@@ -134,11 +134,26 @@ fn an_agent_drafts_and_publishes_a_post_behind_the_lint_gate() {
         "{started}"
     );
     let tools = session.ask("tools/list", &json!({}));
-    assert_eq!(tools["result"]["tools"].as_array().map(Vec::len), Some(5));
+    assert_eq!(tools["result"]["tools"].as_array().map(Vec::len), Some(6));
 
     let weak = json!({ "title": "A weak post", "markdown": "No link and no author." });
     let (failed, weak) = session.call("create_draft", &weak);
     assert!(!failed, "{weak}");
+    let (failed, report) = session.call("lint_post", &json!({ "id": "en.a-weak-post" }));
+    assert!(!failed, "linting worked, whatever it found: {report}");
+    assert_eq!(report["blocks"], true, "{report}");
+    let rules: Vec<&Value> = report["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| &f["rule"])
+        .collect();
+    assert!(rules.contains(&&json!("no-author")), "{rules:?}");
+    assert!(rules.contains(&&json!("no-internal-link")), "{rules:?}");
+    assert!(
+        !rules.contains(&&json!("no-date")),
+        "linted as it would go live: {rules:?}"
+    );
     let publish = json!({ "id": "en.a-weak-post", "updated_at": weak["posts"][0]["updated_at"] });
     let (refused, problem) = session.call("publish_post", &publish);
     assert!(refused, "{problem}");

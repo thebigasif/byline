@@ -41,6 +41,7 @@ mod lint_message;
 mod mcp;
 mod mcp_content;
 mod mcp_message;
+mod mcp_tools;
 mod new;
 mod new_message;
 mod outbound;

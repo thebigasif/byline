@@ -213,3 +213,26 @@ async fn editing_a_published_post_keeps_its_other_fields() {
     assert!(text.contains("translation: internal-links\n"), "{text}");
     assert!(text.contains("\nAn internal link is a link"), "{text}");
 }
+
+#[tokio::test]
+async fn linting_judges_a_post_and_writes_nothing() {
+    let (site, posts) = demo();
+    let live = posts.lint("en.how-to-write-a-title-tag").await.unwrap();
+    assert!(
+        !live.unwrap().blocks(),
+        "a published demo post passes the gate"
+    );
+    assert!(posts.lint("en.no-such-post").await.unwrap().is_none());
+
+    let weak = PostDraft::new("A weak post", None, "No link and no author.");
+    posts.create(weak, "k", None).await.unwrap();
+    let draft = within(site.path(), "drafts/en/a-weak-post.md");
+    let before = fs::read_to_string(&draft).unwrap();
+    let report = posts.lint("en.a-weak-post").await.unwrap().unwrap();
+    assert!(report.blocks());
+    assert_eq!(
+        fs::read_to_string(&draft).unwrap(),
+        before,
+        "the draft is not dated"
+    );
+}
