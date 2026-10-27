@@ -102,6 +102,41 @@ fn the_head_tables_reach_the_home_page() {
     insta::assert_snapshot!(head_lines(&out, "index.html"));
 }
 
+/// Crawlers and feeds, as a site owner writes them.
+const FILE_TABLES: &str = r#"
+[seo.crawlers]
+disallow = ["/drafts/"]
+allow = ["Googlebot"]
+block = ["GPTBot", "CCBot"]
+
+[seo.feeds]
+content = "excerpt"
+source_line = "{title} first appeared on {site}."
+limit = 2
+
+[seo.links]
+external = ["nofollow"]
+affiliate_domains = ["amazon.com"]
+"#;
+
+#[test]
+fn the_crawler_table_shapes_robots_txt() {
+    let (_site, out) = built_with(FILE_TABLES);
+    insta::assert_snapshot!(fs::read_to_string(at(out.path(), "robots.txt")).unwrap());
+}
+
+#[test]
+fn the_feed_table_shapes_every_feed() {
+    let (_site, out) = built_with(FILE_TABLES);
+    let rss = fs::read_to_string(at(out.path(), "feed.xml")).unwrap();
+    assert_eq!(rss.matches("<item>").count(), 2, "{rss}");
+    assert!(rss.contains("first appeared on"), "{rss}");
+    let json = fs::read_to_string(at(out.path(), "de/feed.json")).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let items = value["items"].as_array().unwrap();
+    assert!(items.len() <= 2, "{json}");
+}
+
 #[test]
 fn a_post_title_follows_its_template() {
     let (_site, out) = built_with(HEAD_TABLES);

@@ -9,10 +9,10 @@ use khalid_core::toml_location::line_of_key;
 use khalid_core::{SeoSettings, TitleSettings, UserMessage};
 use khalid_seo::{MetaTemplate, PageKind, SeoSite, TemplatePair};
 
-use crate::{config_message, seo_head_settings};
+use crate::{config_message, seo_crawl_settings, seo_head_settings};
 
 /// What a title or description template may use, for the fix.
-const TEMPLATE: &str =
+pub(crate) const TEMPLATE: &str =
     "a template using {title}, {site}, {tagline}, {sep}, {excerpt}, {category} or {author}";
 
 /// A value in an `[seo]` table that `khalid-seo` refuses.
@@ -103,6 +103,9 @@ pub(crate) fn apply(settings: &SeoSettings, site: &mut SeoSite) -> Result<(), Se
     titles(&settings.titles, site)?;
     seo_head_settings::social(&settings.social, site)?;
     seo_head_settings::verification(&settings.verification, site)?;
+    seo_crawl_settings::crawlers(&settings.crawlers, site)?;
+    seo_crawl_settings::feeds(&settings.feeds, site)?;
+    seo_crawl_settings::links(&settings.links, site)?;
     Ok(())
 }
 

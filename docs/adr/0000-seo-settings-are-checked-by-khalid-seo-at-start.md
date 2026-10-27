@@ -17,5 +17,5 @@ Three ways were open: move every validated type into core, copy the rules into c
 ## Consequences
 
 - Each rule exists once, in `khalid-seo`, and the Admin API settings screen can reuse the same check when it writes these tables.
-- Core keeps a few small enums that mirror `khalid-seo`'s (`LinkRelSetting`, `FeedContentSetting`, `PublisherType`, `WeekdaySetting`). The binary maps them with exhaustive matches, so a new variant on either side fails to compile until both agree.
+- Core keeps a few small enums that mirror `khalid-seo`'s (`LinkRelSetting`, `LinkTargetSetting`, `FeedContentSetting`, `PublisherType`, `WeekdaySetting`). They are not `#[non_exhaustive]`, so the binary maps them with exhaustive matches and a new variant in core fails to compile until the binary handles it.
 - A template or code that is wrong is reported by `khalid-seo`'s message, which quotes the value. The values are public (they appear in every page's head), so quoting them is safe.

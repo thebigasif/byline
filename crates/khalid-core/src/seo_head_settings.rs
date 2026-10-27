@@ -207,7 +207,6 @@ impl Default for FeedSettings {
 /// How much of each post a feed carries: `"full"` or `"excerpt"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
-#[non_exhaustive]
 pub enum FeedContentSetting {
     /// The whole post.
     #[default]
@@ -242,7 +241,6 @@ pub struct LinkSettings {
 /// A `rel` value for every external link: `"nofollow"`, `"sponsored"` or `"ugc"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "lowercase")]
-#[non_exhaustive]
 pub enum LinkRelSetting {
     /// The site does not vouch for the page.
     NoFollow,
@@ -255,7 +253,6 @@ pub enum LinkRelSetting {
 /// Where an external link opens: `"same-tab"` or `"new-tab"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[non_exhaustive]
 pub enum LinkTargetSetting {
     /// In the same tab.
     #[default]

@@ -45,7 +45,6 @@ pub struct PublisherSettings {
 /// Whether the site is a company's or a person's: `"organization"` or `"person"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
-#[non_exhaustive]
 pub enum PublisherType {
     /// A company or another organisation.
     #[default]
@@ -125,7 +124,6 @@ pub struct HoursSettings {
 /// A day of the week, written `"mon"` to `"sun"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
-#[non_exhaustive]
 pub enum WeekdaySetting {
     /// Monday.
     Mon,
