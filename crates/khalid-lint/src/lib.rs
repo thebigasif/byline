@@ -49,7 +49,7 @@ pub use lint_config::LintConfig;
 pub use lint_error::LintError;
 pub use lint_post::{
     Cluster, ClusterRole, FormDestination, Heading, HeadingLevel, Image, LinkKind, LintForm,
-    LintLink, LintPost,
+    LintLink, LintPost, StructuredDataGap,
 };
 pub use lint_site::{GlossaryTerm, LintCollection, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};

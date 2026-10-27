@@ -255,3 +255,9 @@ what = "Two collections, the folders that group your posts, could give two posts
 why = "Only one post can live at an address, so the other could vanish from your site and from Google."
 fix = "Change the `permalink` of one collection in `routes.toml` so their addresses differ."
 guide = "collections"
+
+[invalid-structured-data]
+what = "The search result details on this page miss a property Google needs."
+why = "Google ignores details it cannot read in full, so the post loses its richer search result."
+fix = "Add the property this message names to the block it belongs to."
+guide = "structured-data"

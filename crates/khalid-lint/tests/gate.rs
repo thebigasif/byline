@@ -3,7 +3,8 @@
 use chrono::{NaiveDate, TimeZone, Utc};
 use khalid_core::{FixedClock, Locale, Slug};
 use khalid_lint::{
-    LinkKind, LintConfig, LintLink, LintPost, LintSite, Linter, PublishGate, Verdict,
+    LinkKind, LintConfig, LintLink, LintPost, LintSite, Linter, PublishGate, StructuredDataGap,
+    Verdict,
 };
 
 #[cfg(test)]
@@ -95,6 +96,23 @@ fn the_quick_answer_always_agrees_with_the_full_verdict() {
             assert_eq!(gate.refuses(post, &site), !full, "{lint_toml:?} {date:?}");
         }
     }
+}
+
+#[test]
+fn the_gate_refuses_a_post_whose_structured_data_lacks_a_property() {
+    let mut site = site_with_post(NaiveDate::from_ymd_opt(2026, 10, 1));
+    let post = &mut site.posts[0];
+    post.structured_data_gaps
+        .push(StructuredDataGap::new("Event", "startDate"));
+    let post = post.clone();
+    let verdict = linter("").gate(&post, &site);
+    assert!(!verdict.allows_publishing(), "{verdict:?}");
+    let block = verdict.report().findings().first().unwrap();
+    assert_eq!(block.rule().as_str(), "invalid-structured-data");
+    assert_eq!(
+        block.location().subject.as_deref(),
+        Some("Event needs startDate")
+    );
 }
 
 #[test]

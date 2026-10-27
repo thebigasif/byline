@@ -16,6 +16,7 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(blocking::NoDate),
         Box::new(blocking::NoAuthor),
         Box::new(blocking::NoInternalLink),
+        Box::new(blocking::InvalidStructuredData),
         Box::new(snippet::LongTitle {
             max: thresholds.title_max_chars,
         }),
