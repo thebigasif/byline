@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use khalid_core::{IndexNowSettings, Locale, UserMessage};
 use khalid_seo::{
-    Feed, FeedScope, IndexNow, LlmsTxt, RobotsTxt, SeoError, SeoPage, SeoSite, SitemapSet,
+    Feed, FeedScope, IndexNow, LlmsTxt, RobotsTxt, SeoError, SeoPage, SeoSite, SitemapSet, UrlPath,
 };
 
 use crate::build_message;
@@ -30,6 +30,32 @@ pub(crate) fn files(
     now: DateTime<Utc>,
 ) -> Result<Vec<SiteFile>, UserMessage> {
     collect(site, pages, indexnow, now).map_err(|error| build_message::seo(&error))
+}
+
+/// The folder inside the output that holds the files for the root of the
+/// host, for a blog in a folder (ADR "root files go in their own folder").
+pub(crate) const ROOT_FOLDER: &str = "_root";
+
+/// The files a blog in a folder needs at the root of its host, where search
+/// engines look for them: `robots.txt`, whose first line says where it goes,
+/// and each verification file. None for a blog at the root, whose own
+/// files are already there.
+pub(crate) fn root_files(site: &SeoSite) -> Result<Vec<SiteFile>, UserMessage> {
+    if site.mount == UrlPath::root() {
+        return Ok(Vec::new());
+    }
+    let robots = RobotsTxt::for_site(site).map_err(|error| build_message::seo(&error))?;
+    let host = site.address.as_str().trim_end_matches('/');
+    let mount = site.mount.as_str();
+    let said = format!(
+        "# For {host}/robots.txt. Every rule here is about {mount}, so use it as the whole file or add it to the one there.\n{robots}"
+    );
+    let mut files = vec![file("robots.txt", said)];
+    for root in &site.root_files {
+        let name = root.path().as_str().trim_start_matches('/');
+        files.push(file(name, root.body().to_owned()));
+    }
+    Ok(files)
 }
 
 fn collect(

@@ -331,6 +331,16 @@ fn serve_answers_the_indexnow_key_file_where_requests_say_it_is() {
 }
 
 #[test]
+fn serve_answers_robots_txt_at_the_host_root_for_a_blog_in_a_folder() {
+    let site = demo_copy();
+    let server = start(site.path());
+    let answer = get(&server, "/robots.txt");
+    assert_eq!(answer.status, 200);
+    let sitemap = "Sitemap: https://www.example.com/blog/sitemap.xml";
+    assert!(answer.body.contains(sitemap), "{}", answer.body);
+}
+
+#[test]
 fn serve_answers_the_admin_app_at_admin_with_its_own_policy() {
     let site = demo_copy();
     let server = start(site.path());

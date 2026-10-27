@@ -1,0 +1,9 @@
+---
+source: crates/khalid/tests/build_root.rs
+expression: robots
+---
+# For https://www.example.com/robots.txt. Every rule here is about /blog/, so use it as the whole file or add it to the one there.
+User-agent: *
+Allow: /blog/
+
+Sitemap: https://www.example.com/blog/sitemap.xml
