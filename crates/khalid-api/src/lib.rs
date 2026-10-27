@@ -21,3 +21,4 @@ pub mod post_store;
 pub mod problem;
 pub mod query;
 pub mod resources;
+pub mod session_check;
