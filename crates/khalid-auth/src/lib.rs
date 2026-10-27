@@ -16,6 +16,7 @@ mod limiter;
 mod magic_link;
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
+mod passkey;
 mod password;
 mod permission;
 mod routes;
@@ -33,6 +34,7 @@ pub use magic_link::{
 };
 #[cfg(any(test, feature = "test-util"))]
 pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemorySessions};
+pub use passkey::{AuthenticatorData, PasskeyError, PublicKey};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
