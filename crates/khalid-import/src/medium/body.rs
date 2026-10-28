@@ -8,8 +8,9 @@ use std::io;
 use khalid_content::BlockError;
 use khalid_core::{AbsoluteUrl, Locale, SlugMode};
 use percent_encoding::percent_decode_str;
-use scraper::{ElementRef, Html as Page, Node, Selector};
+use scraper::{ElementRef, Html as Page, Node};
 
+use crate::find::{first, has_class, select, words};
 use crate::markdown::is_safe;
 use crate::pieces::{Converted, Html, converted};
 
@@ -167,30 +168,6 @@ fn link_card(card: ElementRef<'_>, html: &mut Html) {
         .map(|(key, value)| (*key, value.as_str()))
         .collect();
     html.block("bookmark", &attributes, None);
-}
-
-/// Every element `css` selects inside `element`, in order.
-fn select<'a>(element: ElementRef<'a>, css: &str) -> Vec<ElementRef<'a>> {
-    Selector::parse(css)
-        .map(|selector| element.select(&selector).collect())
-        .unwrap_or_default()
-}
-
-/// The first element `css` selects inside `element`.
-fn first<'a>(element: ElementRef<'a>, css: &str) -> Option<ElementRef<'a>> {
-    select(element, css).into_iter().next()
-}
-
-/// The element's text, with every run of spaces and line breaks made one
-/// space.
-fn words(element: ElementRef<'_>) -> String {
-    let text: String = element.text().collect();
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-/// Whether the element has the class `name`.
-fn has_class(element: ElementRef<'_>, name: &str) -> bool {
-    element.value().classes().any(|class| class == name)
 }
 
 #[cfg(test)]

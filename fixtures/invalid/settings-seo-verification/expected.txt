@@ -1,0 +1,3 @@
+fixtures/invalid/settings-seo-verification/site.toml, line 14, `robots.txt`: the verification file name "robots.txt" is a file the site writes itself.
+Khalid checks every setting before it starts, so nothing runs with a wrong one.
+Correct `robots.txt` on line 14, then run the command again.

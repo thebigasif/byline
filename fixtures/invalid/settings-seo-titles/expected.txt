@@ -1,0 +1,3 @@
+fixtures/invalid/settings-seo-titles/site.toml, line 13, `title`: the template "{title} {sep} {sitename}" uses {sitename}, which is not a known variable.
+Khalid checks every setting before it starts, so nothing runs with a wrong one.
+Set `title` on line 13 to a template using {title}, {site}, {tagline}, {sep}, {excerpt}, {category} or {author}, then run the command again.

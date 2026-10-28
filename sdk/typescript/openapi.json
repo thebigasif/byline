@@ -2924,6 +2924,208 @@
         ]
       }
     },
+    "/api/admin/v1/webhooks/": {
+      "get": {
+        "tags": [
+          "admin webhooks"
+        ],
+        "summary": "Lists every webhook that is switched on, oldest first, without their\nsecrets. Needs `webhooks:manage`.",
+        "operationId": "list_webhooks",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every webhook that is on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminWebhooks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks webhooks:manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin webhooks"
+        ],
+        "summary": "Adds a webhook that sends one event to one address, signed with a new\nsecret. The answer shows the secret once; keep it, because the\nreceiver needs it to check each delivery. Needs `webhooks:manage`.",
+        "operationId": "add_webhook",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewWebhooks"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new webhook, with its secret this once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminWebhooks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks webhooks:manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The event is not in the catalogue, the address cannot be sent to, or the site keeps no webhooks",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/webhooks/{id}/": {
+      "delete": {
+        "tags": [
+          "admin webhooks"
+        ],
+        "summary": "Switches a webhook off: nothing more is sent to it, and its past\ndeliveries stay in the log. Needs `webhooks:manage`.",
+        "operationId": "remove_webhook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The webhook's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The webhook is off"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks webhooks:manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No webhook that is on has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/authors/": {
       "get": {
         "tags": [
@@ -5985,6 +6187,63 @@
           }
         }
       },
+      "AdminWebhook": {
+        "type": "object",
+        "description": "A webhook as the Admin API lists it. Its secret is never listed.",
+        "required": [
+          "id",
+          "event",
+          "url",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was added."
+          },
+          "event": {
+            "type": "string",
+            "description": "The event it sends, from the catalogue in `docs/standards/api.md`.",
+            "example": "post.published"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The identity to remove it by.",
+            "example": 3
+          },
+          "secret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The secret every delivery is signed with. Only the answer that adds\nthe webhook carries it, once.",
+            "example": "6f1c0e9a2b7d4c8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f"
+          },
+          "url": {
+            "type": "string",
+            "description": "Where it sends it.",
+            "example": "https://hooks.example.com/khalid"
+          }
+        }
+      },
+      "AdminWebhooks": {
+        "type": "object",
+        "description": "Webhooks as the Admin API wraps them.",
+        "required": [
+          "webhooks"
+        ],
+        "properties": {
+          "webhooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminWebhook"
+            },
+            "description": "The webhooks, oldest first."
+          }
+        }
+      },
       "Alias": {
         "type": "string",
         "description": "An old address on this site that redirects to the post, such as\n`/2019/05/old-title/`, so a moved post keeps its links.",
@@ -6936,6 +7195,43 @@
               "$ref": "#/components/schemas/NewRedirect"
             },
             "description": "The one redirect to store."
+          }
+        }
+      },
+      "NewWebhook": {
+        "type": "object",
+        "description": "One new webhook.",
+        "required": [
+          "event",
+          "url"
+        ],
+        "properties": {
+          "event": {
+            "type": "string",
+            "description": "The event to send, such as `post.published`.",
+            "example": "post.published"
+          },
+          "url": {
+            "type": "string",
+            "description": "Where to send it: an `http` or `https` address.",
+            "example": "https://hooks.example.com/khalid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewWebhooks": {
+        "type": "object",
+        "description": "The body of a new webhook: exactly one.",
+        "required": [
+          "webhooks"
+        ],
+        "properties": {
+          "webhooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewWebhook"
+            },
+            "description": "The one webhook to add."
           }
         }
       },

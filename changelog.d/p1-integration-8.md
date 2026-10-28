@@ -1,0 +1,1 @@
+- The SEO settings tables in `site.toml` (titles, social, verification, crawlers, feeds, publisher, locations and schema templates) now work with the landed `[seo.links]` link policy on one `main`. `[seo.links]` keeps its landed keys, `rel` and `open`.
