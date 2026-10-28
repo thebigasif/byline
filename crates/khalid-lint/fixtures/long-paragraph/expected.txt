@@ -1,2 +1,3 @@
 warn hard-to-read: reading index 131
 warn long-paragraph: paragraph "word1 word2 word3 word4 word5 word6 word7 word8 ..." runs 250 words, past the 225 word target (suggest: split it at each change of idea, into paragraphs of 75 to 225 words)
+warn sourced-statistics: word1 word2 word3 word4 word5 word6 word7 word8 ... (suggest: link the number to its source, or name the year it held)

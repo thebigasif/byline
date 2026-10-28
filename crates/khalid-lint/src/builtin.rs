@@ -71,6 +71,11 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(writing::LongParagraph {
             max_paragraph_words: thresholds.paragraph_max_words,
         }),
+        Box::new(writing::PlainAnswer {
+            hedges: writing::HEDGE_WORDS.to_vec(),
+            openers: writing::VAGUE_OPENERS.to_vec(),
+        }),
+        Box::new(writing::SourcedStatistics),
         Box::new(FocusNotIn(Place::Title)),
         Box::new(FocusNotIn(Place::Description)),
         Box::new(FocusNotIn(Place::FirstParagraph)),

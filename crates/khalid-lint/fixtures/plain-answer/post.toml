@@ -1,0 +1,18 @@
+# An answer paragraph that hedges: "perhaps" and a trailing which.
+extends = "clean"
+
+body_text = """
+Internal links help readers find the next useful post on your site.
+How long should an answer be?
+Perhaps plain1 plain2 plain3 plain4 plain5 plain6 plain7 plain8 plain9 plain10 plain11 plain12 plain13 plain14 plain15 plain16 plain17 plain18 plain19 plain20 plain21 plain22 plain23 plain24 plain25 plain26 plain27 plain28 plain29 plain30 plain31 plain32 plain33 plain34 plain35 plain36 plain37 plain38 plain39 plain40 plain41 plain42 plain43 plain44 plain45 plain46 plain47 plain48 plain49 plain50 which
+What an internal link is
+A link between two pages on the same site.
+"""
+
+[[headings]]
+level = "h2"
+text = "How long should an answer be?"
+
+[[headings]]
+level = "h2"
+text = "What an internal link is"

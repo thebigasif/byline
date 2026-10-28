@@ -148,3 +148,162 @@ fn is_heading_line(post: &LintPost, line: &str) -> bool {
         .iter()
         .any(|heading| heading.text == line.trim())
 }
+
+/// The hedge words, vague openers and vague closers W3 flags, in
+/// lowercase, kept here so a site can read and change them. Each word is
+/// one a reader can delete without losing meaning.
+pub(crate) const HEDGE_WORDS: &[&str] = &[
+    "arguably", "perhaps", "possibly", "seemingly", "somewhat", "basically", "generally",
+    "usually", "probably", "maybe", "kind of", "sort of", "fairly", "quite", "rather",
+];
+
+/// Openers that promise nothing specific, in lowercase, at the start of a
+/// sentence.
+pub(crate) const VAGUE_OPENERS: &[&str] = &[
+    "there are", "there is", "it is important", "it is worth", "it should be noted",
+    "needless to say", "as we all know", "everyone knows",
+];
+
+/// **W3: plain sentences in answer paragraphs.**
+///
+/// Hedge words, vague openers and trailing which-chains are flagged in
+/// the paragraphs that answer a question-style heading, where an answer
+/// engine lifts the text.
+#[derive(Debug)]
+pub(crate) struct PlainAnswer {
+    pub(crate) hedges: Vec<&'static str>,
+    pub(crate) openers: Vec<&'static str>,
+}
+
+impl Rule for PlainAnswer {
+    fn id(&self) -> RuleId {
+        RuleId::new("plain-answer")
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        let mut hits = Vec::new();
+        for heading in question_headings(post) {
+            for line in answer_paragraphs(post, &heading.text) {
+                let lower = line.to_lowercase();
+                let mut found: Vec<&str> = self
+                    .hedges
+                    .iter()
+                    .copied()
+                    .filter(|word| lower.contains(word))
+                    .collect();
+                found.extend(
+                    self.openers
+                        .iter()
+                        .copied()
+                        .filter(|opener| lower.starts_with(opener)),
+                );
+                if lower.ends_with("which") {
+                    found.push("which");
+                }
+                if !found.is_empty() {
+                    hits.push(
+                        Hit::about(format!(
+                            "the answer under \"{}\" uses {}",
+                            heading.text,
+                            found.join(", ")
+                        ))
+                        .suggesting(vec![
+                            "say the claim outright and drop the hedge".to_owned(),
+                        ]),
+                    );
+                }
+            }
+        }
+        hits
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+}
+
+/// The paragraph lines that answer the heading `text`, until the next
+/// heading.
+fn answer_paragraphs<'a>(post: &'a LintPost, text: &str) -> Vec<&'a str> {
+    let Some(start) = post.body_text.lines().position(|line| line.trim() == text) else {
+        return Vec::new();
+    };
+    post.body_text
+        .lines()
+        .skip(start + 1)
+        .take_while(|line| !is_heading_line(post, line))
+        .filter(|line| !line.trim().is_empty())
+        .collect()
+}
+
+/// **W4: sourced statistics.**
+///
+/// A number a reader cannot check, with no linked source near it and no
+/// year beside it, is flagged.
+#[derive(Debug)]
+pub(crate) struct SourcedStatistics;
+
+impl Rule for SourcedStatistics {
+    fn id(&self) -> RuleId {
+        RuleId::new("sourced-statistics")
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        let linked = linked_lines(post);
+        post.body_text
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .filter(|line| !is_heading_line(post, line))
+            .filter(|line| !linked.iter().any(|linked| linked == line))
+            .filter(|line| bare_number(line))
+            .map(|line| {
+                Hit::about(first_words(line, 8)).suggesting(vec![
+                    "link the number to its source, or name the year it held".to_owned(),
+                ])
+            })
+            .collect()
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+}
+
+/// Whether `line` holds a count or share with no year beside it.
+fn bare_number(line: &str) -> bool {
+    let words: Vec<&str> = line.split_whitespace().collect();
+    for (index, word) in words.iter().enumerate() {
+        if !word.chars().any(|c: char| c.is_ascii_digit()) {
+            continue;
+        }
+        let near_year = words
+            .iter()
+            .skip(index.saturating_sub(2))
+            .take(5)
+            .any(is_year);
+        if !near_year {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether `word` is a four-digit year a statistic can hang on, from 1900
+/// on, optionally with punctuation around it.
+fn is_year(word: &&str) -> bool {
+    let bare = word.trim_matches(|c: char| !c.is_ascii_digit());
+    (1900..=2200).contains(&bare.parse::<u16>().unwrap_or(0))
+}
+
+/// The lines of `post`'s body that carry a link, so a number in them is
+/// treated as sourced.
+fn linked_lines(post: &LintPost) -> Vec<&str> {
+    post.body_text
+        .lines()
+        .filter(|line| {
+            post.links
+                .iter()
+                .any(|link| !link.text.is_empty() && line.contains(link.text.as_str()))
+        })
+        .collect()
+}
