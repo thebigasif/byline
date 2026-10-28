@@ -38,7 +38,7 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, staff, unlock,
+    report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -109,16 +109,13 @@ fn serve_with(
 ) -> Result<(), (UserMessage, Exit)> {
     let (content, hand_back) = (LiveContent::default(), HandBack::default());
     let (redirects, addresses) = redirect_route::stores((database, id));
-    let to = Destination {
-        folder: site.to_path_buf(),
-        config: config.clone(),
-        db: database.clone(),
-        site: id,
-        live: content.clone(),
-        hand_back: hand_back.clone(),
-        addresses: addresses.clone(),
-        redirects: redirects.clone(),
-    };
+    let to = destination(
+        site,
+        config,
+        (database, id),
+        (&content, &hand_back),
+        (&redirects, &addresses),
+    );
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
     // follows behind the first answer (ADR "khalid serve answers before the
@@ -127,6 +124,10 @@ fn serve_with(
         .and_then(|source| {
             let first = source.render_first(&checked)?;
             let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+            let first = match source.stylesheet() {
+                Some(href) => first.with_preloads(vec![href]),
+                None => first,
+            };
             Ok((source, first))
         })
         .map_err(|message| (message, Exit::Failure))?;
@@ -160,19 +161,17 @@ fn serve_with(
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
         let scheduling = scheduler::start(Arc::clone(&door));
-        let previews = preview::router(Arc::clone(&door), source.clone(), config, security);
+        let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let desks = (moderation, media, desk);
-        let app = api_router((content, door), desks, (database, id, config))
-            .merge(files)
-            .merge(previews)
-            .merge(search_route::router(config, search))
-            .merge(khalid_admin::router(khalid_admin::built()))
-            .merge(comments)
-            .merge(newsletters)
-            .merge(pages);
+        let apis = api_router((content, door), desks, (database, id, config));
+        let app = assembled(
+            (site, config, &security),
+            (apis, files, previews, search_route::router(config, search)),
+            (comments, newsletters, pages),
+        );
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
@@ -219,6 +218,55 @@ fn api_router(
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
     api
+}
+
+/// The pages, with the stylesheet named as a preload on every HTML answer
+/// when the site has one (G20).
+fn with_hint(pages: Pages, source: &SitePages) -> Pages {
+    match source.stylesheet() {
+        Some(href) => pages.with_preloads(vec![href]),
+        None => pages,
+    }
+}
+
+/// Where the Content API's feed writes, as `khalid serve` sets it up.
+fn destination(
+    site: &Path,
+    config: &Config,
+    (database, id): (&Database, SiteId),
+    (live, hand_back): (&LiveContent, &HandBack),
+    (redirects, addresses): (
+        &crate::live_redirects::LiveRedirects,
+        &crate::site_addresses::LiveAddresses,
+    ),
+) -> Destination {
+    Destination {
+        folder: site.to_path_buf(),
+        config: config.clone(),
+        db: database.clone(),
+        site: id,
+        live: live.clone(),
+        hand_back: hand_back.clone(),
+        addresses: addresses.clone(),
+        redirects: redirects.clone(),
+    }
+}
+
+/// The one router the server answers: the APIs, the site's own routes, the
+/// drawn share cards, the admin, the comments and the newsletters.
+fn assembled(
+    (site, config, security): (&Path, &Config, &SecurityHeaders),
+    (api, files, previews, searches): (Router, Router, Router, Router),
+    (comments, newsletters, pages): (Router, Router, Router),
+) -> Router {
+    api.merge(files)
+        .merge(previews)
+        .merge(searches)
+        .merge(share_images::router(site, config, security.clone()))
+        .merge(khalid_admin::router(khalid_admin::built()))
+        .merge(comments)
+        .merge(newsletters)
+        .merge(pages)
 }
 
 /// The publish door the Admin API, the scheduler and preview links share.
@@ -284,6 +332,7 @@ async fn render_the_rest(
         drop(checked);
         Pages::plain(served.pages, served.not_found)
             .map(|pages| pages.with_moves(served.moves))
+            .map(|pages| with_hint(pages, &source))
             .map_err(|_| serve_message::internal())
     });
     let pages = match rendering.await {

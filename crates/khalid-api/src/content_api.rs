@@ -323,6 +323,7 @@ async fn browse(
     raw: &RawListQuery,
 ) -> Result<(Vec<Post>, Meta), Problem> {
     let query = ListQuery::try_from(raw)?;
+    check_sparse(&query)?;
     check_fields(&query, Post::FIELDS)?;
     let listed = store
         .list(collection, &query)
@@ -358,6 +359,7 @@ async fn browse_site<T: Listable>(
     raw: &RawListQuery,
 ) -> Result<(Vec<T>, Meta), Problem> {
     let query = ListQuery::try_from(raw)?;
+    check_sparse(&query)?;
     check_fields(&query, T::FIELDS)?;
     let site = store
         .site()
@@ -384,6 +386,24 @@ async fn one_in_site<T: Listable>(
         PostKey::Slug(slug) => entry.slug() == slug,
     });
     found.cloned().ok_or_else(|| not_found(path))
+}
+
+/// Refuses `include` and `fields`, which are accepted on the command line
+/// but not answered yet (audit F6, G23). Saying so is kinder than sending
+/// everything and letting a caller believe it asked for less.
+pub(crate) fn check_sparse(query: &ListQuery) -> Result<(), Problem> {
+    for (parameter, asked) in [("include", query.include()), ("fields", query.fields())] {
+        if asked.is_empty() {
+            continue;
+        }
+        let message = UserMessage::new(
+            format!("The {parameter} parameter is not answered yet."),
+            "It is accepted so future callers are not broken, but every field is always sent.",
+            format!("Drop {parameter} for now; the whole entry is the only answer."),
+        );
+        return Err(Problem::new(ProblemType::InvalidQuery, &message).with_rule(parameter));
+    }
+    Ok(())
 }
 
 /// Refuses fields the resource does not have in `filter` and `order`.

@@ -15,6 +15,7 @@ pub struct Pages {
     not_found: Bytes,
     moved: BTreeMap<String, PagePath>,
     extent: Extent,
+    preloads: Vec<String>,
 }
 
 /// How much of the site a page set holds.
@@ -69,6 +70,7 @@ impl Pages {
             not_found: not_found.into(),
             moved: BTreeMap::new(),
             extent: Extent::Whole,
+            preloads: Vec::new(),
         })
     }
 
@@ -107,6 +109,21 @@ impl Pages {
         self
     }
 
+    /// The same pages, answering every HTML page with a `Link` header that
+    /// says to preload each address in `preloads`, such as the stylesheet,
+    /// which an HTTP stack can send ahead as a 103 Early Hints (G20).
+    /// A `304` answer carries it too, so a revalidation starts the fetch.
+    #[must_use]
+    pub fn with_preloads(mut self, preloads: Vec<String>) -> Self {
+        self.preloads = preloads;
+        self
+    }
+
+    /// The addresses an HTML page's answer tells the reader to preload.
+    pub fn preloads(&self) -> &[String] {
+        &self.preloads
+    }
+
     /// The same pages, each with its Brotli copy. A page that has one
     /// already keeps it. The bytes are shared, not copied.
     ///
@@ -124,6 +141,7 @@ impl Pages {
             not_found: self.not_found.clone(),
             moved: self.moved.clone(),
             extent: self.extent,
+            preloads: self.preloads.clone(),
         }
     }
 
@@ -142,6 +160,7 @@ impl Pages {
             not_found: self.not_found.clone(),
             moved: self.moved.clone(),
             extent: self.extent,
+            preloads: self.preloads.clone(),
         }
     }
 

@@ -263,6 +263,14 @@ pub(crate) struct InitArgs {
     #[arg(long, value_enum)]
     pub(crate) mode: Option<SiteMode>,
 
+    /// The stack the main site runs on, for the proxy rule a mounted blog needs
+    #[arg(long, value_name = "NAME")]
+    pub(crate) stack: Option<khalid_mount::Stack>,
+
+    /// Where the blog itself answers, when it is not the website's address [default: blog.host]
+    #[arg(long, value_name = "URL")]
+    pub(crate) blog: Option<AbsoluteUrl>,
+
     /// Ask nothing: take the flags, and the defaults for the rest
     #[arg(
         long = "yes",

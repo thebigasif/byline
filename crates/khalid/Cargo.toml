@@ -21,10 +21,12 @@ khalid-https = { path = "../khalid-https", version = "0.0.0" }
 khalid-import = { path = "../khalid-import", version = "0.0.0" }
 khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
 khalid-mcp = { path = "../khalid-mcp", version = "0.0.0" }
+khalid-mount = { path = "../khalid-mount", version = "0.0.0" }
 khalid-media = { path = "../khalid-media", version = "0.0.0" }
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
 khalid-search = { path = "../khalid-search", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
+khalid-share-image = { path = "../khalid-share-image", version = "0.0.0" }
 khalid-newsletter = { path = "../khalid-newsletter", version = "0.0.0" }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
 khalid-static = { path = "../khalid-static", version = "0.0.0" }

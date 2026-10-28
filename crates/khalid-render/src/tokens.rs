@@ -126,6 +126,43 @@ pub struct Fonts {
     pub heading: FontStack,
     /// Code.
     pub mono: FontStack,
+    /// Font files the site serves itself, each with the subset it covers
+    /// (G20). `theme sync` writes them; the stylesheet links them.
+    pub files: Vec<FontFile>,
+}
+
+/// One self-hosted font file, served under `assets/fonts/`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FontFile {
+    /// The family the file gives a face, such as `Inter`.
+    pub family: String,
+    /// `normal` or `italic`.
+    pub style: String,
+    /// The weight the file carries, such as `400`.
+    pub weight: String,
+    /// The file name under `theme/fonts/`, such as `inter-latin.woff2`.
+    pub path: String,
+    /// The Unicode range the file covers, so a browser loads only the
+    /// subset a page needs. `None` covers everything.
+    pub range: Option<String>,
+    /// The face's metric overrides for its tuned local fallback, as CSS
+    /// percentages (G20). `None` when the file was not measured.
+    pub metrics: Option<Metrics>,
+}
+
+/// A face's metrics as its fallback's `@font-face` overrides read them.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Metrics {
+    /// `ascent-override`, such as `90.44%`.
+    pub ascent: String,
+    /// `descent-override`, such as `22.52%`.
+    pub descent: String,
+    /// `line-gap-override`, such as `0%`.
+    pub line_gap: String,
+    /// `size-adjust`, such as `107.12%`.
+    pub size_adjust: String,
 }
 
 /// Corners and line length.
@@ -188,8 +225,17 @@ impl Tokens {
     pub fn to_css(&self) -> String {
         let colors = &self.colors;
         let mut families = Vec::new();
+        // A self-hosted family with measured metrics gains its fallback in
+        // the stack too, beside the file's own @font-face rule.
+        let measured: Vec<&str> = self
+            .fonts
+            .files
+            .iter()
+            .filter(|file| file.metrics.is_some())
+            .map(|file| file.family.as_str())
+            .collect();
         let mut font = |stack: &FontStack| {
-            let (tuned, family) = font_fallback::tuned(stack.as_str());
+            let (tuned, family) = font_fallback::tuned_with(stack.as_str(), &measured);
             families.extend(family.filter(|family| !families.contains(family)));
             tuned
         };
@@ -216,6 +262,12 @@ impl Tokens {
             let _ = writeln!(css, "  --{name}: {value};");
         }
         css.push_str("}\n");
+        for file in &self.fonts.files {
+            css.push_str(&font_face(file));
+            if let Some(metrics) = &file.metrics {
+                css.push_str(&font_fallback::measured_face(&file.family, metrics));
+            }
+        }
         for family in families {
             css.push_str(&font_fallback::face(family));
         }
@@ -263,8 +315,26 @@ impl Default for Fonts {
             body: FontStack::trusted(sans),
             heading: FontStack::trusted(sans),
             mono: FontStack::trusted("ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"),
+            files: Vec::new(),
         }
     }
+}
+
+/// The `@font-face` rule of one self-hosted file, served with a swap so the
+/// text shows in the fallback while the file arrives (G20).
+fn font_face(file: &FontFile) -> String {
+    let mut rule = format!(
+        "@font-face {{ font-family: \"{}\"; font-style: {}; font-weight: {}; \
+     src: url(\"assets/fonts/{}\") format(\"woff2\"); font-display: swap;",
+        file.family, file.style, file.weight, file.path
+    );
+    if let Some(range) = &file.range {
+        rule.push_str(" unicode-range: ");
+        rule.push_str(range);
+        rule.push(';');
+    }
+    rule.push_str(" }\n");
+    rule
 }
 
 impl Default for Shape {

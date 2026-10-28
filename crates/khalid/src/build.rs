@@ -11,7 +11,7 @@ use std::path::{self, Path, PathBuf};
 use khalid_content::{ContentTree, SiteContent};
 use khalid_core::{Clock, Config, UserMessage};
 use khalid_lint::Linter;
-use khalid_render::{Asset, Renderer};
+use khalid_render::{Asset, Renderer, Tokens};
 use khalid_routes::Routes;
 use serde::Serialize;
 
@@ -23,7 +23,7 @@ use crate::site_page::HeadNonce;
 use crate::{
     assets, build_files, build_gate, build_lists, build_message, build_pages, build_redirects,
     build_seo, build_sitemap, categories, content_message, lint, lint_message, post_files,
-    post_images, post_lock, report, search_page, search_static, static_mode,
+    post_images, post_lock, report, search_page, search_static, share_images, static_mode,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -91,6 +91,11 @@ fn build(
     } else {
         None
     };
+    let tokens = if config.mode().has_pages() {
+        Tokens::load(site).map_err(|error| build_message::tokens(&error))?
+    } else {
+        Tokens::default()
+    };
     let href = theme
         .as_ref()
         .map(|(_, css)| assets::href(config, css))
@@ -117,12 +122,20 @@ fn build(
         copy(&size.path, out, &size.file)?;
     }
     let seo_site = build_seo::site(config)?;
+    let cards = share_images::attach(site, config, &tokens, &seo_site, &mut languages)?;
+    for file in share_images::draw_now(site, cards)? {
+        let mut from = site.to_path_buf();
+        from.push("data");
+        from.push(&file);
+        copy(&from, out, &file)?;
+    }
     let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
     build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
     let mut written = 0;
     let locks = static_mode::locks(config.mode())?;
     if let Some((renderer, css)) = &theme {
         write_asset(out, css)?;
+        write_fonts(site, out)?;
         for language in &languages {
             for page in &language.pages {
                 let html = page.rendered(renderer, &language.site, HeadNonce::Static)?;
@@ -166,6 +179,34 @@ fn write(out: &Path, relative: &str, text: &str) -> Result<(), UserMessage> {
     let made = file.parent().map_or(Ok(()), fs::create_dir_all);
     made.and_then(|()| fs::write(&file, text))
         .map_err(|error| build_message::write(&file, &error))
+}
+
+/// Copies the site's self-hosted font files, `theme/fonts/*.woff2`, into
+/// `out/assets/fonts/`, where the stylesheet's `@font-face` rules point
+/// (G20). Anything else in the folder stays private.
+fn write_fonts(site: &Path, out: &Path) -> Result<(), UserMessage> {
+    let from = {
+        let mut folder = site.to_path_buf();
+        folder.push("theme");
+        folder.push("fonts");
+        folder
+    };
+    let Ok(entries) = fs::read_dir(&from) else {
+        return Ok(());
+    };
+    let into = within(out, "assets/fonts/");
+    fs::create_dir_all(&into).map_err(|error| build_message::write(&into, &error))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| build_message::write(&from, &error))?;
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.ends_with(".woff2") {
+            continue;
+        }
+        let file = within(&into, &name);
+        fs::copy(entry.path(), &file).map_err(|error| build_message::write(&file, &error))?;
+    }
+    Ok(())
 }
 
 /// Writes `asset` into `out/assets/` with its Brotli and gzip copies beside

@@ -506,3 +506,73 @@ fn build_refuses_to_write_into_the_content_folder() {
     assert!(json["error"]["why"].as_str().unwrap().contains("content"));
     assert!(!content.exists());
 }
+
+#[test]
+fn static_builds_carry_the_referrer_meta_tags() {
+    let out = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    for rel in [
+        "index.html",
+        "why-internal-links-matter/index.html",
+        "404.html",
+    ] {
+        let html = page(out.path(), rel);
+        assert!(
+            html.contains(r#"<meta name="referrer" content="strict-origin-when-cross-origin">"#),
+            "{rel} carries the referrer policy as a meta tag, for hosts that drop headers"
+        );
+    }
+}
+
+#[test]
+fn self_hosted_font_files_are_served_under_assets() {
+    let out = tempfile::tempdir().unwrap();
+    // A copy, so the shared fixture stays as it is.
+    let demo = tempfile::tempdir().unwrap();
+    copy_dir(&demo_site(), demo.path());
+    let theme = at(demo.path(), "theme");
+    let fonts = at(&theme, "fonts");
+    fs::create_dir_all(&fonts).unwrap();
+    fs::write(at(&fonts, "inter-latin.woff2"), b"font bytes").unwrap();
+    fs::write(at(&fonts, "not-a-font.txt"), b"notes").unwrap();
+    let tokens = fs::read_to_string(at(&theme, "tokens.toml")).unwrap_or_default();
+    let with_font = format!(
+        "{tokens}\n[[fonts.files]]\nfamily = \"Inter\"\nstyle = \"normal\"\nweight = \"400\"\npath = \"inter-latin.woff2\"\nrange = \"U+0000-00FF\"\n"
+    );
+    fs::write(at(&theme, "tokens.toml"), with_font).unwrap();
+
+    let output = khalid(&[
+        "--site",
+        path(demo.path()),
+        "build",
+        "--out",
+        path(out.path()),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let served = fs::read(at(out.path(), "assets/fonts/inter-latin.woff2")).unwrap();
+    assert_eq!(
+        served, b"font bytes",
+        "the file the stylesheet names is there"
+    );
+    assert!(
+        !at(out.path(), "assets/fonts/not-a-font.txt").exists(),
+        "only woff2 files are served"
+    );
+}
+
+/// Copies the folder `from` into the empty folder `into`.
+#[cfg(test)]
+fn copy_dir(from: &Path, into: &Path) {
+    fs::create_dir_all(into).unwrap();
+    for entry in fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = at(into, &entry.file_name().to_string_lossy());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), &target).unwrap();
+        }
+    }
+}

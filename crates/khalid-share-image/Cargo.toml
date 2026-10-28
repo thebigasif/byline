@@ -9,10 +9,11 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-dejavu = "2.37"
+flate2 = "1"
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
-png = "0.18"
-resvg = { version = "0.49", default-features = false, features = ["text"] }
+rustybuzz = "0.20"
+tiny-skia = "0.11"
+ttf-parser = "0.25"
 sha2 = "0.11"
 thiserror.workspace = true
 

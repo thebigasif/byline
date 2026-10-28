@@ -66,7 +66,7 @@ pub(crate) fn run(site: &Path, url: &AbsoluteUrl, cli: &Cli) -> Exit {
         Err(error) => return report::failure(output, &theme_message::read(&error), Exit::Failure),
     };
     let faint = file.clone().fix_contrast();
-    let fresh = match site_tokens(cli, url) {
+    let fresh = match site_tokens(site, cli, url) {
         Ok(found) => found.tokens,
         Err((message, exit)) => return report::failure(output, &message, exit),
     };
