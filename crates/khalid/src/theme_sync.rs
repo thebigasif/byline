@@ -12,7 +12,6 @@ use khalid_render::Renderer;
 use khalid_theme::{
     ContrastFix, FontFileEntry, FontMetrics, FontSource, HeldFont, MAX_CSS_BYTES, SiteSource,
     SiteTheme, ThemeDiff, ThemeTokens, TokenChange, download_and_report, fetch_site,
-
 };
 use serde::Serialize;
 
