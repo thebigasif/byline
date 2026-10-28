@@ -82,7 +82,7 @@ module_inception = "allow"
 enum_glob_use = "allow"
 
 [profile.release]
-lto = "thin"
+lto = true
 codegen-units = 1
 strip = "symbols"
 panic = "abort"
@@ -98,6 +98,23 @@ opt-level = "s"
 [profile.release.package.ttf-parser]
 opt-level = "s"
 
+# The downloaded-font reader is asked for a handful of table fields per
+# face, once per sync, so its size matters more than its speed here.
+[profile.release.package.read-fonts]
+opt-level = "s"
+[profile.release.package.font-types]
+opt-level = "s"
+[profile.release.package.zerocopy]
+opt-level = "s"
+
+# The import command's HTML reader runs once per migration, never on a
+# reader's path, so it is sized like the share image stack above.
+[profile.release.package.scraper]
+opt-level = "s"
+[profile.release.package.html5ever]
+opt-level = "s"
+[profile.release.package.ego-tree]
+opt-level = "s"
 [profile.dev]
 debug = "line-tables-only"
 
