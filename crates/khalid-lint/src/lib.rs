@@ -41,6 +41,7 @@ mod structure;
 mod thresholds;
 mod topics;
 mod words;
+mod writing;
 
 pub use address::flags_slug_part;
 pub use catalogue::{Catalogue, Message};

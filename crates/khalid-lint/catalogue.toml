@@ -238,6 +238,18 @@ why = "Readers who fill it in never hear back, so the visits search brings you a
 fix = "Give this form an email address or a service such as Zapier to send its answers to."
 guide = "forms"
 
+[answer-capsule]
+what = "A question-style heading is not followed by a standalone answer of 40 to 60 words."
+why = "Answer engines lift the first complete answer under a question, and readers scan for it too."
+fix = "Write the whole answer in one paragraph of 40 to 60 words directly under the heading, before any detail or hedging."
+guide = "answer-capsule"
+
+[long-paragraph]
+what = "A paragraph runs past 225 words, so it holds more than one idea."
+why = "Readers lose the thread in a wall of text, and the paragraph's main point is hard for you or an engine to name."
+fix = "Split it at each change of idea, into paragraphs of 75 to 225 words, one idea each."
+guide = "plain-writing"
+
 [hard-to-read]
 what = "This post is hard to read, because its sentences are long and many of its words are long."
 why = "Readers who struggle leave early, and Google favours pages that answer people quickly."

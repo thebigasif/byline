@@ -1,0 +1,1 @@
+warn answer-capsule: heading "How long should an answer be?" is followed by 2 words, not the 40 to 60 of a standalone answer (suggest: write the whole answer in one paragraph of 40 to 60 words under the heading)

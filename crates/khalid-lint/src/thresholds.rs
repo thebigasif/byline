@@ -46,6 +46,15 @@ pub struct Thresholds {
     /// reach. Default 60, where LIX calls a text very hard in English and
     /// German alike.
     pub hard_reading_index: usize,
+    /// The fewest words a standalone answer after a question-style heading
+    /// may hold. Default 40, the answer capsule's floor (decision D3).
+    pub answer_min_words: usize,
+    /// The most words a standalone answer after a question-style heading
+    /// may hold. Default 60, the answer capsule's ceiling (decision D3).
+    pub answer_max_words: usize,
+    /// The most words one paragraph may hold before it buries its ideas.
+    /// Default 225, about the top of the 75 to 225 word target.
+    pub paragraph_max_words: usize,
     /// The fewest times per thousand words the focus keyword should appear
     /// in a post of 100 words or more. Default 5, Rank Math's floor of half
     /// a percent: about once every 200 words.
@@ -59,6 +68,9 @@ pub struct Thresholds {
 impl Default for Thresholds {
     fn default() -> Self {
         Self {
+            answer_min_words: 40,
+            answer_max_words: 60,
+            paragraph_max_words: 225,
             thin_post_words: 300,
             same_link_text_max: 3,
             title_max_chars: 60,
