@@ -153,15 +153,34 @@ fn is_heading_line(post: &LintPost, line: &str) -> bool {
 /// lowercase, kept here so a site can read and change them. Each word is
 /// one a reader can delete without losing meaning.
 pub(crate) const HEDGE_WORDS: &[&str] = &[
-    "arguably", "perhaps", "possibly", "seemingly", "somewhat", "basically", "generally",
-    "usually", "probably", "maybe", "kind of", "sort of", "fairly", "quite", "rather",
+    "arguably",
+    "perhaps",
+    "possibly",
+    "seemingly",
+    "somewhat",
+    "basically",
+    "generally",
+    "usually",
+    "probably",
+    "maybe",
+    "kind of",
+    "sort of",
+    "fairly",
+    "quite",
+    "rather",
 ];
 
 /// Openers that promise nothing specific, in lowercase, at the start of a
 /// sentence.
 pub(crate) const VAGUE_OPENERS: &[&str] = &[
-    "there are", "there is", "it is important", "it is worth", "it should be noted",
-    "needless to say", "as we all know", "everyone knows",
+    "there are",
+    "there is",
+    "it is important",
+    "it is worth",
+    "it should be noted",
+    "needless to say",
+    "as we all know",
+    "everyone knows",
 ];
 
 /// **W3: plain sentences in answer paragraphs.**
@@ -207,9 +226,7 @@ impl Rule for PlainAnswer {
                             heading.text,
                             found.join(", ")
                         ))
-                        .suggesting(vec![
-                            "say the claim outright and drop the hedge".to_owned(),
-                        ]),
+                        .suggesting(vec!["say the claim outright and drop the hedge".to_owned()]),
                     );
                 }
             }

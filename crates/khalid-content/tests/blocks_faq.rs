@@ -84,6 +84,26 @@ fn renders_an_faq() {
 }
 
 #[test]
+fn the_answers_are_in_the_page_with_scripts_off() {
+    // P1: a reader without JavaScript, and an engine reading the raw
+    // page, sees every answer. `open` makes the details visible without
+    // a script, and the answer text sits inside the element.
+    let html = &rendered(FAQ).html;
+    for answer in ["blue link", "About 50 to 60 characters"] {
+        let spot = html
+            .find(answer)
+            .unwrap_or_else(|| panic!("the answer {answer:?} is missing from the page"));
+        let before = html.get(..spot).unwrap_or(html.as_str());
+        let opened = before.matches("<details open>").count();
+        let closed = before.matches("<details>").count();
+        assert!(
+            opened > closed,
+            "the answer {answer:?} must sit inside an open details, not a collapsed one"
+        );
+    }
+}
+
+#[test]
 fn an_faq_is_structured_data_in_plain_text() {
     assert_eq!(
         rendered(FAQ).structured,
