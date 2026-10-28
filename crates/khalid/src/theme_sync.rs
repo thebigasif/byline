@@ -11,7 +11,8 @@ use khalid_core::{AbsoluteUrl, Locale, UserMessage};
 use khalid_render::Renderer;
 use khalid_theme::{
     ContrastFix, FontFileEntry, FontMetrics, FontSource, HeldFont, MAX_CSS_BYTES, SiteSource,
-    SiteTheme, ThemeDiff, ThemeTokens, TokenChange, download, fetch_site,
+    SiteTheme, ThemeDiff, ThemeTokens, TokenChange, download_and_report, fetch_site,
+
 };
 use serde::Serialize;
 
@@ -44,6 +45,9 @@ struct SyncBody<'a> {
     drawn_by_script: bool,
     /// Each font the blog may not serve, in page order.
     held_fonts: Vec<HeldBody<'a>>,
+    /// Why a font that may be served could not be, in plain words.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    skipped_fonts: Vec<String>,
 }
 
 /// The JSON shape of one contrast fix.
@@ -140,6 +144,8 @@ pub(crate) struct Notes {
     drawn_by_script: bool,
     /// The fonts the blog may not serve.
     held: Vec<HeldFont>,
+    /// Why a font that may be served could not be, in plain words.
+    pub(crate) skipped_fonts: Vec<String>,
 }
 
 impl FromSite {
@@ -156,6 +162,7 @@ impl FromSite {
             notes: Notes {
                 drawn_by_script: theme.drawn_by_script,
                 held: theme.typography.held,
+                skipped_fonts: Vec::new(),
             },
         }
     }
@@ -266,9 +273,10 @@ pub(crate) fn site_tokens(
         let mut folder = site.to_path_buf();
         folder.push("theme");
         folder.push("fonts");
-        let saved = runtime
-            .block_on(download(&client, &found.sources, &folder))
+        let (saved, skipped) = runtime
+            .block_on(download_and_report(&client, &found.sources, &folder))
             .map_err(|_| (theme_message::internal(), Exit::Internal))?;
+        found.notes.skipped_fonts = skipped;
         found.tokens.fonts.files = saved
             .into_iter()
             .map(|font| FontFileEntry {
@@ -344,6 +352,9 @@ fn success(output: Output, url: &AbsoluteUrl, synced: &Synced<'_>) -> Exit {
             for font in &synced.notes.held {
                 let _ = writeln!(said, "{}", theme_message::held_font(font));
             }
+            for why in &synced.notes.skipped_fonts {
+                let _ = writeln!(said, "{why}");
+            }
             let _ = writeln!(
                 said,
                 "Open {preview} in a browser to see how the blog will look."
@@ -369,6 +380,7 @@ fn success(output: Output, url: &AbsoluteUrl, synced: &Synced<'_>) -> Exit {
                         message: theme_message::held_font(font),
                     })
                     .collect(),
+                skipped_fonts: synced.notes.skipped_fonts.clone(),
             },
             Exit::Success,
         ),

@@ -1,0 +1,10 @@
+# Breaks one rule: a Twitter handle is up to 15 letters, digits and _. The
+# exact message khalid --site prints for it is in expected.txt beside this file.
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+default_language = "en"
+languages = ["en", "de"]
+
+[seo.social]
+twitter = "@serp dad"

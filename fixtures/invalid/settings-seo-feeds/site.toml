@@ -1,0 +1,11 @@
+# Breaks one rule: a feed holds 1 to 1000 posts. The exact message
+# khalid --site prints for it is in expected.txt beside this file.
+name = "Field Notes on SEO"
+address = "https://www.example.com"
+mount = "/blog/"
+default_language = "en"
+languages = ["en", "de"]
+
+[seo.feeds]
+content = "excerpt"
+limit = 0

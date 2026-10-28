@@ -1,3 +1,3 @@
-### Added
+### Changed
 
-- Every self-hosted font now gets its own tuned local fallback, whatever the family: `theme sync` measures each downloaded file's ascent, descent, line gap and average width, and the stylesheet serves a fallback `@font-face` that holds the same space, so the swap does not shift the page. Until now only Inter and Roboto had one (G20, last part).
+- A downloaded font's fallback tuning is measured through the read-fonts parser, whose typed tables refuse a malformed file instead of reading it at raw offsets, and a file that is not a readable face is saved and served but never tuned, with its metrics left out rather than guessed.

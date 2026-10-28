@@ -6,7 +6,7 @@ use std::io;
 use std::path::Path;
 
 use khalid_content::{ContentTree, read_content};
-use khalid_core::{Config, Environment, SitePath, SystemClock, UserMessage};
+use khalid_core::{Environment, SitePath, SystemClock, UserMessage};
 use khalid_lint::{Finding, LintConfig, LintPost, Linter, Report, Score, Severity};
 use khalid_routes::Routes;
 use serde::Serialize;
@@ -16,7 +16,7 @@ use crate::exit::Exit;
 use crate::lint_fix::Repair;
 use crate::lint_input::LintInput;
 use crate::{
-    config_message, content_message, lint_fix, lint_input, lint_message, report, routes_message,
+    content_message, lint_fix, lint_input, lint_message, report, routes_message, site_config,
 };
 
 /// Whether `khalid lint` only reports, or makes the safe repairs first.
@@ -78,8 +78,8 @@ pub(crate) fn run(site: &Path, post: Option<&Path>, mode: Mode, output: Output) 
 /// Reads the site and lints it, and with [`Mode::Fix`] repairs what it can
 /// and lints it again.
 fn check(site: &Path, post: Option<&Path>, mode: Mode) -> Result<Outcome, (UserMessage, Exit)> {
-    let config = Config::load(site, &Environment::from_process())
-        .map_err(|error| (config_message::of(&error), Exit::Failure))?;
+    let config = site_config::load(site, &Environment::from_process())
+        .map_err(|message| (message, Exit::Failure))?;
     let content = ContentTree::walk(site)
         .and_then(|tree| read_content(&tree))
         .map_err(|error| (content_message::of(site, &error), Exit::Failure))?;

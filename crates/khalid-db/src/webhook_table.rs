@@ -3,7 +3,9 @@
 
 use std::sync::Arc;
 
-use chrono::SecondsFormat;
+use chrono::{DateTime, SecondsFormat};
+use khalid_api::content_store::BoxFuture;
+use khalid_api::webhook_store::{StoredWebhook, WebhookStore, WebhookStoreError};
 use khalid_core::{AbsoluteUrl, Clock, Secret};
 use khalid_webhooks::{Event, SigningKey, Webhook, WebhookId};
 use sqlx::Row;
@@ -101,6 +103,87 @@ impl WebhookTable {
             .map_err(|_| unreadable("secret", "a secret of the wrong length"))?;
         let webhook = Webhook::new(WebhookId::new(id), url.clone(), key, vec![event]);
         Ok((webhook, secret))
+    }
+}
+
+impl WebhookTable {
+    /// The webhooks that are switched on, oldest first, as the Admin API
+    /// lists them: without their secrets.
+    async fn stored(&self) -> Result<Vec<StoredWebhook>, DbError> {
+        let rows = sqlx::query(
+            "SELECT id, event, url, created_at FROM webhooks \
+             WHERE site_id = ?1 AND disabled_at IS NULL ORDER BY id",
+        )
+        .bind(self.site.as_row())
+        .fetch_all(&self.db.readers)
+        .await?;
+        rows.iter()
+            .map(|row| {
+                let (id, event, url, created_at): (i64, String, String, String) = (
+                    row.try_get("id")?,
+                    row.try_get("event")?,
+                    row.try_get("url")?,
+                    row.try_get("created_at")?,
+                );
+                let event = event
+                    .parse::<Event>()
+                    .map_err(|_| unreadable("event", &event))?;
+                let url = AbsoluteUrl::parse(&url).map_err(|_| unreadable("url", &url))?;
+                let created_at = DateTime::parse_from_rfc3339(&created_at)
+                    .map_err(|_| unreadable("created_at", &created_at))?;
+                Ok(StoredWebhook::new(id, event, url, created_at.to_utc()))
+            })
+            .collect()
+    }
+
+    /// Switches off webhook `id` of this site, answering whether it was
+    /// on. Its rows in the delivery log stay.
+    async fn switch_off(&self, id: i64) -> Result<bool, DbError> {
+        let at = self.clock.now().to_rfc3339_opts(SecondsFormat::Secs, true);
+        let done = sqlx::query(
+            "UPDATE webhooks SET disabled_at = ?1 \
+             WHERE id = ?2 AND site_id = ?3 AND disabled_at IS NULL",
+        )
+        .bind(at)
+        .bind(id)
+        .bind(self.site.as_row())
+        .execute(&self.db.writer)
+        .await?;
+        Ok(done.rows_affected() > 0)
+    }
+}
+
+impl WebhookStore for WebhookTable {
+    fn list(&self) -> BoxFuture<'_, Result<Vec<StoredWebhook>, WebhookStoreError>> {
+        Box::pin(async move { self.stored().await.map_err(WebhookStoreError::storage) })
+    }
+
+    fn add<'a>(
+        &'a self,
+        url: &'a AbsoluteUrl,
+        event: Event,
+    ) -> BoxFuture<'a, Result<(StoredWebhook, Secret<String>), WebhookStoreError>> {
+        Box::pin(async move {
+            let (webhook, secret) = self
+                .create(url, event)
+                .await
+                .map_err(WebhookStoreError::storage)?;
+            // Read back, so the time is the one stored, to the second.
+            let stored = self.stored().await.map_err(WebhookStoreError::storage)?;
+            let added = stored.into_iter().find(|w| w.id == webhook.id().get());
+            let added = added.ok_or_else(|| {
+                WebhookStoreError::storage(DbError::Query(sqlx::Error::RowNotFound))
+            })?;
+            Ok((added, secret))
+        })
+    }
+
+    fn remove(&self, id: i64) -> BoxFuture<'_, Result<bool, WebhookStoreError>> {
+        Box::pin(async move {
+            self.switch_off(id)
+                .await
+                .map_err(WebhookStoreError::storage)
+        })
     }
 }
 

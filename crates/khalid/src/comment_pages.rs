@@ -1,6 +1,7 @@
 //! Readers' comments on a running site (task 5.4): the comments each post
 //! page shows, the form's route, and the Admin API's moderation, wired
-//! from `khalid-comments` to the site database and the pages in memory.
+//! from `khalid-comments` to the site database, the pages in memory and
+//! the site's webhooks.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -9,17 +10,21 @@ use std::sync::{Arc, PoisonError, RwLock};
 use axum::Router;
 use axum::response::Response;
 use khalid_api::comment_moderation::{CommentModeration, NoComments};
+use khalid_api::resources::AdminComment;
 use khalid_comments::{
-    ApiModeration, Comment, CommentAuthor, CommentEvents, CommentStatus, CommentStore, Comments,
-    FormRoute, PostFile, PostPage, PostPages, RateLimits, RefusalPages, Thread, form_router,
-    threads,
+    ApiModeration, Audience, Comment, CommentAuthor, CommentEvents, CommentStatus, CommentStore,
+    Comments, FormRoute, PostFile, PostPage, PostPages, RateLimits, RefusalPages, Thread,
+    api_shape, form_router, threads,
 };
 use khalid_core::{Config, Mode, SystemClock};
 use khalid_db::{CommentTable, Database, SiteId};
 use khalid_render::{CommentWriter, PageBody, RenderComment, RenderComments, RenderThread};
 use khalid_seo::SeoComment;
 use khalid_server::{LivePages, Render, SecurityHeaders};
+use khalid_webhooks::Event;
+use serde::Serialize;
 
+use crate::announce::SiteAnnounce;
 use crate::build_pages::LanguagePages;
 use crate::site_pages::SitePages;
 
@@ -147,18 +152,33 @@ fn seo_comment(thread: &Thread) -> SeoComment {
     }
 }
 
-/// Renders a post page again when the comments it shows change: with the
-/// approved comments read from `store`, alone when it can be, else with
-/// the whole site.
+/// What a running site does as its comments change: fires `comment.added`
+/// to the webhooks that asked for it when a comment is stored, and renders
+/// a post page again when the comments it shows change, with the approved
+/// comments read from `store`, alone when it can be, else with the whole
+/// site.
 #[derive(Debug)]
 struct PageEvents {
     store: CommentTable,
     shown: ShownComments,
     source: SitePages,
     live: LivePages,
+    announce: SiteAnnounce,
+}
+
+/// The resource a `comment.added` delivery carries: the comment in Admin
+/// API shape, without the reader's email.
+#[derive(Debug, Serialize)]
+struct Added {
+    comment: AdminComment,
 }
 
 impl CommentEvents for PageEvents {
+    fn added(&self, comment: &Comment) {
+        let comment = api_shape(comment, Audience::Integrations);
+        self.announce.fire(Event::CommentAdded, Added { comment });
+    }
+
     fn shown_changed(&self, post: &PostFile) {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
@@ -187,13 +207,14 @@ impl CommentEvents for PageEvents {
 }
 
 /// The comments of a running site: the routes of the reader form and the
-/// Admin API's moderation. A site not in server mode takes no comments:
-/// no form route, and moderation finds nothing.
+/// Admin API's moderation. The form's answers carry `security`, and each
+/// new comment is told to `announce`. A site not in server mode takes no
+/// comments: no form route, and moderation finds nothing.
 pub(crate) async fn start(
     config: &Config,
     (db, site): (&Database, SiteId),
     (source, live): (&SitePages, &LivePages),
-    security: SecurityHeaders,
+    (security, announce): (SecurityHeaders, SiteAnnounce),
 ) -> (Router, Arc<dyn CommentModeration>) {
     let (Some(shown), Some(stylesheet)) = (source.comments(), source.stylesheet()) else {
         return (Router::new(), Arc::new(NoComments));
@@ -204,6 +225,7 @@ pub(crate) async fn start(
         shown: shown.clone(),
         source: source.clone(),
         live: live.clone(),
+        announce,
     };
     let comments = Comments::new(store, SystemClock).with_events(Arc::new(events));
     match comments.shown().await {
