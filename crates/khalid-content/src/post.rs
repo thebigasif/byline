@@ -29,6 +29,15 @@ pub struct PostFront {
     /// The day the post is dated.
     #[serde(default, deserialize_with = "date")]
     pub date: Option<NaiveDate>,
+    /// The day of the last real update, which must be the day the change
+    /// happened, never the day it was saved. Feeds the visible date,
+    /// `dateModified`, the sitemap's `lastmod` and the stale-post rule.
+    /// A title or description edit alone must never set it (F1).
+    #[serde(default, deserialize_with = "date")]
+    pub updated: Option<NaiveDate>,
+    /// What changed in the last real update, in one plain sentence, such
+    /// as "Refreshed the 2024 numbers." Shown beside the updated date.
+    pub updated_note: Option<String>,
     /// The author's slug, matching a file in `authors/`.
     pub author: Option<Slug>,
     /// The category's slug, matching one in `categories.toml`.

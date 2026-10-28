@@ -1,0 +1,18 @@
+---
+source: crates/khalid-content/tests/blocks_leaf.rs
+assertion_line: 68
+expression: html(markdown)
+---
+<nav class="toc" aria-label="Contents">
+<ol>
+<li class="toc-h2"><a href="#title-tags">Title tags</a></li>
+<li class="toc-h2"><a href="#sitemaps">Sitemaps</a></li>
+</ol>
+</nav>
+<h2 id="title-tags">Title tags</h2>
+<details>
+<summary>What is a title tag?</summary>
+<p>The <strong>blue link</strong> in search results.</p>
+</details>
+<h2 id="sitemaps">Sitemaps</h2>
+<p><a class="button" href="/guides/sitemaps/">Read the sitemap guide</a></p>

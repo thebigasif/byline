@@ -77,6 +77,9 @@ pub(crate) fn post(
     let mut seo = page(PageKind::Post, locale, rest, title)?;
     seo.excerpt = front.description.clone().unwrap_or_default();
     seo.published = Some(midnight(date));
+    // The updated date, when the writer set one, is the day the page last
+    // changed in a way a reader would notice (F1).
+    seo.modified = front.updated.map(midnight);
     from_front(&mut seo, front)?;
     Ok(seo)
 }

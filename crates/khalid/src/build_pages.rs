@@ -284,7 +284,7 @@ fn post_page(
     let post = RenderPost {
         title: title.clone(),
         date,
-        updated: None,
+        updated: front.updated,
         reading_time: ReadingTime::of(&html, locale),
         authors: front
             .author
