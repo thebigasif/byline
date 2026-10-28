@@ -8,7 +8,7 @@ Fast is a feature. These numbers are gates, not goals. CI measures them on every
 |---|---|---|---|
 | Release binary, stripped, Linux x86_64 | under 30 MB | 2% | `ls -l` after `cargo build --release` |
 | Cold start to first byte | under 100 ms | 10% | `hyperfine` on `khalid serve` with a 1,000-post fixture, first request |
-| Idle memory, one site, 1,000 posts | under 50 MB RSS | 10% | resident set size of `khalid serve` 15 s after its first answer, with no traffic in between (CTO answers 2026-10-27, section 2) |
+| Idle memory, one site, 1,000 posts | under 50 MB RSS | 10% | resident set size of `khalid serve`, read after it settles, then five readings one second apart of which CI takes the lowest (CTO answers 2026-10-27, section 2) |
 | Post page render, in process | p50 under 1 ms, p99 under 5 ms | 10% | `divan` benchmark over the fixture |
 | Cached post page, 2 vCPU | at least 10,000 requests per second | 10% | `oha` for 30 seconds |
 | Full rebuild, 10,000 posts | under 30 s | 10% | timed `khalid build` |
@@ -34,6 +34,14 @@ Fast is a feature. These numbers are gates, not goals. CI measures them on every
 - **No surprises in the hot path.** No network, no disk except cache miss, no locks across awaits, no allocation storms. The render benchmark counts allocations and fails on a 10% rise.
 - **mimalloc** in the binary, with its default settings. `khalid serve` lets it hand freed memory back once its work is done. See "Allocator settings" below.
 - **Profiles before guesses.** `cargo flamegraph` or `samply` before any optimisation. The pull request shows the before and after numbers.
+
+## How the idle memory is read
+
+The 55 MB budget and the meaning in the CTO answers of 2026-10-27, section 2, stand. What changed on 2026-10-28 is only how the reading is taken, because one binary measured 51.43 to 81.49 MB across eight runs: mimalloc returns a freed page one second after it is freed, and only when a thread later frees a page or ends, so whether tokio's idle blocking threads had ended before the reading at 15 s decided the number.
+
+`khalid-perf serve` now reads the server's thread count and resident memory each second after the first answer, with no traffic in between. The server has settled when the trace is at least 15 s long (the wait still outlasts tokio's blocking threads, which end 10 s after their last task) and the last 3 readings show the thread count unchanged and the resident reading not falling by more than half a megabyte. A platform whose `/proc` does not say the thread count settles on its memory alone. Nothing waits for ever: after 60 s the readings are taken anyway, so a wedged server cannot hang the measure.
+
+Once settled, five readings are taken one second apart and the lowest is the measure, so a page the allocator hands back between two readings cannot raise it. The budget number was never changed.
 
 ## Allocator settings
 

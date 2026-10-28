@@ -82,6 +82,16 @@ impl Served {
         resident_mb(&status).ok_or(ServeError::NoMemoryReport)
     }
 
+    /// The process's thread count now, from `/proc/<pid>/status`, which
+    /// Linux writes beside the memory fields. `None` where the status
+    /// file does not say, such as on another platform, where the settle
+    /// rests on the resident reading alone.
+    pub fn thread_count(&self) -> Option<usize> {
+        let status = fs::read_to_string(format!("/proc/{}/status", self.child.id())).ok()?;
+        let line = status.lines().find(|line| line.starts_with("Threads:"))?;
+        line.split_whitespace().nth(1)?.parse().ok()
+    }
+
     /// Where the process's resident memory sits now. `None` where `/proc`
     /// does not say.
     pub fn memory_split(&self) -> Option<MemorySplit> {

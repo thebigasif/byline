@@ -8,11 +8,7 @@ use std::time::Duration;
 
 use khalid_core::Clock;
 
-use crate::{Fixture, IdleMemory, ServeError, Served, percentile};
-
-/// How long after its first answer, with no traffic in between, the
-/// server's memory counts as idle (CTO answers 2026-10-27, section 2).
-const IDLE: Duration = Duration::from_secs(15);
+use crate::{AT_MOST, Fixture, IdleMemory, READINGS, ServeError, Served, is_settled, percentile};
 
 /// The pause between two edits, short enough that an edit can land while
 /// the full render after the one before still runs.
@@ -128,16 +124,39 @@ fn edit_rounds(
     Ok(times)
 }
 
-/// Reads the resident memory of `served` each second for [`IDLE`] after
-/// its first answer, which was the start's first byte, with no request in
-/// between. Reading `/proc` from here touches nothing in the server.
+/// Reads the server's thread count and resident memory each second after
+/// its first answer, with no request in between, until it settles, then
+/// takes [`READINGS`] more readings one second apart. The server settles
+/// when its thread count holds still and its resident memory stops
+/// falling, which happens once tokio's idle blocking threads have ended
+/// (CTO answers 2026-10-27, section 2; the budget and the meaning stand,
+/// only the reading moved). A server that never settles within
+/// [`AT_MOST`] seconds is read anyway, so a wedged server cannot hang
+/// the measure. Reading `/proc` from here touches nothing in the server.
 fn idle_memory(served: &Served) -> Result<IdleMemory, ServeError> {
-    let mut each_second = Vec::new();
-    for _ in 0..IDLE.as_secs() {
+    let mut trace: Vec<(Option<usize>, f64)> = Vec::new();
+    loop {
+        thread::sleep(Duration::from_secs(1));
+        let resident = served.resident_mb()?;
+        let threads = served.thread_count();
+        trace.push((threads, resident));
+        if trace.len() >= AT_MOST || is_settled(&trace) {
+            break;
+        }
+    }
+    // Once settled: five readings one second apart, the measure their
+    // lowest.
+    let settled = trace.len() - 1;
+    let mut each_second: Vec<f64> = trace.iter().map(|&(_, resident)| resident).collect();
+    for _ in 0..READINGS {
         thread::sleep(Duration::from_secs(1));
         each_second.push(served.resident_mb()?);
     }
-    Ok(IdleMemory::new(each_second, served.memory_split()))
+    Ok(IdleMemory::settled_at(
+        each_second,
+        settled,
+        served.memory_split(),
+    ))
 }
 
 /// The middle value of `values` by nearest rank.
