@@ -1,0 +1,20 @@
+# A heading that promises types but is followed by prose, and a
+# comparison heading with no table.
+extends = "clean"
+unset = []
+
+body_text = """
+Internal links help readers find the next useful post on your site.
+Types of internal links
+There are several kinds you can use, each with its own place.
+Differences between links and buttons
+Links move you, buttons act, and the two are not the same thing.
+"""
+
+[[headings]]
+level = "h2"
+text = "Types of internal links"
+
+[[headings]]
+level = "h2"
+text = "Differences between links and buttons"

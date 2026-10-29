@@ -256,6 +256,18 @@ why = "A reader who cannot find who writes here trusts it less, and an engine ci
 fix = "Add an About or a contact page, with the authors' names and how to reach them."
 guide = "author-proof"
 
+[heading-agrees]
+what = "Two headings in the post say near the same thing."
+why = "A repeated heading leaves a reader unable to tell the sections apart, and an engine unsure which to lift."
+fix = "Give each heading its own words, or merge the two sections."
+guide = "headings-promise"
+
+[heading-shape]
+what = "A heading promises kinds or a comparison, but no list or table follows it."
+why = "The heading sets a promise the body must keep; a list or a table is the shape a reader can scan."
+fix = "Turn what follows into a list for kinds, or a table for differences."
+guide = "headings-promise"
+
 [plain-answer]
 what = "An answer paragraph uses hedge words, vague openers or a trailing which."
 why = "Answer engines lift the clearest sentence they can find, and hedged text reads as unsure."

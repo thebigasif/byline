@@ -52,6 +52,10 @@ pub struct Thresholds {
     /// The most words a standalone answer after a question-style heading
     /// may hold. Default 60, the answer capsule's ceiling (decision D3).
     pub answer_max_words: usize,
+    /// The largest share in percent two headings may share before they
+    /// read as the same heading. Default 70: near-duplicates share most
+    /// words with small grammar differences, not merely a topic.
+    pub heading_duplicate_percent: usize,
     /// The most words one paragraph may hold before it buries its ideas.
     /// Default 225, about the top of the 75 to 225 word target.
     pub paragraph_max_words: usize,
@@ -70,6 +74,7 @@ impl Default for Thresholds {
         Self {
             answer_min_words: 40,
             answer_max_words: 60,
+            heading_duplicate_percent: 70,
             paragraph_max_words: 225,
             thin_post_words: 300,
             same_link_text_max: 3,

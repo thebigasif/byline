@@ -4,9 +4,9 @@ use chrono::NaiveDate;
 
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
-    Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
-    link_text, reading, site_content, site_links, site_trust, snippet, structure, topics, words,
-    writing,
+    Rule, SiteRule, Thresholds, address, blocking, collections, headings, link_hygiene,
+    link_targets, link_text, reading, site_content, site_links, site_trust, snippet, structure,
+    topics, words, writing,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -77,6 +77,13 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
             openers: writing::VAGUE_OPENERS.to_vec(),
         }),
         Box::new(writing::SourcedStatistics),
+        Box::new(headings::HeadingAgrees {
+            max_duplicate_percent: thresholds.heading_duplicate_percent,
+        }),
+        Box::new(headings::HeadingShape {
+            list_words: headings::LIST_WORDS.to_vec(),
+            table_words: headings::TABLE_WORDS.to_vec(),
+        }),
         Box::new(FocusNotIn(Place::Title)),
         Box::new(FocusNotIn(Place::Description)),
         Box::new(FocusNotIn(Place::FirstParagraph)),

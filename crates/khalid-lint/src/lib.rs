@@ -21,6 +21,7 @@ mod finding;
 mod focus;
 mod gate;
 mod german;
+mod headings;
 mod link_graph;
 mod link_hygiene;
 mod link_targets;
