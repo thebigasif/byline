@@ -1,6 +1,6 @@
 //! The site rules that judge what a site says about itself.
 
-use crate::{Hit, LintPost, RuleId, SiteRule, SiteView, Severity};
+use crate::{Hit, LintPost, RuleId, Severity, SiteRule, SiteView};
 
 /// The slugs a site's About or contact page may carry. A reader who wants
 /// to know who writes here, and an engine judging the site's trust, looks
@@ -25,11 +25,10 @@ impl SiteRule for NoAboutPage {
     }
 
     fn check<'site>(&self, site: &'site dyn SiteView) -> Vec<(&'site LintPost, Hit)> {
-        let has_about = site.pages().iter().any(|page| {
-            ABOUT_SLUGS
-                .iter()
-                .any(|slug| page.slug.as_str() == *slug)
-        });
+        let has_about = site
+            .pages()
+            .iter()
+            .any(|page| ABOUT_SLUGS.iter().any(|slug| page.slug.as_str() == *slug));
         if has_about {
             return Vec::new();
         }

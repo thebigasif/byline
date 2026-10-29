@@ -5,8 +5,8 @@ use chrono::NaiveDate;
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
     Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
-    link_text, reading, site_content, site_links, site_trust, snippet, structure, topics,
-    words, writing,
+    link_text, reading, site_content, site_links, site_trust, snippet, structure, topics, words,
+    writing,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
