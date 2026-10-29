@@ -167,6 +167,14 @@ pub(crate) fn lint_parts(
     post.description.clone_from(&front.description);
     post.date = front.date;
     post.updated = front.updated;
+    if let Some(group) = front.topic_group.as_deref() {
+        let role = if front.main_post {
+            khalid_lint::ClusterRole::Pillar
+        } else {
+            khalid_lint::ClusterRole::Member
+        };
+        post.cluster = Some(khalid_lint::Cluster::new(group, role));
+    }
     post.author = front
         .author
         .as_ref()

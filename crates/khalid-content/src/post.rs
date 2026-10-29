@@ -38,6 +38,14 @@ pub struct PostFront {
     /// What changed in the last real update, in one plain sentence, such
     /// as "Refreshed the 2024 numbers." Shown beside the updated date.
     pub updated_note: Option<String>,
+    /// The topic group the post belongs to, shared by every post in it,
+    /// such as `internal-links` (P8). A group whose main post says
+    /// `main_post: true` is checked by the linter's cluster rules.
+    pub topic_group: Option<String>,
+    /// Whether this post is its topic group's main post, the pillar the
+    /// group's other posts should link to (P8).
+    #[serde(default)]
+    pub main_post: bool,
     /// The author's slug, matching a file in `authors/`.
     pub author: Option<Slug>,
     /// The category's slug, matching one in `categories.toml`.

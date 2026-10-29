@@ -99,6 +99,72 @@ fn a_post_is_named_by_its_title_as_its_page_is_and_wikilinks_reach_it() {
 }
 
 #[test]
+fn a_topic_group_member_without_a_link_to_its_main_post_is_a_warning() {
+    // The member names its topic group in front matter; the main post
+    // says main_post: true. The member never links to the main post, so
+    // cluster-without-pillar fires (P8).
+    let site = site(
+        None,
+        &[
+            (
+                "posts/internal-linking-guide.md",
+                &post(
+                    "Internal linking guide",
+                    "topic_group: internal-links\nmain_post: true\n",
+                    "The guide to everything about linking your own site.",
+                ),
+            ),
+            (
+                "posts/choosing-anchor-text.md",
+                &post(
+                    "Choosing anchor text",
+                    "topic_group: internal-links\n",
+                    "Anchor text is the words a reader clicks.",
+                ),
+            ),
+        ],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "cluster-without-pillar", "choosing-anchor-text"),
+        vec!["internal-linking-guide".to_owned()]
+    );
+}
+
+#[test]
+fn a_topic_group_member_that_links_its_main_post_is_quiet() {
+    // The same group, but the member's body links the main post, so the
+    // rule does not fire.
+    let site = site(
+        None,
+        &[
+            (
+                "posts/internal-linking-guide.md",
+                &post(
+                    "Internal linking guide",
+                    "topic_group: internal-links\nmain_post: true\n",
+                    "The guide to everything about linking your own site.",
+                ),
+            ),
+            (
+                "posts/choosing-anchor-text.md",
+                &post(
+                    "Choosing anchor text",
+                    "topic_group: internal-links\n",
+                    "Start from the [[internal-linking-guide]] when you plan your links.",
+                ),
+            ),
+        ],
+    );
+    let report = lint(site.path());
+    let none = Vec::<String>::new();
+    assert_eq!(
+        found(&report, "cluster-without-pillar", "choosing-anchor-text"),
+        none
+    );
+}
+
+#[test]
 fn a_form_whose_answers_go_nowhere_is_a_warning() {
     let body = "Write to us.\n\n:::form{id=\"contact\" button=\"Send\"}\n\
                 - text name: Your name\n- email reply_to: Your email address\n:::";
