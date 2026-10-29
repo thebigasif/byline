@@ -5,6 +5,11 @@
 # no library to patch. How to run it is in docs/deploy.md.
 #
 #   docker build -t khalid .
+#
+# The allocator setting docs/standards/performance.md records: mimalloc
+# frees a dead thread's pages at once (MIMALLOC_ABANDONED_PAGE_PURGE=1),
+# so the render thread's pages return when it ends instead of sitting in
+# the arenas of a server with no visitors.
 #   docker run -p 8080:8080 -v "$PWD/site:/site" khalid
 
 # Keep these the same as rust-toolchain.toml and the admin job in ci.yml.
@@ -41,6 +46,10 @@ COPY --from=build --chown=65532:65532 /out/site /site
 # binary is fully static.
 RUN ["/khalid", "--version"]
 USER 65532:65532
+# docs/standards/performance.md records why: without it, an idle server
+# keeps the dead render thread's pages (54 to 67 MB resident against
+# 16.5 to 26.8 MB live); with it they return when the thread ends.
+ENV MIMALLOC_ABANDONED_PAGE_PURGE=1
 VOLUME /site
 EXPOSE 8080
 ENTRYPOINT ["/khalid", "--site", "/site"]

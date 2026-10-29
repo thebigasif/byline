@@ -46,6 +46,12 @@ impl Served {
     pub fn start(binary: &Path, site: &Path, clock: &dyn Clock) -> Result<(Self, f64), ServeError> {
         let started = clock.now();
         let child = Command::new(binary)
+            // The allocator setting the deployment image carries (see
+            // docs/standards/performance.md): free a dead thread's pages
+            // at once instead of waiting for an allocation that never
+            // comes on an idle server. The measured server runs with the
+            // setting production runs with.
+            .env("MIMALLOC_ABANDONED_PAGE_PURGE", "1")
             .arg("--site")
             .arg(site)
             .args(["--json", "serve", "--listen", "127.0.0.1:0"])
