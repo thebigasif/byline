@@ -12,6 +12,8 @@ const GOOD: &str = "---
 title: Why internal links matter
 slug: why-internal-links-matter
 date: 2026-09-14
+updated: 2026-10-20
+updated_note: Refreshed the 2024 numbers.
 author: asif
 category: on-page-seo
 description: Internal links help readers and search engines.
@@ -42,6 +44,14 @@ fn reads_every_field_and_keeps_the_body_exactly() {
         Some("2026-09-14")
     );
     assert_eq!(
+        front.updated.map(|d| d.to_string()).as_deref(),
+        Some("2026-10-20")
+    );
+    assert_eq!(
+        front.updated_note.as_deref(),
+        Some("Refreshed the 2024 numbers.")
+    );
+    assert_eq!(
         front.author.as_ref().map(khalid_core::Slug::as_str),
         Some("asif")
     );
@@ -70,7 +80,7 @@ fn allows_the_fields_the_linter_checks_to_be_missing() {
 fn refuses_an_unknown_field() {
     assert_eq!(
         message("---\ntitle: A\ncolour: blue\n---\n"),
-        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, author, category, description, translation, aliases, featured, robots, canonical, reviewed_by, related, focus_keyword, secondary_keywords, image, seo_title, tags, sitemap, access, template, password_hash, head_code, co_authors, review_state, share_cards, schema"
+        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, updated, updated_note, author, category, description, translation, aliases, featured, robots, canonical, reviewed_by, related, focus_keyword, secondary_keywords, image, seo_title, tags, sitemap, access, template, password_hash, head_code, co_authors, review_state, share_cards, schema"
     );
 }
 
@@ -258,5 +268,13 @@ fn refuses_a_broken_block_with_the_line_in_the_file() {
             "---\ntitle: A\n---\n\nIntro.\n\n:::figur{src=\"a.jpg\" alt=\"A\"}\nCaption.\n:::\n"
         ),
         "posts/a.md, line 7: there is no block called figur; the closest name is figure"
+    );
+}
+
+#[test]
+fn an_updated_date_that_is_not_a_real_day_is_refused() {
+    assert_eq!(
+        message("---\ntitle: A\ndate: 2026-09-14\nupdated: 2026-02-31\n---\n\nBody.\n"),
+        "posts/a.md, line 4, field \"updated\": the date must be a real day written as YYYY-MM-DD, such as 2026-09-14"
     );
 }

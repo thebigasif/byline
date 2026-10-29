@@ -1,12 +1,13 @@
 ---
 source: crates/khalid/tests/build_files.rs
+assertion_line: 46
 expression: "read(&built(), \"sitemap.xml\")"
 ---
 <?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
     <loc>https://www.example.com/blog/sitemaps/posts-en-1.xml</loc>
-    <lastmod>2026-10-12T00:00:00Z</lastmod>
+    <lastmod>2026-10-20T00:00:00Z</lastmod>
   </sitemap>
   <sitemap>
     <loc>https://www.example.com/blog/sitemaps/posts-de-1.xml</loc>

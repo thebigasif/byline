@@ -43,6 +43,9 @@ pub(crate) fn person_node(
     if let Some(title) = &profile.job_title {
         node.set("jobTitle", SchemaValue::text(title));
     }
+    if let Some(credentials) = &profile.credentials {
+        node.set("hasCredential", SchemaValue::text(credentials));
+    }
     if !profile.bio.is_empty() {
         node.set("description", SchemaValue::text(&profile.bio));
     }

@@ -166,6 +166,7 @@ pub(crate) fn lint_parts(
     post.title.clone_from(&front.title);
     post.description.clone_from(&front.description);
     post.date = front.date;
+    post.updated = front.updated;
     post.author = front
         .author
         .as_ref()

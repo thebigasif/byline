@@ -41,3 +41,7 @@ links = [{ kind = "internal", target = "/blog/link-audits/", text = "link audits
 locale = "en"
 slug = "pruning-old-posts"
 links = [{ kind = "internal", target = "/blog/start-here/", text = "start here" }]
+
+[[pages]]
+locale = "en"
+slug = "about"

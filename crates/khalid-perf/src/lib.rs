@@ -20,7 +20,7 @@ mod words;
 
 pub use fixture::Fixture;
 pub use fixture_error::FixtureError;
-pub use idle_memory::{IdleMemory, MemorySplit};
+pub use idle_memory::{AT_MOST, FLOOR, IdleMemory, MemorySplit, READINGS, STABLE, is_settled};
 pub use inputs::{Page, Prepared};
 pub use prepare_error::PrepareError;
 pub use render_times::{RenderTimes, percentile};

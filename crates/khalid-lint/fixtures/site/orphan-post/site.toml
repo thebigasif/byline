@@ -32,3 +32,7 @@ links = [
   { kind = "internal", target = "/blog/choosing-link-text/", text = "choosing link text" },
   { kind = "internal", target = "/blog/pruning-old-posts/", text = "this post itself" },
 ]
+
+[[pages]]
+locale = "en"
+slug = "about"

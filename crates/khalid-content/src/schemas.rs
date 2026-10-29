@@ -34,6 +34,10 @@ pub struct AuthorFront {
     pub slug: Option<Slug>,
     /// One line on what the author does.
     pub role: Option<String>,
+    /// The author's credentials, such as a degree or ten years in the
+    /// field, written into the author's schema as `hasCredential` so a
+    /// reader, and an engine judging the post, can see why to trust them.
+    pub credentials: Option<String>,
     /// Profiles elsewhere, written into the author's schema as `sameAs`.
     #[serde(default)]
     pub same_as: Vec<AbsoluteUrl>,

@@ -1,0 +1,2 @@
+warn plain-answer: the answer under "How long should an answer be?" uses perhaps, which (suggest: say the claim outright and drop the hedge)
+warn sourced-statistics: Perhaps plain1 plain2 plain3 plain4 plain5 plain6 plain7 ... (suggest: link the number to its source, or name the year it held)

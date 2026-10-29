@@ -9,13 +9,14 @@ use super::{Renderer, attribute};
 use crate::{HowToBlock, ProductBlock, Question, ReviewBlock, Step, StructuredBlock};
 
 impl Renderer<'_> {
-    /// Writes each question as a summary a reader opens to see the answer,
-    /// which works with scripts off.
+    /// Writes each question as a summary with its answer open beside it.
+    /// The answer is in the page with scripts off, because a collapsed
+    /// answer is invisible to a reader who cannot run them (P1).
     pub(super) fn faq(&mut self, questions: &[Question]) {
         self.html.push_str("<section class=\"faq\">\n");
         for question in questions {
             self.push(&[
-                "<details>\n<summary>",
+                "<details open>\n<summary>",
                 &attribute(&question.text),
                 "</summary>\n",
             ]);

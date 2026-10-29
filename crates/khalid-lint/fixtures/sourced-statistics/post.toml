@@ -1,0 +1,9 @@
+# A bare statistic: a number with no year beside it and no linked source
+# on its line.
+extends = "clean"
+
+body_text = """
+Internal links help readers find the next useful post on your site.
+Studies show that 47 percent of readers leave a page in ten seconds, a number with no source.
+Readers who arrived in 2024 stayed 31 percent longer, a dated number.
+"""
