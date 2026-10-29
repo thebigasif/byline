@@ -14,6 +14,8 @@ pub struct AuthorProfile {
     pub url: Option<AbsoluteUrl>,
     /// What they do, such as `Founder, SerpDad`.
     pub job_title: Option<String>,
+    /// Why to trust them, such as a degree or years in the field.
+    pub credentials: Option<String>,
     /// A sentence or two about them.
     pub bio: String,
     /// Their profiles elsewhere.
@@ -31,6 +33,7 @@ impl AuthorProfile {
             name: name.to_owned(),
             url: None,
             job_title: None,
+            credentials: None,
             bio: String::new(),
             same_as: Vec::new(),
             knows_about: Vec::new(),

@@ -21,3 +21,7 @@ date = "2025-10-26"
 [[posts]]
 locale = "en"
 slug = "why-internal-links-matter"
+
+[[pages]]
+locale = "en"
+slug = "about"

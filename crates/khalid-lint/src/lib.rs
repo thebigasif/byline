@@ -36,6 +36,7 @@ mod score;
 mod severity;
 mod site_content;
 mod site_links;
+mod site_trust;
 mod snippet;
 mod structure;
 mod thresholds;

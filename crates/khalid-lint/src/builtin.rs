@@ -5,7 +5,8 @@ use chrono::NaiveDate;
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
     Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
-    link_text, reading, site_content, site_links, snippet, structure, topics, words, writing,
+    link_text, reading, site_content, site_links, site_trust, snippet, structure, topics,
+    words, writing,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -113,6 +114,7 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
 pub(crate) fn site_rules(thresholds: Thresholds, today: NaiveDate) -> Vec<Box<dyn SiteRule>> {
     vec![
         Box::new(site_links::OrphanPost),
+        Box::new(site_trust::NoAboutPage),
         Box::new(site_links::OneInboundLink),
         Box::new(site_links::TooDeep {
             max: thresholds.max_clicks,

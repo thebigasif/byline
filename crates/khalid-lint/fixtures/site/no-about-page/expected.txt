@@ -1,0 +1,2 @@
+en/why-internal-links-matter: warn orphan-post
+en/why-internal-links-matter: warn no-about-page

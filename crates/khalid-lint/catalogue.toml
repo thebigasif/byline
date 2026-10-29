@@ -250,6 +250,12 @@ why = "Readers lose the thread in a wall of text, and the paragraph's main point
 fix = "Split it at each change of idea, into paragraphs of 75 to 225 words, one idea each."
 guide = "plain-writing"
 
+[no-about-page]
+what = "The site has no About or contact page."
+why = "A reader who cannot find who writes here trusts it less, and an engine citing the site has no author to credit."
+fix = "Add an About or a contact page, with the authors' names and how to reach them."
+guide = "author-proof"
+
 [plain-answer]
 what = "An answer paragraph uses hedge words, vague openers or a trailing which."
 why = "Answer engines lift the clearest sentence they can find, and hedged text reads as unsure."

@@ -30,3 +30,7 @@ links = [
   { kind = "internal", target = "/de/blog/anchor-text-basics/", text = "Grundlagen" },
   { kind = "internal", target = "/de/blog/anchor-text-basics/", text = "nochmal" },
 ]
+
+[[pages]]
+locale = "en"
+slug = "about"
