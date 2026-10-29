@@ -11,7 +11,8 @@ use serde::Deserialize;
 
 use crate::toml_location::{field_of, line_of, line_of_key};
 use crate::{
-    AbsoluteUrl, Locale, MediaSettings, ParseUrlError, Reader, S3Keys, Secret, SeoSettings,
+    AbsoluteUrl, AiPageSettings, Locale, MediaSettings, ParseUrlError, Reader, S3Keys, Secret,
+    SeoSettings,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -267,6 +268,11 @@ impl Config {
     /// The SEO settings, from `[seo]`.
     pub fn seo(&self) -> &SeoSettings {
         &self.seo
+    }
+
+    /// The AI info page's settings, from `[seo.ai_page]`.
+    pub fn ai_page(&self) -> &AiPageSettings {
+        &self.seo.ai_page
     }
 
     /// Which reader features the default templates show, from `[reader]`.

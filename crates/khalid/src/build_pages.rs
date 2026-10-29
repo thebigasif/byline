@@ -12,8 +12,9 @@ use khalid_content::{
 };
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
-    RenderAuthor, RenderHome, RenderListing, RenderPage, RenderPost, RenderSite, Robots, related,
+    BodyHtml, Link, Nav, NavLink, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics,
+    ReadingTime, RenderAuthor, RenderHome, RenderListing, RenderPage, RenderPost, RenderSite,
+    Robots, related,
 };
 use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
@@ -50,11 +51,12 @@ pub(crate) fn pages(
     routes: &Routes,
     (content, others): (&SiteContent, &[ListedPost]),
     stylesheet: &str,
+    today: NaiveDate,
 ) -> Result<Vec<LanguagePages>, UserMessage> {
     config
         .languages()
         .iter()
-        .map(|locale| language_pages(config, routes, (content, others), locale, stylesheet))
+        .map(|locale| language_pages(config, routes, (content, others), locale, stylesheet, today))
         .collect()
 }
 
@@ -64,6 +66,7 @@ fn language_pages(
     (content, others): (&SiteContent, &[ListedPost]),
     locale: &Locale,
     stylesheet: &str,
+    today: NaiveDate,
 ) -> Result<LanguagePages, UserMessage> {
     let links = Wikilinks::for_language(content, config, routes, locale);
     let people = build_reader::people(config, &links, content, locale)?;
@@ -75,6 +78,9 @@ fn language_pages(
     };
     let (mut pages, listed) = post_pages(config, routes, &links, &posts)?;
     pages.extend(plain_pages(config, &links, content, locale)?);
+    if let Some(ai) = ai_page(config, locale, today)? {
+        pages.push(ai);
+    }
     pages.extend(glossary_pages(config, routes, &links, content, locale)?);
     pages.extend(author_pages(
         config, &links, content, locale, &listed, &people,
@@ -352,6 +358,72 @@ fn post_page(
 }
 
 /// The page of every plain page in `locale`, such as About, at `/<slug>/`.
+/// The AI info page of `locale`, at `ai/` (P3): who runs the site, what
+/// it covers, how to cite it and how to reach the team, in plain HTML
+/// that needs no scripts, with its own `AboutPage` schema. `None` when
+/// `[seo.ai_page] off = true`.
+fn ai_page(
+    config: &Config,
+    locale: &Locale,
+    today: NaiveDate,
+) -> Result<Option<Page>, UserMessage> {
+    let settings = config.ai_page();
+    if settings.off {
+        return Ok(None);
+    }
+    let rest = "ai/";
+    let title = "About this site for readers and AI".to_owned();
+    let publisher = config.seo().publisher.name.clone().unwrap_or_default();
+    let who = if publisher.is_empty() {
+        config.name().to_owned()
+    } else {
+        publisher
+    };
+    let tagline = &config.seo().titles.tagline;
+    let covers = settings.covers.clone().unwrap_or_else(|| {
+        if tagline.is_empty() {
+            format!("{who} publishes notes and guides.")
+        } else {
+            tagline.clone()
+        }
+    });
+    let contact = settings.contact.clone().unwrap_or_else(|| {
+        config
+            .seo()
+            .publisher
+            .email
+            .clone()
+            .unwrap_or_else(|| "the address in the site's contact page".to_owned())
+    });
+    let cite = settings
+        .cite
+        .clone()
+        .unwrap_or_else(|| format!("Name {who} and link the post you quote."));
+    let lines = [
+        format!("<p>{who} runs this site.</p>"),
+        format!("<p>{covers}</p>"),
+        format!("<p>{cite}</p>"),
+        format!("<p>To reach the team: {contact}.</p>"),
+    ];
+    let body = lines.join("\n");
+    let description =
+        format!("Who runs {who}, what it covers, how to cite it and how to reach the team.");
+    let path = path_of(config, locale, rest);
+    let mut seo = build_seo::page(SeoKind::AiPage, locale, rest, &title)?;
+    seo.excerpt.clone_from(&description);
+    let meta = meta(config, title.clone(), description, path, PageKind::Website)?;
+    let updated = today;
+    let body = RenderPage {
+        title,
+        updated: Some(updated),
+        body: BodyHtml::from_sanitised(body),
+    };
+    Ok(Some(
+        page(locale, config, rest, meta, PageBody::Page(body), seo)
+            .made_from(Path::new("site.toml")),
+    ))
+}
+
 fn plain_pages(
     config: &Config,
     links: &Wikilinks,
@@ -601,13 +673,27 @@ pub(crate) fn render_site(config: &Config, locale: &Locale, stylesheet: &str) ->
         locale: locale.clone(),
         home: path_of(config, locale, ""),
         stylesheet: stylesheet.to_owned(),
-        nav: Nav::default(),
+        nav: nav(config, locale),
         main_site: None,
         share_image: None,
         features: build_reader::features(config.reader()),
         search: None,
         script: None,
     }
+}
+
+/// The site's menus. The AI info page, when it is on, is linked in the
+/// footer of every page (P3), so a reader or a model finds it from
+/// anywhere; the header stays as the site's author set it.
+fn nav(config: &Config, locale: &Locale) -> Nav {
+    let mut nav = Nav::default();
+    if !config.ai_page().off {
+        nav.footer.push(NavLink {
+            label: "AI info".to_owned(),
+            href: path_of(config, locale, "ai/"),
+        });
+    }
+    nav
 }
 
 /// The path of `rest` in `locale`: the mount, the language prefix for any

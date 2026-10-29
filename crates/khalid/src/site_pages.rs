@@ -371,7 +371,8 @@ impl SitePages {
         let href = theme
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
-        let mut languages = build_pages::pages(config, routes, (content, others), href)?;
+        let today = SystemClock.now().date_naive();
+        let mut languages = build_pages::pages(config, routes, (content, others), href, today)?;
         let renderer = theme.as_ref().map(|theme| &theme.renderer);
         post_lock::lock(config, content, renderer, &mut languages);
         if let Some(theme) = theme {

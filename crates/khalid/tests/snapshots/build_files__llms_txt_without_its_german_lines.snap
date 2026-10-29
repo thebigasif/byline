@@ -1,5 +1,6 @@
 ---
 source: crates/khalid/tests/build_files.rs
+assertion_line: 68
 expression: "english.join(\"\\n\")"
 ---
 # Field Notes on SEO
@@ -15,6 +16,7 @@ expression: "english.join(\"\\n\")"
 ## Pages
 
 - [About Field Notes](https://www.example.com/blog/about/): Who writes Field Notes on SEO, and why.
+- [About this site for readers and AI](https://www.example.com/blog/ai/): Who runs Field Notes on SEO, what it covers, how to cite it and how to reach the team.
 - [Topical authority](https://www.example.com/blog/glossary/topical-authority/)
 - [Authors](https://www.example.com/blog/authors/)
 - [Sitemap](https://www.example.com/blog/sitemap/)

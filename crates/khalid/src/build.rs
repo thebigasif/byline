@@ -100,7 +100,8 @@ fn build(
         .as_ref()
         .map(|(_, css)| assets::href(config, css))
         .unwrap_or_default();
-    let mut languages = build_pages::pages(config, routes, (content, &[]), &href)?;
+    let today = clock.now().date_naive();
+    let mut languages = build_pages::pages(config, routes, (content, &[]), &href, today)?;
     let renderer = theme.as_ref().map(|(renderer, _)| renderer);
     post_lock::lock(config, content, renderer, &mut languages);
     if let Some((renderer, _)) = &theme {

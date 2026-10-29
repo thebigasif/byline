@@ -3,9 +3,9 @@
 use serde::Deserialize;
 
 use crate::{
-    AbsoluteUrl, CrawlerSettings, FeedSettings, IndexNowKey, Indexing, LinkSettings,
-    LocationSettings, PublisherSettings, SchemaTemplateSettings, SocialSettings, TitleSettings,
-    VerificationSettings,
+    AbsoluteUrl, AiPageSettings, CrawlerSettings, FeedSettings, IndexNowKey, Indexing,
+    LinkSettings, LocationSettings, PublisherSettings, SchemaTemplateSettings, SocialSettings,
+    TitleSettings, VerificationSettings,
 };
 
 /// The SEO settings. Every one has a default, so the table may be left out:
@@ -48,6 +48,8 @@ pub struct SeoSettings {
     pub locations: Vec<LocationSettings>,
     /// Schema nodes per category or collection, from `[[seo.schema]]`.
     pub schema: Vec<SchemaTemplateSettings>,
+    /// The AI info page, from `[seo.ai_page]` (P3). On by default.
+    pub ai_page: AiPageSettings,
 }
 
 /// `IndexNow`, switched on by its table in `site.toml`.

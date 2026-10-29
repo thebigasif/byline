@@ -18,6 +18,9 @@ pub enum PageKind {
     Post,
     /// A standalone page such as "About".
     Page,
+    /// The AI info page, which tells a reader who runs the site, what it
+    /// covers, how to cite it and how to reach the team (P3).
+    AiPage,
     /// An author's archive.
     Author,
     /// A tag archive.
