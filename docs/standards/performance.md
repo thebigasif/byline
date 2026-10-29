@@ -47,6 +47,8 @@ Once settled, five readings are taken one second apart and the lowest is the mea
 
 One setting is on: `MIMALLOC_ABANDONED_PAGE_PURGE=1`, set in the deployment image and in the server `khalid-perf serve` measures. mimalloc returns a freed page only when a thread later frees a page or ends; the thread that renders a site's pages ends after compressing them, and an idle server never touches its arenas again, which is why a heap of 16.5 to 26.8 MB live read 54 to 67 MB resident. With the setting, a dead thread's pages are purged at once on its termination. The measurement that justifies it is the eight CI runs in the pull request that added it.
 
+The database's page caches are also capped: 4 MB for the writer, 2 MB each for the eight readers (SQLite `cache_size` of -4096 and -2048 kilobytes). SQLite's default cache grows with the memory the host reports, which on a large runner leaves several megabytes per connection held for no faster an answer; the caps keep the working set resident without the drift. The measurement is in the same pull request.
+
 ## Allocator settings history
 
 The CTO answers of 2026-10-27, section 2, allow tuning the allocator to hand memory back, as long as the setting is recorded here with the measurement behind it. Measured on 2026-10-27 with `khalid-perf serve`, release build, on the generated 1,000-post site, idle memory as defined in the table above. The server was shared and busy (load average 65 to 85 on 16 cores), so each setting ran twice where it mattered.

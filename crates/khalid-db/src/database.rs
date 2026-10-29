@@ -51,12 +51,20 @@ impl Database {
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .foreign_keys(true)
-            .busy_timeout(BUSY_TIMEOUT);
+            .busy_timeout(BUSY_TIMEOUT)
+            // A reader serves point lookups from small tables; SQLite's
+            // default cache grows with memory it sees, which on a big CI
+            // runner leaves several MB of each of the eight readers held
+            // for no faster an answer. Two megabytes a reader, four the
+            // writer, keep the working set resident without the drift
+            // (measured in docs/standards/performance.md).
+            .pragma("cache_size", "-2048");
+        let writer_options = options.clone().pragma("cache_size", "-4096");
         // The writer opens first: it creates the file and switches it to WAL,
         // which read-only connections cannot do.
         let writer = SqlitePoolOptions::new()
             .max_connections(1)
-            .connect_with(options.clone().create_if_missing(true))
+            .connect_with(writer_options.create_if_missing(true))
             .await
             .map_err(open_error)?;
         let readers = SqlitePoolOptions::new()
@@ -133,6 +141,20 @@ mod tests {
                 assert_eq!(pragma(pool, sql).await, value, "{sql}");
             }
         }
+        // The page cache is capped so it cannot drift with the memory the
+        // runner reports: 4 MB the writer, 2 MB each reader.
+        let writer_cache = pragma(
+            &db.writer,
+            "SELECT CAST(cache_size AS TEXT) FROM pragma_cache_size",
+        )
+        .await;
+        let reader_cache = pragma(
+            &db.readers,
+            "SELECT CAST(cache_size AS TEXT) FROM pragma_cache_size",
+        )
+        .await;
+        assert_eq!(writer_cache, "-4096");
+        assert_eq!(reader_cache, "-2048");
         db.close().await;
     }
 
