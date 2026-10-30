@@ -9,7 +9,10 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+axum = { version = "0.8", default-features = false, features = [
+  "http1",
+  "tokio",
+] }
 
 [dev-dependencies]
 http-body-util = "0.1"

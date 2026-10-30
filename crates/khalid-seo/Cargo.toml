@@ -20,7 +20,9 @@ tokio = { version = "1", default-features = false, features = ["time"] }
 [dev-dependencies]
 atom_syndication = "0.12"
 insta = "1"
-khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = [
+  "test-util",
+] }
 tokio.workspace = true
 wiremock = "0.6"
 robotstxt = "0.3"
