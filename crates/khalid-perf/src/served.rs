@@ -51,7 +51,6 @@ impl Served {
             // at once instead of waiting for an allocation that never
             // comes on an idle server. The measured server runs with the
             // setting production runs with.
-            .env("MIMALLOC_ABANDONED_PAGE_PURGE", "1")
             .env("MIMALLOC_PURGE_DELAY", "0")
             .arg("--site")
             .arg(site)
