@@ -19,8 +19,13 @@ services:
       - "8080:8080"
     volumes:
       - ./site:/site
-    # environment:
-    #   KHALID_ADDRESS: https://blog.example.com
+    environment:
+      # The allocator setting docs/standards/performance.md records: freed
+      # pages return to the OS at once (the image sets it too; this keeps a
+      # compose run that overrides the image honest to the same budget).
+      MIMALLOC_PURGE_DELAY: "0"
+      # Your own settings:
+      #   KHALID_ADDRESS: https://blog.example.com
     read_only: true
     tmpfs:
       - /tmp
