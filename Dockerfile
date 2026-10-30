@@ -7,7 +7,7 @@
 #   docker build -t khalid .
 #
 # The allocator setting docs/standards/performance.md records: mimalloc
-# returns pages it frees to the OS at once (MIMALLOC_PURGE_DELAY=0),
+# returns pages it frees to the OS after a short delay (MIMALLOC_PURGE_DELAY=100),
 # so the arenas of a server with no visitors hold no pages it freed
 # while serving.
 #   docker run -p 8080:8080 -v "$PWD/site:/site" khalid
@@ -49,7 +49,7 @@ USER 65532:65532
 # docs/standards/performance.md records why: without it, an idle server
 # keeps the dead render thread's pages (54 to 67 MB resident against
 # 16.5 to 26.8 MB live); with it they return when the thread ends.
-ENV MIMALLOC_PURGE_DELAY=0
+ENV MIMALLOC_PURGE_DELAY=100
 VOLUME /site
 EXPOSE 8080
 ENTRYPOINT ["/khalid", "--site", "/site"]
