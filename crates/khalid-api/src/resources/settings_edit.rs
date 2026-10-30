@@ -35,6 +35,12 @@ pub struct SettingsEdit {
     featured: Option<bool>,
     /// `draft`, `in_review` or `ready`.
     review_state: Option<ReviewState>,
+    /// The day the post was last looked over (F3), or `null` for never.
+    /// Setting it records a review and nothing else: it never moves the
+    /// post's date or its updated date.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, format = Date, example = "2026-05-02")]
+    reviewed: Change<NaiveDate>,
     /// A new canonical address, or `null` for the post's own.
     #[serde(default)]
     #[schema(value_type = Option<String>, example = "https://example.com/original/")]
@@ -117,6 +123,7 @@ impl SettingsEdit {
             feature_image: self.feature_image.applied_to(settings.feature_image),
             featured: self.featured.unwrap_or(settings.featured),
             review_state: self.review_state.unwrap_or(settings.review_state),
+            reviewed: self.reviewed.applied_to(settings.reviewed),
             canonical: self.canonical.applied_to(settings.canonical),
             robots: self.robots.applied_to(settings.robots),
             share_cards: self.share_cards.unwrap_or(settings.share_cards),

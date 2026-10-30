@@ -7551,6 +7551,7 @@
           "title",
           "status",
           "review_state",
+          "review_due",
           "featured",
           "updated_at",
           "gate",
@@ -7594,9 +7595,22 @@
             "format": "date-time",
             "description": "When it went or goes live; empty for a draft."
           },
+          "review_due": {
+            "type": "boolean",
+            "description": "Whether the post is due for review: longer than the site's limit\nsince it was last reviewed, published or updated, whichever came\nlast. A list filters by this, such as `filter=review:due`."
+          },
           "review_state": {
             "$ref": "#/components/schemas/ReviewState",
             "description": "Draft, in review or ready."
+          },
+          "reviewed": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The day it last came up for review (F3), if it ever has.",
+            "example": "2026-05-02"
           },
           "slug": {
             "type": "string",
@@ -7742,6 +7756,15 @@
           "review_state": {
             "$ref": "#/components/schemas/ReviewState",
             "description": "Where the post stands in review."
+          },
+          "reviewed": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The day the post last came up for review and was looked at (F3).\nA review that changes nothing sets this alone; it never moves\n`date`, and a real change is what sets `updated` in the front\nmatter.",
+            "example": "2026-05-02"
           },
           "robots": {
             "type": [
@@ -8149,6 +8172,15 @@
                 "type": "null"
               }
             ]
+          },
+          "reviewed": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The day the post was last looked over (F3), or `null` for never.\nSetting it records a review and nothing else: it never moves the\npost's date or its updated date.",
+            "example": "2026-05-02"
           },
           "robots": {
             "type": [

@@ -1,7 +1,7 @@
 //! A post as the admin's posts table lists it, and the filters it answers
 //! (BL-API-5, KH-API-2).
 
-use chrono::{TimeZone, Utc};
+use chrono::{NaiveDate, TimeZone, Utc};
 use khalid_api::query::{FieldValues, Filter};
 use khalid_api::resources::{
     AdminPost, Gate, IndexStatus, LintCounts, PostRow, PostSettings, ReviewState,
@@ -28,6 +28,38 @@ fn live(slug: &str, settings: PostSettings) -> AdminPost {
 }
 
 #[test]
+fn a_row_comes_up_for_review_after_six_months_without_one() {
+    // Published 2026-09-14; on 2027-04-01 it is due, on 2027-03-01 not.
+    let post = live("old-guide", PostSettings::default());
+    let due = PostRow::new(&post, Gate::Passes).with_review_due(
+        Utc.with_ymd_and_hms(2027, 4, 1, 0, 0, 0)
+            .unwrap()
+            .date_naive(),
+    );
+    let fresh = PostRow::new(&post, Gate::Passes).with_review_due(
+        Utc.with_ymd_and_hms(2027, 3, 1, 0, 0, 0)
+            .unwrap()
+            .date_naive(),
+    );
+    assert!(due.review_due());
+    assert!(!fresh.review_due());
+    // A review recorded in February keeps it fresh past March.
+    let mut settings = PostSettings::default();
+    settings.reviewed = Some(NaiveDate::from_ymd_opt(2027, 2, 10).unwrap());
+    let reviewed = live("old-guide", settings);
+    let row = PostRow::new(&reviewed, Gate::Passes).with_review_due(
+        Utc.with_ymd_and_hms(2027, 7, 1, 0, 0, 0)
+            .unwrap()
+            .date_naive(),
+    );
+    assert!(!row.review_due());
+    // Recording a review never moves the post's own dates: the row holds
+    // them unchanged beside the reviewed day.
+    assert_eq!(row.published_at(), post.published_at());
+    assert_eq!(row.updated_at(), post.updated_at());
+}
+
+#[test]
 fn a_row_has_the_columns_and_no_body() {
     let mut settings = PostSettings::default();
     settings.review_state = ReviewState::InReview;
@@ -39,7 +71,8 @@ fn a_row_has_the_columns_and_no_body() {
             .unwrap();
     let want = json!({
         "id": "anchor-text", "slug": "anchor-text", "title": "Choosing anchor text",
-        "author": null, "status": "draft", "review_state": "in_review", "featured": false,
+        "author": null, "status": "draft", "review_state": "in_review", "reviewed": null,
+        "review_due": false, "featured": false,
         "published_at": null, "updated_at": "2026-10-20T08:30:00Z", "updated_by": "Asif",
         "gate": "refuses", "lint": {"blocks": 2, "warnings": 1}, "index_status": "not_live",
     });

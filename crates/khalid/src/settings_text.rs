@@ -20,6 +20,7 @@ pub(crate) fn settings_of(front: &PostFront) -> PostSettings {
     settings.excerpt = front.description.as_deref().and_then(NonBlank::try_new);
     settings.feature_image = front.image.as_ref().and_then(feature_image);
     settings.featured = front.featured;
+    settings.reviewed = front.reviewed;
     settings.review_state = match front.review_state {
         content::ReviewState::InReview => ReviewState::InReview,
         content::ReviewState::Ready => ReviewState::Ready,
@@ -100,6 +101,14 @@ pub(crate) fn write_settings(
         let state = (after.review_state != ReviewState::Draft)
             .then(|| after.review_state.as_str().to_owned());
         put(text, "review_state", state);
+    }
+    // A review records its day and nothing else: `date` above and the
+    // `updated:` field are left exactly as they were (F3).
+    if after.reviewed != before.reviewed {
+        let day = after
+            .reviewed
+            .map(|date| date.format("%Y-%m-%d").to_string());
+        put(text, "reviewed", day);
     }
     write_links(text, before, after);
     write_access(text, before, after);

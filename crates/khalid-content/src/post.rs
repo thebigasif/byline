@@ -38,6 +38,12 @@ pub struct PostFront {
     /// What changed in the last real update, in one plain sentence, such
     /// as "Refreshed the 2024 numbers." Shown beside the updated date.
     pub updated_note: Option<String>,
+    /// The day the post last came up for review and was looked at (F3,
+    /// decision D4: at least every six months). A review that changes
+    /// nothing sets this and nothing else: it never moves `date` or
+    /// `updated`, because a reader seeing a new date expects a real
+    /// change.
+    pub reviewed: Option<NaiveDate>,
     /// The topic group the post belongs to, shared by every post in it,
     /// such as `internal-links` (P8). A group whose main post says
     /// `main_post: true` is checked by the linter's cluster rules.

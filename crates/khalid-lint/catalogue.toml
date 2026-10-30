@@ -178,6 +178,12 @@ why = "Readers of that language cannot find this post, and Google cannot point t
 fix = "Write the translation and give both versions the same `translation:` key."
 guide = "translations"
 
+[review-due]
+what = "This post has not been reviewed in over six months."
+why = "A post nobody has looked at lately drifts out of date, and a reader trusts a claim less when it is stale."
+fix = "Update the reviewed date in the front matter after looking the post over; only a real change sets the updated date."
+guide = "review-queue"
+
 [stale-post]
 what = "This post has not been updated for a long time."
 why = "Readers and Google trust recent information more, and old facts may now be wrong."

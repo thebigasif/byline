@@ -43,6 +43,41 @@ impl SiteRule for MissingTranslation {
     }
 }
 
+/// A post due for review (F3, decision D4): it has been longer than the
+/// site's limit in months since it was last reviewed, published or
+/// updated, whichever came last.
+#[derive(Debug)]
+pub(crate) struct ReviewDue {
+    /// How many months a post may go without a review, from
+    /// `Thresholds::review_months`.
+    pub(crate) months: u32,
+    /// The date the linter started, read from the clock.
+    pub(crate) today: NaiveDate,
+}
+
+impl SiteRule for ReviewDue {
+    fn id(&self) -> RuleId {
+        RuleId::new("review-due")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check<'site>(&self, site: &'site dyn SiteView) -> Vec<(&'site LintPost, Hit)> {
+        let due = |post: &&LintPost| {
+            let last = post.reviewed.or(post.updated).or(post.date);
+            let next = last.and_then(|day| day.checked_add_months(Months::new(self.months)));
+            next.is_some_and(|until| until < self.today)
+        };
+        site.posts()
+            .iter()
+            .filter(due)
+            .map(|post| (post, Hit::post()))
+            .collect()
+    }
+}
+
 /// A post whose last update, or publish date when it has none, is more than
 /// the site's limit in months before today.
 #[derive(Debug)]

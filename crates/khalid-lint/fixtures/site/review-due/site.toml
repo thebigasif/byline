@@ -1,0 +1,23 @@
+# Today is 2026-10-26 and the limit is six months. The first post was
+# last reviewed in February, so it is due. The second was reviewed in
+# September and the third published in May, so neither is due yet.
+[[posts]]
+locale = "en"
+slug = "pruning-old-posts"
+date = "2025-06-14"
+reviewed = "2026-02-20"
+
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+date = "2026-04-02"
+reviewed = "2026-09-30"
+
+[[posts]]
+locale = "en"
+slug = "anchor-text-basics"
+date = "2026-04-18"
+
+[[pages]]
+locale = "en"
+slug = "about"
