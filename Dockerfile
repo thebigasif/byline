@@ -50,6 +50,7 @@ USER 65532:65532
 # keeps the dead render thread's pages (54 to 67 MB resident against
 # 16.5 to 26.8 MB live); with it they return when the thread ends.
 ENV MIMALLOC_ABANDONED_PAGE_PURGE=1
+ENV MIMALLOC_PURGE_DELAY=0
 VOLUME /site
 EXPOSE 8080
 ENTRYPOINT ["/khalid", "--site", "/site"]
