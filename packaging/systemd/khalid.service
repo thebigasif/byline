@@ -22,7 +22,7 @@ Group=khalid
 ExecStart=/usr/local/bin/khalid --site /var/lib/khalid serve --listen 127.0.0.1:8080
 # The allocator setting docs/standards/performance.md records: freed pages
 # return to the OS at once instead of waiting out mimalloc's reset delay.
-Environment=MIMALLOC_PURGE_DELAY=0
+Environment=MIMALLOC_PURGE_DELAY=100
 WorkingDirectory=/var/lib/khalid
 StateDirectory=khalid
 StateDirectoryMode=0750
