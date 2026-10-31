@@ -13,11 +13,11 @@ use khalid_content::{
 };
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Nav, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
-    RenderHome, RenderListing, RenderPost, RenderSite, Robots, related,
+    BodyHtml, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime, RenderHome,
+    RenderListing, RenderPost, RenderSite, Robots, related,
 };
-use khalid_routes::{PostAddress, Routes};
-use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
+use khalid_routes::{Collection, PostAddress, Routes};
+use khalid_seo::{ArticleType, MetaTemplate, PageKind as SeoKind, SeoPage};
 
 use crate::build_named_pages::{author_pages, glossary_pages, plain_pages};
 use crate::listed_post::{ListedPost, ListedTag};
@@ -99,7 +99,7 @@ fn language_pages(
         lead: None,
     });
     Ok(LanguagePages {
-        site: render_site(config, locale, stylesheet),
+        site: build_home::render_site(config, locale, stylesheet),
         pages,
         listed,
         unlocked: Vec::new(),
@@ -231,14 +231,14 @@ fn post_pages(
             .into_iter()
             .filter_map(|index| among.get(index).map(|post| post.card.clone()))
             .collect();
-        pages.push(post_page(
-            config,
-            locale,
-            draft,
-            related,
-            people,
-            &content.authors,
-        )?);
+        let news = routes
+            .collection(&draft.doc.collection)
+            .is_some_and(Collection::is_news);
+        let mut page = post_page(config, locale, draft, related, people, &content.authors)?;
+        if news {
+            page.seo.article_type = ArticleType::NewsArticle;
+        }
+        pages.push(page);
     }
     Ok((pages, listed))
 }
@@ -316,37 +316,12 @@ fn post_page(
         body: html,
     };
     seo.author = post.authors.first().map(|author| author.name.clone());
-    // The post's schema names its author with the proof P5 asks for: their
-    // page, their profiles elsewhere and their credentials, so an engine
-    // judging the post can see who stands behind it.
-    if let Some(slug) = &front.author
-        && let Some(doc) = authors
-            .iter()
-            .find(|doc| &doc.locale == locale && doc.front.slug.as_ref() == Some(slug))
-            .or_else(|| {
-                authors
-                    .iter()
-                    .find(|doc| doc.front.slug.as_ref() == Some(slug))
-            })
-    {
-        let href = path_of(config, locale, &format!("authors/{slug}/"));
-        let address = format!(
-            "{}{}",
-            config.address().as_str().trim_end_matches('/'),
-            href
-        );
-        let mut profile = AuthorProfile::new(&seo.author.clone().unwrap_or_default());
-        profile.url =
-            Some(AbsoluteUrl::parse(&address).map_err(|_| build_message::address(&address))?);
-        profile.job_title.clone_from(&doc.front.role);
-        profile.credentials.clone_from(&doc.front.credentials);
-        profile.same_as.clone_from(&doc.front.same_as);
-        profile.bio = doc.body.split_whitespace().collect::<Vec<_>>().join(" ");
-        seo.author_profile = Some(profile);
-    }
-    let by = (path.as_str(), seo.author.clone().unwrap_or_default());
+    let name = seo.author.clone().unwrap_or_default();
+    seo.author_profile = build_reader::author_profile(config, locale, (front, &name), authors)?;
     let body = (&rendered.structured[..], &rendered.links[..]);
-    build_schema::fill(&mut seo, config, (by.0, &by.1), body)?;
+    build_schema::fill(&mut seo, config, (path.as_str(), &name), body)?;
+    let images = (front.image.as_ref(), &rendered.images[..]);
+    build_schema::images(&mut seo, config, &path, images)?;
     seo.custom_schema = build_schema::custom(&doc.path, front.schema.as_deref())?;
     let meta = meta(config, title, description, path, PageKind::Article)?;
     let body = PageBody::Post(Box::new(post));
@@ -456,22 +431,6 @@ pub(crate) fn page(
         template: None,
         head_code: None,
         lead: None,
-    }
-}
-
-/// The site as pages in `locale` show it, linking the stylesheet at `stylesheet`.
-pub(crate) fn render_site(config: &Config, locale: &Locale, stylesheet: &str) -> RenderSite {
-    RenderSite {
-        name: config.name().to_owned(),
-        locale: locale.clone(),
-        home: path_of(config, locale, ""),
-        stylesheet: stylesheet.to_owned(),
-        nav: Nav::default(),
-        main_site: None,
-        share_image: None,
-        features: build_reader::features(config.reader()),
-        search: None,
-        script: None,
     }
 }
 

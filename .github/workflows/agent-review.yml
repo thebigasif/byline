@@ -2,8 +2,8 @@ name: Agent review
 
 # Every pull request gets an agent review against docs/standards/review.md before
 # a person reads it. Runs only when the founder has added ANTHROPIC_API_KEY to the
-# repository secrets through hidden input. Without the secret the job is skipped,
-# and the self-review pasted in the pull request is the record.
+# repository secrets and set the AGENT_REVIEW variable to "on". Otherwise the job
+# is skipped, and the self-review pasted in the pull request is the record.
 
 on:
   pull_request:
@@ -17,7 +17,10 @@ permissions:
 
 jobs:
   review:
-    if: github.event.pull_request.draft == false
+    # Skipped without a runner unless the AGENT_REVIEW repository variable is
+    # "on", so pull requests do not queue for a job that would only find the
+    # secret missing. Set the variable when ANTHROPIC_API_KEY is added.
+    if: github.event.pull_request.draft == false && vars.AGENT_REVIEW == 'on'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

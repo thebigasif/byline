@@ -19,6 +19,7 @@ use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -32,6 +33,7 @@ use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::entry_events::Entries;
 use crate::exit::Exit;
+use crate::form_delivery::SiteDelivery;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::serve_https::{self, Listen};
@@ -40,9 +42,9 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::tag_events::Tags;
 use crate::{
-    alert_watch, announce, comment_pages, consent_route, db, db_message, media_library, newsletter,
-    page_counts, preview, redirect_route, report, scheduler, search_route, serve_message,
-    share_images, staff, unlock,
+    alert_watch, announce, comment_pages, consent_route, db, db_message, form_pages, media_library,
+    newsletter, page_counts, preview, redirect_route, report, scheduler, search_route,
+    serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -150,9 +152,9 @@ fn serve_with(
         security: security.clone(),
     };
     let to = (site, config, listen, alert_every);
-    let (newsletters, alerting) = mail_and_alerts(
+    let (posted, alerting) = mail_and_alerts(
         to,
-        (database, id, runtime, &telling),
+        (&search, runtime, &telling),
         &content,
         (keys.mail, outbound),
     )?;
@@ -188,7 +190,7 @@ fn serve_with(
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
-            (comments, newsletters, pages),
+            (comments, posted, pages),
         );
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
@@ -212,25 +214,33 @@ fn serve_with(
     served
 }
 
-/// The newsletter's routes and the alerts ready to start, sharing the one
-/// way mail leaves, made from `[mail]` with its `secret` and `outbound`.
-/// The alert checks run `every` so often, and each confirmed subscriber is
-/// told to `telling`.
+/// The routes a reader posts to from a page besides comments, and the
+/// alerts ready to start, sharing the one way mail leaves, made from
+/// `[mail]` with its `secret` and `outbound`. The routes are the
+/// newsletter's and the form block's (G4), whose answers are emailed and
+/// told to `telling` (G40), as is each confirmed subscriber; both keep
+/// what they receive in the database `site` reads. The alert checks run
+/// `every` so often.
 fn mail_and_alerts(
-    (site, config, listen, every): (&Path, &Config, &Listen, Duration),
-    (database, id, runtime, telling): (&Database, SiteId, &Runtime, &SiteAnnounce),
+    (folder, config, listen, every): (&Path, &Config, &Listen, Duration),
+    (site, runtime, telling): (&search_route::Search, &Runtime, &SiteAnnounce),
     content: &LiveContent,
     (secret, outbound): (Option<Secret<String>>, &Outbound),
 ) -> Result<(Router, alert_watch::Ready), (UserMessage, Exit)> {
+    let (database, id) = (&site.db, site.site);
     let internal = |message| (message, Exit::Internal);
     let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
     let newsletters =
         newsletter::router(config, (database, id), (runtime, telling), mailer.clone())
             .map_err(internal)?;
+    let delivery = SiteDelivery::new(config, mailer.clone(), telling.clone()).map_err(internal)?;
+    let delivery: Arc<dyn FormDelivery> = Arc::new(delivery);
+    let forms = (&site.security, delivery);
+    let forms = form_pages::router(config, (database, id), &site.pages, forms);
     let sources = alert_watch::Sources {
         misses: Arc::new(NotFoundTable::new(database.clone(), id)),
         content: content.clone(),
-        https: https_folder(site, listen),
+        https: https_folder(folder, listen),
         settings: config.alerts().clone(),
     };
     let ready = alert_watch::Ready {
@@ -238,7 +248,7 @@ fn mail_and_alerts(
         sources,
         every,
     };
-    Ok((newsletters, ready))
+    Ok((newsletters.merge(forms), ready))
 }
 
 /// The domain and the folder of its certificate, when `listen` serves
@@ -342,7 +352,8 @@ fn destination(
 }
 
 /// The one router the server answers: the APIs, the site's own routes, the
-/// drawn share cards, the admin, the comments and the newsletters.
+/// drawn share cards, the admin, the comments, the newsletters and the
+/// forms.
 fn assembled(
     (site, config, security): (&Path, &Config, &SecurityHeaders),
     (api, files, previews, searches): (Router, Router, Router, Router),

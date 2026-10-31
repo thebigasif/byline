@@ -51,6 +51,8 @@ mod doctor_robots;
 mod entry_events;
 mod exit;
 mod export;
+mod form_delivery;
+mod form_pages;
 mod https_message;
 mod import;
 mod import_rest;

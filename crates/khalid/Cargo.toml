@@ -20,6 +20,7 @@ khalid-content = { path = "../khalid-content", version = "0.0.0" }
 khalid-core.workspace = true
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 khalid-db = { path = "../khalid-db", version = "0.0.0" }
+khalid-forms = { path = "../khalid-forms", version = "0.0.0" }
 khalid-https = { path = "../khalid-https", version = "0.0.0" }
 khalid-import = { path = "../khalid-import", version = "0.0.0" }
 khalid-lint.workspace = true
@@ -105,6 +106,10 @@ required-features = ["test-util"]
 
 [[test]]
 name = "audit_webhooks"
+required-features = ["test-util"]
+
+[[test]]
+name = "serve_form_delivery"
 required-features = ["test-util"]
 
 [[test]]

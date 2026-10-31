@@ -124,17 +124,20 @@ impl StoredKey {
 
     /// Whether `token` is this key: same identity, same kind, same secret.
     pub fn matches(&self, token: &KeyToken) -> bool {
-        let secret = token.secret().expose().as_bytes();
-        let same_secret = match &self.hash {
-            KeyHash::Sha256(stored) => {
-                let digest: [u8; 32] = Sha256::digest(secret).into();
-                bool::from(stored.ct_eq(&digest))
-            }
+        let same_secret = self.same_secret(token.secret().expose().as_bytes());
+        same_secret && self.id == *token.id() && self.kind() == token.kind()
+    }
+
+    /// Whether `secret` hashes to the stored hash. Both ways compare in
+    /// constant time: SHA-256 through [`same_digest`], and Argon2id inside
+    /// `verify_password`, which compares its output with `subtle` too.
+    fn same_secret(&self, secret: &[u8]) -> bool {
+        match &self.hash {
+            KeyHash::Sha256(stored) => same_digest(stored, &Sha256::digest(secret).into()),
             KeyHash::Argon2id(phc) => Argon2::default()
                 .verify_password(secret, phc.as_str())
                 .is_ok(),
-        };
-        same_secret && self.id == *token.id() && self.kind() == token.kind()
+        }
     }
 
     fn kind(&self) -> KeyKind {
@@ -144,6 +147,12 @@ impl StoredKey {
             Access::Staff(_) => KeyKind::Staff,
         }
     }
+}
+
+/// Whether two digests are equal, in a time that does not depend on the
+/// first byte where they differ (RULES.md BL-SEC-3).
+fn same_digest(stored: &[u8; 32], presented: &[u8; 32]) -> bool {
+    bool::from(stored.ct_eq(presented))
 }
 
 fn argon2id(token: &KeyToken, hashing: &KeyHashing) -> Result<KeyHash, HashKeyError> {
@@ -161,4 +170,73 @@ fn argon2id(token: &KeyToken, hashing: &KeyHashing) -> Result<KeyHash, HashKeyEr
 pub struct HashKeyError {
     #[source]
     source: argon2::password_hash::Error,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A secret made up for these tests. It opens nothing.
+    const SECRET: &str = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+
+    fn token(prefix: &str, secret: &str) -> KeyToken {
+        format!("{prefix}_0123456789abcdef_{secret}")
+            .parse()
+            .unwrap()
+    }
+
+    /// `SECRET` with its byte at `at` changed: a wrong key of the right length.
+    fn wrong_at(at: usize) -> String {
+        let mut wrong = SECRET.as_bytes().to_vec();
+        wrong[at] = if wrong[at] == b'0' { b'1' } else { b'0' };
+        String::from_utf8(wrong).unwrap()
+    }
+
+    #[test]
+    fn keys_that_can_write_are_stored_as_argon2id_with_the_owasp_settings() {
+        let hashing = KeyHashing::new();
+        let integration = token("ki", SECRET);
+        let staff = token("ks", SECRET);
+        let stored = [
+            StoredKey::for_integration(&integration, vec![Scope::PostsWrite], &hashing).unwrap(),
+            StoredKey::for_staff(&staff, Role::Editor, &hashing).unwrap(),
+        ];
+        for key in stored {
+            let KeyHash::Argon2id(phc) = key.hash() else {
+                panic!("{:?} is not Argon2id", key.hash());
+            };
+            assert!(phc.starts_with("$argon2id$v=19$m=19456,t=2,p=1$"), "{phc}");
+            assert!(!phc.contains(SECRET), "the secret is never stored");
+        }
+        let content = StoredKey::for_token(&token("kc", SECRET));
+        assert!(matches!(content.hash(), KeyHash::Sha256(_)));
+    }
+
+    #[test]
+    fn a_wrong_content_key_of_the_right_length_is_compared_in_constant_time() {
+        let stored_key = StoredKey::for_token(&token("kc", SECRET));
+        let KeyHash::Sha256(stored) = stored_key.hash() else {
+            panic!("a content key is SHA-256");
+        };
+        for at in [0, 31, SECRET.len() - 1] {
+            let wrong = wrong_at(at);
+            assert_eq!(wrong.len(), SECRET.len());
+            let presented = Sha256::digest(wrong.as_bytes()).into();
+            assert!(!same_digest(stored, &presented), "byte {at}");
+            assert!(!stored_key.matches(&token("kc", &wrong)), "byte {at}");
+        }
+        let right = Sha256::digest(SECRET.as_bytes()).into();
+        assert!(same_digest(stored, &right));
+    }
+
+    #[test]
+    fn a_wrong_integration_key_of_the_right_length_is_refused() {
+        let hashing = KeyHashing::fast_for_tests();
+        let right = token("ki", SECRET);
+        let stored = StoredKey::for_integration(&right, vec![Scope::AdminAll], &hashing).unwrap();
+        assert!(stored.matches(&right));
+        for at in [0, SECRET.len() - 1] {
+            assert!(!stored.matches(&token("ki", &wrong_at(at))), "byte {at}");
+        }
+    }
 }

@@ -18,6 +18,7 @@ use khalid_server::{Moved, Page, Render, Rendered};
 
 use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
+use crate::form_pages::{self, LiveForms};
 use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
 use crate::post_photos::Shown;
@@ -67,6 +68,8 @@ struct Site {
     searches: Mutex<Vec<SearchShell>>,
     /// The comments post pages show, or `None` when the site takes none.
     comments: Option<ShownComments>,
+    /// The page of each form, or `None` when the site takes none.
+    forms: Option<LiveForms>,
     /// The password posts of the last full render, for the password form.
     gate: Gate,
     /// Dates a feed with no posts yet, and a draft's preview.
@@ -132,6 +135,7 @@ impl SitePages {
         };
         let comments =
             (theme.is_some() && comment_pages::taken(config.mode())).then(ShownComments::default);
+        let forms = comments.is_some().then(LiveForms::default);
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
@@ -145,6 +149,7 @@ impl SitePages {
             searches: Mutex::default(),
             gate: Gate::default(),
             comments,
+            forms,
             clock,
         })))
     }
@@ -194,6 +199,11 @@ impl SitePages {
     /// The comments the post pages show, or `None` when the site takes none.
     pub(crate) fn comments(&self) -> Option<ShownComments> {
         self.0.comments.clone()
+    }
+
+    /// The page of each form, or `None` when the site takes none.
+    pub(crate) fn forms(&self) -> Option<LiveForms> {
+        self.0.forms.clone()
     }
 
     /// The address of the stylesheet every page links; `None` when headless.
@@ -422,6 +432,7 @@ impl SitePages {
             }
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
+        form_pages::fill(config, self.0.forms.as_ref(), &mut languages);
         let beside = post_files::served(folder, config, assets, &mut languages, shown)?;
         post_gate::open(config, routes, content, &mut languages)?;
         let seo_site = build_seo::site(config)?;
@@ -454,13 +465,8 @@ impl SitePages {
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner) = shells;
             }
-            served.not_found = html_pages(
-                &theme.renderer,
-                config,
-                &languages,
-                which,
-                &mut served.pages,
-            )?;
+            let renderer = &theme.renderer;
+            served.not_found = html_pages(renderer, config, &languages, which, &mut served.pages)?;
         }
         // The cards draw behind the answers: their addresses are already
         // baked into the heads, so the pages are complete without the
