@@ -21,6 +21,7 @@ pub mod comment_moderation;
 pub mod content_api;
 mod content_key;
 pub mod content_store;
+pub mod draft_comments;
 mod etag;
 mod html_source;
 pub mod keys;
