@@ -5,6 +5,7 @@
 //! key's scope the way a route would.
 
 use khalid_api::keys::{Principal, Scope};
+use khalid_api::post_store::PostStore;
 use khalid_mcp::{ApiTools, BoxFuture, Tool, ToolResult, Tools};
 use serde_json::{Map, Value, json};
 
