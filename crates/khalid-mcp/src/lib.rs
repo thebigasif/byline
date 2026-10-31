@@ -6,6 +6,8 @@
 //! gives it, so the protocol knows nothing about posts, keys or files.
 
 mod api_tools;
+mod call;
+mod operations;
 mod server;
 mod session_keys;
 mod tool;
