@@ -16,6 +16,20 @@ export const en = {
   media: {
     title: "Media",
     lede: "The images, videos, sound and files your posts use. Khalid reads each file's content to learn its type, so a program renamed to look like a photo is refused. A file uploaded twice is kept once.",
+    add: {
+      title: "Add a file",
+      file: "File",
+      fileHint:
+        "A JPEG, PNG or WebP image up to 20 MB, a video up to 100 MB, sound up to 50 MB, or a PDF, ZIP or text file.",
+      folder: "Folder",
+      folderHint:
+        "Optional. Lowercase words joined by /, such as guides/2026. Leave it empty for the top of the library.",
+      submit: "Upload",
+      uploading: "Uploading the file",
+      added: (name: string) => `Added. ${name} is in your library.`,
+      addAlt: "Give it alt text next, so readers who cannot see it know what it shows.",
+      duplicate: (name: string) => `${name} was already in your library, so nothing new was added.`,
+    },
     library: {
       title: "Your library",
       lede: "Newest first. Alt text describes an image for people who use a screen reader, and for Google. The checks warn about any image in a post that has none.",
@@ -23,7 +37,7 @@ export const en = {
       every: "Every file",
       noAlt: "Images with no alt text",
       loading: "Reading your library",
-      empty: "Your library is empty.",
+      empty: "Your library is empty. Add a file above to start it.",
       allHaveAlt: "Every image in your library has alt text.",
       found: (count: number) => (count === 1 ? "1 file" : `${count} files`),
       preview: "Preview",
@@ -394,6 +408,11 @@ export const en = {
       what: "No CSV file is picked yet.",
       why: "Khalid adds the redirects from a file, so there is nothing to add.",
       fix: "Pick a CSV file under Add redirects from a CSV file, then press Add these redirects.",
+    },
+    noMedia: {
+      what: "No file is picked yet.",
+      why: "Khalid adds the file you pick, so there is nothing to upload.",
+      fix: "Pick a file under File, then press Upload.",
     },
     badAlias: {
       what: "The old address is not a path on this blog.",
