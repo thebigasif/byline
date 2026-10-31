@@ -112,6 +112,8 @@ mod theme_message;
 mod theme_preview;
 mod theme_sync;
 mod unlock;
+mod update;
+mod update_message;
 mod webhooks;
 
 use std::ffi::OsString;
@@ -125,7 +127,7 @@ use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 use khalid_server::FolderLook;
 
-use crate::cli::{Cli, Command, Output, ThemeCommand};
+use crate::cli::{Cli, Command, Output, ThemeCommand, UpdateTarget};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
@@ -297,11 +299,10 @@ fn access(folder: &Path, config: &Config, command: &Command, output: Output) -> 
 }
 
 /// Runs the commands that do not start from a checked site: `init`, which
-/// makes the site, `agents`, which needs none, and `doctor`, which checks
-/// the settings, routes and content itself so it can list every problem
-/// instead of stopping at the first, `redirects`, which needs only the
-/// settings and the database, and `webhooks`, which needs only the
-/// database. Returns `None` for every other command.
+/// makes the site, `agents` and `update`, which need none, `doctor`, which
+/// checks the settings, routes and content itself so it can list every
+/// problem instead of stopping at the first, and the commands
+/// [`on_folder`] runs. Returns `None` for every other command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -313,6 +314,9 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(init::run(folder, args, cli.output))
         }
         Some(Command::Agents) => Some(agents::run(cli.output)),
+        Some(Command::Update {
+            target: UpdateTarget::Previous,
+        }) => Some(update::rollback(cli.output)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
