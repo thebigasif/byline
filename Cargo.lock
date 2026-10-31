@@ -2053,6 +2053,10 @@ dependencies = [
 [[package]]
 name = "khalid-analytics"
 version = "0.0.0"
+dependencies = [
+ "chrono",
+ "thiserror",
+]
 
 [[package]]
 name = "khalid-api"

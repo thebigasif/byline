@@ -12,11 +12,20 @@
 //! which page and when. A bot is known by the user agent it sends, which
 //! anyone can copy: the log shows what a bot claimed to be.
 //!
+//! Between writes the server counts into a [`Tally`] in memory, and hands
+//! it to an [`AnalyticsStore`] in batches.
+//!
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
 mod crawler;
 mod referrer;
+mod store;
+mod tally;
 
 pub use crawler::{Crawler, CrawlerKind};
 pub use referrer::ReferrerGroup;
+pub use store::{
+    AnalyticsError, AnalyticsStore, BoxFuture, CRAWL_DAYS_KEPT, MAX_CRAWL_ROWS_PER_DAY,
+};
+pub use tally::{Crawls, MAX_ROWS, Tally, Views};
