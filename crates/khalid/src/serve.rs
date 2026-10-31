@@ -38,7 +38,8 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, media_library, newsletter, page_counts, preview,
-    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    redirect_route, report, scheduler, search_route, serve_message, share_images, staff,
+    staff_toolbar, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -188,6 +189,11 @@ fn serve_with(
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
+        let pages = staff_toolbar::start(
+            (database, id, config),
+            (content.clone(), posts.clone()),
+            pages,
+        );
         let desks = (moderation, media, desk);
         let apis = api_router((content, door, posts), desks, (database, id, config));
         let app = assembled(

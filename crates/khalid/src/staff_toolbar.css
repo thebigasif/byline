@@ -1,0 +1,36 @@
+/* The staff toolbar: a light bar along the bottom of public pages, shown
+   only to signed-in staff. */
+.khalid-toolbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #ffffff;
+  color: #1f2328;
+  border-top: 1px solid #d0d7de;
+  font: 0.875rem/1.4 system-ui, sans-serif;
+}
+
+.khalid-toolbar p {
+  margin: 0;
+}
+
+.khalid-toolbar a {
+  color: #0b57d0;
+  font-weight: 600;
+}
+
+.khalid-toolbar a:focus-visible {
+  outline: 2px solid #0b57d0;
+  outline-offset: 2px;
+}
+
+@media print {
+  .khalid-toolbar {
+    display: none;
+  }
+}

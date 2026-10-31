@@ -112,6 +112,7 @@ mod slug_repair;
 mod staff;
 mod staff_message;
 mod staff_owner;
+mod staff_toolbar;
 mod static_mode;
 mod theme_check;
 mod theme_message;
