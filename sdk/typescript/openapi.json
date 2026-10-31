@@ -4238,6 +4238,73 @@
         ]
       }
     },
+    "/api/admin/v1/tags/": {
+      "get": {
+        "tags": [
+          "admin tags"
+        ],
+        "summary": "Lists every tag the site's posts carry, drafts included, in every\nlanguage, with how many posts have each. Needs `posts:write`.",
+        "operationId": "list_tags",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every tag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTags"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no tags",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/webhooks/": {
       "get": {
         "tags": [
@@ -7708,6 +7775,64 @@
               "$ref": "#/components/schemas/AdminSnippet"
             },
             "description": "The snippet or snippets."
+          }
+        }
+      },
+      "AdminTag": {
+        "type": "object",
+        "description": "A tag in one language, in Admin API shape. A tag lives in the `tags`\nof its posts, drafts included, so it exists while one post has it.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "name",
+          "posts",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.internal-links`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en`.",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name as posts write it, such as `internal links`."
+          },
+          "posts": {
+            "type": "integer",
+            "description": "How many posts, drafts included, have the tag.",
+            "minimum": 0
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug made from the name, as the tag's page uses it.",
+            "example": "internal-links"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the last of those posts changed. A rename or removal sends it\nback, so a post tagged since is never changed unseen."
+          }
+        }
+      },
+      "AdminTags": {
+        "type": "object",
+        "description": "Tags as the Admin API wraps them.",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminTag"
+            },
+            "description": "The tag or tags."
           }
         }
       },

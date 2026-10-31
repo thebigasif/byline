@@ -23,10 +23,11 @@ use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
 use crate::resources::{AdminAuthor, AdminPage, AdminSnippet, MediaItems};
 use crate::session_check::{SessionCheck, StaffRoutes};
+use crate::tag_store::TagStore;
 use crate::webhook_store::WebhookStore;
 use crate::{
     admin_api, admin_authors, admin_comments, admin_not_found, admin_pages, admin_redirect_csv,
-    admin_redirects, admin_snippets, admin_webhooks, api_version, content_api,
+    admin_redirects, admin_snippets, admin_tags, admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -224,6 +225,9 @@ pub struct AdminDesks {
     /// The site's authors, or `None` when the author routes answer that
     /// this server keeps none.
     pub authors: Option<Arc<dyn EntryStore<AdminAuthor>>>,
+    /// The site's tags, or `None` when the tag routes answer that this
+    /// server keeps none.
+    pub tags: Option<Arc<dyn TagStore>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -237,7 +241,7 @@ impl std::fmt::Debug for AdminDesks {
 
 impl AdminDesks {
     /// No comments, no media library, no stored redirects, no webhooks, no
-    /// pages, no snippets and no authors.
+    /// pages, no snippets, no authors and no tags.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -247,6 +251,7 @@ impl AdminDesks {
             pages: None,
             snippets: None,
             authors: None,
+            tags: None,
         }
     }
 }
@@ -314,7 +319,8 @@ fn assemble(
         .merge(admin_webhooks::routes(desks.webhooks, door.clone()))
         .merge(admin_pages::routes(desks.pages, door.clone()))
         .merge(admin_snippets::routes(desks.snippets, door.clone()))
-        .merge(admin_authors::routes(desks.authors, door.clone()));
+        .merge(admin_authors::routes(desks.authors, door.clone()))
+        .merge(admin_tags::routes(desks.tags, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

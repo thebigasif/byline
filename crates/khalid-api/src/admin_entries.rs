@@ -9,7 +9,7 @@ use axum::extract::rejection::JsonRejection;
 use chrono::{DateTime, Utc};
 use khalid_core::UserMessage;
 
-use crate::entry_store::{Entry, EntryError, EntryStore};
+use crate::entry_store::{EntryError, EntryStore};
 use crate::problem::{Problem, ProblemType};
 
 /// The store of one kind of entry, when the site keeps one.
@@ -28,10 +28,7 @@ pub(crate) struct Noun {
 
 impl Noun {
     /// The store, or a 404 when this site keeps none of these here.
-    pub(crate) fn store<T: Entry>(
-        self,
-        kept: Option<&dyn EntryStore<T>>,
-    ) -> Result<&dyn EntryStore<T>, Problem> {
+    pub(crate) fn store<S: ?Sized>(self, kept: Option<&S>) -> Result<&S, Problem> {
         kept.ok_or_else(|| {
             let message = UserMessage::new(
                 format!("This server keeps no {} through the Admin API.", self.many),
