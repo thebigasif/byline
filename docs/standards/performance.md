@@ -50,11 +50,36 @@ One setting is on: `MIMALLOC_PURGE_DELAY=0`, set in the deployment image and in 
 The setting has a cost: every page freed is handed back at once and faulted in again when it is reused, so work that allocates and frees a lot costs more. Before it answers, `khalid serve` therefore does only what the first answer needs. Measured on 2026-10-31 with timing marks in a release build on the 1,000-post site, on a shared server, the start before the first answer was: walking the content folder 12 to 18 ms, reading the posts 22 to 34 ms, checking their bodies 8 to 12 ms, the runtime and database 5 ms, the home pages 6 to 17 ms. Three steps were moved out of that path:
 
 - **The stylesheet's compressed copies** (11 ms). Brotli at its best quality with a 4 MB window sets up tens of megabytes of tables, and the server threw both copies away: it compresses its pages after it answers. It now builds the stylesheet's text and hashed name only.
-- **The Content API and Admin API router** (8 to 9 ms, most of it the OpenAPI document). It is built on a blocking thread once the routes are wired, and a request under `/api/` waits for it.
+- **The Content API and Admin API router** (8 to 9 ms, most of it the OpenAPI document). Since 2026-10-31 it is built on a blocking thread when the first request under `/api/` arrives, and that request waits for it (see "What an idle server holds" below).
 - **The full render**, which used to start before the routers were built and competed with them. It starts once the routes are ready.
 - **The body check** (8 to 12 ms) runs on a thread of its own while the runtime, the database and the home pages are set up, and the server waits for it before it listens, so a broken wikilink still stops it before it says where it answers.
 
 The first request is answered within a fraction of a millisecond of the routes being ready. What is left is reading the content, which the first page needs.
+
+## What an idle server holds
+
+Measured on 2026-10-31 on the final bundle (integration 19), release build, 1,000-post site, with a temporary `dhat` heap profile 45 s after start and `khalid-perf serve`, alternating runs on a shared server (load average 7 to 14).
+
+The live heap at idle was 22.8 MB. The largest holders were the API router's OpenAPI document (7.2 MB, held more than once, because the route that served it kept the whole struct and the router copies a route as it is put together), each post's head for the Content API (4.9 MB, G55) and the pages' Brotli copies (3.6 MB). Two changes (ADR "The APIs are built on their first request"):
+
+- The APIs are built on the first request under `/api/`, not at start. That request waits about 8.6 ms for the build.
+- The OpenAPI document is served as JSON bytes made once, so a copy of the route copies a pointer.
+
+| Measure | Before | After |
+|---|---|---|
+| Idle memory, `khalid-perf serve` | 60.89, 60.38, 59.86, 61.40 MB | 50.63, 51.37, 51.51, 50.79 MB |
+| Of it, anonymous / code and files | 38.54 / 22.35 MB | 30.84 / 19.79 MB |
+| Cold start to first byte | 59.56, 57.14, 96.05, 65.65 ms | 96.84, 60.19, 62.62, 63.15 ms |
+| Live heap at idle (`dhat`) | 22.8 MB | 15.5 MB |
+| First API request | 0.23 ms | 8.6 ms (builds the APIs) |
+| `GET /api/openapi.json` (257,432 bytes) | 7.5 to 8.7 ms | 0.33 ms |
+| Idle memory after the APIs were asked | 61.76, 62.73 MB | 54.18, 54.36 MB |
+
+The cold start moved within the noise between runs. Left as they are, with the reason:
+
+- **Post heads (4.9 MB).** Every site's Content API hands them out. Kept as JSON text instead of tags they come to about the same size, since the JSON-LD graph is most of it, and making them on request would render at request time (BL-PERF-2).
+- **SQLite's page cache** (4.5 MB in the C library's heap), the database track's setting.
+- **The Content API store** keeps each post twice, once by file and once in the store (about 1 MB).
 
 ## Allocator settings history
 
