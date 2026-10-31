@@ -140,7 +140,8 @@ fn serve_with(
     // Only the home pages are rendered before the server listens; the rest
     // follows behind the first answer (ADR "khalid serve answers before the
     // full render").
-    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
+    let clock = Arc::new(SystemClock);
+    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)
         .and_then(|source| {
             let first = source.render_first(&checked)?;
             let first = Pages::first(first).map_err(|_| serve_message::internal())?;
