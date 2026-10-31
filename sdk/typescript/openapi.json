@@ -3126,6 +3126,83 @@
         ]
       }
     },
+    "/api/admin/v1/webhooks/{id}/deliveries/": {
+      "get": {
+        "tags": [
+          "admin webhooks"
+        ],
+        "summary": "Lists the 50 newest messages one webhook that is on sent, newest\nfirst, each with every try and where it stands. The bodies sent are\nleft out. Needs `webhooks:manage`.",
+        "operationId": "list_deliveries",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The webhook's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The webhook's newest deliveries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDeliveries"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks webhooks:manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No webhook that is on has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/content/v1/authors/": {
       "get": {
         "tags": [
@@ -5769,6 +5846,36 @@
   },
   "components": {
     "schemas": {
+      "AdminAttempt": {
+        "type": "object",
+        "description": "One try at sending a delivery: the receiver's status, or why it could\nnot be reached. Exactly one of the two is there.",
+        "required": [
+          "at"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the receiver could not be reached."
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The HTTP status the receiver answered; 200 to 299 is a success.",
+            "minimum": 0
+          }
+        }
+      },
       "AdminComment": {
         "type": "object",
         "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",
@@ -5843,6 +5950,60 @@
               "$ref": "#/components/schemas/AdminComment"
             },
             "description": "The comment or comments."
+          }
+        }
+      },
+      "AdminDeliveries": {
+        "type": "object",
+        "description": "The newest deliveries of one webhook.",
+        "required": [
+          "deliveries"
+        ],
+        "properties": {
+          "deliveries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDelivery"
+            },
+            "description": "At most 50, newest first."
+          }
+        }
+      },
+      "AdminDelivery": {
+        "type": "object",
+        "description": "One message a webhook sent, with every try.",
+        "required": [
+          "id",
+          "event",
+          "state",
+          "state_at",
+          "attempts"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminAttempt"
+            },
+            "description": "Every try so far, oldest first."
+          },
+          "event": {
+            "type": "string",
+            "description": "The event it announced, such as `post.published`."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Its place in the log: a later delivery has a larger number."
+          },
+          "state": {
+            "$ref": "#/components/schemas/StateName",
+            "description": "Where it stands."
+          },
+          "state_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the next try is due, or when it was delivered or given up."
           }
         }
       },
@@ -8369,6 +8530,15 @@
             "description": "The accounts, by email."
           }
         }
+      },
+      "StateName": {
+        "type": "string",
+        "description": "Where a delivery stands: waiting for its next try, delivered, or given\nup after every try failed.",
+        "enum": [
+          "pending",
+          "delivered",
+          "gave_up"
+        ]
       },
       "Tags": {
         "type": "object",
