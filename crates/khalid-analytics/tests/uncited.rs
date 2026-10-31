@@ -59,7 +59,12 @@ fn one_reader_from_an_ai_assistant_counts_as_cited() {
         ai(3, "/blog/cited/", "PerplexityBot"),
         ai(3, "/blog/quiet/", "PerplexityBot"),
     ];
-    let views = [Views::new(date(9), "/blog/cited/", ReferrerGroup::Ai(AiTool::ChatGpt), 1)];
+    let views = [Views::new(
+        date(9),
+        "/blog/cited/",
+        ReferrerGroup::Ai(AiTool::ChatGpt),
+        1,
+    )];
     let paths: Vec<_> = uncited(&crawls, &views)
         .into_iter()
         .map(|page| page.path)
