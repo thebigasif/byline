@@ -5,8 +5,8 @@ use chrono::NaiveDate;
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
     Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
-    link_text, reading, site_content, site_links, site_trust, snippet, structure, topics, words,
-    writing,
+    link_text, page_or_section, reading, site_content, site_links, site_sections, site_trust,
+    snippet, structure, topics, words, writing,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -114,6 +114,9 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         }),
         Box::new(topics::GlossaryTermNotLinked),
         Box::new(topics::ClusterWithoutPillar),
+        Box::new(page_or_section::SectionWantsOwnPage {
+            min_words: thresholds.thin_post_words,
+        }),
     ]
 }
 
@@ -132,5 +135,12 @@ pub(crate) fn site_rules(thresholds: Thresholds, today: NaiveDate) -> Vec<Box<dy
             months: thresholds.stale_months,
             today,
         }),
+        Box::new(site_sections::SectionRepeatsPost {
+            min_words: thresholds.thin_post_words,
+        }),
+        Box::new(site_sections::PostFitsSection {
+            min_words: thresholds.thin_post_words,
+        }),
+        Box::new(site_content::UpdatedDateWrong { today }),
     ]
 }

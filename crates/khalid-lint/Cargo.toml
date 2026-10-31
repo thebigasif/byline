@@ -1,22 +1,29 @@
 [package]
 name = "khalid-lint"
-version = "0.0.0"
+# Published to crates.io with khalid-core, always at the same version
+# (docs/adr/0000-the-lint-crates-are-published-under-agpl.md).
+version = "0.1.0"
 description = "The Khalid linter: rules that refuse a weak post and explain why in plain words."
+readme = "README.md"
+documentation = "https://docs.rs/khalid-lint"
+homepage = "https://github.com/thebigasif/khalid"
+keywords = ["seo", "lint", "blog", "markdown", "cms"]
+categories = ["development-tools", "text-processing", "web-programming"]
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-publish.workspace = true
+publish = true
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["serde"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 toml = "0.9"
 
 [dev-dependencies]
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 serde_json.workspace = true
 
 [lints]

@@ -11,6 +11,7 @@ use khalid_https::Domain;
 use khalid_webhooks::Event;
 
 use crate::newsletter_cli::NewsletterCommand;
+use crate::update::UpdateTarget;
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -43,6 +44,16 @@ pub(crate) struct Cli {
     #[cfg(feature = "test-util")]
     #[arg(long, global = true, hide = true, value_name = "HOST=ADDRESS")]
     pub(crate) test_hosts: Option<String>,
+
+    /// Test builds only: send Bing Webmaster Tools calls to this endpoint.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "URL")]
+    pub(crate) test_bing: Option<AbsoluteUrl>,
+
+    /// Test builds only: where `khalid update` reads releases from.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "URL")]
+    pub(crate) test_releases: Option<String>,
 }
 
 /// How a command prints its results and messages.
@@ -129,8 +140,14 @@ pub(crate) enum Command {
         )]
         network: Network,
     },
-    /// Write one archive of the site folder
-    Backup,
+    /// Write one archive of the site folder, with a safe copy of its
+    /// database, leaving out public/ and data/media/, which Khalid makes again
+    Backup {
+        /// The archive to write, a new .tar.gz file. Without it, Khalid writes
+        /// `<folder>-backup-<date>-<time>.tar.gz` in the current folder
+        #[arg(long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
     /// health out of 100. Keeps the issues, the internal linking report and
     /// the score's trend in data/audit/, and exits with 1 on any error
@@ -191,12 +208,30 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: WebhooksCommand,
     },
-    /// Label subscribers and count the segments they make
+    /// Email posts and digests to subscribers, label them, and see the numbers
     Newsletter {
         /// What to do with the newsletters
         #[command(subcommand)]
         command: NewsletterCommand,
     },
+    /// Hand Bing Webmaster Tools the sitemap, or read how Bing crawls the
+    /// site. Uses the key in the `KHALID_BING_API_KEY` environment variable
+    Bing {
+        /// What to ask Bing
+        #[command(subcommand)]
+        command: BingCommand,
+    },
+}
+
+/// The Bing Webmaster Tools commands, for the site at the address in
+/// `site.toml`, as verified in Bing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum BingCommand {
+    /// Hand Bing the site's sitemap, so it reads every page from it
+    Sitemap,
+    /// Show Bing's last crawl day, the sitemaps it holds and the addresses
+    /// it had trouble with
+    Report,
 }
 
 /// The webhook commands. Webhooks live in `data/site.db`; a running
@@ -494,15 +529,6 @@ pub(crate) enum Network {
     Offline,
 }
 
-/// Which version `khalid update` installs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum UpdateTarget {
-    /// The newest release.
-    Latest,
-    /// The version before the last update.
-    Previous,
-}
-
 impl Command {
     /// The command as a person types it, such as `theme sync`.
     pub(crate) fn name(&self) -> &'static str {
@@ -524,7 +550,7 @@ impl Command {
             Self::Mcp => "mcp",
             Self::Agents => "agents",
             Self::Doctor { .. } => "doctor",
-            Self::Backup => "backup",
+            Self::Backup { .. } => "backup",
             Self::Audit { .. } => "audit",
             Self::Update { .. } => "update",
             Self::Pull => "pull",
@@ -562,6 +588,12 @@ impl Command {
                 command: WebhooksCommand::Remove { .. },
             } => "webhooks remove",
             Self::Newsletter { command } => command.name(),
+            Self::Bing {
+                command: BingCommand::Sitemap,
+            } => "bing sitemap",
+            Self::Bing {
+                command: BingCommand::Report,
+            } => "bing report",
         }
     }
 }

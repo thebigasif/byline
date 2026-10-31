@@ -180,7 +180,7 @@ fn a_static_build_says_which_features_are_off_and_why() {
     }
     assert!(
         said.contains(
-            "Scheduled publish is off.\n  A static site changes only when you build it, so a post set for later waits for the next build.\n  Run `khalid build` on a schedule, or set mode = \"server\" in site.toml and run `khalid serve`.\n"
+            "Scheduled publish is off.\n  A static site changes only when you export it, so a post set for later waits for the next export.\n  Run `khalid export` on a schedule, or set mode = \"server\" in site.toml and run `khalid serve`.\n"
         ),
         "{said}"
     );

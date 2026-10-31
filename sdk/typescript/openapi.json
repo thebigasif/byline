@@ -6086,6 +6086,14 @@
             "format": "date-time",
             "description": "When it comes down again, if it is scheduled to."
           },
+          "updated": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The day of the last real update readers see, which only an edit\nwith `real_update` moves. Empty until the first one.",
+            "example": "2026-10-31"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time",
@@ -6097,6 +6105,13 @@
               "null"
             ],
             "description": "Who made the last change: a staff name or a key's identity."
+          },
+          "updated_note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What changed in the last real update, shown beside its date."
           }
         }
       },
@@ -7492,6 +7507,17 @@
             "format": "date-time",
             "description": "When a `scheduled` post goes live: a time to come, with its offset,\nsuch as `2026-11-03T09:00:00+01:00`."
           },
+          "real_update": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RealUpdate",
+                "description": "Marks the edit as a real update to a live post's text, with a note\nsaying what changed: the post's `updated` date becomes today. Left\nout, the date stays as it is, whatever else changes."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "settings": {
             "oneOf": [
               {
@@ -7891,6 +7917,21 @@
             "example": "https://khalid.dev/problems/not-found"
           }
         }
+      },
+      "RealUpdate": {
+        "type": "object",
+        "description": "An edit's claim that it is a real update: it changes what a live post\nsays, and `note` tells readers what. Only then does the post's\nupdated date become today. Title, description and settings edits\nalone never move it.",
+        "required": [
+          "note"
+        ],
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "What changed, in one short sentence, such as \"Refreshed the 2024\nnumbers.\" Shown beside the updated date. At most 160 characters.",
+            "example": "Refreshed the 2024 numbers."
+          }
+        },
+        "additionalProperties": false
       },
       "RedirectExplanation": {
         "type": "object",

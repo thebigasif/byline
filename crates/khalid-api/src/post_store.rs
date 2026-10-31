@@ -9,7 +9,7 @@ use khalid_lint::Report;
 use crate::content_store::{BoxFuture, Listed};
 use crate::publish_door::ScheduleError;
 use crate::query::ListQuery;
-use crate::resources::{AdminPost, PostDraft, PostEdit, PostRow};
+use crate::resources::{AdminPost, NotRealUpdate, PostDraft, PostEdit, PostRow};
 
 /// Posts in every status, for the Admin API. Task 1.15 implements it on
 /// the content files and the index, writing each file atomically
@@ -161,6 +161,10 @@ pub enum UpdatePostError {
     /// The post stays as it was.
     #[error("the linter refused to publish the post")]
     Refused(Report),
+    /// The edit claims a real update that it is not. The post stays as it
+    /// was.
+    #[error("the edit is not a real update")]
+    NotRealUpdate(#[source] NotRealUpdate),
     /// The edit's schedule cannot be kept. The post stays as it was.
     #[error("the schedule cannot be kept")]
     Schedule(#[source] ScheduleError),

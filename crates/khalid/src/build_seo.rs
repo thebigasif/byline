@@ -39,16 +39,22 @@ pub(crate) fn site(config: &Config) -> Result<SeoSite, UserMessage> {
 /// link policy in `[seo.links]` gives it. Without that table, `html` as it
 /// is.
 pub(crate) fn with_link_policy(config: &Config, html: String) -> String {
-    let policy = LinkPolicy::from(&config.seo().links);
+    let (policy, site) = link_policy(config);
     if policy == LinkPolicy::default() {
         return html;
     }
+    policy.apply_to_html(&site, &html)
+}
+
+/// The link policy in `[seo.links]` and the site it tells own links from
+/// other sites' by, as [`with_link_policy`] applies them to a body.
+pub(crate) fn link_policy(config: &Config) -> (LinkPolicy, SeoSite) {
     let site = SeoSite::new(
         config.name(),
         config.address().clone(),
         config.default_language().clone(),
     );
-    policy.apply_to_html(&site, &html)
+    (LinkPolicy::from(&config.seo().links), site)
 }
 
 /// A page of `kind` in `locale` whose path in the mount folder and language
