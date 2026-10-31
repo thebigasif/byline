@@ -363,3 +363,9 @@ what = "The search result details on this page miss a property Google needs."
 why = "Google ignores details it cannot read in full, so the post loses its richer search result."
 fix = "Add the property this message names to the block it belongs to."
 guide = "structured-data"
+
+[section-wants-own-page]
+what = "A long section never names the post's subject, so it reads as a second topic."
+why = "A page on one subject is easier to find and to quote, and the side topic gets no page of its own."
+fix = "Move the section to its own post and link to it, or tie it to the post's subject in its heading and text."
+guide = "page-or-section"

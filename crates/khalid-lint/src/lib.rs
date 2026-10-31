@@ -30,6 +30,7 @@ mod lint_error;
 mod lint_post;
 mod lint_site;
 mod linter;
+mod page_or_section;
 mod reading;
 mod rule;
 mod score;
