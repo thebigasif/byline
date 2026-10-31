@@ -27,6 +27,26 @@ pub(crate) fn is_stopword(language: &str, word: &str) -> bool {
         .any(|(_, words)| words.contains(&word))
 }
 
+/// Question words that open a heading or a title but never name its
+/// subject, by language.
+const QUESTION_WORDS: &[(&str, &[&str])] = &[
+    (
+        "en",
+        &["how", "what", "when", "where", "which", "who", "why"],
+    ),
+    ("de", german::QUESTION_WORDS),
+];
+
+/// Whether `word`, in lowercase, can name a subject in `language`: it is
+/// neither a filler word nor a question word.
+pub(crate) fn names_subject(language: &str, word: &str) -> bool {
+    let question = QUESTION_WORDS
+        .iter()
+        .filter(|(lang, _)| *lang == language)
+        .any(|(_, words)| words.contains(&word));
+    !question && !is_stopword(language, word)
+}
+
 /// The fewest repeats before a phrase can count as stuffing, so a short
 /// post where every phrase is a large share is not flagged.
 const MIN_REPEATS: usize = 3;

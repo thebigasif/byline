@@ -10,6 +10,10 @@ mod announce;
 mod assets;
 mod atomic;
 mod audit_message;
+mod backup;
+mod backup_message;
+mod bing;
+mod bing_report;
 mod build;
 mod build_files;
 mod build_gate;
@@ -37,6 +41,7 @@ mod doctor_files;
 mod doctor_folder;
 mod doctor_robots;
 mod exit;
+mod export;
 mod https_message;
 mod import;
 mod import_rest;
@@ -71,6 +76,8 @@ mod post_photos;
 mod post_text;
 mod preview;
 mod publish;
+mod pull;
+mod pull_message;
 mod redirect_route;
 mod redirects;
 mod repair;
@@ -111,6 +118,9 @@ mod theme_message;
 mod theme_preview;
 mod theme_sync;
 mod unlock;
+mod update;
+mod update_message;
+mod update_release;
 mod webhooks;
 
 use std::ffi::OsString;
@@ -198,7 +208,7 @@ fn run(cli: &Cli) -> Exit {
             new::run(folder, config, post, &SystemClock, cli.output)
         }
         (
-            Some(asked @ (Command::Build { .. } | Command::Audit { .. })),
+            Some(asked @ (Command::Build { .. } | Command::Export | Command::Audit { .. })),
             Some((folder, config, routes, (content, _))),
         ) => on_content(folder, (config, routes, content), asked, cli),
         (
@@ -206,6 +216,9 @@ fn run(cli: &Cli) -> Exit {
             Some((folder, config, ..)),
         ) => access(folder, config, command, cli.output),
         (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
+        (Some(Command::Bing { command }), Some((_, config, ..))) => {
+            bing::run(config, &environment, *command, cli)
+        }
         (
             Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
             Some((folder, config, ..)),
@@ -226,7 +239,9 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Publish { .. }
                 | Command::New { .. }
                 | Command::Build { .. }
-                | Command::Audit { .. }),
+                | Command::Export
+                | Command::Audit { .. }
+                | Command::Bing { .. }),
             ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
@@ -246,8 +261,8 @@ fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> 
     }
 }
 
-/// Runs the commands that read a checked site's content: `build`, and
-/// `audit` from a build or the server it names.
+/// Runs the commands that read a checked site's content: `build`,
+/// `export`, and `audit` from a build or the server it names.
 fn on_content(
     folder: &Path,
     checked: (&Config, &Routes, &SiteContent),
@@ -258,6 +273,7 @@ fn on_content(
         Command::Build { out } => {
             build::run(folder, checked, out.as_deref(), &SystemClock, cli.output)
         }
+        Command::Export => export::run(folder, checked, &SystemClock, cli.output),
         Command::Audit { server, network } => site_audit::run(
             folder,
             checked,
@@ -296,11 +312,10 @@ fn access(folder: &Path, config: &Config, command: &Command, output: Output) -> 
 }
 
 /// Runs the commands that do not start from a checked site: `init`, which
-/// makes the site, `agents`, which needs none, and `doctor`, which checks
-/// the settings, routes and content itself so it can list every problem
-/// instead of stopping at the first, `redirects`, which needs only the
-/// settings and the database, and `webhooks`, which needs only the
-/// database. Returns `None` for every other command.
+/// makes the site, `agents` and `update`, which need none, `doctor`, which
+/// checks the settings, routes and content itself so it can list every
+/// problem instead of stopping at the first, and the commands
+/// [`on_folder`] runs. Returns `None` for every other command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -312,19 +327,35 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(init::run(folder, args, cli.output))
         }
         Some(Command::Agents) => Some(agents::run(cli.output)),
+        Some(Command::Update { target }) => Some(update::run(*target, cli)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
         }),
-        Some(asked @ Command::Redirects { command }) => Some(match cli.site.as_deref() {
-            Some(folder) => redirects::run(folder, command, cli.output),
-            None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
-        }),
-        Some(asked @ Command::Webhooks { command }) => Some(match cli.site.as_deref() {
-            Some(folder) => webhooks::run(folder, command, cli.output),
+        Some(
+            asked @ (Command::Redirects { .. }
+            | Command::Webhooks { .. }
+            | Command::Backup { .. }
+            | Command::Pull),
+        ) => Some(match cli.site.as_deref() {
+            Some(folder) => on_folder(folder, asked, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
         }),
         _ => None,
+    }
+}
+
+/// Runs the commands that need the site folder but not its checked content:
+/// `redirects` and `webhooks`, which read the settings and the database
+/// themselves, `backup`, which keeps a broken site as well as a whole one,
+/// and `pull`, which checks the site after it brings in the new files.
+fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
+    match asked {
+        Command::Redirects { command } => redirects::run(folder, command, output),
+        Command::Webhooks { command } => webhooks::run(folder, command, output),
+        Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),
+        Command::Pull => pull::run(folder, &SystemClock, output),
+        _ => report::failure(output, &not_built(asked), Exit::Internal),
     }
 }
 

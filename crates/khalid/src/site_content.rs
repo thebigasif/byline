@@ -30,6 +30,9 @@ pub(crate) struct Catalog {
     pub(crate) index: ContentIndex,
     /// The paths of the posts marked `featured`.
     featured: BTreeSet<String>,
+    /// The `updated:` date of each post that has one, by path, so a new
+    /// one can be sent to `IndexNow`.
+    pub(crate) updated: BTreeMap<String, NaiveDate>,
     lists: SiteResources,
 }
 
@@ -52,10 +55,16 @@ impl Catalog {
             .filter(|doc| doc.front.featured)
             .filter_map(|doc| index::slashed(&doc.path))
             .collect();
+        let updated = content
+            .posts
+            .iter()
+            .filter_map(|doc| Some((index::slashed(&doc.path)?, doc.front.updated?)))
+            .collect();
         let lists = site_lists::of(config, &index, content)?;
         Ok(Self {
             index,
             featured,
+            updated,
             lists,
         })
     }

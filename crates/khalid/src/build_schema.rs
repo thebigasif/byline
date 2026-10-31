@@ -1,15 +1,17 @@
 //! The schema a post's own content writes (plan section 5.9): its FAQ,
-//! how-to, review, recipe and video blocks as their schema.org types, its
-//! videos for the video sitemap, and the entities it links to as
-//! `mentions`.
+//! how-to, review, recipe, product and video blocks as their schema.org
+//! types, its videos for the video sitemap, and the entities it links to
+//! as `mentions`.
 
 use std::path::Path;
 
-use khalid_content::{HowToBlock, Link, RecipeBlock, ReviewBlock, StructuredBlock, VideoBlock};
+use khalid_content::{
+    HowToBlock, Link, ProductBlock, RecipeBlock, ReviewBlock, StructuredBlock, VideoBlock,
+};
 use khalid_core::{AbsoluteUrl, Config, UserMessage};
 use khalid_seo::{
-    CustomSchema, Entity, EntityRole, FaqItem, HowTo, HowToStep, Rating, Recipe, Review,
-    SchemaBlock, SeoPage, Video, VideoSource,
+    CustomSchema, Entity, EntityRole, FaqItem, HowTo, HowToStep, Money, Offer, Product,
+    ProductReview, Rating, Recipe, Review, SchemaBlock, SeoPage, Video, VideoSource,
 };
 
 use crate::build_message;
@@ -48,7 +50,11 @@ pub(crate) fn fill(
                 seo.videos.push(video.clone());
                 SchemaBlock::Video(video)
             }
-            // Products and businesses have their own schema in a later part.
+            StructuredBlock::Product(product) => match product_of(product, author, full)? {
+                Some(product) => SchemaBlock::Product(product),
+                None => continue,
+            },
+            // Businesses have their own schema in a later part.
             _ => continue,
         };
         seo.blocks.push(schema);
@@ -118,6 +124,41 @@ fn recipe_of(
     recipe.cuisine.clone_from(&block.cuisine);
     recipe.calories = block.calories;
     Ok(recipe)
+}
+
+/// The product card as `Product`, its score credited to `author` and its
+/// picture and shop page made full addresses by `full`. A card with no
+/// price and no score writes no schema: Google shows a product only with
+/// one of them, and a node without would hold the post back.
+fn product_of(
+    block: &ProductBlock,
+    author: &str,
+    full: impl Fn(&str) -> Result<AbsoluteUrl, UserMessage>,
+) -> Result<Option<Product>, UserMessage> {
+    if block.price.is_none() && block.rating.is_none() {
+        return Ok(None);
+    }
+    let seo = |error| build_message::seo(&error);
+    let mut product = Product::new(&block.name);
+    product.description.clone_from(&block.description);
+    product.images = block
+        .image
+        .as_deref()
+        .map(&full)
+        .transpose()?
+        .into_iter()
+        .collect();
+    if let (Some(price), Some(currency)) = (&block.price, &block.currency) {
+        let mut offer = Offer::new(Money::parse(price, currency).map_err(seo)?);
+        offer.url = block.href.as_deref().map(&full).transpose()?;
+        product.offer = Some(offer);
+    }
+    if let Some(rating) = &block.rating {
+        let number = |text: &str| text.parse::<f64>().unwrap_or(f64::NAN);
+        let rating = Rating::new(number(rating), number(&block.best)).map_err(seo)?;
+        product.review = Some(ProductReview::new(rating, author));
+    }
+    Ok(Some(product))
 }
 
 /// The video block as `Video`, its file and poster made full addresses by

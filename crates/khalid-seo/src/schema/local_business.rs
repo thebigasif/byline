@@ -107,7 +107,7 @@ fn day_url(day: Weekday) -> String {
     format!("https://schema.org/{name}")
 }
 
-fn address_node(address: &PostalAddress) -> SchemaValue {
+pub(crate) fn address_node(address: &PostalAddress) -> SchemaValue {
     let mut node = SchemaNode::new("PostalAddress")
         .with("streetAddress", SchemaValue::text(&address.street))
         .with("addressLocality", SchemaValue::text(&address.locality))

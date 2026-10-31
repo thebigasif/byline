@@ -118,6 +118,13 @@ pub(crate) fn run(
     }
 }
 
+/// Renders the home pages that answer first, with the stylesheet preloaded.
+fn first_pages(source: &SitePages, checked: &SiteContent) -> Result<Pages, UserMessage> {
+    let first = source.render_first(checked)?;
+    let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+    Ok(with_hint(first, source))
+}
+
 /// Renders the site with its checked settings and routes, then answers on
 /// `listen` until told to stop.
 fn serve_with(
@@ -136,21 +143,14 @@ fn serve_with(
         (&content, &hand_back),
         (&redirects, &addresses),
     );
+    let pings = to.pings.clone();
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
     // follows behind the first answer (ADR "khalid serve answers before the
     // full render").
     let clock = Arc::new(SystemClock);
     let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)
-        .and_then(|source| {
-            let first = source.render_first(&checked)?;
-            let first = Pages::first(first).map_err(|_| serve_message::internal())?;
-            let first = match source.stylesheet() {
-                Some(href) => first.with_preloads(vec![href]),
-                None => first,
-            };
-            Ok((source, first))
-        })
+        .and_then(|source| first_pages(&source, &checked).map(|first| (source, first)))
         .map_err(|message| (message, Exit::Failure))?;
     let security = security_headers()?;
     let search = search_route::Search {
@@ -171,7 +171,7 @@ fn serve_with(
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         // Each part reads the database or the folder alone, so all open at once.
-        let (telling, announcing) = announce::start(config, (database, id), outbound)
+        let (telling, announcing) = announce::start(config, (database, id), (outbound, &pings))
             .map_err(|message| (message, Exit::Failure))?;
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
@@ -272,6 +272,7 @@ fn destination(
         hand_back: hand_back.clone(),
         addresses: addresses.clone(),
         redirects: redirects.clone(),
+        pings: content_feed::UpdatePings::default(),
     }
 }
 

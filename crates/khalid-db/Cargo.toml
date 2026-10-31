@@ -15,7 +15,7 @@ khalid-analytics = { path = "../khalid-analytics", version = "0.0.0" }
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-auth = { path = "../khalid-auth", version = "0.0.0" }
 khalid-comments = { path = "../khalid-comments", version = "0.0.0" }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 khalid-newsletter = { path = "../khalid-newsletter", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-search = { path = "../khalid-search", version = "0.0.0" }
@@ -25,7 +25,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 tempfile = "3"
 tokio.workspace = true
 

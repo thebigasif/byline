@@ -84,6 +84,24 @@ async fn a_body_over_the_limit_is_refused() {
 }
 
 #[tokio::test]
+async fn a_raised_limit_reads_a_larger_body_and_still_refuses_past_it() {
+    let server = MockServer::start().await;
+    let big = vec![b'x'; Limits::default().max_body_bytes() + 1];
+    Mock::given(path("/"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(big.clone()))
+        .mount(&server)
+        .await;
+    let raised = Limits::default().with_max_body_bytes(big.len());
+    let outbound = client(raised, &[], Reach::PublicAndLoopback);
+    let fetched = outbound.get(&url(&server.uri())).await.unwrap();
+    assert_eq!(fetched.body().len(), big.len());
+    let lowered = Limits::default().with_max_body_bytes(big.len() - 1);
+    let outbound = client(lowered, &[], Reach::PublicAndLoopback);
+    let error = outbound.get(&url(&server.uri())).await.unwrap_err();
+    assert!(matches!(error, OutboundError::TooLarge { .. }), "{error:?}");
+}
+
+#[tokio::test]
 async fn a_slow_server_times_out() {
     let server = MockServer::start().await;
     Mock::given(path("/"))

@@ -36,6 +36,7 @@ struct IssueBody<'a> {
     url: &'a str,
     #[serde(skip_serializing_if = "str::is_empty")]
     detail: &'a str,
+    why: &'static str,
     fix: &'static str,
 }
 
@@ -68,6 +69,7 @@ pub(crate) fn body<'a>(audit: &'a Report, trend: &'a [Run], folder: &Path) -> Au
                     title: check.title(),
                     url: issue.url().as_str(),
                     detail: issue.detail(),
+                    why: check.why(),
                     fix: check.fix(),
                 }
             })
@@ -115,11 +117,12 @@ pub(crate) fn human(audit: &Report, trend: &[Run], folder: &Path) -> String {
         let count = pages.len();
         let _ = writeln!(
             said,
-            "{} in {}: {}, on {count} {}.\n  {}",
+            "{} in {}: {}, on {count} {}.\n  {}\n  {}",
             capital(severity.as_str()),
             check.category().title(),
             check.title(),
             plural(count, "page", "pages"),
+            check.why(),
             check.fix()
         );
     }

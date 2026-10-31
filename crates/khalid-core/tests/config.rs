@@ -178,6 +178,22 @@ fn an_empty_key_in_the_environment_is_no_key() {
 }
 
 #[test]
+fn the_environment_carries_the_bing_webmaster_key_as_a_secret() {
+    let made_for_this_test = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
+    let env = Environment::from_pairs(&[(Environment::BING_API_KEY, made_for_this_test)]);
+    let key = env.bing_api_key().unwrap();
+    assert_eq!(key.expose(), made_for_this_test);
+    assert!(!format!("{env:?}").contains(made_for_this_test), "{env:?}");
+    assert!(
+        format!("{env:?}").contains("KHALID_BING_API_KEY"),
+        "{env:?}"
+    );
+    assert!(Environment::empty().bing_api_key().is_none());
+    let blank = Environment::from_pairs(&[(Environment::BING_API_KEY, " ")]);
+    assert!(blank.bing_api_key().is_none());
+}
+
+#[test]
 fn refuses_an_address_in_the_environment_that_is_not_a_url() {
     let env = Environment::from_pairs(&[("KHALID_ADDRESS", "blog.example.org")]);
     let error = Config::from_toml(Path::new("site.toml"), DEMO, &env).unwrap_err();
