@@ -19,6 +19,7 @@ use crate::admin_delete;
 use crate::admin_key::{AdminDoor, require, require_admin_key, require_publish};
 use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
+use crate::draft_lint::CreatedPosts;
 use crate::html_source::markdown_from_html;
 use crate::keys::{Principal, Scope};
 use crate::pagination::Meta;
@@ -28,7 +29,7 @@ use crate::problem::{Problem, ProblemType};
 use crate::publish_door::{PublishDoor, ScheduleError};
 use crate::query::{Limit, ListQuery, RawListQuery};
 use crate::resources::{
-    AdminPost, Listable, NewPost, NotRealUpdate, PostDraft, PostEdit, PostRow, PostStatus,
+    AdminPost, Listable, NewPost, NonBlank, NotRealUpdate, PostDraft, PostEdit, PostRow, PostStatus,
 };
 
 /// Where the Admin API lives.
@@ -392,17 +393,18 @@ pub(crate) struct CreateOptions {
     source: Option<Source>,
 }
 
-/// Creates a draft post from markdown, or from HTML with `source=html`. A
-/// retry with the same `Idempotency-Key` returns the post the first
-/// request made, so it never makes two (RULES.md BL-API-7). Needs
-/// `posts:write`.
+/// Creates a draft post from markdown, or from HTML with `source=html`,
+/// and answers with what the linter finds in it as it would go live and
+/// where it opens in the admin (KH-API-6). A retry with the same
+/// `Idempotency-Key` returns the post the first request made, so it never
+/// makes two (RULES.md BL-API-7). Needs `posts:write`.
 #[utoipa::path(
     post, path = "/posts/", tag = "admin posts",
     security(("admin_key" = [])),
     params(CreateOptions, ("Idempotency-Key" = Option<String>, Header, description = "Any text up to 255 characters that names this request, so a retry makes no second post")),
     request_body = NewPosts,
     responses(
-        (status = 201, description = "The new draft", body = AdminPosts),
+        (status = 201, description = "The new draft, its lint findings and its admin path", body = CreatedPosts),
         (status = 400, description = "The source is neither markdown nor html", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
@@ -416,7 +418,7 @@ async fn create_admin_post(
     options: Result<Query<CreateOptions>, QueryRejection>,
     headers: HeaderMap,
     body: Result<Json<NewPosts>, JsonRejection>,
-) -> Result<(StatusCode, [(HeaderName, String); 1], Json<AdminPosts>), Problem> {
+) -> Result<(StatusCode, [(HeaderName, String); 1], Json<CreatedPosts>), Problem> {
     require(&principal, Scope::PostsWrite)?;
     let Query(options) = options.map_err(|_| unknown_source())?;
     let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
@@ -439,11 +441,8 @@ async fn create_admin_post(
         CreatePostError::Store(error) => Problem::internal(&error),
     })?;
     let location = format!("{BASE}/posts/{}/", post.id());
-    Ok((
-        StatusCode::CREATED,
-        [(LOCATION, location)],
-        Json(AdminPosts { posts: vec![post] }),
-    ))
+    let created = CreatedPosts::linted(post, posts.posts()).await;
+    Ok((StatusCode::CREATED, [(LOCATION, location)], Json(created)))
 }
 
 /// Checks a new post: a title, a slug that is valid if given, and a body
@@ -466,6 +465,10 @@ async fn checked(new: NewPost, source: Source) -> Result<PostDraft, Problem> {
         .map(Slug::try_new_unicode)
         .transpose()
         .map_err(|_| invalid_body("author must be an author's slug, such as asif"))?;
+    let excerpt = match new.excerpt.as_deref().map(NonBlank::try_new) {
+        Some(None) => return Err(invalid_body("excerpt must not be blank")),
+        given => given.flatten(),
+    };
     let markdown = match (source, new.markdown, new.html) {
         (Source::Markdown, Some(markdown), None) => markdown,
         (Source::Html, None, Some(html)) => {
@@ -481,7 +484,8 @@ async fn checked(new: NewPost, source: Source) -> Result<PostDraft, Problem> {
             ));
         }
     };
-    Ok(PostDraft::new(&new.title, slug, &markdown).with_author(author))
+    let draft = PostDraft::new(&new.title, slug, &markdown).with_author(author);
+    Ok(draft.with_excerpt(excerpt))
 }
 
 /// The 400 for a `source` that is neither `markdown` nor `html`.
