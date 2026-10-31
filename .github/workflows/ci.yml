@@ -140,6 +140,27 @@ jobs:
         if: steps.admin.outputs.present == 'false'
         run: echo "Admin checks start with Phase 4."
 
+  # The Dockerfile built from source, as `docker build -t khalid .` does it
+  # (docs/deploy.md). Slow, so only on pull requests to main, and not a
+  # required check. Its last step runs the binary in the empty image, which
+  # fails unless the binary is fully static.
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: khalid:check
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: The image answers
+        run: docker run --rm khalid:check --version
+
   perf:
     name: Performance budgets
     runs-on: ubuntu-latest
