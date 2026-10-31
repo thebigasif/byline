@@ -121,6 +121,24 @@ async fn the_pillar_gets_the_first_day_and_the_weak_draft_waits() {
     assert_eq!(before, after, "the planner changed the drafts");
 }
 
+#[tokio::test]
+async fn the_plan_reads_as_sentences_and_says_nothing_changed() {
+    let site = site().await;
+    let output = plan(site.path(), &[]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        text.contains("a week, the site's pace over the last twelve weeks."),
+        "{text}"
+    );
+    assert!(text.contains("suggested  en.z-pillar"), "{text}");
+    assert!(
+        text.contains("en.a-weak-post  A weak post: the linter blocks it."),
+        "{text}"
+    );
+    assert!(text.contains("Nothing was changed."), "{text}");
+}
+
 #[test]
 fn a_pace_outside_one_to_fourteen_is_refused() {
     let output = plan(Path::new("."), &["--per-week", "15"]);

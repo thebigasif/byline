@@ -1,7 +1,7 @@
 //! `khalid plan`: the publishing planner (GEO task M4). Suggests a day for
-//! each ready draft at a steady pace, pillars before their members.
-//! Writes nothing; a post goes live through the publish door, and its
-//! schedule is set there.
+//! each ready draft at a steady pace, pillars before their members, and
+//! says what to act on. Writes nothing; a post goes live through the
+//! publish door, and its schedule is set there.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -11,7 +11,9 @@ use khalid_api::schedule_store::ScheduleStore;
 use khalid_content::{PostFront, TopicRole};
 use khalid_core::{Clock, Config, SystemClock, UserMessage};
 use khalid_db::ScheduleTable;
-use khalid_seo::{ClusterRole, Pace, PaceFrom, Plan, PlanPost, PlanState, SlotKind, WaitReason};
+use khalid_seo::{
+    ClusterRole, Pace, PaceFrom, Plan, PlanPost, PlanState, PlanWarning, SlotKind, WaitReason,
+};
 use serde::Serialize;
 
 use crate::cli::{Cli, Output};
@@ -26,6 +28,7 @@ struct PlanBody {
     pace_from: &'static str,
     calendar: Vec<SlotBody>,
     waiting: Vec<WaitingBody>,
+    warnings: Vec<UserMessage>,
 }
 
 #[derive(Serialize)]
@@ -136,15 +139,38 @@ fn body(plan: &Plan) -> PlanBody {
                 why: why(&wait.why),
             })
             .collect(),
+        warnings: plan.warnings.iter().map(warning).collect(),
     }
 }
 
 fn text(plan: &Plan) -> String {
     let mut text = String::new();
+    let from = match plan.pace_from {
+        PaceFrom::Asked => "as asked",
+        _ => "the site's pace over the last twelve weeks",
+    };
+    let _ = writeln!(text, "Pace: {} a week, {from}.", plan.pace.get());
+    if plan.calendar.is_empty() {
+        text.push_str("\nNo post has a day yet.\n");
+    } else {
+        text.push_str("\nCalendar:\n");
+    }
     for slot in &plan.calendar {
         let (day, kind, id, title) = (slot.day, kind(slot.kind), &slot.id, &slot.title);
         let _ = writeln!(text, "  {day}  {kind:<9}  {id}  {title}");
     }
+    if !plan.waiting.is_empty() {
+        text.push_str("\nWaiting:\n");
+    }
+    for wait in &plan.waiting {
+        let _ = writeln!(text, "  {}  {}: {}", wait.id, wait.title, why(&wait.why));
+    }
+    for message in plan.warnings.iter().map(warning) {
+        let _ = write!(text, "\n{message}\n");
+    }
+    text.push_str(
+        "\nNothing was changed. Publish a post with `khalid publish`, or set its time in the admin.\n",
+    );
     text
 }
 
@@ -161,5 +187,16 @@ fn why(why: &WaitReason) -> String {
             format!("waits for its pillar {pillar}, which the linter blocks. Fix the pillar first.")
         }
         _ => "the linter blocks it. Run `khalid lint` on it to see why.".to_owned(),
+    }
+}
+
+fn warning(warning: &PlanWarning) -> UserMessage {
+    match warning {
+        PlanWarning::PaceDropped { recent, before } => plan_message::pace_dropped(*recent, *before),
+        PlanWarning::MemberBeforePillar { member, pillar } => {
+            plan_message::member_first(member, pillar)
+        }
+        PlanWarning::NoneReady { last } => plan_message::none_ready(*last),
+        _ => plan_message::unknown(),
     }
 }
