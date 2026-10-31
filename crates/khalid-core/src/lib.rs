@@ -33,6 +33,7 @@ mod slug;
 mod slug_from_title;
 pub mod toml_location;
 mod user_message;
+mod visitor_log_settings;
 
 pub use absolute_url::{AbsoluteUrl, ParseUrlError};
 pub use alert_settings::AlertSettings;
@@ -70,3 +71,4 @@ pub use site_code::{BodyCode, BodyCodeError, Consent, SiteCode};
 pub use site_path::{SitePath, SitePathError};
 pub use slug::{ParseSlugError, Slug};
 pub use user_message::UserMessage;
+pub use visitor_log_settings::VisitorLogSettings;
