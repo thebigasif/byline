@@ -139,6 +139,8 @@ fn any_block() -> impl Strategy<Value = String> {
         Just("---".to_owned()),
         words.prop_map(|text| format!(":::callout{{kind=tip}}\n{text}\n:::")),
         (words, words).prop_map(|(a, b)| format!("| {a} |\n|---|\n| {b} |")),
+        (words, words)
+            .prop_map(|(label, x)| format!(":::maths{{label=\"{label}\"}}\n{x} = 2^n\n:::")),
     ]
 }
 

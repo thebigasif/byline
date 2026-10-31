@@ -188,6 +188,14 @@ pub enum BlockKind {
         /// The pictures, in order.
         images: Vec<GalleryImage>,
     },
+    /// `:::maths{label="..."}` with a LaTeX formula as the body: maths on its
+    /// own, drawn as `MathML` that browsers show with scripts off.
+    Maths {
+        /// The caption under the formula, when there is one.
+        label: Option<String>,
+        /// The formula as written, without the lines around it.
+        formula: String,
+    },
 }
 
 /// One picture in a gallery, written `![alt](src)` on its own line.
@@ -312,6 +320,14 @@ pub enum BlockError {
         #[source]
         source: ParseUrlError,
     },
+    /// A maths block whose formula cannot be drawn.
+    #[error("line {line}: the maths cannot be drawn: {problem}")]
+    Maths {
+        /// The formula's first line.
+        line: usize,
+        /// What the maths reader found, in a phrase.
+        problem: String,
+    },
     /// An opening `:::` with no closing `:::`.
     #[error("line {line}: the {name} block opened here is never closed with a ::: line")]
     Unclosed {
@@ -336,6 +352,7 @@ impl BlockError {
             | Self::Link { line, .. }
             | Self::Address { line, .. }
             | Self::Value { line, .. }
+            | Self::Maths { line, .. }
             | Self::Unclosed { line, .. } => *line,
         }
     }

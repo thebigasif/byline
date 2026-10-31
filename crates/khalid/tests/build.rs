@@ -139,7 +139,8 @@ fn build_draws_the_maths_of_a_post_as_mathml() {
     khalid(&["init", site, "--address", "https://www.example.com"]);
     let post = "---\ntitle: Compound growth\nslug: compound-growth\ndate: 2026-09-14\n\
                 author: asif\n---\n\n\
-                Traffic grows as $v(1+r)^n$ each month, as [the home page](/) says.\n";
+                Traffic grows as $v(1+r)^n$ each month, as [the home page](/) says.\n\n\
+                :::maths{label=\"Visits after n months\"}\nv_n = v_0 (1 + r)^n\n:::\n";
     fs::write(at(temp.path(), "content/en/posts/compound-growth.md"), post).unwrap();
 
     let output = khalid(&["--site", site, "build"]);
@@ -147,6 +148,15 @@ fn build_draws_the_maths_of_a_post_as_mathml() {
     let page = page(&at(temp.path(), "public"), "compound-growth/index.html");
     assert!(page.contains("<math"), "{page}");
     assert!(!page.contains("$v(1+r)^n$"), "{page}");
+    assert!(
+        page.contains("<figure class=\"maths\">\n<math display=\"block\""),
+        "{page}"
+    );
+    assert!(
+        page.contains("<figcaption>Visits after n months</figcaption>"),
+        "{page}"
+    );
+    assert!(!page.contains("v_n = v_0"), "{page}");
 }
 
 #[test]

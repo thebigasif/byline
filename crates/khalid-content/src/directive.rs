@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 22] = [
+pub(crate) const BLOCKS: [&str; 23] = [
     "audio",
     "bookmark",
     "business",
@@ -26,6 +26,7 @@ pub(crate) const BLOCKS: [&str; 22] = [
     "header",
     "howto",
     "html",
+    "maths",
     "newsletter",
     "product",
     "recipe",
@@ -37,6 +38,7 @@ pub(crate) const BLOCKS: [&str; 22] = [
 
 mod cards;
 mod forms;
+mod formula;
 mod nested;
 
 pub(crate) use forms::TRAP;
@@ -143,6 +145,7 @@ pub(crate) fn directive(
         "html" => cards::html(&attributes),
         "form" => forms::form(&attributes, body),
         "newsletter" | "gated" => forms::subscribe(name, &attributes),
+        "maths" => formula::maths(&attributes, body),
         other => Err(BlockError::UnknownBlock {
             line,
             name: other.to_owned(),
