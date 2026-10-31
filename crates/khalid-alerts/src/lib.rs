@@ -1,6 +1,7 @@
 //! Alerts for a site's owner (KH-GRO-6): broken links, bursts of 404s,
-//! certificates near their end, scheduled posts that did not go live, and
-//! posts left unchanged for a long time.
+//! certificates near their end, scheduled posts that did not go live,
+//! posts left unchanged for a long time, and, while the visitor log is on,
+//! a search crawler that stopped coming and server errors crawlers got.
 //!
 //! A check turns what it reads into [`Finding`]s, each with a key that
 //! stays the same while the problem lasts. The findings of one kind not
@@ -10,10 +11,14 @@
 
 mod alert;
 mod checks;
+mod crawl_checks;
 mod raised;
 
 pub use alert::{Alert, Finding, Kind};
 pub use checks::{LivePost, ServedCertificate, certificate, not_found_spike, stale_posts};
+pub use crawl_checks::{
+    CRAWL_STOPPED_DAYS, CrawlerSeen, ServerError, crawl_stopped, crawler_server_errors,
+};
 #[cfg(any(test, feature = "test-util"))]
 pub use raised::MemoryRaised;
 pub use raised::{BoxFuture, Raised, RaisedError, fresh};
