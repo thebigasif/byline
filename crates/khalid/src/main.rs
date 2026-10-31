@@ -85,6 +85,7 @@ mod seo_graph_settings;
 mod seo_head_settings;
 mod seo_settings;
 mod serve;
+mod serve_check;
 mod serve_https;
 mod serve_message;
 mod settings_text;
@@ -161,8 +162,9 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve(_)), Some(folder)) => Some(serving(folder)),
         _ => None,
     };
+    let bodies = Bodies::of(cli.command.as_ref());
     let site = match cli.site.as_deref() {
-        Some(folder) => match check(folder, &environment) {
+        Some(folder) => match check(folder, &environment, bodies) {
             Ok((config, routes, content, assets)) => {
                 Some((folder, config, routes, (content, assets)))
             }
@@ -297,15 +299,38 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
 /// and the files beside its folder posts.
 type Checked = (Config, Routes, SiteContent, Assets);
 
+/// When the bodies of a site's content are checked for broken wikilinks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Bodies {
+    /// With the rest of the content, before the command runs.
+    Now,
+    /// By the command itself: `khalid serve` checks them beside its start
+    /// and still refuses to listen when one is broken.
+    ByTheCommand,
+}
+
+impl Bodies {
+    /// When `command` has the bodies checked.
+    fn of(command: Option<&Command>) -> Self {
+        match command {
+            Some(Command::Serve(_)) => Self::ByTheCommand,
+            _ => Self::Now,
+        }
+    }
+}
+
 /// Checks the settings, the routes and the content of the `site` folder, and
 /// returns them with the files beside folder posts. The folder is walked
 /// once, and no file's text is kept beyond the content.
-fn check(site: &Path, environment: &Environment) -> Result<Checked, UserMessage> {
+fn check(site: &Path, environment: &Environment, bodies: Bodies) -> Result<Checked, UserMessage> {
     let config = site_config::load(site, environment)?;
     let routes = Routes::load(site).map_err(|error| routes_message::of(&error))?;
     let (content, assets) = ContentTree::walk(site)
         .and_then(|tree| Ok((read_content(&tree)?, Assets::of(&tree))))
-        .and_then(|read| check_bodies(&read.0, &config, &routes).map(|()| read))
+        .and_then(|read| match bodies {
+            Bodies::Now => check_bodies(&read.0, &config, &routes).map(|()| read),
+            Bodies::ByTheCommand => Ok(read),
+        })
         .map_err(|error| content_message::of(site, &error))?;
     Ok((config, routes, content, assets))
 }

@@ -13,6 +13,7 @@
 - **The served stylesheet is built without compressed copies.** `khalid_render::stylesheet_text` and `Asset::hashed_name` give the same text and the same address `khalid build` uses; the server compresses it with its pages after it answers, as before.
 - **The API router is built on a blocking thread once the other routes are wired** (`late_api::router`). Every API route sits under `/api/`, so a front router with no routes of its own sends each request under `/api/` to the APIs, holding it until they are built, and every other request to the rest of the site. It adds no route of its own, so a handler sees the request's path parameters exactly as before. An address under `/api/` the APIs lack goes to the rest of the site, as it did when the routers were merged up front. A build that panics answers 503 to the APIs and leaves the pages up.
 - **The full render starts once the routes are ready**, right before the server accepts its first connection.
+- **The bodies are checked beside the start.** `khalid serve` reads the content without the wikilink check, checks the bodies on a thread of their own while the runtime, the database and the home pages are set up, and waits for the answer before it listens. A broken wikilink stops it with the same message, before it says where it answers. Every other command checks the bodies first, as before.
 
 ## Consequences
 

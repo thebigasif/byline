@@ -52,6 +52,7 @@ The setting has a cost: every page freed is handed back at once and faulted in a
 - **The stylesheet's compressed copies** (11 ms). Brotli at its best quality with a 4 MB window sets up tens of megabytes of tables, and the server threw both copies away: it compresses its pages after it answers. It now builds the stylesheet's text and hashed name only.
 - **The Content API and Admin API router** (8 to 9 ms, most of it the OpenAPI document). It is built on a blocking thread once the routes are wired, and a request under `/api/` waits for it.
 - **The full render**, which used to start before the routers were built and competed with them. It starts once the routes are ready.
+- **The body check** (8 to 12 ms) runs on a thread of its own while the runtime, the database and the home pages are set up, and the server waits for it before it listens, so a broken wikilink still stops it before it says where it answers.
 
 The first request is answered within a fraction of a millisecond of the routes being ready. What is left is reading the content, which the first page needs.
 

@@ -256,6 +256,28 @@ fn serve_refuses_tokens_it_cannot_read_and_names_the_file() {
 }
 
 #[test]
+fn serve_refuses_a_broken_wikilink_before_it_says_where_it_answers() {
+    // The bodies are checked beside the start, but the server still waits
+    // for the check before it listens, so nothing is announced.
+    let site = demo_copy();
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-09-28-what-a-sitemap-does.md");
+    let post = fs::read_to_string(&file).unwrap();
+    fs::write(&file, format!("{post}\nSee [[no-such-post]].\n")).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.path().to_str().unwrap(), "serve"])
+        .args(["--listen", "127.0.0.1:0"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let said = String::from_utf8_lossy(&output.stderr);
+    assert!(said.contains("what-a-sitemap-does.md"), "{said}");
+    assert!(said.contains("no-such-post"), "{said}");
+    let shown = String::from_utf8_lossy(&output.stdout);
+    assert!(!shown.contains("Serving"), "{shown}");
+}
+
+#[test]
 fn serve_stops_and_names_an_image_it_cannot_render_after_answering_first() {
     let site = demo_copy();
     let mut image = site.path().to_path_buf();

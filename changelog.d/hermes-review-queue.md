@@ -4,7 +4,7 @@
 
 ### Changed
 
-- `khalid serve` answers its first request sooner, with the allocator setting that keeps idle memory in budget. It no longer makes the stylesheet's Brotli and gzip copies before it listens (the server compresses its pages after it answers, as it always did for the stylesheet), it builds the Content API and the Admin API beside the first answer instead of before it, and it starts the full render only once its routes are ready.
+- `khalid serve` answers its first request sooner, with the allocator setting that keeps idle memory in budget. It no longer makes the stylesheet's Brotli and gzip copies before it listens (the server compresses its pages after it answers, as it always did for the stylesheet), it builds the Content API and the Admin API beside the first answer instead of before it, it checks the posts for broken wikilinks while it gets ready instead of before, and it starts the full render only once its routes are ready.
 
 ### Fixed
 

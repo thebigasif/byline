@@ -32,6 +32,7 @@ use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
+use crate::serve_check::BodyCheck;
 use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
@@ -56,22 +57,27 @@ struct ServeBody<'a> {
 }
 
 /// Serves the `site` folder, whose `config`, `routes` and content were
-/// checked, on `listen`. The database opens first and closes last, after
-/// every request, the watch, the scheduler and the announcing have stopped. Webhooks and
-/// `IndexNow` are sent through `outbound`, the one shared client.
+/// checked, all but the content's bodies, on `listen`. The database opens
+/// first and closes last, after every request, the watch, the scheduler and
+/// the announcing have stopped. Webhooks and `IndexNow` are sent through
+/// `outbound`, the one shared client.
 ///
-/// `start` holds the checked content, the files beside its folder posts,
-/// and a look at the folder taken before it was read. The first pages are
+/// `start` holds the content, the files beside its folder posts, and a
+/// look at the folder taken before it was read. Its bodies are checked
+/// beside the start, before the server listens. The first pages are
 /// rendered from that content, which is then dropped, so the folder is read
 /// once at start and a file saved from the look on is always seen as an
 /// edit.
 pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
-    start: (SiteContent, Assets, FolderLook),
+    (content, assets, look): (SiteContent, Assets, FolderLook),
     (listen, outbound, bucket_keys): (&Listen, Result<Outbound, OutboundError>, Option<S3Keys>),
     output: Output,
 ) -> Exit {
+    let content = Arc::new(content);
+    let bodies = BodyCheck::start(site, &content, (config, routes));
+    let start = (content, assets, look, bodies);
     let built = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .thread_keep_alive(Duration::from_secs(1))
@@ -102,7 +108,7 @@ pub(crate) fn run(
 /// `listen` until told to stop.
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
-    (checked, assets, look): (SiteContent, Assets, FolderLook),
+    (checked, assets, look, bodies): (Arc<SiteContent>, Assets, FolderLook, BodyCheck),
     (listen, outbound, output, bucket_keys): (&Listen, &Outbound, Output, Option<S3Keys>),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
@@ -128,6 +134,7 @@ fn serve_with(
                 Some(href) => first.with_preloads(vec![href]),
                 None => first,
             };
+            bodies.finish()?;
             Ok((source, first))
         })
         .map_err(|message| (message, Exit::Failure))?;
@@ -341,7 +348,7 @@ async fn unlocking(
 /// rendered every page before listening.
 async fn render_the_rest(
     (source, live): (SitePages, LivePages),
-    (checked, assets): (SiteContent, Assets),
+    (checked, assets): (Arc<SiteContent>, Assets),
     failed: oneshot::Sender<UserMessage>,
 ) {
     let first = live.current();
