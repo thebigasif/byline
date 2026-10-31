@@ -84,6 +84,7 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         }),
         Box::new(writing::SourcedStatistics),
         Box::new(FocusNotIn(Place::Title)),
+        Box::new(FocusNotIn(Place::Headline)),
         Box::new(FocusNotIn(Place::Description)),
         Box::new(FocusNotIn(Place::FirstParagraph)),
         Box::new(FocusNotIn(Place::Subheading)),

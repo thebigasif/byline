@@ -164,6 +164,7 @@ pub(crate) fn lint_parts(
     post.path = path;
     post.collection = Some(parts.collection.to_owned());
     post.title.clone_from(&front.title);
+    post.seo_title.clone_from(&front.seo_title);
     post.description.clone_from(&front.description);
     post.date = front.date;
     post.updated = front.updated;

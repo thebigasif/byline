@@ -287,9 +287,15 @@ fix = "Split long sentences, and use shorter everyday words where you can."
 guide = "readability"
 
 [focus-not-in-title]
-what = "The title does not hold your focus keyword."
+what = "The title search results show does not hold your focus keyword."
 why = "The title is the headline in search results, and Google reads it first to learn the topic."
-fix = "Rewrite the title so it holds the words of `focus_keyword:`, ideally near the start."
+fix = "Rewrite `seo_title:`, or `title:` when there is none, so it holds the words of `focus_keyword:`."
+guide = "focus-keyword"
+
+[focus-not-in-h1]
+what = "The main headline on the page does not hold your focus keyword."
+why = "A reader who arrives from search looks for the words they typed in the headline before reading on."
+fix = "Rewrite `title:` so it holds the words of `focus_keyword:`, as your search title does."
 guide = "focus-keyword"
 
 [focus-not-in-description]
