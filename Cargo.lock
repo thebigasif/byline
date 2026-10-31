@@ -2090,7 +2090,7 @@ dependencies = [
  "khalid-core",
  "khalid-outbound",
  "percent-encoding",
- "roxmltree 0.20.0",
+ "roxmltree",
  "scraper",
  "serde",
  "serde_json",

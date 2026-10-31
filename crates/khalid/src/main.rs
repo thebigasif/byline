@@ -157,10 +157,8 @@ fn run(cli: &Cli) -> Exit {
     let environment = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
-    let look = match (&cli.command, cli.site.as_deref()) {
-        (Some(Command::Serve(_)), Some(folder)) => Some(serving(folder)),
-        _ => None,
-    };
+    let serves = matches!(cli.command, Some(Command::Serve(_)));
+    let look = cli.site.as_deref().filter(|_| serves).map(serving);
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder, &environment) {
             Ok((config, routes, content, assets)) => {
