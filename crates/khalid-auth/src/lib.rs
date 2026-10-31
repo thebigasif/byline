@@ -16,6 +16,8 @@ mod limiter;
 mod magic_link;
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
+#[cfg(any(test, feature = "test-util"))]
+mod memory_sites;
 mod passkey;
 mod passkey_store;
 mod password;
@@ -23,6 +25,7 @@ mod permission;
 mod routes;
 mod session;
 mod session_door;
+mod super_admin;
 
 pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
@@ -37,6 +40,8 @@ pub use magic_link::{
 };
 #[cfg(any(test, feature = "test-util"))]
 pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemoryPasskeys, MemorySessions};
+#[cfg(any(test, feature = "test-util"))]
+pub use memory_sites::MemorySites;
 pub use passkey::{
     AuthenticatorData, Challenge, PasskeyError, PublicKey, Registration, RelyingParty,
     verify_assertion, verify_registration,
@@ -50,4 +55,7 @@ pub use routes::staff_routes;
 pub use session::{
     CLEAR_COOKIE, COOKIE, CSRF_HEADER, CsrfToken, IDLE, LIFETIME, SessionError, SessionHash,
     SessionStore, SessionStoreError, SessionToken, StoredSession,
+};
+pub use super_admin::{
+    AddSiteError, Home, ListedSite, SiteDirectory, SiteDirectoryError, site_domain,
 };
