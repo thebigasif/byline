@@ -5,7 +5,7 @@ use std::error::Error;
 
 use chrono::{DateTime, Utc};
 use khalid_core::{AbsoluteUrl, Secret};
-use khalid_webhooks::Event;
+use khalid_webhooks::{Delivery, Event};
 
 use crate::content_store::BoxFuture;
 
@@ -66,6 +66,18 @@ pub trait WebhookStore: Send + Sync {
     ///
     /// [`WebhookStoreError`] when it cannot be written.
     fn remove(&self, id: i64) -> BoxFuture<'_, Result<bool, WebhookStoreError>>;
+
+    /// The newest `limit` deliveries of webhook `id`, newest first, each
+    /// with every attempt.
+    ///
+    /// # Errors
+    ///
+    /// [`WebhookStoreError`] when they cannot be read.
+    fn deliveries(
+        &self,
+        id: i64,
+        limit: u32,
+    ) -> BoxFuture<'_, Result<Vec<Delivery>, WebhookStoreError>>;
 }
 
 /// The webhooks could not be read or written.
@@ -89,7 +101,7 @@ mod memory {
 
     use chrono::{DateTime, Utc};
     use khalid_core::{AbsoluteUrl, Secret};
-    use khalid_webhooks::Event;
+    use khalid_webhooks::{Delivery, Event};
 
     use super::{BoxFuture, StoredWebhook, WebhookStore, WebhookStoreError};
 
@@ -99,6 +111,7 @@ mod memory {
     pub struct MemoryWebhookStore {
         at: DateTime<Utc>,
         webhooks: Mutex<Vec<StoredWebhook>>,
+        deliveries: Mutex<Vec<Delivery>>,
     }
 
     impl MemoryWebhookStore {
@@ -107,7 +120,17 @@ mod memory {
             Self {
                 at,
                 webhooks: Mutex::default(),
+                deliveries: Mutex::default(),
             }
+        }
+
+        /// Keeps `delivery` in the log, as the dispatcher would.
+        pub fn record(&self, delivery: Delivery) {
+            let mut deliveries = self
+                .deliveries
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            deliveries.push(delivery);
         }
 
         fn webhooks(&self) -> std::sync::MutexGuard<'_, Vec<StoredWebhook>> {
@@ -140,6 +163,25 @@ mod memory {
             webhooks.retain(|w| w.id != id);
             let removed = webhooks.len() < before;
             Box::pin(std::future::ready(Ok(removed)))
+        }
+
+        fn deliveries(
+            &self,
+            id: i64,
+            limit: u32,
+        ) -> BoxFuture<'_, Result<Vec<Delivery>, WebhookStoreError>> {
+            let deliveries = self
+                .deliveries
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            let mut log: Vec<Delivery> = deliveries
+                .iter()
+                .filter(|delivery| delivery.webhook().get() == id)
+                .cloned()
+                .collect();
+            log.sort_by_key(|delivery| std::cmp::Reverse(delivery.id().get()));
+            log.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
+            Box::pin(std::future::ready(Ok(log)))
         }
     }
 }
