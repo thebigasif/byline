@@ -1,5 +1,5 @@
-//! The fact registry, `facts.toml` (P7): `khalid lint` holds every post to
-//! the facts the site keeps there.
+//! The fact registry, `facts.toml` (P7): `khalid lint`, `khalid build` and
+//! the publish door hold every post to the facts the site keeps there.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -128,16 +128,46 @@ fn lint_names_the_fix_in_sentences() {
 }
 
 #[test]
-fn a_broken_facts_file_stops_lint_with_a_plain_message() {
+fn a_broken_facts_file_stops_lint_and_build_with_a_plain_message() {
     let site = site("[pro-plan-price]\nvalue = \"29 USD a month\"\n");
-    let output = khalid(site.path(), &["lint"]);
-    assert_eq!(output.status.code(), Some(1));
-    let said = text(&output.stderr);
-    assert!(
-        said.contains("facts.toml has a mistake on line 1"),
-        "{said}"
-    );
-    assert!(said.contains("checked date"), "{said}");
+    for args in [&["lint"][..], &["build"][..]] {
+        let output = khalid(site.path(), args);
+        assert_eq!(output.status.code(), Some(1), "{args:?}");
+        let said = text(&output.stderr);
+        assert!(
+            said.contains("facts.toml has a mistake on line 1"),
+            "{said}"
+        );
+        assert!(said.contains("checked date"), "{said}");
+    }
+}
+
+#[test]
+fn build_refuses_an_old_value_when_the_site_makes_it_block() {
+    let site = site(FACTS);
+    let rules = "[rules]\nfact-old-value = \"block\"\n";
+    fs::write(within(site.path(), "lint.toml"), rules).unwrap();
+    let output = khalid(site.path(), &["build"]);
+    assert_eq!(output.status.code(), Some(1), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(said.contains("19 USD a month"), "{said}");
+}
+
+#[test]
+fn the_publish_door_refuses_a_draft_with_an_old_value_when_it_blocks() {
+    let site = site(FACTS);
+    let rules = "[rules]\nfact-old-value = \"block\"\n";
+    fs::write(within(site.path(), "lint.toml"), rules).unwrap();
+    let drafts = within(site.path(), "drafts/en");
+    fs::create_dir_all(&drafts).unwrap();
+    let draft = OLD_PRICE.replace("date: 2026-09-14\n", "slug: old-price\n");
+    fs::write(within(&drafts, "old-price.md"), &draft).unwrap();
+    let output = khalid(site.path(), &["publish", "old-price", "--json"]);
+    let said = text(&output.stdout);
+    assert_eq!(output.status.code(), Some(1), "{said}");
+    let answer: Value = serde_json::from_str(&said).unwrap();
+    let old = found(&answer["lint"], "fact-old-value");
+    assert_eq!(old.first().map(|(_, s)| s.as_str()), Some("19 USD a month"));
 }
 
 #[test]
