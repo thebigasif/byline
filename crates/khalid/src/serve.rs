@@ -34,13 +34,14 @@ use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
 use crate::announce::{Announcing, SiteAnnounce};
-use crate::cli::Output;
+use crate::cli::{Cli, Output};
 use crate::content_feed::{self, Destination};
 use crate::entry_events::Entries;
 use crate::exit::Exit;
 use crate::form_delivery::SiteDelivery;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
+use crate::search_console_finder::SiteFollowUps;
 use crate::serve_https::{self, Listen};
 use crate::site_categories::SiteCategories;
 use crate::site_content::LiveContent;
@@ -78,17 +79,28 @@ pub(crate) struct Keys {
     pub(crate) bucket: Option<S3Keys>,
     /// The password, key or token the `[mail]` transport signs in with.
     pub(crate) mail: Option<Secret<String>>,
+    /// The Search Console follow-ups, signed in with the owner's Google
+    /// secrets when the site opts in.
+    pub(crate) follow_ups: SiteFollowUps,
 }
 
 impl Keys {
-    /// The keys `env` holds for the site with `config`.
-    pub(crate) fn read(env: &Environment, config: &Config) -> Self {
-        let mail = config.mail().map(|mail| &mail.transport);
+    /// The keys `env` holds for the site in `folder` with `config`, as
+    /// `cli` reaches the outside.
+    pub(crate) fn read(env: &Environment, (folder, config): (&Path, &Config), cli: &Cli) -> Self {
         Self {
             bucket: env.s3_keys(),
-            mail: mail.and_then(|transport| env.mail_secret(transport)),
+            mail: mail_secret(env, config),
+            follow_ups: SiteFollowUps::new(folder, config, env, cli),
         }
     }
+}
+
+/// The password, key or token `env` holds for the `[mail]` transport of
+/// the site with `config`, for the commands that send mail without serving.
+pub(crate) fn mail_secret(env: &Environment, config: &Config) -> Option<Secret<String>> {
+    let mail = config.mail().map(|mail| &mail.transport);
+    mail.and_then(|transport| env.mail_secret(transport))
 }
 
 /// Serves the `site` folder, whose `config`, `routes` and content were
@@ -197,7 +209,8 @@ fn serve_with(
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
         let editing = (content.clone(), posts.clone());
         let pages = staff_toolbar::start((database, id, config), editing, pages);
-        let (desks, at) = ((moderation, media, desk), (database, id, (site, config)));
+        let desks = (moderation, media, desk, keys.follow_ups);
+        let at = (database, id, (site, config));
         let apis = api_router((content, door, posts), desks, at);
         let app = assembled(
             (site, config, &security),
@@ -297,12 +310,17 @@ fn first_pages(
 }
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
-/// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`, and the post checks and schema templates of the
-/// site in `site`.
+/// comment moderation, media library, stored redirects, Search Console
+/// follow-ups, webhooks and staff accounts of site `id`, and the post
+/// checks and schema templates of the site in `site`.
 fn api_router(
     (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
-    (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
+    (comments, media, redirects, follow_ups): (
+        Arc<dyn CommentModeration>,
+        MediaLibrary,
+        RedirectDesk,
+        SiteFollowUps,
+    ),
     (database, id, (site, config)): (&Database, SiteId, (&Path, &Config)),
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
@@ -334,6 +352,7 @@ fn api_router(
             Arc::new(AnalyticsTable::new(database.clone(), id)),
             Arc::new(SystemClock),
         ),
+        follow_ups: Arc::new(follow_ups),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

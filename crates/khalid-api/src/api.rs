@@ -19,6 +19,7 @@ use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_key::ContentDoor;
 use crate::content_store::ContentStore;
 use crate::entry_store::EntryStore;
+use crate::follow_ups::{FollowUpFinder, NoSearchConsole};
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
 use crate::post_check::PostChecks;
@@ -35,9 +36,9 @@ use crate::tag_store::TagStore;
 use crate::webhook_store::WebhookStore;
 use crate::{
     admin_analytics, admin_api, admin_api_keys, admin_audit, admin_authors, admin_categories,
-    admin_check, admin_comments, admin_not_found, admin_pages, admin_redirect_csv,
-    admin_redirects, admin_schema_templates, admin_site_settings, admin_snippets, admin_tags,
-    admin_trash, admin_webhooks, api_version, content_api,
+    admin_check, admin_comments, admin_follow_ups, admin_not_found, admin_pages,
+    admin_redirect_csv, admin_redirects, admin_schema_templates, admin_site_settings,
+    admin_snippets, admin_tags, admin_trash, admin_webhooks, api_version, content_api,
 };
 
 pub use crate::audit_desk::AuditDesk;
@@ -261,6 +262,9 @@ pub struct AdminDesks {
     pub settings: Option<Arc<dyn SettingsStore>>,
     /// The views `khalid serve` counted, read under `/api/admin/v1/analytics/`.
     pub analytics: AnalyticsDesk,
+    /// The Search Console follow-ups, under
+    /// `/api/admin/v1/search-console/follow-ups/`.
+    pub follow_ups: Arc<dyn FollowUpFinder>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -275,8 +279,8 @@ impl std::fmt::Debug for AdminDesks {
 impl AdminDesks {
     /// No comments, no media library, no stored redirects, no webhooks, no
     /// audit log, no trash, no post checks, no schema templates, no pages,
-    /// no snippets, no authors, no tags, no categories, no settings and no
-    /// counted views.
+    /// no snippets, no authors, no tags, no categories, no settings, no
+    /// counted views and no Search Console connection.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -294,6 +298,7 @@ impl AdminDesks {
             categories: None,
             settings: None,
             analytics: AnalyticsDesk::none(),
+            follow_ups: Arc::new(NoSearchConsole),
         }
     }
 }
@@ -308,6 +313,21 @@ pub fn router_with_trash(
 ) -> (Router, Document) {
     let desks = AdminDesks {
         trash: Some(trash),
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
+}
+
+/// [`router_with_door`] with the Search Console follow-ups found by
+/// `finder`.
+pub fn router_with_follow_ups(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    finder: Arc<dyn FollowUpFinder>,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        follow_ups: finder,
         ..AdminDesks::none()
     };
     assemble(content, door, keys, desks, None)
@@ -425,7 +445,8 @@ fn assemble(
         .merge(admin_categories::routes(desks.categories, door.clone()))
         .merge(admin_site_settings::routes(desks.settings, door.clone()))
         .merge(admin_api_keys::routes(keys, door.clone()))
-        .merge(admin_analytics::routes(desks.analytics, door.clone()));
+        .merge(admin_analytics::routes(desks.analytics, door.clone()))
+        .merge(admin_follow_ups::routes(desks.follow_ups, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

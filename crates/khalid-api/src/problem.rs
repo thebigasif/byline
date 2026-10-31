@@ -39,6 +39,12 @@ pub enum ProblemType {
     VersionNotSupported,
     /// Too many attempts in a short time; the answer says when to retry.
     TooManyRequests,
+    /// The site has not set up what the request needs, such as a Search
+    /// Console connection.
+    NotSetUp,
+    /// A service Khalid asked on the request's behalf, such as Google, did
+    /// not give a usable answer.
+    Upstream,
 }
 
 impl ProblemType {
@@ -55,6 +61,8 @@ impl ProblemType {
             Self::InvalidVersion => "invalid-version",
             Self::VersionNotSupported => "version-not-supported",
             Self::TooManyRequests => "too-many-requests",
+            Self::NotSetUp => "not-set-up",
+            Self::Upstream => "upstream",
         }
     }
 
@@ -66,9 +74,10 @@ impl ProblemType {
             Self::Internal => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
-            Self::Conflict => StatusCode::CONFLICT,
+            Self::Conflict | Self::NotSetUp => StatusCode::CONFLICT,
             Self::VersionNotSupported => StatusCode::NOT_ACCEPTABLE,
             Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
+            Self::Upstream => StatusCode::BAD_GATEWAY,
         }
     }
 
@@ -85,6 +94,8 @@ impl ProblemType {
             Self::InvalidVersion => "The version could not be read",
             Self::VersionNotSupported => "This version is not served here",
             Self::TooManyRequests => "Too many attempts",
+            Self::NotSetUp => "This is not set up yet",
+            Self::Upstream => "Another service did not answer",
         }
     }
 }

@@ -66,6 +66,35 @@ fn too_many_attempts_is_a_429() {
     assert_eq!(json["title"], "Too many attempts");
 }
 
+#[test]
+fn a_missing_set_up_is_a_409_and_a_service_that_failed_a_502() {
+    let message = UserMessage::new(
+        "This site is not connected to Google Search Console.",
+        "Khalid asks Google nothing until the owner opts in.",
+        "Follow the steps in docs/deploy.md.",
+    );
+    let shapes = [
+        (
+            ProblemType::NotSetUp,
+            409,
+            "not-set-up",
+            "This is not set up yet",
+        ),
+        (
+            ProblemType::Upstream,
+            502,
+            "upstream",
+            "Another service did not answer",
+        ),
+    ];
+    for (kind, status, slug, title) in shapes {
+        let json = serde_json::to_value(Problem::new(kind, &message)).unwrap();
+        assert_eq!(json["status"], status);
+        assert_eq!(json["type"], format!("https://khalid.dev/problems/{slug}"));
+        assert_eq!(json["title"], title);
+    }
+}
+
 #[tokio::test]
 async fn a_problem_is_a_response_with_its_status_and_media_type() {
     let response = no_author().into_response();

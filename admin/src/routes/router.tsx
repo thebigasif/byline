@@ -21,6 +21,7 @@ import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
 import { SchemaTemplates } from "./SchemaTemplates";
+import { SearchConsole } from "./SearchConsole";
 import { SignIn } from "./SignIn";
 import { Trash } from "./Trash";
 
@@ -100,6 +101,12 @@ const analytics = createRoute({
   component: Analytics,
 });
 
+const searchConsole = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/search-console",
+  component: SearchConsole,
+});
+
 const routeTree = root.addChildren([
   signIn,
   signedIn.addChildren([
@@ -114,6 +121,7 @@ const routeTree = root.addChildren([
     redirects,
     templates,
     analytics,
+    searchConsole,
   ]),
 ]);
 

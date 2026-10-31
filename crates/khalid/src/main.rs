@@ -108,6 +108,8 @@ mod routes_message;
 mod scheduler;
 mod search_console;
 mod search_console_email;
+mod search_console_finder;
+mod search_console_follow_ups;
 mod search_console_lost;
 mod search_console_post;
 mod search_console_report;
@@ -239,7 +241,7 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve(args)), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let (checked, start) = ((&config, &routes), (content, assets, look));
-            let keys = serve::Keys::read(&env, &config);
+            let keys = serve::Keys::read(&env, (folder, &config), cli);
             return serve_https::serve(cli, folder, checked, start, (args, keys));
         }
         (_, site) => site,
@@ -340,7 +342,7 @@ fn on_content(
             checked,
             (server.as_ref(), *network),
             &SystemClock,
-            (cli, serve::Keys::read(environment, checked.0).mail),
+            (cli, serve::mail_secret(environment, checked.0)),
         ),
         _ => report::failure(cli.output, &not_built(asked), Exit::Internal),
     }

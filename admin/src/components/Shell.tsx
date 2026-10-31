@@ -1,6 +1,7 @@
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { forgetKey } from "../auth/session";
 import { en } from "../strings/en";
+import { searchConsoleWords } from "../strings/searchConsoleWords";
 
 /** The header and side navigation around every signed-in screen. */
 export function Shell() {
@@ -55,6 +56,9 @@ export function Shell() {
             </li>
             <li>
               <Link to="/analytics">{en.nav.analytics}</Link>
+            </li>
+            <li>
+              <Link to="/search-console">{searchConsoleWords.title}</Link>
             </li>
           </ul>
         </nav>
