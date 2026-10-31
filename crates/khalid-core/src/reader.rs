@@ -49,6 +49,11 @@ pub struct Reader {
     pub archive: bool,
     /// The search link in the header, and the `/` and Ctrl+K keys.
     pub search_shortcut: bool,
+    /// The list of the site's posts that link to a post, under it.
+    pub linked_mentions: bool,
+    /// The title and summary of a linked post, shown when a reader points
+    /// at or focuses a link to it in a body.
+    pub link_previews: bool,
     /// The sections of the home page, in order. Empty means one list of the
     /// newest posts.
     pub home_sections: Vec<HomeSection>,
@@ -70,6 +75,8 @@ impl Default for Reader {
             authors_page: true,
             archive: true,
             search_shortcut: true,
+            linked_mentions: true,
+            link_previews: true,
             home_sections: Vec::new(),
         }
     }
