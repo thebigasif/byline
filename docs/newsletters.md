@@ -56,3 +56,13 @@ Every Friday you get five links worth your time, with a line on why each one mat
 ```
 
 Like every newsletter email, a welcome ends with the reader's one-click unsubscribe link and the postal address, so it goes out only once `postal_address` is set under `[mail]`. `khalid serve` reads the files when it starts.
+
+## A sign-up form on your main website
+
+To let readers sign up from your main website, print the form and paste it into any page there:
+
+```sh
+khalid --site <folder> newsletter embed --list weekly
+```
+
+It is plain HTML that posts to the blog's full address, so it needs no script, no frame and nothing loaded from the blog. Style it with the main site's CSS through the `khalid-subscribe` class. After signing up, the reader lands on the blog's "Check your inbox" page.

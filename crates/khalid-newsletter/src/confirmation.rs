@@ -147,6 +147,12 @@ impl SiteLinks {
     pub fn unsubscribe(&self, token: &SubscriberToken) -> String {
         format!("{}unsubscribe?token={}", self.base, token.expose_text())
     }
+
+    /// The full address the sign-up form posts to, for a form on another
+    /// site.
+    pub fn subscribe(&self) -> String {
+        format!("{}subscribe", self.base)
+    }
 }
 
 /// The two links in a confirmation email.

@@ -1,4 +1,5 @@
-//! `khalid newsletter`: labels and segments from the command line (G39).
+//! `khalid newsletter`: labels, segments and the embeddable form from the
+//! command line (G39, task 5.10).
 //! Subscribers live in `data/site.db`; a running `khalid serve` sees a
 //! change at once. Counts are totals, never a list of people.
 
@@ -8,12 +9,12 @@ use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Subcommand};
 use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, SubscriberTable};
-use khalid_newsletter::{EmailAddress, Labelled, Segment, SubscriberStore};
+use khalid_newsletter::{EmailAddress, Labelled, Pages, Segment, SubscriberStore};
 use serde::Serialize;
 
 use crate::cli::{Cli, Output};
 use crate::exit::Exit;
-use crate::{db, db_message, newsletter_send, report};
+use crate::{db, db_message, newsletter, newsletter_files, newsletter_send, report, serve_message};
 
 /// The newsletter commands.
 #[derive(Debug, Clone, Subcommand)]
@@ -43,6 +44,13 @@ pub(crate) enum NewsletterCommand {
         /// A label they must carry; give it more than once for several
         #[arg(long = "label", value_name = "LABEL")]
         labels: Vec<Slug>,
+    },
+    /// Print a sign-up form to paste into another website, such as your
+    /// main site. It works with scripts off
+    Embed {
+        /// The newsletter it signs readers up for
+        #[arg(long, value_name = "NAME", default_value = "main")]
+        list: Slug,
     },
     /// Email a published post to a newsletter's confirmed subscribers,
     /// once. An edit never sends it again
@@ -77,6 +85,7 @@ impl NewsletterCommand {
             Self::Label { .. } => "newsletter label",
             Self::Segment { .. } => "newsletter segment",
             Self::Send { .. } => "newsletter send",
+            Self::Embed { .. } => "newsletter embed",
         }
     }
 }
@@ -113,6 +122,7 @@ pub(crate) fn run(
             };
             return newsletter_send::run(cli, (folder, config), &asked);
         }
+        NewsletterCommand::Embed { list } => Ok(embed((folder, config), list, output)),
         NewsletterCommand::Label {
             email,
             label,
@@ -174,6 +184,39 @@ async fn count(store: &SubscriberTable, segment: &Segment, output: Output) -> Do
             report::text(&text, Exit::Success)
         }
     })
+}
+
+/// The sign-up form for `list` of the site in `folder`, as HTML to paste.
+fn embed((folder, config): (&Path, &Config), list: &Slug, output: Output) -> Done {
+    #[derive(Serialize)]
+    struct EmbedBody<'a> {
+        list: &'a str,
+        html: &'a str,
+    }
+    let Some(list) = newsletter_files::lists(folder).find(Some(list.as_str())) else {
+        return Err((no_list(list), Exit::Failure));
+    };
+    let pages = Pages::new(newsletter::site(config));
+    let pages = pages.map_err(|_| (serve_message::internal(), Exit::Internal))?;
+    let html = pages.embed(&list);
+    Ok(match output {
+        Output::Json => report::json(
+            &EmbedBody {
+                list: list.as_str(),
+                html: &html,
+            },
+            Exit::Success,
+        ),
+        Output::Human => report::text(&html, Exit::Success),
+    })
+}
+
+fn no_list(list: &Slug) -> UserMessage {
+    UserMessage::new(
+        format!("The site has no newsletter called {list}."),
+        "Each newsletter but main is a folder in content/newsletters/.",
+        format!("Make the folder content/newsletters/{list}/, or leave --list out for main."),
+    )
 }
 
 /// `text` for a person, or `{"done":true}` for a program.

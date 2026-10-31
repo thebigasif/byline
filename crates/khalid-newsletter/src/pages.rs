@@ -1,6 +1,7 @@
 //! The newsletter's pages: plain HTML with one heading, one sentence and at
 //! most one form, so every step works with scripts off (plan decision 12).
 
+use khalid_core::Slug;
 use serde::Deserialize;
 
 use crate::{NewsletterSite, NewsletterWords, WordsError};
@@ -134,6 +135,35 @@ impl Pages {
              <meta name=\"robots\" content=\"noindex\">\n<title>{title} | {site}</title>\n\
              </head>\n<body>\n<main>\n<h1>{title}</h1>\n<p>{text}</p>\n{form}\
              <p><a href=\"{mount}\">{back}</a></p>\n</main>\n</body>\n</html>\n"
+        )
+    }
+}
+
+impl Pages {
+    /// The sign-up form for `list` to paste into another website, such as
+    /// the main site the blog belongs to (task 5.10). It posts to the
+    /// blog's full address, so it needs no script, no frame and nothing
+    /// from the blog to load. The reader lands on the blog's "check your
+    /// inbox" page. The spam trap is hidden from people with `hidden`.
+    pub fn embed(&self, list: &Slug) -> String {
+        let Some(w) = self.words.page(&self.site.locale) else {
+            return String::new();
+        };
+        format!(
+            "<form class=\"khalid-subscribe\" method=\"post\" action=\"{action}\">\n\
+             <p><label for=\"khalid-subscribe-email\">{label}</label>\n\
+             <input id=\"khalid-subscribe-email\" name=\"email\" type=\"email\" \
+             autocomplete=\"email\" required></p>\n\
+             <input type=\"hidden\" name=\"list\" value=\"{list}\">\n\
+             <p hidden aria-hidden=\"true\"><label for=\"khalid-subscribe-homepage\">\
+             Leave this empty</label>\n\
+             <input id=\"khalid-subscribe-homepage\" name=\"homepage\" type=\"text\" \
+             tabindex=\"-1\" autocomplete=\"off\"></p>\n\
+             <p><button type=\"submit\">{button}</button></p>\n</form>\n",
+            action = escape(&self.site.links.subscribe()),
+            label = escape(&w.email_label),
+            list = escape(list.as_str()),
+            button = escape(&w.sign_up_button),
         )
     }
 }

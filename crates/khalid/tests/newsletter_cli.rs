@@ -177,3 +177,18 @@ async fn without_a_postal_address_nothing_goes_out() {
     assert_eq!(code, Some(1));
     assert_eq!(stub.received().len(), 0);
 }
+
+#[test]
+fn embed_prints_a_form_that_posts_to_the_blog_for_a_newsletter_it_has() {
+    let site = demo_copy();
+    let mut weekly = site.path().to_path_buf();
+    weekly.extend(["content", "newsletters", "weekly"]);
+    fs::create_dir_all(&weekly).unwrap();
+    let (code, form) = newsletter(site.path(), &["embed", "--list", "weekly"]);
+    assert_eq!(code, Some(0), "{form}");
+    let action = "action=\"https://www.example.com/blog/subscribe\"";
+    assert!(form.contains(action), "{form}");
+    assert!(form.contains("name=\"list\" value=\"weekly\""), "{form}");
+    let (code, _) = newsletter(site.path(), &["embed", "--list", "monthly"]);
+    assert_eq!(code, Some(1));
+}
