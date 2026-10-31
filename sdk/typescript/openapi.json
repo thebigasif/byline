@@ -10,6 +10,73 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/authors/": {
+      "get": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Lists every author in every language. A site has tens, so the list\ncomes whole. Needs `posts:write`.",
+        "operationId": "list_authors",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every author",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuthors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/comments/": {
       "get": {
         "tags": [
@@ -6645,6 +6712,95 @@
   },
   "components": {
     "schemas": {
+      "AdminAuthor": {
+        "type": "object",
+        "description": "An author in one language, in Admin API shape: everything their file\nholds, which bylines, author pages and the author's schema show.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "name",
+          "same_as",
+          "bio",
+          "updated_at"
+        ],
+        "properties": {
+          "bio": {
+            "type": "string",
+            "description": "The bio, in markdown."
+          },
+          "credentials": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why to trust the author, such as ten years in the field."
+          },
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.asif`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en`.",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name readers see."
+          },
+          "photo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The photo: a file beside the author's file, a media path or a full\naddress."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the author does, such as `Founder of SerpDad`."
+          },
+          "same_as": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The author's profiles elsewhere, in order.",
+            "example": [
+              "https://serpdad.com/"
+            ]
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts name the author by in their `author` field.",
+            "example": "asif"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the author's file last changed. An edit or delete sends it back."
+          }
+        }
+      },
+      "AdminAuthors": {
+        "type": "object",
+        "description": "Authors as the Admin API wraps them.",
+        "required": [
+          "authors"
+        ],
+        "properties": {
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminAuthor"
+            },
+            "description": "The author or authors."
+          }
+        }
+      },
       "AdminComment": {
         "type": "object",
         "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",

@@ -21,12 +21,12 @@ use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
-use crate::resources::{AdminPage, AdminSnippet, MediaItems};
+use crate::resources::{AdminAuthor, AdminPage, AdminSnippet, MediaItems};
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_comments, admin_not_found, admin_pages, admin_redirect_csv, admin_redirects,
-    admin_snippets, admin_webhooks, api_version, content_api,
+    admin_api, admin_authors, admin_comments, admin_not_found, admin_pages, admin_redirect_csv,
+    admin_redirects, admin_snippets, admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -221,6 +221,9 @@ pub struct AdminDesks {
     /// The site's snippets, or `None` when the snippet routes answer that
     /// this server keeps none.
     pub snippets: Option<Arc<dyn EntryStore<AdminSnippet>>>,
+    /// The site's authors, or `None` when the author routes answer that
+    /// this server keeps none.
+    pub authors: Option<Arc<dyn EntryStore<AdminAuthor>>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -234,7 +237,7 @@ impl std::fmt::Debug for AdminDesks {
 
 impl AdminDesks {
     /// No comments, no media library, no stored redirects, no webhooks, no
-    /// pages and no snippets.
+    /// pages, no snippets and no authors.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -243,6 +246,7 @@ impl AdminDesks {
             webhooks: None,
             pages: None,
             snippets: None,
+            authors: None,
         }
     }
 }
@@ -309,7 +313,8 @@ fn assemble(
         .merge(admin_redirects::routes(redirects, door.clone()))
         .merge(admin_webhooks::routes(desks.webhooks, door.clone()))
         .merge(admin_pages::routes(desks.pages, door.clone()))
-        .merge(admin_snippets::routes(desks.snippets, door.clone()));
+        .merge(admin_snippets::routes(desks.snippets, door.clone()))
+        .merge(admin_authors::routes(desks.authors, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

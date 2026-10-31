@@ -114,6 +114,11 @@ impl NewAuthor {
         &self.slug
     }
 
+    /// The name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Everything else the file will hold.
     pub fn file(&self) -> AuthorFile {
         AuthorFile {
