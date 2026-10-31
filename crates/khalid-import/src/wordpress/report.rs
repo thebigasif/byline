@@ -4,7 +4,7 @@
 use std::fmt;
 
 use crate::sentences::{count, list};
-use crate::wordpress::{LeftReason, Plan, SkipReason};
+use crate::wordpress::{Held, LeftReason, Plan, SkipReason};
 use crate::{MapTarget, Place, SlugOrigin};
 
 /// What a plan would do, counted, with the plan's lists for the details.
@@ -93,15 +93,16 @@ impl fmt::Display for Report<'_> {
             self.redirects,
             self.kept_addresses
         )?;
-        let held = plan
+        let held: Vec<String> = plan
             .items
             .iter()
             .filter(|item| !item.held.is_empty())
-            .count();
-        writeln!(
-            f,
-            "Items with fields their files cannot hold yet: {held}, listed with each item."
-        )?;
+            .map(|item| {
+                let fields: Vec<&str> = item.held.iter().map(field).collect();
+                format!("{} ({})", item.slug, fields.join(", "))
+            })
+            .collect();
+        list(f, "Items with fields their files cannot hold yet", &held)?;
         let failed: Vec<String> = plan
             .failed
             .iter()
@@ -151,6 +152,22 @@ fn grouped(plan: &Plan) -> Vec<String> {
             )
         })
         .collect()
+}
+
+/// The name of a field an item holds back, as the report lists it.
+fn field(held: &Held) -> &'static str {
+    match held {
+        Held::SearchTitle(_) => "search title",
+        Held::Tags(_) => "tags",
+        Held::FocusKeywords(_) => "focus keywords",
+        Held::FeatureImage(_) => "feature image",
+        Held::MoreCategories(_) => "more categories",
+        Held::Shortcodes(_) => "shortcodes",
+        Held::Unread(_) => "an SEO field it could not read",
+        Held::Scheduled(_) => "scheduled time",
+        Held::Robots(_) => "robots directives",
+        Held::Canonical(_) => "canonical address",
+    }
 }
 
 fn left(reason: &LeftReason) -> String {
