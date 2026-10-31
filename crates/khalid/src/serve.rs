@@ -39,6 +39,7 @@ use crate::site_content::LiveContent;
 use crate::site_entries::SiteEntries;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
+use crate::site_settings::SiteSettings;
 use crate::site_tags::SiteTags;
 use crate::{
     announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
@@ -244,7 +245,7 @@ fn api_router(
         authors: Some(Arc::new(SiteEntries::<AdminAuthor>::new(site, config))),
         tags: Some(Arc::new(SiteTags::new(site, config))),
         categories: Some(Arc::new(SiteCategories::new(site, config))),
-        ..AdminDesks::none()
+        settings: Some(Arc::new(SiteSettings::new(site, config))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

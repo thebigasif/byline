@@ -237,3 +237,45 @@ fn a_category_renamed_through_the_admin_api_shows_on_its_page_and_keeps_its_file
     assert!(text.contains("en = \"On-page optimisation\""), "{text}");
     assert!(!text.contains("link-building"), "{text}");
 }
+
+#[test]
+fn the_settings_are_changed_in_site_toml_and_applied_after_a_restart() {
+    let site = demo_copy();
+    let owner = ["--name", "Owner", "--scope", "settings:write"];
+    let key = new_key(site.path(), &owner);
+    let server = start(site.path(), &key);
+    let (status, read) = server.admin("GET", "/api/admin/v1/settings/", None);
+    assert_eq!(status, 200, "{read}");
+    assert_eq!(read["settings"]["name"], "Field Notes on SEO", "{read}");
+    assert_eq!(read["settings"]["restart_needed"], false, "{read}");
+
+    let seen = read["settings"]["updated_at"].as_str().unwrap();
+    let change = json!({"settings": {"name": "Field Notes", "updated_at": seen}});
+    let (status, saved) = server.admin("PUT", "/api/admin/v1/settings/", Some(&change));
+    assert_eq!(status, 200, "{saved}");
+    assert_eq!(saved["settings"]["restart_needed"], true, "{saved}");
+    let mut file = PathBuf::from(site.path());
+    file.push("site.toml");
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        text.starts_with("# The demo site's settings."),
+        "comments stay: {text}"
+    );
+    assert!(text.contains("\nname = \"Field Notes\"\n"), "{text}");
+    let (status, body) = server.admin("PUT", "/api/admin/v1/settings/", Some(&change));
+    assert_eq!(status, 409, "a replay of the old copy: {body}");
+
+    let seen = saved["settings"]["updated_at"].as_str().unwrap();
+    let french = json!({"settings": {"default_language": "fr", "updated_at": seen}});
+    let (status, body) = server.admin("PUT", "/api/admin/v1/settings/", Some(&french));
+    assert_eq!(status, 422, "{body}");
+    assert_eq!(body["rule"], "default_language", "{body}");
+    let after = std::fs::read_to_string(&file).unwrap();
+    assert_eq!(after, text, "nothing was written");
+
+    drop(server);
+    let restarted = start(site.path(), &key);
+    let (_, read) = restarted.admin("GET", "/api/admin/v1/settings/", None);
+    assert_eq!(read["settings"]["name"], "Field Notes", "{read}");
+    assert_eq!(read["settings"]["restart_needed"], false, "{read}");
+}
