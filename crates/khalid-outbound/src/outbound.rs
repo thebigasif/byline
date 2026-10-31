@@ -60,6 +60,16 @@ impl Limits {
         }
     }
 
+    /// The same limits with bodies of up to `max` bytes read, for a caller
+    /// that fetches a large file on purpose, such as a release binary.
+    #[must_use]
+    pub fn with_max_body_bytes(self, max: usize) -> Self {
+        Self {
+            max_body_bytes: max,
+            ..self
+        }
+    }
+
     /// The largest body read before the request is refused.
     pub fn max_body_bytes(&self) -> usize {
         self.max_body_bytes

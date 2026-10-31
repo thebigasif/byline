@@ -15,13 +15,22 @@ use crate::cli::Cli;
 ///
 /// Returns [`OutboundError::Client`] when the TLS setup fails.
 pub(crate) fn client(cli: &Cli) -> Result<Outbound, OutboundError> {
+    client_within(cli, Limits::default())
+}
+
+/// A client for public addresses, as [`client`] makes, under `limits`.
+///
+/// # Errors
+///
+/// Returns [`OutboundError::Client`] when the TLS setup fails.
+pub(crate) fn client_within(cli: &Cli, limits: Limits) -> Result<Outbound, OutboundError> {
     #[cfg(feature = "test-util")]
     if let Some(table) = &cli.test_hosts {
-        return Outbound::with_resolver(Limits::default(), test_resolver(table));
+        return Outbound::with_resolver(limits, test_resolver(table));
     }
     #[cfg(not(feature = "test-util"))]
     let _ = cli;
-    Outbound::new(Limits::default())
+    Outbound::new(limits)
 }
 
 /// A resolver that answers from `table`, pairs of `host=address` split by

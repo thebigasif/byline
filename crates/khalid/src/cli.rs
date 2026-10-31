@@ -46,6 +46,11 @@ pub(crate) struct Cli {
     #[cfg(feature = "test-util")]
     #[arg(long, global = true, hide = true, value_name = "URL")]
     pub(crate) test_bing: Option<AbsoluteUrl>,
+
+    /// Test builds only: where `khalid update` reads releases from.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "URL")]
+    pub(crate) test_releases: Option<String>,
 }
 
 /// How a command prints its results and messages.
@@ -132,8 +137,14 @@ pub(crate) enum Command {
         )]
         network: Network,
     },
-    /// Write one archive of the site folder
-    Backup,
+    /// Write one archive of the site folder, with a safe copy of its
+    /// database, leaving out public/ and data/media/, which Khalid makes again
+    Backup {
+        /// The archive to write, a new .tar.gz file. Without it, Khalid writes
+        /// `<folder>-backup-<date>-<time>.tar.gz` in the current folder
+        #[arg(long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
     /// health out of 100. Keeps the issues, the internal linking report and
     /// the score's trend in data/audit/, and exits with 1 on any error
@@ -539,7 +550,7 @@ impl Command {
             Self::Mcp => "mcp",
             Self::Agents => "agents",
             Self::Doctor { .. } => "doctor",
-            Self::Backup => "backup",
+            Self::Backup { .. } => "backup",
             Self::Audit { .. } => "audit",
             Self::Update { .. } => "update",
             Self::Pull => "pull",
