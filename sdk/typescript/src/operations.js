@@ -36,6 +36,7 @@ export const operations = {
   redeem_link: { method: "POST", path: "/api/admin/v1/session/link/redeem/", key: "none", body: "application/json" },
   passkey_sign_in: { method: "POST", path: "/api/admin/v1/session/passkey/", key: "none", body: "application/json" },
   sign_in_options: { method: "POST", path: "/api/admin/v1/session/passkey/options/", key: "none", body: null },
+  list_passkeys: { method: "GET", path: "/api/admin/v1/session/passkeys/", key: "none", body: null },
   add_passkey: { method: "POST", path: "/api/admin/v1/session/passkeys/", key: "none", body: "application/json" },
   passkey_options: { method: "POST", path: "/api/admin/v1/session/passkeys/options/", key: "none", body: null },
   change_password: { method: "PUT", path: "/api/admin/v1/session/password/", key: "none", body: "application/json" },

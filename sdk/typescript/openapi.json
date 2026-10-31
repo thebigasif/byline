@@ -2661,6 +2661,64 @@
       }
     },
     "/api/admin/v1/session/passkeys/": {
+      "get": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "The signed-in person's passkeys, oldest first. Needs the session\ncookie.",
+        "operationId": "list_passkeys",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The passkeys of the signed-in account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyEntry"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This site has no passkeys",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "staff"
@@ -7952,6 +8010,39 @@
             "format": "int64",
             "description": "How many items the list has.",
             "minimum": 0
+          }
+        }
+      },
+      "PasskeyEntry": {
+        "type": "object",
+        "description": "One of the signed-in person's passkeys. The key itself never leaves\nthe server.",
+        "required": [
+          "id",
+          "name",
+          "added_at"
+        ],
+        "properties": {
+          "added_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was added."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The passkey's number, for renaming or removing it."
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it last signed someone in; `null` when it never has."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name the person gave it, such as \"Work laptop\"."
           }
         }
       },

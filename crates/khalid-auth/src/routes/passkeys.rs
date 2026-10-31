@@ -175,7 +175,7 @@ pub(super) async fn passkey_sign_in(
     }
 }
 
-fn passkey_problem(error: &SignInError) -> Response {
+pub(super) fn passkey_problem(error: &SignInError) -> Response {
     match error {
         SignInError::PasskeysOff => {
             let message = UserMessage::new(

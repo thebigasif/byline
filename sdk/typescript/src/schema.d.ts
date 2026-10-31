@@ -546,6 +546,18 @@ export type Pagination = {
   total: number;
 };
 
+/** One of the signed-in person's passkeys. The key itself never leaves the server. */
+export type PasskeyEntry = {
+  /** When it was added. */
+  added_at: string;
+  /** The passkey's number, for renaming or removing it. */
+  id: number;
+  /** When it last signed someone in; `null` when it never has. */
+  last_used_at?: string | null;
+  /** The name the person gave it, such as "Work laptop". */
+  name: string;
+};
+
 /** A sign-in, as `navigator.credentials.get` returned it. */
 export type PasskeySignIn = {
   /** The `challenge` of the options it answers, as they gave it. */
@@ -1400,6 +1412,16 @@ export interface Operations {
       };
     };
     output: GetOptions;
+  };
+  /** The signed-in person's passkeys, oldest first. Needs the session cookie. */
+  list_passkeys: {
+    input: {
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: PasskeyEntry[];
   };
   /** Adds the passkey the browser made to the signed-in account. Needs the session cookie. */
   add_passkey: {
