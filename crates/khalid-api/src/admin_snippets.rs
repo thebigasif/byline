@@ -2,8 +2,8 @@
 //! disclosure, that every post placing them shows (plan sections 4.6 and
 //! 5.12, KH-API-2).
 
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{OriginalUri, Path, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{OriginalUri, Path, Query, State};
 use axum::http::header::LOCATION;
 use axum::http::{HeaderName, StatusCode};
 use axum::{Extension, Json, middleware};
@@ -13,13 +13,14 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::admin_api::BASE;
+use crate::admin_delete::DeleteQuery;
 use crate::admin_entries::{Kept, Noun};
 use crate::admin_key::{AdminDoor, require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::entry_store::Entry;
 use crate::keys::{Principal, Scope};
 use crate::problem::Problem;
-use crate::resources::{AdminSnippet, NewSnippet};
+use crate::resources::{AdminSnippet, NewSnippet, SnippetEdit};
 
 /// How messages name a snippet.
 const SNIPPET: Noun = Noun {
@@ -34,7 +35,7 @@ const SNIPPET: Noun = Noun {
 pub(crate) fn routes(snippets: Kept<AdminSnippet>, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_snippets, create_snippet))
-        .routes(routes!(read_snippet))
+        .routes(routes!(read_snippet, edit_snippet, delete_snippet))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(snippets)
@@ -135,4 +136,80 @@ async fn read_snippet(
     Ok(Json(AdminSnippets {
         snippets: vec![snippet],
     }))
+}
+
+/// An edit, wrapped the way the Admin API wraps snippets: exactly one.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SnippetEdits {
+    /// The one edit.
+    snippets: Vec<SnippetEdit>,
+}
+
+/// Edits one snippet: only the fields sent change, and every post that
+/// places it shows the change. The edit carries the `updated_at` of the
+/// copy it was made on; when the snippet changed since, the answer is a
+/// 409 (RULES.md BL-API-7). Needs `posts:publish`.
+#[utoipa::path(
+    put, path = "/snippets/{id}/", tag = "admin snippets",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The language and slug, such as en.affiliate-disclosure")),
+    request_body = SnippetEdits,
+    responses(
+        (status = 200, description = "The snippet as saved", body = AdminSnippets),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:publish", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No snippet has this identity, or this server keeps no snippets", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The snippet changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, or the title is empty", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn edit_snippet(
+    State(snippets): State<Kept<AdminSnippet>>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Json<SnippetEdits>, JsonRejection>,
+) -> Result<Json<AdminSnippets>, Problem> {
+    require(&principal, Scope::PostsPublish)?;
+    let edit = SNIPPET.one(SNIPPET.body(body)?.snippets)?;
+    edit.title()
+        .map(|title| SNIPPET.filled("title", title))
+        .transpose()?;
+    let saved = SNIPPET.store(snippets.as_deref())?.update(&id, edit).await;
+    let snippet = saved.map_err(|error| SNIPPET.problem(error, uri.path()))?;
+    Ok(Json(AdminSnippets {
+        snippets: vec![snippet],
+    }))
+}
+
+/// Deletes one snippet. A post that still places it shows nothing there.
+/// The request names the `updated_at` of the copy it was made on; when the
+/// snippet changed since, the answer is a 409. Needs `posts:publish`.
+#[utoipa::path(
+    delete, path = "/snippets/{id}/", tag = "admin snippets",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The language and slug, such as en.affiliate-disclosure"), DeleteQuery),
+    responses(
+        (status = 204, description = "The snippet is gone"),
+        (status = 400, description = "updated_at is missing or is not a time", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:publish", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No snippet has this identity, or this server keeps no snippets", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The snippet changed after the copy the delete was made on", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn delete_snippet(
+    State(snippets): State<Kept<AdminSnippet>>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    query: Result<Query<DeleteQuery>, QueryRejection>,
+) -> Result<StatusCode, Problem> {
+    require(&principal, Scope::PostsPublish)?;
+    let seen = query.ok().and_then(|Query(query)| query.updated_at);
+    let seen = seen.ok_or_else(|| SNIPPET.no_copy())?;
+    let deleted = SNIPPET.store(snippets.as_deref())?.delete(&id, seen).await;
+    deleted.map_err(|error| SNIPPET.problem(error, uri.path()))?;
+    Ok(StatusCode::NO_CONTENT)
 }
