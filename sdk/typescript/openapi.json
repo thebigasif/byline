@@ -10,6 +10,95 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/calendar/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Lists drafts, scheduled posts and published posts by day from `from`\nto `to`, at most 92 days, for the admin's calendar. Drafts with no date\nand no schedule come under `undated`. To move a post to another day,\nedit it: a new `date` for a draft, or `scheduled` with a new\n`published_at`. Needs `posts:write`.",
+        "operationId": "read_calendar",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "The first day, as `YYYY-MM-DD`.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-11-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "The last day, as `YYYY-MM-DD`, at most 92 days after `from`.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-11-30"
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The posts by day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "from or to is missing or not a date, from is after to, or they are more than 92 days apart",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/comments/": {
       "get": {
         "tags": [
@@ -1241,7 +1330,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled. A change to head code needs an owner, an\nadmin or `admin:all`.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled. Without `posts:publish`, an edit may move a\ndraft between `draft` and `in_review` but never leave it `ready`. A\nchange to head code needs an owner, an admin or `admin:all`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -1295,7 +1384,7 @@
             }
           },
           "403": {
-            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, or changes head code without being an owner or admin",
+            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, leaves a post ready without posts:publish, or changes head code without being an owner or admin",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1422,6 +1511,275 @@
           },
           "409": {
             "description": "The post changed after the copy the delete was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/posts/{id}/draft-comments/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Lists every comment on a post, oldest first, each reply after the\ncomment it answers. Needs `posts:write`.",
+        "operationId": "list_draft_comments",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The comments, oldest first, replies after their thread's first comment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftCommentList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Adds a comment to a post, about one block or the whole post, or as a\nreply in a thread, and tells the people in the thread and the site's\neditors. Needs `posts:write`.",
+        "operationId": "add_draft_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewDraftComments"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The comment as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftCommentList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the parent is not a thread on this post, or the site keeps no comments on drafts",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/posts/{id}/draft-comments/{comment}/": {
+      "put": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Marks a thread resolved once it is dealt with, or open again. Send the\nid of the thread's first comment. Needs `posts:write`.",
+        "operationId": "resolve_draft_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "comment",
+            "in": "path",
+            "description": "The thread's first comment",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveThreads"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "The thread is resolved or open as asked"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity, or no thread on it begins with this comment",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the site keeps no comments on drafts",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6377,6 +6735,113 @@
           }
         }
       },
+      "Calendar": {
+        "type": "object",
+        "description": "Drafts, scheduled posts and published posts by day.",
+        "required": [
+          "from",
+          "to",
+          "days",
+          "undated"
+        ],
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDay"
+            },
+            "description": "Every day with a post, earliest first. Days with none are left out."
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day."
+          },
+          "undated": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPost"
+            },
+            "description": "Drafts with no date and no schedule, to drag onto a day."
+          }
+        }
+      },
+      "CalendarBody": {
+        "type": "object",
+        "description": "The calendar as the Admin API wraps it.",
+        "required": [
+          "calendar"
+        ],
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/Calendar",
+            "description": "The calendar."
+          }
+        }
+      },
+      "CalendarDay": {
+        "type": "object",
+        "description": "The posts on one day, in the order they go live.",
+        "required": [
+          "date",
+          "posts"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The day, in UTC."
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPost"
+            },
+            "description": "Its posts."
+          }
+        }
+      },
+      "CalendarPost": {
+        "type": "object",
+        "description": "One post on the calendar.",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "review_state"
+        ],
+        "properties": {
+          "at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it went or goes live; empty for a draft, which sits on the day\nits `date` setting names."
+          },
+          "id": {
+            "type": "string",
+            "description": "The post's identity, as in `/posts/{id}/`."
+          },
+          "review_state": {
+            "$ref": "#/components/schemas/ReviewState",
+            "description": "Draft, in review or ready."
+          },
+          "status": {
+            "$ref": "#/components/schemas/PostStatus",
+            "description": "Draft, scheduled or published."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title."
+          }
+        }
+      },
       "CaseStudies": {
         "type": "object",
         "required": [
@@ -6621,6 +7086,111 @@
             "description": "The account's handle for authenticators."
           }
         }
+      },
+      "DraftComment": {
+        "type": "object",
+        "description": "One comment on a draft.",
+        "required": [
+          "id",
+          "author",
+          "text",
+          "resolved",
+          "created_at"
+        ],
+        "properties": {
+          "author": {
+            "type": "string",
+            "description": "The key or staff account that wrote it."
+          },
+          "block": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The block of the body it is about, counted from 1, or empty for the\npost as a whole. A reply is about its thread's block.",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was written."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The identity the store gave it."
+          },
+          "parent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The comment it answers; empty for the first comment of a thread."
+          },
+          "resolved": {
+            "type": "boolean",
+            "description": "Whether its thread has been dealt with. Only a thread's first\ncomment carries it."
+          },
+          "text": {
+            "$ref": "#/components/schemas/DraftCommentText",
+            "description": "What it says."
+          }
+        }
+      },
+      "DraftCommentBody": {
+        "type": "object",
+        "description": "A new comment as a client sends it.",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "block": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The block of the body it is about, counted from 1. Left out, it is\nabout the post as a whole. A reply is about its thread's block.",
+            "example": 3,
+            "minimum": 1
+          },
+          "parent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The first comment of the thread it answers. Threads are one level\ndeep."
+          },
+          "text": {
+            "type": "string",
+            "description": "What it says, up to 5,000 characters.",
+            "example": "Can we name the tool here?"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DraftCommentList": {
+        "type": "object",
+        "description": "Comments as the Admin API wraps them.",
+        "required": [
+          "draft_comments"
+        ],
+        "properties": {
+          "draft_comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftComment"
+            },
+            "description": "The comments, oldest first."
+          }
+        }
+      },
+      "DraftCommentText": {
+        "type": "string",
+        "description": "What a comment says: 1 to 5,000 characters, not only spaces."
       },
       "EditPosts": {
         "type": "object",
@@ -7074,6 +7644,23 @@
             "description": "The entries on this page, or the one entry asked for."
           }
         }
+      },
+      "NewDraftComments": {
+        "type": "object",
+        "description": "One new comment, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "draft_comments"
+        ],
+        "properties": {
+          "draft_comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftCommentBody"
+            },
+            "description": "Exactly one comment."
+          }
+        },
+        "additionalProperties": false
       },
       "NewPasskey": {
         "type": "object",
@@ -8002,6 +8589,37 @@
             ],
             "description": "The page to send it to. Leave it out for the nearest page.",
             "example": "/blog/why-internal-links-matter/"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveBody": {
+        "type": "object",
+        "description": "Whether a thread is resolved.",
+        "required": [
+          "resolved"
+        ],
+        "properties": {
+          "resolved": {
+            "type": "boolean",
+            "description": "`true` once the thread is dealt with, `false` to open it again."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveThreads": {
+        "type": "object",
+        "description": "A thread's new state, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "draft_comments"
+        ],
+        "properties": {
+          "draft_comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolveBody"
+            },
+            "description": "Exactly one change."
           }
         },
         "additionalProperties": false

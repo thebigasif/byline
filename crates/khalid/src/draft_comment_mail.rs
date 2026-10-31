@@ -58,15 +58,17 @@ impl DraftCommentNotice for CommentMail {
                 Ok(all) => all,
                 Err(error) => {
                     tracing::warn!(
-                        ?error,
+                        %error,
                         "the staff accounts could not be read to email a comment"
                     );
                     return;
                 }
             };
             for mail in mails(&all, &comment, &thread, (&title, &admin)) {
+                // Only the error's own words: a transport's cause may name
+                // the address, which never goes to the log (BL-RUN-5).
                 if let Err(error) = mailer.send(&mail).await {
-                    tracing::warn!(?error, "a comment on a draft could not be emailed");
+                    tracing::warn!(%error, "a comment on a draft could not be emailed");
                 }
             }
         });

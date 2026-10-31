@@ -66,9 +66,14 @@ async fn pushed(
     }
     tokio::task::spawn_blocking(move || {
         let _one_at_a_time = hook.pulling.lock().unwrap_or_else(PoisonError::into_inner);
-        match pull::pulled(&hook.site) {
-            Ok(moved) => tracing::info!(files = moved.files, "the push hook pulled"),
-            Err(message) => tracing::warn!(what = message.what(), "the push hook could not pull"),
+        // Git's own words may hold the remote's address with a token in
+        // it, so a failure only says where to look (BL-RUN-5).
+        if let Ok(moved) = pull::pulled(&hook.site) {
+            tracing::info!(files = moved.files, "the push hook pulled");
+        } else {
+            tracing::warn!(
+                "the push hook could not pull; run khalid pull in the site folder to see why"
+            );
         }
     });
     (StatusCode::ACCEPTED, "Pulling.\n")
