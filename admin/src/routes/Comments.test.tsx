@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { adminBlog, noContent } from "../../test/blog";
@@ -22,9 +22,10 @@ function comment(fields: Partial<AdminComment> = {}): AdminComment {
 
 const PRIYA = comment({ id: 2, author_name: "Priya", text: "This explained our sitemap." });
 
-/** A blog that keeps `kept` and moves them on request. */
+/** A blog that keeps `kept`, moves them on request, and records each reply's body. */
 function blog(kept: AdminComment[]) {
   let list = [...kept];
+  const replies: unknown[] = [];
   const set = (id: number, status: CommentStatus) => {
     list = list.map((each) => (each.id === id ? { ...each, status } : each));
     return json(200, { comments: list.filter((each) => each.id === id) });
@@ -35,12 +36,17 @@ function blog(kept: AdminComment[]) {
       return json(200, { comments: list.filter((each) => each.status === status) });
     },
     "POST /comments/1/approve/": () => set(1, "approved"),
+    "POST /comments/2/replies/": async (request) => {
+      replies.push(await request.json());
+      set(2, "approved");
+      return json(201, { comments: [comment({ id: 3, author_kind: "staff", parent: 2 })] });
+    },
     "DELETE /comments/2/": () => {
       list = list.filter((each) => each.id !== 2);
       return noContent();
     },
   });
-  return { sent };
+  return { sent, replies };
 }
 
 /** The list item that holds the comment saying `text`. */
@@ -82,6 +88,19 @@ describe("the Comments screen", () => {
     await waitFor(() => expect(screen.queryByText(comment().text)).toBeNull());
     await userEvent.click(screen.getByRole("button", { name: en.comments.statuses.approved }));
     expect(await screen.findByText(comment().text)).toBeVisible();
+  });
+
+  it("sends a staff reply with the name given", async () => {
+    signedIn();
+    const { replies } = blog([comment(), PRIYA]);
+    renderAt("/comments");
+    const card = await cardOf(PRIYA.text);
+    await userEvent.click(within(card).getByText(en.comments.reply));
+    await userEvent.type(within(card).getByLabelText(en.comments.name), "Asif");
+    await userEvent.type(within(card).getByLabelText(en.comments.text), "Glad it helped.");
+    await userEvent.click(within(card).getByRole("button", { name: en.comments.send }));
+    expect(await screen.findByText(en.comments.replied("Priya"))).toBeVisible();
+    expect(replies).toEqual([{ comments: [{ author_name: "Asif", text: "Glad it helped." }] }]);
   });
 
   it("deletes a comment", async () => {

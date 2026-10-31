@@ -2,6 +2,7 @@ import type { AdminComment } from "../api/comments";
 import { day } from "../strings/dates";
 import { en } from "../strings/en";
 import { postName } from "./postName";
+import { ReplyForm } from "./ReplyForm";
 
 type Props = {
   comment: AdminComment;
@@ -9,10 +10,11 @@ type Props = {
   first: boolean;
   onApprove: (comment: AdminComment) => void;
   onDelete: (comment: AdminComment) => void;
+  onReply: (comment: AdminComment, name: string, text: string) => Promise<boolean>;
 };
 
 /** One comment: who wrote it on which post, what it says, and what to do with it. */
-export function CommentCard({ comment, first, onApprove, onDelete }: Props) {
+export function CommentCard({ comment, first, onApprove, onDelete, onReply }: Props) {
   const words = en.comments;
   const name = comment.author_name;
   const byStaff = comment.author_kind === "staff";
@@ -44,6 +46,9 @@ export function CommentCard({ comment, first, onApprove, onDelete }: Props) {
           {words.remove}
         </button>
       </div>
+      {comment.status === "trash" ? null : (
+        <ReplyForm id={comment.id} onSend={(author, text) => onReply(comment, author, text)} />
+      )}
     </li>
   );
 }

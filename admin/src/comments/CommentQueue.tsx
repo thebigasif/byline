@@ -7,6 +7,7 @@ import {
   type CommentStatus,
   deleteComment,
   listComments,
+  replyToComment,
 } from "../api/comments";
 import { problemMessage } from "../api/posts";
 import { Problem } from "../components/Problem";
@@ -41,6 +42,8 @@ export function CommentQueue({ status }: Props) {
   const remove = async (comment: AdminComment) => {
     await settle(await deleteComment(comment.id), words.removed(comment.author_name));
   };
+  const reply = async (comment: AdminComment, name: string, text: string) =>
+    settle(await replyToComment(comment.id, name, text), words.replied(comment.author_name));
 
   const comments = listed.data;
   let list = <p role="status">{words.loading}</p>;
@@ -58,6 +61,7 @@ export function CommentQueue({ status }: Props) {
             first={index === 0 && status === "pending"}
             onApprove={approve}
             onDelete={remove}
+            onReply={reply}
           />
         ))}
       </ul>
