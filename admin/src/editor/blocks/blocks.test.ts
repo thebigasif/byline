@@ -36,6 +36,7 @@ const BLOCKS: Record<string, string> = {
   recipe:
     '::::recipe{name="Toast" servings="1"}\n:::ingredients\n- Bread\n:::\n:::method\n1. Toast it\n:::\n::::',
   review: ':::review{item="A book" type="Book" rating="4" author="Asif"}\nClear and short.\n:::',
+  snippet: '::snippet{slug="affiliate-disclosure"}',
   toc: "::toc",
   toggle: ':::toggle{summary="Why does this matter?"}\nSearch engines read it.\n:::',
   video:

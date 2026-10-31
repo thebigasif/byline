@@ -1,4 +1,5 @@
 import { en } from "../../strings/en";
+import { SnippetChoice } from "./SnippetChoice";
 
 const labels: Record<string, string> = en.fields;
 const choiceNames: Record<string, string> = en.choices;
@@ -15,7 +16,7 @@ type Props = {
   onChange: (value: string) => void;
 };
 
-/** One labelled detail of a block: a list of choices, the block's text, or a line. */
+/** One labelled detail of a block: a list of choices or snippets, the block's text, or a line. */
 export function DetailField({ field, value, onChange }: Props) {
   const id = `block-${field}`;
   const choices = CHOICES[field];
@@ -34,6 +35,8 @@ export function DetailField({ field, value, onChange }: Props) {
         ))}
       </select>
     );
+  } else if (field === "slug") {
+    input = <SnippetChoice id={id} value={value} onChange={onChange} />;
   } else if (field === "body") {
     input = (
       <textarea

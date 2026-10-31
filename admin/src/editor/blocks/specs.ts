@@ -75,6 +75,7 @@ export const BLOCK_SPECS: readonly BlockSpec[] = [
   box("product", PRODUCT, "name"),
   box("recipe", RECIPE, "name", "::::"),
   box("review", ["item", "type", "rating", "best", "author"], "item"),
+  leaf("snippet", ["slug"], "slug"),
   leaf("toc", [], null),
   box("toggle", ["summary"], "summary"),
   leaf("video", ["src", "title", "poster", "description", "duration"], "title"),

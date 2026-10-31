@@ -6,8 +6,10 @@ import { applyDetails, type Details, detailsOf, selectedDetails } from "./aids/b
 import { LinkSearch } from "./aids/LinkSearch";
 import { type Chosen, chosenIn, isLinkKey, linkToAddress, linkToPost } from "./aids/linkTo";
 import { PostMenu } from "./aids/PostMenu";
+import { SaveSnippet } from "./aids/SaveSnippet";
 import { ShortcutHelp } from "./aids/ShortcutHelp";
 import { SlashMenu } from "./aids/SlashMenu";
+import { placeSnippet, selectedMarkdown } from "./aids/snippetBlock";
 import { openTrigger } from "./aids/trigger";
 import { isHelpKey, type KeyHandler, menuKey, noKeys } from "./aids/useMenu";
 import { extensions, fileText } from "./richText";
@@ -25,6 +27,8 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
   const [details, setDetails] = useState<Details | null>(null);
   const [linking, setLinking] = useState<Chosen | null>(null);
   const [help, setHelp] = useState(false);
+  // The selected blocks in markdown while the writer saves them as a snippet.
+  const [snippet, setSnippet] = useState<string | null>(null);
   const opened = (found: Details | null) => {
     if (found !== null) {
       setDetails(found);
@@ -69,14 +73,30 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
     editor,
     selector: (snapshot) => openTrigger(snapshot.editor.state),
   });
+  const selecting = useEditorState({
+    editor,
+    selector: (snapshot) => !snapshot.editor.state.selection.empty,
+  });
   const closeForm = () => {
     setDetails(null);
     setLinking(null);
     setHelp(false);
+    setSnippet(null);
     editor.commands.focus();
   };
   let aid: ReactNode = null;
-  if (details !== null) {
+  if (snippet !== null) {
+    aid = (
+      <SaveSnippet
+        markdown={snippet}
+        onSaved={(slug) => {
+          placeSnippet(editor, slug);
+          setSnippet(null);
+        }}
+        onCancel={closeForm}
+      />
+    );
+  } else if (details !== null) {
     aid = (
       <BlockForm
         key={details.at}
@@ -122,6 +142,15 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
   return (
     <div className="writing">
       <EditorContent editor={editor} />
+      {aid === null && selecting ? (
+        <button
+          type="button"
+          className="btn mt-3"
+          onClick={() => setSnippet(selectedMarkdown(editor))}
+        >
+          {en.snippets.open}
+        </button>
+      ) : null}
       {aid}
     </div>
   );

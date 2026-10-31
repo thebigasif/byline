@@ -43,8 +43,8 @@ export function isData<T>(reply: Reply<T> | undefined): reply is { data: T } {
 
 const ADMIN = "/api/admin/v1";
 
-/** Sends one request to the blog with the signed-in key, and reads what came back. */
-async function call<T>(
+/** Sends one Admin API request with the signed-in key, and reads what came back. */
+export async function call<T>(
   path: string,
   init: RequestInit,
   read: (response: Response) => Promise<T>,
