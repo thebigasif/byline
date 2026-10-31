@@ -15,17 +15,40 @@
 //! Between writes the server counts into a [`Tally`] in memory, and hands
 //! it to an [`AnalyticsStore`] in batches.
 //!
+//! The visitor log (GEO C1) is off unless the site switches it on. It
+//! keeps one [`Visit`] per request for a few days, with a
+//! [`ShortAddress`], a [`VisitorCode`] made with the day's
+//! [`VisitorKey`], and for a bot a [`BotCheck`] against the address
+//! lists its company publishes, read by [`CrawlerRanges`].
+//! `docs/design/visitor-log.md` is its privacy design. Each
+//! [`CrawledPage`] a listed bot fetched is kept after its rows are erased,
+//! with its first and last fetch, so a post's first crawl stays known.
+//!
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
+mod crawl_report;
+mod crawled;
 mod crawler;
+mod crawler_ranges;
+mod first_crawl;
 mod referrer;
 mod store;
 mod tally;
+mod visit;
 
+pub use crawl_report::{Answers, BotError, CrawlerHealth, bot_errors, crawl_health};
+pub use crawled::CrawledPage;
 pub use crawler::{Crawler, CrawlerKind};
+pub use crawler_ranges::{CrawlerRanges, LONGEST_LIST, RangeList, RangeListError};
+pub use first_crawl::{FirstCrawl, FirstFetch, LivePage, first_crawls};
 pub use referrer::ReferrerGroup;
 pub use store::{
     AnalyticsError, AnalyticsStore, BoxFuture, CRAWL_DAYS_KEPT, MAX_CRAWL_ROWS_PER_DAY,
+    MAX_VISITS_PER_DAY, VisitorLogStore,
 };
 pub use tally::{Crawls, MAX_ROWS, Tally, Views};
+pub use visit::{
+    BotCheck, ParseShortAddressError, ParseVisitorCodeError, ShortAddress, Visit, Visitor,
+    VisitorCode, VisitorKey,
+};

@@ -2508,6 +2508,7 @@ dependencies = [
  "chrono",
  "clap",
  "flate2",
+ "getrandom 0.4.3",
  "image",
  "insta",
  "khalid-admin",
@@ -2588,6 +2589,9 @@ name = "khalid-analytics"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
  "thiserror 2.0.21",
 ]
 

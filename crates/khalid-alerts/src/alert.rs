@@ -21,16 +21,24 @@ pub enum Kind {
     FailedSchedule,
     /// A live post unchanged for longer than the site allows.
     StalePost,
+    /// A search crawler from its company's addresses has not fetched a
+    /// page for a week, seen while the visitor log is on.
+    CrawlStopped,
+    /// Crawlers got server errors in the last round, seen while the
+    /// visitor log is on.
+    CrawlerErrors,
 }
 
 impl Kind {
     /// Every kind, in the order alerts are sent in one round.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::BrokenLinks,
         Self::NotFoundSpike,
         Self::Certificate,
         Self::FailedSchedule,
         Self::StalePost,
+        Self::CrawlStopped,
+        Self::CrawlerErrors,
     ];
 
     /// The wire name, such as `stale-post`.
@@ -41,6 +49,8 @@ impl Kind {
             Self::Certificate => "certificate",
             Self::FailedSchedule => "failed-schedule",
             Self::StalePost => "stale-post",
+            Self::CrawlStopped => "crawl-stopped",
+            Self::CrawlerErrors => "crawler-errors",
         }
     }
 
@@ -55,8 +65,8 @@ impl Kind {
     /// never clears.
     pub fn clears(self) -> bool {
         match self {
-            Self::BrokenLinks | Self::Certificate | Self::StalePost => true,
-            Self::NotFoundSpike | Self::FailedSchedule => false,
+            Self::BrokenLinks | Self::Certificate | Self::StalePost | Self::CrawlStopped => true,
+            Self::NotFoundSpike | Self::FailedSchedule | Self::CrawlerErrors => false,
         }
     }
 
@@ -94,6 +104,16 @@ impl Kind {
                 "Some live posts have not changed for a long time.",
                 "Old facts and dead links make readers and search engines trust a post less.",
                 "Read each post below, update what has changed, and save it.",
+            ],
+            Self::CrawlStopped => [
+                "A search engine's crawler has not fetched a page for a week.",
+                "New and changed posts reach its results only after it fetches them.",
+                "Check that robots.txt lets it in and the site answers, then run khalid crawl health.",
+            ],
+            Self::CrawlerErrors => [
+                "Search and AI crawlers got server errors from the site in the last hour.",
+                "A page that fails cannot be read, so it cannot show in results or answers.",
+                "Open each address below, read the server log for its error, and fix it.",
             ],
         }
     }

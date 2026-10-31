@@ -230,6 +230,12 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: SearchConsoleCommand,
     },
+    /// Read what the visitor log says about crawlers, while it is on
+    Crawl {
+        /// What to read
+        #[command(subcommand)]
+        command: CrawlCommand,
+    },
 }
 
 /// The Search Console commands, for the property `[search_console]` names.
@@ -253,6 +259,18 @@ pub(crate) enum SearchConsoleCommand {
     /// Email the week in Google search to `report_to` under `[search_console]`,
     /// through `[mail]`. Run it once a week from a timer
     Email,
+}
+
+/// The crawl reports. They read the visitor log in `data/site.db` and
+/// count a crawler only from an address its company publishes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum CrawlCommand {
+    /// Show how long each new post waited for its first crawl
+    First,
+    /// Show each search and AI crawler's visits and what it got
+    Health,
+    /// List the addresses that answered crawlers with an error
+    Errors,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in

@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use axum::Router;
+use khalid_analytics::VisitorLogStore;
 use khalid_api::api::{self, AdminDesks, AuditDesk};
 use khalid_api::comment_moderation::CommentModeration;
 use khalid_api::media_api::MediaLibrary;
@@ -20,7 +21,8 @@ use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{
-    AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable,
+    AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, VisitorLogTable,
+    WebhookTable,
 };
 use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
@@ -192,7 +194,7 @@ fn serve_with(
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
-        let (counter, pages) = page_counts::start((database, id), pages, config.mount());
+        let (counter, pages) = page_counts::start((database, id), pages, (site, config, outbound));
         let editing = (content.clone(), posts.clone());
         let pages = staff_toolbar::start((database, id, config), editing, pages);
         let (desks, at) = ((moderation, media, desk), (database, id, (site, config)));
@@ -256,6 +258,11 @@ fn mail_and_alerts(
         content: content.clone(),
         https: https_folder(folder, listen),
         settings: config.alerts().clone(),
+        visitors: config.visitor_log().on.then(|| {
+            let log: Arc<dyn VisitorLogStore> =
+                Arc::new(VisitorLogTable::new(database.clone(), id));
+            log
+        }),
     };
     let ready = alert_watch::Ready {
         mailer,

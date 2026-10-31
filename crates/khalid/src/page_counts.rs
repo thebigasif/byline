@@ -7,6 +7,7 @@
 //! request never waits for the database.
 
 use std::borrow::Cow;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -16,13 +17,15 @@ use axum::extract::{Request, State};
 use axum::http::{HeaderMap, Method, Response, StatusCode, header};
 use axum::middleware::{self, Next};
 use khalid_analytics::{AnalyticsStore, Crawler, ReferrerGroup, Tally};
-use khalid_core::{Clock, SystemClock};
+use khalid_core::{Clock, Config, SystemClock};
 use khalid_db::{AnalyticsTable, Database, SiteId};
+use khalid_outbound::Outbound;
 use percent_encoding::percent_decode_str;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
 use crate::redirect_route::asked_path;
+use crate::visitor_log;
 
 /// The most notes waiting to be counted. More are dropped, so a burst
 /// cannot pile up in memory.
@@ -46,27 +49,29 @@ enum Note {
 /// What the layer holds: where to hand notes, and the mount folder.
 type Counting = Arc<(mpsc::Sender<Note>, String)>;
 
-/// The task that counts and writes, until [`Counter::stop`].
+/// The task that counts and writes, and the visitor log when it is on,
+/// until [`Counter::stop`].
 #[derive(Debug)]
 pub(crate) struct Counter {
     stop: oneshot::Sender<()>,
     task: JoinHandle<()>,
+    visitors: Option<visitor_log::Logger>,
 }
 
-/// The site's analytics in `db`, and `router` with each request under
-/// `mount` counted.
+/// The site's analytics in `db`, and `router` with each request under the
+/// mount counted, and logged when `config` switches the visitor log on.
 pub(crate) fn start(
     (db, site): (&Database, SiteId),
     router: Router,
-    mount: &str,
+    (folder, config, outbound): (&Path, &Config, &Outbound),
 ) -> (Counter, Router) {
     let store: Arc<dyn AnalyticsStore> = Arc::new(AnalyticsTable::new(db.clone(), site));
-    let (counter, notes) = Counter::start(store, Arc::new(SystemClock));
-    let counting: Counting = Arc::new((notes, mount.to_owned()));
-    (
-        counter,
-        router.layer(middleware::from_fn_with_state(counting, count)),
-    )
+    let (mut counter, notes) = Counter::start(store, Arc::new(SystemClock));
+    let counting: Counting = Arc::new((notes, config.mount().to_owned()));
+    let router = router.layer(middleware::from_fn_with_state(counting, count));
+    let (visitors, router) = visitor_log::start((folder, config, outbound), (db, site), router);
+    counter.visitors = visitors;
+    (counter, router)
 }
 
 impl Counter {
@@ -93,11 +98,23 @@ impl Counter {
             }
             write(store.as_ref(), &mut tally).await;
         });
-        (Self { stop, task }, sender)
+        let visitors = None;
+        (
+            Self {
+                stop,
+                task,
+                visitors,
+            },
+            sender,
+        )
     }
 
-    /// Writes what is left of the tally and stops the task.
+    /// Writes what is left of the tally and the visitor log, and stops
+    /// their tasks.
     pub(crate) async fn stop(self) {
+        if let Some(visitors) = self.visitors {
+            visitors.stop().await;
+        }
         // The task may have ended already, when every sender is gone.
         self.stop.send(()).ok();
         if let Err(error) = self.task.await {
@@ -189,12 +206,13 @@ fn prefetch(headers: &HeaderMap) -> bool {
     })
 }
 
-fn text(headers: &HeaderMap, name: header::HeaderName) -> Option<&str> {
+/// The header `name` as text, when it is.
+pub(crate) fn text(headers: &HeaderMap, name: header::HeaderName) -> Option<&str> {
     headers.get(name).and_then(|value| value.to_str().ok())
 }
 
 /// The `utm_source` in `query`, percent-encoding undone.
-fn utm_source(query: Option<&str>) -> Option<String> {
+pub(crate) fn utm_source(query: Option<&str>) -> Option<String> {
     query?
         .split('&')
         .find_map(|pair| pair.strip_prefix("utm_source="))

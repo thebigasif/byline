@@ -40,6 +40,11 @@ mod config_message;
 mod consent_route;
 mod content_feed;
 mod content_message;
+mod crawl_alerts;
+mod crawl_first;
+mod crawl_report;
+mod crawl_words;
+mod crawler_lists;
 mod db;
 mod db_export;
 mod db_message;
@@ -159,6 +164,7 @@ mod unlock;
 mod update;
 mod update_message;
 mod update_release;
+mod visitor_log;
 mod webhooks;
 
 use std::ffi::OsString;
@@ -395,7 +401,8 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             asked @ (Command::Redirects { .. }
             | Command::Webhooks { .. }
             | Command::Backup { .. }
-            | Command::Pull),
+            | Command::Pull
+            | Command::Crawl { .. }),
         ) => Some(match cli.site.as_deref() {
             Some(folder) => on_folder(folder, asked, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
@@ -405,11 +412,13 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
 }
 
 /// Runs the commands that need the site folder but not its checked content:
-/// `redirects` and `webhooks`, which read the settings and the database
-/// themselves, `backup`, which keeps a broken site as well as a whole one,
-/// and `pull`, which checks the site after it brings in the new files.
+/// `redirects`, `webhooks` and `crawl`, which read the settings and the
+/// database themselves, `backup`, which keeps a broken site as well as a
+/// whole one, and `pull`, which checks the site after it brings in the new
+/// files.
 fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
     match asked {
+        Command::Crawl { command } => crawl_report::run(folder, *command, &SystemClock, output),
         Command::Redirects { command } => redirects::run(folder, command, output),
         Command::Webhooks { command } => webhooks::run(folder, command, output),
         Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),

@@ -13,6 +13,7 @@ use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
     AbsoluteUrl, AlertSettings, Announcement, Environment, Locale, MailSettings, MediaSettings,
     NavSettings, ParseUrlError, Reader, SearchConsoleSettings, SeoSettings, SiteCode,
+    VisitorLogSettings,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -39,6 +40,7 @@ pub struct Config {
     alerts: AlertSettings,
     code: SiteCode,
     search_console: Option<SearchConsoleSettings>,
+    visitor_log: VisitorLogSettings,
     preview_link_lifetime: Duration,
 }
 
@@ -107,6 +109,8 @@ struct SiteFile {
     #[serde(default)]
     code: SiteCode,
     search_console: Option<SearchConsoleTable>,
+    #[serde(default)]
+    visitor_log: VisitorLogSettings,
     preview_link_days: Option<u64>,
     preview_link_hours: Option<u64>,
 }
@@ -200,6 +204,37 @@ fn static_consent(path: &Path, text: &str) -> ConfigError {
     }
 }
 
+/// The refusal of `key` in `table`, at its line of `text`.
+fn in_table(path: &Path, text: &str, table: &str, key: &str, problem: &str) -> ConfigError {
+    ConfigError::Field {
+        path: path.to_path_buf(),
+        line: line_of_key_in(text, table, key),
+        field: key.to_owned(),
+        problem: problem.to_owned(),
+    }
+}
+
+/// The first mistake in the tables whose checks span the file: `[alerts]`
+/// against how the site sends `mail`, and `[visitor_log]` and `[code]`
+/// against the mode.
+fn tables_mistake(
+    file: &SiteFile,
+    mail: Option<&MailSettings>,
+    path: &Path,
+    text: &str,
+) -> Result<(), ConfigError> {
+    if let Some((key, problem)) = file.alerts.mistake(mail) {
+        return Err(in_table(path, text, "[alerts", key, problem));
+    }
+    if let Some((key, problem)) = file.visitor_log.mistake(file.mode) {
+        return Err(in_table(path, text, "[visitor_log", key, problem));
+    }
+    if file.mode == Mode::Static && file.code.waits_for_consent() {
+        return Err(static_consent(path, text));
+    }
+    Ok(())
+}
+
 impl Config {
     /// The settings file's name inside a site folder.
     pub const FILE_NAME: &str = "site.toml";
@@ -229,7 +264,7 @@ impl Config {
     /// and field of the first mistake, and [`ConfigError::Environment`] when an
     /// environment variable holds a value that is not allowed.
     pub fn from_toml(path: &Path, text: &str, env: &Environment) -> Result<Self, ConfigError> {
-        let file: SiteFile = toml::from_str(text).map_err(|source| ConfigError::Parse {
+        let mut file: SiteFile = toml::from_str(text).map_err(|source| ConfigError::Parse {
             path: path.to_path_buf(),
             line: line_of(text, source.span().map_or(0, |span| span.start)),
             field: field_of(text, &source),
@@ -255,20 +290,9 @@ impl Config {
                 return Err(field("bucket", missing));
             }
         }
-        let in_table = |table: &str, key: &str, problem: &str| ConfigError::Field {
-            path: path.to_path_buf(),
-            line: line_of_key_in(text, table, key),
-            field: key.to_owned(),
-            problem: problem.to_owned(),
-        };
-        let mail = file.mail.map(|table| table.check(env)).transpose();
-        let mail = mail.map_err(|(key, problem)| in_table("[mail", key, problem))?;
-        if let Some((key, problem)) = file.alerts.mistake(mail.as_ref()) {
-            return Err(in_table("[alerts", key, problem));
-        }
-        if file.mode == Mode::Static && file.code.waits_for_consent() {
-            return Err(static_consent(path, text));
-        }
+        let mail = file.mail.take().map(|table| table.check(env)).transpose();
+        let mail = mail.map_err(|(key, problem)| in_table(path, text, "[mail", key, problem))?;
+        tables_mistake(&file, mail.as_ref(), path, text)?;
         let address = match env.get(Environment::ADDRESS) {
             Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
                 variable: Environment::ADDRESS.to_owned(),
@@ -281,7 +305,7 @@ impl Config {
             .map(|table| table.check(&address, mail.as_ref()));
         let search_console = search_console
             .transpose()
-            .map_err(|(key, problem)| in_table("[search_console", key, problem))?;
+            .map_err(|(key, problem)| in_table(path, text, "[search_console", key, problem))?;
         Ok(Self {
             name: file.name,
             address,
@@ -299,6 +323,7 @@ impl Config {
             alerts: file.alerts,
             code: file.code,
             search_console,
+            visitor_log: file.visitor_log,
             preview_link_lifetime,
         })
     }
@@ -335,6 +360,12 @@ impl Config {
     /// `preview_link_days` or `preview_link_hours`, from 1 hour to 30 days.
     pub fn preview_link_lifetime(&self) -> Duration {
         self.preview_link_lifetime
+    }
+
+    /// Whether each visit is logged and for how long, from `[visitor_log]`;
+    /// off unless the site switches it on.
+    pub fn visitor_log(&self) -> &VisitorLogSettings {
+        &self.visitor_log
     }
 
     /// The site's name, shown in titles and feeds.

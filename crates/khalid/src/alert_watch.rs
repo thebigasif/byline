@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use khalid_alerts::{Kind, LivePost, ServedCertificate, certificate, not_found_spike, stale_posts};
+use khalid_analytics::VisitorLogStore;
 use khalid_api::content_store::ContentStore;
 use khalid_api::not_found_log::{MAX_MISSES, NotFoundLog};
 use khalid_api::query::{ListQuery, RawListQuery};
@@ -25,6 +26,7 @@ use tokio::time::{Instant, MissedTickBehavior};
 use crate::alerts::{self, Alerting};
 use crate::announce::SiteAnnounce;
 use crate::cli::ServeArgs;
+use crate::crawl_alerts;
 use crate::site_content::LiveContent;
 
 /// How often the checks run.
@@ -51,6 +53,8 @@ pub(crate) struct Sources {
     pub(crate) https: Option<(Domain, HttpsFolder)>,
     /// `[alerts]` from `site.toml`.
     pub(crate) settings: AlertSettings,
+    /// The visitor log, when `[visitor_log]` is on, for the crawl alerts.
+    pub(crate) visitors: Option<Arc<dyn VisitorLogStore>>,
 }
 
 /// Alerts made ready before the server listens, started once the site's
@@ -150,6 +154,9 @@ async fn round(
             .raise(Kind::StalePost, stale_posts(&live, days, at))
             .await;
     }
+    if let Some(log) = &sources.visitors {
+        crawl_alerts::round(alerting, log.as_ref(), at).await;
+    }
     alerting.tidy().await;
     now.or(before)
 }
@@ -236,6 +243,7 @@ mod tests {
             content,
             https: None,
             settings: config.alerts().clone(),
+            visitors: None,
         };
         log.record("/blog/old/", at).await.unwrap();
         let before = counts(&*sources.misses).await;
