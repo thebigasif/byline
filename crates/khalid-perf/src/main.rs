@@ -6,6 +6,7 @@
 //! khalid-perf render target/perf/site-1k target/perf/render.json
 //! khalid-perf lint target/perf/site-1k target/perf/lint.json
 //! khalid-perf requests target/release/khalid 1000 target/perf/site-1k target/perf/requests.json
+//! khalid-perf sizes target/perf/build-10k admin/dist target/perf/sizes.json
 //! khalid-perf serve target/release/khalid 1000 target/perf/site-1k target/perf/serve-1k.json
 //! ```
 
@@ -17,7 +18,7 @@ use std::time::Duration;
 use khalid_core::SystemClock;
 use khalid_lint::{LintConfig, Linter};
 use khalid_perf::{
-    Fixture, FixtureError, LintTimes, Prepared, RenderTimes, RequestRate, ServeTimes, Served,
+    Fixture, FixtureError, LintTimes, Prepared, RenderTimes, RequestRate, ServeTimes, Served, Sizes,
 };
 use khalid_render::Renderer;
 
@@ -25,6 +26,7 @@ const USAGE: &str = "Usage: khalid-perf fixture POSTS FOLDER\n       \
                      khalid-perf render SITE OUT.json\n       \
                      khalid-perf lint SITE OUT.json\n       \
                      khalid-perf requests KHALID POSTS SITE OUT.json\n       \
+                     khalid-perf sizes BUILD ADMIN_DIST OUT.json\n       \
                      khalid-perf serve KHALID POSTS SITE OUT.json";
 
 /// Rounds over every page: one to warm up, then enough samples that the
@@ -58,6 +60,7 @@ fn main() -> ExitCode {
         ["fixture", posts, folder] => fixture(posts, Path::new(folder)),
         ["render", site, out] => render(Path::new(site), Path::new(out)),
         ["lint", site, out] => lint(Path::new(site), Path::new(out)),
+        ["sizes", build, admin, out] => sizes(Path::new(build), Path::new(admin), Path::new(out)),
         ["requests", khalid, posts, site, out] => {
             requests(Path::new(khalid), posts, Path::new(site), Path::new(out))
         }
@@ -148,6 +151,30 @@ fn requests(khalid: &Path, posts: &str, site: &Path, out: &Path) -> Result<(), S
     )
     .map_err(fail)?;
     fs::write(out, rate.to_json())
+        .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
+}
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the CI log says when the admin was not measured"
+)]
+fn sizes(build: &Path, admin: &Path, out: &Path) -> Result<(), String> {
+    let explain = |what: String| {
+        format!(
+            "{what}\nWithout it, the stylesheet and the admin cannot be measured.\n\
+             Build the site again with `khalid build` and run this once more."
+        )
+    };
+    let sizes = Sizes::measure(build, admin)
+        .map_err(|error| explain(format!("The built files could not be read: {error}.")))?;
+    if sizes.admin_js_kb().is_none() {
+        println!(
+            "Not measured: the admin's JavaScript. {} holds no built admin. \
+             Run `npm ci && npm run build` in admin/ first to measure it.",
+            admin.display()
+        );
+    }
+    fs::write(out, sizes.to_json())
         .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
 }
 

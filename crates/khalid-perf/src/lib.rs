@@ -18,6 +18,8 @@ mod serve_error;
 mod serve_times;
 mod served;
 mod site;
+mod size_error;
+mod sizes;
 mod words;
 
 pub use fixture::Fixture;
@@ -31,3 +33,5 @@ pub use request_rate::{RequestRate, read_response};
 pub use serve_error::ServeError;
 pub use serve_times::ServeTimes;
 pub use served::{Served, announced, resident_mb};
+pub use size_error::SizeError;
+pub use sizes::{Linked, Sizes, linked};
