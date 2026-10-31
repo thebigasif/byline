@@ -1,3 +1,5 @@
+import { serpdadWords } from "./serpdadWords";
+
 // Every word the admin shows, so a second language is one more file.
 export const en = {
   brand: "Khalid",
@@ -11,6 +13,7 @@ export const en = {
     dashboard: "Dashboard",
     posts: "Posts",
     redirects: "Redirects",
+    serpdad: "SerpDad",
   },
   redirects: {
     title: "Redirects",
@@ -329,6 +332,7 @@ export const en = {
     submit: "Sign in",
     checking: "Checking the token",
   },
+  serpdad: serpdadWords,
   problems: {
     rejected: {
       what: "The blog did not accept this token.",
