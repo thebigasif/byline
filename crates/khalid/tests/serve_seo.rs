@@ -135,13 +135,11 @@ fn html_files(out: &Path) -> Vec<String> {
 /// The address serve answers a built file at, and the status it answers.
 #[cfg(test)]
 fn served_at(rel: &str) -> (String, u16) {
-    match rel.strip_suffix("404.html") {
-        Some(folder) => (format!("/blog/{folder}no-such-post/"), 404),
-        None => {
-            let folder = rel.trim_end_matches("index.html");
-            (format!("/blog/{folder}"), 200)
-        }
+    if let Some(folder) = rel.strip_suffix("404.html") {
+        return (format!("/blog/{folder}no-such-post/"), 404);
     }
+    let folder = rel.trim_end_matches("index.html");
+    (format!("/blog/{folder}"), 200)
 }
 
 #[cfg(test)]
