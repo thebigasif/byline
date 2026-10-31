@@ -99,6 +99,8 @@
   h3{font-size:1.0625rem;font-weight:700;margin:0 0 .25rem}
   .choice{display:flex;align-items:flex-start;font-weight:400;margin:0 0 .6rem}
   .choice input{width:1.25rem;min-height:1.25rem;margin:.15rem .6rem 0 0;accent-color:var(--color-link);flex:none}
+  .thumb{display:block;width:6rem;height:4rem;object-fit:cover;border-radius:var(--radius-field);background:var(--color-surface)}
+  .thumb.none{display:flex;align-items:center;justify-content:center;font-size:.875rem;color:var(--color-muted)}
   .paging{display:flex;flex-wrap:wrap;gap:.75rem 1rem;align-items:center;margin:1.25rem 0 0}
   /* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
   @media (max-width:40em){

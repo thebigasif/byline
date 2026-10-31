@@ -1,5 +1,26 @@
 import type { MediaItem } from "../src/api/media";
-import { json } from "./render";
+import type { Answers } from "./redirects";
+import { json, serve } from "./render";
+
+/** A blog that answers Admin API routes from `answers`, and the requests it was sent. */
+export function mediaBlog(answers: Answers) {
+  const sent: Request[] = [];
+  serve((request) => {
+    sent.push(request);
+    const route = new URL(request.url).pathname.replace("/api/admin/v1", "");
+    return answers[`${request.method} ${route}`]?.(request) ?? json(404, {});
+  });
+  return sent;
+}
+
+/** The query of each request that listed the library. */
+export function listings(sent: Request[]): URLSearchParams[] {
+  return sent
+    .filter((request) => request.method === "GET")
+    .map((request) => new URL(request.url))
+    .filter((url) => url.pathname === "/api/admin/v1/media/")
+    .map((url) => url.searchParams);
+}
 
 /** An image in the library with no alt text yet, unless `fields` say otherwise. */
 export function item(fields: Partial<MediaItem> = {}): MediaItem {

@@ -37,6 +37,11 @@ export function Shell() {
               </Link>
             </li>
             <li>
+              <Link to="/media" search={{}} activeOptions={{ includeSearch: false }}>
+                {en.nav.media}
+              </Link>
+            </li>
+            <li>
               <Link to="/redirects">{en.nav.redirects}</Link>
             </li>
           </ul>

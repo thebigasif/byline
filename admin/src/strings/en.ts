@@ -10,7 +10,37 @@ export const en = {
     label: "Admin",
     dashboard: "Dashboard",
     posts: "Posts",
+    media: "Media",
     redirects: "Redirects",
+  },
+  media: {
+    title: "Media",
+    lede: "The images, videos, sound and files your posts use. Khalid reads each file's content to learn its type, so a program renamed to look like a photo is refused. A file uploaded twice is kept once.",
+    library: {
+      title: "Your library",
+      lede: "Newest first. Alt text describes an image for people who use a screen reader, and for Google. The checks warn about any image in a post that has none.",
+      show: "Show",
+      every: "Every file",
+      noAlt: "Images with no alt text",
+      loading: "Reading your library",
+      empty: "Your library is empty.",
+      allHaveAlt: "Every image in your library has alt text.",
+      found: (count: number) => (count === 1 ? "1 file" : `${count} files`),
+      preview: "Preview",
+      name: "Name",
+      folder: "Folder",
+      kind: "Kind",
+      alt: "Alt text",
+      top: "Top",
+      missing: "Missing",
+      notNeeded: "Not needed",
+    },
+    kinds: { image: "Image", video: "Video", audio: "Sound", file: "File" },
+    size: (bytes: number) =>
+      bytes < 1024 * 1024
+        ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+        : `${(bytes / (1024 * 1024)).toFixed(1)} MB`,
+    pixels: (width: number, height: number) => `${width} × ${height}`,
   },
   redirects: {
     title: "Redirects",
