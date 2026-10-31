@@ -17,6 +17,7 @@ mod head_code;
 mod indexnow_key;
 mod link_settings;
 mod locale;
+mod mail_settings;
 mod media_settings;
 mod post_access;
 mod reader;
@@ -40,6 +41,9 @@ pub use head_code::{HeadCode, HeadCodeError};
 pub use indexnow_key::{IndexNowKey, ParseIndexNowKeyError};
 pub use link_settings::{DomainName, ExternalRel, LinkOpening, LinkSettings, ParseDomainNameError};
 pub use locale::{Locale, ParseLocaleError};
+pub use mail_settings::{
+    MailSettings, MailTransport, PostmarkSettings, SmtpSecurity, SmtpSettings,
+};
 pub use media_settings::{MediaSettings, S3Keys, S3Settings};
 pub use post_access::{
     ParsePasswordHashError, ParseTemplateNameError, PasswordHash, PostAccess, TemplateName,

@@ -9,9 +9,11 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-use crate::toml_location::{field_of, line_of, line_of_key};
+use crate::mail_settings::MailTable;
+use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
-    AbsoluteUrl, Locale, MediaSettings, ParseUrlError, Reader, S3Keys, Secret, SeoSettings,
+    AbsoluteUrl, Locale, MailSettings, MailTransport, MediaSettings, ParseUrlError, Reader, S3Keys,
+    Secret, SeoSettings,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -32,6 +34,7 @@ pub struct Config {
     seo: SeoSettings,
     reader: Reader,
     media: MediaSettings,
+    mail: Option<MailSettings>,
     preview_link_lifetime: Duration,
 }
 
@@ -91,6 +94,7 @@ struct SiteFile {
     reader: Reader,
     #[serde(default)]
     media: MediaSettings,
+    mail: Option<MailTable>,
     preview_link_days: Option<u64>,
     preview_link_hours: Option<u64>,
 }
@@ -196,6 +200,13 @@ impl Config {
                 return Err(field("bucket", missing));
             }
         }
+        let mail = file.mail.map(|table| table.check(env)).transpose();
+        let mail = mail.map_err(|(key, problem)| ConfigError::Field {
+            path: path.to_path_buf(),
+            line: line_of_key_in(text, "[mail", key),
+            field: key.to_owned(),
+            problem: problem.to_owned(),
+        })?;
         let address = match env.get(Environment::ADDRESS) {
             Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
                 variable: Environment::ADDRESS.to_owned(),
@@ -214,8 +225,15 @@ impl Config {
             seo: file.seo,
             reader: file.reader,
             media: file.media,
+            mail,
             preview_link_lifetime,
         })
+    }
+
+    /// How the site sends email, from `[mail]`, or `None` when it sends
+    /// none.
+    pub fn mail(&self) -> Option<&MailSettings> {
+        self.mail.as_ref()
     }
 
     /// Where the media library keeps its files, from `[media]`.
@@ -294,16 +312,34 @@ impl Environment {
     /// The secret of the key that writes to the media bucket.
     pub const S3_SECRET_ACCESS_KEY: &str = "KHALID_S3_SECRET_ACCESS_KEY";
 
+    /// The password of the SMTP user in `[mail.smtp]`.
+    pub const SMTP_PASSWORD: &str = "KHALID_SMTP_PASSWORD";
+
+    /// The API key that sends mail through Resend.
+    pub const RESEND_API_KEY: &str = "KHALID_RESEND_API_KEY";
+
+    /// The server token that sends mail through Postmark.
+    pub const POSTMARK_TOKEN: &str = "KHALID_POSTMARK_TOKEN";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 4] = [
+    const ALL: [&str; 7] = [
         Self::ADDRESS,
         Self::KEY,
         Self::S3_ACCESS_KEY_ID,
         Self::S3_SECRET_ACCESS_KEY,
+        Self::SMTP_PASSWORD,
+        Self::RESEND_API_KEY,
+        Self::POSTMARK_TOKEN,
     ];
 
     /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 2] = [Self::KEY, Self::S3_SECRET_ACCESS_KEY];
+    const HIDDEN: [&str; 5] = [
+        Self::KEY,
+        Self::S3_SECRET_ACCESS_KEY,
+        Self::SMTP_PASSWORD,
+        Self::RESEND_API_KEY,
+        Self::POSTMARK_TOKEN,
+    ];
 
     /// Reads Khalid's variables from this process's environment.
     pub fn from_process() -> Self {
@@ -357,6 +393,20 @@ impl Environment {
             access_key_id: read(Self::S3_ACCESS_KEY_ID)?,
             secret_access_key: read(Self::S3_SECRET_ACCESS_KEY)?,
         })
+    }
+
+    /// The password, key or token `transport` signs in with, or `None`
+    /// when it is unset or blank.
+    pub fn mail_secret(&self, transport: &MailTransport) -> Option<Secret<String>> {
+        let name = match transport {
+            MailTransport::Smtp(_) => Self::SMTP_PASSWORD,
+            MailTransport::Resend => Self::RESEND_API_KEY,
+            MailTransport::Postmark(_) => Self::POSTMARK_TOKEN,
+        };
+        self.get(name)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| Secret::new(value.to_owned()))
     }
 
     fn get(&self, name: &str) -> Option<&str> {
