@@ -19,19 +19,21 @@
 //! keeps one [`Visit`] per request for a few days, with a
 //! [`ShortAddress`], a [`VisitorCode`] made with the day's
 //! [`VisitorKey`], and for a bot a [`BotCheck`] against the address
-//! lists its company publishes.
+//! lists its company publishes, read by [`CrawlerRanges`].
 //! `docs/design/visitor-log.md` is its privacy design.
 //!
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
 mod crawler;
+mod crawler_ranges;
 mod referrer;
 mod store;
 mod tally;
 mod visit;
 
 pub use crawler::{Crawler, CrawlerKind};
+pub use crawler_ranges::{CrawlerRanges, LONGEST_LIST, RangeList, RangeListError};
 pub use referrer::ReferrerGroup;
 pub use store::{
     AnalyticsError, AnalyticsStore, BoxFuture, CRAWL_DAYS_KEPT, MAX_CRAWL_ROWS_PER_DAY,
