@@ -20,13 +20,7 @@ publish = false
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"
-tokio = { version = "1", features = [
-  "macros",
-  "rt-multi-thread",
-  "signal",
-  "time",
-  "fs",
-] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "fs"] }
 tracing = "0.1"
 
 [workspace.lints.rust]

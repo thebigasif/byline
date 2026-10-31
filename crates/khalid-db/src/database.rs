@@ -52,12 +52,11 @@ impl Database {
             .synchronous(SqliteSynchronous::Normal)
             .foreign_keys(true)
             .busy_timeout(BUSY_TIMEOUT);
-        let writer_options = options.clone();
         // The writer opens first: it creates the file and switches it to WAL,
         // which read-only connections cannot do.
         let writer = SqlitePoolOptions::new()
             .max_connections(1)
-            .connect_with(writer_options.create_if_missing(true))
+            .connect_with(options.clone().create_if_missing(true))
             .await
             .map_err(open_error)?;
         let readers = SqlitePoolOptions::new()

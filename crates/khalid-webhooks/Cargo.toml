@@ -23,12 +23,8 @@ sha2 = "0.11"
 thiserror.workspace = true
 
 [dev-dependencies]
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = [
-  "test-util",
-] }
-khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = [
-  "test-util",
-] }
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
 khalid-webhooks = { path = ".", version = "0.0.0", features = ["test-util"] }
 proptest = "1"
 tokio.workspace = true

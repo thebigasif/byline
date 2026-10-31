@@ -18,9 +18,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 divan = "0.1"
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = [
-  "test-util",
-] }
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 tempfile = "3"
 
 [[bench]]

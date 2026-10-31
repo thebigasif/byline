@@ -13,10 +13,7 @@ publish.workspace = true
 test-util = []
 
 [dependencies]
-axum = { version = "0.8", default-features = false, features = [
-  "form",
-  "tokio",
-] }
+axum = { version = "0.8", default-features = false, features = ["form", "tokio"] }
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 getrandom = "0.4"
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
@@ -31,15 +28,9 @@ tracing.workspace = true
 
 [dev-dependencies]
 khalid-comments = { path = ".", version = "0.0.0", features = ["test-util"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = [
-  "test-util",
-] }
-khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = [
-  "test-util",
-] }
-khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0", features = [
-  "test-util",
-] }
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
+khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0", features = ["test-util"] }
 serde_json.workspace = true
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }

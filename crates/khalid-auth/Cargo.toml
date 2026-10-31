@@ -14,10 +14,7 @@ test-util = []
 
 [dependencies]
 argon2 = "0.6"
-axum = { version = "0.8", default-features = false, features = [
-  "json",
-  "tokio",
-] }
+axum = { version = "0.8", default-features = false, features = ["json", "tokio"] }
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 ciborium = "0.2"
@@ -35,13 +32,9 @@ utoipa = "6"
 utoipa-axum = "0.3"
 
 [dev-dependencies]
-khalid-api = { path = "../khalid-api", version = "0.0.0", features = [
-  "test-util",
-] }
+khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
 khalid-auth = { path = ".", version = "0.0.0", features = ["test-util"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = [
-  "test-util",
-] }
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
 

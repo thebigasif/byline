@@ -33,10 +33,7 @@ khalid-static = { path = "../khalid-static", version = "0.0.0" }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 khalid-theme = { path = "../khalid-theme", version = "0.0.0" }
 khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0" }
-axum = { version = "0.8", default-features = false, features = [
-  "form",
-  "query",
-] }
+axum = { version = "0.8", default-features = false, features = ["form", "query"] }
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4", features = ["derive"] }
 mimalloc = { version = "0.1", features = ["no_thp"] }
@@ -44,23 +41,14 @@ percent-encoding = "2"
 serde.workspace = true
 serde_json.workspace = true
 tempfile = "3"
-tokio = { workspace = true, features = [
-  "rt",
-  "net",
-  "sync",
-  "io-std",
-  "io-util",
-] }
+tokio = { workspace = true, features = ["rt", "net", "sync", "io-std", "io-util"] }
 toml = "0.9"
 tower = { version = "0.5", default-features = false, features = ["util"] }
 tracing.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Switches transparent huge pages off for `khalid serve`, safely.
-rustix = { version = "1", default-features = false, features = [
-  "std",
-  "thread",
-] }
+rustix = { version = "1", default-features = false, features = ["std", "thread"] }
 
 [features]
 # The hidden --test-hosts flag, for CLI tests against a local stand-in.
@@ -68,18 +56,11 @@ rustix = { version = "1", default-features = false, features = [
 test-util = ["khalid-outbound/test-util"]
 
 [dev-dependencies]
-khalid-api = { path = "../khalid-api", version = "0.0.0", features = [
-  "test-util",
-] }
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = [
-  "test-util",
-] }
+khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
+khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 insta = "1"
-rcgen = { version = "0.14", default-features = false, features = [
-  "ring",
-  "pem",
-] }
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
 scraper = "0.29"
 serde_json.workspace = true
 tokio.workspace = true

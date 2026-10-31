@@ -22,9 +22,7 @@ tower = { version = "0.5", features = ["util"] }
 
 [dev-dependencies]
 chrono = { version = "0.4", default-features = false }
-khalid-api = { path = "../khalid-api", version = "0.0.0", features = [
-  "test-util",
-] }
+khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
 tokio.workspace = true
 
 [lints]

@@ -15,13 +15,7 @@ flate2 = "1"
 sha2 = "0.11"
 chrono = { version = "0.4", default-features = false }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
-minijinja = { version = "3", default-features = false, features = [
-  "builtins",
-  "macros",
-  "multi_template",
-  "fuel",
-  "serde",
-] }
+minijinja = { version = "3", default-features = false, features = ["builtins", "macros", "multi_template", "fuel", "serde"] }
 rust-embed = { version = "8", features = ["debug-embed"] }
 serde.workspace = true
 thiserror.workspace = true
