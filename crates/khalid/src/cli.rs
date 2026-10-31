@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+use khalid_analytics::CRAWL_DAYS_KEPT;
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
 use khalid_webhooks::Event;
@@ -239,7 +240,8 @@ pub(crate) enum Command {
     /// Show how fast and how reliably the blog answered at its public
     /// address over the last day and the last 30 days
     Watch,
-    /// Read what `khalid serve` counted, such as the readers AI assistants sent
+    /// Read what `khalid serve` counted: the readers AI assistants sent and
+    /// the bots that read each page
     Analytics {
         /// What to read
         #[command(subcommand)]
@@ -291,6 +293,12 @@ pub(crate) enum AnalyticsCommand {
     Ai {
         /// How many days to count back from today, from 1 to 366
         #[arg(long, default_value_t = 28, value_parser = clap::value_parser!(u32).range(1..=366))]
+        days: u32,
+    },
+    /// List the pages AI bots read but no AI assistant sent a reader to
+    Uncited {
+        /// How many days back to look, today included, from 1 to 90
+        #[arg(long, default_value_t = 30, value_parser = clap::value_parser!(u32).range(1..=i64::from(CRAWL_DAYS_KEPT)))]
         days: u32,
     },
 }

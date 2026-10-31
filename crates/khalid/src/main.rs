@@ -162,6 +162,7 @@ mod theme_check;
 mod theme_message;
 mod theme_preview;
 mod theme_sync;
+mod uncited_report;
 mod unlock;
 mod update;
 mod update_message;
@@ -433,6 +434,9 @@ fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
         } => ai_visitors::run(folder, *days, output),
         Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),
         Command::Pull => pull::run(folder, &SystemClock, output),
+        Command::Analytics {
+            command: AnalyticsCommand::Uncited { days },
+        } => uncited_report::run(folder, *days, &SystemClock, output),
         _ => report::failure(output, &not_built(asked), Exit::Internal),
     }
 }

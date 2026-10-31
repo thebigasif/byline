@@ -25,6 +25,9 @@
 //! [`CrawledPage`] a listed bot fetched is kept after its rows are erased,
 //! with its first and last fetch, so a post's first crawl stays known.
 //!
+//! [`uncited`] lists the pages AI bots read that no AI assistant ever sent
+//! a reader to. A bot's visit is never counted as a citation.
+//!
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
@@ -38,6 +41,7 @@ mod first_crawl;
 mod referrer;
 mod store;
 mod tally;
+mod uncited;
 mod visit;
 
 pub use ai_tool::AiTool;
@@ -53,6 +57,7 @@ pub use store::{
     MAX_VISITS_PER_DAY, VisitorLogStore,
 };
 pub use tally::{Crawls, MAX_ROWS, Tally, Views};
+pub use uncited::{Uncited, uncited};
 pub use visit::{
     BotCheck, ParseShortAddressError, ParseVisitorCodeError, ShortAddress, Visit, Visitor,
     VisitorCode, VisitorKey,
