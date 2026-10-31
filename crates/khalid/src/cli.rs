@@ -127,8 +127,14 @@ pub(crate) enum Command {
         )]
         network: Network,
     },
-    /// Write one archive of the site folder
-    Backup,
+    /// Write one archive of the site folder, leaving out public/, data/media/
+    /// and the live database files
+    Backup {
+        /// The archive to write, a new .tar.gz file. Without it, Khalid writes
+        /// `<folder>-backup-<date>-<time>.tar.gz` in the current folder
+        #[arg(long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
     /// health out of 100. Keeps the issues, the internal linking report and
     /// the score's trend in data/audit/, and exits with 1 on any error
@@ -516,7 +522,7 @@ impl Command {
             Self::Mcp => "mcp",
             Self::Agents => "agents",
             Self::Doctor { .. } => "doctor",
-            Self::Backup => "backup",
+            Self::Backup { .. } => "backup",
             Self::Audit { .. } => "audit",
             Self::Update { .. } => "update",
             Self::Pull => "pull",

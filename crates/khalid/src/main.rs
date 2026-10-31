@@ -10,6 +10,8 @@ mod announce;
 mod assets;
 mod atomic;
 mod audit_message;
+mod backup;
+mod backup_message;
 mod build;
 mod build_files;
 mod build_gate;
@@ -315,15 +317,25 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
         }),
-        Some(asked @ Command::Redirects { command }) => Some(match cli.site.as_deref() {
-            Some(folder) => redirects::run(folder, command, cli.output),
-            None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
-        }),
-        Some(asked @ Command::Webhooks { command }) => Some(match cli.site.as_deref() {
-            Some(folder) => webhooks::run(folder, command, cli.output),
+        Some(
+            asked @ (Command::Redirects { .. } | Command::Webhooks { .. } | Command::Backup { .. }),
+        ) => Some(match cli.site.as_deref() {
+            Some(folder) => on_folder(folder, asked, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
         }),
         _ => None,
+    }
+}
+
+/// Runs the commands that need the site folder but not its checked content:
+/// `redirects` and `webhooks`, which read the settings and the database
+/// themselves, and `backup`, which keeps a broken site as well as a whole one.
+fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
+    match asked {
+        Command::Redirects { command } => redirects::run(folder, command, output),
+        Command::Webhooks { command } => webhooks::run(folder, command, output),
+        Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),
+        _ => report::failure(output, &not_built(asked), Exit::Internal),
     }
 }
 

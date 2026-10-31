@@ -9,7 +9,6 @@ use serde_json::Value;
 /// arguments it needs.
 const COMMANDS: &[&[&str]] = &[
     &["export"],
-    &["backup"],
     &["update"],
     &["update", "--rollback"],
     &["pull"],
@@ -149,7 +148,7 @@ fn every_command_accepts_json_and_prints_the_message_as_json() {
 #[test]
 fn json_works_before_the_command_too() {
     let output = khalid(&["--json", "backup"]);
-    assert_eq!(output.status.code(), Some(3));
+    assert_eq!(output.status.code(), Some(2));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(
         json["error"]["what"]
