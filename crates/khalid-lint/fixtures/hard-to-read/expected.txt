@@ -1,1 +1,3 @@
 warn hard-to-read: reading index 122
+warn focus-not-in-first-paragraph: internal links
+warn focus-too-rare: internal links

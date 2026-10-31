@@ -286,6 +286,12 @@ why = "Readers who struggle leave early, and Google favours pages that answer pe
 fix = "Split long sentences, and use shorter everyday words where you can."
 guide = "readability"
 
+[no-focus-keyword]
+what = "This post has no focus keyword, the phrase you want it to be found for."
+why = "Without one, Khalid cannot check that the title, description and text are about one topic."
+fix = "Add `focus_keyword:` to the header with the words a reader would search for."
+guide = "focus-keyword"
+
 [focus-not-in-title]
 what = "The title search results show does not hold your focus keyword."
 why = "The title is the headline in search results, and Google reads it first to learn the topic."

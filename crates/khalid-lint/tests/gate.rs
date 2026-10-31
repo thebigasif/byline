@@ -53,7 +53,7 @@ fn the_gate_publishes_a_post_with_only_warnings() {
         .collect();
     assert_eq!(
         rules,
-        ["no-description"],
+        ["no-description", "no-focus-keyword"],
         "warnings travel with the verdict"
     );
 }

@@ -117,6 +117,29 @@ fn focus_keyword(post: &LintPost) -> Option<&str> {
         .map(str::trim)
 }
 
+/// A post with no focus keyword, so none of the focus checks can run and
+/// its score leaves the topic out.
+#[derive(Debug)]
+pub(crate) struct NoFocusKeyword;
+
+impl Rule for NoFocusKeyword {
+    fn id(&self) -> RuleId {
+        RuleId::new("no-focus-keyword")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        focus_keyword(post)
+            .is_none()
+            .then(Hit::post)
+            .into_iter()
+            .collect()
+    }
+}
+
 /// The focus keyword is missing from one place in the post. The finding
 /// names the keyword, so the writer sees which words to add.
 #[derive(Debug)]
@@ -301,5 +324,6 @@ mod tests {
         assert_eq!(FocusNotIn(Place::Title).check(&post, &site), []);
         assert_eq!(FocusTooRare { min: 5 }.check(&post, &site), []);
         assert_eq!(SecondaryKeywordUnused.check(&post, &site), []);
+        assert_eq!(NoFocusKeyword.check(&post, &site), [Hit::post()]);
     }
 }

@@ -22,6 +22,7 @@ An internal link points to [how to pick link text](/blog/choosing-link-text/).
 const UNDATED: &str = "---
 title: Choosing link text
 author: asif
+focus_keyword: link text
 ---
 
 Good link text names the page it opens, like [why links matter](/blog/why-internal-links-matter/).

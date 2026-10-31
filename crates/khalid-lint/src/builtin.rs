@@ -83,6 +83,7 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
             openers: writing::VAGUE_OPENERS.to_vec(),
         }),
         Box::new(writing::SourcedStatistics),
+        Box::new(crate::focus::NoFocusKeyword),
         Box::new(FocusNotIn(Place::Title)),
         Box::new(FocusNotIn(Place::Headline)),
         Box::new(FocusNotIn(Place::Description)),

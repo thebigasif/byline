@@ -1,1 +1,2 @@
 warn thin-post
+warn no-focus-keyword
