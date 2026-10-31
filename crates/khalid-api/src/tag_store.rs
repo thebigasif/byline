@@ -11,6 +11,11 @@ use crate::content_store::BoxFuture;
 use crate::entry_store::{EntryError, EntryStoreError};
 use crate::resources::{AdminTag, TagEdit};
 
+#[cfg(any(test, feature = "test-util"))]
+mod memory;
+#[cfg(any(test, feature = "test-util"))]
+pub use memory::MemoryTags;
+
 /// The site's tags, for the Admin API. `khalid serve` reads and rewrites
 /// the post files; `MemoryTags`, from the `test-util` feature, keeps posts
 /// in memory for tests.
