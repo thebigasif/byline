@@ -85,6 +85,7 @@ mod repair;
 mod report;
 mod routes_message;
 mod scheduler;
+mod search_console;
 mod search_index;
 mod search_page;
 mod search_route;
@@ -217,9 +218,10 @@ fn run(cli: &Cli) -> Exit {
             Some((folder, config, ..)),
         ) => access(folder, config, command, cli.output),
         (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
-        (Some(Command::Bing { command }), Some((_, config, ..))) => {
-            bing::run(config, &environment, *command, cli)
-        }
+        (
+            Some(command @ (Command::Bing { .. } | Command::SearchConsole { .. })),
+            Some((folder, config, _, (content, _))),
+        ) => outside((folder, config, content), &environment, command, cli),
         (
             Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
             Some((folder, config, ..)),
@@ -231,6 +233,23 @@ fn run(cli: &Cli) -> Exit {
         // `run_unchecked`, so each one left needs `--site`.
         (Some(command), None) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs the commands that ask a search engine about the checked site, with
+/// the keys in `env`: `bing` and `search-console`.
+fn outside(
+    (folder, config, content): (&Path, &Config, &SiteContent),
+    env: &Environment,
+    command: &Command,
+    cli: &Cli,
+) -> Exit {
+    match command {
+        Command::Bing { command } => bing::run(config, env, *command, cli),
+        Command::SearchConsole { command } => {
+            search_console::run((folder, config, content), env, *command, cli)
+        }
+        _ => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
 }
 

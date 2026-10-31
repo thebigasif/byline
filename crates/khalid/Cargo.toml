@@ -27,6 +27,7 @@ khalid-mount = { path = "../khalid-mount", version = "0.0.0" }
 khalid-media = { path = "../khalid-media", version = "0.0.0" }
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
 khalid-search = { path = "../khalid-search", version = "0.0.0" }
+khalid-search-console = { path = "../khalid-search-console", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-share-image = { path = "../khalid-share-image", version = "0.0.0" }
 khalid-mail = { path = "../khalid-mail", version = "0.0.0" }

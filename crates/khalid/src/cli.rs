@@ -47,6 +47,11 @@ pub(crate) struct Cli {
     #[arg(long, global = true, hide = true, value_name = "URL")]
     pub(crate) test_bing: Option<AbsoluteUrl>,
 
+    /// Test builds only: send every Google call under this endpoint.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "URL")]
+    pub(crate) test_google: Option<AbsoluteUrl>,
+
     /// Test builds only: where `khalid update` reads releases from.
     #[cfg(feature = "test-util")]
     #[arg(long, global = true, hide = true, value_name = "URL")]
@@ -212,6 +217,20 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: BingCommand,
     },
+    /// Read the site's Google Search Console numbers with the owner's own
+    /// Google account, once `[search_console]` in site.toml opts in
+    SearchConsole {
+        /// What to ask Search Console
+        #[command(subcommand)]
+        command: SearchConsoleCommand,
+    },
+}
+
+/// The Search Console commands, for the property `[search_console]` names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum SearchConsoleCommand {
+    /// Sign in to Google and check that the property can be read
+    Check,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in
