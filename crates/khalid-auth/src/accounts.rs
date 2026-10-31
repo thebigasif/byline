@@ -13,11 +13,11 @@ mod passkeys;
 mod take_back;
 
 pub use links::Links;
-pub use passkeys::{CEREMONY, Passkeys, RegistrationRequest};
+pub use passkeys::{CEREMONY, Passkeys};
 pub use take_back::FRESH;
 
 use crate::{
-    Account, AccountStore, AccountStoreError, CsrfToken, Email, LinkStoreError, PasskeyError,
+    Account, AccountStore, AccountStoreError, CsrfToken, Email, LinkStoreError, PasskeyCheckError,
     PasskeyStoreError, Password, PasswordError, PasswordHashing, SendLinkError, SessionError,
     SessionStore, SessionStoreError, SessionToken, SignInLimiter,
 };
@@ -199,7 +199,7 @@ pub enum SignInError {
     PasskeysOff,
     /// A passkey answer was refused, for this reason.
     #[error("the passkey was refused: {0}")]
-    Passkey(#[source] PasskeyError),
+    Passkey(#[source] PasskeyCheckError),
     /// A store, the random source or the password check failed.
     #[error("the sign-in could not be checked")]
     Unavailable {
@@ -235,6 +235,6 @@ unavailable_from!(
     SessionError,
     LinkStoreError,
     SendLinkError,
-    PasskeyError,
+    PasskeyCheckError,
     PasskeyStoreError
 );
