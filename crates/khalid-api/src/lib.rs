@@ -31,6 +31,7 @@ pub mod not_found_log;
 pub mod pagination;
 pub mod post_password;
 pub mod post_store;
+pub mod post_trash;
 pub mod preview_link;
 pub mod problem;
 pub mod publish_door;

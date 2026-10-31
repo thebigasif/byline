@@ -80,7 +80,9 @@ pub trait PostStore: Send + Sync {
 
     /// Removes post `id`, in any status, but only when it has not changed
     /// since `updated_at`, the copy the caller saw (BL-API-7). The check and
-    /// the removal happen together. Returns the post as it was.
+    /// the removal happen together. Returns the post as it was. A store
+    /// that is also a [`PostTrash`](crate::post_trash::PostTrash) keeps it
+    /// there, so it can be restored.
     ///
     /// # Errors
     ///
@@ -207,14 +209,17 @@ mod memory {
         PostEdit, PostRow, PostStore, PostStoreError, UpdatePostError,
     };
     use crate::content_store::select;
+    use crate::post_trash::{PostTrash, TrashError, Trashed};
     use crate::resources::LintCounts;
 
     /// Posts held in memory, for tests. It runs no publish gate: an edit
     /// that publishes always goes live, and a post's lint counts are
-    /// whatever [`MemoryPostStore::with_lint`] gave it, or none.
+    /// whatever [`MemoryPostStore::with_lint`] gave it, or none. A deleted
+    /// post waits in its trash.
     #[derive(Debug)]
     pub struct MemoryPostStore {
         posts: Mutex<Vec<AdminPost>>,
+        trash: Mutex<Vec<(Trashed, AdminPost)>>,
         seen: Mutex<BTreeMap<String, String>>,
         lint: BTreeMap<String, LintCounts>,
         clock: Box<dyn Clock>,
@@ -231,6 +236,7 @@ mod memory {
         pub fn new(posts: Vec<AdminPost>) -> Self {
             Self {
                 posts: Mutex::new(posts),
+                trash: Mutex::new(Vec::new()),
                 seen: Mutex::new(BTreeMap::new()),
                 lint: BTreeMap::new(),
                 clock: Box::new(SystemClock),
@@ -304,7 +310,40 @@ mod memory {
                 posts.insert(at, post);
                 return Err(stale);
             }
+            let trashed = Trashed::new(&post, self.clock.now());
+            self.trash().push((trashed, post.clone()));
             Ok(post)
+        }
+
+        fn trash(&self) -> MutexGuard<'_, Vec<(Trashed, AdminPost)>> {
+            self.trash.lock().unwrap_or_else(PoisonError::into_inner)
+        }
+
+        fn take_back(&self, key: &str) -> Result<AdminPost, TrashError> {
+            let mut posts = self.posts();
+            let mut trash = self.trash();
+            let at = trash
+                .iter()
+                .position(|(trashed, _)| trashed.key == key)
+                .ok_or(TrashError::NotFound)?;
+            let (trashed, post) = trash.remove(at);
+            if posts.iter().any(|kept| kept.slug() == post.slug()) {
+                trash.insert(at, (trashed, post.clone()));
+                let id = post.id().to_owned();
+                return Err(TrashError::Taken { id });
+            }
+            posts.push(post.clone());
+            Ok(post)
+        }
+
+        fn forget(&self, key: &str) -> Result<(), TrashError> {
+            let mut trash = self.trash();
+            let before = trash.len();
+            trash.retain(|(trashed, _)| trashed.key != key);
+            if trash.len() == before {
+                return Err(TrashError::NotFound);
+            }
+            Ok(())
         }
 
         /// Adds a draft, making slugs in English ASCII as a site with the
@@ -390,6 +429,22 @@ mod memory {
             updated_at: DateTime<Utc>,
         ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>> {
             Box::pin(std::future::ready(self.remove(id, updated_at)))
+        }
+    }
+
+    impl PostTrash for MemoryPostStore {
+        fn trashed(&self) -> BoxFuture<'_, Result<Vec<Trashed>, PostStoreError>> {
+            let trash = self.trash();
+            let listed = trash.iter().rev().map(|(trashed, _)| trashed.clone());
+            Box::pin(std::future::ready(Ok(listed.collect())))
+        }
+
+        fn restore<'a>(&'a self, key: &'a str) -> BoxFuture<'a, Result<AdminPost, TrashError>> {
+            Box::pin(std::future::ready(self.take_back(key)))
+        }
+
+        fn purge<'a>(&'a self, key: &'a str) -> BoxFuture<'a, Result<(), TrashError>> {
+            Box::pin(std::future::ready(self.forget(key)))
         }
     }
 }
