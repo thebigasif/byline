@@ -89,6 +89,26 @@ pub(crate) fn published<'c>(content: &'c SiteContent, refused: &[Refused]) -> Co
     Cow::Owned(kept)
 }
 
+/// `content` as `khalid serve` shows it: without the posts the gate
+/// refuses, as [`screen`] judges them, so readers see what `khalid build`
+/// writes. Logs each post left out.
+///
+/// # Errors
+///
+/// What, why and fix when the site's lint settings cannot be read.
+pub(crate) fn for_readers<'c>(
+    site: &Path,
+    (config, routes, content): (&Config, &Routes, &'c SiteContent),
+    clock: &dyn Clock,
+) -> Result<Cow<'c, SiteContent>, UserMessage> {
+    let refused = screen(site, (config, routes, content), clock)?;
+    for post in &refused {
+        let post = post.path.display();
+        tracing::warn!(%post, "a post is not ready to publish, so readers do not see it; `khalid lint` says why");
+    }
+    Ok(published(content, &refused))
+}
+
 /// Every finding of each post in `refused`, then what was left out, why
 /// and the fix, for a person to read after a build. Empty when nothing was
 /// left out.
