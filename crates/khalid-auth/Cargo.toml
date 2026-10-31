@@ -20,7 +20,7 @@ chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 ciborium = "0.2"
 getrandom = "0.4"
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 ring = "0.17"
 serde.workspace = true
 serde_json.workspace = true
@@ -34,7 +34,7 @@ utoipa-axum = "0.3"
 [dev-dependencies]
 khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
 khalid-auth = { path = ".", version = "0.0.0", features = ["test-util"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
 

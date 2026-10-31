@@ -24,7 +24,7 @@ use khalid_routes::Routes;
 
 use crate::lint_input::{LintInput, PostParts, lint_parts, lint_site};
 use crate::post_text::{PostText, quoted};
-use crate::settings_text::{put, settings_of, write_settings};
+use crate::settings_text::{put, settings_of, write_real_update, write_settings};
 use crate::{atomic, lint};
 
 /// The folder of drafts at the top of a site.
@@ -136,18 +136,17 @@ impl Site {
         let changed = fs::metadata(&found.path)
             .and_then(|meta| meta.modified())
             .map_err(PostStoreError::new)?;
-        let id = format!("{}.{}", found.locale, found.slug);
-        let settings = settings_of(&post.front);
-        let title = post.front.title.unwrap_or_default();
+        let title = post.front.title.as_deref().unwrap_or_default();
         let admin = AdminPost::new(
-            &id,
+            &format!("{}.{}", found.locale, found.slug),
             found.slug.clone(),
-            &title,
+            title,
             found.text.markdown(),
             changed.into(),
         )
-        .with_author(post.front.author)
-        .with_settings(settings);
+        .with_settings(settings_of(&post.front))
+        .with_real_update(post.front.updated, post.front.updated_note)
+        .with_author(post.front.author);
         Ok(match (found.status, post.front.date) {
             (PostStatus::Published, Some(date)) => admin.published(
                 DateTime::from_naive_utc_and_offset(date.and_time(NaiveTime::MIN), Utc),
@@ -215,6 +214,7 @@ impl Site {
             edited.settings(),
             found.status,
         )?;
+        write_real_update(&mut text, &current, &edited);
         let found = if edited.slug() == current.slug() {
             found
         } else {

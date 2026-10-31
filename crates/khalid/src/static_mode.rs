@@ -66,12 +66,12 @@ fn message(feature: ServerFeature) -> UserMessage {
         ServerFeature::Admin => UserMessage::new(
             "The admin is not part of the built site.",
             "The admin needs a running server, and a static host runs none.",
-            "Edit the files in content on your own computer, then run `khalid build` again.",
+            "Edit the files in content on your own computer, then run `khalid export` again.",
         ),
         ServerFeature::ScheduledPublish => UserMessage::new(
             "Scheduled publish is off.",
-            "A static site changes only when you build it, so a post set for later waits for the next build.",
-            "Run `khalid build` on a schedule, or set mode = \"server\" in site.toml and run `khalid serve`.",
+            "A static site changes only when you export it, so a post set for later waits for the next export.",
+            "Run `khalid export` on a schedule, or set mode = \"server\" in site.toml and run `khalid serve`.",
         ),
         _ => UserMessage::new(
             format!("The {} feature is off.", feature.name()),

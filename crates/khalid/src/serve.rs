@@ -335,7 +335,9 @@ fn destination(
         redirects: redirects.clone(),
         announce: Some(telling.clone()),
         started: (Entries::of(checked), Tags::of(config, checked)),
+        pings: content_feed::UpdatePings::default(),
     };
+    to.pings.set(telling.clone());
     Ok((to, telling, announcing))
 }
 

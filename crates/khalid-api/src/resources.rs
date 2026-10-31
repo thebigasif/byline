@@ -11,6 +11,7 @@ mod menu;
 mod post;
 mod post_row;
 mod post_settings;
+mod real_update;
 mod settings;
 mod settings_edit;
 mod term;
@@ -27,6 +28,7 @@ pub use post_row::{Gate, IndexStatus, LintCounts, PostRow};
 pub use post_settings::{
     Alias, FeatureImage, NonBlank, PostSettings, ReviewState, ShareCard, ShareCards,
 };
+pub use real_update::{MAX_UPDATE_NOTE, NotRealUpdate, RealUpdate};
 pub use settings::Settings;
 pub use settings_edit::SettingsEdit;
 pub use term::Term;

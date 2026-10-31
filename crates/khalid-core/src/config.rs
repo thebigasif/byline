@@ -362,8 +362,13 @@ impl Environment {
     /// The server token that sends mail through Postmark.
     pub const POSTMARK_TOKEN: &str = "KHALID_POSTMARK_TOKEN";
 
+    /// The Bing Webmaster Tools API key, made there under Settings, API
+    /// Access. It belongs to a person, not a site, and reads every site they
+    /// have verified there.
+    pub const BING_API_KEY: &str = "KHALID_BING_API_KEY";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 7] = [
+    const ALL: [&str; 8] = [
         Self::ADDRESS,
         Self::KEY,
         Self::S3_ACCESS_KEY_ID,
@@ -371,15 +376,17 @@ impl Environment {
         Self::SMTP_PASSWORD,
         Self::RESEND_API_KEY,
         Self::POSTMARK_TOKEN,
+        Self::BING_API_KEY,
     ];
 
     /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 5] = [
+    const HIDDEN: [&str; 6] = [
         Self::KEY,
         Self::S3_SECRET_ACCESS_KEY,
         Self::SMTP_PASSWORD,
         Self::RESEND_API_KEY,
         Self::POSTMARK_TOKEN,
+        Self::BING_API_KEY,
     ];
 
     /// Reads Khalid's variables from this process's environment.
@@ -448,6 +455,15 @@ impl Environment {
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(|value| Secret::new(value.to_owned()))
+    }
+
+    /// The key in [`Environment::BING_API_KEY`], or `None` when it is unset
+    /// or blank.
+    pub fn bing_api_key(&self) -> Option<Secret<String>> {
+        self.get(Self::BING_API_KEY)
+            .map(str::trim)
+            .filter(|key| !key.is_empty())
+            .map(|key| Secret::new(key.to_owned()))
     }
 
     fn get(&self, name: &str) -> Option<&str> {

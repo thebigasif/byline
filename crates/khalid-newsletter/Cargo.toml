@@ -17,7 +17,7 @@ axum = { version = "0.8", default-features = false, features = ["form", "query"]
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 getrandom = "0.4"
 hmac = "0.13"
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 percent-encoding = "2"
 serde.workspace = true
 sha2 = "0.11"
@@ -27,7 +27,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 # khalid-db implements SubscriberStore, so the flow is tested against SQLite.
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 khalid-db = { path = "../khalid-db", version = "0.0.0" }
 khalid-newsletter = { path = ".", version = "0.0.0", features = ["test-util"] }
 tempfile = "3"

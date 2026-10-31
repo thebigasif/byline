@@ -32,9 +32,10 @@ pub(crate) struct Catalog {
     pub(crate) index: ContentIndex,
     /// The paths of the posts marked `featured`.
     featured: BTreeSet<String>,
-    /// The `updated` date of each post that has one, by path, so the
-    /// Content API says when a post last really changed.
-    updated: BTreeMap<String, NaiveDate>,
+    /// The `updated:` date of each post that has one, by path, so the
+    /// Content API says when a post last really changed and a new one can
+    /// be sent to `IndexNow`.
+    pub(crate) updated: BTreeMap<String, NaiveDate>,
     lists: SiteResources,
     /// The pages, glossary terms, case studies and changelog entries.
     pub(crate) entries: Entries,
