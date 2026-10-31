@@ -1,0 +1,139 @@
+//! `khalid publish`: takes a draft live through the publish door the Admin
+//! API uses, so the lint gate runs first and the site's webhooks and
+//! `IndexNow` are told, as for any post that goes live (KH-OPS-2, audit
+//! brief G28).
+
+use std::path::Path;
+use std::sync::Arc;
+
+use khalid_api::post_store::UpdatePostError;
+use khalid_api::publish_door::PublishDoor;
+use khalid_api::resources::{AdminPost, PostEdit, PostStatus};
+use khalid_core::{Config, Locale, Slug, SystemClock, UserMessage};
+use khalid_db::ScheduleTable;
+use serde::Serialize;
+
+use crate::cli::{Cli, Output};
+use crate::exit::Exit;
+use crate::site_posts::SitePosts;
+use crate::{announce, outbound, report, serve, serve_message};
+
+/// Who the command's edits are made by, as `updated_by` shows.
+const BY: &str = "khalid publish";
+
+/// The JSON shape of a published post, as the Admin API answers it.
+#[derive(Serialize)]
+struct PostsBody<'a> {
+    posts: [&'a AdminPost; 1],
+}
+
+/// What the door did with the post.
+enum Done {
+    /// The post went live.
+    Published(Box<AdminPost>),
+    /// The linter refused the post, which stays a draft.
+    Refused,
+}
+
+/// Publishes the draft `slug` in `language`, or the site's default
+/// language, of the checked site in `folder`.
+pub(crate) fn run(
+    cli: &Cli,
+    (folder, config): (&Path, &Config),
+    (slug, language): (&Slug, Option<&Locale>),
+) -> Exit {
+    let output = cli.output;
+    let language = language.unwrap_or_else(|| config.default_language());
+    let name = format!("{language}/{slug}");
+    let id = format!("{language}.{slug}");
+    match through_door(cli, (folder, config), (&id, &name)) {
+        Ok(Done::Published(post)) => match output {
+            Output::Json => report::json(&PostsBody { posts: [&*post] }, Exit::Success),
+            Output::Human => report::text(&format!("Published {name}.\n"), Exit::Success),
+        },
+        Ok(Done::Refused) => report::failure(output, &not_ready(&name), Exit::Failure),
+        Err((message, exit)) => report::failure(output, &message, exit),
+    }
+}
+
+type Failed = (UserMessage, Exit);
+
+/// Opens the site's database, builds the door `khalid serve` builds, and
+/// publishes post `id`, called `name` in messages, through it. Waits for
+/// the announcements to be sent.
+fn through_door(
+    cli: &Cli,
+    (folder, config): (&Path, &Config),
+    (id, name): (&str, &str),
+) -> Result<Done, Failed> {
+    let internal = (serve_message::internal(), Exit::Internal);
+    let outbound = outbound::client(cli).map_err(|_| internal.clone())?;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| internal)?;
+    let (database, site) =
+        serve::open(folder, &runtime).map_err(|message| (message, Exit::Failure))?;
+    let done = runtime.block_on(async {
+        let (telling, announcing) = announce::once(config, (&database, site), &outbound)
+            .map_err(|message| (message, Exit::Failure))?;
+        let posts = SitePosts::new(folder, config.clone(), SystemClock);
+        let schedules = Arc::new(ScheduleTable::new(database.clone(), site));
+        let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
+            .with_schedules(schedules, SystemClock);
+        let done = publish(&door, (id, name)).await;
+        drop(door);
+        announcing.stop().await;
+        done
+    });
+    runtime.block_on(database.close());
+    done
+}
+
+/// Publishes post `id` through `door`.
+async fn publish(door: &PublishDoor, (id, name): (&str, &str)) -> Result<Done, Failed> {
+    let failed = |message| (message, Exit::Failure);
+    let before = door.get(id).await;
+    let before = before.map_err(|_| failed(unreadable(name)))?;
+    let before = before.ok_or_else(|| failed(no_post(name)))?;
+    let edit = PostEdit::status_only(PostStatus::Published, before.updated_at());
+    match door.edit(id, edit, BY).await {
+        Ok(post) => Ok(Done::Published(Box::new(post))),
+        Err(UpdatePostError::Refused(_)) => Ok(Done::Refused),
+        Err(UpdatePostError::NotFound) => Err(failed(no_post(name))),
+        Err(UpdatePostError::Stale { .. }) => Err(failed(changed(name))),
+        Err(_) => Err(failed(unreadable(name))),
+    }
+}
+
+fn not_ready(name: &str) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid did not publish {name}, because the linter found problems that block it."),
+        "The post stays a draft, so readers never see it with those problems.",
+        format!("Fix each block, then run `khalid publish` for {name} again."),
+    )
+}
+
+fn no_post(name: &str) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid found no post {name}."),
+        "A draft is a file in drafts/, named by its slug, in the folder of its language.",
+        "Check the slug, give --language for a post in another language, or make one with `khalid new`.",
+    )
+}
+
+fn changed(name: &str) -> UserMessage {
+    UserMessage::new(
+        format!("The post {name} changed while Khalid was publishing it."),
+        "Khalid publishes only the copy it checked, so nothing was published.",
+        "Run the same command again.",
+    )
+}
+
+fn unreadable(name: &str) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid could not read or write the post {name}."),
+        "A file may be locked, or the disk may be full, so nothing was published.",
+        "Check the site folder can be written to, then run it again.",
+    )
+}

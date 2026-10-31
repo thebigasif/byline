@@ -68,6 +68,7 @@ mod post_lock;
 mod post_photos;
 mod post_text;
 mod preview;
+mod publish;
 mod redirect_route;
 mod redirects;
 mod repair;
@@ -207,9 +208,10 @@ fn run(cli: &Cli) -> Exit {
             Some((folder, config, ..)),
         ) => access(folder, config, command, cli.output),
         (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
-        (Some(Command::Theme { command }), Some((folder, config, ..))) => {
-            theme(folder, config, command, cli)
-        }
+        (
+            Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
+            Some((folder, config, ..)),
+        ) => on_settings(folder, config, command, cli),
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
             import::run(folder, (config, routes), args, cli)
         }
@@ -223,12 +225,25 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Staff { .. }
                 | Command::Mcp
                 | Command::Lint { .. }
+                | Command::Publish { .. }
                 | Command::New { .. }
                 | Command::Build { .. }),
             ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs the commands that need only a checked site's settings: `theme`
+/// and `publish`.
+fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
+    match command {
+        Command::Theme { command } => theme(folder, config, command, cli),
+        Command::Publish { slug, language } => {
+            publish::run(cli, (folder, config), (slug, language.as_ref()))
+        }
+        _ => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
 }
 
