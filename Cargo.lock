@@ -2255,6 +2255,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-mail"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "khalid-mail",
+ "khalid-newsletter",
+ "khalid-outbound",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "wiremock",
+]
+
+[[package]]
 name = "khalid-mcp"
 version = "0.0.0"
 dependencies = [
