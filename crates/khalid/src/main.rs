@@ -62,6 +62,7 @@ mod miss_log;
 mod new;
 mod new_message;
 mod newsletter;
+mod newsletter_files;
 mod outbound;
 mod page_counts;
 mod post_files;

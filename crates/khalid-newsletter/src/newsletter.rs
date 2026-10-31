@@ -6,7 +6,7 @@ use std::sync::Arc;
 use khalid_core::{Clock, Locale, Slug};
 
 use crate::{
-    ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, MailError, Mailer,
+    ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, Lists, MailError, Mailer,
     NewsletterWords, SignUp, SignedUp, SiteLinks, StoreError, SubscriberStore, SubscriberToken,
     Unsubscribed, WordsError,
 };
@@ -31,6 +31,7 @@ pub struct Newsletter {
     mailer: Arc<dyn Mailer>,
     clock: Arc<dyn Clock>,
     site: Arc<(NewsletterSite, NewsletterWords)>,
+    lists: Arc<Lists>,
 }
 
 impl Newsletter {
@@ -53,7 +54,23 @@ impl Newsletter {
             mailer,
             clock,
             site: Arc::new((site, words)),
+            lists: Arc::new(Lists::main_only()),
         })
+    }
+
+    /// The same newsletter, taking sign-ups for `lists` instead of `main`
+    /// alone.
+    #[must_use]
+    pub fn with_lists(self, lists: Lists) -> Self {
+        Self {
+            lists: Arc::new(lists),
+            ..self
+        }
+    }
+
+    /// The site's newsletters.
+    pub fn lists(&self) -> &Lists {
+        &self.lists
     }
 
     /// Signs `email` up for `list`. When a confirmation is due, sends it,

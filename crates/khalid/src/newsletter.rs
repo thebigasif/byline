@@ -4,6 +4,7 @@
 //! nothing. With `[mail]`, subscribers are kept in the site's database and
 //! the confirmation leaves the way `[mail]` names.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use axum::Router;
@@ -13,14 +14,15 @@ use khalid_mail::{ApiMailer, Sender, Service, SmtpMailer};
 use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, SiteLinks};
 use khalid_outbound::{Outbound, Resolver};
 
-use crate::serve_message;
+use crate::{newsletter_files, serve_message};
 
-/// The newsletter's routes for the site with `config`, in its default
-/// language, keeping subscribers in site `id` of `database` and sending
-/// with the mail `secret` from the environment, the APIs through
-/// `outbound`.
+/// The newsletter's routes for the site in `folder` with `config`, in its
+/// default language, taking sign-ups for the newsletters in
+/// `content/newsletters/`, keeping subscribers in site `id` of `database`
+/// and sending with the mail `secret` from the environment, the APIs
+/// through `outbound`.
 pub(crate) fn router(
-    config: &Config,
+    (folder, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
     (secret, outbound): (Option<Secret<String>>, &Outbound),
 ) -> Result<Router, UserMessage> {
@@ -34,7 +36,8 @@ pub(crate) fn router(
         Some(mailer) => {
             let store = Arc::new(SubscriberTable::new(database.clone(), id));
             let made = Newsletter::new(store, mailer, Arc::new(SystemClock), site);
-            Some(made.map_err(|_| serve_message::internal())?)
+            let made = made.map_err(|_| serve_message::internal())?;
+            Some(made.with_lists(newsletter_files::lists(folder)))
         }
         None => None,
     };

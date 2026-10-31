@@ -251,7 +251,11 @@ impl Renderer<'_> {
             BlockKind::Business(card) => self.business(card),
             BlockKind::SafeHtml { show } => self.safe_html(block, *show),
             BlockKind::Form { id, button, fields } => self.form(id, button, fields),
-            BlockKind::Newsletter { label, button } => self.subscribe(label, button),
+            BlockKind::Newsletter {
+                label,
+                button,
+                list,
+            } => self.subscribe(label, button, list.as_ref()),
             BlockKind::Gated {
                 note,
                 label,

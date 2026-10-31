@@ -68,7 +68,7 @@ fn start(site: &Path) -> Server {
     let stdout = child.stdout.take().unwrap();
     BufReader::new(stdout).read_line(&mut line).unwrap();
     let json: Value = serde_json::from_str(&line).unwrap_or_else(|_| panic!("{line}"));
-    let address = json["address"].as_str().unwrap();
+    let address = json["address"].as_str().unwrap_or_else(|| panic!("{line}"));
     let host = address.strip_prefix("http://").unwrap();
     let host = host.trim_end_matches("/blog/").to_owned();
     Server { child, host }
@@ -164,4 +164,31 @@ fn with_mail_set_the_confirmation_leaves_and_its_link_confirms() {
     let (status, page) = post_form(&server, "/blog/subscribe/confirm", &confirming);
     assert_eq!(status, 200, "{page}");
     assert!(page.contains("<h1>You are subscribed</h1>"), "{page}");
+}
+
+#[test]
+fn a_form_joins_a_newsletter_with_a_folder_and_no_other() {
+    let stub = StubSmtp::start().unwrap();
+    let site = demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let mut text = fs::read_to_string(&settings).unwrap();
+    text.push_str(&mail_settings(&stub));
+    fs::write(&settings, text).unwrap();
+    let mut weekly = site.path().to_path_buf();
+    weekly.extend(["content", "newsletters", "weekly"]);
+    fs::create_dir_all(&weekly).unwrap();
+    let server = start(site.path());
+    let joining = "email=grace%40example.com&homepage=&list=weekly";
+    let (status, page) = post_form(&server, "/subscribe", joining);
+    assert_eq!(status, 200, "{page}");
+    assert_eq!(stub.received().len(), 1);
+    let made_up = "email=ada%40example.com&homepage=&list=monthly";
+    let (status, page) = post_form(&server, "/subscribe", made_up);
+    assert_eq!(status, 404, "{page}");
+    assert!(
+        page.contains("<h1>There is no such newsletter</h1>"),
+        "{page}"
+    );
+    assert_eq!(stub.received().len(), 1, "a made-up list sent an email");
 }

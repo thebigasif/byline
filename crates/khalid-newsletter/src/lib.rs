@@ -13,6 +13,7 @@
 
 mod confirmation;
 mod email_address;
+mod lists;
 mod mail;
 mod newsletter;
 mod pages;
@@ -22,6 +23,7 @@ mod token;
 
 pub use confirmation::{ConfirmationLinks, NewsletterWords, SiteLinks, WordsError};
 pub use email_address::{EmailAddress, ParseEmailError};
+pub use lists::Lists;
 #[cfg(any(test, feature = "test-util"))]
 pub use mail::MemoryMailer;
 pub use mail::{Mail, MailError, Mailer};

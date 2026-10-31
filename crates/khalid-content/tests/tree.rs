@@ -123,6 +123,21 @@ fn refuses_a_language_folder_that_is_not_a_language() {
 }
 
 #[test]
+fn the_newsletters_folder_is_not_a_language() {
+    let dir = site(&[
+        ("content/en/posts/a.md", POST),
+        ("content/newsletters/weekly/welcome.md", b"# Welcome\n"),
+    ]);
+    let tree = walk(dir.path());
+    let languages: Vec<&str> = tree
+        .languages()
+        .iter()
+        .map(|l| l.locale().as_str())
+        .collect();
+    assert_eq!(languages, ["en"]);
+}
+
+#[test]
 fn refuses_a_site_without_a_content_folder() {
     let dir = site(&[("site.toml", b"")]);
     let error = ContentTree::walk(dir.path()).unwrap_err().to_string();

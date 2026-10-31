@@ -34,6 +34,8 @@ pub(crate) struct PageWords {
     closed_text: String,
     failed_title: String,
     failed_text: String,
+    no_list_title: String,
+    no_list_text: String,
 }
 
 /// What a page tells the reader.
@@ -62,6 +64,8 @@ pub enum Page<'a> {
     Closed,
     /// Something failed on the server; nothing was sent.
     Failed,
+    /// The form names a newsletter the site does not have.
+    NoSuchList,
 }
 
 /// Writes the pages of one site, in its language.
@@ -118,6 +122,7 @@ impl Pages {
             Page::Left => (&w.left_title, &w.left_text, String::new()),
             Page::Closed => (&w.closed_title, &w.closed_text, String::new()),
             Page::Failed => (&w.failed_title, &w.failed_text, String::new()),
+            Page::NoSuchList => (&w.no_list_title, &w.no_list_text, String::new()),
         };
         let site = &self.site.name;
         let (title, text) = (filled(title, site), filled(text, site));
