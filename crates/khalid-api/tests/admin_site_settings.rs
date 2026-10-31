@@ -89,19 +89,54 @@ async fn send(
 }
 
 #[tokio::test]
-async fn the_settings_are_read_with_settings_write() {
-    let (status, json) = send(&demo(), "GET", OWNER, None).await;
+async fn the_settings_are_read_and_changed_with_settings_write() {
+    let router = demo();
+    let (status, json) = send(&router, "GET", OWNER, None).await;
     assert_eq!(status, StatusCode::OK, "{json}");
     assert_eq!(json["settings"]["mount"], "/blog/", "{json}");
-    assert_eq!(json["settings"]["languages"], json!(["en", "de"]), "{json}");
-    assert_eq!(json["settings"]["updated_at"], LAST_CHANGE, "{json}");
+    let change = json!({"settings": {"name": "Field Notes", "updated_at": LAST_CHANGE}});
+    let (status, json) = send(&router, "PUT", OWNER, Some(change.clone())).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["settings"]["name"], "Field Notes", "{json}");
+    assert_eq!(
+        json["settings"]["updated_at"], "2026-10-27T09:00:00Z",
+        "{json}"
+    );
+    let (status, json) = send(&router, "PUT", OWNER, Some(change)).await;
+    assert_eq!(
+        status,
+        StatusCode::CONFLICT,
+        "a replay of the old copy: {json}"
+    );
+    assert_eq!(json["rule"], "updated_at", "{json}");
+}
+
+#[tokio::test]
+async fn a_change_the_site_could_not_start_with_is_refused() {
+    let router = demo();
+    let orphan = json!({"settings": {"default_language": "fr", "updated_at": LAST_CHANGE}});
+    let (status, json) = send(&router, "PUT", OWNER, Some(orphan)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+    assert_eq!(json["rule"], "default_language", "{json}");
+    let mode = json!({"settings": {"mode": "static", "updated_at": LAST_CHANGE}});
+    let (status, _) = send(&router, "PUT", OWNER, Some(mode)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let (_, json) = send(&router, "GET", OWNER, None).await;
+    assert_eq!(
+        json["settings"]["default_language"], "en",
+        "nothing saved: {json}"
+    );
 }
 
 #[tokio::test]
 async fn settings_need_settings_write_and_a_server_that_keeps_them() {
-    let (status, json) = send(&demo(), "GET", EDITOR, None).await;
+    let site = demo();
+    let (status, json) = send(&site, "GET", EDITOR, None).await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
     assert_eq!(json["rule"], "settings:write", "{json}");
+    let change = json!({"settings": {"name": "Mine", "updated_at": LAST_CHANGE}});
+    let (status, _) = send(&site, "PUT", EDITOR, Some(change)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
     let (status, json) = send(&router(None), "GET", OWNER, None).await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
 }

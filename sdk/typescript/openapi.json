@@ -3937,6 +3937,101 @@
             "admin_key": []
           }
         ]
+      },
+      "put": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Changes the core settings in `site.toml`: only the fields sent change,\nand each value must pass the checks `khalid serve` makes at start. The\nchange carries the `updated_at` of the copy it was made on; when\n`site.toml` changed since, the answer is a 409 (RULES.md BL-API-7). The\nrunning server reads `site.toml` at start, so `restart_needed` says\nwhen a restart applies the change. Needs `settings:write`.",
+        "operationId": "change_settings",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The settings as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no settings",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "site.toml changed after the copy the change was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a value would not pass the checks at start",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/snippets/": {
@@ -10918,6 +11013,73 @@
             "example": "https://example.com/blog/"
           }
         }
+      },
+      "SettingsChange": {
+        "type": "object",
+        "description": "A change to the core settings: only the fields sent change.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new address of the main site."
+          },
+          "default_language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new default language, which `languages` must include."
+          },
+          "languages": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "A new list of languages."
+          },
+          "mount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new path for the blog, such as `/blog/`."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new name."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this change was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SettingsChanges": {
+        "type": "object",
+        "description": "A change, wrapped the way the Admin API wraps the settings.",
+        "required": [
+          "settings"
+        ],
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/SettingsChange",
+            "description": "The change."
+          }
+        },
+        "additionalProperties": false
       },
       "SettingsEdit": {
         "type": "object",
