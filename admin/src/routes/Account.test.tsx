@@ -86,6 +86,59 @@ describe("adding a passkey", () => {
     expect(added).toEqual([]);
   });
 
+  it("sets a first password, sending no current one", async () => {
+    saveCsrf("csrf-test");
+    const changes: unknown[] = [];
+    adminBlog({
+      "GET /session/": () => json(200, { ...LENA, csrf: "csrf-test" }),
+      "PUT /session/password/": async (request) => {
+        changes.push(await request.json());
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderAt("/account");
+    const words = en.account.password;
+    await userEvent.type(await screen.findByLabelText(words.next), "a long first sentence");
+    await userEvent.click(screen.getByRole("button", { name: words.submit }));
+    expect(await screen.findByText(words.changed)).toBeVisible();
+    expect(changes).toEqual([{ current: null, new: "a long first sentence" }]);
+  });
+
+  it("shows the API's words for a wrong current password", async () => {
+    saveCsrf("csrf-test");
+    const wrong = {
+      type: "https://khalid.dev/problems/unauthorized",
+      title: "The current password is wrong.",
+      status: 401,
+      detail: "Khalid changes a password only for someone who knows it.",
+      fix: "Type your current password again.",
+    };
+    adminBlog({
+      "GET /session/": () => json(200, { ...LENA, csrf: "csrf-test" }),
+      "PUT /session/password/": () => json(401, wrong),
+    });
+    renderAt("/account");
+    const words = en.account.password;
+    await userEvent.type(await screen.findByLabelText(words.current), "not it");
+    await userEvent.type(screen.getByLabelText(words.next), "a long new sentence");
+    await userEvent.click(screen.getByRole("button", { name: words.submit }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(wrong.title);
+  });
+
+  it("signs out everywhere and forgets this tab's sign-in", async () => {
+    saveCsrf("csrf-test");
+    const sent = adminBlog({
+      "GET /session/": () => json(200, { ...LENA, csrf: "csrf-test" }),
+      "DELETE /sessions/": () => json(200, { ended: 3 }),
+    });
+    renderAt("/account");
+    const words = en.account.everywhere;
+    await userEvent.click(await screen.findByRole("button", { name: words.submit }));
+    expect(await screen.findByRole("heading", { level: 1, name: en.signIn.title })).toBeVisible();
+    expect(sent.some((request) => request.method === "DELETE")).toBe(true);
+    expect(sessionStorage.getItem("khalid-admin-csrf")).toBeNull();
+  });
+
   it("explains that a staff token has no account", async () => {
     signedIn();
     adminBlog({ "GET /session/": () => json(401, {}) });

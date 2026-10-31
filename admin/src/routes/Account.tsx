@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AddPasskey } from "../account/AddPasskey";
+import { ChangePassword } from "../account/ChangePassword";
+import { SignOutEverywhere } from "../account/SignOutEverywhere";
 import { readSession } from "../api/account";
 import { isData } from "../api/call";
 import { Problem } from "../components/Problem";
@@ -17,6 +19,8 @@ export function Account() {
       <>
         <p className="lede">{words.lede(account.name, account.email)}</p>
         <AddPasskey email={account.email} />
+        <ChangePassword />
+        <SignOutEverywhere />
       </>
     );
   } else if (session !== undefined) {

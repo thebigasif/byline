@@ -68,12 +68,13 @@ describe("signing in", () => {
     expect(sessionStorage.getItem("khalid-admin-csrf")).toBeNull();
   });
 
-  it("signs in with the token after the # of a sign-in link", async () => {
+  it("signs in with the token after the # of a sign-in link, and opens the account", async () => {
     const sent = adminBlog({
       "POST /session/link/redeem/": () => json(200, { ...LENA, csrf: "csrf-link" }),
+      "GET /session/": () => json(200, { ...LENA, csrf: "csrf-link" }),
     });
     renderAt("/sign-in/link#token=link_test");
-    const heading = await screen.findByRole("heading", { level: 1, name: en.dashboard.title });
+    const heading = await screen.findByRole("heading", { level: 1, name: en.account.title });
     expect(heading).toBeVisible();
     expect(await sent[0]?.json()).toEqual({ token: "link_test" });
     expect(sessionStorage.getItem("khalid-admin-csrf")).toBe("csrf-link");

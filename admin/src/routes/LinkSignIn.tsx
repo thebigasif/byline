@@ -7,7 +7,7 @@ import { saveCsrf } from "../auth/session";
 import { Problem } from "../components/Problem";
 import { en } from "../strings/en";
 
-/** Signs in with a link someone was sent, then opens the admin. */
+/** Signs in with a link someone was sent, then opens their account. */
 export function LinkSignIn() {
   const words = en.signIn.link;
   // The token sits after the #, so it never reaches a server log.
@@ -28,7 +28,8 @@ export function LinkSignIn() {
 
   let shown = <p role="status">{words.checking}</p>;
   if (isData(redeemed)) {
-    shown = <Navigate to="/" />;
+    // Someone signed in by link may have no password yet, so their account opens first.
+    shown = <Navigate to="/account" />;
   } else if (redeemed !== undefined) {
     shown = (
       <>

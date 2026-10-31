@@ -29,6 +29,22 @@ export const en = {
       added: (name: string) => `Added. You can now sign in with the passkey ${name}.`,
       remove: "To stop a passkey working, delete it from the device that keeps it.",
     },
+    password: {
+      title: "Change your password",
+      lede: "Changing it signs you out on every other device.",
+      current: "Current password",
+      currentHint:
+        "Leave it empty only when you have no password yet. A first one can be set in the 15 minutes after you sign in.",
+      next: "New password",
+      nextHint: "At least 12 characters. A short sentence is easy to remember.",
+      submit: "Change password",
+      changed: "Changed. Every other device is signed out.",
+    },
+    everywhere: {
+      title: "Sign out everywhere",
+      lede: "For a lost laptop or a phone someone else picked up. Every device signed in as you is signed out, this one too, and you sign in again.",
+      submit: "Sign out everywhere",
+    },
   },
   comments: {
     title: "Comments",

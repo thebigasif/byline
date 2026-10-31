@@ -35,6 +35,17 @@ export function addPasskey(passkey: components["schemas"]["NewPasskey"]): Promis
   return call("/session/passkeys/", sending("POST", passkey), nothing);
 }
 
+/** Changes the password, and ends every other session; `current` is null for a first one. */
+export function changePassword(current: string | null, next: string): Promise<Reply<null>> {
+  const body: components["schemas"]["PasswordChange"] = { current, new: next };
+  return call("/session/password/", sending("PUT", body), nothing);
+}
+
+/** Ends every session of the account, this one too. */
+export function signOutEverywhere(): Promise<Reply<null>> {
+  return call("/sessions/", { method: "DELETE" }, nothing);
+}
+
 /** Ends this tab's email sign-in on the server too, and clears its cookie. */
 export function endSession(): Promise<Reply<null>> {
   return call("/session/", { method: "DELETE" }, nothing);
