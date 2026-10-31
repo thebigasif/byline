@@ -29,6 +29,7 @@ use khalid_outbound::Outbound;
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 
+use crate::crawler_lists;
 use crate::page_counts::{text, utm_source};
 use crate::redirect_route::asked_path;
 
@@ -61,19 +62,21 @@ enum Who {
 /// What the layer holds: where to hand notes, and the mount folder.
 type Logging = Arc<(mpsc::Sender<Note>, String)>;
 
-/// The task that logs visits, until [`Logger::stop`].
+/// The tasks that log visits and fetch the address lists, until
+/// [`Logger::stop`].
 #[derive(Debug)]
 pub(crate) struct Logger {
     stop: oneshot::Sender<()>,
     task: JoinHandle<()>,
+    fetching: JoinHandle<()>,
 }
 
 /// `router` with each visit under the site's mount logged in `db`, and
-/// the task doing it, when `config` switches the visitor log on; else
-/// `router` as it was. No address list is read yet, so every bot is
-/// logged as having none.
+/// the tasks doing it, when `config` switches the visitor log on; else
+/// `router` as it was. The address lists are kept under the `site`
+/// folder and fetched through `outbound`.
 pub(crate) fn start(
-    (_site, config, _outbound): (&Path, &Config, &Outbound),
+    (site, config, outbound): (&Path, &Config, &Outbound),
     (db, id): (&Database, SiteId),
     router: Router,
 ) -> (Option<Logger>, Router) {
@@ -81,7 +84,7 @@ pub(crate) fn start(
     if !settings.on {
         return (None, router);
     }
-    let (_, reading) = watch::channel(CrawlerRanges::default());
+    let (fetching, reading) = crawler_lists::start(site, outbound);
     let store: Arc<dyn VisitorLogStore> = Arc::new(VisitorLogTable::new(db.clone(), id));
     let (sender, notes) = mpsc::channel(WAITING);
     let (stop, stopping) = oneshot::channel();
@@ -93,7 +96,11 @@ pub(crate) fn start(
         (notes, stopping),
     ));
     let logging: Logging = Arc::new((sender, config.mount().to_owned()));
-    let logger = Logger { stop, task };
+    let logger = Logger {
+        stop,
+        task,
+        fetching,
+    };
     (
         Some(logger),
         router.layer(middleware::from_fn_with_state(logging, note)),
@@ -101,8 +108,9 @@ pub(crate) fn start(
 }
 
 impl Logger {
-    /// Writes the visits not yet written and stops the task.
+    /// Writes the visits not yet written and stops both tasks.
     pub(crate) async fn stop(self) {
+        self.fetching.abort();
         // The task may have ended already, when every sender is gone.
         self.stop.send(()).ok();
         if let Err(error) = self.task.await {

@@ -1,6 +1,6 @@
 //! The visitor log through `khalid serve` (GEO C1, decision D5): off on a
 //! site that does not switch it on; on, one row per visit with a
-//! shortened address and what each bot claimed to be.
+//! shortened address, and a bot's claim checked against the kept list.
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -19,6 +19,10 @@ const FIREFOX: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 
 const GPTBOT: &str = "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)";
 const GOOGLEBOT: &str = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 const POST: &str = "/blog/why-internal-links-matter/";
+
+/// Google's list as the test keeps it. No request leaves the machine:
+/// `--test-hosts` leaves every company's host unknown.
+const GOOGLE_LIST: &str = r#"{"prefixes":[{"ipv4Prefix":"66.249.64.0/27"}]}"#;
 
 /// A running `khalid serve` on a free port, stopped when dropped.
 struct Server(Child, String);
@@ -166,10 +170,17 @@ async fn a_site_that_switches_it_on_logs_each_visit_with_a_short_address() {
     settings.push("site.toml");
     let text = fs::read_to_string(&settings).unwrap();
     fs::write(&settings, format!("{text}\n[visitor_log]\non = true\n")).unwrap();
+    let mut lists = PathBuf::from(site.path());
+    lists.push("data/crawler-ranges");
+    fs::create_dir_all(&lists).unwrap();
+    lists.push("googlebot.json");
+    fs::write(&lists, GOOGLE_LIST).unwrap();
 
     let server = start(site.path());
     let chatgpt = ("Referer", "https://chatgpt.com/");
     assert_eq!(get(&server, POST, &[("User-Agent", FIREFOX), chatgpt]), 200);
+    // Once a write is in, the kept list has been read.
+    visits(site.path(), 1).await;
     let google = ("X-Forwarded-For", "66.249.64.5");
     get(&server, POST, &[("User-Agent", GOOGLEBOT), google]);
     get(&server, POST, &[("User-Agent", GOOGLEBOT)]);
@@ -180,8 +191,8 @@ async fn a_site_that_switches_it_on_logs_each_visit_with_a_short_address() {
         visits.iter().map(row).collect::<Vec<_>>(),
         [
             format!("{POST} 200 127.0.0.0 ai"),
-            format!("{POST} 200 66.249.64.0 Googlebot no-list"),
-            format!("{POST} 200 127.0.0.0 Googlebot no-list"),
+            format!("{POST} 200 66.249.64.0 Googlebot listed"),
+            format!("{POST} 200 127.0.0.0 Googlebot not-listed"),
             "/blog/no-such-post/ 404 127.0.0.0 GPTBot no-list".to_owned(),
         ]
     );
