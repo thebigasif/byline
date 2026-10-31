@@ -18,6 +18,18 @@ impl Sender {
         Self { address, name }
     }
 
+    /// The address alone, such as `news@example.com`.
+    #[must_use]
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
+    /// The name shown beside the address, if there is one.
+    #[must_use]
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
     /// The sender as a mail header writes it: `"Field Notes"
     /// <news@example.com>`, with any quote or backslash in the name
     /// escaped, or the address alone.

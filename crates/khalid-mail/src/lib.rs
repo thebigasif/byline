@@ -10,7 +10,13 @@
 mod api;
 mod send_error;
 mod sender;
+mod smtp;
+#[cfg(any(test, feature = "test-util"))]
+mod stub_smtp;
 
 pub use api::{ApiMailer, Service};
 pub use send_error::SendError;
 pub use sender::Sender;
+pub use smtp::SmtpMailer;
+#[cfg(any(test, feature = "test-util"))]
+pub use stub_smtp::StubSmtp;
