@@ -15,6 +15,7 @@ mod admin_redirect_csv;
 mod admin_redirects;
 mod admin_webhooks;
 pub mod api;
+pub mod api_limits;
 mod api_version;
 pub mod comment_moderation;
 pub mod content_api;

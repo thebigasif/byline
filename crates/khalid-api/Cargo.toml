@@ -15,7 +15,7 @@ test-util = []
 [dependencies]
 ammonia = "4"
 argon2 = "0.6"
-axum = { version = "0.8", default-features = false, features = ["json", "original-uri", "query"] }
+axum = { version = "0.8", default-features = false, features = ["json", "original-uri", "query", "tokio"] }
 chrono = { version = "0.4", default-features = false, features = ["alloc", "serde"] }
 getrandom = "0.4"
 hmac = "0.13"

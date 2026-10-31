@@ -5,14 +5,17 @@ use std::sync::Arc;
 use axum::middleware;
 use axum::routing::get;
 use axum::{Json, Router};
+use khalid_core::SystemClock;
 use utoipa::openapi::OpenApi as Document;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_axum::router::OpenApiRouter;
 
 use crate::admin_key::{AdminDoor, require_admin_key};
+use crate::api_limits::ApiLimits;
 use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
+use crate::content_key::ContentDoor;
 use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
@@ -276,10 +279,13 @@ fn assemble(
     staff: Option<Staff>,
 ) -> (Router, Document) {
     let (routes, sessions) = staff.unzip();
+    let limits = Arc::new(ApiLimits::new(SystemClock));
     let door = AdminDoor {
         keys: Arc::clone(&keys),
         sessions,
+        limits: Arc::clone(&limits),
     };
+    let content_door = ContentDoor { keys, limits };
     let redirects = desks.redirects;
     let mut admin = admin_api::routes(posts, door.clone())
         .merge(admin_comments::routes(desks.comments, door.clone()))
@@ -299,7 +305,10 @@ fn assemble(
         admin = admin.merge(staff);
     }
     let api = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest(content_api::BASE, content_api::routes(content, keys))
+        .nest(
+            content_api::BASE,
+            content_api::routes(content, content_door),
+        )
         .nest(admin_api::BASE, admin);
     finish(api)
 }
