@@ -1,7 +1,7 @@
 [package]
 name = "khalid-seo"
 version = "0.0.0"
-description = "SEO outputs for a Khalid site: head tags, hreflang, sitemaps, feeds, robots.txt, redirects, schema graphs and IndexNow."
+description = "SEO outputs for a Khalid site: head tags, hreflang, sitemaps, feeds, robots.txt, redirects, schema graphs, IndexNow and Bing Webmaster Tools."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -10,9 +10,10 @@ publish.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 regex = "1"
+serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio = { version = "1", default-features = false, features = ["time"] }
@@ -26,7 +27,6 @@ wiremock = "0.6"
 robotstxt = "0.3"
 roxmltree = "0.20"
 rss = { version = "2", features = ["validation"] }
-serde.workspace = true
 serde_json.workspace = true
 
 [lints]

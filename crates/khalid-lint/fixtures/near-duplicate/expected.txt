@@ -1,1 +1,2 @@
+warn focus-not-in-first-paragraph: internal links
 warn near-duplicate: internal-links-explained

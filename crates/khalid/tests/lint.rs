@@ -22,6 +22,7 @@ An internal link points to [how to pick link text](/blog/choosing-link-text/).
 const UNDATED: &str = "---
 title: Choosing link text
 author: asif
+focus_keyword: link text
 ---
 
 Good link text names the page it opens, like [why links matter](/blog/why-internal-links-matter/).
@@ -219,6 +220,38 @@ fn lint_warns_about_a_link_to_the_own_site_over_http() {
     );
 }
 
+/// A good post whose search title holds its focus keyword and whose
+/// headline does not.
+const SPLIT_TITLE: &str = "---
+title: Why links between your posts matter
+seo_title: \"Internal links, a guide {sep} {site}\"
+focus_keyword: internal links
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+---
+
+Internal links point to [how to pick link text](/blog/choosing-link-text/).
+";
+
+#[test]
+fn lint_warns_when_the_headline_lacks_the_focus_keyword_the_search_title_has() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", SPLIT_TITLE)]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let rules: Vec<&Value> = findings.iter().map(|f| &f["rule"]).collect();
+    assert!(
+        !rules.contains(&&Value::from("focus-not-in-title")),
+        "{json}"
+    );
+    let found = findings.iter().find(|f| f["rule"] == "focus-not-in-h1");
+    let found = found.unwrap_or_else(|| panic!("no focus-not-in-h1 in {json}"));
+    assert_eq!(found["severity"], "warn");
+    assert_eq!(found["subject"], "internal links");
+}
+
 /// A good post written in three very long sentences of long words, under
 /// a heading with no full stop.
 const DENSE: &str = "---
@@ -414,6 +447,32 @@ fn lint_fix_describes_an_image_with_its_caption() {
     );
 }
 
+#[test]
+fn lint_fix_moves_a_link_to_the_own_site_onto_https() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", INSECURE)]);
+    let output = khalid(site.path(), &["lint", "--fix", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let file = within(
+        site.path(),
+        "content/en/posts/2026-09-14-why-internal-links-matter.md",
+    );
+    let secure = INSECURE.replace("(http://example.com/", "(https://example.com/");
+    assert_eq!(fs::read_to_string(file).unwrap(), secure);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    assert_eq!(json["fixed"][0]["rule"], "insecure-internal-link");
+    assert_eq!(
+        json["fixed"][0]["subject"],
+        "http://example.com/blog/pruning-old-posts/"
+    );
+    let findings = json["findings"].as_array().unwrap();
+    assert!(
+        findings
+            .iter()
+            .all(|f| f["rule"] != "insecure-internal-link"),
+        "{json}"
+    );
+}
+
 /// A post with no `slug:`, so its address comes from a title full of
 /// filler words and a year.
 const WORDY: &str = "---
@@ -538,4 +597,73 @@ fn lint_needs_a_site_folder() {
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
     assert!(text(&output.stderr).contains("needs a site folder"));
+}
+
+/// The demo site declares English and German. This English post names its
+/// translation key and has no German version yet.
+const TRANSLATED: &str = "---
+title: Why internal links matter
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+translation: internal-links
+---
+
+An internal link points to [how to pick link text](/blog/choosing-link-text/).
+";
+
+#[test]
+fn lint_warns_about_a_post_with_no_version_in_a_language_the_site_has() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", TRANSLATED)]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let missing: Vec<&Value> = findings
+        .iter()
+        .filter(|f| f["rule"] == "missing-translation")
+        .collect();
+    assert_eq!(missing.len(), 1, "{json:#}");
+    assert_eq!(missing[0]["severity"], "warn");
+    assert_eq!(missing[0]["slug"], "why-internal-links-matter");
+    assert_eq!(missing[0]["subject"], "de");
+    let said = text(&khalid(site.path(), &["lint"]).stdout);
+    assert!(
+        said.contains("This post has no version in one of your site's languages."),
+        "{said}"
+    );
+    assert!(said.contains("  About: de\n"), "{said}");
+}
+
+/// The German version of [`TRANSLATED`], sharing its translation key.
+const TRANSLATED_DE: &str = "---
+title: Interne Links
+slug: interne-links
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+translation: internal-links
+---
+
+An internal link points to [the English version](/blog/why-internal-links-matter/).
+";
+
+#[test]
+fn lint_is_quiet_about_translation_once_each_language_has_a_version() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", TRANSLATED)]);
+    let german = within(site.path(), "content/de/posts");
+    fs::create_dir_all(&german).unwrap();
+    fs::write(
+        within(&german, "2026-09-14-interne-links.md"),
+        TRANSLATED_DE,
+    )
+    .unwrap();
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    assert!(
+        findings.iter().all(|f| f["rule"] != "missing-translation"),
+        "{json:#}"
+    );
 }

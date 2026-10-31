@@ -1,8 +1,9 @@
 # A post that passes every rule: the starting point for the other fixtures.
 locale = "en"
 slug = "why-internal-links-matter"
-description = "Why links between your own posts help readers and search engines, and how to add them."
+description = "Why internal links help readers and search engines, and how to add them."
 title = "Why internal links matter"
+focus_keyword = "internal links"
 date = "2026-10-01"
 author = "Amira Haddad"
 word_count = 640
@@ -10,7 +11,7 @@ body_text = "Internal links help readers find the next useful post on your site.
 
 [[headings]]
 level = "h2"
-text = "What an internal link is"
+text = "What internal links are"
 
 [[links]]
 kind = "internal"

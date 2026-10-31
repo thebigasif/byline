@@ -1,0 +1,1 @@
+en/why-internal-links-matter: warn section-repeats-post: Choosing link text (suggest: choosing-link-text)

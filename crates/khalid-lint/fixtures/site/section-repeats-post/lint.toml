@@ -1,0 +1,4 @@
+# These posts do not link to each other much; this fixture is about sections.
+[rules]
+orphan-post = "off"
+one-inbound-link = "off"

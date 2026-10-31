@@ -1,2 +1,3 @@
 warn answer-capsule: heading "How long should an answer be?" is followed by 70 words, not the 40 to 60 of a standalone answer (suggest: write the whole answer in one paragraph of 40 to 60 words under the heading)
 warn sourced-statistics: word1 word2 word3 word4 word5 word6 word7 word8 ... (suggest: link the number to its source, or name the year it held)
+warn focus-not-in-subheading: internal links

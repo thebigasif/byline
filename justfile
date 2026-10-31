@@ -28,6 +28,11 @@ doc:
 deny:
     cargo deny check
 
+# Package khalid-core and khalid-lint and build them from the packages, as
+# crates.io would. Uploads nothing.
+publish-check:
+    cargo publish --dry-run --allow-dirty --locked -p khalid-core -p khalid-lint
+
 # Prove every lint in lints/lints.toml fires.
 lints:
     ./scripts/check-lints.sh

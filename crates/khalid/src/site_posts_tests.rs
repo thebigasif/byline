@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use chrono::{TimeZone, Utc};
+use chrono::{NaiveDate, TimeZone, Utc};
 use khalid_api::post_store::{CreatePostError, PostStore, UpdatePostError};
 use khalid_api::resources::{AdminPost, PostDraft, PostStatus};
 use khalid_core::{Environment, FixedClock};
@@ -212,6 +212,42 @@ async fn editing_a_published_post_keeps_its_other_fields() {
     );
     assert!(text.contains("translation: internal-links\n"), "{text}");
     assert!(text.contains("\nAn internal link is a link"), "{text}");
+}
+
+#[tokio::test]
+async fn a_real_update_writes_today_and_its_note_into_the_file() {
+    let (site, posts) = demo();
+    let id = "en.why-internal-links-matter";
+    let post = posts.get(id).await.unwrap().unwrap();
+    assert_eq!(post.updated(), NaiveDate::from_ymd_opt(2026, 10, 20));
+    assert_eq!(post.updated_note(), Some("Refreshed the examples."));
+    let markdown = format!(
+        "{}\n\nOne more example: a link from a guide.",
+        post.markdown()
+    );
+    let note = "Added a guide example.";
+    let change = edit(json!({
+        "markdown": markdown,
+        "real_update": {"note": note},
+        "updated_at": post.updated_at(),
+    }));
+    let saved = posts.update(id, change, "k").await.unwrap();
+    assert_eq!(saved.updated(), NaiveDate::from_ymd_opt(2026, 10, 26));
+    let file = within(
+        site.path(),
+        "content/en/posts/2026-09-14-why-internal-links-matter.md",
+    );
+    let text = fs::read_to_string(file).unwrap();
+    assert!(text.contains("\nupdated: 2026-10-26\n"), "{text}");
+    assert!(
+        text.contains("\nupdated_note: \"Added a guide example.\"\n"),
+        "{text}"
+    );
+    let read = posts.get(id).await.unwrap().unwrap();
+    assert_eq!(read.updated_note(), Some(note));
+    let title = edit(json!({"title": "Internal links", "updated_at": read.updated_at()}));
+    let saved = posts.update(id, title, "k").await.unwrap();
+    assert_eq!(saved.updated(), NaiveDate::from_ymd_opt(2026, 10, 26));
 }
 
 #[tokio::test]

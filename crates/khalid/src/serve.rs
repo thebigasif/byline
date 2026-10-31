@@ -17,7 +17,7 @@ use khalid_api::redirect_desk::RedirectDesk;
 use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
-use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
+use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -37,8 +37,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    announce, comment_pages, db, db_message, media_library, newsletter, page_counts, preview,
+    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -55,6 +55,26 @@ struct ServeBody<'a> {
     address: &'a str,
 }
 
+/// The secrets `khalid serve` reads from the environment at start.
+#[derive(Debug)]
+pub(crate) struct Keys {
+    /// The media bucket's two keys, when the environment has them.
+    pub(crate) bucket: Option<S3Keys>,
+    /// The password, key or token the `[mail]` transport signs in with.
+    pub(crate) mail: Option<Secret<String>>,
+}
+
+impl Keys {
+    /// The keys `env` holds for the site with `config`.
+    pub(crate) fn read(env: &Environment, config: &Config) -> Self {
+        let mail = config.mail().map(|mail| &mail.transport);
+        Self {
+            bucket: env.s3_keys(),
+            mail: mail.and_then(|transport| env.mail_secret(transport)),
+        }
+    }
+}
+
 /// Serves the `site` folder, whose `config`, `routes` and content were
 /// checked, on `listen`. The database opens first and closes last, after
 /// every request, the watch, the scheduler and the announcing have stopped. Webhooks and
@@ -69,7 +89,7 @@ pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    (listen, outbound, bucket_keys): (&Listen, Result<Outbound, OutboundError>, Option<S3Keys>),
+    (listen, outbound, keys): (&Listen, Result<Outbound, OutboundError>, Keys),
     output: Output,
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
@@ -86,7 +106,7 @@ pub(crate) fn run(
     let served = serve_with(
         (site, config, routes),
         start,
-        (listen, &outbound, output, bucket_keys),
+        (listen, &outbound, output, keys),
         &runtime,
         (&database, id),
     );
@@ -98,12 +118,19 @@ pub(crate) fn run(
     }
 }
 
+/// Renders the home pages that answer first, with the stylesheet preloaded.
+fn first_pages(source: &SitePages, checked: &SiteContent) -> Result<Pages, UserMessage> {
+    let first = source.render_first(checked)?;
+    let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+    Ok(with_hint(first, source))
+}
+
 /// Renders the site with its checked settings and routes, then answers on
 /// `listen` until told to stop.
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, outbound, output, bucket_keys): (&Listen, &Outbound, Output, Option<S3Keys>),
+    (listen, outbound, output, keys): (&Listen, &Outbound, Output, Keys),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -116,20 +143,14 @@ fn serve_with(
         (&content, &hand_back),
         (&redirects, &addresses),
     );
+    let pings = to.pings.clone();
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
     // follows behind the first answer (ADR "khalid serve answers before the
     // full render").
-    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
-        .and_then(|source| {
-            let first = source.render_first(&checked)?;
-            let first = Pages::first(first).map_err(|_| serve_message::internal())?;
-            let first = match source.stylesheet() {
-                Some(href) => first.with_preloads(vec![href]),
-                None => first,
-            };
-            Ok((source, first))
-        })
+    let clock = Arc::new(SystemClock);
+    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)
+        .and_then(|source| first_pages(&source, &checked).map(|first| (source, first)))
         .map_err(|message| (message, Exit::Failure))?;
     let security = security_headers()?;
     let search = search_route::Search {
@@ -138,7 +159,8 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
-    let newsletters = newsletter::router(config).map_err(|message| (message, Exit::Internal))?;
+    let newsletters = newsletter::router(config, (database, id), (keys.mail, outbound))
+        .map_err(|message| (message, Exit::Internal))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
@@ -149,7 +171,7 @@ fn serve_with(
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         // Each part reads the database or the folder alone, so all open at once.
-        let (telling, announcing) = announce::start(config, (database, id), outbound)
+        let (telling, announcing) = announce::start(config, (database, id), (outbound, &pings))
             .map_err(|message| (message, Exit::Failure))?;
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
@@ -157,7 +179,7 @@ fn serve_with(
         let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
-            media_library::open(site, config, bucket_keys, outbound),
+            media_library::open(site, config, keys.bucket, outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
         let scheduling = scheduler::start(Arc::clone(&door));
@@ -165,6 +187,7 @@ fn serve_with(
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
+        let (counter, pages) = page_counts::start((database, id), pages, config.mount());
         let desks = (moderation, media, desk);
         let apis = api_router((content, door), desks, (database, id, config));
         let app = assembled(
@@ -177,7 +200,7 @@ fn serve_with(
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
         watching.stop().await;
         scheduling.stop().await;
-        announcing.stop().await;
+        tokio::join!(announcing.stop(), counter.stop());
         if let Some(message) = why.lock().unwrap_or_else(PoisonError::into_inner).take() {
             return Err((message, Exit::Failure));
         }
@@ -249,6 +272,7 @@ fn destination(
         hand_back: hand_back.clone(),
         addresses: addresses.clone(),
         redirects: redirects.clone(),
+        pings: content_feed::UpdatePings::default(),
     }
 }
 

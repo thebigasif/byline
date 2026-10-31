@@ -1,5 +1,6 @@
 //! `khalid build` writes each page's SEO head from `khalid-seo`: its tags,
-//! hreflang between language versions, and its JSON-LD graph (KH-SEO-2,
+//! hreflang between language versions, and its JSON-LD graph, on the home,
+//! post, page, author, glossary, search and not-found pages (KH-SEO-2,
 //! KH-SEO-3, KH-SEO-9).
 
 use std::fs;
@@ -59,6 +60,21 @@ fn a_post_head() {
 #[test]
 fn an_author_page_head() {
     insta::assert_snapshot!(head(&built(), "authors/asif/index.html"));
+}
+
+#[test]
+fn a_page_head() {
+    insta::assert_snapshot!(head(&built(), "about/index.html"));
+}
+
+#[test]
+fn a_glossary_term_head() {
+    insta::assert_snapshot!(head(&built(), "glossary/topical-authority/index.html"));
+}
+
+#[test]
+fn the_search_page_head() {
+    insta::assert_snapshot!(head(&built(), "search/index.html"));
 }
 
 #[test]
