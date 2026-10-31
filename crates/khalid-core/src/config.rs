@@ -367,8 +367,16 @@ impl Environment {
     /// have verified there.
     pub const BING_API_KEY: &str = "KHALID_BING_API_KEY";
 
+    /// The access key of an Unsplash app, made at unsplash.com/developers,
+    /// that photo search in the editor asks with.
+    pub const UNSPLASH_ACCESS_KEY: &str = "KHALID_UNSPLASH_ACCESS_KEY";
+
+    /// The API key of a GIPHY app, made at developers.giphy.com, that GIF
+    /// search in the editor asks with.
+    pub const GIPHY_API_KEY: &str = "KHALID_GIPHY_API_KEY";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 8] = [
+    const ALL: [&str; 10] = [
         Self::ADDRESS,
         Self::KEY,
         Self::S3_ACCESS_KEY_ID,
@@ -377,16 +385,20 @@ impl Environment {
         Self::RESEND_API_KEY,
         Self::POSTMARK_TOKEN,
         Self::BING_API_KEY,
+        Self::UNSPLASH_ACCESS_KEY,
+        Self::GIPHY_API_KEY,
     ];
 
     /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 6] = [
+    const HIDDEN: [&str; 8] = [
         Self::KEY,
         Self::S3_SECRET_ACCESS_KEY,
         Self::SMTP_PASSWORD,
         Self::RESEND_API_KEY,
         Self::POSTMARK_TOKEN,
         Self::BING_API_KEY,
+        Self::UNSPLASH_ACCESS_KEY,
+        Self::GIPHY_API_KEY,
     ];
 
     /// Reads Khalid's variables from this process's environment.
@@ -464,6 +476,26 @@ impl Environment {
             .map(str::trim)
             .filter(|key| !key.is_empty())
             .map(|key| Secret::new(key.to_owned()))
+    }
+
+    /// The key in [`Environment::UNSPLASH_ACCESS_KEY`], or `None` when it is
+    /// unset or blank.
+    pub fn unsplash_key(&self) -> Option<Secret<String>> {
+        self.secret(Self::UNSPLASH_ACCESS_KEY)
+    }
+
+    /// The key in [`Environment::GIPHY_API_KEY`], or `None` when it is unset
+    /// or blank.
+    pub fn giphy_key(&self) -> Option<Secret<String>> {
+        self.secret(Self::GIPHY_API_KEY)
+    }
+
+    /// The value of `name` as a secret, or `None` when it is unset or blank.
+    fn secret(&self, name: &str) -> Option<Secret<String>> {
+        self.get(name)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| Secret::new(value.to_owned()))
     }
 
     fn get(&self, name: &str) -> Option<&str> {

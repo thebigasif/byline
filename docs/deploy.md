@@ -183,3 +183,17 @@ A static site cannot keep a reader's choice, so Khalid refuses to start in `mode
 Bing Webmaster Tools is Bing's dashboard for site owners. Add the site there with the address in `site.toml`, put the code Bing gives you as `bing` under `[seo.verification]` in `site.toml`, and verify. Then make an API key, the password a program uses to reach Bing for you, under Settings, API Access, and set it as `KHALID_BING_API_KEY` in the environment, the same way as the mail secrets above. The key never goes in `site.toml`.
 
 `khalid --site <folder> bing sitemap` hands Bing the sitemap, and `khalid --site <folder> bing report` shows Bing's last crawl day, the sitemaps it holds and the addresses it had trouble with. Both take `--json`.
+
+## Photo and GIF search in the editor
+
+Writers can find a free photo on Unsplash or a GIF on GIPHY from the editor's block menu. Both are off until you turn them on in `site.toml`:
+
+```toml
+[media]
+unsplash = true
+gifs = true
+```
+
+Each needs a key, the password the blog uses to ask for you. Make an app at unsplash.com/developers and set its access key as `KHALID_UNSPLASH_ACCESS_KEY`, and make one at developers.giphy.com and set its key as `KHALID_GIPHY_API_KEY`, the same way as the mail secrets above. The keys never go in `site.toml` and never reach the writer's browser.
+
+A chosen photo or GIF loads from Unsplash or GIPHY, as their terms ask, so readers' browsers fetch that picture from there. A photo gets its photographer's name and links under it.
