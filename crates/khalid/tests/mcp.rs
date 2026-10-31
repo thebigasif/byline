@@ -144,7 +144,7 @@ fn an_agent_drafts_and_publishes_a_post_behind_the_lint_gate() {
         "{started}"
     );
     let tools = session.ask("tools/list", &json!({}));
-    assert_eq!(tools["result"]["tools"].as_array().map(Vec::len), Some(6));
+    assert_eq!(tools["result"]["tools"].as_array().map(Vec::len), Some(7));
 
     let weak = json!({ "title": "A weak post", "markdown": "No link and no author. See [[no-such-page]]." });
     let (failed, weak) = session.call("create_draft", &weak);

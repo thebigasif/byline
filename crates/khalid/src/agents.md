@@ -44,6 +44,7 @@ The server checks the key when it starts. A missing, revoked or read-only key st
 - `edit_post` changes the `title` or the whole `markdown` of a post. Send the `updated_at` you last read. It never publishes.
 - `lint_post` runs the checks `publish_post` runs, without publishing and without changing anything. A draft is checked as it would go live today.
 - `publish_post` publishes a draft, with its `id` and `updated_at`, once the linter lets it through.
+- `set_review_state` moves a draft to `draft`, `in_review` or `ready`, with its `id` and `updated_at`. Send `in_review` when a draft is finished, so an editor reads it. Only an editor, an admin or the owner may mark it `ready`.
 
 Every answer is the API's own JSON. A tool that fails returns an error result holding the API's problem: a `detail` that says what happened and why, and a `fix` that says what to do.
 

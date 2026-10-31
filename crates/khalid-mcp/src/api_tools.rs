@@ -138,6 +138,7 @@ impl Tools for ApiTools {
                 "create_draft" => Ok(create_draft(&arguments)),
                 "edit_post" => edit_post(&arguments),
                 "publish_post" => publish_post(&arguments),
+                "set_review_state" => set_review_state(&arguments),
                 _ => return None,
             };
             Some(match call {
@@ -198,6 +199,21 @@ fn publish_post(arguments: &Map<String, Value>) -> Result<Call, ToolResult> {
     let uri = post_address(arguments, "publish_post")?;
     let updated_at = arguments.get("updated_at");
     let edit = json!({ "status": "published", "updated_at": updated_at });
+    Ok(Call::write(Method::PUT, uri, json!({ "posts": [edit] })))
+}
+
+/// Moves a post between review states; the Admin API decides who may.
+fn set_review_state(arguments: &Map<String, Value>) -> Result<Call, ToolResult> {
+    only(
+        arguments,
+        "set_review_state",
+        &["id", "review_state", "updated_at"],
+    )?;
+    let uri = post_address(arguments, "set_review_state")?;
+    let edit = json!({
+        "settings": { "review_state": arguments.get("review_state") },
+        "updated_at": arguments.get("updated_at"),
+    });
     Ok(Call::write(Method::PUT, uri, json!({ "posts": [edit] })))
 }
 
@@ -301,7 +317,26 @@ fn definitions() -> Vec<Tool> {
                 "additionalProperties": false
             }),
         ),
+        review_state_tool(),
     ]
+}
+
+/// The `set_review_state` tool, which stages a draft for an editor.
+fn review_state_tool() -> Tool {
+    Tool::new(
+        "set_review_state",
+        "Moves a draft to draft, in_review or ready. Writers submit with in_review; only an editor marks it ready.",
+        json!({
+            "type": "object",
+            "properties": {
+                "id": { "type": "string" },
+                "review_state": { "type": "string", "enum": ["draft", "in_review", "ready"] },
+                "updated_at": { "type": "string", "description": "As read_post gave it." }
+            },
+            "required": ["id", "review_state", "updated_at"],
+            "additionalProperties": false
+        }),
+    )
 }
 
 /// The schema of `edit_post`'s `real_update`, the honest update switch.

@@ -71,6 +71,11 @@ pub struct SettingsEdit {
 }
 
 impl SettingsEdit {
+    /// The review state the edit asks for, if it names one.
+    pub fn review_state(&self) -> Option<ReviewState> {
+        self.review_state
+    }
+
     /// Whether the edit sends head code at all, changed or not.
     pub fn names_head_code(&self) -> bool {
         self.head_code != Change::Keep

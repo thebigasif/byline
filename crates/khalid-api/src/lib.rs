@@ -35,6 +35,7 @@ pub mod query;
 pub mod redirect_desk;
 pub mod redirect_store;
 pub mod resources;
+mod review_rule;
 pub mod schedule_store;
 pub mod session_check;
 pub mod unlock;

@@ -30,6 +30,7 @@ use crate::query::{Limit, ListQuery, RawListQuery};
 use crate::resources::{
     AdminPost, Listable, NewPost, NotRealUpdate, PostDraft, PostEdit, PostRow, PostStatus,
 };
+use crate::review_rule;
 
 /// Where the Admin API lives.
 pub(crate) const BASE: &str = "/api/admin/v1";
@@ -195,8 +196,9 @@ pub(crate) struct EditPosts {
 /// made on; when the post changed since, the answer is a 409 naming who
 /// changed it and when (RULES.md BL-API-7). Needs `posts:write`, and
 /// `posts:publish` to publish, schedule or take down a post, or to edit one
-/// that is live or scheduled. A change to head code needs an owner, an
-/// admin or `admin:all`.
+/// that is live or scheduled. Without `posts:publish`, an edit may move a
+/// draft between `draft` and `in_review` but never leave it `ready`. A
+/// change to head code needs an owner, an admin or `admin:all`.
 #[utoipa::path(
     put, path = "/posts/{id}/", tag = "admin posts",
     security(("admin_key" = [])),
@@ -205,7 +207,7 @@ pub(crate) struct EditPosts {
     responses(
         (status = 200, description = "The post as saved", body = AdminPosts),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
-        (status = 403, description = "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, or changes head code without being an owner or admin", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, leaves a post ready without posts:publish, or changes head code without being an owner or admin", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The post changed after the copy the edit was made on, or another post has the new slug", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "The body could not be read, a setting is not valid, the schedule cannot be kept, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
@@ -222,8 +224,14 @@ async fn edit_admin_post(
     let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
     let [edit] = <[PostEdit; 1]>::try_from(body.posts)
         .map_err(|_| invalid_body("posts must hold exactly one post"))?;
-    if !principal.access().allows(Scope::PostsPublish) && publishes(&posts, &id, &edit).await? {
-        require_publish(&principal)?;
+    if !principal.access().allows(Scope::PostsPublish) {
+        let post = posts.get(&id).await.map_err(|e| Problem::internal(&e))?;
+        if publishes(post.as_ref(), &edit) {
+            require_publish(&principal)?;
+        }
+        if let Some(post) = &post {
+            review_rule::check(post, &edit)?;
+        }
     }
     if edit.names_head_code() && !principal.access().allows(Scope::AdminAll) {
         let post = posts.get(&id).await.map_err(|e| Problem::internal(&e))?;
@@ -255,19 +263,13 @@ async fn edit_admin_post(
 /// Whether `edit` to post `id` changes what readers see, which needs
 /// `posts:publish`: it publishes, schedules or sets a time to take the
 /// post down, or the post is already live or scheduled.
-async fn publishes(posts: &Posts, id: &str, edit: &PostEdit) -> Result<bool, Problem> {
+fn publishes(post: Option<&AdminPost>, edit: &PostEdit) -> bool {
     let asks = matches!(
         edit.status(),
         Some(PostStatus::Published | PostStatus::Scheduled)
     );
-    if asks || edit.unpublish_at().is_some() {
-        return Ok(true);
-    }
-    let post = posts
-        .get(id)
-        .await
-        .map_err(|error| Problem::internal(&error))?;
-    Ok(post.is_some_and(|post| post.status() != PostStatus::Draft))
+    asks || edit.unpublish_at().is_some()
+        || post.is_some_and(|post| post.status() != PostStatus::Draft)
 }
 
 /// The 403 for a head code change from anyone but an owner, an admin or

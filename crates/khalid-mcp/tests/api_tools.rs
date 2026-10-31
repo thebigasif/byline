@@ -75,6 +75,7 @@ fn each_tool_takes_an_object() {
         "create_draft",
         "edit_post",
         "publish_post",
+        "set_review_state",
     ];
     assert_eq!(names, all);
     let listed = serde_json::to_value(tools.list()).unwrap();
@@ -242,6 +243,19 @@ async fn edit_post_cannot_publish() {
     let edited = call(&tools, "edit_post", &edit).await;
     assert!(edited.is_failure());
     assert!(edited.text().contains("status"), "{}", edited.text());
+}
+
+#[tokio::test]
+async fn set_review_state_submits_a_draft_for_review() {
+    let tools = tools(WRITER);
+    let at = "2026-10-01T09:00:00Z";
+    let submit =
+        json!({ "id": "en.internal-links", "review_state": "in_review", "updated_at": at });
+    let submitted = call(&tools, "set_review_state", &submit).await;
+    assert!(!submitted.is_failure(), "{}", submitted.text());
+    let post = &json(&submitted)["posts"][0];
+    assert_eq!(post["settings"]["review_state"], "in_review");
+    assert_eq!(post["status"], "draft");
 }
 
 #[tokio::test]
