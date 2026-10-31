@@ -84,7 +84,7 @@ struct Outline {
 struct Theme {
     renderer: Renderer,
     stylesheet: Page,
-    script: Option<Page>,
+    script: Page,
     /// The tokens the stylesheet was built from, for the share cards.
     tokens: Tokens,
 }
@@ -239,7 +239,7 @@ impl SitePages {
         share_images::draw_now(folder, cards)?;
         build_seo::heads(&seo_site, &mut languages)?;
         let mut pages = vec![theme.stylesheet.clone()];
-        pages.extend(theme.script.clone());
+        pages.push(theme.script.clone());
         html_pages(theme, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
     }
@@ -414,7 +414,7 @@ impl SitePages {
         if let Some(theme) = theme {
             if which == Which::All {
                 served.pages.push(theme.stylesheet.clone());
-                served.pages.extend(theme.script.clone());
+                served.pages.push(theme.script.clone());
                 let shells = search_shells(&languages);
                 *self
                     .0

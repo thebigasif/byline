@@ -62,7 +62,7 @@ pub use reading_time::ReadingTime;
 pub use related::{PostTopics, related};
 pub use render_error::RenderError;
 pub use renderer::Renderer;
-pub use script::{ScriptTag, reader_script};
+pub use script::{ScriptFile, ScriptTag, reader_script, reader_script_file};
 pub use site::{AnnouncementBar, Nav, NavLink, RenderSite};
 pub use sitemap::{RenderSitemap, SitemapGroup, SitemapSection};
 pub use stylesheet::stylesheet;
