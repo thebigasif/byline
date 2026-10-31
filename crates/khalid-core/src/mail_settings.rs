@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::Environment;
+
 /// Who mail comes from and the one way it leaves. Leave the table out and
 /// the site sends no mail, so sign-ups stay closed. Pick exactly one way:
 ///
@@ -16,7 +18,8 @@ use serde::Deserialize;
 /// ```
 ///
 /// or an empty `[mail.resend]`, or `[mail.postmark]`. A password, API key
-/// or token never goes in the file: it comes from the environment.
+/// or token never goes in the file: it comes from the environment, see
+/// [`crate::Environment::mail_secret`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct MailSettings {
@@ -119,9 +122,12 @@ pub(crate) struct MailTable {
 const LONGEST_NAME: usize = 100;
 
 impl MailTable {
-    /// The checked settings, or the key a mistake is under and what is
-    /// wrong.
-    pub(crate) fn check(self) -> Result<MailSettings, (&'static str, &'static str)> {
+    /// The checked settings, with the secret they need in `env`, or the
+    /// key a mistake is under and what is wrong.
+    pub(crate) fn check(
+        self,
+        env: &Environment,
+    ) -> Result<MailSettings, (&'static str, &'static str)> {
         if !is_address(&self.from) {
             return Err((
                 "from",
@@ -156,11 +162,40 @@ impl MailTable {
                 "mail without encryption may only go to a host on your own network, so set private_host = true or use starttls",
             ));
         }
+        if let Some(missing) = missing_secret(&transport, env) {
+            return Err(missing);
+        }
         Ok(MailSettings {
             from: self.from,
             name: self.name,
             transport,
         })
+    }
+}
+
+/// The key to point at and the message when `transport` needs a secret
+/// `env` does not hold.
+fn missing_secret(
+    transport: &MailTransport,
+    env: &Environment,
+) -> Option<(&'static str, &'static str)> {
+    if env.mail_secret(transport).is_some() {
+        return None;
+    }
+    match transport {
+        MailTransport::Smtp(smtp) if smtp.username.is_none() => None,
+        MailTransport::Smtp(_) => Some((
+            "username",
+            "this way of sending needs KHALID_SMTP_PASSWORD set in the environment",
+        )),
+        MailTransport::Resend => Some((
+            "from",
+            "this way of sending needs KHALID_RESEND_API_KEY set in the environment",
+        )),
+        MailTransport::Postmark(_) => Some((
+            "from",
+            "this way of sending needs KHALID_POSTMARK_TOKEN set in the environment",
+        )),
     }
 }
 
