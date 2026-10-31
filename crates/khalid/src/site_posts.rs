@@ -426,7 +426,10 @@ impl Site {
         if self.find(&id)?.is_some() {
             return Err(CreatePostError::SlugTaken(slug));
         }
-        let text = PostText::draft(draft.title(), &slug, draft.author(), draft.markdown());
+        let mut text = PostText::draft(draft.title(), &slug, draft.author(), draft.markdown());
+        if let Some(excerpt) = draft.excerpt() {
+            put(&mut text, "description", Some(quoted(excerpt.as_str())));
+        }
         let path = self.draft_path(locale, &slug);
         let folder = path
             .parent()
@@ -501,20 +504,6 @@ where
         .map_err(|error| E::from(PostStoreError::new(error)))?
 }
 
-impl SitePosts {
-    /// What the lint publish gate finds in post `id` now, on a blocking
-    /// thread, writing nothing. `khalid mcp`'s `lint_post` calls it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`PostStoreError`] when the posts or the lint settings
-    /// cannot be read.
-    pub(crate) async fn lint(&self, id: &str) -> Result<Option<Report>, PostStoreError> {
-        let id = id.to_owned();
-        blocking(&self.0, move |site| site.lint_now(&id)).await
-    }
-}
-
 impl PostStore for SitePosts {
     fn get<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<AdminPost>, PostStoreError>> {
         let id = id.to_owned();
@@ -562,6 +551,13 @@ impl PostStore for SitePosts {
         Box::pin(blocking(&self.0, move |site| {
             site.delete_now(&id, updated_at)
         }))
+    }
+
+    /// The publish gate's findings on a blocking thread. The create route
+    /// and `khalid mcp`'s `lint_post` call it.
+    fn lint<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<Report>, PostStoreError>> {
+        let id = id.to_owned();
+        Box::pin(blocking(&self.0, move |site| site.lint_now(&id)))
     }
 }
 

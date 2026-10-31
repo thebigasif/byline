@@ -1,5 +1,6 @@
 import { passkeys } from "./passkeys";
 import { records } from "./records";
+import { serpdadWords } from "./serpdadWords";
 import { sitesWords } from "./sites";
 import { teamWords } from "./teamWords";
 import { webhookWords } from "./webhookWords";
@@ -29,6 +30,7 @@ export const en = {
     webhooks: "Webhooks",
     team: "Team",
     settings: "Settings",
+    serpdad: "SerpDad",
   },
   templates: {
     title: "Schema templates",
@@ -799,6 +801,7 @@ export const en = {
     },
   },
   sites: sitesWords,
+  serpdad: serpdadWords,
   problems: {
     rejected: {
       what: "The blog did not accept this token.",

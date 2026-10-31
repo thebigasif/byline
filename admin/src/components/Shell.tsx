@@ -87,6 +87,9 @@ export function Shell() {
             <li>
               <Link to="/settings">{en.nav.settings}</Link>
             </li>
+            <li>
+              <Link to="/serpdad">{en.nav.serpdad}</Link>
+            </li>
           </ul>
         </nav>
         <main id="main" className="page">

@@ -30,6 +30,7 @@ import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
 import { SchemaTemplates } from "./SchemaTemplates";
 import { SearchConsole } from "./SearchConsole";
+import { Serpdad } from "./Serpdad";
 import { SignIn } from "./SignIn";
 import { Site } from "./Site";
 import { Sites } from "./Sites";
@@ -186,6 +187,12 @@ const handOver = createRoute({
 // The whole blog's settings; post settings live in the editor.
 const site = createRoute({ getParentRoute: () => signedIn, path: "/settings", component: Site });
 
+const serpdad = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/serpdad",
+  component: Serpdad,
+});
+
 const routeTree = root.addChildren([
   signIn,
   linkSignIn,
@@ -214,6 +221,7 @@ const routeTree = root.addChildren([
     handOver,
     site,
     account,
+    serpdad,
   ]),
 ]);
 

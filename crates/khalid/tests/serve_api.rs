@@ -283,8 +283,9 @@ fn khalid_serve_serves_the_openapi_document_its_routes_keep() {
         };
         let headers = [("Authorization", key.as_str())];
         let empty = serde_json::json!({});
-        let (_, media, _) = exchange(&server, method, path, &headers, Some(&empty));
-        from_a_handler(&media)
+        let (status, media, _) = exchange(&server, method, path, &headers, Some(&empty));
+        // A 204 has no body to name its type; only a handler answers one.
+        status == 204 || from_a_handler(&media)
     };
     let concrete = |path: &str| {
         path.replace("{id}", "contract-id")

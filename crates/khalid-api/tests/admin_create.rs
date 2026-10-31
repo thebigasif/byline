@@ -13,6 +13,7 @@ use khalid_api::api;
 use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
 use khalid_api::post_store::MemoryPostStore;
 use khalid_core::FixedClock;
+use khalid_lint::Report;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -22,13 +23,19 @@ const WRITER: &str =
 
 #[cfg(test)]
 fn router() -> Router {
+    router_with(MemoryPostStore::default())
+}
+
+/// The API over `posts`, which keeps the time fixed.
+#[cfg(test)]
+fn router_with(posts: MemoryPostStore) -> Router {
     let hashing = KeyHashing::fast_for_tests();
     let token = |text: &str| text.parse::<KeyToken>().unwrap();
     let keys = MemoryKeyStore::new(vec![
         StoredKey::for_integration(&token(WRITER), vec![Scope::PostsWrite], &hashing).unwrap(),
     ]);
     let now = Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap();
-    let posts = MemoryPostStore::default().with_clock(FixedClock::new(now));
+    let posts = posts.with_clock(FixedClock::new(now));
     let (router, _) = api::router(Arc::new(common::store()), Arc::new(posts), Arc::new(keys));
     router
 }
@@ -128,6 +135,7 @@ async fn a_bad_body_is_a_422() {
         json!({"posts": [{"title": "No body"}]}),
         json!({"posts": [{"title": "Bad slug", "slug": "Not A Slug", "markdown": "x"}]}),
         json!({"posts": [{"title": "HTML without source", "html": "<p>x</p>"}]}),
+        json!({"posts": [{"title": "Blank excerpt", "excerpt": "  ", "markdown": "x"}]}),
     ] {
         let (status, _, json) = post(&router, WRITER, None, &body).await;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
@@ -136,4 +144,40 @@ async fn a_bad_body_is_a_422() {
             "{body}"
         );
     }
+}
+
+/// `SerpDad`'s draft target (KH-API-6): the answer carries the store's
+/// lint report, counted, and where the draft opens in the admin.
+#[tokio::test]
+async fn a_new_draft_comes_back_with_its_lint_counts_and_admin_path() {
+    let router =
+        router_with(MemoryPostStore::default().with_report("anchor-text", Report::default()));
+    let (status, _, json) = post(&router, WRITER, None, &draft("Anchor text")).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["lint"]["blocks"], 0, "{json}");
+    assert_eq!(json["lint"]["warnings"], 0, "{json}");
+    assert_eq!(json["lint"]["report"]["findings"], json!([]), "{json}");
+    assert_eq!(json["admin_path"], "/admin/posts/anchor-text", "{json}");
+}
+
+#[tokio::test]
+async fn a_store_without_a_linter_answers_lint_null() {
+    let (status, _, json) = post(&router(), WRITER, None, &draft("Anchor text")).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["lint"], Value::Null, "{json}");
+}
+
+#[tokio::test]
+async fn an_excerpt_is_kept_as_the_draft_s_excerpt() {
+    let body = json!({"posts": [{
+        "title": "Anchor text",
+        "excerpt": "Pick the words a reader clicks with care.",
+        "markdown": "Every link is a promise to the reader.",
+    }]});
+    let (status, _, json) = post(&router(), WRITER, None, &body).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(
+        json["posts"][0]["settings"]["excerpt"],
+        "Pick the words a reader clicks with care."
+    );
 }

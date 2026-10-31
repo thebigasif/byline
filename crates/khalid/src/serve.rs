@@ -22,8 +22,8 @@ use khalid_auth::SiteDirectory;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{
-    AnalyticsTable, AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SiteId,
-    WebhookTable,
+    AnalyticsTable, AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SerpdadTable,
+    SiteId, WebhookTable,
 };
 use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
@@ -371,6 +371,11 @@ fn api_router(
             Arc::new(SystemClock),
         ),
         follow_ups: Arc::new(follow_ups),
+        serpdad: Some(Arc::new(SerpdadTable::new(
+            database.clone(),
+            id,
+            SystemClock,
+        ))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 
 use super::real_update::{NotRealUpdate, RealUpdate};
 use super::settings_edit::Change;
-use super::{PostSettings, SettingsEdit, display, display_option};
+use super::{NonBlank, PostSettings, SettingsEdit, display, display_option};
 use crate::post_password::HashPasswordError;
 use crate::schedule_store::Schedule;
 
@@ -437,27 +437,33 @@ pub struct NewPost {
     pub(crate) markdown: Option<String>,
     /// The HTML body, with `source=html` only.
     pub(crate) html: Option<String>,
+    /// The excerpt: the short summary cards, feeds and search results
+    /// show, kept as the post's `description`. Not blank when given.
+    pub(crate) excerpt: Option<String>,
 }
 
 /// A new post, checked: a title, a valid slug or none, an author or none,
-/// and a body. The store makes the slug from the title when there is none,
-/// because only the site's settings say which language and slug mode to
-/// use.
+/// an excerpt or none, and a body. The store makes the slug from the title
+/// when there is none, because only the site's settings say which
+/// language and slug mode to use.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PostDraft {
     title: String,
     slug: Option<Slug>,
     author: Option<Slug>,
+    excerpt: Option<NonBlank>,
     markdown: String,
 }
 
 impl PostDraft {
-    /// A draft with this title, slug and markdown body, and no author.
+    /// A draft with this title, slug and markdown body, and no author or
+    /// excerpt.
     pub fn new(title: &str, slug: Option<Slug>, markdown: &str) -> Self {
         Self {
             title: title.to_owned(),
             slug,
             author: None,
+            excerpt: None,
             markdown: markdown.to_owned(),
         }
     }
@@ -466,6 +472,17 @@ impl PostDraft {
     #[must_use]
     pub fn with_author(self, author: Option<Slug>) -> Self {
         Self { author, ..self }
+    }
+
+    /// The same draft, with `excerpt` as its summary.
+    #[must_use]
+    pub fn with_excerpt(self, excerpt: Option<NonBlank>) -> Self {
+        Self { excerpt, ..self }
+    }
+
+    /// The excerpt, if given.
+    pub fn excerpt(&self) -> Option<&NonBlank> {
+        self.excerpt.as_ref()
     }
 
     /// The title.

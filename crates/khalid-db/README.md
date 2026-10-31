@@ -51,6 +51,8 @@ A test reads the table below and checks it lists every table in the schema, once
 | `crawl_log` | visitor | Which bots asked for which address each day, as their user agent named them, with the latest time and status; 90 days kept |
 | `alerts_raised` | visitor | The key of each alert finding sent to the owner, so it is sent once while the problem lasts |
 | `audit_log` | visitor | Each change made through the Admin API: who made it, whether it added, changed or removed something, the route and the address; the newest 100,000 kept |
+| `serpdad_links` | visitor | The identity of the one integration key SerpDad sends drafts with, never the key, and when it was made; no row means the connection is off |
+| `serpdad_drafts` | visitor | The last 20 drafts SerpDad sent: each post's identity, title, blocks and warnings, and when it arrived |
 
 ## Changing a query
 

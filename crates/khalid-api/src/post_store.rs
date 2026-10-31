@@ -95,6 +95,21 @@ pub trait PostStore: Send + Sync {
         id: &'a str,
         updated_at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>>;
+
+    /// What the lint publish gate finds in post `id` now, writing nothing:
+    /// a draft as it would go live today. `None` when no post has that
+    /// identity, or when the store runs no linter, which is what this
+    /// default says. The create route returns it with every new draft, so
+    /// `SerpDad` can show "staged, 0 blocks, 2 warnings" (KH-API-6).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PostStoreError`] when the posts or the lint settings
+    /// cannot be read.
+    fn lint<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<Report>, PostStoreError>> {
+        let _ = id;
+        Box::pin(std::future::ready(Ok(None)))
+    }
 }
 
 /// Why a post was not deleted.
@@ -208,20 +223,24 @@ mod memory {
         AdminPost, BoxFuture, CreatePostError, DeletePostError, ListQuery, Listed, PostDraft,
         PostEdit, PostRow, PostStore, PostStoreError, UpdatePostError,
     };
+    use khalid_lint::Report;
+
     use crate::content_store::select;
     use crate::post_trash::{PostTrash, TrashError, Trashed};
-    use crate::resources::LintCounts;
+    use crate::resources::{LintCounts, PostSettings};
 
     /// Posts held in memory, for tests. It runs no publish gate: an edit
-    /// that publishes always goes live, and a post's lint counts are
-    /// whatever [`MemoryPostStore::with_lint`] gave it, or none. A deleted
-    /// post waits in its trash.
+    /// that publishes always goes live, a post's lint counts are whatever
+    /// [`MemoryPostStore::with_lint`] gave it, or none, and its lint report
+    /// whatever [`MemoryPostStore::with_report`] gave it, or none. A
+    /// deleted post waits in its trash.
     #[derive(Debug)]
     pub struct MemoryPostStore {
         posts: Mutex<Vec<AdminPost>>,
         trash: Mutex<Vec<(Trashed, AdminPost)>>,
         seen: Mutex<BTreeMap<String, String>>,
         lint: BTreeMap<String, LintCounts>,
+        reports: BTreeMap<String, Report>,
         clock: Box<dyn Clock>,
     }
 
@@ -239,6 +258,7 @@ mod memory {
                 trash: Mutex::new(Vec::new()),
                 seen: Mutex::new(BTreeMap::new()),
                 lint: BTreeMap::new(),
+                reports: BTreeMap::new(),
                 clock: Box::new(SystemClock),
             }
         }
@@ -247,6 +267,14 @@ mod memory {
         #[must_use]
         pub fn with_lint(mut self, id: &str, counts: LintCounts) -> Self {
             self.lint.insert(id.to_owned(), counts);
+            self
+        }
+
+        /// The same store, answering [`PostStore::lint`] for post `id`,
+        /// once it exists, with `report`.
+        #[must_use]
+        pub fn with_report(mut self, id: &str, report: Report) -> Self {
+            self.reports.insert(id.to_owned(), report);
             self
         }
 
@@ -380,6 +408,10 @@ mod memory {
             )
             .with_author(draft.author().cloned())
             .with_updated_by(by);
+            let post = post.with_settings(PostSettings {
+                excerpt: draft.excerpt().cloned(),
+                ..PostSettings::default()
+            });
             if let Some(key) = idempotency {
                 seen.insert(key.to_owned(), post.id().to_owned());
             }
@@ -429,6 +461,15 @@ mod memory {
             updated_at: DateTime<Utc>,
         ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>> {
             Box::pin(std::future::ready(self.remove(id, updated_at)))
+        }
+
+        fn lint<'a>(
+            &'a self,
+            id: &'a str,
+        ) -> BoxFuture<'a, Result<Option<Report>, PostStoreError>> {
+            let exists = self.posts().iter().any(|post| post.id() == id);
+            let report = self.reports.get(id).filter(|_| exists).cloned();
+            Box::pin(std::future::ready(Ok(report)))
         }
     }
 
