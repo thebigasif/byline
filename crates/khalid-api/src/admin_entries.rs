@@ -75,6 +75,17 @@ impl Noun {
                 );
                 Problem::new(ProblemType::InvalidBody, &message).with_rule(field)
             }
+            EntryError::InUse { posts } => {
+                let message = UserMessage::new(
+                    format!("{posts} posts still use this {}.", self.one),
+                    format!(
+                        "Deleting it would leave them naming a {} that is gone.",
+                        self.one
+                    ),
+                    format!("Move those posts to another {} first.", self.one),
+                );
+                Problem::new(ProblemType::Conflict, &message).with_rule("posts")
+            }
             error => Problem::internal(&error),
         }
     }

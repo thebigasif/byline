@@ -4,8 +4,8 @@
 use chrono::{DateTime, TimeZone, Utc};
 use khalid_api::entry_store::Entry;
 use khalid_api::resources::{
-    AdminAuthor, AdminPage, AdminSnippet, AuthorEdit, NewAuthor, NewPage, NewSnippet, PageEdit,
-    SnippetEdit,
+    AdminAuthor, AdminCategory, AdminPage, AdminSnippet, AuthorEdit, CategoryEdit, NewAuthor,
+    NewCategory, NewPage, NewSnippet, PageEdit, SnippetEdit, names_problem,
 };
 use khalid_core::{Locale, Slug};
 use serde_json::json;
@@ -170,4 +170,44 @@ fn a_new_author_needs_a_slug_and_full_addresses() {
         let refused = serde_json::from_value::<NewAuthor>(bad.clone());
         assert!(refused.is_err(), "{bad} was read as {refused:?}");
     }
+}
+
+#[test]
+fn a_category_spans_its_languages_and_an_edit_replaces_its_names() {
+    let new: NewCategory = serde_json::from_value(json!({
+        "slug": "on-page-seo", "names": {"en": "On-page SEO", "de": "Onpage-SEO"},
+    }))
+    .unwrap();
+    assert_eq!(AdminCategory::language(&new), None);
+    let category = AdminCategory::made(new, Locale::try_new("en").unwrap(), at(20));
+    assert_eq!(
+        serde_json::to_value(&category).unwrap(),
+        json!({
+            "id": "on-page-seo", "slug": "on-page-seo",
+            "names": {"de": "Onpage-SEO", "en": "On-page SEO"},
+            "posts": 0, "updated_at": "2026-10-20T09:00:00Z",
+        })
+    );
+    let edit: CategoryEdit = serde_json::from_value(json!({
+        "names": {"en": "On-page"}, "updated_at": "2026-10-20T09:00:00Z",
+    }))
+    .unwrap();
+    let edited = serde_json::to_value(category.edited(edit, at(27))).unwrap();
+    assert_eq!(
+        edited["names"],
+        json!({"en": "On-page"}),
+        "the names are replaced whole"
+    );
+    assert_eq!(edited["slug"], "on-page-seo");
+}
+
+#[test]
+fn category_names_need_a_language_and_a_word_each() {
+    let names = |value| serde_json::from_value(value).unwrap();
+    assert_eq!(names_problem(&names(json!({"en": "Links"}))), None);
+    assert!(names_problem(&names(json!({}))).is_some());
+    assert!(names_problem(&names(json!({"english": "Links"}))).is_some());
+    assert!(names_problem(&names(json!({"en": " "}))).is_some());
+    let bad_slug = json!({"slug": "On Page", "names": {"en": "On page"}});
+    assert!(serde_json::from_value::<NewCategory>(bad_slug).is_err());
 }

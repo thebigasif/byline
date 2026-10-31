@@ -119,6 +119,12 @@ pub enum EntryError {
         /// Why, in one plain sentence for the person who sent it.
         why: &'static str,
     },
+    /// Posts still use the entry, such as a category, so it stays.
+    #[error("{posts} posts still use it")]
+    InUse {
+        /// How many posts, drafts included.
+        posts: usize,
+    },
     /// The entries could not be read or written.
     #[error(transparent)]
     Store(#[from] EntryStoreError),
