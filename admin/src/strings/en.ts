@@ -11,6 +11,37 @@ export const en = {
     dashboard: "Dashboard",
     posts: "Posts",
     redirects: "Redirects",
+    templates: "Schema templates",
+  },
+  templates: {
+    title: "Schema templates",
+    lede: "Schema is information for search engines about what a page holds. Khalid writes it for every post. A template adds one more kind to every post in a collection, so every guide is marked as a course without anyone thinking about it.",
+    loading: "Reading the schema templates",
+    restart:
+      "Saved to site.toml. The blog uses it after Khalid restarts; until then, previews show the templates it started with.",
+    inUse: "Templates in use",
+    none: "No templates yet. Every post still carries the schema Khalid writes for it.",
+    every: (target: string, name: string, type: string) =>
+      target === "category"
+        ? `Every post in the category ${name} is a ${type}`
+        : `Every post in ${name} is a ${type}`,
+    remove: "Remove this template",
+    form: {
+      title: "Add a template",
+      collection: "Collection",
+      collectionHint: "Every post in it gets the schema.",
+      type: "Kind of thing, as schema.org names it",
+      typeHint:
+        "One word starting with a capital, such as Course, Recipe or Event. Google lists the kinds it shows in results.",
+      details: "Details",
+      detailsHint:
+        "Each detail has a name schema.org uses and a value. A value may take words from the post: {title}, {excerpt}, {author}, {site}.",
+      name: "Name",
+      value: "Value",
+      more: "Add another detail",
+      save: "Save templates",
+      saving: "Saving the templates",
+    },
   },
   redirects: {
     title: "Redirects",

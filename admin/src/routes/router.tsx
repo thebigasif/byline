@@ -15,6 +15,7 @@ import { Dashboard } from "./Dashboard";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
+import { SchemaTemplates } from "./SchemaTemplates";
 import { SignIn } from "./SignIn";
 
 const root = createRootRoute({ errorComponent: RouteError });
@@ -63,9 +64,15 @@ const redirects = createRoute({
   component: Redirects,
 });
 
+const templates = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/schema-templates",
+  component: SchemaTemplates,
+});
+
 const routeTree = root.addChildren([
   signIn,
-  signedIn.addChildren([dashboard, posts, newPost, editor, redirects]),
+  signedIn.addChildren([dashboard, posts, newPost, editor, redirects, templates]),
 ]);
 
 /** Makes the admin's router; a test passes a memory history. */
