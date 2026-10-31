@@ -143,6 +143,7 @@ my-blog/
   media/                 originals; derived sizes and formats are generated and cached
   data/site.db           SQLite: the index, versions, forms, subscribers, comments, analytics
   lint.toml              rule severities and thresholds
+  briefs/<lang>/<slug>.toml  optional plan per post: questions, terms, links the linter checks
   public/                static export output, static mode only
 ```
 

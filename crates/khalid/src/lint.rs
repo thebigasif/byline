@@ -16,7 +16,8 @@ use crate::exit::Exit;
 use crate::lint_fix::Repair;
 use crate::lint_input::LintInput;
 use crate::{
-    content_message, lint_fix, lint_input, lint_message, report, routes_message, site_config,
+    content_message, lint_fix, lint_input, lint_message, report, routes_message, site_briefs,
+    site_config,
 };
 
 /// Whether `khalid lint` only reports, or makes the safe repairs first.
@@ -87,7 +88,8 @@ fn check(site: &Path, post: Option<&Path>, mode: Mode) -> Result<Outcome, (UserM
     let linter = Linter::new(&settings, &SystemClock)
         .map_err(|error| (lint_message::of(&error), Exit::Internal))?;
     let routes = Routes::load(site).map_err(|error| (routes_message::of(&error), Exit::Failure))?;
-    let input = LintInput::new(&content, &config, routes);
+    let briefs = site_briefs::load(site).map_err(|message| (message, Exit::Failure))?;
+    let input = LintInput::new(&content, &config, routes).with_briefs(briefs);
     let (lint_site, documents) = lint_input::lint_site(&content, &config, &input);
     let (report, scores) = match post {
         None => {
