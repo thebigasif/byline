@@ -1,0 +1,4 @@
+# The clean post without its focus keyword: every focus check is skipped,
+# so the post is told it has none.
+extends = "clean"
+unset = ["focus_keyword"]

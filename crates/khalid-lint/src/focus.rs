@@ -23,8 +23,12 @@ pub(crate) fn holds(text: &[String], topic: &[String]) -> bool {
 /// own rule with its own message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Place {
-    /// The title, which is also the page's main headline.
+    /// The title search results show: the search title when the post sets
+    /// one, else the title.
     Title,
+    /// The page's main headline, checked apart from the title only when a
+    /// search title takes the title's place in search results.
+    Headline,
     /// The description under the title in search results.
     Description,
     /// The first paragraph of the body.
@@ -42,6 +46,7 @@ impl Place {
     const fn rule(self) -> RuleId {
         RuleId::new(match self {
             Self::Title => "focus-not-in-title",
+            Self::Headline => "focus-not-in-h1",
             Self::Description => "focus-not-in-description",
             Self::FirstParagraph => "focus-not-in-first-paragraph",
             Self::Subheading => "focus-not-in-subheading",
@@ -56,7 +61,8 @@ impl Place {
     fn holds(self, post: &LintPost, keyword: &str, topic: &[String]) -> Option<bool> {
         let found = |text: &str| holds(&words(text), topic);
         match self {
-            Self::Title => post.title.as_deref().map(found),
+            Self::Title => search_title(post).or(post.title.as_deref()).map(found),
+            Self::Headline => search_title(post).and(post.title.as_deref()).map(found),
             Self::Description => post.description.as_deref().map(found),
             Self::FirstParagraph => first_paragraph(post).map(found),
             Self::Subheading => (!post.headings.is_empty())
@@ -73,6 +79,13 @@ impl Place {
             }
         }
     }
+}
+
+/// The post's search title, when it sets one with any text in it.
+fn search_title(post: &LintPost) -> Option<&str> {
+    post.seo_title
+        .as_deref()
+        .filter(|title| !title.trim().is_empty())
 }
 
 /// The first line of the body's text that is not a heading. The plain text
@@ -102,6 +115,29 @@ fn focus_keyword(post: &LintPost) -> Option<&str> {
         .as_deref()
         .filter(|keyword| !words(keyword).is_empty())
         .map(str::trim)
+}
+
+/// A post with no focus keyword, so none of the focus checks can run and
+/// its score leaves the topic out.
+#[derive(Debug)]
+pub(crate) struct NoFocusKeyword;
+
+impl Rule for NoFocusKeyword {
+    fn id(&self) -> RuleId {
+        RuleId::new("no-focus-keyword")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        focus_keyword(post)
+            .is_none()
+            .then(Hit::post)
+            .into_iter()
+            .collect()
+    }
 }
 
 /// The focus keyword is missing from one place in the post. The finding
@@ -266,6 +302,18 @@ mod tests {
     }
 
     #[test]
+    fn without_a_search_title_only_the_title_rule_reads_the_title() {
+        let mut post = LintPost::new(Locale::try_new("en").unwrap(), Slug::try_new("a").unwrap());
+        post.focus_keyword = Some("internal links".to_owned());
+        post.title = Some("Why links matter".to_owned());
+        post.seo_title = Some("  ".to_owned());
+        let site = crate::LintSite::default();
+        let hits = FocusNotIn(Place::Title).check(&post, &site);
+        assert_eq!(hits, [Hit::about("internal links")]);
+        assert_eq!(FocusNotIn(Place::Headline).check(&post, &site), []);
+    }
+
+    #[test]
     fn a_keyword_without_words_is_no_keyword() {
         let mut post = LintPost::new(Locale::try_new("en").unwrap(), Slug::try_new("a").unwrap());
         post.focus_keyword = Some(" - ".to_owned());
@@ -276,5 +324,6 @@ mod tests {
         assert_eq!(FocusNotIn(Place::Title).check(&post, &site), []);
         assert_eq!(FocusTooRare { min: 5 }.check(&post, &site), []);
         assert_eq!(SecondaryKeywordUnused.check(&post, &site), []);
+        assert_eq!(NoFocusKeyword.check(&post, &site), [Hit::post()]);
     }
 }

@@ -1,0 +1,20 @@
+# A post about internal links with a long section on choosing a web host
+# that never names internal links. The short first section stays on the
+# subject, so only the second one is reported.
+extends = "clean"
+body_text = """
+Internal links help readers find the next useful post on your site.
+What internal links are
+An internal link opens another post on the same site, and readers follow it to the next useful page.
+Choosing a web host
+A good web host keeps your blog online when readers arrive. Look at where the host keeps its servers, because a server close to your readers sends pages faster. Ask how the host handles backups, and whether you can restore a copy of your site yourself without writing to support. Read the terms for traffic limits, since a sudden spike after a popular post should not take the blog down. Check that the host renews security certificates on its own, so visitors never see a warning in their browser. Compare the price of the first year with the price after it, because many hosts raise the price once the offer ends. Find out how support answers questions, by chat, by email or by phone, and at what hours. A host with clear answers before you pay tends to give clear answers later. Write down each answer in one place so you can compare hosts side by side.
+Once you pick a host, move the blog in small steps. Copy the files first and test the copy at a temporary address before you switch the domain. Keep the old host running for a few days, so readers who still reach it see the same pages. Watch the error log on the new server during the first week, and fix each missing file as soon as it shows up. Set up a regular backup on the new host and try one restore, so you know the backup works before you need it. Tell your readers about the move only if something changes for them, such as a new feed address. Most moves go smoothly when each step is checked before the next one starts. When the new host has run well for a month, close the old account and remove its access keys. Keep a short note of every setting you changed, for the next move.
+"""
+
+[[headings]]
+level = "h2"
+text = "What internal links are"
+
+[[headings]]
+level = "h2"
+text = "Choosing a web host"

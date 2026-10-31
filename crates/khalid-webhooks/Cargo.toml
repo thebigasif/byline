@@ -15,7 +15,7 @@ test-util = []
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 hmac = "0.13"
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 serde.workspace = true
 serde_json.workspace = true
@@ -23,7 +23,7 @@ sha2 = "0.11"
 thiserror.workspace = true
 
 [dev-dependencies]
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
 khalid-webhooks = { path = ".", version = "0.0.0", features = ["test-util"] }
 proptest = "1"

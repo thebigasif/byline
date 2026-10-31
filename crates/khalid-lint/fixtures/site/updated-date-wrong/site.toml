@@ -1,0 +1,36 @@
+# Today is 2026-10-26. One post says it was updated before it was
+# published, and one says it was updated next week. One was updated
+# tomorrow, which a site a few hours ahead of UTC can honestly say. One
+# was updated on the day it was published, and one never.
+[[posts]]
+locale = "en"
+slug = "pruning-old-posts"
+date = "2026-05-14"
+updated = "2026-03-02"
+
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+date = "2026-01-09"
+updated = "2026-11-02"
+
+[[posts]]
+locale = "en"
+slug = "anchor-text-basics"
+date = "2026-02-20"
+updated = "2026-10-27"
+
+[[posts]]
+locale = "en"
+slug = "link-audits"
+date = "2026-04-01"
+updated = "2026-04-01"
+
+[[posts]]
+locale = "en"
+slug = "why-internal-links-matter"
+date = "2026-06-11"
+
+[[pages]]
+locale = "en"
+slug = "about"

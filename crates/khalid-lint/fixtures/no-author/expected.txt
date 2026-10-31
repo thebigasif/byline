@@ -1,1 +1,2 @@
 block no-author
+warn no-focus-keyword

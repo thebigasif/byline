@@ -1,1 +1,2 @@
 warn no-outbound-link
+warn no-focus-keyword
