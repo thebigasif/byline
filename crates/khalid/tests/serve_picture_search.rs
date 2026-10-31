@@ -20,6 +20,10 @@ fn photo_search_turned_on_without_its_key_names_the_variable() {
     let (status, on) = server.admin("GET", SEARCH, None);
     assert_eq!(status, 200, "{on}");
     assert_eq!(on["unsplash"], true, "{on}");
+    assert_eq!(
+        on["keys"]["unsplash"], false,
+        "Settings shows the key is missing: {on}"
+    );
     assert_eq!(on["gifs"], false, "{on}");
     let words = format!("{SEARCH}?source=unsplash&words=lake");
     let (status, problem) = server.admin("GET", &words, None);

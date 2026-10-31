@@ -96,12 +96,32 @@ async fn says_which_searches_are_on_without_asking_anyone() {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(
         body,
-        json!({ "unsplash": true, "gifs": false, "pictures": [] })
+        json!({
+            "unsplash": true,
+            "gifs": false,
+            "keys": { "unsplash": true, "gifs": false },
+            "pictures": [],
+        })
     );
     let bare = app(site.path(), None).await;
     let (_, body) = get(&bare, "/api/admin/v1/media/search/", UPLOADER).await;
     assert_eq!(body["unsplash"], false);
+    assert_eq!(body["keys"]["unsplash"], false);
     assert!(server.received_requests().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn says_which_search_is_on_without_its_key() {
+    let site = tempfile::tempdir().unwrap();
+    let server = MockServer::start().await;
+    let on = search(&server, Access::NoKey, keyed());
+    let searching = app(site.path(), Some(on)).await;
+    let (_, body) = get(&searching, "/api/admin/v1/media/search/", UPLOADER).await;
+    assert_eq!(
+        (&body["unsplash"], &body["gifs"]),
+        (&json!(true), &json!(true))
+    );
+    assert_eq!(body["keys"], json!({ "unsplash": false, "gifs": true }));
 }
 
 #[tokio::test]

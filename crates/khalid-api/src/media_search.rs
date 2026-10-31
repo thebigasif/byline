@@ -63,8 +63,21 @@ pub(crate) struct PictureSearch {
     unsplash: bool,
     /// Whether the owner turned GIF search on GIPHY on.
     gifs: bool,
+    /// Which searches the server holds a key for.
+    keys: SearchKeys,
     /// The pictures found, 24 a page; empty without words.
     pictures: Vec<StockPicture>,
+}
+
+/// Which searches are on with their key, so they can ask. A search that is
+/// on without one answers with the variable to set. The keys themselves
+/// never leave the server.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct SearchKeys {
+    /// Photo search on Unsplash.
+    unsplash: bool,
+    /// GIF search on GIPHY.
+    gifs: bool,
 }
 
 /// A photo or GIF found for a post. It stays where it came from: the post
@@ -136,9 +149,14 @@ pub(crate) async fn search_pictures(
     let Query(options) = options.map_err(|_| bad_search())?;
     let search = media.as_ref().and_then(MediaLibrary::search);
     let on = |source: PictureSource| search.is_some_and(|search| search.is_on(source));
+    let key = |source: PictureSource| search.is_some_and(|search| search.has_key(source));
     let mut answer = PictureSearch {
         unsplash: on(PictureSource::Unsplash),
         gifs: on(PictureSource::Giphy),
+        keys: SearchKeys {
+            unsplash: key(PictureSource::Unsplash),
+            gifs: key(PictureSource::Giphy),
+        },
         pictures: Vec::new(),
     };
     let words = options.words.as_deref().map(str::trim).unwrap_or_default();

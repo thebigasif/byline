@@ -176,6 +176,12 @@ impl StockSearch {
         !matches!(self.access(source), Access::Off)
     }
 
+    /// Whether `source` is on and the server holds its key, so a search
+    /// can ask it.
+    pub fn has_key(&self, source: PictureSource) -> bool {
+        matches!(self.access(source), Access::Key(_))
+    }
+
     /// Page `page` of the pictures `source` has for `words`; the first page
     /// is 1. Unsplash leaves out photos unsuited to all ages, and GIPHY
     /// gives GIFs rated G only.

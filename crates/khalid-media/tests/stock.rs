@@ -149,6 +149,9 @@ async fn asks_nothing_when_off_or_without_a_key() {
     let stock = search(&server, Access::Off, Access::on_with(None));
     assert!(!stock.is_on(PictureSource::Unsplash));
     assert!(stock.is_on(PictureSource::Giphy));
+    assert!(!stock.has_key(PictureSource::Unsplash));
+    assert!(!stock.has_key(PictureSource::Giphy));
+    assert!(both(&server).has_key(PictureSource::Giphy));
     let unused = stock.used("Ab-12_c").await;
     assert!(matches!(unused, Err(StockError::Off)), "{unused:?}");
     let off = stock.search(PictureSource::Unsplash, "lake", 1).await;

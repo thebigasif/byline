@@ -8047,12 +8047,17 @@
         "required": [
           "unsplash",
           "gifs",
+          "keys",
           "pictures"
         ],
         "properties": {
           "gifs": {
             "type": "boolean",
             "description": "Whether the owner turned GIF search on GIPHY on."
+          },
+          "keys": {
+            "$ref": "#/components/schemas/SearchKeys",
+            "description": "Which searches the server holds a key for."
           },
           "pictures": {
             "type": "array",
@@ -8794,6 +8799,24 @@
           }
         },
         "additionalProperties": false
+      },
+      "SearchKeys": {
+        "type": "object",
+        "description": "Which searches are on with their key, so they can ask. A search that is\non without one answers with the variable to set. The keys themselves\nnever leave the server.",
+        "required": [
+          "unsplash",
+          "gifs"
+        ],
+        "properties": {
+          "gifs": {
+            "type": "boolean",
+            "description": "GIF search on GIPHY."
+          },
+          "unsplash": {
+            "type": "boolean",
+            "description": "Photo search on Unsplash."
+          }
+        }
       },
       "SessionAnswer": {
         "type": "object",
