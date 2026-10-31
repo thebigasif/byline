@@ -83,6 +83,9 @@ impl Command {
                 command: SearchConsoleCommand::Index,
             } => "search-console index",
             Self::SearchConsole {
+                command: SearchConsoleCommand::FollowUps,
+            } => "search-console follow-ups",
+            Self::SearchConsole {
                 command: SearchConsoleCommand::Email,
             } => "search-console email",
         }

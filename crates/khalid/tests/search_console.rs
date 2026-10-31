@@ -475,3 +475,78 @@ async fn the_weekly_email_reaches_report_to_with_what_to_do_next() {
         "{said}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn follow_ups_are_long_searches_with_the_heading_that_answers_each() {
+    let google = MockServer::start().await;
+    grant(&google).await;
+    let links = "https://www.example.com/blog/why-internal-links-matter/";
+    let row = |page: &str, query: &str, impressions: f64| {
+        json!({ "keys": [page, query], "clicks": 2.0, "impressions": impressions,
+            "ctr": 0.02, "position": 8.2 })
+    };
+    let rows = json!({ "rows": [
+        row(links, "internal links", 900.0),
+        row(links, "how many internal links should a blog post have", 60.0),
+        row(links, "how do search engines find and rank pages on a site", 40.0),
+        row("https://www.example.com/", "what is the best blog engine for a small business", 80.0),
+    ] });
+    Mock::given(method("POST"))
+        .and(path(ANALYTICS))
+        .and(body_partial_json(
+            json!({ "dimensions": ["page", "query"] }),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(rows))
+        .expect(2)
+        .mount(&google)
+        .await;
+    let site = demo_site(OPT_IN);
+    let output = khalid(site.path(), &google, Some(()), &["follow-ups"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let said = String::from_utf8(output.stdout).unwrap();
+    assert!(said.contains("1 of them have no heading"), "{said}");
+    assert!(
+        said.contains(
+            "- \"how many internal links should a blog post have\": 60 impressions, 2 clicks, \
+             average position 8.2. No heading answers it yet: add one that asks it."
+        ),
+        "{said}"
+    );
+    assert!(
+        said.contains("Answered under \"Search engines use them to find and rank pages\"."),
+        "{said}"
+    );
+    assert!(!said.contains("\"internal links\""), "{said}");
+    assert!(!said.contains("blog engine"), "{said}");
+
+    let output = khalid(site.path(), &google, Some(()), &["follow-ups", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(body["words"], 8);
+    let searches = &body["posts"][0]["searches"];
+    assert_eq!(searches.as_array().map(Vec::len), Some(2), "{body}");
+    assert_eq!(searches[0]["answered_by"], Value::Null);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn follow_ups_say_plainly_when_google_shared_no_long_search() {
+    let google = MockServer::start().await;
+    grant(&google).await;
+    Mock::given(method("POST"))
+        .and(path(ANALYTICS))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+        .mount(&google)
+        .await;
+    let site = demo_site(OPT_IN);
+    let output = khalid(site.path(), &google, Some(()), &["follow-ups"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let said = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        said.contains("No search of 8 words or more showed your posts"),
+        "{said}"
+    );
+    assert!(
+        said.contains("Google leaves out searches too rare to share"),
+        "{said}"
+    );
+}

@@ -34,6 +34,9 @@ pub(crate) struct LivePost {
     /// Whether its front matter keeps it out of search results.
     pub(crate) noindex: bool,
     pub(crate) slug: Slug,
+    /// Its file in the content index's form, such as
+    /// `content/en/posts/a.md`.
+    pub(crate) path: String,
 }
 
 /// The JSON shape of a report, which the weekly email reads too.
@@ -183,6 +186,7 @@ pub(crate) fn live_posts(
             ),
             noindex: hidden.contains(&row.path),
             slug: row.slug.clone(),
+            path: row.path.clone(),
         })
         .collect())
 }
