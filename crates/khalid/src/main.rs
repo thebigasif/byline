@@ -28,6 +28,7 @@ mod build_seo;
 mod build_sitemap;
 mod categories;
 mod cli;
+mod cli_name;
 mod comment_pages;
 mod config_message;
 mod content_feed;
@@ -226,25 +227,9 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
             import::run(folder, (config, routes), args, cli)
         }
-        (
-            Some(
-                command @ (Command::Db { .. }
-                | Command::Import(_)
-                | Command::Theme { .. }
-                | Command::Serve(_)
-                | Command::Keys { .. }
-                | Command::Staff { .. }
-                | Command::Mcp
-                | Command::Lint { .. }
-                | Command::Publish { .. }
-                | Command::New { .. }
-                | Command::Build { .. }
-                | Command::Export
-                | Command::Audit { .. }
-                | Command::Bing { .. }),
-            ),
-            None,
-        ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
+        // Every command that works without a site returned in
+        // `run_unchecked`, so each one left needs `--site`.
+        (Some(command), None) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
 }
