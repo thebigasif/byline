@@ -43,6 +43,7 @@ A test reads the table below and checks it lists every table in the schema, once
 | `subscriber_lists` | visitor | Which newsletters each subscriber gets, by the newsletter's name |
 | `subscriber_tokens` | visitor | The confirmation and unsubscribe links sent to each subscriber, as hashes of their tokens |
 | `comments` | visitor | Comments on posts, named by the post's path so they survive a rebuild: who wrote each, a reader or staff, its text and where it stands in moderation |
+| `draft_comments` | visitor | Staff comments on drafts, named by the post's identity so a rebuild keeps them: the block each is about, its thread, who wrote it and whether the thread is resolved |
 | `analytics_counts` | visitor | Page views per day, page and referrer group, counted without cookies |
 | `crawl_log` | visitor | Which bots asked for which address each day, as their user agent named them, with the latest time and status; 90 days kept |
 

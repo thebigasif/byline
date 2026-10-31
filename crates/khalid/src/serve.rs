@@ -11,6 +11,7 @@ use std::time::Duration;
 use axum::Router;
 use khalid_api::api::{self, AdminDesks};
 use khalid_api::comment_moderation::CommentModeration;
+use khalid_api::draft_comments::DraftComments;
 use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
 use khalid_api::redirect_desk::RedirectDesk;
@@ -18,7 +19,7 @@ use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_db::{Database, DraftCommentTable, KeyTable, ScheduleTable, SiteId, WebhookTable};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
@@ -237,7 +238,11 @@ fn api_router(
             id,
             SystemClock,
         ))),
-        draft_comments: None,
+        draft_comments: Some(DraftComments::new(Arc::new(DraftCommentTable::new(
+            database.clone(),
+            id,
+            SystemClock,
+        )))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

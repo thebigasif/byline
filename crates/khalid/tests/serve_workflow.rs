@@ -1,5 +1,6 @@
 //! The editorial workflow on a running `khalid serve`: the calendar shows
-//! the demo's posts and a dated draft by day (KH-EDT-4).
+//! the demo's posts and a dated draft by day, and comments on a post are
+//! kept in the database and resolved (KH-EDT-4).
 
 mod common;
 
@@ -40,4 +41,33 @@ fn the_calendar_shows_the_live_posts_and_a_dated_draft_by_day() {
     assert_eq!(planned["status"], "draft", "{body}");
     assert_eq!(planned["review_state"], "in_review", "{body}");
     assert_eq!(body["calendar"]["undated"], json!([]), "{body}");
+}
+
+#[test]
+fn a_comment_on_a_demo_post_is_kept_through_a_restart_and_resolved() {
+    let site = common::demo_copy();
+    let key = common::new_key(site.path(), &["--name", "Desk", "--scope", "posts:write"]);
+    let comments = "/api/admin/v1/posts/en.what-a-sitemap-does/draft-comments/";
+    let first = json!({"draft_comments": [{"text": "Add the 50,000 limit.", "block": 3}]});
+    {
+        let server = common::start(site.path(), &key);
+        let (status, body) = server.admin("POST", comments, Some(&first));
+        assert_eq!(status, 201, "{body}");
+        let thread = body["draft_comments"][0]["id"].clone();
+        let reply = json!({"draft_comments": [{"text": "Added.", "parent": thread}]});
+        let (status, body) = server.admin("POST", comments, Some(&reply));
+        assert_eq!(status, 201, "{body}");
+    }
+    let server = common::start(site.path(), &key);
+    let (status, body) = server.admin("GET", comments, None);
+    assert_eq!(status, 200, "{body}");
+    let listed = body["draft_comments"].as_array().unwrap();
+    assert_eq!(listed.len(), 2, "{body}");
+    assert_eq!(listed[1]["block"], 3, "{body}");
+    let thread = format!("{comments}{}/", listed[0]["id"]);
+    let resolve = json!({"draft_comments": [{"resolved": true}]});
+    let (status, body) = server.admin("PUT", &thread, Some(&resolve));
+    assert_eq!(status, 204, "{body}");
+    let (_, body) = server.admin("GET", comments, None);
+    assert_eq!(body["draft_comments"][0]["resolved"], true, "{body}");
 }

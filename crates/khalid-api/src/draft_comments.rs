@@ -64,6 +64,29 @@ pub struct DraftComment {
     pub created_at: DateTime<Utc>,
 }
 
+impl DraftComment {
+    /// `new` as a store saved it, as `id` at `created_at`, with its thread
+    /// open.
+    pub fn saved(id: i64, new: NewDraftComment, created_at: DateTime<Utc>) -> Self {
+        Self {
+            id,
+            parent: new.parent,
+            block: new.block,
+            author: new.author,
+            text: new.text,
+            resolved: false,
+            created_at,
+        }
+    }
+
+    /// The same comment, with its thread in `state`.
+    #[must_use]
+    pub fn in_state(self, state: ThreadState) -> Self {
+        let resolved = state.is_resolved();
+        Self { resolved, ..self }
+    }
+}
+
 /// A comment to add to post `post`, checked by the route.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -302,16 +325,9 @@ mod memory {
             let id = i64::try_from(rows.len())
                 .unwrap_or(i64::MAX)
                 .saturating_add(1);
-            let comment = DraftComment {
-                id,
-                parent: new.parent,
-                block: new.block,
-                author: new.author,
-                text: new.text,
-                resolved: false,
-                created_at: self.clock.now(),
-            };
-            rows.push((new.post, comment.clone()));
+            let post = new.post.clone();
+            let comment = DraftComment::saved(id, new, self.clock.now());
+            rows.push((post, comment.clone()));
             Box::pin(async move { Ok(comment) })
         }
 
