@@ -11,14 +11,14 @@ publish.workspace = true
 [dependencies]
 chrono = { version = "0.4", default-features = false }
 khalid-content = { path = "../khalid-content", version = "0.0.0" }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
-khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
+khalid-core.workspace = true
+khalid-lint.workspace = true
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
 thiserror.workspace = true
 
 [dev-dependencies]
 divan = "0.1"
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 tempfile = "3"
 
 [[bench]]

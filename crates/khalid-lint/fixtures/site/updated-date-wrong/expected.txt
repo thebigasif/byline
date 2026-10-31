@@ -1,0 +1,2 @@
+en/pruning-old-posts: warn updated-date-wrong
+en/choosing-link-text: warn updated-date-wrong

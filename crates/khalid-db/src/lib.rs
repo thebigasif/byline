@@ -17,9 +17,11 @@
 //! `khalid-newsletter` keeps them in, readers' comments, as the
 //! [`CommentTable`] that `khalid-comments` moderates through, and the staff
 //! accounts, as the [`AccountTable`], [`SessionTable`], [`LinkTable`] and
-//! [`PasskeyTable`] that `khalid-auth` signs people in with.
+//! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
+//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into.
 
 mod account_table;
+mod analytics_table;
 mod comment_table;
 mod content_index;
 mod database;
@@ -43,6 +45,7 @@ mod subscriber_table;
 mod webhook_table;
 
 pub use account_table::AccountTable;
+pub use analytics_table::AnalyticsTable;
 pub use comment_table::CommentTable;
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;

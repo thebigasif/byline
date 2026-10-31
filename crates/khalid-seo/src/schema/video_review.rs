@@ -27,7 +27,8 @@ impl Rating {
         }
     }
 
-    fn node(self, kind: &str) -> SchemaNode {
+    /// The rating as a node of `kind`, `Rating` or `AggregateRating`.
+    pub(crate) fn node(self, kind: &str) -> SchemaNode {
         SchemaNode::new(kind)
             .with("ratingValue", SchemaValue::Number(self.value))
             .with("bestRating", SchemaValue::Number(self.best))
@@ -49,6 +50,14 @@ impl AggregateRating {
     /// An average of `count` ratings.
     pub fn new(rating: Rating, count: u32) -> Self {
         Self { rating, count }
+    }
+
+    /// The average as an `AggregateRating` node with its `ratingCount`.
+    pub(crate) fn node(self) -> SchemaNode {
+        let count = SchemaValue::Integer(i64::from(self.count));
+        self.rating
+            .node("AggregateRating")
+            .with("ratingCount", count)
     }
 }
 
@@ -120,11 +129,10 @@ pub(crate) fn review_node(
     let mut item =
         SchemaNode::new(&review.item_type).with("name", SchemaValue::text(&review.item_name));
     if let Some(aggregate) = review.aggregate {
-        let average = aggregate.rating.node("AggregateRating").with(
-            "ratingCount",
-            SchemaValue::Integer(i64::from(aggregate.count)),
+        item.set(
+            "aggregateRating",
+            SchemaValue::Node(Box::new(aggregate.node())),
         );
-        item.set("aggregateRating", SchemaValue::Node(Box::new(average)));
     }
     let author = SchemaNode::new("Person").with("name", SchemaValue::text(&review.author));
     let mut node = SchemaNode::new("Review")

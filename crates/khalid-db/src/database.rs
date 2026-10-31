@@ -81,6 +81,32 @@ impl Database {
             .map_err(|source| DbError::Migrate { source })
     }
 
+    /// Writes a whole, consistent copy of the database to a new file at
+    /// `path`, with SQLite's `VACUUM INTO`. It runs on a read connection, so
+    /// the copy holds every committed write, including those still in the
+    /// write-ahead log, and writers carry on while it runs. The copy is a
+    /// plain database file a backup can keep as it is.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DbError::PathNotText`] when `path` is not valid UTF-8, and
+    /// [`DbError::Copy`] when the file already exists, its folder is missing
+    /// or the disk is full.
+    pub async fn copy_to(&self, path: &Path) -> Result<(), DbError> {
+        let name = path.to_str().ok_or_else(|| DbError::PathNotText {
+            path: path.to_path_buf(),
+        })?;
+        sqlx::query("VACUUM INTO ?")
+            .bind(name)
+            .execute(&self.readers)
+            .await
+            .map(drop)
+            .map_err(|source| DbError::Copy {
+                path: path.to_path_buf(),
+                source,
+            })
+    }
+
     /// Waits for running queries to finish, then closes every connection, so
     /// the write-ahead log is folded back into the file (BL-RUN-10). Clones
     /// share their connections, so this closes them for every clone.
@@ -149,6 +175,41 @@ mod tests {
             .execute(&db.writer)
             .await
             .unwrap();
+        db.close().await;
+    }
+
+    #[tokio::test]
+    async fn a_copy_holds_every_committed_write_while_the_database_stays_open() {
+        let (dir, db) = opened().await;
+        sqlx::query("INSERT INTO sites (handle) VALUES ('main')")
+            .execute(&db.writer)
+            .await
+            .unwrap();
+        let mut copy = dir.path().to_path_buf();
+        copy.push("copy.db");
+        db.copy_to(&copy).await.unwrap();
+        // The original is still open, so its write sits in the log; the
+        // copy must hold it all the same.
+        let copied = Database::open(&copy).await.unwrap();
+        let handle = pragma(
+            &copied.readers,
+            "SELECT handle FROM sites WHERE handle = 'main'",
+        )
+        .await;
+        assert_eq!(handle, "main");
+        copied.close().await;
+        db.close().await;
+    }
+
+    #[tokio::test]
+    async fn a_copy_never_replaces_a_file() {
+        let (dir, db) = opened().await;
+        let mut copy = dir.path().to_path_buf();
+        copy.push("copy.db");
+        std::fs::write(&copy, "keep me").unwrap();
+        let error = db.copy_to(&copy).await.unwrap_err();
+        assert!(matches!(error, DbError::Copy { .. }), "{error:?}");
+        assert_eq!(std::fs::read_to_string(&copy).unwrap(), "keep me");
         db.close().await;
     }
 

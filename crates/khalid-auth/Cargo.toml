@@ -19,7 +19,7 @@ base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 getrandom = "0.4"
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.11"
@@ -33,7 +33,7 @@ webauthn-rs = { version = "0.6.1-dev", default-features = false, features = ["co
 [dev-dependencies]
 khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
 khalid-auth = { path = ".", version = "0.0.0", features = ["test-util"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
 webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softpasskey"] }

@@ -64,12 +64,18 @@ exceptions = [
   { crate = "webauthn-rs", allow = ["MPL-2.0"] },
   { crate = "webauthn-rs-core", allow = ["MPL-2.0"] },
   { crate = "webauthn-rs-proto", allow = ["MPL-2.0"] },
+  # Our own two published crates keep the product's licence
+  # (docs/adr/0000-the-lint-crates-are-published-under-agpl.md). The allow-list
+  # above still governs everything they depend on.
+  { crate = "khalid-core", allow = ["AGPL-3.0-only"] },
+  { crate = "khalid-lint", allow = ["AGPL-3.0-only"] },
 ]
 confidence-threshold = 0.9
 unused-allowed-license = "allow"
 
-# The allow-list is for dependencies. Our own crates are AGPL-3.0 and never
-# published (publish = false in the workspace), so the licence check skips them.
+# The allow-list is for dependencies. Our own crates are AGPL-3.0 and, apart
+# from khalid-core and khalid-lint, never published (publish = false in the
+# workspace), so the licence check skips them.
 [licenses.private]
 ignore = true
 

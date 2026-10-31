@@ -38,6 +38,10 @@ if ls crates/*/Cargo.toml >/dev/null 2>&1; then
   step "Unused dependencies (cargo machete)"
   cargo machete
 
+  step "Published crates package and build alone (cargo publish --dry-run, KH-LNT-6)"
+  # --allow-dirty because this runs before the commit. Nothing is uploaded.
+  cargo publish --dry-run --allow-dirty --locked -p khalid-core -p khalid-lint
+
   step "Lint table proven to fire"
   ./scripts/check-lints.sh
 

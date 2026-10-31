@@ -1,0 +1,5 @@
+# This fixture is about short posts only.
+[rules]
+orphan-post = "off"
+one-inbound-link = "off"
+section-repeats-post = "off"
