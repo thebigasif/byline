@@ -161,6 +161,48 @@ jobs:
       - name: The image answers
         run: docker run --rm khalid:check --version
 
+  # The demo, end to end (task 1.22, gap audit 2 G8, GEO P2): every page of
+  # the demo site through the W3C validator, Lighthouse with 100 as the
+  # floor, and axe and the layout checks at six widths, with scripts on and
+  # then off. A page that breaks with scripts off fails here. Slow, so on
+  # pull requests only, and not a required check.
+  demo:
+    name: Demo check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Toolchain from rust-toolchain.toml
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: demo
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # The W3C HTML validator is a Java program.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Tools, at the versions scripts/demo-check/package.json pins
+        run: |
+          npm install --prefix scripts/demo-check --no-audit --no-fund
+          npx --prefix scripts/demo-check playwright install --with-deps chromium
+      - name: Demo check
+        run: ./scripts/demo-check.sh
+      - name: Keep the reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-check
+          path: |
+            target/demo-check/lighthouse
+            target/demo-check/serve.log
+          if-no-files-found: ignore
+
   perf:
     name: Performance budgets
     runs-on: ubuntu-latest
