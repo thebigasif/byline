@@ -2026,6 +2026,7 @@ dependencies = [
  "khalid-https",
  "khalid-import",
  "khalid-lint",
+ "khalid-mail",
  "khalid-mcp",
  "khalid-media",
  "khalid-mount",
