@@ -3,6 +3,7 @@
 
 /** @type {import("./index.js").Routes} */
 export const operations = {
+  list_changes: { method: "GET", path: "/api/admin/v1/audit/", key: "admin", body: null },
   list_comments: { method: "GET", path: "/api/admin/v1/comments/", key: "admin", body: null },
   delete_comment: { method: "DELETE", path: "/api/admin/v1/comments/{id}/", key: "admin", body: null },
   approve_comment: { method: "POST", path: "/api/admin/v1/comments/{id}/approve/", key: "admin", body: null },
@@ -18,6 +19,7 @@ export const operations = {
   read_admin_post: { method: "GET", path: "/api/admin/v1/posts/{id}/", key: "admin", body: null },
   edit_admin_post: { method: "PUT", path: "/api/admin/v1/posts/{id}/", key: "admin", body: "application/json" },
   delete_admin_post: { method: "DELETE", path: "/api/admin/v1/posts/{id}/", key: "admin", body: null },
+  check_post: { method: "GET", path: "/api/admin/v1/posts/{id}/check/", key: "admin", body: null },
   make_preview_link: { method: "POST", path: "/api/admin/v1/posts/{id}/preview-link/", key: "admin", body: null },
   list_redirects: { method: "GET", path: "/api/admin/v1/redirects/", key: "admin", body: null },
   create_redirect: { method: "POST", path: "/api/admin/v1/redirects/", key: "admin", body: "application/json" },
@@ -25,6 +27,8 @@ export const operations = {
   export_redirects: { method: "GET", path: "/api/admin/v1/redirects/export/", key: "admin", body: null },
   import_redirects: { method: "POST", path: "/api/admin/v1/redirects/import/", key: "admin", body: "text/csv" },
   remove_redirect: { method: "DELETE", path: "/api/admin/v1/redirects/{id}/", key: "admin", body: null },
+  read_templates: { method: "GET", path: "/api/admin/v1/schema-templates/", key: "admin", body: null },
+  replace_templates: { method: "PUT", path: "/api/admin/v1/schema-templates/", key: "admin", body: "application/json" },
   current_session: { method: "GET", path: "/api/admin/v1/session/", key: "none", body: null },
   sign_in: { method: "POST", path: "/api/admin/v1/session/", key: "none", body: "application/json" },
   sign_out: { method: "DELETE", path: "/api/admin/v1/session/", key: "none", body: null },
@@ -41,6 +45,9 @@ export const operations = {
   change_role: { method: "PUT", path: "/api/admin/v1/staff/{id}/", key: "admin", body: "application/json" },
   remove_staff: { method: "DELETE", path: "/api/admin/v1/staff/{id}/", key: "admin", body: null },
   transfer: { method: "POST", path: "/api/admin/v1/staff/{id}/owner/", key: "none", body: null },
+  list_trash: { method: "GET", path: "/api/admin/v1/trash/", key: "admin", body: null },
+  purge_trashed: { method: "DELETE", path: "/api/admin/v1/trash/{key}/", key: "admin", body: null },
+  restore_trashed: { method: "POST", path: "/api/admin/v1/trash/{key}/restore/", key: "admin", body: null },
   list_webhooks: { method: "GET", path: "/api/admin/v1/webhooks/", key: "admin", body: null },
   add_webhook: { method: "POST", path: "/api/admin/v1/webhooks/", key: "admin", body: "application/json" },
   remove_webhook: { method: "DELETE", path: "/api/admin/v1/webhooks/{id}/", key: "admin", body: null },

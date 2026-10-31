@@ -1526,6 +1526,82 @@
         ]
       }
     },
+    "/api/admin/v1/posts/{id}/check/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Checks one post as it would go live now, saving nothing: every lint\nfinding with the score out of 100, the search result its page would\nmake, and the JSON-LD the page would carry. A draft is checked as if\npublished today. Needs `posts:write`.",
+        "operationId": "check_post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The post's check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChecks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity, or this server checks no posts",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/{id}/preview-link/": {
       "post": {
         "tags": [
@@ -2030,6 +2106,168 @@
           },
           "404": {
             "description": "No redirect has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/schema-templates/": {
+      "get": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Lists the site's schema templates, the collections a template may name,\nand whether the running server needs a restart to use the templates.\nNeeds `settings:write`.",
+        "operationId": "read_templates",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The schema templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaTemplates"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no schema templates",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Puts a new list in place of every schema template, made on the copy\n`updated_at` names. Each template is checked as `khalid serve` checks\n`site.toml` at start, and nothing is saved when one is refused. The\nrunning server uses the new templates after a restart. Needs\n`settings:write`.",
+        "operationId": "replace_templates",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplatesChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The schema templates as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaTemplates"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no schema templates",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The templates changed after the copy this change was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a template is not valid",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6135,6 +6373,22 @@
           }
         }
       },
+      "AdminChecks": {
+        "type": "object",
+        "description": "Checks as the Admin API wraps them.",
+        "required": [
+          "checks"
+        ],
+        "properties": {
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostCheck"
+            },
+            "description": "The one post's check."
+          }
+        }
+      },
       "AdminComment": {
         "type": "object",
         "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",
@@ -6568,6 +6822,45 @@
           }
         }
       },
+      "AdminSchemaTemplate": {
+        "type": "object",
+        "description": "One schema template as the Admin API sends and takes it.",
+        "required": [
+          "applies_to",
+          "name",
+          "type"
+        ],
+        "properties": {
+          "applies_to": {
+            "$ref": "#/components/schemas/TemplateTarget",
+            "description": "Whether `name` is a collection or a category."
+          },
+          "name": {
+            "type": "string",
+            "description": "The collection or category whose posts get the node.",
+            "example": "guides"
+          },
+          "properties": {
+            "type": "object",
+            "description": "Each property's value, by property name. A value may use the title\ntemplate variables, such as `{title}` and `{site}`.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "provider": "{site}"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "The schema.org type, such as `Course`.",
+            "example": "Course"
+          }
+        },
+        "additionalProperties": false
+      },
       "AdminWebhook": {
         "type": "object",
         "description": "A webhook as the Admin API lists it. Its secret is never listed.",
@@ -6950,6 +7243,11 @@
           }
         ],
         "description": "What the admin passes to `navigator.credentials.create`, as\n`{\"publicKey\": {...}}`."
+      },
+      "CustomJsonLd": {
+        "type": "string",
+        "description": "JSON-LD written by hand for a type Khalid does not write itself, kept\nas written. It is read as schema.org nodes before it is kept, so a page\nnever carries JSON-LD a search engine would throw away.",
+        "example": "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}"
       },
       "EditPosts": {
         "type": "object",
@@ -7781,6 +8079,34 @@
         ],
         "description": "A published post in API shape. Bodies are present only when asked for\nwith `formats`."
       },
+      "PostCheck": {
+        "type": "object",
+        "description": "One post's check: findings and score, snippet and schema.",
+        "required": [
+          "id",
+          "lint",
+          "snippet",
+          "schema"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The post's identity."
+          },
+          "lint": {
+            "type": "object",
+            "description": "Every finding, as `khalid lint --json` prints them for one post,\nwith `blocks` and the post's `score` out of 100 and the rules that\ncost it points."
+          },
+          "schema": {
+            "type": "object",
+            "description": "The JSON-LD the page would carry: `@context` and `@graph`."
+          },
+          "snippet": {
+            "$ref": "#/components/schemas/Snippet",
+            "description": "The search result the page would make."
+          }
+        }
+      },
       "PostEdit": {
         "type": "object",
         "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value, and `null`\nclears one that may be empty. A `status` of `published` publishes a\ndraft, once the linter lets it through; `scheduled` with a future\n`published_at` publishes it then, and `draft` takes a scheduled post\noff its schedule and a live post down.",
@@ -8057,6 +8383,14 @@
             "type": "boolean",
             "description": "Whether the post is featured in lists and the featured channel."
           },
+          "focus_keyword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The one search phrase the post is written to answer, which the\nlinter checks the title, description and text against.",
+            "example": "anchor text"
+          },
           "head_code": {
             "type": [
               "string",
@@ -8080,6 +8414,28 @@
             ],
             "description": "The post's own robots directives, in place of the site's.",
             "example": "noindex, nofollow"
+          },
+          "schema": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CustomJsonLd",
+                "description": "Hand-written JSON-LD the page carries beside the schema Khalid\nwrites, for a type Khalid does not write itself."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seo_title": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchTitle",
+                "description": "The title search results show, in place of the site's title\ntemplate, or `null` for the template's."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "share_cards": {
             "$ref": "#/components/schemas/ShareCards",
@@ -8333,6 +8689,50 @@
         },
         "additionalProperties": false
       },
+      "SchemaTemplates": {
+        "type": "object",
+        "description": "The site's schema templates, in the order `site.toml` lists them.",
+        "required": [
+          "templates",
+          "collections",
+          "updated_at",
+          "restart_needed"
+        ],
+        "properties": {
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The site's collections, to pick a template's collection from.",
+            "example": [
+              "posts",
+              "guides"
+            ]
+          },
+          "restart_needed": {
+            "type": "boolean",
+            "description": "Whether the running server still uses older templates, so a restart\nis needed before previews and served pages show these."
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSchemaTemplate"
+            },
+            "description": "Every template. When two of one type cover a post, the first wins."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When `site.toml` last changed. A change sends it back."
+          }
+        }
+      },
+      "SearchTitle": {
+        "type": "string",
+        "description": "The title search results show for a post, in place of the site's title\ntemplate. It may use the template variables, such as `{site}`.",
+        "example": "Anchor text that says where it goes {sep} {site}"
+      },
       "SessionAnswer": {
         "type": "object",
         "description": "A signed-in session: who it is, and the CSRF token every request with\nthe cookie sends in `x-khalid-csrf`.",
@@ -8468,6 +8868,14 @@
             ],
             "description": "Whether the post is featured."
           },
+          "focus_keyword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new focus keyword, or `null` for none.",
+            "example": "anchor text"
+          },
           "head_code": {
             "type": [
               "string",
@@ -8502,6 +8910,22 @@
             ],
             "description": "New robots directives, or `null` for the site's.",
             "example": "noindex, nofollow"
+          },
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New hand-written JSON-LD, or `null` for none.",
+            "example": "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}"
+          },
+          "seo_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new search title, or `null` for the site's title template.",
+            "example": "Anchor text that says where it goes {sep} {site}"
           },
           "share_cards": {
             "oneOf": [
@@ -8629,6 +9053,32 @@
           }
         }
       },
+      "Snippet": {
+        "type": "object",
+        "description": "The lines of a search result: the title, the address and the\ndescription, as the page's head gives them.",
+        "required": [
+          "title",
+          "url",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "The meta description, or empty when the page has none.",
+            "example": "Pick words that say where the link goes."
+          },
+          "title": {
+            "type": "string",
+            "description": "The `<title>`, after the site's title template.",
+            "example": "Choosing anchor text | Field Notes on SEO"
+          },
+          "url": {
+            "type": "string",
+            "description": "The canonical address.",
+            "example": "https://www.example.com/blog/choosing-anchor-text/"
+          }
+        }
+      },
       "StaffAccount": {
         "type": "object",
         "description": "A staff account as the Admin API shows it.",
@@ -8699,6 +9149,37 @@
             "description": "The entries on this page, or the one entry asked for."
           }
         }
+      },
+      "TemplateTarget": {
+        "type": "string",
+        "description": "What a schema template's `name` names.",
+        "enum": [
+          "collection",
+          "category"
+        ]
+      },
+      "TemplatesChange": {
+        "type": "object",
+        "description": "A new list of schema templates, made on the copy `updated_at` names.",
+        "required": [
+          "templates",
+          "updated_at"
+        ],
+        "properties": {
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSchemaTemplate"
+            },
+            "description": "Every template, in order. An empty list removes them all."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy the change was made on."
+          }
+        },
+        "additionalProperties": false
       },
       "Term": {
         "type": "object",
