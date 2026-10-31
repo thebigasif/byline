@@ -453,9 +453,9 @@ impl Site {
         Ok(Self::admin_post(&found)?.with_updated_by(by))
     }
 
-    /// Removes post `id` when its file has not changed since `seen`. A post
-    /// kept as a folder, `index.md` with its images beside it, goes with
-    /// the whole folder.
+    /// Moves post `id` to the trash when its file has not changed since
+    /// `seen`. A post kept as a folder, `index.md` with its images beside
+    /// it, goes with the whole folder.
     fn delete_now(&self, id: &str, seen: DateTime<Utc>) -> Result<AdminPost, DeletePostError> {
         let _writing = self.seen.lock().unwrap_or_else(PoisonError::into_inner);
         let found = self.find(id)?.ok_or(DeletePostError::NotFound)?;
@@ -475,11 +475,7 @@ impl Site {
             let collection = folder.parent().and_then(Path::file_name);
             found.status == PostStatus::Published && index && collection == Some("posts".as_ref())
         });
-        match folder {
-            Some(folder) => fs::remove_dir_all(folder),
-            None => fs::remove_file(&found.path),
-        }
-        .map_err(PostStoreError::new)?;
+        self.keep(folder.unwrap_or(&found.path), id)?;
         Ok(post)
     }
 
@@ -594,6 +590,9 @@ fn failure(what: &str) -> PostStoreError {
 
 #[path = "site_posts_list.rs"]
 mod list;
+
+#[path = "site_trash.rs"]
+mod trash;
 
 #[cfg(test)]
 #[path = "site_posts_tests.rs"]

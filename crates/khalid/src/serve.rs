@@ -176,7 +176,7 @@ fn serve_with(
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
         let shown_pages = router(live.clone(), security.clone());
-        let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
+        let ((comments, moderation), (door, posts), (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
             media_library::open(site, config, keys.bucket, outbound),
@@ -189,7 +189,7 @@ fn serve_with(
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
         let desks = (moderation, media, desk);
-        let apis = api_router((content, door), desks, (database, id, config));
+        let apis = api_router((content, door, posts), desks, (database, id, config));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -221,7 +221,7 @@ fn serve_with(
 /// comment moderation, media library, stored redirects, webhooks and staff
 /// accounts of site `id`.
 fn api_router(
-    (content, door): (LiveContent, Arc<PublishDoor>),
+    (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
     (database, id, config): (&Database, SiteId, &Config),
 ) -> Router {
@@ -237,7 +237,7 @@ fn api_router(
             id,
             SystemClock,
         ))),
-        trash: None,
+        trash: Some(Arc::new(posts)),
         audit: Some(AuditDesk::new(
             Arc::new(AuditTable::new(database.clone(), id)),
             SystemClock,
@@ -305,15 +305,15 @@ async fn publish_door(
     (site, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
     telling: SiteAnnounce,
-) -> Result<Arc<PublishDoor>, (UserMessage, Exit)> {
+) -> Result<(Arc<PublishDoor>, SitePosts), (UserMessage, Exit)> {
     let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
     let posts = SitePosts::new(site, config.clone(), SystemClock);
     let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
     let signer = preview::signer(config, (database, id, &file)).await;
-    let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
+    let door = PublishDoor::new(Arc::new(posts.clone()), Arc::new(telling))
         .with_schedules(schedules, SystemClock)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
-    Ok(Arc::new(door))
+    Ok((Arc::new(door), posts))
 }
 
 /// `pages`, the site's page router, with the password form and the cookie
