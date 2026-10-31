@@ -131,7 +131,7 @@ struct Blocked {
 #[derive(Debug)]
 pub(crate) struct Announcing {
     sending: Sending,
-    retrying: Background,
+    retrying: Option<Background>,
 }
 
 impl Announcing {
@@ -139,7 +139,9 @@ impl Announcing {
     /// finish. A webhook delivery cut off is in the log, and is tried
     /// again after the next start.
     pub(crate) async fn stop(self) {
-        self.retrying.stop().await;
+        if let Some(retrying) = self.retrying {
+            retrying.stop().await;
+        }
         let sending =
             std::mem::take(&mut *self.sending.lock().unwrap_or_else(PoisonError::into_inner));
         if tokio::time::timeout(GRACE, sending.join_all())
@@ -165,6 +167,33 @@ pub(crate) fn start(
     (db, site): (&Database, SiteId),
     outbound: &Outbound,
 ) -> Result<(SiteAnnounce, Announcing), UserMessage> {
+    let (telling, mut announcing) = once(config, (db, site), outbound)?;
+    let receivers = &telling.receivers;
+    let list = {
+        let webhooks = receivers.webhooks.clone();
+        move || {
+            let webhooks = webhooks.clone();
+            async move { webhooks.list().await }
+        }
+    };
+    let retrying = retry_deliveries(Arc::clone(&receivers.dispatcher), list, RETRY_EVERY);
+    announcing.retrying = Some(retrying);
+    Ok((telling, announcing))
+}
+
+/// Starts announcing as [`start`] does, for a command that ends once its
+/// work is done, such as `khalid publish`: failed deliveries stay in the
+/// log for `khalid serve` to try again, and are not retried here.
+///
+/// # Errors
+///
+/// Returns a message when the `IndexNow` key file's address cannot be made
+/// from the site's address.
+pub(crate) fn once(
+    config: &Config,
+    (db, site): (&Database, SiteId),
+    outbound: &Outbound,
+) -> Result<(SiteAnnounce, Announcing), UserMessage> {
     let webhooks = WebhookTable::new(db.clone(), site, SystemClock);
     let log = DeliveryLog::new(db.clone(), site);
     let site_address = config.address().clone();
@@ -181,14 +210,6 @@ pub(crate) fn start(
         ),
         None => None,
     };
-    let list = {
-        let webhooks = webhooks.clone();
-        move || {
-            let webhooks = webhooks.clone();
-            async move { webhooks.list().await }
-        }
-    };
-    let retrying = retry_deliveries(Arc::clone(&dispatcher), list, RETRY_EVERY);
     let receivers = Arc::new(Receivers {
         config: config.clone(),
         webhooks,
@@ -201,6 +222,7 @@ pub(crate) fn start(
         receivers,
         sending: Arc::clone(&sending),
     };
+    let retrying = None;
     Ok((telling, Announcing { sending, retrying }))
 }
 

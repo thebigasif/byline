@@ -82,6 +82,10 @@ name = "serve_publish"
 required-features = ["test-util"]
 
 [[test]]
+name = "publish_cli"
+required-features = ["test-util"]
+
+[[test]]
 name = "serve_webhooks"
 required-features = ["test-util"]
 

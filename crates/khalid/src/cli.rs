@@ -91,10 +91,14 @@ pub(crate) enum Command {
         #[arg(long)]
         fix: bool,
     },
-    /// Lint a draft, then publish it. Refuses when a rule blocks it
+    /// Lint a draft, then publish it and tell the site's webhooks and
+    /// search engines. Refuses when a rule blocks it
     Publish {
         /// The slug of the draft to publish
         slug: Slug,
+        /// The language the draft is written in [default: the site's default language]
+        #[arg(long, value_name = "CODE")]
+        language: Option<Locale>,
     },
     /// Pull the main site's look again, or check a template override
     Theme {
