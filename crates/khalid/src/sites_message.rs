@@ -48,6 +48,30 @@ pub(crate) fn no_site(path: &Path) -> UserMessage {
     )
 }
 
+pub(crate) fn not_a_sites_folder(root: &Path) -> UserMessage {
+    UserMessage::new(
+        format!("{} serves one site, not many.", root.display()),
+        "A folder serves many sites once it has a sites.toml listing them.",
+        "Run khalid sites add with your first domain in this folder to start one.",
+    )
+}
+
+pub(crate) fn taken(domain: &str) -> UserMessage {
+    UserMessage::new(
+        format!("A site here already answers on {domain}."),
+        "Each domain leads to one site, so readers always reach the same one.",
+        "Choose another domain, or work on the site that has it.",
+    )
+}
+
+pub(crate) fn not_saved(path: &Path) -> UserMessage {
+    UserMessage::new(
+        format!("{} could not be saved.", path.display()),
+        SERVED_FROM,
+        "Check there is free disk space and that Khalid may write there, then try again.",
+    )
+}
+
 pub(crate) fn not_made(folder: &Path) -> UserMessage {
     UserMessage::new(
         format!("The site in {} could not be made.", folder.display()),

@@ -129,13 +129,7 @@ mod site_outline;
 mod site_page;
 mod site_pages;
 mod site_posts;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "khalid sites and serve say these later in this stack"
-    )
-)]
+mod sites;
 mod sites_message;
 mod slug_moves;
 mod slug_repair;
@@ -359,6 +353,10 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(init::run(folder, args, cli.output))
         }
         Some(Command::Agents) => Some(agents::run(cli.output)),
+        Some(Command::Sites { command }) => {
+            let root = cli.site.as_deref().unwrap_or(Path::new("."));
+            Some(sites::run(root, command, cli.output))
+        }
         Some(Command::Update { target }) => Some(update::run(*target, cli)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),

@@ -9,7 +9,9 @@ use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
 use khalid_webhooks::Event;
 
-pub(crate) use crate::cli_access::{KeyKindArg, KeysCommand, NewKeyArgs, OwnerArgs, StaffCommand};
+pub(crate) use crate::cli_access::{
+    KeyKindArg, KeysCommand, NewKeyArgs, OwnerArgs, SitesCommand, StaffCommand,
+};
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -188,6 +190,12 @@ pub(crate) enum Command {
         /// What to do with staff accounts
         #[command(subcommand)]
         command: StaffCommand,
+    },
+    /// Serve many sites from one folder: list them, add one, add a super admin
+    Sites {
+        /// What to do with the sites
+        #[command(subcommand)]
+        command: SitesCommand,
     },
     /// Bring the site's database up to date, or rebuild its index from the files
     Db {
@@ -514,6 +522,11 @@ impl Command {
             Self::Staff {
                 command: StaffCommand::Owner(_),
             } => "staff owner",
+            Self::Sites { command } => match command {
+                SitesCommand::List => "sites list",
+                SitesCommand::Add { .. } => "sites add",
+                SitesCommand::Admin { .. } => "sites admin",
+            },
             Self::Db {
                 command: DbCommand::Migrate,
             } => "db migrate",
