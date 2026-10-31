@@ -3,6 +3,7 @@
 use khalid_core::AbsoluteUrl;
 
 use crate::body_checks::body_issues;
+use crate::writing_checks::writing_issues;
 use crate::{Check, Crawl, Issue, Page, Robots, Thresholds, Visit};
 
 /// The longest title search results show in full, in characters.
@@ -21,6 +22,7 @@ pub(crate) fn page_issues(crawl: &Crawl, thresholds: Thresholds, issues: &mut Ve
             indexing(visit, page, &mut found);
             head(page, robots(visit, page), &mut found);
             body_issues(crawl, (visit, page), thresholds, &mut found);
+            writing_issues(page, thresholds, &mut found);
         }
     }
 }
