@@ -87,6 +87,7 @@ mod routes_message;
 mod scheduler;
 mod search_console;
 mod search_console_lost;
+mod search_console_post;
 mod search_console_report;
 mod search_index;
 mod search_page;
@@ -249,7 +250,7 @@ fn outside(
     match command {
         Command::Bing { command } => bing::run(config, env, *command, cli),
         Command::SearchConsole { command } => {
-            search_console::run((folder, config, content), env, *command, cli)
+            search_console::run((folder, config, content), env, command.clone(), cli)
         }
         _ => report::failure(cli.output, &not_built(command), Exit::Internal),
     }

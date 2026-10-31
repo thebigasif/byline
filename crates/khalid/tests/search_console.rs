@@ -311,3 +311,107 @@ async fn a_revoked_token_and_a_closed_property_are_explained_without_secrets() {
         "{said}"
     );
 }
+
+/// Lets `google` answer an inspection of the demo post `slug` with
+/// `verdict` and `coverage`.
+#[cfg(test)]
+async fn inspected(google: &MockServer, slug: &str, (verdict, coverage): (&str, &str)) {
+    let url = format!("https://www.example.com/blog/{slug}/");
+    let status = json!({ "inspectionResult": { "indexStatusResult": {
+        "verdict": verdict, "coverageState": coverage, "lastCrawlTime": "2026-10-20T08:01:02Z" } } });
+    Mock::given(method("POST"))
+        .and(path("/v1/urlInspection/index:inspect"))
+        .and(body_partial_json(json!({ "inspectionUrl": url })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(status))
+        .mount(google)
+        .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn one_post_shows_its_searches_and_whether_google_indexed_it() {
+    let google = MockServer::start().await;
+    grant(&google).await;
+    let indexed = ("PASS", "Submitted and indexed");
+    inspected(&google, "why-internal-links-matter", indexed).await;
+    let only = json!({ "dimensionFilterGroups": [{ "filters": [{ "dimension": "page",
+        "operator": "equals", "expression": "https://www.example.com/blog/why-internal-links-matter/" }] }] });
+    let rows = json!({ "rows": [{ "keys": ["internal links"],
+        "clicks": 40.0, "impressions": 900.0, "ctr": 0.044, "position": 5.1 }] });
+    Mock::given(method("POST"))
+        .and(path(ANALYTICS))
+        .and(body_partial_json(only))
+        .respond_with(ResponseTemplate::new(200).set_body_json(rows))
+        .mount(&google)
+        .await;
+    let site = demo_site(OPT_IN);
+    let args = ["post", "why-internal-links-matter"];
+    let output = khalid(site.path(), &google, Some(()), &args);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let said = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        said.contains("It is in Google's index (Submitted and indexed), last crawled 2026-10-20."),
+        "{said}"
+    );
+    assert!(
+        said.contains("- internal links: 40 clicks, 900 impressions, average position 5.1."),
+        "{said}"
+    );
+    assert!(
+        said.contains(
+            "Go deeper in SerpDad: https://app.serpdad.com/go-deeper?question=what-to-write-next"
+        ),
+        "{said}"
+    );
+
+    let output = khalid(site.path(), &google, Some(()), &["post", "no-such-post"]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let said = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        said.contains("No published post has the slug no-such-post."),
+        "{said}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn index_asks_about_every_published_post() {
+    let google = MockServer::start().await;
+    grant(&google).await;
+    let left_out = ("NEUTRAL", "Crawled - currently not indexed");
+    inspected(&google, "what-a-sitemap-does", left_out).await;
+    let status = json!({ "inspectionResult": { "indexStatusResult": {
+        "verdict": "PASS", "coverageState": "Submitted and indexed" } } });
+    Mock::given(method("POST"))
+        .and(path("/v1/urlInspection/index:inspect"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(status))
+        .with_priority(10)
+        .mount(&google)
+        .await;
+    let site = demo_site(OPT_IN);
+    let output = khalid(site.path(), &google, Some(()), &["index", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let posts = body.as_array().unwrap();
+    let asked = google.received_requests().await.unwrap();
+    let inspections = asked
+        .iter()
+        .filter(|r| r.url.path().starts_with("/v1/"))
+        .count();
+    assert_eq!(inspections, posts.len());
+    let not_in: Vec<&Value> = posts
+        .iter()
+        .filter(|post| post["indexed"] == false)
+        .collect();
+    assert_eq!(not_in.len(), 1);
+    assert_eq!(not_in[0]["coverage"], "Crawled - currently not indexed");
+
+    let output = khalid(site.path(), &google, Some(()), &["index"]);
+    let said = String::from_utf8(output.stdout).unwrap();
+    let all = posts.len();
+    assert!(
+        said.starts_with(&format!(
+            "{} of {all} posts are in Google's index.",
+            all - 1
+        )),
+        "{said}"
+    );
+}

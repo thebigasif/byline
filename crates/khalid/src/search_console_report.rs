@@ -8,7 +8,7 @@ use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::SiteContent;
-use khalid_core::{Config, Indexing};
+use khalid_core::{Config, Indexing, Slug};
 use khalid_outbound::Outbound;
 use khalid_search_console::{
     Change, Decay, PageNumbers, Question, SearchConsole, Window, decaying, go_deeper, movers,
@@ -33,6 +33,7 @@ pub(crate) struct LivePost {
     pub(crate) address: String,
     /// Whether its front matter keeps it out of search results.
     pub(crate) noindex: bool,
+    pub(crate) slug: Slug,
 }
 
 /// The JSON shape of a report.
@@ -144,7 +145,7 @@ pub(crate) fn run(
 }
 
 /// Every dated post of the site, in the content index's order.
-fn live_posts(
+pub(crate) fn live_posts(
     folder: &Path,
     config: &Config,
     content: &SiteContent,
@@ -166,6 +167,7 @@ fn live_posts(
                 build_pages::path_of(config, &row.locale, &format!("{}/", row.slug))
             ),
             noindex: hidden.contains(&row.path),
+            slug: row.slug.clone(),
         })
         .collect())
 }

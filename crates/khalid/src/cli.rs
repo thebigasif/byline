@@ -227,7 +227,7 @@ pub(crate) enum Command {
 }
 
 /// The Search Console commands, for the property `[search_console]` names.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub(crate) enum SearchConsoleCommand {
     /// Sign in to Google and check that the property can be read
     Check,
@@ -235,6 +235,15 @@ pub(crate) enum SearchConsoleCommand {
     /// position for the last 28 days, posts in decay, and the week's
     /// winners and losers
     Report,
+    /// Show one post's numbers, the searches that showed it, and whether
+    /// Google has it in its index
+    Post {
+        /// The slug of the published post
+        slug: Slug,
+    },
+    /// Ask Google whether each published post is in its index, up to 200
+    /// posts a run, within Google's daily quota of 2,000
+    Index,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in

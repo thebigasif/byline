@@ -76,6 +76,12 @@ impl Command {
             Self::SearchConsole {
                 command: SearchConsoleCommand::Report,
             } => "search-console report",
+            Self::SearchConsole {
+                command: SearchConsoleCommand::Post { .. },
+            } => "search-console post",
+            Self::SearchConsole {
+                command: SearchConsoleCommand::Index,
+            } => "search-console index",
         }
     }
 }
