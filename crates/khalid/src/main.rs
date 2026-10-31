@@ -39,6 +39,7 @@ mod config_message;
 mod consent_route;
 mod content_feed;
 mod content_message;
+mod crawl_alerts;
 mod crawler_lists;
 mod db;
 mod db_export;
