@@ -58,6 +58,9 @@ export function Shell() {
               <Link to="/webhooks">{en.nav.webhooks}</Link>
             </li>
             <li>
+              <Link to="/team">{en.nav.team}</Link>
+            </li>
+            <li>
               <Link to="/settings">{en.nav.settings}</Link>
             </li>
           </ul>
