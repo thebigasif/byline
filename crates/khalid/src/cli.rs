@@ -275,12 +275,14 @@ pub(crate) struct ServeArgs {
     /// The address and port to answer on over plain HTTP
     #[arg(long, value_name = "ADDRESS", default_value = "127.0.0.1:8080")]
     pub(crate) listen: SocketAddr,
+    /// Make the site first when the folder has none, at the address in `KHALID_ADDRESS`
+    #[arg(long)]
+    pub(crate) init: bool,
     /// Answer over HTTPS for this domain on ports 443 and 80, with a free
     /// certificate from Let's Encrypt that Khalid gets and renews
     #[arg(long, value_name = "DOMAIN", conflicts_with = "listen")]
     pub(crate) domain: Option<Domain>,
-    /// Agree to Let's Encrypt's subscriber agreement without being asked,
-    /// such as in a service or a container
+    /// Agree to Let's Encrypt's subscriber agreement unasked, as in a service or a container
     #[arg(long, requires = "domain")]
     pub(crate) accept_terms: bool,
     /// The address for HTTPS instead of port 443 on every address

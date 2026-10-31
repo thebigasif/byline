@@ -48,6 +48,15 @@ pub(crate) fn needs_address() -> UserMessage {
     )
 }
 
+/// The message when `serve --init` finds no site and no `KHALID_ADDRESS`.
+pub(crate) fn needs_start_address() -> UserMessage {
+    UserMessage::new(
+        "Khalid needs KHALID_ADDRESS to make the site on its first start.",
+        "The folder holds no site yet, and every link on the blog starts with its address.",
+        "Set KHALID_ADDRESS to the blog's address, such as https://blog.example.com, and start again.",
+    )
+}
+
 /// The message when the questions stopped before the last answer.
 pub(crate) fn no_answer() -> UserMessage {
     UserMessage::new(
