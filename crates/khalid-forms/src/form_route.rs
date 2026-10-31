@@ -48,7 +48,8 @@ pub struct FormRoute<S> {
     pub stylesheet: String,
 }
 
-/// The routes `POST <mount>forms/{id}`, which keeps a form's answers, and
+/// The routes `POST <mount>forms/{id}`, which keeps a form's answers and
+/// hands them to [`FormRoute::delivery`], and
 /// `GET <mount>forms/{id}/sent`, the thank-you page a kept answer is sent
 /// on to with 303, so reloading it sends nothing twice. Bait goes there
 /// too and is kept nowhere. Anything else answers a page saying why. It
