@@ -105,10 +105,14 @@ export type AdminPost = {
   title: string;
   /** When it comes down again, if it is scheduled to. */
   unpublish_at?: string | null;
+  /** The day of the last real update readers see, which only an edit with `real_update` moves. Empty until the first one. */
+  updated?: string | null;
   /** When it last changed. An edit sends this back unchanged. */
   updated_at: string;
   /** Who made the last change: a staff name or a key's identity. */
   updated_by?: string | null;
+  /** What changed in the last real update, shown beside its date. */
+  updated_note?: string | null;
 };
 
 /** Posts as the Admin API wraps them. */
@@ -571,6 +575,7 @@ export type PostEdit = {
   markdown?: string | null;
   /** When a `scheduled` post goes live: a time to come, with its offset, such as `2026-11-03T09:00:00+01:00`. */
   published_at?: string | null;
+  real_update?: RealUpdate | null;
   settings?: SettingsEdit | null;
   /** A new slug. No other post may have it. */
   slug?: string | null;
@@ -693,6 +698,12 @@ export type Problem = {
   title: string;
   /** A link to the page that explains this kind of problem. */
   type: string;
+};
+
+/** An edit's claim that it is a real update: it changes what a live post says, and `note` tells readers what. Only then does the post's updated date become today. Title, description and settings edits alone never move it. */
+export type RealUpdate = {
+  /** What changed, in one short sentence, such as "Refreshed the 2024 numbers." Shown beside the updated date. At most 160 characters. */
+  note: string;
 };
 
 /** Why an address answers what it answers: the debug view. */

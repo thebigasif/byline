@@ -219,13 +219,6 @@ fn run(cli: &Cli) -> Exit {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
             lint::run(folder, path.as_deref(), mode, cli.output)
         }
-        (Some(Command::New(args)), Some((folder, config, ..))) => new::run(
-            folder,
-            config,
-            NewPost::from(args),
-            &SystemClock,
-            cli.output,
-        ),
         (
             Some(asked @ (Command::Build { .. } | Command::Export | Command::Audit { .. })),
             Some((folder, config, routes, (content, _))),
@@ -242,7 +235,8 @@ fn run(cli: &Cli) -> Exit {
             Some(
                 command @ (Command::Theme { .. }
                 | Command::Publish { .. }
-                | Command::Newsletter { .. }),
+                | Command::Newsletter { .. }
+                | Command::New(_)),
             ),
             Some((folder, config, ..)),
         ) => on_settings(folder, config, command, cli),
@@ -274,9 +268,16 @@ fn run(cli: &Cli) -> Exit {
 }
 
 /// Runs the commands that need only a checked site's settings: `theme`,
-/// `publish` and `newsletter`.
+/// `publish`, `newsletter` and `new`.
 fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
     match command {
+        Command::New(args) => new::run(
+            folder,
+            config,
+            NewPost::from(args),
+            &SystemClock,
+            cli.output,
+        ),
         Command::Newsletter { command } => newsletter_cli::run(cli, (folder, config), command),
         Command::Theme { command } => theme(folder, config, command, cli),
         Command::Publish { slug, language } => {
