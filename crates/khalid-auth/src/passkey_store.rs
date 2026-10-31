@@ -5,27 +5,23 @@ use std::error::Error;
 use chrono::{DateTime, Utc};
 use khalid_api::content_store::BoxFuture;
 
-use crate::{AccountId, PublicKey, Registration};
+use crate::{AccountId, SavedPasskey};
 
 /// A passkey as the store keeps it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoredPasskey {
     /// Whose passkey it is.
     pub account: AccountId,
-    /// The authenticator's name for it.
-    pub credential_id: Vec<u8>,
-    /// Its public key.
-    pub public_key: PublicKey,
-    /// Its signature counter so far.
-    pub sign_count: u32,
+    /// The passkey, as `webauthn-rs` saves it.
+    pub passkey: SavedPasskey,
     /// The name the person gave it, such as "Work laptop".
     pub name: String,
 }
 
 /// The passkeys of one site. `khalid-db` keeps them in `passkeys`.
 pub trait PasskeyStore: Send + Sync {
-    /// Stores `registration` as a passkey of `account` named `name`, made
-    /// at `at`. Returns `false`, storing nothing, when a passkey with this
+    /// Stores `passkey` as a passkey of `account` named `name`, made at
+    /// `at`. Returns `false`, storing nothing, when a passkey with this
     /// credential is already stored.
     ///
     /// # Errors
@@ -34,7 +30,7 @@ pub trait PasskeyStore: Send + Sync {
     fn add<'a>(
         &'a self,
         account: AccountId,
-        registration: &'a Registration,
+        passkey: &'a SavedPasskey,
         name: &'a str,
         at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<bool, PasskeyStoreError>>;
@@ -59,16 +55,15 @@ pub trait PasskeyStore: Send + Sync {
         account: AccountId,
     ) -> BoxFuture<'_, Result<Vec<StoredPasskey>, PasskeyStoreError>>;
 
-    /// Records a sign-in with this credential at `at`, with its new
-    /// counter.
+    /// Records a sign-in at `at` with the passkey of the same credential,
+    /// saving `passkey` as it now stands, with its new counter.
     ///
     /// # Errors
     ///
     /// Returns [`PasskeyStoreError`] when the store cannot be written.
     fn used<'a>(
         &'a self,
-        credential_id: &'a [u8],
-        sign_count: u32,
+        passkey: &'a SavedPasskey,
         at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<(), PasskeyStoreError>>;
 }

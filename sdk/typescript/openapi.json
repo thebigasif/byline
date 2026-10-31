@@ -6943,50 +6943,13 @@
         }
       },
       "CreateOptions": {
-        "type": "object",
-        "description": "What the admin passes to `navigator.credentials.create`.",
-        "required": [
-          "challenge",
-          "rp_id",
-          "user_id",
-          "exclude",
-          "algorithms",
-          "timeout_ms"
-        ],
-        "properties": {
-          "algorithms": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int64"
-            },
-            "description": "The key algorithms Khalid accepts, by their `WebAuthn` numbers:\nES256, then `EdDSA`."
-          },
-          "challenge": {
-            "type": "string",
-            "description": "The challenge to sign."
-          },
-          "exclude": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Passkeys the account already has."
-          },
-          "rp_id": {
-            "type": "string",
-            "description": "The site's host name."
-          },
-          "timeout_ms": {
-            "type": "integer",
-            "format": "int64",
-            "description": "How long the browser may wait, in milliseconds."
-          },
-          "user_id": {
-            "type": "string",
-            "description": "The account's handle for authenticators."
+        "allOf": [
+          {
+            "type": "object",
+            "description": "The options, in `publicKey`."
           }
-        }
+        ],
+        "description": "What the admin passes to `navigator.credentials.create`, as\n`{\"publicKey\": {...}}`."
       },
       "EditPosts": {
         "type": "object",
@@ -7117,28 +7080,13 @@
         ]
       },
       "GetOptions": {
-        "type": "object",
-        "description": "What the admin passes to `navigator.credentials.get`.",
-        "required": [
-          "challenge",
-          "rp_id",
-          "timeout_ms"
-        ],
-        "properties": {
-          "challenge": {
-            "type": "string",
-            "description": "The challenge to sign."
-          },
-          "rp_id": {
-            "type": "string",
-            "description": "The site's host name."
-          },
-          "timeout_ms": {
-            "type": "integer",
-            "format": "int64",
-            "description": "How long the browser may wait, in milliseconds."
+        "allOf": [
+          {
+            "type": "object",
+            "description": "The options, in `publicKey`, and how the browser should ask."
           }
-        }
+        ],
+        "description": "What the admin passes to `navigator.credentials.get`, as\n`{\"publicKey\": {...}, \"mediation\": \"conditional\"}`."
       },
       "GlossaryTerms": {
         "type": "object",
@@ -7446,17 +7394,17 @@
         "description": "A new passkey, as `navigator.credentials.create` returned it.",
         "required": [
           "name",
-          "client_data",
-          "attestation_object"
+          "challenge",
+          "credential"
         ],
         "properties": {
-          "attestation_object": {
+          "challenge": {
             "type": "string",
-            "description": "`attestationObject`."
+            "description": "The `challenge` of the options it answers, as they gave it."
           },
-          "client_data": {
-            "type": "string",
-            "description": "`clientDataJSON`."
+          "credential": {
+            "type": "object",
+            "description": "The credential's `toJSON()`."
           },
           "name": {
             "type": "string",
@@ -7713,27 +7661,17 @@
         "type": "object",
         "description": "A sign-in, as `navigator.credentials.get` returned it.",
         "required": [
-          "credential_id",
-          "client_data",
-          "authenticator_data",
-          "signature"
+          "challenge",
+          "credential"
         ],
         "properties": {
-          "authenticator_data": {
+          "challenge": {
             "type": "string",
-            "description": "`authenticatorData`."
+            "description": "The `challenge` of the options it answers, as they gave it."
           },
-          "client_data": {
-            "type": "string",
-            "description": "`clientDataJSON`."
-          },
-          "credential_id": {
-            "type": "string",
-            "description": "The credential's `rawId`."
-          },
-          "signature": {
-            "type": "string",
-            "description": "`signature`."
+          "credential": {
+            "type": "object",
+            "description": "The credential's `toJSON()`."
           }
         },
         "additionalProperties": false

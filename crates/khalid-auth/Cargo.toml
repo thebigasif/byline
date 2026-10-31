@@ -30,6 +30,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 utoipa = "6"
 utoipa-axum = "0.3"
+webauthn-rs = { version = "0.6.1-dev", default-features = false, features = ["conditional-ui"] }
 
 [dev-dependencies]
 khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
@@ -37,6 +38,8 @@ khalid-auth = { path = ".", version = "0.0.0", features = ["test-util"] }
 khalid-core = { workspace = true, features = ["test-util"] }
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
+webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softpasskey"] }
+webauthn-rs-proto = "0.6.1-dev"
 
 [lints]
 workspace = true

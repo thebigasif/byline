@@ -17,6 +17,7 @@ mod magic_link;
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
 mod passkey;
+mod passkey_site;
 mod passkey_store;
 mod password;
 mod permission;
@@ -27,9 +28,7 @@ mod session_door;
 pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
 };
-pub use accounts::{
-    Accounts, CEREMONY, FRESH, Links, Passkeys, RegistrationRequest, SignInError, SignedIn,
-};
+pub use accounts::{Accounts, CEREMONY, FRESH, Links, Passkeys, SignInError, SignedIn};
 pub use email::{Email, ParseEmailError};
 pub use limiter::{MAX_FAILURES, SignInLimiter, WINDOW};
 pub use magic_link::{
@@ -41,6 +40,7 @@ pub use passkey::{
     AuthenticatorData, Challenge, PasskeyError, PublicKey, Registration, RelyingParty,
     verify_assertion, verify_registration,
 };
+pub use passkey_site::{PasskeyCheckError, PasskeySite, Registering, SavedPasskey, SigningIn};
 pub use passkey_store::{PasskeyStore, PasskeyStoreError, StoredPasskey};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
@@ -50,4 +50,10 @@ pub use routes::staff_routes;
 pub use session::{
     CLEAR_COOKIE, COOKIE, CSRF_HEADER, CsrfToken, IDLE, LIFETIME, SessionError, SessionHash,
     SessionStore, SessionStoreError, SessionToken, StoredSession,
+};
+/// The `webauthn-rs` types the passkey ceremonies send and receive, so
+/// callers name the same version.
+pub use webauthn_rs::prelude::{
+    CreationChallengeResponse, PublicKeyCredential, RegisterPublicKeyCredential,
+    RequestChallengeResponse, WebauthnError,
 };

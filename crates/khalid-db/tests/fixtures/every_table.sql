@@ -49,9 +49,9 @@ INSERT INTO users (id, site_id, email, name, role, created_at) VALUES
 INSERT INTO sessions (site_id, user_id, token_hash, created_at, expires_at) VALUES
     (1, 1, randomblob(32), '2026-10-26T09:00:00Z', '2026-11-26T09:00:00Z'),
     (2, 2, randomblob(32), '2026-10-26T09:00:00Z', '2026-11-26T09:00:00Z');
-INSERT INTO passkeys (site_id, user_id, credential_id, public_key, sign_count, name, created_at) VALUES
-    (1, 1, randomblob(16), randomblob(33), 0, 'Laptop', '2026-10-26T09:00:00Z'),
-    (2, 2, randomblob(16), randomblob(33), 0, 'Laptop', '2026-10-26T09:00:00Z');
+INSERT INTO passkeys (site_id, user_id, credential_id, credential, name, created_at) VALUES
+    (1, 1, randomblob(16), '{"cred":{}}', 'Laptop', '2026-10-26T09:00:00Z'),
+    (2, 2, randomblob(16), '{"cred":{}}', 'Laptop', '2026-10-26T09:00:00Z');
 INSERT INTO magic_links (site_id, user_id, token_hash, created_at, expires_at) VALUES
     (1, 1, randomblob(32), '2026-10-26T09:00:00Z', '2026-10-26T09:15:00Z'),
     (2, 2, randomblob(32), '2026-10-26T09:00:00Z', '2026-10-26T09:15:00Z');
