@@ -5,10 +5,18 @@ import { problemMessage } from "../api/posts";
 import { isData } from "../api/redirects";
 import { Problem } from "../components/Problem";
 import { en, type UserMessage } from "../strings/en";
+import { FocalFields } from "./FocalFields";
+import { FocalPicture } from "./FocalPicture";
+import type { Percent } from "./focal";
 
 type Props = { item: MediaItem };
 
-type Draft = { alt: string; caption: string; folder: string };
+type Draft = { alt: string; caption: string; folder: string; point: Percent };
+
+/** The item's focal point in whole percent. */
+function shown(item: MediaItem): Percent {
+  return { x: Math.round(item.focal_point.x / 10), y: Math.round(item.focal_point.y / 10) };
+}
 
 /** The fields that changed from `item`, on the copy its `updated_at` names. */
 function changes(item: MediaItem, draft: Draft): MediaEdit {
@@ -22,10 +30,14 @@ function changes(item: MediaItem, draft: Draft): MediaEdit {
   if (draft.folder.trim() !== item.folder) {
     edit.folder = draft.folder.trim();
   }
+  const before = shown(item);
+  if (draft.point.x !== before.x || draft.point.y !== before.y) {
+    edit.focal_point = { x: draft.point.x * 10, y: draft.point.y * 10 };
+  }
   return edit;
 }
 
-/** One file's alt text, caption and folder, saved together. */
+/** One file's alt text, caption, folder and focal point, saved together. */
 export function DetailsForm({ item }: Props) {
   const words = en.media.details;
   const queries = useQueryClient();
@@ -34,6 +46,7 @@ export function DetailsForm({ item }: Props) {
     alt: item.alt,
     caption: item.caption,
     folder: item.folder,
+    point: shown(item),
   });
   // The copy the next edit is made on; it moves on with each save.
   const [saved, setSaved] = useState(item);
@@ -41,6 +54,7 @@ export function DetailsForm({ item }: Props) {
   const [done, setDone] = useState<string | null>(null);
   const [failed, setFailed] = useState<UserMessage | null>(null);
   const change = (fields: Partial<Draft>) => setDraft({ ...draft, ...fields });
+  const point = (moved: Percent) => change({ point: moved });
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -63,54 +77,58 @@ export function DetailsForm({ item }: Props) {
   };
 
   return (
-    <section className="focus" aria-labelledby="details-title">
-      <h2 id="details-title">{words.title}</h2>
-      {failed === null ? null : <Problem message={failed} />}
-      <form onSubmit={save}>
-        {image ? (
+    <div className="layout">
+      {image ? <FocalPicture item={item} point={draft.point} onChange={point} /> : null}
+      <section className="focus" aria-labelledby="details-title">
+        <h2 id="details-title">{words.title}</h2>
+        {failed === null ? null : <Problem message={failed} />}
+        <form onSubmit={save}>
+          {image ? (
+            <div className="field">
+              <label htmlFor="media-alt">{words.alt}</label>
+              <span className="hint" id="media-alt-hint">
+                {words.altHint}
+              </span>
+              <textarea
+                id="media-alt"
+                rows={3}
+                aria-describedby="media-alt-hint"
+                value={draft.alt}
+                onChange={(event) => change({ alt: event.target.value })}
+              />
+            </div>
+          ) : null}
           <div className="field">
-            <label htmlFor="media-alt">{words.alt}</label>
-            <span className="hint" id="media-alt-hint">
-              {words.altHint}
+            <label htmlFor="media-caption">{words.caption}</label>
+            <span className="hint" id="media-caption-hint">
+              {words.captionHint}
             </span>
-            <textarea
-              id="media-alt"
-              rows={3}
-              aria-describedby="media-alt-hint"
-              value={draft.alt}
-              onChange={(event) => change({ alt: event.target.value })}
+            <input
+              id="media-caption"
+              aria-describedby="media-caption-hint"
+              value={draft.caption}
+              onChange={(event) => change({ caption: event.target.value })}
             />
           </div>
-        ) : null}
-        <div className="field">
-          <label htmlFor="media-caption">{words.caption}</label>
-          <span className="hint" id="media-caption-hint">
-            {words.captionHint}
-          </span>
-          <input
-            id="media-caption"
-            aria-describedby="media-caption-hint"
-            value={draft.caption}
-            onChange={(event) => change({ caption: event.target.value })}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="media-folder">{en.media.library.folder}</label>
-          <span className="hint" id="media-folder-hint">
-            {words.folderHint}
-          </span>
-          <input
-            id="media-folder"
-            aria-describedby="media-folder-hint"
-            value={draft.folder}
-            onChange={(event) => change({ folder: event.target.value })}
-          />
-        </div>
-        <button type="submit" className="btn primary">
-          {words.save}
-        </button>
-      </form>
-      <p role="status">{busy ? words.saving : done}</p>
-    </section>
+          <div className="field">
+            <label htmlFor="media-folder">{en.media.library.folder}</label>
+            <span className="hint" id="media-folder-hint">
+              {words.folderHint}
+            </span>
+            <input
+              id="media-folder"
+              aria-describedby="media-folder-hint"
+              value={draft.folder}
+              onChange={(event) => change({ folder: event.target.value })}
+            />
+          </div>
+          {image ? <FocalFields point={draft.point} onChange={point} /> : null}
+          <button type="submit" className="btn primary">
+            {words.save}
+          </button>
+        </form>
+        <p role="status">{busy ? words.saving : done}</p>
+      </section>
+    </div>
   );
 }

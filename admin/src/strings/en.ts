@@ -68,6 +68,12 @@ export const en = {
       captionHint: "Optional. The line shown under it in a post.",
       folderHint:
         "Lowercase words joined by /, such as guides/2026. Empty means the top of the library. Its address stays the same.",
+      point: "Focal point",
+      pointHint:
+        "The ring marks the focal point, the part every crop keeps. Click the picture to move it, or type the two numbers.",
+      picture: "Move the focal point to where you click",
+      left: "From the left, in %",
+      top: "From the top, in %",
       save: "Save details",
       saving: "Saving",
       saved: "Saved.",

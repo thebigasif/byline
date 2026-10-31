@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { item, mediaBlog, mediaPage, pdf } from "../../test/media";
@@ -56,6 +56,33 @@ describe("a file's details", () => {
     expect(await axeViolations()).toEqual([]);
   });
 
+  it("moves the focal point by a click on the picture or by its numbers", async () => {
+    signedIn();
+    const { edits } = holding(item());
+    renderAt(`/media/${item().id}`);
+    const picture = await screen.findByRole("button", { name: words.picture });
+    // jsdom lays nothing out, so the picture is given a size of 200 by 100.
+    picture.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 100,
+      width: 200,
+      height: 100,
+      toJSON: () => ({}),
+    });
+    fireEvent.click(picture, { clientX: 50, clientY: 75, detail: 1 });
+    expect(screen.getByLabelText(words.left)).toHaveValue(25);
+    expect(screen.getByLabelText(words.top)).toHaveValue(75);
+    await userEvent.clear(screen.getByLabelText(words.left));
+    await userEvent.type(screen.getByLabelText(words.left), "62");
+    await userEvent.click(screen.getByRole("button", { name: words.save }));
+    expect(await screen.findByText(words.saved)).toBeVisible();
+    expect(edits[0]?.focal_point).toEqual({ x: 620, y: 750 });
+  });
+
   it("makes a second save on the copy the first one gave back", async () => {
     signedIn();
     const { edits } = holding(item());
@@ -76,12 +103,13 @@ describe("a file's details", () => {
     });
   });
 
-  it("asks a file for no alt text, and moves it to another folder", async () => {
+  it("asks a file for no alt text or focal point, and moves it to another folder", async () => {
     signedIn();
     const { edits } = holding(pdf());
     renderAt(`/media/${pdf().id}`);
     const folder = await screen.findByLabelText(en.media.library.folder);
     expect(screen.queryByLabelText(words.alt)).toBeNull();
+    expect(screen.queryByRole("button", { name: words.picture })).toBeNull();
     await userEvent.type(folder, "guides");
     await userEvent.click(screen.getByRole("button", { name: words.save }));
     expect(await screen.findByText(words.saved)).toBeVisible();
