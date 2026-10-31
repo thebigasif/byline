@@ -567,12 +567,13 @@ fn khalid_serve_answers_staff_sign_in_and_keeps_staff_tokens_working() {
     );
 }
 
-/// Runs `khalid --site <site> staff owner --json` with `email`.
+/// Runs `khalid --site <site> staff owner --json` with `email` and `args`.
 #[cfg(test)]
-fn owner(site: &Path, email: &str) -> (Option<i32>, Value) {
+fn owner(site: &Path, email: &str, args: &[&str]) -> (Option<i32>, Value) {
     let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
         .args(["--site", site.to_str().unwrap(), "--json", "staff", "owner"])
         .args(["--email", email, "--name", "Asif"])
+        .args(args)
         .output()
         .unwrap();
     let text = [output.stdout, output.stderr].concat();
@@ -580,16 +581,45 @@ fn owner(site: &Path, email: &str) -> (Option<i32>, Value) {
 }
 
 #[test]
+fn the_owner_link_also_names_where_khalid_serve_listens_by_default() {
+    let site = demo_copy();
+    let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.path().to_str().unwrap(), "staff", "owner"])
+        .args(["--email", "asif@example.com", "--name", "Asif"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let said = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        said.contains("https://www.example.com/admin/sign-in/link#token="),
+        "{said}"
+    );
+    assert!(
+        said.contains("http://localhost:8080/admin/sign-in/link#token="),
+        "{said}"
+    );
+    assert!(said.contains("`khalid serve`"), "{said}");
+}
+
+#[test]
 fn the_first_owner_signs_in_with_the_link_khalid_staff_owner_shows_once() {
     let site = demo_copy();
-    let (code, made) = owner(site.path(), "asif@example.com");
+    let server = start(site.path());
+    let (_, port) = server.host.split_once(':').unwrap();
+    let listen = format!("127.0.0.1:{port}");
+    let (code, made) = owner(site.path(), "asif@example.com", &["--listen", &listen]);
     assert_eq!(code, Some(0), "{made}");
     let link = made["link"].as_str().unwrap();
     let (admin, token) = link.split_once("/sign-in/link#token=").unwrap();
     assert!(admin.ends_with("/admin"), "{link}");
-    let (code, second) = owner(site.path(), "someone@example.com");
+    let local = made["local_link"].as_str().unwrap();
+    let on_this_computer = format!("http://localhost:{port}/admin/sign-in/link#token={token}");
+    assert_eq!(
+        local, on_this_computer,
+        "the same link, where serve listens"
+    );
+    let (code, second) = owner(site.path(), "someone@example.com", &[]);
     assert_eq!(code, Some(1), "a second owner is refused: {second}");
-    let server = start(site.path());
     let redeem = serde_json::json!({ "token": token });
     let path = "/api/admin/v1/session/link/redeem/";
     let (status, body) = request(&server, "POST", path, &[], Some(&redeem));

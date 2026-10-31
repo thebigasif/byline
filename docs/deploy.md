@@ -26,6 +26,16 @@ For example, to install and set up the service on a server:
 curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sudo sh -s -- --systemd
 ```
 
+## Signing in to the admin the first time
+
+The admin is at `/admin/` on the site's host. The first person in is the owner, and the command line makes them:
+
+```sh
+khalid --site blog staff owner --email you@example.com --name "Your Name"
+```
+
+This is the only time Khalid shows the sign-in link. The link works once, within 15 minutes. It is shown on two addresses: the site's own, and `localhost`, for a site that is not online yet. Open the `localhost` one while `khalid serve` runs on the same computer. If `khalid serve` listens somewhere other than `127.0.0.1:8080`, pass the same `--listen` to `staff owner`. Once signed in, choose a password or add a passkey.
+
 ## systemd on a Linux machine
 
 systemd is the program most Linux systems use to start services at boot. Khalid ships a unit file for it, `packaging/systemd/khalid.service`, and a user file, `packaging/systemd/khalid.sysusers`.

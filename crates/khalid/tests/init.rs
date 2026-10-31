@@ -78,6 +78,24 @@ fn init_with_flags_writes_a_site_that_loads() {
 }
 
 #[test]
+fn init_says_how_to_sign_in_to_the_admin_of_a_server_site() {
+    let temp = tempfile::tempdir().unwrap();
+    let site = at(temp.path(), "blog");
+    let address = ["--address", "https://www.example.com"];
+    let output = khalid(&[&["init", path(&site)], &address[..]].concat());
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(said.contains("staff owner --email"), "{said}");
+
+    let other = at(temp.path(), "static");
+    let output = khalid(&[&["init", path(&other), "--mode", "static"], &address[..]].concat());
+    assert!(
+        !text(&output.stdout).contains("staff owner"),
+        "a static site has no admin"
+    );
+}
+
+#[test]
 fn init_with_json_takes_the_defaults_and_lists_what_it_wrote() {
     let temp = tempfile::tempdir().unwrap();
     let output = khalid(&[

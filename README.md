@@ -16,7 +16,15 @@ khalid init blog --address https://blog.example.com --yes
 khalid --site blog serve
 ```
 
-The blog is then at `http://127.0.0.1:8080/`. `docs/deploy.md` covers the systemd service, the Docker image and Docker Compose, and the ready files for Fly.io, Railway, Coolify and a Hetzner Cloud server.
+The blog is then at `http://127.0.0.1:8080/`. To sign in to the admin, make yourself the owner from a second terminal:
+
+```sh
+khalid --site blog staff owner --email you@example.com --name "Your Name"
+```
+
+Khalid shows the sign-in link only this once. Open the `localhost` address it shows while `khalid serve` runs.
+
+`docs/deploy.md` covers the systemd service, the Docker image and Docker Compose, and the ready files for Fly.io, Railway, Coolify and a Hetzner Cloud server.
 
 ## Where things are
 
