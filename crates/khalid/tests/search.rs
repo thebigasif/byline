@@ -173,7 +173,10 @@ fn a_static_build_writes_the_lock_card_and_a_small_index_per_language() {
         fs::read_to_string(&file).unwrap_or_else(|error| panic!("{rel}: {error}"))
     };
     let page = read("search/index.html");
-    assert!(page.contains("Search needs a running server"), "{page}");
+    assert!(
+        page.contains(r#"data-feature="search">Search is not available on this site.</p>"#),
+        "{page}"
+    );
     let index: Value = serde_json::from_str(&read("search/index.json")).unwrap();
     assert_eq!(index["language"], "en");
     let pages = index["pages"].as_array().unwrap();

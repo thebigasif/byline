@@ -1,11 +1,7 @@
 {% extends "base.html" %}
 {% block main %}
 <h1>{{ page.title }}</h1>
-{% if page.mode == "locked" %}<section class="lock" aria-labelledby="lock-title">
-<h2 id="lock-title">{{ t.search_locked_title }}</h2>
-<p>{{ t.search_locked_why }}</p>
-<p>{{ t.search_locked_fix }} <code>khalid serve</code></p>
-</section>
+{% if page.mode == "locked" %}<p class="lock locked" data-feature="search">{{ t.search_locked }}</p>
 {% else %}<form class="search" role="search" action="{{ page.action }}" method="get">
 <label for="search-query">{{ t.search_label }}</label>
 <input id="search-query" type="search" name="q" value="{{ page.query or "" }}" autocomplete="off">
