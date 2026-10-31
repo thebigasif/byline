@@ -2,6 +2,8 @@
 
 use std::error::Error;
 
+use chrono::{DateTime, Utc};
+
 use super::{Access, KeyId, KeyKind, KeyToken, StoredKey};
 use crate::content_store::BoxFuture;
 
@@ -39,6 +41,26 @@ pub trait KeyStore: Send + Sync {
     ///
     /// Returns [`KeyStoreError`] when the keys cannot be written.
     fn revoke<'a>(&'a self, id: &'a KeyId) -> BoxFuture<'a, Result<bool, KeyStoreError>>;
+
+    /// Every key that works, oldest first, without its hash.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`KeyStoreError`] when the keys cannot be read.
+    fn list(&self) -> BoxFuture<'_, Result<Vec<ListedKey>, KeyStoreError>>;
+}
+
+/// A key that works, as the Admin API lists it: never its secret or hash.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListedKey {
+    /// The key's identity, the part before its secret.
+    pub id: KeyId,
+    /// Who or what uses it, such as `SerpDad`.
+    pub name: String,
+    /// What it may do.
+    pub access: Access,
+    /// When it was made.
+    pub created_at: DateTime<Utc>,
 }
 
 /// A new key could not be stored.
@@ -161,7 +183,9 @@ mod memory {
     use std::future::ready;
     use std::sync::{Mutex, MutexGuard, PoisonError};
 
-    use super::{BoxFuture, CreateKeyError, KeyId, KeyStore, KeyStoreError, StoredKey};
+    use chrono::DateTime;
+
+    use super::{BoxFuture, CreateKeyError, KeyId, KeyStore, KeyStoreError, ListedKey, StoredKey};
 
     /// Keys held in memory, for tests.
     #[derive(Debug, Default)]
@@ -169,19 +193,26 @@ mod memory {
         keys: Mutex<Keys>,
     }
 
-    /// The keys that work, and the identities of revoked ones, which stay
-    /// taken.
+    /// The keys that work with their names, and the identities of revoked
+    /// ones, which stay taken.
     #[derive(Debug, Default)]
     struct Keys {
         working: Vec<StoredKey>,
+        names: Vec<(KeyId, String)>,
         revoked: Vec<KeyId>,
     }
 
     impl MemoryKeyStore {
-        /// A store holding `keys`.
+        /// A store holding `keys`, each named by its identity. Memory keeps
+        /// no clock, so every key lists as made at the Unix epoch.
         pub fn new(keys: Vec<StoredKey>) -> Self {
+            let names = keys
+                .iter()
+                .map(|key| (key.id().clone(), key.id().as_str().to_owned()))
+                .collect();
             let keys = Keys {
                 working: keys,
+                names,
                 revoked: Vec::new(),
             };
             Self {
@@ -212,7 +243,7 @@ mod memory {
         fn create<'a>(
             &'a self,
             key: StoredKey,
-            _name: &'a str,
+            name: &'a str,
         ) -> BoxFuture<'a, Result<(), CreateKeyError>> {
             let mut keys = self.keys();
             let taken = keys.revoked.contains(key.id())
@@ -220,6 +251,7 @@ mod memory {
             let created = if taken {
                 Err(CreateKeyError::IdTaken(key.id().clone()))
             } else {
+                keys.names.push((key.id().clone(), name.to_owned()));
                 keys.working.push(key);
                 Ok(())
             };
@@ -235,6 +267,24 @@ mod memory {
                 keys.revoked.push(id.clone());
             }
             Box::pin(ready(Ok(revoked)))
+        }
+
+        fn list(&self) -> BoxFuture<'_, Result<Vec<ListedKey>, KeyStoreError>> {
+            let keys = self.keys();
+            let name = |id: &KeyId| keys.names.iter().find(|(named, _)| named == id);
+            let listed = keys
+                .working
+                .iter()
+                .map(|key| ListedKey {
+                    id: key.id().clone(),
+                    name: name(key.id())
+                        .map(|(_, name)| name.clone())
+                        .unwrap_or_default(),
+                    access: key.access().clone(),
+                    created_at: DateTime::UNIX_EPOCH,
+                })
+                .collect();
+            Box::pin(ready(Ok(listed)))
         }
     }
 }
