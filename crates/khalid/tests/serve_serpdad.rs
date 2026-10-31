@@ -7,7 +7,9 @@ mod common;
 
 use std::fs;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
 
 use common::{Server, demo_copy, new_key, start};
 use serde_json::{Value, json};
@@ -22,23 +24,28 @@ const STAGE: &str = "/api/admin/v1/posts/?source=html";
 const SERPDAD: [&str; 4] = ["--name", "SerpDad", "--scope", "posts:write"];
 
 /// Sends `article` once with `key` and the idempotency key `request`, and
-/// returns the status, the answer and how long it took.
+/// returns the status, the answer and whether it came within
+/// [`DEADLINE`]. The request runs on its own thread and the answer is
+/// waited for, since no Clock can see a separate process.
 #[cfg(test)]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the test times a real request to a separate process, which no Clock can see"
-)]
-fn stage(server: &Server, key: &str, request: &str, article: &Value) -> (u16, Value, Duration) {
+fn stage(server: &Server, key: &str, request: &str, article: &Value) -> (u16, Value, bool) {
     let authorization = format!("Khalid {key}");
     let headers = [
         ("Authorization", authorization.as_str()),
         ("Idempotency-Key", request),
     ];
-    let started = Instant::now();
-    let (status, body) = server.raw("POST", STAGE, &headers, Some(article));
-    let took = started.elapsed();
+    let (sent, answered) = mpsc::channel();
+    let (in_time, (status, body)) = thread::scope(|scope| {
+        scope.spawn(|| {
+            let _ = sent.send(server.raw("POST", STAGE, &headers, Some(article)));
+        });
+        match answered.recv_timeout(DEADLINE) {
+            Ok(answer) => (true, answer),
+            Err(_) => (false, answered.recv().unwrap()),
+        }
+    });
     let answer = serde_json::from_str(&body).unwrap_or_else(|_| panic!("{body}"));
-    (status, answer, took)
+    (status, answer, in_time)
 }
 
 /// The findings in `answer`'s report that have `severity`.
@@ -63,9 +70,9 @@ fn a_finished_article_lands_as_a_linted_draft_in_under_five_seconds() {
             <p>Read <a href=\"/blog/why-internal-links-matter/\">why internal links matter</a> first.</p>",
     }]});
 
-    let (status, made, took) = stage(&server, &key, "serpdad-article-381", &article);
+    let (status, made, in_time) = stage(&server, &key, "serpdad-article-381", &article);
     assert_eq!(status, 201, "{made}");
-    assert!(took < DEADLINE, "staging took {took:?}");
+    assert!(in_time, "staging took longer than {DEADLINE:?}");
     let draft = &made["posts"][0];
     assert_eq!(draft["id"], "en.choosing-anchor-text", "{made}");
     assert_eq!(draft["status"], "draft", "{made}");
@@ -111,9 +118,9 @@ fn an_article_the_linter_would_hold_is_staged_with_its_blocks_named() {
     let server = start(site.path(), &key);
     let article = json!({"posts": [{"title": "A weak post", "html": "<p>Short.</p>"}]});
 
-    let (status, made, took) = stage(&server, &key, "serpdad-article-382", &article);
+    let (status, made, in_time) = stage(&server, &key, "serpdad-article-382", &article);
     assert_eq!(status, 201, "{made}");
-    assert!(took < DEADLINE, "staging took {took:?}");
+    assert!(in_time, "staging took longer than {DEADLINE:?}");
     assert_eq!(made["posts"][0]["status"], "draft", "{made}");
     assert!(
         made["lint"]["blocks"].as_u64().is_some_and(|n| n >= 1),

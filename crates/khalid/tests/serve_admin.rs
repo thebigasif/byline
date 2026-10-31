@@ -127,7 +127,11 @@ fn an_author_edited_through_the_admin_api_shows_on_their_page_and_a_new_one_goes
     let edit = json!({"authors": [{"role": "Editor of Field Notes", "updated_at": seen}]});
     let (status, body) = server.admin("PUT", asif, Some(&edit));
     assert_eq!(status, 200, "{body}");
-    assert!(shows(&server, "/blog/authors/asif/", "Editor of Field Notes"));
+    assert!(shows(
+        &server,
+        "/blog/authors/asif/",
+        "Editor of Field Notes"
+    ));
 
     let new = json!({"authors": [{"slug": "sam-lee", "name": "Sam Lee", "same_as": ["https://example.com/sam/"], "bio": "Sam writes about links."}]});
     let (status, made) = server.admin("POST", "/api/admin/v1/authors/", Some(&new));
@@ -224,7 +228,11 @@ fn a_category_renamed_through_the_admin_api_shows_on_its_page_and_keeps_its_file
     let edit = json!({"categories": [{"names": names, "updated_at": seen}]});
     let (status, saved) = server.admin("PUT", on_page, Some(&edit));
     assert_eq!(status, 200, "{saved}");
-    assert!(shows(&server, "/blog/category/on-page-seo/", "On-page optimisation"));
+    assert!(shows(
+        &server,
+        "/blog/category/on-page-seo/",
+        "On-page optimisation"
+    ));
     let seen = saved["categories"][0]["updated_at"].as_str().unwrap();
     let (status, body) = server.admin("DELETE", &format!("{on_page}?updated_at={seen}"), None);
     assert_eq!(status, 409, "posts are still in it: {body}");

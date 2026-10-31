@@ -2,8 +2,8 @@
 //! `cli.rs` so that file stays under 600 lines (BL-SIZE-1).
 
 use crate::cli::{
-    AnalyticsCommand, BingCommand, Command, DbCommand, KeysCommand, RedirectsCommand, SearchConsoleCommand,
-    SitesCommand, StaffCommand, ThemeCommand, WebhooksCommand,
+    AnalyticsCommand, BingCommand, Command, DbCommand, KeysCommand, RedirectsCommand,
+    SearchConsoleCommand, SitesCommand, StaffCommand, ThemeCommand, WebhooksCommand,
 };
 
 impl Command {
