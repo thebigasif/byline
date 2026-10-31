@@ -1,13 +1,14 @@
 ---
 source: crates/khalid-content/tests/blocks_faq.rs
+assertion_line: 83
 expression: rendered(FAQ).html
 ---
 <section class="faq">
-<details>
+<details open>
 <summary>What is a title tag?</summary>
 <p>The <strong>blue link</strong> in search results.</p>
 </details>
-<details>
+<details open>
 <summary>How long should it be?</summary>
 <p>About 50 to 60 characters,
 so it is not cut off.</p>

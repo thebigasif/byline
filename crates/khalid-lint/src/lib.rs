@@ -36,11 +36,13 @@ mod score;
 mod severity;
 mod site_content;
 mod site_links;
+mod site_trust;
 mod snippet;
 mod structure;
 mod thresholds;
 mod topics;
 mod words;
+mod writing;
 
 pub use address::flags_slug_part;
 pub use catalogue::{Catalogue, Message};

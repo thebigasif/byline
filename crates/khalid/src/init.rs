@@ -6,6 +6,7 @@ use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
 use khalid_core::{AbsoluteUrl, Config, Environment, Locale, UserMessage};
+use khalid_mount::{MountError, MountPath, Stack, proxy_rule};
 use khalid_routes::Routes;
 use serde::Serialize;
 
@@ -29,6 +30,8 @@ pub(crate) struct Answers {
     pub(crate) mount: String,
     pub(crate) languages: Vec<Locale>,
     pub(crate) mode: SiteMode,
+    pub(crate) stack: Option<Stack>,
+    pub(crate) blog: Option<AbsoluteUrl>,
 }
 
 /// The JSON shape of `khalid init --json`: the site folder, and the files and
@@ -37,6 +40,16 @@ pub(crate) struct Answers {
 struct InitBody {
     site: String,
     created: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proxy: Option<ProxyBody>,
+}
+
+/// The proxy rule `init` printed, as `khalid init --json` reports it.
+#[derive(Serialize)]
+struct ProxyBody {
+    stack: String,
+    mount: String,
+    rule: String,
 }
 
 /// Makes a site in `folder`, asking for what the flags in `args` leave out
@@ -86,6 +99,8 @@ impl Answers {
                 args.languages.clone()
             },
             mode: args.mode.unwrap_or(SiteMode::Server),
+            stack: args.stack,
+            blog: args.blog.clone(),
         })
     }
 
@@ -110,6 +125,51 @@ impl Answers {
             quoted(self.mode.as_str()),
             languages.join(", "),
         )
+    }
+}
+
+impl Answers {
+    /// The proxy rule for a blog mounted under a folder of another stack,
+    /// or `None` when the blog is the whole site or no stack was given.
+    pub(crate) fn proxy_rule(&self) -> Result<Option<(Stack, String)>, UserMessage> {
+        // `init` keeps the mount with a trailing slash; the rule has none.
+        let folder = self.mount.trim_end_matches('/');
+        if folder.is_empty() {
+            return Ok(None);
+        }
+        let mount = MountPath::try_new(folder).map_err(|_| init_message::mount(&self.mount))?;
+        let Some(stack) = self.stack else {
+            return Ok(None);
+        };
+        let blog = match &self.blog {
+            Some(blog) => blog.clone(),
+            None => blog_origin(&self.address)?,
+        };
+        let rule = proxy_rule(stack, &mount, &blog).map_err(|error| of_mount_error(&error))?;
+        Ok(Some((stack, rule)))
+    }
+}
+
+/// Where the blog itself answers when nothing says otherwise: `blog.`
+/// before the website's host, such as `blog.example.com`.
+fn blog_origin(address: &AbsoluteUrl) -> Result<AbsoluteUrl, UserMessage> {
+    let scheme = address
+        .as_str()
+        .split_once("://")
+        .map_or("https", |(s, _)| s);
+    let host = address
+        .host()
+        .strip_prefix("www.")
+        .unwrap_or(address.host());
+    let text = format!("{scheme}://blog.{host}");
+    AbsoluteUrl::parse(&text).map_err(|_| init_message::address(&text))
+}
+
+/// A stack error as the person reads it.
+fn of_mount_error(error: &MountError) -> UserMessage {
+    match error {
+        MountError::UnknownStack { name } => init_message::stack(name),
+        other => init_message::mount(&other.to_string()),
     }
 }
 
@@ -177,11 +237,15 @@ fn create(folder: &Path, name: &str, text: &str) -> io::Result<()> {
 /// Says what `init` made and what to do next.
 fn success(output: Output, folder: &Path, answers: &Answers, created: Vec<String>) -> Exit {
     let shown = folder.display().to_string();
+    let proxy = answers.proxy_rule().unwrap_or(None);
     match output {
         Output::Human => report::text(
             &format!(
-                "Made a Khalid site in {shown} for {}.\nNext, write your first post with `khalid --site {shown} new \"Your title\"`.\n",
-                answers.address
+                "Made a Khalid site in {shown} for {}.\n{}Next, write your first post with `khalid --site {shown} new \"Your title\"`.\n",
+                answers.address,
+                proxy.as_ref().map_or(String::new(), |(stack, rule)| format!(
+                    "The blog lives under a folder, so {stack} must pass it to Khalid. Add this rule:\n\n{rule}\n"
+                )),
             ),
             Exit::Success,
         ),
@@ -189,6 +253,11 @@ fn success(output: Output, folder: &Path, answers: &Answers, created: Vec<String
             &InitBody {
                 site: shown,
                 created,
+                proxy: proxy.map(|(stack, rule)| ProxyBody {
+                    stack: stack.name().to_owned(),
+                    mount: answers.mount.clone(),
+                    rule,
+                }),
             },
             Exit::Success,
         ),

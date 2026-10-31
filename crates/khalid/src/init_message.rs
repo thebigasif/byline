@@ -68,3 +68,30 @@ pub(crate) fn write(folder: &Path, error: &io::Error) -> UserMessage {
         "Check that you may write to that folder, then run `khalid init` again.",
     )
 }
+
+/// The message when the mount is not a folder Khalid can give to a stack.
+pub(crate) fn mount(mount: &str) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid could not turn {mount} into a folder path."),
+        "The proxy rule names the folder of your website the blog lives under.",
+        "Write it as a path such as /blog/, or use / for the whole website.",
+    )
+}
+
+/// The message when the blog's own address could not be built.
+pub(crate) fn address(address: &str) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid could not make the blog's address {address}."),
+        "The proxy rule sends the blog's folder to the address Khalid answers on.",
+        "Pass the blog's own address with --blog, such as https://blog.example.com.",
+    )
+}
+
+/// The message for a stack there is no rule for.
+pub(crate) fn stack(name: &str) -> UserMessage {
+    UserMessage::new(
+        format!("There is no proxy rule for {name}."),
+        "Khalid knows the rule for the stacks a main site is usually built with.",
+        "Use one of: nginx, caddy, apache, traefik, cloudflare-worker, vercel, nextjs, netlify, webflow, shopify.",
+    )
+}

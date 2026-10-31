@@ -1,0 +1,20 @@
+# A question-style heading followed by a six-word answer: far short of the
+# 40 to 60 word capsule.
+extends = "clean"
+
+body_text = """
+Internal links help readers find the next useful post on your site.
+How long should an answer be?
+Yes, briefly.
+What an internal link is
+A link between two pages on the same site, letting readers move between related posts without leaving the site.
+"""
+
+[[headings]]
+level = "h2"
+text = "How long should an answer be?"
+
+[[headings]]
+level = "h2"
+text = "What an internal link is"
+

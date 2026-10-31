@@ -10,6 +10,7 @@ use khalid_core::{AbsoluteUrl, Locale};
 
 use crate::cli::{InitArgs, SiteMode};
 use crate::init::{Answers, mount_path};
+use khalid_mount::Stack;
 
 /// Asks for every answer `given` leaves out, reading from `input` and asking
 /// on `out`. A wrong answer is explained and the question asked again.
@@ -70,12 +71,56 @@ pub(crate) fn ask(
             |text| SiteMode::from_str(text, true).map_err(|_| "Type server or static.".to_owned()),
         )?,
     };
+    let (stack, blog) = stack_and_blog(given, &mount, input, out)?;
     Ok(Answers {
         address,
         mount,
         languages,
         mode,
+        stack,
+        blog,
     })
+}
+
+/// Asks for the stack when the blog lives under a folder of another stack,
+/// and where that stack should send it. Both are `None` for the whole site.
+fn stack_and_blog(
+    given: &InitArgs,
+    mount: &str,
+    input: &mut impl BufRead,
+    out: &mut impl Write,
+) -> io::Result<(Option<Stack>, Option<AbsoluteUrl>)> {
+    if mount == "/" {
+        return Ok((None, None));
+    }
+    let stack = match given.stack {
+        Some(stack) => Some(stack),
+        None => Some(question(
+            input,
+            out,
+            "The blog lives under a folder. Which stack runs the main site, such as webflow or nginx?",
+            None,
+            |text| {
+                text.parse::<Stack>().map_err(|_| "Type one of: nginx, caddy, apache, traefik, cloudflare-worker, vercel, nextjs, netlify, webflow, shopify.".to_owned())
+            },
+        )?),
+    };
+    let blog = match &given.blog {
+        Some(blog) => Some(blog.clone()),
+        None => Some(question(
+            input,
+            out,
+            "Which address should that stack send the blog to, such as https://blog.example.com?",
+            None,
+            |text| {
+                AbsoluteUrl::parse(text).map_err(|_| {
+                    "That is not a full web address. Start it with https:// and the domain."
+                        .to_owned()
+                })
+            },
+        )?),
+    };
+    Ok((stack, blog))
 }
 
 /// Asks `prompt` until `parse` accepts the answer. An empty answer takes
@@ -150,7 +195,7 @@ mod tests {
     fn asks_four_questions_and_reads_the_answers() {
         let (answers, asked) = run(
             &args(&[]),
-            "https://www.example.com\nblog\nen, de\nStatic\n",
+            "https://www.example.com\nblog\nen, de\nStatic\nnginx\nhttps://blog.example.com\n",
         );
         let answers = answers.unwrap();
         assert_eq!(answers.address.as_str(), "https://www.example.com/");

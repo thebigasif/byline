@@ -31,3 +31,7 @@ translation = "link-text"
 [[posts]]
 locale = "en"
 slug = "pruning-old-posts"
+
+[[pages]]
+locale = "en"
+slug = "about"

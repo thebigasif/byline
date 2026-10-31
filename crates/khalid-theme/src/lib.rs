@@ -33,7 +33,10 @@ pub use fetch::{
     MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_STYLESHEETS, Origin, SiteSource, Stylesheet, fetch_site,
 };
 pub use fetch_error::FetchError;
-pub use fonts::{FontHost, FontSource, Typography};
+pub use fonts::{
+    FontHost, FontMetrics, FontSource, HeldFont, MAX_FONT_BYTES, SavedFont, Typography, download,
+    download_and_report,
+};
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
 pub use palette::Palette;
 pub use properties::CustomProperties;
@@ -41,5 +44,5 @@ pub use resync::{ThemeDiff, TokenChange};
 pub use site_theme::SiteTheme;
 pub use token_name::TokenName;
 pub use token_values::{FontStack, Length};
-pub use tokens::{Colors, Fonts, Shape, ThemeTokens};
+pub use tokens::{BrandImages, Colors, FontFileEntry, Fonts, Shape, ThemeTokens};
 pub use tokens_error::TokensError;

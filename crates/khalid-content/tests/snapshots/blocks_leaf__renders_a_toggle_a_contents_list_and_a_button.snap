@@ -1,5 +1,6 @@
 ---
 source: crates/khalid-content/tests/blocks_leaf.rs
+assertion_line: 68
 expression: html(markdown)
 ---
 <nav class="toc" aria-label="Contents">
@@ -9,7 +10,7 @@ expression: html(markdown)
 </ol>
 </nav>
 <h2 id="title-tags">Title tags</h2>
-<details>
+<details open>
 <summary>What is a title tag?</summary>
 <p>The <strong>blue link</strong> in search results.</p>
 </details>

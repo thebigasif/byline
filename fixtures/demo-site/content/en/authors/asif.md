@@ -2,6 +2,7 @@
 name: Asif
 slug: asif
 role: Founder of SerpDad
+credentials: Ten years running SEO for small teams
 same_as:
   - https://serpdad.com/
 ---

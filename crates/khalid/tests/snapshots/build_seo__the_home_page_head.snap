@@ -5,6 +5,7 @@ expression: "head(&built(), \"index.html\")"
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Field Notes on SEO</title>
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
 <link rel="canonical" href="https://www.example.com/blog/">
@@ -17,6 +18,10 @@ expression: "head(&built(), \"index.html\")"
 <meta property="og:url" content="https://www.example.com/blog/">
 <meta property="og:locale" content="en">
 <meta property="og:locale:alternate" content="de">
-<meta name="twitter:card" content="summary">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://www.example.com/blog/#organization","name":"Field Notes on SEO","url":"https://www.example.com/blog/"},{"@type":"WebSite","@id":"https://www.example.com/blog/#website","name":"Field Notes on SEO","url":"https://www.example.com/blog/","inLanguage":"en","publisher":{"@id":"https://www.example.com/blog/#organization"},"potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://www.example.com/blog/search/?q={search_term_string}"},"query-input":"required name=search_term_string"}},{"@type":"BreadcrumbList","@id":"https://www.example.com/blog/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Field Notes on SEO","item":"https://www.example.com/blog/"}]},{"@type":"WebPage","@id":"https://www.example.com/blog/#webpage","name":"Field Notes on SEO","url":"https://www.example.com/blog/","isPartOf":{"@id":"https://www.example.com/blog/#website"},"inLanguage":"en","breadcrumb":{"@id":"https://www.example.com/blog/#breadcrumb"}}]}</script>
+<meta property="og:image" content="https://www.example.com/blog/share/517e0dc6e938f7f3.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Field Notes on SEO">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://www.example.com/blog/#organization","name":"Field Notes on SEO","url":"https://www.example.com/blog/"},{"@type":"WebSite","@id":"https://www.example.com/blog/#website","name":"Field Notes on SEO","url":"https://www.example.com/blog/","inLanguage":"en","publisher":{"@id":"https://www.example.com/blog/#organization"},"potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://www.example.com/blog/search/?q={search_term_string}"},"query-input":"required name=search_term_string"}},{"@type":"BreadcrumbList","@id":"https://www.example.com/blog/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Field Notes on SEO","item":"https://www.example.com/blog/"}]},{"@type":"WebPage","@id":"https://www.example.com/blog/#webpage","name":"Field Notes on SEO","url":"https://www.example.com/blog/","isPartOf":{"@id":"https://www.example.com/blog/#website"},"inLanguage":"en","breadcrumb":{"@id":"https://www.example.com/blog/#breadcrumb"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.example.com/blog/share/517e0dc6e938f7f3.png","width":1200,"height":630,"caption":"Field Notes on SEO"}}]}</script>
 <link rel="stylesheet" href="/blog/assets/site.17ed2348.css">

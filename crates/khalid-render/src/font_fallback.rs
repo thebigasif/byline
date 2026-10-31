@@ -43,20 +43,32 @@ const KNOWN: [Fallback; 2] = [
 
 /// `stack` with the tuned fallback of its first font after it, such as
 /// `Inter, "Inter Fallback", sans-serif`, and that font's name. A stack
-/// whose first font is not known is returned as it is.
-pub(crate) fn tuned(stack: &str) -> (String, Option<&'static str>) {
+/// whose first font is not known is returned as it is. `measured` names
+/// the self-hosted families whose files `theme sync` measured: those gain
+/// their fallback even though no table knows them (G20).
+pub(crate) fn tuned_with(stack: &str, measured: &[&str]) -> (String, Option<&'static str>) {
     let (first, rest) = stack.split_once(',').unwrap_or((stack, ""));
     let name = first.trim().trim_matches('"');
-    match KNOWN
+    let known = KNOWN
         .iter()
-        .find(|font| font.family.eq_ignore_ascii_case(name))
-    {
+        .find(|font| font.family.eq_ignore_ascii_case(name));
+    let by_measure = measured
+        .iter()
+        .find(|family| family.eq_ignore_ascii_case(name));
+    match known {
         Some(font) => {
             let mut tuned = format!("{}, \"{} Fallback\"", first.trim(), font.family);
             if !rest.trim().is_empty() {
                 let _ = write!(tuned, ", {}", rest.trim());
             }
             (tuned, Some(font.family))
+        }
+        None if by_measure.is_some() => {
+            let mut tuned = format!("{first}, \"{name} Fallback\"");
+            if !rest.trim().is_empty() {
+                let _ = write!(tuned, ", {}", rest.trim());
+            }
+            (tuned, None)
         }
         None => (stack.to_owned(), None),
     }
@@ -76,4 +88,16 @@ pub(crate) fn face(family: &str) -> String {
                 font.family, font.local, font.ascent, font.descent, font.line_gap, font.size_adjust
             )
         })
+}
+
+/// The `@font-face` rule of a measured file's local fallback: the family's
+/// own metrics, read by `theme sync` from the file, resized to hold the
+/// same space (G20). Any self-hosted font gets one, not only the known two.
+pub(crate) fn measured_face(family: &str, metrics: &crate::Metrics) -> String {
+    format!(
+        "@font-face {{ font-family: \"{family} Fallback\"; src: local(\"Arial\"); \
+         ascent-override: {}; descent-override: {}; line-gap-override: {}; \
+         size-adjust: {}; }}\n",
+        metrics.ascent, metrics.descent, metrics.line_gap, metrics.size_adjust
+    )
 }

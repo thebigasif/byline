@@ -13,7 +13,7 @@ use khalid_seo::{
 };
 
 use crate::build_pages::LanguagePages;
-use crate::{build_message, search_page};
+use crate::{build_message, search_page, seo_settings};
 
 /// The site as the SEO outputs read it, from `site.toml`: its name, address,
 /// mount folder, languages, default first, and which archives are indexed.
@@ -30,7 +30,7 @@ pub(crate) fn site(config: &Config) -> Result<SeoSite, UserMessage> {
         .filter(|locale| *locale != config.default_language());
     site.languages.extend(others.cloned());
     site.indexing = IndexPolicy::from(&config.seo().index);
-    site.links = LinkPolicy::from(&config.seo().links);
+    seo_settings::apply(config.seo(), &mut site).map_err(|mistake| mistake.message())?;
     search_page::announce(config, &mut site)?;
     Ok(site)
 }
@@ -77,6 +77,9 @@ pub(crate) fn post(
     let mut seo = page(PageKind::Post, locale, rest, title)?;
     seo.excerpt = front.description.clone().unwrap_or_default();
     seo.published = Some(midnight(date));
+    // The updated date, when the writer set one, is the day the page last
+    // changed in a way a reader would notice (F1).
+    seo.modified = front.updated.map(midnight);
     from_front(&mut seo, front)?;
     Ok(seo)
 }

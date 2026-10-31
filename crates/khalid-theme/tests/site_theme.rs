@@ -6,7 +6,7 @@
 mod common;
 
 use common::{sync, url};
-use khalid_theme::{FontHost, FontSource, Rgb};
+use khalid_theme::{Brand, FontHost, FontSource, Rgb, SiteTheme};
 
 #[cfg(test)]
 fn hex(text: &str) -> Option<Rgb> {
@@ -71,6 +71,24 @@ async fn utility_css_with_hashed_classes_is_read_by_frequency() {
     );
 }
 
+#[test]
+fn pasted_variables_alone_give_the_colours_and_fonts_and_no_brand() {
+    let pasted = ":root {\n  --color-background: #fdfcfa;\n  --color-text: #1e2a3a;\n  \
+                  --color-link: #b4232a;\n  --font-body: \"Source Serif 4\", Georgia, serif;\n}\n";
+
+    let theme = SiteTheme::from_css(pasted);
+
+    let palette = theme.palette;
+    assert_eq!(palette.background, hex("#fdfcfa"));
+    assert_eq!(palette.text, hex("#1e2a3a"));
+    assert_eq!(palette.link, hex("#b4232a"));
+    assert_eq!(
+        theme.typography.body.as_deref(),
+        Some(r#""Source Serif 4", Georgia, serif"#)
+    );
+    assert_eq!(theme.brand, Brand::default());
+}
+
 #[tokio::test]
 async fn a_bootstrap_site_gives_its_variables_and_an_adobe_font_is_not_rehosted() {
     let (theme, home) = sync("agency", "/assets/css/main.min.css").await;
@@ -99,4 +117,37 @@ async fn a_bootstrap_site_gives_its_variables_and_an_adobe_font_is_not_rehosted(
         Some(url(&format!("{home}/assets/img/studio-kite-logo.svg")))
     );
     assert_eq!(brand.icons.len(), 2);
+    let held: Vec<(&str, FontHost)> = fonts
+        .held
+        .iter()
+        .map(|font| (font.family(), font.host()))
+        .collect();
+    assert_eq!(held, [("proxima-nova", FontHost::Adobe)]);
+    assert!(!theme.drawn_by_script);
+}
+
+#[tokio::test]
+async fn openly_licensed_and_self_hosted_fonts_are_never_held_back() {
+    for (site, stylesheet) in [
+        ("bakery", "/wp-content/themes/northwind/style.css"),
+        ("saas", "/_next/static/css/4f1c2a9e.css"),
+    ] {
+        let (theme, _) = sync(site, stylesheet).await;
+        assert_eq!(theme.typography.held, [], "{site}");
+        assert!(!theme.drawn_by_script, "{site}");
+    }
+}
+
+#[test]
+fn a_page_with_scripts_and_almost_no_text_is_drawn_by_script() {
+    let empty = r#"<!doctype html><html><head><title>Acme</title></head><body>
+<div id="root"></div><noscript>You need to enable JavaScript to run this app.</noscript>
+<script src="/static/js/main.4f1c2a9e.js"></script></body></html>"#;
+    let quiet = r"<!doctype html><html><body><p>Short page.</p></body></html>";
+
+    assert!(SiteTheme::looks_drawn_by_script(empty));
+    assert!(
+        !SiteTheme::looks_drawn_by_script(quiet),
+        "no script, no guess"
+    );
 }

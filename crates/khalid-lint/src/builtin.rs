@@ -5,12 +5,20 @@ use chrono::NaiveDate;
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
     Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
-    link_text, reading, site_content, site_links, snippet, structure, topics, words,
+    link_text, reading, site_content, site_links, site_trust, snippet, structure, topics, words,
+    writing,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
 /// findings are listed: the blocks first, then the warnings.
 pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
+    let mut rules = blocking_and_structure_rules(thresholds);
+    rules.extend(writing_and_reading_rules(thresholds));
+    rules
+}
+
+/// The rules that block or judge a post's shape, first in the findings.
+fn blocking_and_structure_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
     vec![
         Box::new(blocking::NoTitle),
         Box::new(blocking::ManyHeadlines),
@@ -51,6 +59,24 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(reading::HardToRead {
             max: thresholds.hard_reading_index,
         }),
+    ]
+}
+
+/// The rules that judge a post's writing, after the shape rules.
+fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
+    vec![
+        Box::new(writing::AnswerCapsule {
+            min_answer_words: thresholds.answer_min_words,
+            max_answer_words: thresholds.answer_max_words,
+        }),
+        Box::new(writing::LongParagraph {
+            max_paragraph_words: thresholds.paragraph_max_words,
+        }),
+        Box::new(writing::PlainAnswer {
+            hedges: writing::HEDGE_WORDS.to_vec(),
+            openers: writing::VAGUE_OPENERS.to_vec(),
+        }),
+        Box::new(writing::SourcedStatistics),
         Box::new(FocusNotIn(Place::Title)),
         Box::new(FocusNotIn(Place::Description)),
         Box::new(FocusNotIn(Place::FirstParagraph)),
@@ -88,6 +114,7 @@ pub(crate) fn rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
 pub(crate) fn site_rules(thresholds: Thresholds, today: NaiveDate) -> Vec<Box<dyn SiteRule>> {
     vec![
         Box::new(site_links::OrphanPost),
+        Box::new(site_trust::NoAboutPage),
         Box::new(site_links::OneInboundLink),
         Box::new(site_links::TooDeep {
             max: thresholds.max_clicks,

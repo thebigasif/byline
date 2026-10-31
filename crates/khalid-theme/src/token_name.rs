@@ -34,11 +34,15 @@ pub enum TokenName {
     Radius,
     /// `shape.measure`, the widest a line of text may run.
     Measure,
+    /// `brand.logo`, the main site's logo.
+    Logo,
+    /// `brand.icon`, the icon browsers show in a tab.
+    Icon,
 }
 
 impl TokenName {
     /// Every token, in the order of the file.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 14] = [
         Self::Background,
         Self::Surface,
         Self::Text,
@@ -51,6 +55,8 @@ impl TokenName {
         Self::Mono,
         Self::Radius,
         Self::Measure,
+        Self::Logo,
+        Self::Icon,
     ];
 
     /// The name as the file writes it, such as `colors.link`.
@@ -68,6 +74,8 @@ impl TokenName {
             Self::Mono => "fonts.mono",
             Self::Radius => "shape.radius",
             Self::Measure => "shape.measure",
+            Self::Logo => "brand.logo",
+            Self::Icon => "brand.icon",
         }
     }
 }

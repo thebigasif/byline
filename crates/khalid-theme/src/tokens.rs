@@ -4,10 +4,10 @@ use std::fs;
 use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
 
-use khalid_core::SitePath;
+use khalid_core::{AbsoluteUrl, SitePath};
 use serde::{Deserialize, Serialize};
 
-use crate::token_values::{FontStack, Length, hex};
+use crate::token_values::{FontStack, Length, address, hex};
 use crate::{Rgb, SiteTheme, TokenName, TokensError};
 
 /// Where a site keeps its tokens, as the renderer reads them.
@@ -43,6 +43,30 @@ pub struct ThemeTokens {
     pub fonts: Fonts,
     /// Corners and line length.
     pub shape: Shape,
+    /// The main site's logo and icon. The table is left out of the file
+    /// when neither was found.
+    #[serde(default, skip_serializing_if = "BrandImages::is_empty")]
+    pub brand: BrandImages,
+}
+
+/// The main site's logo and icon, as full web addresses.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct BrandImages {
+    /// The logo, such as `https://example.com/logo.svg`.
+    #[serde(default, with = "address", skip_serializing_if = "Option::is_none")]
+    pub logo: Option<AbsoluteUrl>,
+    /// The small icon browsers show in a tab.
+    #[serde(default, with = "address", skip_serializing_if = "Option::is_none")]
+    pub icon: Option<AbsoluteUrl>,
+}
+
+impl BrandImages {
+    /// Whether neither a logo nor an icon is set.
+    pub fn is_empty(&self) -> bool {
+        self.logo.is_none() && self.icon.is_none()
+    }
 }
 
 /// The colours, each written `#rrggbb`.
@@ -84,6 +108,33 @@ pub struct Fonts {
     pub heading: FontStack,
     /// Code.
     pub mono: FontStack,
+    /// Font files the site serves itself, downloaded by the sync (G20).
+    /// Left out of the file when there are none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<FontFileEntry>,
+}
+
+/// One self-hosted font file, as `theme/tokens.toml` writes it and the
+/// renderer reads it back.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FontFileEntry {
+    /// The family the file gives a face, such as `Inter`.
+    pub family: String,
+    /// `normal` or `italic`.
+    pub style: String,
+    /// The weight the file carries, such as `400`.
+    pub weight: String,
+    /// The file name under `theme/fonts/`, such as `inter-latin.woff2`.
+    pub path: String,
+    /// The Unicode range the file covers, so a browser loads only the
+    /// subset a page needs. Left out when the file covers everything.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range: Option<String>,
+    /// The face's metric overrides for its tuned local fallback. Left out
+    /// when the file was not measured.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<crate::fonts::FontMetrics>,
 }
 
 /// Corners and line length.
@@ -119,11 +170,13 @@ impl Default for ThemeTokens {
                 mono: FontStack::trusted(
                     "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
                 ),
+                files: Vec::new(),
             },
             shape: Shape {
                 radius: Length::trusted("0.375rem"),
                 measure: Length::trusted("68ch"),
             },
+            brand: BrandImages::default(),
         }
     }
 }
@@ -157,6 +210,10 @@ impl ThemeTokens {
         if let Some(heading) = heading.or(body) {
             tokens.fonts.heading = heading;
         }
+        tokens.brand = BrandImages {
+            logo: theme.brand.logo.clone(),
+            icon: theme.brand.icons.first().cloned(),
+        };
         tokens
     }
 

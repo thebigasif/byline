@@ -8,7 +8,7 @@ use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::{
-    Document, LeadImage, PostFront, Rendered, SiteContent, Wikilinks, render_linked,
+    AuthorFront, Document, LeadImage, PostFront, Rendered, SiteContent, Wikilinks, render_linked,
 };
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
@@ -225,7 +225,14 @@ fn post_pages(
             .into_iter()
             .filter_map(|index| among.get(index).map(|post| post.card.clone()))
             .collect();
-        pages.push(post_page(config, locale, draft, related, people)?);
+        pages.push(post_page(
+            config,
+            locale,
+            draft,
+            related,
+            people,
+            &content.authors,
+        )?);
     }
     Ok((pages, listed))
 }
@@ -263,6 +270,7 @@ fn post_page(
     draft: Draft<'_>,
     related: Vec<PostCard>,
     people: &BTreeMap<Slug, Person>,
+    authors: &[Document<AuthorFront>],
 ) -> Result<Page, UserMessage> {
     let Draft {
         doc,
@@ -276,6 +284,7 @@ fn post_page(
     let path = path_of(config, locale, &rest);
     let description = front.description.clone().unwrap_or_default();
     let mut seo = build_seo::post(locale, (&rest, &title), front, date)?;
+    seo.collection = Some(doc.collection.clone());
     seo.content_html = build_seo::full_addresses(config, &rendered.html);
     let (reviewers, profiles) = build_reader::reviewers(front, people, config)?;
     seo.reviewers = profiles;
@@ -283,7 +292,7 @@ fn post_page(
     let post = RenderPost {
         title: title.clone(),
         date,
-        updated: None,
+        updated: front.updated,
         reading_time: ReadingTime::of(&html, locale),
         authors: front
             .author
@@ -301,6 +310,34 @@ fn post_page(
         body: html,
     };
     seo.author = post.authors.first().map(|author| author.name.clone());
+    // The post's schema names its author with the proof P5 asks for: their
+    // page, their profiles elsewhere and their credentials, so an engine
+    // judging the post can see who stands behind it.
+    if let Some(slug) = &front.author
+        && let Some(doc) = authors
+            .iter()
+            .find(|doc| &doc.locale == locale && doc.front.slug.as_ref() == Some(slug))
+            .or_else(|| {
+                authors
+                    .iter()
+                    .find(|doc| doc.front.slug.as_ref() == Some(slug))
+            })
+    {
+        let href = path_of(config, locale, &format!("authors/{slug}/"));
+        let address = format!(
+            "{}{}",
+            config.address().as_str().trim_end_matches('/'),
+            href
+        );
+        let mut profile = AuthorProfile::new(&seo.author.clone().unwrap_or_default());
+        profile.url =
+            Some(AbsoluteUrl::parse(&address).map_err(|_| build_message::address(&address))?);
+        profile.job_title.clone_from(&doc.front.role);
+        profile.credentials.clone_from(&doc.front.credentials);
+        profile.same_as.clone_from(&doc.front.same_as);
+        profile.bio = doc.body.split_whitespace().collect::<Vec<_>>().join(" ");
+        seo.author_profile = Some(profile);
+    }
     let by = (path.as_str(), seo.author.clone().unwrap_or_default());
     let body = (&rendered.structured[..], &rendered.links[..]);
     build_schema::fill(&mut seo, config, (by.0, &by.1), body)?;
@@ -390,7 +427,13 @@ fn author_pages(
         let (name, slug) = named(config, doc, front.slug.as_ref(), front.name.as_deref())?;
         let rest = format!("authors/{slug}/");
         let path = path_of(config, locale, &rest);
-        let meta = meta(config, name.clone(), String::new(), path, PageKind::Website)?;
+        let meta = meta(
+            config,
+            name.clone(),
+            String::new(),
+            path.clone(),
+            PageKind::Website,
+        )?;
         let photo = front
             .photo
             .as_deref()
@@ -414,7 +457,17 @@ fn author_pages(
         // An author is one person in every language, so their pages pair by slug.
         seo.translation = build_seo::translation(Some(&format!("author {slug}")))?;
         let mut profile = AuthorProfile::new(&name);
+        // The author's own page is their `url`, so a reader, and an engine
+        // judging the post, can find who stands behind it (P5).
+        let address = format!(
+            "{}{}",
+            config.address().as_str().trim_end_matches('/'),
+            path
+        );
+        profile.url =
+            Some(AbsoluteUrl::parse(&address).map_err(|_| build_message::address(&address))?);
         profile.job_title.clone_from(&front.role);
+        profile.credentials.clone_from(&front.credentials);
         profile.same_as.clone_from(&front.same_as);
         seo.author_profile = Some(profile);
         let author = RenderAuthor {

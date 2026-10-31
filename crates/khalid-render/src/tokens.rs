@@ -5,7 +5,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use khalid_core::SitePath;
+use khalid_core::{AbsoluteUrl, SitePath};
 use serde::Deserialize;
 
 use crate::token_values::{Color, FontStack, Length};
@@ -17,7 +17,7 @@ const TOKENS_FILE: &str = "theme/tokens.toml";
 /// WCAG 2.2 AA asks body text for at least this contrast against its background.
 const MINIMUM_CONTRAST: f64 = 4.5;
 
-/// The site's colours, fonts and shape. Theme sync writes the file; a person
+/// The site's colours, fonts, shape and brand. Theme sync writes the file; a person
 /// may edit it. Every field has a light default, so a missing file or a
 /// missing field still gives a readable site.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
@@ -33,6 +33,19 @@ pub struct Tokens {
     pub fonts: Fonts,
     /// Corners and line length.
     pub shape: Shape,
+    /// The main site's logo and icon.
+    pub brand: Brand,
+}
+
+/// The main site's logo and icon, as full web addresses. Theme sync fills
+/// them when it finds them; either may be left out.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Brand {
+    /// The logo, such as `https://example.com/logo.svg`.
+    pub logo: Option<AbsoluteUrl>,
+    /// The small icon browsers show in a tab.
+    pub icon: Option<AbsoluteUrl>,
 }
 
 /// The name of one token, as `table.field`, such as `colors.link`.
@@ -75,6 +88,12 @@ pub enum TokenName {
     /// `shape.measure`.
     #[serde(rename = "shape.measure")]
     Measure,
+    /// `brand.logo`.
+    #[serde(rename = "brand.logo")]
+    Logo,
+    /// `brand.icon`.
+    #[serde(rename = "brand.icon")]
+    Icon,
 }
 
 /// The colours, each a `#rrggbb` or `#rgb` value.
@@ -107,6 +126,43 @@ pub struct Fonts {
     pub heading: FontStack,
     /// Code.
     pub mono: FontStack,
+    /// Font files the site serves itself, each with the subset it covers
+    /// (G20). `theme sync` writes them; the stylesheet links them.
+    pub files: Vec<FontFile>,
+}
+
+/// One self-hosted font file, served under `assets/fonts/`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FontFile {
+    /// The family the file gives a face, such as `Inter`.
+    pub family: String,
+    /// `normal` or `italic`.
+    pub style: String,
+    /// The weight the file carries, such as `400`.
+    pub weight: String,
+    /// The file name under `theme/fonts/`, such as `inter-latin.woff2`.
+    pub path: String,
+    /// The Unicode range the file covers, so a browser loads only the
+    /// subset a page needs. `None` covers everything.
+    pub range: Option<String>,
+    /// The face's metric overrides for its tuned local fallback, as CSS
+    /// percentages (G20). `None` when the file was not measured.
+    pub metrics: Option<Metrics>,
+}
+
+/// A face's metrics as its fallback's `@font-face` overrides read them.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Metrics {
+    /// `ascent-override`, such as `90.44%`.
+    pub ascent: String,
+    /// `descent-override`, such as `22.52%`.
+    pub descent: String,
+    /// `line-gap-override`, such as `0%`.
+    pub line_gap: String,
+    /// `size-adjust`, such as `107.12%`.
+    pub size_adjust: String,
 }
 
 /// Corners and line length.
@@ -169,8 +225,17 @@ impl Tokens {
     pub fn to_css(&self) -> String {
         let colors = &self.colors;
         let mut families = Vec::new();
+        // A self-hosted family with measured metrics gains its fallback in
+        // the stack too, beside the file's own @font-face rule.
+        let measured: Vec<&str> = self
+            .fonts
+            .files
+            .iter()
+            .filter(|file| file.metrics.is_some())
+            .map(|file| file.family.as_str())
+            .collect();
         let mut font = |stack: &FontStack| {
-            let (tuned, family) = font_fallback::tuned(stack.as_str());
+            let (tuned, family) = font_fallback::tuned_with(stack.as_str(), &measured);
             families.extend(family.filter(|family| !families.contains(family)));
             tuned
         };
@@ -197,6 +262,12 @@ impl Tokens {
             let _ = writeln!(css, "  --{name}: {value};");
         }
         css.push_str("}\n");
+        for file in &self.fonts.files {
+            css.push_str(&font_face(file));
+            if let Some(metrics) = &file.metrics {
+                css.push_str(&font_fallback::measured_face(&file.family, metrics));
+            }
+        }
         for family in families {
             css.push_str(&font_fallback::face(family));
         }
@@ -244,8 +315,26 @@ impl Default for Fonts {
             body: FontStack::trusted(sans),
             heading: FontStack::trusted(sans),
             mono: FontStack::trusted("ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"),
+            files: Vec::new(),
         }
     }
+}
+
+/// The `@font-face` rule of one self-hosted file, served with a swap so the
+/// text shows in the fallback while the file arrives (G20).
+fn font_face(file: &FontFile) -> String {
+    let mut rule = format!(
+        "@font-face {{ font-family: \"{}\"; font-style: {}; font-weight: {}; \
+     src: url(\"assets/fonts/{}\") format(\"woff2\"); font-display: swap;",
+        file.family, file.style, file.weight, file.path
+    );
+    if let Some(range) = &file.range {
+        rule.push_str(" unicode-range: ");
+        rule.push_str(range);
+        rule.push(';');
+    }
+    rule.push_str(" }\n");
+    rule
 }
 
 impl Default for Shape {

@@ -3,7 +3,8 @@
 
 use std::fmt::Write as _;
 
-use khalid_core::AbsoluteUrl;
+use khalid_core::{AbsoluteUrl, Config};
+use khalid_routes::{PostAddress, Routes};
 
 /// How long a move lasts, which search engines read from the status code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +56,21 @@ pub(crate) fn path_of(url: &AbsoluteUrl) -> &str {
         .find('/')
         .and_then(|at| after_scheme.get(at..))
         .unwrap_or("/")
+}
+
+/// The old address as an alias of `new`, when it lived on the new site's
+/// host and its path lies inside the blog, so Khalid answers it itself.
+pub(crate) fn alias(
+    old: &AbsoluteUrl,
+    site: &Config,
+    routes: &Routes,
+    new: &PostAddress<'_>,
+) -> Option<String> {
+    if old.host() != site.address().host() {
+        return None;
+    }
+    let redirect = routes.redirect(site, path_of(old), new).ok()?;
+    Some(redirect.from().to_owned())
 }
 
 /// A permanent move to `to`.

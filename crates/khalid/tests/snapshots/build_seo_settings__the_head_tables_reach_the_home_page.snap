@@ -1,0 +1,21 @@
+---
+source: crates/khalid/tests/build_seo_settings.rs
+expression: "head_lines(&out, \"index.html\")"
+---
+<title>Field Notes on SEO · Plain notes on search</title>
+<meta name="description" content="Plain notes on search">
+<meta name="google-site-verification" content="aBc123-_">
+<meta name="msvalidate.01" content="F00D42">
+<meta property="og:site_name" content="Field Notes on SEO">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Field Notes on SEO">
+<meta property="og:description" content="Plain notes on search">
+<meta property="og:url" content="https://www.example.com/blog/">
+<meta property="og:locale" content="en">
+<meta property="og:locale:alternate" content="de">
+<meta property="og:image" content="https://www.example.com/media/share.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Field Notes logo on a white card">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@serpdad">

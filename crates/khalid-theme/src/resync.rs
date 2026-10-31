@@ -3,6 +3,8 @@
 
 use std::fmt;
 
+use khalid_core::AbsoluteUrl;
+
 use crate::{ThemeTokens, TokenName};
 
 /// One token whose value in the file differs from the site's.
@@ -126,6 +128,8 @@ impl ThemeTokens {
             TokenName::Mono => fonts.mono.as_str().to_owned(),
             TokenName::Radius => shape.radius.as_str().to_owned(),
             TokenName::Measure => shape.measure.as_str().to_owned(),
+            TokenName::Logo => address(self.brand.logo.as_ref()),
+            TokenName::Icon => address(self.brand.icon.as_ref()),
         }
     }
 
@@ -145,6 +149,13 @@ impl ThemeTokens {
             TokenName::Mono => self.fonts.mono.clone_from(&other.fonts.mono),
             TokenName::Radius => self.shape.radius.clone_from(&other.shape.radius),
             TokenName::Measure => self.shape.measure.clone_from(&other.shape.measure),
+            TokenName::Logo => self.brand.logo.clone_from(&other.brand.logo),
+            TokenName::Icon => self.brand.icon.clone_from(&other.brand.icon),
         }
     }
+}
+
+/// A logo or icon address as the diff shows it, or `none` when there is none.
+fn address(url: Option<&AbsoluteUrl>) -> String {
+    url.map_or_else(|| "none".to_owned(), ToString::to_string)
 }

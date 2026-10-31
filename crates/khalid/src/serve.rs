@@ -18,7 +18,7 @@ use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, ScheduleTable, SiteId};
+use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
@@ -26,6 +26,7 @@ use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
+use crate::announce::SiteAnnounce;
 use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
@@ -37,7 +38,7 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, staff, unlock,
+    report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -108,16 +109,13 @@ fn serve_with(
 ) -> Result<(), (UserMessage, Exit)> {
     let (content, hand_back) = (LiveContent::default(), HandBack::default());
     let (redirects, addresses) = redirect_route::stores((database, id));
-    let to = Destination {
-        folder: site.to_path_buf(),
-        config: config.clone(),
-        db: database.clone(),
-        site: id,
-        live: content.clone(),
-        hand_back: hand_back.clone(),
-        addresses: addresses.clone(),
-        redirects: redirects.clone(),
-    };
+    let to = destination(
+        site,
+        config,
+        (database, id),
+        (&content, &hand_back),
+        (&redirects, &addresses),
+    );
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
     // follows behind the first answer (ADR "khalid serve answers before the
@@ -126,13 +124,14 @@ fn serve_with(
         .and_then(|source| {
             let first = source.render_first(&checked)?;
             let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+            let first = match source.stylesheet() {
+                Some(href) => first.with_preloads(vec![href]),
+                None => first,
+            };
             Ok((source, first))
         })
         .map_err(|message| (message, Exit::Failure))?;
-    let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
-    let security =
-        SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))?;
-    let keys = KeyTable::new(database.clone(), id, SystemClock);
+    let security = security_headers()?;
     let search = search_route::Search {
         pages: source.clone(),
         db: database.clone(),
@@ -146,32 +145,33 @@ fn serve_with(
         let live = LivePages::new(first);
         hand_back.start(live.replacements());
         let (failed, failure) = oneshot::channel();
-        tokio::spawn(render_the_rest((source.clone(), live.clone()), (checked, assets), failed));
+        let rest = (source.clone(), live.clone());
+        tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         // Each part reads the database or the folder alone, so all open at once.
-        let shown = (&source, &live);
-        let commenting = comment_pages::start(config, (database, id), shown, security.clone());
+        let (telling, announcing) = announce::start(config, (database, id), outbound)
+            .map_err(|message| (message, Exit::Failure))?;
+        let replies = (security.clone(), telling.clone());
+        let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
         let shown_pages = router(live.clone(), security.clone());
-        let ((comments, moderation), (door, announcing), (media, files), unlocked) = tokio::try_join!(
+        let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
-            publish_door((site, config), (database, id), outbound),
+            publish_door((site, config), (database, id), telling),
             media_library::open(site, config, bucket_keys, outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
         let scheduling = scheduler::start(Arc::clone(&door));
-        let previews = preview::router(Arc::clone(&door), source.clone(), config, security);
+        let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let desks = (moderation, media, desk);
-        let app = api_router((content, door, keys), desks, (database, id, config))
-            .merge(files)
-            .merge(previews)
-            .merge(search_route::router(config, search))
-            .merge(khalid_admin::router(khalid_admin::built()))
-            .merge(comments)
-            .merge(newsletters)
-            .merge(pages);
+        let apis = api_router((content, door), desks, (database, id, config));
+        let app = assembled(
+            (site, config, &security),
+            (apis, files, previews, search_route::router(config, search)),
+            (comments, newsletters, pages),
+        );
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
@@ -195,10 +195,10 @@ fn serve_with(
 }
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
-/// comment moderation, media library, stored redirects and staff accounts
-/// of site `id`.
+/// comment moderation, media library, stored redirects, webhooks and staff
+/// accounts of site `id`.
 fn api_router(
-    (content, door, keys): (LiveContent, Arc<PublishDoor>, KeyTable),
+    (content, door): (LiveContent, Arc<PublishDoor>),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
     (database, id, config): (&Database, SiteId, &Config),
 ) -> Router {
@@ -209,30 +209,82 @@ fn api_router(
         comments,
         media: Some(media),
         redirects,
+        webhooks: Some(Arc::new(WebhookTable::new(
+            database.clone(),
+            id,
+            SystemClock,
+        ))),
     };
-    let (api, _) = api::router_for_serve(Arc::new(content), door, Arc::new(keys), desks, staff);
+    let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
+    let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
     api
 }
 
+/// The pages, with the stylesheet named as a preload on every HTML answer
+/// when the site has one (G20).
+fn with_hint(pages: Pages, source: &SitePages) -> Pages {
+    match source.stylesheet() {
+        Some(href) => pages.with_preloads(vec![href]),
+        None => pages,
+    }
+}
+
+/// Where the Content API's feed writes, as `khalid serve` sets it up.
+fn destination(
+    site: &Path,
+    config: &Config,
+    (database, id): (&Database, SiteId),
+    (live, hand_back): (&LiveContent, &HandBack),
+    (redirects, addresses): (
+        &crate::live_redirects::LiveRedirects,
+        &crate::site_addresses::LiveAddresses,
+    ),
+) -> Destination {
+    Destination {
+        folder: site.to_path_buf(),
+        config: config.clone(),
+        db: database.clone(),
+        site: id,
+        live: live.clone(),
+        hand_back: hand_back.clone(),
+        addresses: addresses.clone(),
+        redirects: redirects.clone(),
+    }
+}
+
+/// The one router the server answers: the APIs, the site's own routes, the
+/// drawn share cards, the admin, the comments and the newsletters.
+fn assembled(
+    (site, config, security): (&Path, &Config, &SecurityHeaders),
+    (api, files, previews, searches): (Router, Router, Router, Router),
+    (comments, newsletters, pages): (Router, Router, Router),
+) -> Router {
+    api.merge(files)
+        .merge(previews)
+        .merge(searches)
+        .merge(share_images::router(site, config, security.clone()))
+        .merge(khalid_admin::router(khalid_admin::built()))
+        .merge(comments)
+        .merge(newsletters)
+        .merge(pages)
+}
+
 /// The publish door the Admin API, the scheduler and preview links share.
-/// It keeps schedules in the database and announces each post that goes
-/// live through `outbound`, until the returned announcing is stopped.
+/// It keeps schedules in the database and tells `telling` about each post
+/// that goes live.
 async fn publish_door(
     (site, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
-    outbound: &Outbound,
-) -> Result<(Arc<PublishDoor>, announce::Announcing), (UserMessage, Exit)> {
+    telling: SiteAnnounce,
+) -> Result<Arc<PublishDoor>, (UserMessage, Exit)> {
     let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
-    let (telling, announcing) = announce::start(config, (database, id, &file), outbound)
-        .await
-        .map_err(|message| (message, Exit::Failure))?;
     let posts = SitePosts::new(site, config.clone(), SystemClock);
     let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
     let signer = preview::signer(config, (database, id, &file)).await;
     let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
         .with_schedules(schedules, SystemClock)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
-    Ok((Arc::new(door), announcing))
+    Ok(Arc::new(door))
 }
 
 /// `pages`, the site's page router, with the password form and the cookie
@@ -280,6 +332,7 @@ async fn render_the_rest(
         drop(checked);
         Pages::plain(served.pages, served.not_found)
             .map(|pages| pages.with_moves(served.moves))
+            .map(|pages| with_hint(pages, &source))
             .map_err(|_| serve_message::internal())
     });
     let pages = match rendering.await {
@@ -339,6 +392,13 @@ pub(crate) fn open(site: &Path, runtime: &Runtime) -> Result<(Database, SiteId),
             }
         }
     })
+}
+
+/// The security headers of every page, letting in the frames of the embed
+/// providers.
+fn security_headers() -> Result<SecurityHeaders, (UserMessage, Exit)> {
+    let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
+    SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))
 }
 
 /// Says where the site answers. In JSON, this one line is the whole output.

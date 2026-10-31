@@ -19,12 +19,15 @@ khalid-core = { path = "../khalid-core", version = "0.0.0" }
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 khalid-db = { path = "../khalid-db", version = "0.0.0" }
 khalid-https = { path = "../khalid-https", version = "0.0.0" }
+khalid-import = { path = "../khalid-import", version = "0.0.0" }
 khalid-lint = { path = "../khalid-lint", version = "0.0.0" }
 khalid-mcp = { path = "../khalid-mcp", version = "0.0.0" }
+khalid-mount = { path = "../khalid-mount", version = "0.0.0" }
 khalid-media = { path = "../khalid-media", version = "0.0.0" }
 khalid-render = { path = "../khalid-render", version = "0.0.0" }
 khalid-search = { path = "../khalid-search", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
+khalid-share-image = { path = "../khalid-share-image", version = "0.0.0" }
 khalid-newsletter = { path = "../khalid-newsletter", version = "0.0.0" }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
 khalid-static = { path = "../khalid-static", version = "0.0.0" }
@@ -77,7 +80,15 @@ name = "serve_publish"
 required-features = ["test-util"]
 
 [[test]]
+name = "serve_webhooks"
+required-features = ["test-util"]
+
+[[test]]
 name = "serve_https"
+required-features = ["test-util"]
+
+[[test]]
+name = "import_site"
 required-features = ["test-util"]
 
 [lints]

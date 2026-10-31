@@ -50,25 +50,84 @@ pub(crate) fn field_mb(text: &str, name: &str) -> Option<f64> {
     Some(f64::from(kilobytes) / 1024.0)
 }
 
-/// The server's resident memory each second of the idle wait, and its split
-/// at the end.
+/// How many readings, one second apart, are taken once the server has
+/// settled. The measure is the lowest of them, so a page the allocator
+/// hands back between two readings cannot raise it.
+pub const READINGS: usize = 5;
+
+/// The seconds the thread count and the resident reading must both hold
+/// still before the server counts as settled. Tokio's blocking threads
+/// end ten seconds after their last task and resident memory falls with
+/// them, so while either moves the server has not settled.
+pub const STABLE: usize = 3;
+
+/// The first second of the wait that can settle it. The wait must
+/// outlast tokio's blocking threads, which end ten seconds after their
+/// last task, so a plateau before they end never passes for settled.
+pub const FLOOR: usize = 15;
+
+/// The most seconds the settle wait may run, after which the readings
+/// are taken anyway, so a wedged server cannot hang the measure.
+pub const AT_MOST: usize = 60;
+
+/// The most the resident reading may fall between two seconds and still
+/// count as holding still, in megabytes. A fall larger than this is the
+/// allocator handing pages back, not jitter.
+const DRIFT: f64 = 0.5;
+
+/// The server's resident memory each second of the idle wait, where the
+/// wait stopped waiting for the server to settle, and the split at the
+/// end.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IdleMemory {
     each_second: Vec<f64>,
+    settled: usize,
     split: Option<MemorySplit>,
 }
 
 impl IdleMemory {
-    /// The readings `each_second`, in megabytes, the last at the end of the
-    /// wait, and the `split` read then, when `/proc` gave one.
-    pub fn new(each_second: Vec<f64>, split: Option<MemorySplit>) -> Self {
-        Self { each_second, split }
+    /// The readings `each_second`, in megabytes, where the last
+    /// [`READINGS`] of them were taken after the server settled at
+    /// `settled`, and the `split` read at the end, when `/proc` gave one.
+    pub fn settled_at(each_second: Vec<f64>, settled: usize, split: Option<MemorySplit>) -> Self {
+        Self {
+            each_second,
+            settled,
+            split,
+        }
     }
 
-    /// The last reading, which is the idle memory measure.
+    /// The idle memory measure: the lowest of the readings taken one
+    /// second apart once the server had settled. The last reading alone
+    /// can catch the middle of a fall.
     pub fn resident_mb(&self) -> Option<f64> {
-        self.each_second.last().copied()
+        self.each_second
+            .get(self.settled..)?
+            .iter()
+            .copied()
+            .min_by(f64::total_cmp)
     }
+}
+
+/// Whether the server has settled given `trace`, the thread count and
+/// resident megabytes read each second since the first answer. It has
+/// when the trace is past [`FLOOR`] seconds and the last [`STABLE`]
+/// readings show the thread count unchanged and the resident reading not
+/// falling by more than a drift. A server whose platform does not say
+/// its thread count settles on its memory alone.
+pub fn is_settled(trace: &[(Option<usize>, f64)]) -> bool {
+    let Some(tail) = trace.get(trace.len().saturating_sub(STABLE)..) else {
+        return false;
+    };
+    if trace.len() < FLOOR {
+        return false;
+    }
+    tail.windows(2).all(|pair| {
+        let (Some(before_threads), Some(after_threads)) = (pair.first(), pair.get(1)) else {
+            return false;
+        };
+        before_threads.0 == after_threads.0 && after_threads.1 >= before_threads.1 - DRIFT
+    })
 }
 
 impl fmt::Display for IdleMemory {
@@ -77,11 +136,19 @@ impl fmt::Display for IdleMemory {
         match self.split {
             Some(split) => writeln!(
                 f,
-                "Idle memory {resident:.2} MB: {:.2} MB anonymous, {:.2} MB of it in huge \
-                 pages, and {:.2} MB of code and mapped files.",
-                split.anonymous, split.huge_pages, split.files
+                "Idle memory {resident:.2} MB, the lowest of the readings after second \
+                 {}: {:.2} MB anonymous, {:.2} MB of it in huge pages, and {:.2} MB of \
+                 code and mapped files.",
+                self.settled + 1,
+                split.anonymous,
+                split.huge_pages,
+                split.files
             )?,
-            None => writeln!(f, "Idle memory {resident:.2} MB.")?,
+            None => writeln!(
+                f,
+                "Idle memory {resident:.2} MB, the lowest of the readings after second {}.",
+                self.settled + 1
+            )?,
         }
         f.write_str("Resident memory each second after the first answer, in MB:")?;
         for reading in &self.each_second {

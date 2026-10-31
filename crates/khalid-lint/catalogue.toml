@@ -238,6 +238,36 @@ why = "Readers who fill it in never hear back, so the visits search brings you a
 fix = "Give this form an email address or a service such as Zapier to send its answers to."
 guide = "forms"
 
+[answer-capsule]
+what = "A question-style heading is not followed by a standalone answer of 40 to 60 words."
+why = "Answer engines lift the first complete answer under a question, and readers scan for it too."
+fix = "Write the whole answer in one paragraph of 40 to 60 words directly under the heading, before any detail or hedging."
+guide = "answer-capsule"
+
+[long-paragraph]
+what = "A paragraph runs past 225 words, so it holds more than one idea."
+why = "Readers lose the thread in a wall of text, and the paragraph's main point is hard for you or an engine to name."
+fix = "Split it at each change of idea, into paragraphs of 75 to 225 words, one idea each."
+guide = "plain-writing"
+
+[no-about-page]
+what = "The site has no About or contact page."
+why = "A reader who cannot find who writes here trusts it less, and an engine citing the site has no author to credit."
+fix = "Add an About or a contact page, with the authors' names and how to reach them."
+guide = "author-proof"
+
+[plain-answer]
+what = "An answer paragraph uses hedge words, vague openers or a trailing which."
+why = "Answer engines lift the clearest sentence they can find, and hedged text reads as unsure."
+fix = "Write the claim outright in the answer paragraph and drop the hedge."
+guide = "plain-writing"
+
+[sourced-statistics]
+what = "A number has no linked source and no year beside it."
+why = "A reader, and an engine citing your post, needs to know where a number comes from and whether it still holds."
+fix = "Link the number to its source, or write the year it held beside it, such as 47 percent (2024)."
+guide = "sourced-statistics"
+
 [hard-to-read]
 what = "This post is hard to read, because its sentences are long and many of its words are long."
 why = "Readers who struggle leave early, and Google favours pages that answer people quickly."

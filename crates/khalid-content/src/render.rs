@@ -215,7 +215,11 @@ impl Renderer<'_> {
                 self.html.push_str("</figcaption>\n</figure>\n");
             }
             BlockKind::Toggle { summary } => {
-                self.push(&["<details>\n<summary>", &attribute(summary), "</summary>\n"]);
+                self.push(&[
+                    "<details open>\n<summary>",
+                    &attribute(summary),
+                    "</summary>\n",
+                ]);
                 self.markdown(&inside(&block.source));
                 self.html.push_str("</details>\n");
             }

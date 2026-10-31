@@ -2,6 +2,8 @@
 title: Why internal links matter
 slug: why-internal-links-matter
 date: 2026-09-14
+updated: 2026-10-20
+updated_note: Refreshed the examples.
 author: asif
 category: on-page-seo
 description: Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.
