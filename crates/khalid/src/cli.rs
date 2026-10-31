@@ -214,6 +214,25 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: BingCommand,
     },
+    /// Read what `khalid serve` counted, such as the readers AI assistants sent
+    Analytics {
+        /// What to read
+        #[command(subcommand)]
+        command: AnalyticsCommand,
+    },
+}
+
+/// The analytics commands. They read `data/site.db`, so they work while
+/// `khalid serve` runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum AnalyticsCommand {
+    /// Show how many readers each AI assistant, such as `ChatGPT` or
+    /// Perplexity, sent in the last days, against the days before
+    Ai {
+        /// How many days to count back from today, from 1 to 366
+        #[arg(long, default_value_t = 28, value_parser = clap::value_parser!(u32).range(1..=366))]
+        days: u32,
+    },
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in
@@ -547,6 +566,9 @@ impl Command {
             Self::Bing {
                 command: BingCommand::Report,
             } => "bing report",
+            Self::Analytics {
+                command: AnalyticsCommand::Ai { .. },
+            } => "analytics ai",
         }
     }
 }

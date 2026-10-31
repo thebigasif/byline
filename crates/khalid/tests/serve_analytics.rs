@@ -184,4 +184,73 @@ async fn readers_with_scripts_off_are_counted_by_source_and_bots_are_logged() {
             (POST, "Other bot", CrawlerKind::Other, 200),
         ]
     );
+    each_ai_tool_is_reported_from_the_command_line(site.path());
+}
+
+/// GEO M1: the views the server counted, per AI tool, from the command
+/// line.
+#[cfg(test)]
+fn each_ai_tool_is_reported_from_the_command_line(site: &Path) {
+    let report = analytics_ai(site, &["--json"]);
+    let tools: Vec<_> = report["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| (tool["name"].as_str().unwrap(), tool["views"].as_u64()))
+        .collect();
+    assert_eq!(tools, [("ChatGPT", Some(2)), ("Perplexity", Some(1))]);
+    assert_eq!(
+        (report["arrivals"].as_u64(), report["days"].as_u64()),
+        (Some(4), Some(28))
+    );
+    assert_eq!(report["tools"][0]["pages"][0]["path"], POST);
+}
+
+/// `khalid analytics ai` on `site` with `args`, as JSON.
+#[cfg(test)]
+fn analytics_ai(site: &Path, args: &[&str]) -> Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.to_str().unwrap(), "analytics", "ai"])
+        .args(args)
+        .output()
+        .unwrap();
+    serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("{out:?}"))
+}
+
+#[test]
+fn a_site_with_no_ai_readers_says_so_in_plain_words() {
+    let site = tempfile::tempdir().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.path().to_str().unwrap(), "analytics", "ai"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{out:?}");
+    let text = String::from_utf8(out.stdout).unwrap();
+    assert!(text.contains("(28 days)"), "{text}");
+    assert!(
+        text.contains("No reader came from an AI assistant"),
+        "{text}"
+    );
+    let empty = analytics_ai(site.path(), &["--days", "7", "--json"]);
+    assert_eq!(
+        (
+            empty["days"].as_u64(),
+            empty["tools"].as_array().map(Vec::len)
+        ),
+        (Some(7), Some(0))
+    );
+}
+
+#[test]
+fn days_out_of_range_are_refused() {
+    let site = tempfile::tempdir().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args(["--site", site.path().to_str().unwrap()])
+        .args(["analytics", "ai", "--days", "0"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "{out:?}");
+    let mut data = site.path().to_path_buf();
+    data.push("data");
+    assert!(!data.exists(), "nothing was opened");
 }
