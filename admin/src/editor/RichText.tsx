@@ -1,9 +1,11 @@
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
-import { useRef } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { en } from "../strings/en";
+import { BlockForm } from "./aids/BlockForm";
+import { applyDetails, type Details, detailsOf, selectedDetails } from "./aids/blockForm";
 import { SlashMenu } from "./aids/SlashMenu";
 import { openTrigger } from "./aids/trigger";
-import { type KeyHandler, noKeys } from "./aids/useMenu";
+import { type KeyHandler, menuKey, noKeys } from "./aids/useMenu";
 import { extensions, fileText } from "./richText";
 
 type Props = {
@@ -16,6 +18,13 @@ type Props = {
 export function RichText({ markdown, onChange, onBlur }: Props) {
   // The open menu takes the arrow keys, Enter and Escape before the text does.
   const keys = useRef<KeyHandler>(noKeys);
+  const [details, setDetails] = useState<Details | null>(null);
+  const opened = (found: Details | null) => {
+    if (found !== null) {
+      setDetails(found);
+    }
+    return found !== null;
+  };
   const editor = useEditor({
     extensions,
     content: markdown,
@@ -29,7 +38,15 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
         "aria-multiline": "true",
         "aria-label": en.editor.text,
       },
-      handleKeyDown: (_view, event) => keys.current(event),
+      handleKeyDown: (view, event) => {
+        if (keys.current(event)) {
+          return true;
+        }
+        // Enter on a selected block card opens its details.
+        const selected = menuKey(event) === "pick" ? selectedDetails(view.state) : null;
+        return opened(selected);
+      },
+      handleDoubleClickOn: (_view, _pos, node, nodePos) => opened(detailsOf(node, nodePos)),
     },
     onUpdate: ({ editor: current }) => onChange(fileText(current.getMarkdown())),
     onBlur,
@@ -38,17 +55,38 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
     editor,
     selector: (snapshot) => openTrigger(snapshot.editor.state),
   });
+  const closeForm = () => {
+    setDetails(null);
+    editor.commands.focus();
+  };
+  let aid: ReactNode = null;
+  if (details !== null) {
+    aid = (
+      <BlockForm
+        key={details.at}
+        details={details}
+        onSave={(values) => {
+          applyDetails(editor, details, values);
+          setDetails(null);
+        }}
+        onCancel={closeForm}
+      />
+    );
+  } else if (trigger?.kind === "slash") {
+    aid = (
+      <SlashMenu
+        key={`${trigger.from}:${trigger.query}`}
+        editor={editor}
+        trigger={trigger}
+        keys={keys}
+        onDetails={setDetails}
+      />
+    );
+  }
   return (
     <div className="writing">
       <EditorContent editor={editor} />
-      {trigger?.kind === "slash" ? (
-        <SlashMenu
-          key={`${trigger.from}:${trigger.query}`}
-          editor={editor}
-          trigger={trigger}
-          keys={keys}
-        />
-      ) : null}
+      {aid}
     </div>
   );
 }
