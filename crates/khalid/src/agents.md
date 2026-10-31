@@ -8,6 +8,7 @@ Khalid is a blog engine. This guide tells an agent, such as Claude Code, how to 
 - `content/<language>/posts/` holds the published posts, one markdown file each, named `<date>-<slug>.md`.
 - `content/<language>/authors/` holds one file per author. A post names its author by that file's slug.
 - `drafts/<language>/<slug>.md` holds drafts. Nothing reads them but the Admin API, so they are never shown to readers.
+- To take a page, glossary term, case study or changelog entry down without deleting it, move its file to the same place under `drafts/`, such as `drafts/en/pages/about.md`. Its webhooks then say unpublished, not deleted.
 - `data/` and `public/` are made by Khalid from the files. Never write into them.
 
 A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It is the same for its draft and for the published post.
