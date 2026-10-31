@@ -141,5 +141,6 @@ pub(crate) fn site_rules(thresholds: Thresholds, today: NaiveDate) -> Vec<Box<dy
         Box::new(site_sections::PostFitsSection {
             min_words: thresholds.thin_post_words,
         }),
+        Box::new(site_content::UpdatedDateWrong { today }),
     ]
 }
