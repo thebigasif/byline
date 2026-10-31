@@ -32,8 +32,25 @@ export function libraryKey(src: string): string | null {
   return found?.[1] ?? null;
 }
 
+/**
+ * The SVG transform that draws a `width` by `height` picture turned by
+ * `degrees`, with its turned corner at the origin.
+ */
+export function turnTransform(degrees: Degrees, width: number, height: number): string {
+  switch (degrees) {
+    case 90:
+      return `translate(${height} 0) rotate(90)`;
+    case 180:
+      return `translate(${width} ${height}) rotate(180)`;
+    case 270:
+      return `translate(0 ${width}) rotate(270)`;
+    default:
+      return "";
+  }
+}
+
 /** `facts` after turning by `degrees`: the sides swap on a quarter, the focal point moves. */
-function afterTurn(facts: PictureFacts, degrees: Degrees): PictureFacts {
+export function afterTurn(facts: PictureFacts, degrees: Degrees): PictureFacts {
   const { width, height, x, y } = facts;
   switch (degrees) {
     case 90:
