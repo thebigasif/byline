@@ -14,6 +14,7 @@ mod absolute_url;
 mod alert_settings;
 mod clock;
 mod config;
+mod environment;
 mod head_code;
 mod indexnow_key;
 mod link_settings;
@@ -41,7 +42,8 @@ pub use alert_settings::AlertSettings;
 #[cfg(any(test, feature = "test-util"))]
 pub use clock::FixedClock;
 pub use clock::{Clock, SystemClock};
-pub use config::{Config, ConfigError, Environment, Mode, SlugMode};
+pub use config::{Config, ConfigError, Mode, SlugMode};
+pub use environment::Environment;
 pub use head_code::{HeadCode, HeadCodeError};
 pub use indexnow_key::{IndexNowKey, ParseIndexNowKeyError};
 pub use link_settings::{DomainName, ExternalRel, LinkOpening, LinkSettings, ParseDomainNameError};

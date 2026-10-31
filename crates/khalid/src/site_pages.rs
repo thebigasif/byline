@@ -122,12 +122,11 @@ impl SitePages {
                 Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
             let css = assets::site_stylesheet(folder)?;
             let stylesheet = assets::stylesheet_page(&config, &css)?;
-            let script = assets::script_page(&config)?;
             let tokens = Tokens::load(folder).map_err(|error| build_message::tokens(&error))?;
             Some(Theme {
                 renderer,
                 stylesheet,
-                script,
+                script: assets::script_page(&config)?,
                 tokens,
             })
         } else {
@@ -255,8 +254,7 @@ impl SitePages {
         // rest warm in the background once the pages are live (G14).
         share_images::draw_now(folder, cards)?;
         build_seo::heads(&seo_site, &mut languages)?;
-        let mut pages = vec![theme.stylesheet.clone()];
-        pages.push(theme.script.clone());
+        let mut pages = vec![theme.stylesheet.clone(), theme.script.clone()];
         html_pages(&theme.renderer, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
     }
@@ -450,8 +448,7 @@ impl SitePages {
         }
         if let Some(theme) = theme {
             if which == Which::All {
-                served.pages.push(theme.stylesheet.clone());
-                served.pages.push(theme.script.clone());
+                (served.pages).extend([theme.stylesheet.clone(), theme.script.clone()]);
                 let shells = search_shells(&languages);
                 *self
                     .0

@@ -1,7 +1,5 @@
 //! Settings, read once when Khalid starts.
 
-use std::collections::BTreeMap;
-use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -13,9 +11,8 @@ use crate::mail_settings::MailTable;
 use crate::search_console_settings::SearchConsoleTable;
 use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
-    AbsoluteUrl, AlertSettings, Announcement, Locale, MailSettings, MailTransport, MediaSettings,
-    NavSettings, ParseUrlError, Reader, S3Keys, SearchConsoleSettings, Secret, SeoSettings,
-    SiteCode,
+    AbsoluteUrl, AlertSettings, Announcement, Environment, Locale, MailSettings, MediaSettings,
+    NavSettings, ParseUrlError, Reader, SearchConsoleSettings, SeoSettings, SiteCode,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -147,6 +144,34 @@ fn preview_lifetime(file: &SiteFile) -> Result<Duration, (&'static str, &'static
     Ok(Duration::from_secs(hours.saturating_mul(HOUR)))
 }
 
+/// The first mistake in where `file` mounts the site and which languages it
+/// names, as the key it is under and what is wrong, or `None`.
+fn layout_mistake(file: &SiteFile) -> Option<(&'static str, &'static str)> {
+    let mount = &file.mount;
+    if !mount.starts_with('/') || !mount.ends_with('/') || mount.contains("//") {
+        return Some((
+            "mount",
+            "the mount path must start and end with /, like /blog/",
+        ));
+    }
+    if file.languages.is_empty() {
+        return Some(("languages", "the site needs at least one language"));
+    }
+    if !file.languages.contains(&file.default_language) {
+        return Some((
+            "default_language",
+            "the default language must be one of languages",
+        ));
+    }
+    let bar = file.announcement.iter().filter_map(|a| a.language.as_ref());
+    let unknown = (file.nav.languages().chain(bar)).any(|l| !file.languages.contains(l));
+    if unknown {
+        let problem = "a menu link or the announcement names a language the site does not have; use one of languages";
+        return Some(("language", problem));
+    }
+    None
+}
+
 /// The refusal of `[code]` that waits for consent on a static site, at the
 /// consent line when it is written, else at the table's own line.
 fn static_consent(path: &Path, text: &str) -> ConfigError {
@@ -203,27 +228,8 @@ impl Config {
             field: field.to_owned(),
             problem: problem.to_owned(),
         };
-        let mount = &file.mount;
-        if !mount.starts_with('/') || !mount.ends_with('/') || mount.contains("//") {
-            return Err(field(
-                "mount",
-                "the mount path must start and end with /, like /blog/",
-            ));
-        }
-        if file.languages.is_empty() {
-            return Err(field("languages", "the site needs at least one language"));
-        }
-        if !file.languages.contains(&file.default_language) {
-            return Err(field(
-                "default_language",
-                "the default language must be one of languages",
-            ));
-        }
-        let bar = file.announcement.iter().filter_map(|a| a.language.as_ref());
-        let unknown = (file.nav.languages().chain(bar)).any(|l| !file.languages.contains(l));
-        if unknown {
-            let problem = "a menu link or the announcement names a language the site does not have; use one of languages";
-            return Err(field("language", problem));
+        if let Some((key, problem)) = layout_mistake(&file) {
+            return Err(field(key, problem));
         }
         let preview_link_lifetime =
             preview_lifetime(&file).map_err(|(key, problem)| field(key, problem))?;
@@ -260,15 +266,9 @@ impl Config {
         let search_console = file
             .search_console
             .map(|table| table.check(&address, mail.as_ref()));
-        let search_console =
-            search_console
-                .transpose()
-                .map_err(|(key, problem)| ConfigError::Field {
-                    path: path.to_path_buf(),
-                    line: line_of_key_in(text, "[search_console", key),
-                    field: key.to_owned(),
-                    problem: problem.to_owned(),
-                })?;
+        let search_console = search_console
+            .transpose()
+            .map_err(|(key, problem)| in_table("[search_console", key, problem))?;
         Ok(Self {
             name: file.name,
             address,
@@ -378,186 +378,6 @@ impl Config {
     /// `None` when the site has none.
     pub fn announcement(&self) -> Option<&Announcement> {
         self.announcement.as_ref()
-    }
-}
-
-/// The environment variables Khalid reads, captured once at start. `Debug`
-/// names the variables and hides the key's value (RULES.md BL-RUN-5).
-#[derive(Clone, Default, PartialEq, Eq)]
-pub struct Environment(BTreeMap<String, String>);
-
-impl Environment {
-    /// Overrides `address` in `site.toml`, for deploys that move the site.
-    pub const ADDRESS: &str = "KHALID_ADDRESS";
-
-    /// The integration key or staff token `khalid mcp` acts with. An agent's
-    /// settings set it, so the key never appears on a command line.
-    pub const KEY: &str = "KHALID_KEY";
-
-    /// The identity of the key that writes to the media bucket.
-    pub const S3_ACCESS_KEY_ID: &str = "KHALID_S3_ACCESS_KEY_ID";
-
-    /// The secret of the key that writes to the media bucket.
-    pub const S3_SECRET_ACCESS_KEY: &str = "KHALID_S3_SECRET_ACCESS_KEY";
-
-    /// The password of the SMTP user in `[mail.smtp]`.
-    pub const SMTP_PASSWORD: &str = "KHALID_SMTP_PASSWORD";
-
-    /// The API key that sends mail through Resend.
-    pub const RESEND_API_KEY: &str = "KHALID_RESEND_API_KEY";
-
-    /// The server token that sends mail through Postmark.
-    pub const POSTMARK_TOKEN: &str = "KHALID_POSTMARK_TOKEN";
-
-    /// The Bing Webmaster Tools API key, made there under Settings, API
-    /// Access. It belongs to a person, not a site, and reads every site they
-    /// have verified there.
-    pub const BING_API_KEY: &str = "KHALID_BING_API_KEY";
-
-    /// The secret of the OAuth client named in `[search_console]`.
-    pub const GOOGLE_CLIENT_SECRET: &str = "KHALID_GOOGLE_CLIENT_SECRET";
-
-    /// The refresh token Google gave when the owner let that client read
-    /// their Search Console numbers.
-    pub const GOOGLE_REFRESH_TOKEN: &str = "KHALID_GOOGLE_REFRESH_TOKEN";
-
-    /// Every variable Khalid reads.
-    const ALL: [&str; 10] = [
-        Self::ADDRESS,
-        Self::KEY,
-        Self::S3_ACCESS_KEY_ID,
-        Self::S3_SECRET_ACCESS_KEY,
-        Self::SMTP_PASSWORD,
-        Self::RESEND_API_KEY,
-        Self::POSTMARK_TOKEN,
-        Self::BING_API_KEY,
-        Self::GOOGLE_CLIENT_SECRET,
-        Self::GOOGLE_REFRESH_TOKEN,
-    ];
-
-    /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 8] = [
-        Self::KEY,
-        Self::S3_SECRET_ACCESS_KEY,
-        Self::SMTP_PASSWORD,
-        Self::RESEND_API_KEY,
-        Self::POSTMARK_TOKEN,
-        Self::BING_API_KEY,
-        Self::GOOGLE_CLIENT_SECRET,
-        Self::GOOGLE_REFRESH_TOKEN,
-    ];
-
-    /// Reads Khalid's variables from this process's environment.
-    pub fn from_process() -> Self {
-        let mut found = BTreeMap::new();
-        for name in Self::ALL {
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "the one place that reads the environment (BL-RUN-2)"
-            )]
-            let value = std::env::var(name);
-            if let Ok(value) = value {
-                found.insert(name.to_owned(), value);
-            }
-        }
-        Self(found)
-    }
-
-    /// An environment with no variables set.
-    pub fn empty() -> Self {
-        Self::default()
-    }
-
-    /// An environment with exactly these variables, for tests and tools.
-    pub fn from_pairs(pairs: &[(&str, &str)]) -> Self {
-        Self(
-            pairs
-                .iter()
-                .map(|&(name, value)| (name.to_owned(), value.to_owned()))
-                .collect(),
-        )
-    }
-
-    /// The key in [`Environment::KEY`], or `None` when it is unset or blank.
-    pub fn key(&self) -> Option<Secret<String>> {
-        self.get(Self::KEY)
-            .map(str::trim)
-            .filter(|key| !key.is_empty())
-            .map(|key| Secret::new(key.to_owned()))
-    }
-
-    /// The media bucket's two keys, or `None` unless both are set and not
-    /// blank.
-    pub fn s3_keys(&self) -> Option<S3Keys> {
-        let read = |name| {
-            self.get(name)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(|value| Secret::new(value.to_owned()))
-        };
-        Some(S3Keys {
-            access_key_id: read(Self::S3_ACCESS_KEY_ID)?,
-            secret_access_key: read(Self::S3_SECRET_ACCESS_KEY)?,
-        })
-    }
-
-    /// The password, key or token `transport` signs in with, or `None`
-    /// when it is unset or blank.
-    pub fn mail_secret(&self, transport: &MailTransport) -> Option<Secret<String>> {
-        let name = match transport {
-            MailTransport::Smtp(_) => Self::SMTP_PASSWORD,
-            MailTransport::Resend => Self::RESEND_API_KEY,
-            MailTransport::Postmark(_) => Self::POSTMARK_TOKEN,
-        };
-        self.get(name)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(|value| Secret::new(value.to_owned()))
-    }
-
-    /// The key in [`Environment::BING_API_KEY`], or `None` when it is unset
-    /// or blank.
-    pub fn bing_api_key(&self) -> Option<Secret<String>> {
-        self.secret(Self::BING_API_KEY)
-    }
-
-    /// The secret in [`Environment::GOOGLE_CLIENT_SECRET`], or `None` when
-    /// it is unset or blank.
-    pub fn google_client_secret(&self) -> Option<Secret<String>> {
-        self.secret(Self::GOOGLE_CLIENT_SECRET)
-    }
-
-    /// The token in [`Environment::GOOGLE_REFRESH_TOKEN`], or `None` when
-    /// it is unset or blank.
-    pub fn google_refresh_token(&self) -> Option<Secret<String>> {
-        self.secret(Self::GOOGLE_REFRESH_TOKEN)
-    }
-
-    /// The variable `name`, trimmed, as a secret, or `None` when it is
-    /// unset or blank.
-    fn secret(&self, name: &str) -> Option<Secret<String>> {
-        self.get(name)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(|value| Secret::new(value.to_owned()))
-    }
-
-    fn get(&self, name: &str) -> Option<&str> {
-        self.0.get(name).map(String::as_str)
-    }
-}
-
-impl fmt::Debug for Environment {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let shown = self.0.iter().map(|(name, value)| {
-            let value: &dyn fmt::Debug = if Self::HIDDEN.contains(&name.as_str()) {
-                &"[redacted]"
-            } else {
-                value
-            };
-            (name, value)
-        });
-        f.debug_map().entries(shown).finish()
     }
 }
 
