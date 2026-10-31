@@ -21,13 +21,19 @@ fn last_part(page: &str) -> &str {
 /// Whether `from` has an internal link that opens `to`, by `to`'s path when
 /// it has one, or else by its slug in the same language.
 pub(crate) fn links_to(from: &LintPost, to: &LintPost) -> bool {
-    let internal = from.links.iter().filter(|l| l.kind == LinkKind::Internal);
-    internal
-        .map(|link| page_key(&link.target))
-        .any(|page| match &to.path {
-            Some(path) => page == page_key(path),
-            None => from.locale == to.locale && last_part(page) == to.slug.as_str(),
-        })
+    let mut internal = from.links.iter().filter(|l| l.kind == LinkKind::Internal);
+    internal.any(|link| opens(&from.locale, &link.target, to))
+}
+
+/// Whether an internal link to `target` in a post written in `locale` opens
+/// `to`, by `to`'s path when it has one, or else by its slug in the same
+/// language.
+pub(crate) fn opens(locale: &Locale, target: &str, to: &LintPost) -> bool {
+    let page = page_key(target);
+    match &to.path {
+        Some(path) => page == page_key(path),
+        None => *locale == to.locale && last_part(page) == to.slug.as_str(),
+    }
 }
 
 /// The internal links between posts, by position in `SiteView::posts`.

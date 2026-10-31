@@ -53,6 +53,8 @@ fn blocking_and_structure_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(link_text::VagueLinkText),
         Box::new(link_text::SameTargetTwice),
         Box::new(link_text::EmptyLinkText),
+        Box::new(link_text::LinkTextMissesTarget),
+        Box::new(link_text::LinkTextIsOwnFocus),
         Box::new(structure::NoOutboundLink),
         Box::new(link_hygiene::NofollowInternalLink),
         Box::new(link_hygiene::InsecureInternalLink),
