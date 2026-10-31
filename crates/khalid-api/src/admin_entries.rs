@@ -33,7 +33,10 @@ impl Noun {
             let message = UserMessage::new(
                 format!("This server keeps no {} through the Admin API.", self.many),
                 "It was started without the site's files, as some tests and tools are.",
-                format!("Ask the running khalid serve for the site's {}.", self.many),
+                format!(
+                    "Send it to the running khalid serve, which reads each {} from the site's files.",
+                    self.one
+                ),
             );
             Problem::new(ProblemType::NotFound, &message)
         })
