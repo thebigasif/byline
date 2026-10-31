@@ -1,3 +1,5 @@
+import { sitesWords } from "./sites";
+
 // Every word the admin shows, so a second language is one more file.
 export const en = {
   brand: "Khalid",
@@ -329,6 +331,7 @@ export const en = {
     submit: "Sign in",
     checking: "Checking the token",
   },
+  sites: sitesWords,
   problems: {
     rejected: {
       what: "The blog did not accept this token.",
