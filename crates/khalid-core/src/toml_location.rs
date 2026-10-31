@@ -30,6 +30,19 @@ pub fn line_of_key(text: &str, key: &str) -> usize {
         .map_or(1, |index| index.saturating_add(1))
 }
 
+/// The 1-based line where `key = ...` is first written at or after the
+/// line that opens `table`, such as `[mail`, or 1 when it is not.
+pub fn line_of_key_in(text: &str, table: &str, key: &str) -> usize {
+    text.lines()
+        .enumerate()
+        .skip_while(|(_, line)| !line.trim_start().starts_with(table))
+        .find(|(_, line)| {
+            line.split_once('=')
+                .is_some_and(|(left, _)| left.trim() == key)
+        })
+        .map_or(1, |(index, _)| index.saturating_add(1))
+}
+
 /// The field a TOML parse error is about: the one its message names, or the
 /// key on the line it points at, or empty when there is none.
 pub fn field_of(text: &str, error: &toml::de::Error) -> String {

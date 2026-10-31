@@ -70,10 +70,24 @@ pub enum Unreached {
     Failed,
 }
 
+/// Whether a source's answers carry a web server's headers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Headers {
+    /// Every header, as a server sends them.
+    Sent,
+    /// Only `Content-Type` and `Location`, as a folder of files can give.
+    Absent,
+}
+
 /// Where a crawl gets its answers: a built folder, a running server or a
 /// test table. It answers one address at a time and never follows a
 /// redirect itself, so the crawl sees each hop.
 pub trait Source {
+    /// Whether the answers carry the headers a web server sends, such as
+    /// `Strict-Transport-Security`. A folder cannot, so the checks on them
+    /// run only on a crawl over HTTP.
+    const HEADERS: Headers = Headers::Absent;
+
     /// The answer for `url`, or why there is none.
     ///
     /// # Errors

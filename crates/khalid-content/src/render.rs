@@ -18,6 +18,7 @@ use crate::{
 
 mod cards;
 mod forms;
+mod formula;
 mod media;
 mod recipe;
 mod steps;
@@ -241,6 +242,7 @@ impl Renderer<'_> {
             BlockKind::Audio { src, title } => self.audio(src, title),
             BlockKind::File { src, title } => self.file(src, title),
             BlockKind::Gallery { images } => self.gallery(images),
+            BlockKind::Maths { label, formula } => self.maths(label.as_deref(), formula),
             BlockKind::Faq { questions } => self.faq(questions),
             BlockKind::HowTo(how_to) => self.how_to(how_to),
             BlockKind::Review(review) => self.review(review),
