@@ -16,6 +16,7 @@ mod admin_redirects;
 mod admin_webhooks;
 pub mod api;
 mod api_version;
+mod audit_desk;
 pub mod audit_log;
 pub mod comment_moderation;
 pub mod content_api;

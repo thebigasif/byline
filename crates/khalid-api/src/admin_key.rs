@@ -10,6 +10,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use khalid_core::UserMessage;
 
+use crate::audit_desk::AuditDesk;
 use crate::keys::{
     Access, KeyError, KeyKind, KeyStore, KeyStoreError, KeyToken, Principal, Scope, authenticate,
 };
@@ -25,12 +26,16 @@ const SCHEME: &str = "Khalid";
 pub(crate) struct AdminDoor {
     pub(crate) keys: Arc<dyn KeyStore>,
     pub(crate) sessions: Option<Arc<dyn SessionCheck>>,
+    /// Where each write that succeeds is logged, when the site keeps an
+    /// audit log (KH-EDT-6).
+    pub(crate) audit: Option<AuditDesk>,
 }
 
 /// Lets a request through only with a stored integration key or staff
 /// token in `Authorization: Khalid <key>`, or, with no `Authorization`
 /// header, a staff session cookie with its CSRF token (RULES.md BL-SEC-9),
-/// and hands the routes the [`Principal`] it belongs to.
+/// and hands the routes the [`Principal`] it belongs to. A write that
+/// succeeds is logged in the audit log, so every route is covered.
 pub(crate) async fn require_admin_key(
     State(door): State<AdminDoor>,
     mut request: Request,
@@ -43,8 +48,19 @@ pub(crate) async fn require_admin_key(
     };
     match principal {
         Ok(Some(principal)) => {
+            let pending = door.audit.as_ref().and_then(|_| {
+                let extensions = request.extensions();
+                let (route, uri) = (extensions.get(), extensions.get());
+                AuditDesk::pending(request.method(), route, uri, &principal)
+            });
             request.extensions_mut().insert(principal);
-            next.run(request).await
+            let response = next.run(request).await;
+            if let (Some(audit), Some(pending)) = (&door.audit, pending)
+                && response.status().is_success()
+            {
+                audit.keep(pending).await;
+            }
+            response
         }
         Ok(None) => refused(),
         Err(source) => Problem::internal(&source).into_response(),

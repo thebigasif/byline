@@ -28,6 +28,8 @@ use crate::{
     admin_webhooks, api_version, content_api,
 };
 
+pub use crate::audit_desk::AuditDesk;
+
 /// The document's title, the schemas every route shares and the ways a
 /// key may be sent.
 #[derive(OpenApi)]
@@ -214,6 +216,9 @@ pub struct AdminDesks {
     /// The site's webhooks, or `None` when the webhook routes list none
     /// and answer that the site keeps none.
     pub webhooks: Option<Arc<dyn WebhookStore>>,
+    /// The audit log every write that succeeds is kept in, or `None` when
+    /// nothing is logged and the audit route lists nothing.
+    pub audit: Option<AuditDesk>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -226,15 +231,32 @@ impl std::fmt::Debug for AdminDesks {
 }
 
 impl AdminDesks {
-    /// No comments, no media library, no stored redirects and no webhooks.
+    /// No comments, no media library, no stored redirects, no webhooks and
+    /// no audit log.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
             media: None,
             redirects: RedirectDesk::none(),
             webhooks: None,
+            audit: None,
         }
     }
+}
+
+/// [`router_with_door`] keeping every write that succeeds in `audit`'s
+/// log, which `/api/admin/v1/audit/` lists.
+pub fn router_with_audit(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    audit: AuditDesk,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        audit: Some(audit),
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
 }
 
 /// [`router_with_door`] with the webhook routes under
@@ -279,6 +301,7 @@ fn assemble(
     let door = AdminDoor {
         keys: Arc::clone(&keys),
         sessions,
+        audit: desks.audit,
     };
     let redirects = desks.redirects;
     let mut admin = admin_api::routes(posts, door.clone())
