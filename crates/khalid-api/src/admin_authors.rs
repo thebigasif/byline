@@ -34,7 +34,7 @@ const AUTHOR: Noun = Noun {
 pub(crate) fn routes(authors: Kept<AdminAuthor>, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_authors, create_author))
-        .routes(routes!(read_author, edit_author, delete_author))
+        .routes(routes!(read_admin_author, edit_author, delete_author))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(authors)
@@ -122,7 +122,7 @@ async fn create_author(
         (status = 404, description = "No author has this identity, or this server keeps no authors", body = Problem, content_type = "application/problem+json"),
     )
 )]
-async fn read_author(
+async fn read_admin_author(
     State(authors): State<Kept<AdminAuthor>>,
     Extension(principal): Extension<Principal>,
     Path(id): Path<String>,

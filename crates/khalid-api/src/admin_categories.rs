@@ -36,7 +36,7 @@ const CATEGORY: Noun = Noun {
 pub(crate) fn routes(categories: Kept<AdminCategory>, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_categories, create_category))
-        .routes(routes!(read_category, edit_category, delete_category))
+        .routes(routes!(read_admin_category, edit_category, delete_category))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(categories)
@@ -124,7 +124,7 @@ async fn create_category(
         (status = 404, description = "No category has this identity, or this server keeps no categories", body = Problem, content_type = "application/problem+json"),
     )
 )]
-async fn read_category(
+async fn read_admin_category(
     State(categories): State<Kept<AdminCategory>>,
     Extension(principal): Extension<Principal>,
     Path(id): Path<String>,
