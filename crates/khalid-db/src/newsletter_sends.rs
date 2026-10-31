@@ -3,10 +3,14 @@
 
 use chrono::{DateTime, Utc};
 use khalid_core::Slug;
-use khalid_newsletter::{SendId, SendTotals, SubscriberId, TokenHash};
+use khalid_newsletter::{SendId, SendNumbers, SendTotals, SubscriberId, TokenHash};
 
 use crate::subscriber_table::stamp;
 use crate::{DbError, SubscriberTable};
+
+/// One row of `newsletter_sends`: key, list, start, sent, failed and
+/// unsubscribed.
+type SendRow = (String, String, DateTime<Utc>, u32, u32, u32);
 
 impl SubscriberTable {
     pub(crate) async fn start_send_now(
@@ -55,6 +59,27 @@ impl SubscriberTable {
                 id: subscriber.as_row(),
             })
         }
+    }
+
+    pub(crate) async fn sends_now(&self) -> Result<Vec<SendNumbers>, DbError> {
+        let rows: Vec<SendRow> = sqlx::query_as(
+            "SELECT send_key, list, started_at, sent, failed, unsubscribed \
+             FROM newsletter_sends WHERE site_id = ?1 ORDER BY started_at DESC, id DESC",
+        )
+        .bind(self.site.as_row())
+        .fetch_all(&self.db.readers)
+        .await?;
+        rows.into_iter()
+            .map(|(key, list, started_at, sent, failed, unsubscribed)| {
+                let list = Slug::try_new(&list).map_err(|_| DbError::Unreadable {
+                    column: "list",
+                    value: list.clone(),
+                })?;
+                let totals = SendTotals { sent, failed };
+                let numbers = SendNumbers::new(key, list, started_at, totals);
+                Ok(numbers.with_unsubscribed(unsubscribed))
+            })
+            .collect()
     }
 
     pub(crate) async fn finish_send_now(

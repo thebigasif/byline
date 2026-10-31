@@ -9,7 +9,9 @@ use std::pin::Pin;
 use chrono::{DateTime, TimeDelta, Utc};
 use khalid_core::Slug;
 
-use crate::{EmailAddress, Labelled, Member, Recipient, Segment, SendId, SendTotals, TokenHash};
+use crate::{
+    EmailAddress, Labelled, Member, Recipient, Segment, SendId, SendNumbers, SendTotals, TokenHash,
+};
 
 /// How long a confirmation link works. Two days covers a weekend away from
 /// the inbox, and a reader who misses it signs up again.
@@ -225,6 +227,13 @@ pub trait SubscriberStore: fmt::Debug + Send + Sync {
         totals: SendTotals,
         at: DateTime<Utc>,
     ) -> BoxFuture<'_, Result<(), StoreError>>;
+
+    /// The numbers of every email that went out, newest first.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read.
+    fn sends(&self) -> BoxFuture<'_, Result<Vec<SendNumbers>, StoreError>>;
 
     /// Subscriber `subscriber`, with the newsletters they get in
     /// alphabetical order, or `None` when they are gone or unsubscribed.

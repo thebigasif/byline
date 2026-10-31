@@ -9,7 +9,7 @@ use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Subcommand};
 use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, SubscriberTable};
-use khalid_newsletter::{EmailAddress, Labelled, Pages, Segment, SubscriberStore};
+use khalid_newsletter::{EmailAddress, Labelled, Pages, Segment, SendNumbers, SubscriberStore};
 use serde::Serialize;
 
 use crate::cli::{Cli, Output};
@@ -45,6 +45,9 @@ pub(crate) enum NewsletterCommand {
         #[arg(long = "label", value_name = "LABEL")]
         labels: Vec<Slug>,
     },
+    /// Show each email that went out, newest first, with its totals: copies
+    /// sent, copies refused and readers who unsubscribed with its link
+    Numbers,
     /// Print a sign-up form to paste into another website, such as your
     /// main site. It works with scripts off
     Embed {
@@ -86,6 +89,7 @@ impl NewsletterCommand {
             Self::Segment { .. } => "newsletter segment",
             Self::Send { .. } => "newsletter send",
             Self::Embed { .. } => "newsletter embed",
+            Self::Numbers => "newsletter numbers",
         }
     }
 }
@@ -123,6 +127,7 @@ pub(crate) fn run(
             return newsletter_send::run(cli, (folder, config), &asked);
         }
         NewsletterCommand::Embed { list } => Ok(embed((folder, config), list, output)),
+        NewsletterCommand::Numbers => on_store(folder, async |store| numbers(store, output).await),
         NewsletterCommand::Label {
             email,
             label,
@@ -182,6 +187,60 @@ async fn count(store: &SubscriberTable, segment: &Segment, output: Output) -> Do
                 segment.list()
             );
             report::text(&text, Exit::Success)
+        }
+    })
+}
+
+/// The totals of every email that went out, newest first.
+async fn numbers(store: &SubscriberTable, output: Output) -> Done {
+    #[derive(Serialize)]
+    struct SendBody<'a> {
+        key: &'a str,
+        list: &'a str,
+        started_at: String,
+        sent: u32,
+        failed: u32,
+        unsubscribed: u32,
+    }
+    #[derive(Serialize)]
+    struct NumbersBody<'a> {
+        sends: Vec<SendBody<'a>>,
+    }
+    let sends = store.sends().await.map_err(|_| unreachable())?;
+    let stamp = |send: &SendNumbers| send.started_at.format("%Y-%m-%d %H:%M UTC").to_string();
+    Ok(match output {
+        Output::Json => {
+            let sends = sends.iter().map(|send| SendBody {
+                key: &send.key,
+                list: send.list.as_str(),
+                started_at: send.started_at.to_rfc3339(),
+                sent: send.totals.sent,
+                failed: send.totals.failed,
+                unsubscribed: send.unsubscribed,
+            });
+            let sends = sends.collect();
+            report::json(&NumbersBody { sends }, Exit::Success)
+        }
+        Output::Human if sends.is_empty() => report::text(
+            "No email has gone out yet. Send a post with `khalid newsletter send <slug>`.\n",
+            Exit::Success,
+        ),
+        Output::Human => {
+            let lines: Vec<String> = sends
+                .iter()
+                .map(|send| {
+                    format!(
+                        "{}  {}  to {}: {} sent, {} refused, {} unsubscribed\n",
+                        stamp(send),
+                        send.key,
+                        send.list,
+                        send.totals.sent,
+                        send.totals.failed,
+                        send.unsubscribed
+                    )
+                })
+                .collect();
+            report::text(&lines.concat(), Exit::Success)
         }
     })
 }

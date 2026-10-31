@@ -66,3 +66,11 @@ khalid --site <folder> newsletter embed --list weekly
 ```
 
 It is plain HTML that posts to the blog's full address, so it needs no script, no frame and nothing loaded from the blog. Style it with the main site's CSS through the `khalid-subscribe` class. After signing up, the reader lands on the blog's "Check your inbox" page.
+
+## Numbers
+
+```sh
+khalid --site <folder> newsletter numbers
+```
+
+lists each email that went out, newest first, with three totals: copies sent, copies the mail server refused, and readers who unsubscribed with a link from that email. Numbers are totals per email, never per person. Khalid does not count opens: that needs a hidden image in every email, which tells you who read what, so it is off.

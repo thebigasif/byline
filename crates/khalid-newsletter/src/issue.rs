@@ -1,6 +1,9 @@
 //! One email sent to a segment, such as a post (task 5.8), and what the
 //! store keeps about it.
 
+use chrono::{DateTime, Utc};
+use khalid_core::Slug;
+
 /// What one email to a newsletter says, and the key that stops it going
 /// out twice. A post's key names the post, so an edit never sends it
 /// again.
@@ -86,4 +89,44 @@ pub enum Sent {
     Now(SendTotals),
     /// It went out before under the same key, so nothing was sent.
     Before,
+}
+
+/// One email that went out to a newsletter, with its totals: copies sent,
+/// copies refused, and readers who unsubscribed with its link. Never who.
+/// Opens are not counted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct SendNumbers {
+    /// The key it went out under, such as `post:en/hello`.
+    pub key: String,
+    /// The newsletter.
+    pub list: Slug,
+    /// When it started going out.
+    pub started_at: DateTime<Utc>,
+    /// The copies sent and refused.
+    pub totals: SendTotals,
+    /// The readers who unsubscribed with a link from it.
+    pub unsubscribed: u32,
+}
+
+impl SendNumbers {
+    /// The numbers of the email sent under `key` to `list` at `started_at`.
+    pub fn new(key: String, list: Slug, started_at: DateTime<Utc>, totals: SendTotals) -> Self {
+        Self {
+            key,
+            list,
+            started_at,
+            totals,
+            unsubscribed: 0,
+        }
+    }
+
+    /// The same numbers, with `unsubscribed` readers who left through it.
+    #[must_use]
+    pub fn with_unsubscribed(self, unsubscribed: u32) -> Self {
+        Self {
+            unsubscribed,
+            ..self
+        }
+    }
 }

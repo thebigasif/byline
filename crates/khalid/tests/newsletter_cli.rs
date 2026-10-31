@@ -165,6 +165,16 @@ async fn a_published_post_goes_out_once_with_a_link_out_and_the_postal_address()
     let (code, _) = newsletter(site.path(), &["send", POST]);
     assert_eq!(code, Some(1));
     assert_eq!(stub.received().len(), 2, "the post went out twice");
+    let (code, out) = newsletter(site.path(), &["numbers", "--json"]);
+    assert_eq!(code, Some(0), "{out}");
+    let numbers: Value = serde_json::from_str(&out).unwrap();
+    let send = &numbers["sends"][0];
+    assert_eq!(send["key"], format!("post:en/{POST}"));
+    assert_eq!(
+        (send["sent"].as_u64(), send["failed"].as_u64()),
+        (Some(2), Some(0))
+    );
+    assert!(!out.contains("grace@example.com"), "numbers name a reader");
 }
 
 #[tokio::test]

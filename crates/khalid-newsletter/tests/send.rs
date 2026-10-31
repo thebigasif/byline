@@ -11,7 +11,7 @@ use khalid_core::{AbsoluteUrl, FixedClock, Locale, Slug};
 use khalid_db::{Database, SubscriberTable};
 use khalid_newsletter::{
     EmailAddress, Issue, MemoryMailer, Newsletter, NewsletterSite, PostalAddress, Segment,
-    SendTotals, Sent, SiteLinks, Unsubscribed,
+    SendTotals, Sent, SiteLinks, SubscriberStore, Unsubscribed,
 };
 
 #[cfg(test)]
@@ -146,4 +146,29 @@ async fn a_refused_copy_is_counted_and_the_key_stays_used() {
     assert_eq!(sent, Sent::Now(totals));
     let again = flow.send(&post(), &segment, &postal()).await.unwrap();
     assert_eq!(again, Sent::Before);
+}
+
+#[tokio::test]
+async fn each_email_keeps_totals_and_counts_an_unsubscribe_once() {
+    let (_dir, table) = table().await;
+    subscribers(&table, &["grace@example.com", "ada@example.com"]).await;
+    let mailer = MemoryMailer::default();
+    let flow = newsletter(&table, &mailer);
+    flow.send(&post(), &Segment::new(main(), []), &postal())
+        .await
+        .unwrap();
+    let text = mailer.sent().first().unwrap().text.clone();
+    let marker = "/blog/unsubscribe?token=";
+    let start = text.find(marker).unwrap() + marker.len();
+    let link = text.get(start..start + 64).unwrap();
+    flow.unsubscribe(link).await.unwrap();
+    flow.unsubscribe(link).await.unwrap();
+    let numbers = table.sends().await.unwrap();
+    assert_eq!(numbers.len(), 1, "{numbers:?}");
+    let first = numbers.first().unwrap();
+    assert_eq!(first.key, "post:en/anchor-text");
+    assert_eq!(first.list, main());
+    assert_eq!(first.started_at, nine());
+    let totals = SendTotals { sent: 2, failed: 0 };
+    assert_eq!((first.totals, first.unsubscribed), (totals, 1));
 }
