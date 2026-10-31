@@ -8,6 +8,11 @@
 mod agents;
 #[expect(
     dead_code,
+    reason = "khalid serve starts the checks in the next part of G44"
+)]
+mod alert_watch;
+#[expect(
+    dead_code,
     reason = "khalid serve starts alerting in the next part of G44"
 )]
 mod alerts;
