@@ -377,15 +377,7 @@ impl Site {
     /// `found` as the linter judges it now: a draft as it would go live
     /// today, a published post as it is.
     fn candidate_now(&self, judge: &Judge, found: &Found) -> Result<LintPost, PostStoreError> {
-        let mut text = found.text.clone();
-        let relative = match found.status {
-            PostStatus::Draft => self.dated(found, &mut text).1,
-            _ => found
-                .path
-                .strip_prefix(&self.folder)
-                .map_err(PostStoreError::new)?
-                .to_path_buf(),
-        };
+        let (text, relative) = self.as_now(found)?;
         self.candidate(judge, found, &text, &relative)
     }
 
@@ -513,8 +505,7 @@ where
 
 impl SitePosts {
     /// What the lint publish gate finds in post `id` now, on a blocking
-    /// thread, writing nothing. `khalid mcp`'s `lint_post` calls it; the
-    /// Admin API has no lint route yet.
+    /// thread, writing nothing. `khalid mcp`'s `lint_post` calls it.
     ///
     /// # Errors
     ///
@@ -592,6 +583,8 @@ fn failure(what: &str) -> PostStoreError {
     PostStoreError::new(Failure(what.to_owned()))
 }
 
+#[path = "site_posts_check.rs"]
+mod check;
 #[path = "site_posts_list.rs"]
 mod list;
 

@@ -189,7 +189,7 @@ fn serve_with(
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
         let desks = (moderation, media, desk);
-        let apis = api_router((content, door), desks, (database, id, config));
+        let apis = api_router((content, door), desks, (database, id, (site, config)));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -219,11 +219,11 @@ fn serve_with(
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
 /// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`.
+/// accounts of site `id`, and the post checks of the site in `site`.
 fn api_router(
     (content, door): (LiveContent, Arc<PublishDoor>),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
-    (database, id, config): (&Database, SiteId, &Config),
+    (database, id, (site, config)): (&Database, SiteId, (&Path, &Config)),
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
     let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
@@ -237,7 +237,7 @@ fn api_router(
             id,
             SystemClock,
         ))),
-        checks: None,
+        checks: Some(Arc::new(SitePosts::new(site, config.clone(), SystemClock))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

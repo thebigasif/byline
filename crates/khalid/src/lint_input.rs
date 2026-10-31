@@ -22,10 +22,10 @@ use khalid_lint::{
     LintForm, LintLink, LintPost, LintSite, PageRef, StructuredDataGap,
 };
 use khalid_routes::{PostAddress, Routes};
-use khalid_seo::{LinkPolicy, SeoSite};
+use khalid_seo::{LinkPolicy, SeoPage, SeoSite};
 
-use crate::build_pages::routed;
-use crate::build_seo;
+use crate::build_pages::{path_of, routed};
+use crate::{build_schema, build_seo};
 
 /// What a post is linted against besides itself: the site's routes, the
 /// pages a wikilink reaches in each language, and the site as the SEO
@@ -232,6 +232,39 @@ fn gaps(
     };
     page.author = front.author.as_ref().map(Slug::to_string);
     build_seo::structured_data_gaps(site, &page)
+}
+
+/// The site, and the SEO page the post made of `parts` becomes on it, as
+/// `khalid build` makes the page's head and schema graph: with the schema
+/// of its blocks, its collection's schema templates and its hand-written
+/// JSON-LD. Its author is named by slug, since only the build reads the
+/// author files. `None` when the post has no date, no slug or no address,
+/// does not render, or holds JSON-LD that is not schema.org, or when
+/// `site.toml` gives no SEO site.
+pub(crate) fn seo_page<'i>(
+    parts: &PostParts<'_>,
+    config: &Config,
+    input: &'i LintInput,
+) -> Option<(&'i SeoSite, SeoPage)> {
+    let (site, front) = (input.seo.as_ref()?, parts.front);
+    let named = (front.slug.as_ref(), front.title.as_deref());
+    let slug = slug_of(named, parts.path, parts.locale, config)?;
+    let none = Wikilinks::new();
+    let links = input.links.get(parts.locale).unwrap_or(&none);
+    let rendered = render_linked(parts.body, parts.locale, config.slugs(), links).ok()?;
+    let address = PostAddress::new(parts.collection, parts.locale, &slug, front.date);
+    let rest = routed(config, &input.routes, parts.locale, &address, parts.path).ok()?;
+    let title = front.title.clone().unwrap_or_else(|| slug.to_string());
+    let mut page = build_seo::post(parts.locale, (&rest, &title), front, front.date?).ok()?;
+    page.collection = Some(parts.collection.to_owned());
+    page.content_html = build_seo::full_addresses(config, &rendered.html);
+    page.author = front.author.as_ref().map(Slug::to_string);
+    let by = (path_of(config, parts.locale, &rest), page.author.clone());
+    let body = (&rendered.structured[..], &rendered.links[..]);
+    let by = (by.0.as_str(), by.1.as_deref().unwrap_or_default());
+    build_schema::fill(&mut page, config, by, body).ok()?;
+    page.custom_schema = build_schema::custom(parts.path, front.schema.as_deref()).ok()?;
+    Some((site, page))
 }
 
 /// `link` in the lint model, with the `rel` words the link policy `policy`
