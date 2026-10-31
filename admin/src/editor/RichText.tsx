@@ -3,6 +3,8 @@ import { type ReactNode, useRef, useState } from "react";
 import { en } from "../strings/en";
 import { BlockForm } from "./aids/BlockForm";
 import { applyDetails, type Details, detailsOf, selectedDetails } from "./aids/blockForm";
+import { LinkSearch } from "./aids/LinkSearch";
+import { type Chosen, chosenIn, isLinkKey, linkToAddress, linkToPost } from "./aids/linkTo";
 import { PostMenu } from "./aids/PostMenu";
 import { SlashMenu } from "./aids/SlashMenu";
 import { openTrigger } from "./aids/trigger";
@@ -20,6 +22,7 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
   // The open menu takes the arrow keys, Enter and Escape before the text does.
   const keys = useRef<KeyHandler>(noKeys);
   const [details, setDetails] = useState<Details | null>(null);
+  const [linking, setLinking] = useState<Chosen | null>(null);
   const opened = (found: Details | null) => {
     if (found !== null) {
       setDetails(found);
@@ -43,6 +46,10 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
         if (keys.current(event)) {
           return true;
         }
+        if (isLinkKey(event)) {
+          setLinking(chosenIn(view.state));
+          return true;
+        }
         // Enter on a selected block card opens its details.
         const selected = menuKey(event) === "pick" ? selectedDetails(view.state) : null;
         return opened(selected);
@@ -58,6 +65,7 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
   });
   const closeForm = () => {
     setDetails(null);
+    setLinking(null);
     editor.commands.focus();
   };
   let aid: ReactNode = null;
@@ -69,6 +77,21 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
         onSave={(values) => {
           applyDetails(editor, details, values);
           setDetails(null);
+        }}
+        onCancel={closeForm}
+      />
+    );
+  } else if (linking !== null) {
+    aid = (
+      <LinkSearch
+        chosen={linking}
+        onPost={(post) => {
+          linkToPost(editor, linking, post);
+          setLinking(null);
+        }}
+        onAddress={(address) => {
+          linkToAddress(editor, linking, address);
+          setLinking(null);
         }}
         onCancel={closeForm}
       />

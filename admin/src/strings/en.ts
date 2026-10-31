@@ -398,6 +398,14 @@ export const en = {
     save: "Save the details",
     cancel: "Cancel",
   },
+  link: {
+    title: (words: string) => (words === "" ? "Add a link" : `Link "${words}"`),
+    find: "Find a post, or paste a web address",
+    hint: "A post is linked with a wikilink, so the link keeps working when its address changes.",
+    found: "Posts that match",
+    address: (href: string) => `Press Enter to link to ${href}.`,
+    cancel: "Cancel",
+  },
   aids: {
     slash: "Add a block",
     help: "Type to narrow the list. ↑ ↓ to move, Enter to add, Esc to close.",

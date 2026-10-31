@@ -28,7 +28,8 @@ export function linkPost(editor: Editor, trigger: Trigger, post: PostRow) {
   editor.chain().focus().insertContentAt(range, nodes).run();
 }
 
-function emptyText(found: Rows | undefined): string {
+/** What a post list says when it shows no post: still looking, failed, or no match. */
+export function emptyText(found: Rows | undefined): string {
   if (found === undefined) {
     return en.aids.searching;
   }
