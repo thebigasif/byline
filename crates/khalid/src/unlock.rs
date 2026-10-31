@@ -23,7 +23,7 @@ use serde::Deserialize;
 use tower::ServiceExt;
 
 use crate::build_pages::LanguagePages;
-use crate::post_lock::{UNLOCK_FOLDER, UNLOCKED_FOLDER, hidden};
+use crate::post_lock::{Key, UNLOCK_FOLDER, UNLOCKED_FOLDER, hidden};
 
 /// The most a form may send: an address and a password.
 const BODY_LIMIT: usize = 4 * 1024;
@@ -35,26 +35,27 @@ const TRIES_PER_MINUTE: u32 = 10;
 /// The largest locked page read back to show its alert.
 const PAGE_LIMIT: usize = 4 * 1024 * 1024;
 
-/// The password posts of the last full render: each one's address, its
-/// file and its password's hash. Cloning shares it.
+/// The password posts and the posts with gated content of the last full
+/// render: each one's address, its file and what opens it. Cloning shares
+/// it.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Gate(Arc<Mutex<BTreeMap<String, (PathBuf, PasswordHash)>>>);
+pub(crate) struct Gate(Arc<Mutex<BTreeMap<String, (PathBuf, Key)>>>);
 
 impl Gate {
-    /// Takes the password posts of `languages` in place of the old ones.
+    /// Takes the locked posts of `languages` in place of the old ones.
     pub(crate) fn replace(&self, languages: &[LanguagePages]) {
         let posts = languages.iter().flat_map(|language| &language.unlocked);
         let entries = posts.filter_map(|unlocked| {
             let source = unlocked.page.source.clone()?;
             Some((
                 unlocked.page.meta.path.clone(),
-                (source, unlocked.hash.clone()),
+                (source, unlocked.key.clone()),
             ))
         });
         *self.0.lock().unwrap_or_else(PoisonError::into_inner) = entries.collect();
     }
 
-    /// Whether the post file `source` is a password post now.
+    /// Whether the post file `source` has a full page kept now.
     pub(crate) fn guards(&self, source: &std::path::Path) -> bool {
         let posts = self.0.lock().unwrap_or_else(PoisonError::into_inner);
         posts.values().any(|(file, _)| file == source)
@@ -63,7 +64,10 @@ impl Gate {
     /// The hash of the password of the post at `path`, if it has one.
     fn hash(&self, path: &str) -> Option<PasswordHash> {
         let posts = self.0.lock().unwrap_or_else(PoisonError::into_inner);
-        posts.get(path).map(|(_, hash)| hash.clone())
+        match posts.get(path) {
+            Some((_, Key::Password(hash))) => Some(hash.clone()),
+            _ => None,
+        }
     }
 }
 
