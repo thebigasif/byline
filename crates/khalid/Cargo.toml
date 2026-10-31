@@ -96,6 +96,10 @@ name = "serve_entry_webhooks"
 required-features = ["test-util"]
 
 [[test]]
+name = "audit_webhooks"
+required-features = ["test-util"]
+
+[[test]]
 name = "serve_https"
 required-features = ["test-util"]
 

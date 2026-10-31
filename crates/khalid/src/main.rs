@@ -9,6 +9,7 @@ mod agents;
 mod announce;
 mod assets;
 mod atomic;
+mod audit_events;
 mod audit_message;
 mod build;
 mod build_files;
