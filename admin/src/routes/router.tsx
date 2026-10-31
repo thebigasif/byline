@@ -17,6 +17,7 @@ import { Dashboard } from "./Dashboard";
 import { Media } from "./Media";
 import { MediaDetails } from "./MediaDetails";
 import { NewPost } from "./NewPost";
+import { Passkeys } from "./Passkeys";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
 import { SchemaTemplates } from "./SchemaTemplates";
@@ -93,6 +94,12 @@ const templates = createRoute({
   component: SchemaTemplates,
 });
 
+const passkeys = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/passkeys",
+  component: Passkeys,
+});
+
 const routeTree = root.addChildren([
   signIn,
   signedIn.addChildren([
@@ -106,6 +113,7 @@ const routeTree = root.addChildren([
     audit,
     redirects,
     templates,
+    passkeys,
   ]),
 ]);
 

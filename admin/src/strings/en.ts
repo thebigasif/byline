@@ -1,4 +1,5 @@
 // Every word the admin shows, so a second language is one more file.
+import { passkeys } from "./passkeys";
 import { records } from "./records";
 
 export const en = {
@@ -17,6 +18,7 @@ export const en = {
     audit: "Audit log",
     redirects: "Redirects",
     templates: "Schema templates",
+    passkeys: "Passkeys",
   },
   templates: {
     title: "Schema templates",
@@ -51,6 +53,7 @@ export const en = {
   trash: records.trash,
   audit: records.audit,
   bulk: records.bulk,
+  passkeys,
   media: {
     title: "Media",
     lede: "The images, videos, sound and files your posts use. Khalid reads each file's content to learn its type, so a program renamed to look like a photo is refused. A file uploaded twice is kept once.",
