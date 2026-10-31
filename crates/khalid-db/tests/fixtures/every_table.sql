@@ -93,3 +93,7 @@ INSERT INTO analytics_counts (site_id, day, path, referrer_group, views) VALUES
 INSERT INTO crawl_log (site_id, day, path, crawler, kind, hits, last_seen, last_status) VALUES
     (1, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200),
     (2, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200);
+INSERT INTO draft_comments (id, site_id, post_id, parent_id, block, author, body, resolved, created_at) VALUES
+    (1, 1, 'en.choosing-anchor-text', NULL, 2, '3333444455556666', 'Name the tool here?', 1, '2026-10-26T09:00:00Z'),
+    (2, 1, 'en.choosing-anchor-text', 1, 2, '2222333344445555', 'Done.', 0, '2026-10-26T09:05:00Z'),
+    (3, 2, 'en.choosing-anchor-text', NULL, NULL, '3333444455556666', 'Good start.', 0, '2026-10-26T09:00:00Z');

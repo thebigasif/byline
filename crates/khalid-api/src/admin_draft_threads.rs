@@ -114,11 +114,15 @@ fn threaded(all: Vec<DraftComment>) -> Vec<DraftComment> {
 async fn resolve_draft_comment(
     State((door, comments)): State<Desk>,
     Extension(principal): Extension<Principal>,
-    Path((id, comment)): Path<(String, i64)>,
+    Path((id, comment)): Path<(String, String)>,
     OriginalUri(uri): OriginalUri,
     body: Result<Json<ResolveThreads>, JsonRejection>,
 ) -> Result<StatusCode, Problem> {
     require(&principal, Scope::PostsWrite)?;
+    // Not a number names no comment, so it is the same 404 as an unknown one.
+    let comment: i64 = comment
+        .parse()
+        .map_err(|_| crate::admin_api::missing(uri.path()))?;
     let Json(body) = body.map_err(|rejection| unreadable(&rejection.body_text()))?;
     let [body] = <[ResolveBody; 1]>::try_from(body.draft_comments)
         .map_err(|_| unreadable("draft_comments must hold exactly one change"))?;
