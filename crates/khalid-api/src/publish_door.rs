@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 
 use crate::content_store::Listed;
 use crate::post_store::{DeletePostError, PostStore, PostStoreError, UpdatePostError};
+use crate::presence::{Claim, PostPresence, Presence};
 use crate::preview_link::PreviewSigner;
 use crate::query::ListQuery;
 use crate::resources::{AdminPost, PostEdit, PostRow, PostStatus};
@@ -108,6 +109,7 @@ pub struct PublishDoor {
     schedules: Option<Arc<dyn ScheduleStore>>,
     previews: Option<PreviewSigner>,
     versions: Option<Arc<dyn VersionStore>>,
+    presence: Presence,
     clock: Arc<dyn Clock>,
     /// Held through every edit, so two at once cannot both see the same
     /// draft go live and announce it twice.
@@ -131,6 +133,7 @@ impl PublishDoor {
             clock: Arc::new(SystemClock),
             previews: None,
             versions: None,
+            presence: Presence::new(),
             editing: Mutex::new(()),
         }
     }
@@ -176,6 +179,17 @@ impl PublishDoor {
             Some(versions) => versions.list(id).await.map(Some),
             None => Ok(None),
         }
+    }
+
+    /// Notes that `who` has post `id` open in the editor, asking for
+    /// `claim`, and answers who holds its lock.
+    pub fn check_in(&self, id: &str, who: &str, claim: Claim) -> PostPresence {
+        self.presence.check_in(id, who, claim, self.clock.now())
+    }
+
+    /// Notes that `who` closed post `id` in the editor.
+    pub fn leave(&self, id: &str, who: &str) {
+        self.presence.leave(id, who);
     }
 
     /// What makes and checks preview links, if this site has one.
