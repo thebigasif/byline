@@ -1,7 +1,7 @@
 //! `khalid pull`: in git mode, the site's content repository brought up to
-//! date and checked (plan section 4.1, KH-OPS-2). Each test makes a bare
-//! repository, a writer's clone holding the demo site, and the blog's own
-//! clone.
+//! date, checked, and for a static site built again (plan section 4.1,
+//! KH-OPS-2). Each test makes a bare repository, a writer's clone holding
+//! the demo site, and the blog's own clone.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -166,6 +166,22 @@ fn pull_with_nothing_new_changes_nothing() {
 }
 
 #[test]
+fn a_static_site_is_built_again_after_a_pull() {
+    let repos = repos("static");
+    push_an_edit(repos.writer.path());
+    let output = pull(repos.blog.path(), &["--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(json["pages"].as_u64().unwrap() > 0, "{json}");
+    let page = within(
+        repos.blog.path(),
+        "public/how-to-write-a-title-tag/index.html",
+    );
+    let html = fs::read_to_string(&page).unwrap_or_default();
+    assert!(html.contains("One more paragraph."), "{}", page.display());
+}
+
+#[test]
 fn a_site_outside_git_is_explained() {
     let site = demo_copy();
     let output = pull(site.path(), &[]);
@@ -174,4 +190,23 @@ fn a_site_outside_git_is_explained() {
     let lines: Vec<&str> = message.lines().collect();
     assert_eq!(lines.len(), 3, "{message}");
     assert!(lines[0].contains("not in a git repository"), "{message}");
+}
+
+#[test]
+fn a_blog_with_its_own_commits_is_not_merged() {
+    let repos = repos("server");
+    push_an_edit(repos.writer.path());
+    let readme = within(repos.blog.path(), "README.md");
+    fs::write(&readme, "Changed on the server.\n").unwrap();
+    git(
+        repos.blog.path(),
+        &["commit", "--quiet", "-am", "Edit on the server"],
+    );
+    let output = pull(repos.blog.path(), &[]);
+    assert_eq!(output.status.code(), Some(1));
+    let message = text(&output.stderr);
+    assert_eq!(message.lines().count(), 3, "{message}");
+    assert!(message.contains("git -C"), "{message}");
+    let post = fs::read_to_string(within(repos.blog.path(), POST)).unwrap();
+    assert!(!post.contains("One more paragraph."));
 }

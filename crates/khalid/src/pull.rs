@@ -1,27 +1,34 @@
 //! `khalid pull`: in git mode, the site's content repository brought up to
-//! what was pushed to it, then checked like any other start (plan sections
-//! 4.1 and 5.14). It only moves forward: changes made in the blog's own
-//! copy are never merged or overwritten. A running `khalid serve` sees the
-//! new files through its watch.
+//! what was pushed to it, then checked like any other start, and for a
+//! static site built again into `public/` (plan sections 4.1 and 5.14). It
+//! only moves forward: changes made in the blog's own copy are never
+//! merged or overwritten. A running `khalid serve` sees the new files
+//! through its watch.
 
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output as Ran, Stdio};
 
-use khalid_core::{Environment, UserMessage};
+use khalid_core::{Clock, Environment, Mode, UserMessage};
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{pull_message, report};
+use crate::{build, pull_message, report};
 
-/// The JSON shape of `khalid pull --json`.
+/// The folder a static site is built into.
+const PUBLIC: &str = "public";
+
+/// The JSON shape of `khalid pull --json`. `pages` is there when a static
+/// site was built again.
 #[derive(Serialize)]
 struct PullBody {
     from: String,
     to: String,
     changed: bool,
     files: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pages: Option<usize>,
 }
 
 /// Where the pull moved the repository: the commits before and after, and
@@ -32,16 +39,27 @@ struct Moved {
     files: usize,
 }
 
-/// Pulls the repository holding `site`, then checks the site.
-pub(crate) fn run(site: &Path, output: Output) -> Exit {
+/// Pulls the repository holding `site`, then checks the site and builds a
+/// static one again. `clock` dates a feed with no posts.
+pub(crate) fn run(site: &Path, clock: &dyn Clock, output: Output) -> Exit {
     let moved = match pulled(site) {
         Ok(moved) => moved,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
-    if let Err(message) = crate::check(site, &Environment::from_process()) {
-        return report::failure(output, &message, Exit::Failure);
-    }
-    success(output, &moved)
+    let (config, routes, content, _) = match crate::check(site, &Environment::from_process()) {
+        Ok(checked) => checked,
+        Err(message) => return report::failure(output, &message, Exit::Failure),
+    };
+    let public = within(site, PUBLIC);
+    let pages = if config.mode() == Mode::Static && moved.files > 0 {
+        match build::into_folder(site, (&config, &routes, &content), &public, clock, output) {
+            Ok(pages) => Some(pages),
+            Err(exit) => return exit,
+        }
+    } else {
+        None
+    };
+    success(output, site, &moved, pages)
 }
 
 /// Fast-forwards the repository holding `site` to its upstream branch, and
@@ -98,7 +116,7 @@ fn line(bytes: &[u8]) -> String {
 }
 
 /// Says what the pull brought in, and what happens to it next.
-fn success(output: Output, moved: &Moved) -> Exit {
+fn success(output: Output, site: &Path, moved: &Moved, pages: Option<usize>) -> Exit {
     let changed = moved.files > 0;
     if output == Output::Json {
         let body = PullBody {
@@ -106,11 +124,15 @@ fn success(output: Output, moved: &Moved) -> Exit {
             to: moved.to.clone(),
             changed,
             files: moved.files,
+            pages,
         };
         return report::json(&body, Exit::Success);
     }
     let short = |commit: &str| commit.chars().take(7).collect::<String>();
-    let next = "A running `khalid serve` shows the changes on its own.";
+    let next = match pages {
+        Some(pages) => format!("Built {pages} pages in {}.", within(site, PUBLIC).display()),
+        None => "A running `khalid serve` shows the changes on its own.".to_owned(),
+    };
     let said = match moved.files {
         0 => "The content repository has nothing new, so nothing changed.".to_owned(),
         1 => format!(

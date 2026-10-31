@@ -344,7 +344,7 @@ fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
         Command::Redirects { command } => redirects::run(folder, command, output),
         Command::Webhooks { command } => webhooks::run(folder, command, output),
         Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),
-        Command::Pull => pull::run(folder, output),
+        Command::Pull => pull::run(folder, &SystemClock, output),
         _ => report::failure(output, &not_built(asked), Exit::Internal),
     }
 }
