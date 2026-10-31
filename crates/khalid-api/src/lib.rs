@@ -17,6 +17,7 @@ mod admin_not_found;
 mod admin_pages;
 mod admin_redirect_csv;
 mod admin_redirects;
+mod admin_site_settings;
 mod admin_snippets;
 mod admin_tags;
 mod admin_webhooks;

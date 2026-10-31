@@ -3872,6 +3872,73 @@
         ]
       }
     },
+    "/api/admin/v1/settings/": {
+      "get": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Reads the site's core settings as `site.toml` holds them, and whether\nthe running server needs a restart to use them. Needs `settings:write`.",
+        "operationId": "read_settings",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no settings",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/snippets/": {
       "get": {
         "tags": [
@@ -8420,6 +8487,53 @@
               "$ref": "#/components/schemas/AdminRedirect"
             },
             "description": "The redirects, oldest first."
+          }
+        }
+      },
+      "AdminSettings": {
+        "type": "object",
+        "description": "The site's core settings from `site.toml`, in Admin API shape. The\nrunning server reads `site.toml` once at start, so a change applies\nafter a restart.",
+        "required": [
+          "name",
+          "address",
+          "mount",
+          "default_language",
+          "languages",
+          "updated_at",
+          "restart_needed"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The address of the main site, such as `https://www.example.com`."
+          },
+          "default_language": {
+            "type": "string",
+            "description": "The language a reader gets first, such as `en`."
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every language the site is written in."
+          },
+          "mount": {
+            "type": "string",
+            "description": "The path the blog lives under, such as `/blog/`."
+          },
+          "name": {
+            "type": "string",
+            "description": "The site's name."
+          },
+          "restart_needed": {
+            "type": "boolean",
+            "description": "Whether `site.toml` says something the running server does not use\nyet, so a restart is needed to apply it."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When `site.toml` last changed. A change sends it back."
           }
         }
       },

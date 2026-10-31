@@ -244,6 +244,7 @@ fn api_router(
         authors: Some(Arc::new(SiteEntries::<AdminAuthor>::new(site, config))),
         tags: Some(Arc::new(SiteTags::new(site, config))),
         categories: Some(Arc::new(SiteCategories::new(site, config))),
+        ..AdminDesks::none()
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

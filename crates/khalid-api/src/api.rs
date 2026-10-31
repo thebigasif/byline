@@ -23,12 +23,13 @@ use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
 use crate::resources::{AdminAuthor, AdminCategory, AdminPage, AdminSnippet, MediaItems};
 use crate::session_check::{SessionCheck, StaffRoutes};
+use crate::settings_store::SettingsStore;
 use crate::tag_store::TagStore;
 use crate::webhook_store::WebhookStore;
 use crate::{
     admin_api, admin_authors, admin_categories, admin_comments, admin_not_found, admin_pages,
-    admin_redirect_csv, admin_redirects, admin_snippets, admin_tags, admin_webhooks, api_version,
-    content_api,
+    admin_redirect_csv, admin_redirects, admin_site_settings, admin_snippets, admin_tags,
+    admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -232,6 +233,9 @@ pub struct AdminDesks {
     /// The site's categories, or `None` when the category routes answer
     /// that this server keeps none.
     pub categories: Option<Arc<dyn EntryStore<AdminCategory>>>,
+    /// The site's core settings, or `None` when the settings routes answer
+    /// that this server keeps none.
+    pub settings: Option<Arc<dyn SettingsStore>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -245,7 +249,7 @@ impl std::fmt::Debug for AdminDesks {
 
 impl AdminDesks {
     /// No comments, no media library, no stored redirects, no webhooks, no
-    /// pages, no snippets, no authors, no tags and no categories.
+    /// pages, no snippets, no authors, no tags, no categories and no settings.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -257,6 +261,7 @@ impl AdminDesks {
             authors: None,
             tags: None,
             categories: None,
+            settings: None,
         }
     }
 }
@@ -326,7 +331,8 @@ fn assemble(
         .merge(admin_snippets::routes(desks.snippets, door.clone()))
         .merge(admin_authors::routes(desks.authors, door.clone()))
         .merge(admin_tags::routes(desks.tags, door.clone()))
-        .merge(admin_categories::routes(desks.categories, door.clone()));
+        .merge(admin_categories::routes(desks.categories, door.clone()))
+        .merge(admin_site_settings::routes(desks.settings, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in
