@@ -17,6 +17,7 @@ use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
+use crate::page_code::PageCode;
 use crate::post_files::Assets;
 use crate::post_photos::Shown;
 use crate::site_page::HeadNonce;
@@ -151,12 +152,13 @@ fn build(
     build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
     let mut written = 0;
     let locks = static_mode::locks(config.mode())?;
+    let code = PageCode::new(config, HeadNonce::Static);
     if let Some((renderer, css)) = &theme {
         write_asset(out, css)?;
         write_fonts(site, out)?;
         for language in &languages {
             for page in &language.pages {
-                let html = page.rendered(renderer, &language.site, HeadNonce::Static)?;
+                let html = page.rendered(renderer, &language.site, &code)?;
                 let html =
                     static_mode::lock(locks.as_ref(), html, &language.site.locale, &page.file)?;
                 write(out, &page.file, &html)?;

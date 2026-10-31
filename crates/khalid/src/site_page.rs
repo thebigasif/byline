@@ -9,6 +9,7 @@ use khalid_seo::SeoPage;
 use khalid_server::{MediaType, NONCE_SLOT, PagePath};
 
 use crate::build_message;
+use crate::page_code::PageCode;
 
 /// One page and the file it goes to, relative to the output folder.
 #[derive(Debug, Clone)]
@@ -33,6 +34,22 @@ pub(crate) struct Page {
     pub(crate) lead: Option<LeadImage>,
 }
 
+/// `html`, a rendered page, as `khalid serve` keeps it at `address`:
+/// filled per request when it holds a nonce slot, for a post's head code
+/// or the site's own.
+///
+/// # Errors
+///
+/// Returns a message when `address` cannot be a page's address.
+pub(crate) fn served_at(address: &str, html: String) -> Result<khalid_server::Page, UserMessage> {
+    let path = PagePath::try_new(address).map_err(|_| build_message::address(address))?;
+    Ok(if html.contains(NONCE_SLOT) {
+        khalid_server::Page::with_nonce_slot(path, MediaType::Html, html)
+    } else {
+        khalid_server::Page::new(path, MediaType::Html, html)
+    })
+}
+
 /// Where a page's head code gets its nonce.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HeadNonce {
@@ -43,24 +60,6 @@ pub(crate) enum HeadNonce {
 }
 
 impl Page {
-    /// `html`, rendered from this page, as `khalid serve` keeps it at
-    /// `address`: with a nonce slot when the page has head code.
-    ///
-    /// # Errors
-    ///
-    /// Returns a message when `address` cannot be a page's address.
-    pub(crate) fn served_at(
-        &self,
-        address: &str,
-        html: String,
-    ) -> Result<khalid_server::Page, UserMessage> {
-        let path = PagePath::try_new(address).map_err(|_| build_message::address(address))?;
-        Ok(match self.head_code {
-            Some(_) => khalid_server::Page::with_nonce_slot(path, MediaType::Html, html),
-            None => khalid_server::Page::new(path, MediaType::Html, html),
-        })
-    }
-
     /// The page, made from the content file at `path`.
     pub(crate) fn made_from(self, path: &Path) -> Self {
         Self {
@@ -70,7 +69,8 @@ impl Page {
     }
 
     /// The page as HTML, drawn by `renderer` for `site` with the template
-    /// it asks for, and its head code after the SEO head, with `nonce`.
+    /// it asks for, with its head code and the site's own `code` placed as
+    /// `code` says: after the SEO head, and before the body ends.
     ///
     /// # Errors
     ///
@@ -80,21 +80,21 @@ impl Page {
         &self,
         renderer: &Renderer,
         site: &RenderSite,
-        nonce: HeadNonce,
+        code: &PageCode,
     ) -> Result<String, UserMessage> {
-        let Some(code) = &self.head_code else {
-            return self.drawn(renderer, site, &self.meta);
+        let head = code.head(self.head_code.as_ref());
+        let html = if head.is_empty() {
+            self.drawn(renderer, site, &self.meta)?
+        } else {
+            let mut meta = self.meta.clone();
+            let seo = meta.seo_head.as_ref().map_or("", HeadHtml::as_str);
+            // Head code was checked by HeadCode, which writes every
+            // attribute quoted and keeps only head elements.
+            meta.seo_head = Some(HeadHtml::from_trusted(format!("{seo}\n{head}")));
+            self.drawn(renderer, site, &meta)?
         };
-        let code = match nonce {
-            HeadNonce::PerRequest => code.to_html(NONCE_SLOT),
-            HeadNonce::Static => code.to_string(),
-        };
-        let mut meta = self.meta.clone();
-        let seo = meta.seo_head.as_ref().map_or("", HeadHtml::as_str);
-        // The head code was checked by HeadCode, which writes every
-        // attribute quoted and keeps only head elements.
-        meta.seo_head = Some(HeadHtml::from_trusted(format!("{seo}\n{code}")));
-        self.drawn(renderer, site, &meta)
+        let page = (renderer, &site.locale);
+        Ok(code.with_body_end(html, page, &self.meta.path))
     }
 
     /// The page as HTML with the head `meta`.
