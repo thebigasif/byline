@@ -16,12 +16,12 @@ expression: "english.join(\"\\n\")"
 
 - [About Field Notes](https://www.example.com/blog/about/): Who writes Field Notes on SEO, and why.
 - [Topical authority](https://www.example.com/blog/glossary/topical-authority/)
-- [Authors](https://www.example.com/blog/authors/)
-- [Sitemap](https://www.example.com/blog/sitemap/)
+- [Authors](https://www.example.com/blog/authors/): The people who write Field Notes on SEO, and how many posts each has written.
+- [Sitemap](https://www.example.com/blog/sitemap/): Every page on Field Notes on SEO in one list, grouped by kind.
 
 ## Optional
 
-- [Asif](https://www.example.com/blog/authors/asif/)
-- [Content strategy](https://www.example.com/blog/category/content-strategy/)
-- [Technical SEO](https://www.example.com/blog/category/technical-seo/)
-- [On-page SEO](https://www.example.com/blog/category/on-page-seo/)
+- [Asif](https://www.example.com/blog/authors/asif/): Asif writes for Field Notes on SEO. Here is who they are and every post they have written.
+- [Content strategy](https://www.example.com/blog/category/content-strategy/): Content strategy: the posts on Field Notes on SEO in this list, newest first.
+- [Technical SEO](https://www.example.com/blog/category/technical-seo/): Technical SEO: the posts on Field Notes on SEO in this list, newest first.
+- [On-page SEO](https://www.example.com/blog/category/on-page-seo/): On-page SEO: the posts on Field Notes on SEO in this list, newest first.

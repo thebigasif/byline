@@ -23,9 +23,9 @@ use crate::post_photos::Shown;
 use crate::site_page::HeadNonce;
 use crate::{
     assets, build_files, build_gate, build_lists, build_message, build_pages, build_redirects,
-    build_seo, build_sitemap, categories, content_message, lint, lint_message, post_files,
-    post_images, post_lock, report, search_page, search_static, share_images, site_briefs,
-    site_facts, static_mode,
+    build_seo, build_sitemap, categories, content_message, lint, lint_message, own_descriptions,
+    post_files, post_images, post_lock, report, search_page, search_static, share_images,
+    site_briefs, site_facts, static_mode,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -134,6 +134,7 @@ fn build(
         let sources = (content, categories.as_slice());
         build_lists::add((config, routes), renderer, sources, &mut languages)?;
         build_sitemap::add(config, renderer, &mut languages)?;
+        own_descriptions::fill(config, renderer, &mut languages)?;
     }
     // The checked content keeps no assets, so the tree is read again for
     // them. A headless site gets them too: its feeds point at them.

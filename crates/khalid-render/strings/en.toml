@@ -104,6 +104,16 @@ sitemap_posts = "Posts"
 sitemap_pages = "Pages"
 sitemap_archives = "Topics and archives"
 sitemap_empty = "This blog has no pages to list yet."
+# The meta description of each page Khalid makes itself, so search results
+# show these words. {site} is the blog's name and {title} the page's title,
+# which keeps the descriptions of the many lists apart.
+home_description = "The newest posts on {site}, with a link to every one."
+list_description = "{title}: the posts on {site} in this list, newest first."
+authors_description = "The people who write {site}, and how many posts each has written."
+author_description = "{title} writes for {site}. Here is who they are and every post they have written."
+sitemap_description = "Every page on {site} in one list, grouped by kind."
+glossary_description = "The terms {site} uses, each explained in plain words."
+search_description = "Search every post on {site} for the words you need."
 
 # A post readers may not read yet: a password form, or a note for members (task 5.11).
 locked_password_note = "This post is protected by a password. Ask its writer for it."

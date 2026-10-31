@@ -27,8 +27,8 @@ use crate::site_html::{SearchShell, Unrendered, Which, html_pages, search_shells
 use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
-    categories, content_message, post_files, post_gate, post_lock, search_page, serve_message,
-    share_images, site_files, site_outline,
+    categories, content_message, own_descriptions, post_files, post_gate, post_lock, search_page,
+    serve_message, share_images, site_files, site_outline,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -257,6 +257,7 @@ impl SitePages {
         let href = theme.stylesheet.path().as_str();
         let mut languages = build_home::home_pages(config, routes, content, href)?;
         search_page::link(config, &mut languages);
+        own_descriptions::fill(config, &theme.renderer, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let cards = share_images::attach(folder, config, &theme.tokens, &seo_site, &mut languages)?;
         // The home pages answer first, so their cards are drawn now; the
@@ -431,6 +432,7 @@ impl SitePages {
                 build_lists::add((config, routes), &theme.renderer, sources, &mut languages)?;
                 build_sitemap::add(config, &theme.renderer, &mut languages)?;
             }
+            own_descriptions::fill(config, &theme.renderer, &mut languages)?;
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
         form_pages::fill(config, self.0.forms.as_ref(), &mut languages);

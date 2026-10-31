@@ -16,6 +16,7 @@ expression: "format!(\"{header}\\n{footer}\")"
 <nav aria-label="Footer menu">
 <ul>
 <li><a href="/blog/privacy/">Privacy</a></li>
+<li><a href="/blog/sitemap/">Sitemap</a></li>
 </ul>
 </nav>
 </footer>
