@@ -174,6 +174,16 @@ impl Post {
     pub fn slug(&self) -> &Slug {
         &self.slug
     }
+
+    /// The full public address.
+    pub fn url(&self) -> &AbsoluteUrl {
+        &self.url
+    }
+
+    /// The language.
+    pub fn language(&self) -> &Locale {
+        &self.language
+    }
 }
 
 impl Listable for Post {

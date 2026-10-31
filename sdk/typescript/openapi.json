@@ -10,6 +10,94 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/audit/": {
+      "get": {
+        "tags": [
+          "admin audit"
+        ],
+        "summary": "Lists who changed what through the Admin API and when, newest first:\nevery write that succeeded, to content, settings or staff accounts.\nNeeds `admin:all`.",
+        "operationId": "list_changes",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Only changes older than this one, by its `id`: the `next` of the\npage before. Left out, the list starts at the newest.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "From 1 to 100; 50 when left out.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChanges"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The limit is not from 1 to 100, or before is not a number",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks admin:all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/comments/": {
       "get": {
         "tags": [
@@ -2924,6 +3012,218 @@
         ]
       }
     },
+    "/api/admin/v1/trash/": {
+      "get": {
+        "tags": [
+          "admin trash"
+        ],
+        "summary": "Lists the deleted posts, the most recently deleted first. Needs\n`posts:write`.",
+        "operationId": "list_trash",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrashList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/trash/{key}/": {
+      "delete": {
+        "tags": [
+          "admin trash"
+        ],
+        "summary": "Deletes a post in the trash for good. Needs `posts:publish`.",
+        "operationId": "purge_trashed",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "The deleted post's key in the trash",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The post is gone for good"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nothing in the trash has this key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/trash/{key}/restore/": {
+      "post": {
+        "tags": [
+          "admin trash"
+        ],
+        "summary": "Puts a deleted post back where it was, in the status it had, and\nanswers it as it is now. Needs `posts:write`, and `posts:publish` for a\npost that was live or scheduled.",
+        "operationId": "restore_trashed",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "The deleted post's key in the trash",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The restored post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPosts"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write, or posts:publish for a post that was live or scheduled",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nothing in the trash has this key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another post has the address the restored one would take",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/webhooks/": {
       "get": {
         "tags": [
@@ -5769,6 +6069,72 @@
   },
   "components": {
     "schemas": {
+      "AdminChange": {
+        "type": "object",
+        "description": "One change, as the Admin API shows it.",
+        "required": [
+          "id",
+          "at",
+          "by",
+          "action",
+          "route",
+          "path"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`added`, `changed` or `removed`."
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made."
+          },
+          "by": {
+            "type": "string",
+            "description": "The identity of the key or staff account that made it."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Its place in the log: a later change has a larger number."
+          },
+          "path": {
+            "type": "string",
+            "description": "The address it was made at.",
+            "example": "/api/admin/v1/posts/en.internal-links/"
+          },
+          "route": {
+            "type": "string",
+            "description": "The route it went through.",
+            "example": "/api/admin/v1/posts/{id}/"
+          }
+        }
+      },
+      "AdminChanges": {
+        "type": "object",
+        "description": "One page of the audit log.",
+        "required": [
+          "changes"
+        ],
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminChange"
+            },
+            "description": "The changes, newest first."
+          },
+          "next": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The `before` that lists the next page, or null on the last page."
+          }
+        }
+      },
       "AdminComment": {
         "type": "object",
         "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",
@@ -8423,6 +8789,58 @@
             "type": "string",
             "description": "The slug posts name it by.",
             "example": "on-page-seo"
+          }
+        }
+      },
+      "TrashList": {
+        "type": "object",
+        "description": "The trash as the Admin API wraps it.",
+        "required": [
+          "trash"
+        ],
+        "properties": {
+          "trash": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrashedPost"
+            },
+            "description": "The deleted posts, the most recently deleted first."
+          }
+        }
+      },
+      "TrashedPost": {
+        "type": "object",
+        "description": "A deleted post, as the Admin API shows it.",
+        "required": [
+          "key",
+          "id",
+          "title",
+          "status",
+          "trashed_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The post's identity when it was deleted.",
+            "example": "en.internal-links"
+          },
+          "key": {
+            "type": "string",
+            "description": "Names this copy in the trash, for restoring or deleting it.",
+            "example": "20261031T093000Z-en.internal-links"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PostStatus",
+            "description": "Its status when it was deleted."
+          },
+          "title": {
+            "type": "string",
+            "description": "Its title."
+          },
+          "trashed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was deleted."
           }
         }
       }

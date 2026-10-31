@@ -132,6 +132,7 @@ mod slug_repair;
 mod staff;
 mod staff_message;
 mod staff_owner;
+mod staff_toolbar;
 mod static_mode;
 mod subscriber_events;
 mod tag_events;

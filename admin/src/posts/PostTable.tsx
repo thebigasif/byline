@@ -5,15 +5,23 @@ import { en } from "../strings/en";
 import { CheckPills } from "./CheckPills";
 import { stageOf } from "./stages";
 
-type Props = { rows: PostRow[] };
+type Props = {
+  rows: PostRow[];
+  /** The identities of the ticked posts. */
+  ticked: string[];
+  onTick: (id: string, on: boolean) => void;
+};
 
-/** One page of posts: title, author, checks, stage, what search engines are told, last change. */
-export function PostTable({ rows }: Props) {
+/** One page of posts: a tick box, title, author, checks, stage, index status, last change. */
+export function PostTable({ rows, ticked, onTick }: Props) {
   return (
     <div className="scroll">
       <table className="wide">
         <thead>
           <tr>
+            <th scope="col">
+              <span className="sr-only">{en.bulk.tickColumn}</span>
+            </th>
             <th scope="col">{en.posts.titleColumn}</th>
             <th scope="col">{en.posts.author}</th>
             <th scope="col">{en.posts.checks}</th>
@@ -27,6 +35,14 @@ export function PostTable({ rows }: Props) {
             const stage = stageOf(row);
             return (
               <tr key={row.id}>
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label={en.bulk.tick(row.title)}
+                    checked={ticked.includes(row.id)}
+                    onChange={(event) => onTick(row.id, event.target.checked)}
+                  />
+                </td>
                 <td>
                   <Link to="/posts/$id" params={{ id: row.id }}>
                     {row.title}
