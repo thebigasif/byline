@@ -39,6 +39,9 @@ export function Shell() {
             <li>
               <Link to="/redirects">{en.nav.redirects}</Link>
             </li>
+            <li>
+              <Link to="/serpdad">{en.nav.serpdad}</Link>
+            </li>
           </ul>
         </nav>
         <main id="main" className="page">
