@@ -14,6 +14,7 @@ import { mediaSearch } from "../media/search";
 import { postSearch } from "../posts/filters";
 import { Dashboard } from "./Dashboard";
 import { Media } from "./Media";
+import { MediaDetails } from "./MediaDetails";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
@@ -67,6 +68,12 @@ const media = createRoute({
   component: Media,
 });
 
+const mediaItem = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/media/$id",
+  component: MediaDetails,
+});
+
 const redirects = createRoute({
   getParentRoute: () => signedIn,
   path: "/redirects",
@@ -75,7 +82,7 @@ const redirects = createRoute({
 
 const routeTree = root.addChildren([
   signIn,
-  signedIn.addChildren([dashboard, posts, newPost, editor, media, redirects]),
+  signedIn.addChildren([dashboard, posts, newPost, editor, media, mediaItem, redirects]),
 ]);
 
 /** Makes the admin's router; a test passes a memory history. */

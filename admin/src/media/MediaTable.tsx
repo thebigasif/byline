@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { MediaItem } from "../api/media";
 import { en } from "../strings/en";
@@ -52,6 +53,9 @@ export function MediaTable({ media }: Props) {
             <th scope="col">{words.folder}</th>
             <th scope="col">{words.kind}</th>
             <th scope="col">{words.alt}</th>
+            <th scope="col">
+              <span className="muted">{words.action}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -73,6 +77,16 @@ export function MediaTable({ media }: Props) {
               <td data-label={words.kind}>{fileSummary(item)}</td>
               <td data-label={words.alt}>
                 {altText(item)}
+              </td>
+              <td>
+                <Link
+                  to="/media/$id"
+                  params={{ id: item.id }}
+                  className="btn"
+                  aria-label={words.edit(item.name)}
+                >
+                  {words.editText}
+                </Link>
               </td>
             </tr>
           ))}

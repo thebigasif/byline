@@ -48,6 +48,29 @@ export const en = {
       top: "Top",
       missing: "Missing",
       notNeeded: "Not needed",
+      action: "Action",
+      edit: (name: string) => `Edit details of ${name}`,
+      editText: "Edit details",
+    },
+    details: {
+      back: "Back to media",
+      loading: "Reading the file's details",
+      uploaded: (summary: string, by: string, on: string) =>
+        `${summary}. ${by} uploaded it on ${on}.`,
+      address: "Its address:",
+      copy: "Copy the address",
+      copied: "Copied. Paste it into a post to use the file.",
+      title: "Details",
+      alt: "Alt text",
+      altHint:
+        "What the image shows, for people who use a screen reader and for Google. One sentence is enough.",
+      caption: "Caption",
+      captionHint: "Optional. The line shown under it in a post.",
+      folderHint:
+        "Lowercase words joined by /, such as guides/2026. Empty means the top of the library. Its address stays the same.",
+      save: "Save details",
+      saving: "Saving",
+      saved: "Saved.",
     },
     kinds: { image: "Image", video: "Video", audio: "Sound", file: "File" },
     size: (bytes: number) =>
@@ -408,6 +431,11 @@ export const en = {
       what: "No CSV file is picked yet.",
       why: "Khalid adds the redirects from a file, so there is nothing to add.",
       fix: "Pick a CSV file under Add redirects from a CSV file, then press Add these redirects.",
+    },
+    noMediaItem: {
+      what: "This file is not in the media library.",
+      why: "It may never have been uploaded, or the address is mistyped.",
+      fix: "Go back to Media and open the file from the list.",
     },
     noMedia: {
       what: "No file is picked yet.",
