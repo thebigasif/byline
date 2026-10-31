@@ -1,5 +1,5 @@
-//! Photo search: Unsplash stood in for by `wiremock` (RULES.md BL-TST-3).
-//! Every key here is made up for the test.
+//! Photo and GIF search: Unsplash and GIPHY stood in for by `wiremock`
+//! (RULES.md BL-TST-3). Every key here is made up for the test.
 
 use khalid_core::Secret;
 use khalid_media::{Access, PictureSource, StockApis, StockError, StockSearch};
@@ -9,21 +9,25 @@ use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const UNSPLASH_KEY: &str = "made-for-this-test-unsplash";
+const GIPHY_KEY: &str = "made-for-this-test-giphy";
 
-/// Search asking `base`.
+/// Search asking `base` for both sources.
 #[cfg(test)]
-fn search_at(base: &str, unsplash: Access) -> StockSearch {
+fn search_at(base: &str, unsplash: Access, giphy: Access) -> StockSearch {
     let resolver = Resolver::for_tests(Vec::new(), Reach::PublicAndLoopback);
     let outbound = Outbound::with_resolver(Limits::default(), resolver).unwrap();
     let apis = StockApis {
         unsplash: base.to_owned(),
+        giphy: base.to_owned(),
     };
-    StockSearch::new(outbound, unsplash).at(apis)
+    StockSearch::new(outbound, unsplash)
+        .with_gifs(giphy)
+        .at(apis)
 }
 
 #[cfg(test)]
-fn search(server: &MockServer, unsplash: Access) -> StockSearch {
-    search_at(&format!("{}/", server.uri()), unsplash)
+fn search(server: &MockServer, unsplash: Access, giphy: Access) -> StockSearch {
+    search_at(&format!("{}/", server.uri()), unsplash, giphy)
 }
 
 #[cfg(test)]
@@ -33,7 +37,7 @@ fn keyed(key: &str) -> Access {
 
 #[cfg(test)]
 fn both(server: &MockServer) -> StockSearch {
-    search(server, keyed(UNSPLASH_KEY))
+    search(server, keyed(UNSPLASH_KEY), keyed(GIPHY_KEY))
 }
 
 #[cfg(test)]
@@ -100,35 +104,61 @@ async fn finds_photos_on_unsplash_with_the_key_in_a_header() {
 }
 
 #[tokio::test]
-async fn an_answer_that_is_not_json_is_unreadable() {
+async fn finds_gifs_on_giphy_rated_g_with_sizes_written_as_text() {
     let server = MockServer::start().await;
+    let page = json!({
+        "data": [{
+            "id": "xT0x",
+            "title": "Happy Dance GIF",
+            "url": "https://giphy.com/gifs/xT0x",
+            "images": {
+                "fixed_width": { "url": "https://media.giphy.com/xT0x/200w.gif", "width": "200", "height": "150" },
+                "downsized_medium": { "url": "https://media.giphy.com/xT0x/giphy.gif", "width": "480", "height": "360" },
+                "original": { "url": "https://media.giphy.com/xT0x/original.gif", "width": "960", "height": "720" }
+            }
+        }]
+    });
     Mock::given(method("GET"))
-        .respond_with(ResponseTemplate::new(200).set_body_string("<html>"))
+        .and(path("/v1/gifs/search"))
+        .and(query_param("api_key", GIPHY_KEY))
+        .and(query_param("q", "happy dance"))
+        .and(query_param("offset", "24"))
+        .and(query_param("rating", "g"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(page))
+        .expect(1)
         .mount(&server)
         .await;
-    let answer = both(&server)
-        .search(PictureSource::Unsplash, "lake", 1)
-        .await;
-    assert!(matches!(answer, Err(StockError::Unreadable)), "{answer:?}");
+    let found = both(&server)
+        .search(PictureSource::Giphy, "happy dance", 2)
+        .await
+        .unwrap();
+    let [gif] = found.as_slice() else {
+        panic!("one GIF, found {found:?}");
+    };
+    assert_eq!(gif.address, "https://media.giphy.com/xT0x/giphy.gif");
+    assert_eq!((gif.width, gif.height), (480, 360));
+    assert_eq!(gif.preview, "https://media.giphy.com/xT0x/200w.gif");
+    assert_eq!(gif.credit, "GIPHY");
+    assert_eq!(gif.credit_link, "https://giphy.com/gifs/xT0x");
+    assert_eq!(gif.description, "Happy Dance GIF");
 }
 
 #[tokio::test]
 async fn asks_nothing_when_off_or_without_a_key() {
     let server = MockServer::start().await;
-    let off = search(&server, Access::Off);
-    assert!(!off.is_on(PictureSource::Unsplash));
-    let unused = off.used("Ab-12_c").await;
+    let stock = search(&server, Access::Off, Access::on_with(None));
+    assert!(!stock.is_on(PictureSource::Unsplash));
+    assert!(stock.is_on(PictureSource::Giphy));
+    let unused = stock.used("Ab-12_c").await;
     assert!(matches!(unused, Err(StockError::Off)), "{unused:?}");
-    let unsearched = off.search(PictureSource::Unsplash, "lake", 1).await;
-    assert!(matches!(unsearched, Err(StockError::Off)), "{unsearched:?}");
-    let keyless = search(&server, Access::on_with(None));
-    assert!(keyless.is_on(PictureSource::Unsplash));
-    let missing = keyless.used("Ab-12_c").await;
+    let off = stock.search(PictureSource::Unsplash, "lake", 1).await;
+    assert!(matches!(off, Err(StockError::Off)), "{off:?}");
+    let missing = stock.search(PictureSource::Giphy, "lake", 1).await;
     assert!(
         matches!(
             missing,
             Err(StockError::NoKey {
-                variable: "KHALID_UNSPLASH_ACCESS_KEY"
+                variable: "KHALID_GIPHY_API_KEY"
             })
         ),
         "{missing:?}"
@@ -163,13 +193,26 @@ async fn a_failure_never_shows_the_key() {
     let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}/", closed.local_addr().unwrap());
     drop(closed);
-    let stock = search_at(&base, keyed(UNSPLASH_KEY));
-    let answer = stock.used("Ab-12_c").await;
+    let stock = search_at(&base, keyed(UNSPLASH_KEY), keyed(GIPHY_KEY));
+    let answer = stock.search(PictureSource::Giphy, "lake", 1).await;
     let Err(error @ StockError::Unreachable { .. }) = answer else {
         panic!("unreachable, found {answer:?}");
     };
     let shown = format!("{error} {error:?}");
-    assert!(!shown.contains(UNSPLASH_KEY), "{shown}");
+    assert!(!shown.contains(GIPHY_KEY), "{shown}");
+}
+
+#[tokio::test]
+async fn an_answer_that_is_not_json_is_unreadable() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("<html>"))
+        .mount(&server)
+        .await;
+    let answer = both(&server)
+        .search(PictureSource::Unsplash, "lake", 1)
+        .await;
+    assert!(matches!(answer, Err(StockError::Unreadable)), "{answer:?}");
 }
 
 #[tokio::test]
@@ -181,7 +224,7 @@ async fn tells_unsplash_a_photo_was_used() {
             "authorization",
             "Client-ID made-for-this-test-unsplash",
         ))
-        .respond_with(ResponseTemplate::new(200))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "url": "x" })))
         .expect(1)
         .mount(&server)
         .await;

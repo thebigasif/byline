@@ -1,4 +1,4 @@
-//! Free photos from Unsplash, found for the editor
+//! Free photos from Unsplash and GIFs from GIPHY, found for the editor
 //! (decisions E6 to E8 in `docs/decisions/2026-10-31-editor-emoji-photos-and-edits.md`).
 //!
 //! A chosen picture stays where it came from, as Unsplash's API terms ask,
@@ -7,10 +7,13 @@
 use khalid_core::{Environment, Secret};
 use khalid_outbound::Outbound;
 
-use crate::stock_unsplash;
+use crate::{stock_giphy, stock_unsplash};
 
 /// Unsplash's API, where photo search asks.
 const UNSPLASH_API: &str = "https://api.unsplash.com/";
+
+/// GIPHY's API, where GIF search asks.
+const GIPHY_API: &str = "https://api.giphy.com/";
 
 /// How many pictures one page of results holds.
 pub(crate) const PER_PAGE: u32 = 24;
@@ -23,6 +26,8 @@ const MAX_WORDS: usize = 100;
 pub enum PictureSource {
     /// Free photos from unsplash.com.
     Unsplash,
+    /// GIFs from giphy.com.
+    Giphy,
 }
 
 impl PictureSource {
@@ -30,6 +35,7 @@ impl PictureSource {
     pub fn variable(self) -> &'static str {
         match self {
             Self::Unsplash => Environment::UNSPLASH_ACCESS_KEY,
+            Self::Giphy => Environment::GIPHY_API_KEY,
         }
     }
 }
@@ -118,6 +124,8 @@ pub enum StockError {
 pub struct StockApis {
     /// Unsplash's API.
     pub unsplash: String,
+    /// GIPHY's API.
+    pub giphy: String,
 }
 
 impl Default for StockApis {
@@ -125,26 +133,36 @@ impl Default for StockApis {
     fn default() -> Self {
         Self {
             unsplash: UNSPLASH_API.to_owned(),
+            giphy: GIPHY_API.to_owned(),
         }
     }
 }
 
-/// Photo search, asked only when the owner turned it on.
+/// Photo and GIF search, each asked only when the owner turned it on.
 #[derive(Debug)]
 pub struct StockSearch {
     outbound: Outbound,
     unsplash: Access,
+    giphy: Access,
     apis: StockApis,
 }
 
 impl StockSearch {
     /// Searches through `outbound`, with Unsplash as `unsplash` allows.
+    /// GIF search is off until [`StockSearch::with_gifs`].
     pub fn new(outbound: Outbound, unsplash: Access) -> Self {
         Self {
             outbound,
             unsplash,
+            giphy: Access::Off,
             apis: StockApis::default(),
         }
+    }
+
+    /// The same search with GIPHY as `giphy` allows.
+    #[must_use]
+    pub fn with_gifs(self, giphy: Access) -> Self {
+        Self { giphy, ..self }
     }
 
     /// The same search asking `apis` instead of the real ones, for tests.
@@ -159,7 +177,8 @@ impl StockSearch {
     }
 
     /// Page `page` of the pictures `source` has for `words`; the first page
-    /// is 1. Unsplash leaves out photos unsuited to all ages.
+    /// is 1. Unsplash leaves out photos unsuited to all ages, and GIPHY
+    /// gives GIFs rated G only.
     ///
     /// # Errors
     ///
@@ -181,6 +200,11 @@ impl StockSearch {
                 let query = encode(&stock_unsplash::query(&words, page));
                 let url = format!("{}search/photos?{query}", self.apis.unsplash);
                 stock_unsplash::read(&self.ask(&url, Some(key)).await?)
+            }
+            PictureSource::Giphy => {
+                let query = encode(&stock_giphy::query(key, &words, page));
+                let url = format!("{}v1/gifs/search?{query}", self.apis.giphy);
+                stock_giphy::read(&self.ask(&url, None).await?)
             }
         };
         found.map_err(|_| StockError::Unreadable)
@@ -207,6 +231,7 @@ impl StockSearch {
     fn access(&self, source: PictureSource) -> &Access {
         match source {
             PictureSource::Unsplash => &self.unsplash,
+            PictureSource::Giphy => &self.giphy,
         }
     }
 
