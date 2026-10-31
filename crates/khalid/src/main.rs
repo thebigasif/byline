@@ -196,16 +196,10 @@ fn run(cli: &Cli) -> Exit {
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, routes, (content, _)))) => build::run(
-            folder,
-            (config, routes, content),
-            out.as_deref(),
-            &SystemClock,
-            cli.output,
-        ),
-        (Some(asked @ Command::Audit { .. }), Some((folder, config, routes, (content, _)))) => {
-            audit(folder, (config, routes, content), asked, cli)
-        }
+        (
+            Some(asked @ (Command::Build { .. } | Command::Audit { .. })),
+            Some((folder, config, routes, (content, _))),
+        ) => on_content(folder, (config, routes, content), asked, cli),
         (
             Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
             Some((folder, config, ..)),
@@ -251,14 +245,18 @@ fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> 
     }
 }
 
-/// Runs `audit` on a checked site, from a build or the server it names.
-fn audit(
+/// Runs the commands that read a checked site's content: `build`, and
+/// `audit` from a build or the server it names.
+fn on_content(
     folder: &Path,
     checked: (&Config, &Routes, &SiteContent),
     asked: &Command,
     cli: &Cli,
 ) -> Exit {
     match asked {
+        Command::Build { out } => {
+            build::run(folder, checked, out.as_deref(), &SystemClock, cli.output)
+        }
         Command::Audit { server, network } => site_audit::run(
             folder,
             checked,
