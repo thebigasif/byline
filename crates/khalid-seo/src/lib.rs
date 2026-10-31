@@ -8,11 +8,13 @@
 //! so the same input always gives the same bytes (ADR 0013).
 //!
 //! It must not know about templates, files or the database, nor how HTTP is
-//! done: [`IndexNow::send`] is the one call that reaches another server, and
-//! it does so through the `Outbound` client it is given (BL-RUN-8). The
+//! done: [`IndexNow::send`] and [`BingWebmaster`]'s calls are the only ones
+//! that reach another server, and they do so through the `Outbound` client
+//! they are given (BL-RUN-8). The
 //! crates that read content and render pages build its inputs and place its
 //! output.
 
+mod bing;
 mod bing_answer;
 mod bing_error;
 mod comment;
@@ -51,6 +53,7 @@ mod url_path;
 mod verification;
 mod video;
 
+pub use bing::BingWebmaster;
 pub use bing_answer::{BingSitemap, CrawlDay, CrawlIssue, CrawlIssueKind};
 pub use bing_error::{BingError, RequestFailure};
 pub use comment::SeoComment;
