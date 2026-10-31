@@ -12,8 +12,8 @@ use serde::Deserialize;
 use crate::mail_settings::MailTable;
 use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
-    AbsoluteUrl, Locale, MailSettings, MailTransport, MediaSettings, ParseUrlError, Reader, S3Keys,
-    Secret, SeoSettings,
+    AbsoluteUrl, AlertSettings, Locale, MailSettings, MailTransport, MediaSettings, ParseUrlError,
+    Reader, S3Keys, Secret, SeoSettings,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -35,6 +35,7 @@ pub struct Config {
     reader: Reader,
     media: MediaSettings,
     mail: Option<MailSettings>,
+    alerts: AlertSettings,
     preview_link_lifetime: Duration,
 }
 
@@ -95,6 +96,8 @@ struct SiteFile {
     #[serde(default)]
     media: MediaSettings,
     mail: Option<MailTable>,
+    #[serde(default)]
+    alerts: AlertSettings,
     preview_link_days: Option<u64>,
     preview_link_hours: Option<u64>,
 }
@@ -207,6 +210,17 @@ impl Config {
             field: key.to_owned(),
             problem: problem.to_owned(),
         })?;
+        if let Some((key, problem)) = file.alerts.mistake(mail.as_ref()) {
+            let line = line_of_key_in(text, "[alerts", key);
+            let field = key.to_owned();
+            let (path, problem) = (path.to_path_buf(), problem.to_owned());
+            return Err(ConfigError::Field {
+                path,
+                line,
+                field,
+                problem,
+            });
+        }
         let address = match env.get(Environment::ADDRESS) {
             Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
                 variable: Environment::ADDRESS.to_owned(),
@@ -226,8 +240,14 @@ impl Config {
             reader: file.reader,
             media: file.media,
             mail,
+            alerts: file.alerts,
             preview_link_lifetime,
         })
+    }
+
+    /// When alerts are raised and who gets them by email, from `[alerts]`.
+    pub fn alerts(&self) -> &AlertSettings {
+        &self.alerts
     }
 
     /// How the site sends email, from `[mail]`, or `None` when it sends
