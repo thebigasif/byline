@@ -1,5 +1,6 @@
-//! AI visitors per tool through the Admin API (GEO M1): how many readers
-//! each AI assistant sent, against the period before. The route needs
+//! Analytics through the Admin API: the page views per day, source and
+//! page (KH-GRO-4), and AI visitors per tool (GEO M1): how many readers
+//! each AI assistant sent, against the period before. The routes need
 //! `settings:write`.
 
 use axum::extract::rejection::QueryRejection;
@@ -26,6 +27,7 @@ const DEFAULT_DAYS: u32 = 28;
 pub(crate) fn routes(desk: AnalyticsDesk, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(ai_visitors))
+        .routes(routes!(visitors))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(desk)
@@ -33,6 +35,7 @@ pub(crate) fn routes(desk: AnalyticsDesk, door: AdminDoor) -> OpenApiRouter {
 
 /// How many days to count, ending today.
 #[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub(crate) struct VisitorsQuery {
     /// From 1 to 366; 28 when left out.
     days: Option<u32>,
@@ -107,10 +110,7 @@ async fn ai_visitors(
     query: Result<Query<VisitorsQuery>, QueryRejection>,
 ) -> Result<Json<AdminAiVisitors>, Problem> {
     require(&principal, Scope::SettingsWrite)?;
-    let days = query.ok().map(|Query(q)| q.days.unwrap_or(DEFAULT_DAYS));
-    let period = days
-        .and_then(|days| Period::ending(desk.today(), days))
-        .ok_or_else(bad_days)?;
+    let period = period(&desk, query)?;
     let report = desk
         .ai_visitors(period)
         .await
@@ -137,6 +137,113 @@ fn tool(row: ToolVisitors) -> AdminToolVisitors {
         before: row.before,
         pages: pages.collect(),
     }
+}
+
+/// The views from one source.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct AdminSourceViews {
+    /// Where they came from: `direct`, `search`, `social`, `ai` (every AI
+    /// assistant), `other` (any other site) or `internal` (the site's own
+    /// pages).
+    #[schema(example = "search")]
+    source: &'static str,
+    /// Views in the period.
+    views: u64,
+    /// Views in the period of the same length before.
+    before: u64,
+}
+
+/// The views on one day.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct AdminDayViews {
+    /// The day, in UTC.
+    day: NaiveDate,
+    /// Views that day.
+    views: u64,
+}
+
+/// The page views `khalid serve` counted. A view is one page opened by a
+/// person; bots never count.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct AdminVisitors {
+    /// The first day counted, in UTC.
+    first: NaiveDate,
+    /// The last day counted: today, in UTC.
+    last: NaiveDate,
+    /// How many days were counted.
+    days: u32,
+    /// Every view in the period.
+    views: u64,
+    /// Every view in the period of the same length before.
+    before: u64,
+    /// The views that came from outside the site.
+    arrivals: u64,
+    /// The views per source, every source listed, outside ones first.
+    sources: Vec<AdminSourceViews>,
+    /// The views per day, first day first, every day listed.
+    per_day: Vec<AdminDayViews>,
+    /// The most viewed pages, most views first, at most twenty.
+    pages: Vec<AdminPageViews>,
+}
+
+/// Counts the page views of the last `days` days, per day, source and
+/// page, against the days before. Needs `settings:write`.
+#[utoipa::path(
+    get, path = "/analytics/visitors/", tag = "admin analytics",
+    security(("admin_key" = [])),
+    params(VisitorsQuery),
+    responses(
+        (status = 200, description = "The page views", body = AdminVisitors),
+        (status = 400, description = "The days are not from 1 to 366", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks settings:write", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn visitors(
+    State(desk): State<AnalyticsDesk>,
+    Extension(principal): Extension<Principal>,
+    query: Result<Query<VisitorsQuery>, QueryRejection>,
+) -> Result<Json<AdminVisitors>, Problem> {
+    require(&principal, Scope::SettingsWrite)?;
+    let period = period(&desk, query)?;
+    let counts = desk
+        .visitors(period)
+        .await
+        .map_err(|e| Problem::internal(&e))?;
+    let sources = counts.sources.iter().map(|row| AdminSourceViews {
+        source: row.source.key(),
+        views: row.views,
+        before: row.before,
+    });
+    let per_day = counts.days.iter().map(|row| AdminDayViews {
+        day: row.day,
+        views: row.views,
+    });
+    let pages = counts.pages.into_iter().map(|page| AdminPageViews {
+        path: page.path,
+        views: page.views,
+    });
+    Ok(Json(AdminVisitors {
+        first: period.first(),
+        last: period.last(),
+        days: period.days(),
+        views: counts.views,
+        before: counts.before,
+        arrivals: counts.arrivals,
+        sources: sources.collect(),
+        per_day: per_day.collect(),
+        pages: pages.collect(),
+    }))
+}
+
+/// The period the query asks for, ending today.
+fn period(
+    desk: &AnalyticsDesk,
+    query: Result<Query<VisitorsQuery>, QueryRejection>,
+) -> Result<Period, Problem> {
+    let days = query.ok().map(|Query(q)| q.days.unwrap_or(DEFAULT_DAYS));
+    days.and_then(|days| Period::ending(desk.today(), days))
+        .ok_or_else(bad_days)
 }
 
 /// The 400 for days that are not from 1 to 366.

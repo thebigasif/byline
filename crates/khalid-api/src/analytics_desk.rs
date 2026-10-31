@@ -1,11 +1,11 @@
 //! What the analytics routes read: the views `khalid serve` counted, and
-//! the clock that says which day it is (GEO M1).
+//! the clock that says which day it is (GEO M1, KH-GRO-4).
 
 use std::sync::Arc;
 
 use chrono::NaiveDate;
 use khalid_analytics::{
-    AiVisitors, AnalyticsError, AnalyticsStore, BoxFuture, Crawls, Period, Tally, Views,
+    AiVisitors, AnalyticsError, AnalyticsStore, BoxFuture, Crawls, Period, Tally, Views, Visitors,
 };
 use khalid_core::{Clock, SystemClock};
 
@@ -39,6 +39,15 @@ impl AnalyticsDesk {
     /// [`AnalyticsError`] when the views cannot be read.
     pub async fn ai_visitors(&self, period: Period) -> Result<AiVisitors, AnalyticsError> {
         AiVisitors::read(self.store.as_ref(), period).await
+    }
+
+    /// The page views in `period`, per day, source and page.
+    ///
+    /// # Errors
+    ///
+    /// [`AnalyticsError`] when the views cannot be read.
+    pub async fn visitors(&self, period: Period) -> Result<Visitors, AnalyticsError> {
+        Visitors::read(self.store.as_ref(), period).await
     }
 }
 

@@ -20,14 +20,11 @@
         "parameters": [
           {
             "name": "days",
-            "in": "path",
+            "in": "query",
             "description": "From 1 to 366; 28 when left out.",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
+              "type": "integer",
               "format": "int32",
               "minimum": 0
             }
@@ -49,6 +46,84 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminAiVisitors"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The days are not from 1 to 366",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/analytics/visitors/": {
+      "get": {
+        "tags": [
+          "admin analytics"
+        ],
+        "summary": "Counts the page views of the last `days` days, per day, source and\npage, against the days before. Needs `settings:write`.",
+        "operationId": "visitors",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "From 1 to 366; 28 when left out.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The page views",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminVisitors"
                 }
               }
             }
@@ -5976,6 +6051,27 @@
           }
         }
       },
+      "AdminDayViews": {
+        "type": "object",
+        "description": "The views on one day.",
+        "required": [
+          "day",
+          "views"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "description": "The day, in UTC."
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views that day.",
+            "minimum": 0
+          }
+        }
+      },
       "AdminMedia": {
         "type": "object",
         "description": "A file in the media library with the details kept beside it.",
@@ -6353,6 +6449,34 @@
           }
         }
       },
+      "AdminSourceViews": {
+        "type": "object",
+        "description": "The views from one source.",
+        "required": [
+          "source",
+          "views",
+          "before"
+        ],
+        "properties": {
+          "before": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views in the period of the same length before.",
+            "minimum": 0
+          },
+          "source": {
+            "type": "string",
+            "description": "Where they came from: `direct`, `search`, `social`, `ai` (every AI\nassistant), `other` (any other site) or `internal` (the site's own\npages).",
+            "example": "search"
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views in the period.",
+            "minimum": 0
+          }
+        }
+      },
       "AdminToolVisitors": {
         "type": "object",
         "description": "What one AI assistant sent.",
@@ -6391,6 +6515,78 @@
             "type": "integer",
             "format": "int64",
             "description": "Views from its readers in the period.",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminVisitors": {
+        "type": "object",
+        "description": "The page views `khalid serve` counted. A view is one page opened by a\nperson; bots never count.",
+        "required": [
+          "first",
+          "last",
+          "days",
+          "views",
+          "before",
+          "arrivals",
+          "sources",
+          "per_day",
+          "pages"
+        ],
+        "properties": {
+          "arrivals": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The views that came from outside the site.",
+            "minimum": 0
+          },
+          "before": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Every view in the period of the same length before.",
+            "minimum": 0
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many days were counted.",
+            "minimum": 0
+          },
+          "first": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day counted, in UTC."
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day counted: today, in UTC."
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPageViews"
+            },
+            "description": "The most viewed pages, most views first, at most twenty."
+          },
+          "per_day": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDayViews"
+            },
+            "description": "The views per day, first day first, every day listed."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSourceViews"
+            },
+            "description": "The views per source, every source listed, outside ones first."
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Every view in the period.",
             "minimum": 0
           }
         }
