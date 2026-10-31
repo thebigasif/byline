@@ -1,1 +1,2 @@
 warn vague-link-text: Click here.
+warn no-focus-keyword

@@ -1,0 +1,64 @@
+# "Why internal links matter" has a section "Choosing link text", the whole
+# subject of a full post it never links to. "Link audits" has the same
+# section but links to the post, so it passes. The German post's section
+# is in another language, and the one-word subject "links" claims only a
+# heading whose sole subject word it is, so neither is reported.
+[[posts]]
+locale = "en"
+slug = "why-internal-links-matter"
+title = "Why internal links matter"
+focus_keyword = "internal links"
+word_count = 640
+
+[[posts.headings]]
+level = "h2"
+text = "What internal links are"
+
+[[posts.headings]]
+level = "h2"
+text = "Choosing link text"
+
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+title = "How to choose link text"
+focus_keyword = "link text"
+word_count = 900
+
+[[posts]]
+locale = "en"
+slug = "link-audits"
+title = "Running a link audit"
+focus_keyword = "link audit"
+word_count = 700
+
+[[posts.headings]]
+level = "h2"
+text = "Choosing link text"
+
+[[posts.links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "how to choose link text"
+
+[[posts]]
+locale = "en"
+slug = "links"
+title = "Links"
+focus_keyword = "links"
+word_count = 500
+
+[[posts]]
+locale = "de"
+slug = "interne-links"
+title = "Interne Links"
+focus_keyword = "interne Links"
+word_count = 600
+
+[[posts.headings]]
+level = "h2"
+text = "Choosing link text"
+
+[[pages]]
+locale = "en"
+slug = "about"

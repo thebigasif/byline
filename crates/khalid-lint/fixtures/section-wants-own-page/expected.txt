@@ -1,0 +1,1 @@
+warn section-wants-own-page: section "Choosing a web host" runs 314 words without naming the post's subject (suggest: move it to its own post and link to it from here, or tie it to the post's subject in its heading and text)

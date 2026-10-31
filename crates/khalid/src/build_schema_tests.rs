@@ -42,6 +42,14 @@ Fast and free for your own site.
 ::::
 
 ::video{src=\"/media/site-tour.mp4\" title=\"A tour of the site\" poster=\"site-tour.jpg\" duration=\"2:05\"}
+
+:::product{name=\"Site Audit Kit\" image=\"audit-kit.png\" price=\"49.00\" currency=\"USD\" rating=\"4.5\" href=\"/shop/audit-kit/\" button=\"Buy the kit\"}
+Every check a small site needs.
+:::
+
+:::product{name=\"Plain notebook\"}
+Paper for notes.
+:::
 ";
 
 /// The demo site's folder.
@@ -69,7 +77,14 @@ fn every_block_reaches_the_graph_and_google_finds_nothing_missing() {
     let site = build_seo::site(&config).unwrap();
     let graph = page_graph(&site, &seo).unwrap();
     let json = graph.to_json();
-    for kind in ["FAQPage", "HowTo", "Review", "Recipe", "VideoObject"] {
+    for kind in [
+        "FAQPage",
+        "HowTo",
+        "Review",
+        "Recipe",
+        "VideoObject",
+        "Product",
+    ] {
         assert!(
             json.contains(&format!("\"@type\": \"{kind}\"")),
             "{kind} in {json}"
@@ -90,6 +105,15 @@ fn every_block_reaches_the_graph_and_google_finds_nothing_missing() {
         "the post's author reviews: {json}"
     );
     assert_eq!(seo.videos.len(), 1, "for the video sitemap");
+    assert!(json.contains("\"price\": \"49.00\""), "{json}");
+    assert!(
+        json.contains("https://www.example.com/shop/audit-kit/"),
+        "{json}"
+    );
+    assert!(
+        !json.contains("Plain notebook"),
+        "a card with no price and no score writes no Product: {json}"
+    );
 
     let blocking: Vec<_> = check_graph(&graph)
         .into_iter()

@@ -98,9 +98,10 @@ impl Report {
     }
 
     /// Every issue as CSV with a header row: severity, group, check,
-    /// address, detail and fix, quoted where a spreadsheet needs it.
+    /// address, detail, why it matters and fix, quoted where a
+    /// spreadsheet needs it.
     pub fn csv(&self) -> String {
-        let mut csv = String::from("severity,category,check,url,detail,fix\n");
+        let mut csv = String::from("severity,category,check,url,detail,why,fix\n");
         for issue in &self.issues {
             let check = issue.check();
             let fields = [
@@ -109,6 +110,7 @@ impl Report {
                 check.title(),
                 issue.url().as_str(),
                 issue.detail(),
+                check.why(),
                 check.fix(),
             ];
             let row: Vec<String> = fields.iter().map(|field| quoted(field)).collect();

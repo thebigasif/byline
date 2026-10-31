@@ -184,7 +184,7 @@ fn edit_post(arguments: &Map<String, Value>) -> Result<Call, ToolResult> {
     only(
         arguments,
         "edit_post",
-        &["id", "title", "markdown", "updated_at"],
+        &["id", "title", "markdown", "real_update", "updated_at"],
     )?;
     let uri = post_address(arguments, "edit_post")?;
     let mut edit = arguments.clone();
@@ -274,13 +274,14 @@ fn definitions() -> Vec<Tool> {
         ),
         Tool::new(
             "edit_post",
-            "Changes a post's title or markdown. Fields left out stay. Refused if the post changed after updated_at.",
+            "Changes a post's title or markdown. Fields left out stay. Refused if the post changed after updated_at. Send real_update only when the new markdown really changes what a live post says: its updated date becomes today.",
             json!({
                 "type": "object",
                 "properties": {
                     "id": { "type": "string" },
                     "title": { "type": "string" },
                     "markdown": { "type": "string", "description": "The whole new body." },
+                    "real_update": real_update(),
                     "updated_at": { "type": "string", "description": "As read_post gave it." }
                 },
                 "required": ["id", "updated_at"],
@@ -301,4 +302,17 @@ fn definitions() -> Vec<Tool> {
             }),
         ),
     ]
+}
+
+/// The schema of `edit_post`'s `real_update`, the honest update switch.
+fn real_update() -> Value {
+    json!({
+        "type": "object",
+        "description": "Marks a real update to a live post's text.",
+        "properties": {
+            "note": { "type": "string", "description": "What changed, in one short sentence." }
+        },
+        "required": ["note"],
+        "additionalProperties": false
+    })
 }

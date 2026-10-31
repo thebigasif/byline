@@ -12,8 +12,15 @@ pub(crate) const HEADING_ORDER: &str = "heading-order";
 /// The rule a description repair answers.
 pub(crate) const MISSING_ALT: &str = "missing-alt";
 
+/// The rule a secure address repair answers.
+pub(crate) const INSECURE_INTERNAL_LINK: &str = "insecure-internal-link";
+
 /// Every rule a repair answers.
-pub(crate) const RULES: [&str; 2] = [HEADING_ORDER, MISSING_ALT];
+pub(crate) const RULES: [&str; 3] = [HEADING_ORDER, MISSING_ALT, INSECURE_INTERNAL_LINK];
+
+/// The scheme a link to this site should not use, and the one it should.
+const INSECURE: &str = "http://";
+const SECURE: &str = "https://";
 
 /// One block a repair changed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,11 +34,13 @@ pub(crate) struct Change {
 }
 
 /// `body` with the repairs for `rules`, and the changes, or `None` when
-/// nothing changed or the body cannot be rewritten in place. The post's
-/// `locale` and the site's `slugs` are how its captions render.
+/// nothing changed or the body cannot be rewritten in place. `insecure`
+/// holds the `http://` addresses to this site the linter found, as written.
+/// The post's `locale` and the site's `slugs` are how its captions render.
 pub(crate) fn repaired_body(
     body: &str,
     rules: &[&str],
+    insecure: &[&str],
     locale: &Locale,
     slugs: SlugMode,
 ) -> Option<(String, Vec<Change>)> {
@@ -43,6 +52,9 @@ pub(crate) fn repaired_body(
     }
     if rules.contains(&MISSING_ALT) {
         changes.extend(alt_from_caption(&mut after, locale, slugs));
+    }
+    if rules.contains(&INSECURE_INTERNAL_LINK) {
+        changes.extend(secure_links(&mut after, insecure));
     }
     if changes.is_empty() {
         return None;
@@ -150,6 +162,77 @@ fn alt_from_caption(blocks: &mut [Block], locale: &Locale, slugs: SlugMode) -> V
     changes
 }
 
+/// Moves each address in `targets` from `http://` to `https://` wherever it
+/// is written whole, in every block but fenced code, where an address is an
+/// example to copy as it stands. The host and path stay as written.
+fn secure_links(blocks: &mut [Block], targets: &[&str]) -> Vec<Change> {
+    let mut changes = Vec::new();
+    for target in targets {
+        let Some(rest) = target
+            .get(..INSECURE.len())
+            .filter(|scheme| scheme.eq_ignore_ascii_case(INSECURE))
+            .and_then(|_| target.get(INSECURE.len()..))
+        else {
+            continue;
+        };
+        let secure = format!("{SECURE}{rest}");
+        let mut moved = false;
+        for block in blocks.iter_mut() {
+            if matches!(block.kind, BlockKind::Code { .. }) {
+                continue;
+            }
+            if let Some(source) = replaced_whole(&block.source, target, &secure) {
+                block.source = source;
+                moved = true;
+            }
+        }
+        if moved {
+            changes.push(Change {
+                rule: INSECURE_INTERNAL_LINK,
+                subject: (*target).to_owned(),
+                sentence: format!("The link to {target} now opens {secure}, the secure address."),
+            });
+        }
+    }
+    changes
+}
+
+/// `source` with every whole `target` replaced by `new`, or `None` when it
+/// holds none. Whole means the address starts after a space, a bracket or
+/// a quote and ends before one, or before closing punctuation, so a longer
+/// address that starts the same way, or one inside backticks, stays.
+fn replaced_whole(source: &str, target: &str, new: &str) -> Option<String> {
+    let starts = |before: &str| {
+        before
+            .chars()
+            .next_back()
+            .is_none_or(|c| c.is_whitespace() || "(<[\"'".contains(c))
+    };
+    let ends = |after: &str| {
+        let mut next = after.chars();
+        match next.next() {
+            None => true,
+            Some(c) if c.is_whitespace() || ")>]\"'".contains(c) => true,
+            Some(c) if ".,;:!?".contains(c) => next.next().is_none_or(char::is_whitespace),
+            Some(_) => false,
+        }
+    };
+    let mut text = String::with_capacity(source.len());
+    let mut rest = source;
+    let mut found = false;
+    while let Some(at) = rest.find(target) {
+        let (before, tail) = rest.split_at_checked(at)?;
+        let after = tail.get(target.len()..)?;
+        text.push_str(before);
+        let whole = starts(&text) && ends(after);
+        text.push_str(if whole { new } else { target });
+        found |= whole;
+        rest = after;
+    }
+    text.push_str(rest);
+    found.then_some(text)
+}
+
 /// The text of rendered HTML: tags dropped, the entities `render` writes
 /// read back, and runs of spaces and lines made one space.
 fn plain(html: &str) -> String {
@@ -205,7 +288,45 @@ mod tests {
     /// `body` with every repair, in an English, ASCII site.
     fn all(body: &str) -> Option<(String, Vec<Change>)> {
         let english = Locale::try_new("en").unwrap();
-        repaired_body(body, &RULES, &english, SlugMode::Ascii)
+        repaired_body(body, &RULES, &[], &english, SlugMode::Ascii)
+    }
+
+    /// `body` with only the secure address repair, for `targets`.
+    fn secured(body: &str, targets: &[&str]) -> Option<(String, Vec<Change>)> {
+        let english = Locale::try_new("en").unwrap();
+        let rules = [INSECURE_INTERNAL_LINK];
+        repaired_body(body, &rules, targets, &english, SlugMode::Ascii)
+    }
+
+    #[test]
+    fn an_own_address_moves_to_https_with_its_host_as_written() {
+        let target = "HTTP://www.Example.com/a/";
+        let body = "See [a](HTTP://www.Example.com/a/), <HTTP://www.Example.com/a/>.\n";
+        let (text, changes) = secured(body, &[target]).unwrap();
+        assert_eq!(
+            text,
+            "See [a](https://www.Example.com/a/), <https://www.Example.com/a/>.\n"
+        );
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].subject, target);
+        assert_eq!(
+            changes[0].sentence,
+            "The link to HTTP://www.Example.com/a/ now opens https://www.Example.com/a/, the secure address."
+        );
+    }
+
+    #[test]
+    fn a_longer_address_code_and_code_spans_stay() {
+        let target = "http://example.com/a";
+        let body = "[b](http://example.com/ab) and `http://example.com/a`.\n\n```\n[a](http://example.com/a)\n```\n";
+        assert!(secured(body, &[target]).is_none());
+    }
+
+    #[test]
+    fn a_bare_address_before_a_full_stop_moves() {
+        let body = "Read http://example.com/a. Then stop.\n";
+        let (text, _) = secured(body, &["http://example.com/a"]).unwrap();
+        assert_eq!(text, "Read https://example.com/a. Then stop.\n");
     }
 
     fn fixed(body: &str) -> String {
@@ -290,7 +411,8 @@ mod tests {
     fn only_the_rules_asked_for_are_repaired() {
         let english = Locale::try_new("en").unwrap();
         let body = "#### Deep\n\n:::figure{src=\"/a.png\" alt=\"\"}\nOur cat.\n:::\n";
-        let (text, _) = repaired_body(body, &[MISSING_ALT], &english, SlugMode::Ascii).unwrap();
+        let repaired = repaired_body(body, &[MISSING_ALT], &[], &english, SlugMode::Ascii);
+        let (text, _) = repaired.unwrap();
         assert!(text.starts_with("#### Deep\n"), "{text}");
         assert!(text.contains("alt=\"Our cat.\""), "{text}");
     }

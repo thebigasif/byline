@@ -40,15 +40,13 @@ fn a_post_with_no_findings_scores_100() {
 #[test]
 fn each_warning_costs_five_points_and_names_its_rule() {
     let mut post = clean();
-    post.focus_keyword = Some("internal links".to_owned());
+    post.focus_keyword = None;
+    post.description = None;
     let score = score(&post);
     assert_eq!(score.value(), 90);
     assert_eq!(
         lost(&score),
-        [
-            ("focus-not-in-description", 5),
-            ("focus-not-in-subheading", 5)
-        ]
+        [("no-description", 5), ("no-focus-keyword", 5)]
     );
 }
 

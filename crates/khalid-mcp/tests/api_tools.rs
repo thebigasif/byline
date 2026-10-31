@@ -216,6 +216,25 @@ async fn an_edit_made_on_an_old_copy_is_refused_as_stale() {
 }
 
 #[tokio::test]
+async fn edit_post_passes_real_update_to_the_api() {
+    let tools = tools(WRITER);
+    let edit = json!({
+        "id": "en.internal-links",
+        "markdown": "Link often, and say where.",
+        "real_update": { "note": "Said where links go." },
+        "updated_at": "2026-10-01T09:00:00Z"
+    });
+    let edited = call(&tools, "edit_post", &edit).await;
+    assert!(edited.is_failure(), "a draft has no updated date");
+    let problem = json(&edited);
+    assert_eq!(problem["rule"], "real_update", "{problem}");
+    assert_eq!(
+        problem["fix"],
+        "Publish the post first, or leave real_update out."
+    );
+}
+
+#[tokio::test]
 async fn edit_post_cannot_publish() {
     let tools = tools(WRITER);
     let at = "2026-10-01T09:00:00Z";

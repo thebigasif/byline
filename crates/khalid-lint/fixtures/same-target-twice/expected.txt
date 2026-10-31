@@ -1,1 +1,2 @@
 warn same-target-twice: /blog/choosing-link-text/#examples
+warn no-focus-keyword

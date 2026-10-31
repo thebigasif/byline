@@ -16,6 +16,22 @@ pub enum DbError {
         #[source]
         source: sqlx::Error,
     },
+    /// A copy of the database could not be written: the file is already
+    /// there, its folder is missing, or the disk is full.
+    #[error("could not copy the database to {}", path.display())]
+    Copy {
+        /// Where the copy was to go.
+        path: PathBuf,
+        /// What SQLite reported.
+        #[source]
+        source: sqlx::Error,
+    },
+    /// SQLite takes a file name as text, and this path is not valid text.
+    #[error("the path {} is not valid text, so SQLite cannot use it", path.display())]
+    PathNotText {
+        /// The path.
+        path: PathBuf,
+    },
     /// A migration could not be applied, or the file holds a migration this
     /// version of Khalid does not know.
     #[error("could not bring the database schema up to date")]

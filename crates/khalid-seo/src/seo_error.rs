@@ -152,6 +152,12 @@ pub enum SeoError {
         /// The code, as given.
         currency: String,
     },
+    /// A price is not a whole number with the decimals its currency has.
+    #[error("{price:?} is not a price such as 49.00")]
+    Price {
+        /// The price, as given.
+        price: String,
+    },
     /// A rating is below zero, above its best score, or its best is not above zero.
     #[error("a rating of {value} out of {best} is not between 0 and its best score")]
     Rating {

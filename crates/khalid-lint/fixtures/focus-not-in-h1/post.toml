@@ -1,0 +1,5 @@
+# The search title holds the focus keyword, so `focus-not-in-title` is
+# quiet, but the headline on the page does not hold it.
+extends = "focus-clean"
+seo_title = "Internal links: a guide for 2026 {sep} {site}"
+title = "Why links between your posts matter"

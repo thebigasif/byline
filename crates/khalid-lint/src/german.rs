@@ -11,6 +11,13 @@ pub(crate) const STOPWORDS: &[&str] = &[
     "von", "was", "wenn", "wie", "wir", "wird", "zu", "zum", "zur",
 ];
 
+/// Question words that open a heading but never name its subject. "was"
+/// and "wie" are stopwords already.
+pub(crate) const QUESTION_WORDS: &[&str] = &[
+    "wann", "warum", "welche", "welchem", "welchen", "welcher", "welches", "wer", "weshalb",
+    "wieso", "wo", "woher", "wohin",
+];
+
 /// Short forms that end with a full stop inside a sentence, in lowercase.
 pub(crate) const ABBREVIATIONS: &[&str] = &[
     "z.", "b.", "z.b.", "d.h.", "u.a.", "usw.", "bzw.", "ca.", "dr.", "nr.", "vgl.", "evtl.",
