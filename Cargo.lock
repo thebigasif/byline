@@ -2467,10 +2467,13 @@ name = "khalid-search-console"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "khalid-core",
  "khalid-outbound",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
+ "wiremock",
 ]
 
 [[package]]

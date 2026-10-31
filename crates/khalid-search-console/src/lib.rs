@@ -5,14 +5,17 @@
 //! impressions and positions of each post, and whether Google has it in
 //! its index. `SerpDad` is never involved unless the owner connects it.
 //!
-//! [`PageNumbers`] are what Google counted for one page in a [`Window`] of
-//! days, and [`SearchConsoleError`] says why Google gave no answer, never
-//! showing a secret or a token (RULES.md BL-RUN-5).
+//! [`SearchConsole`] signs in with the owner's refresh token and hands back
+//! a [`Session`] that asks Google, always through the one `Outbound`
+//! client (RULES.md BL-RUN-8). Neither type, nor any error, ever shows a
+//! secret or a token (BL-RUN-5).
 //!
 //! This crate knows nothing about files, SQL or the command line.
 
+mod client;
 mod error;
 mod numbers;
 
+pub use client::{Credentials, SearchConsole, Session};
 pub use error::SearchConsoleError;
 pub use numbers::{PageNumbers, Window};
