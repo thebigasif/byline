@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor, search panel · Khalid admin mockup</title>
+<style>
+/* Shared admin styles. Each mockup carries its own copy so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--block:#b42318;--block-bg:#fef3f2;--warn:#8a4b00;--warn-bg:#fff8eb;--ok:#1a7f37;--ok-bg:#eefbf1;--radius:.375rem}
+html{background:var(--bg);color:var(--text);font:400 1rem/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;overflow-wrap:break-word}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.skip{position:absolute;left:-100vw}.skip:focus{left:1rem;top:.5rem;background:var(--bg);padding:.5rem 1rem}
+.top{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.brand{font-weight:700}.brand span{color:var(--muted);font-weight:400}
+main{padding:1.5rem 1.25rem 3rem;max-width:80rem;margin:0 auto}
+h2{font-size:1.125rem;line-height:1.3;margin:0 0 .75rem}
+h3{font-size:1rem;margin:0 0 .25rem}
+p{margin:0 0 1rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);color:var(--text);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+label{display:block;font-weight:600;margin:0 0 .25rem}
+.hint{display:block;color:var(--muted);font-weight:400;font-size:.9375rem;margin:0 0 .4rem}
+input,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--field);border-radius:var(--radius);padding:.5rem .7rem;min-height:44px;width:100%}
+.field{margin:0 0 1.25rem}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.muted{color:var(--muted)}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.875rem}
+.note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* This screen */
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:2rem}
+@media (min-width:68em){.layout{grid-template-columns:minmax(0,1fr) 23rem}}
+.doc{max-width:68ch;color:var(--muted)}
+.title{font-size:clamp(1.75rem,1.4rem + 1.5vw,2.5rem);font-weight:700;line-height:1.2;color:var(--text);border-bottom:1px solid var(--border);padding:.25rem 0 .5rem;margin:0 0 1.5rem}
+.score{display:flex;gap:.75rem;align-items:center;margin:0 0 1rem}
+.score b{font-size:1.75rem;line-height:1;color:var(--ok);border:2px solid var(--ok);border-radius:999px;padding:.6rem .5rem;min-width:3.5rem;text-align:center}
+.score p{margin:0;font-size:.9375rem}
+.check{border-radius:var(--radius);padding:1rem;margin:0 0 1rem;border-left:4px solid}
+.check.warn{background:var(--warn-bg);border-color:var(--warn)}
+.check .tag{font-size:.875rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 .25rem;color:var(--warn)}
+.check p{margin:0 0 .5rem}
+details{border:1px solid var(--border);border-radius:var(--radius);margin:0 0 1rem}
+summary{cursor:pointer;font-weight:600;padding:.75rem 1rem;min-height:44px}
+details>div{padding:0 1rem 1rem}
+.serp{border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;margin:0 0 1.25rem;font-family:Arial,sans-serif}
+.serp .site{font-size:.875rem;color:#202124;margin:0}
+.serp .url{font-size:.8125rem;color:#4d5156;margin:0 0 .25rem}
+.serp .head{font-size:1.25rem;line-height:1.3;color:#1a0dab;margin:0 0 .25rem}
+.serp .desc{font-size:.875rem;line-height:1.55;color:#474747;margin:0}
+.types{list-style:none;margin:0 0 .75rem;padding:0;display:flex;flex-wrap:wrap;gap:.4rem}
+.types li{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:.15rem .7rem;font-size:.875rem}
+pre{background:var(--surface);border-radius:var(--radius);padding:.75rem;overflow:auto;max-height:16rem;margin:0 0 1rem}
+textarea.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.875rem}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the main content</a>
+<header class="top">
+  <div class="brand">Khalid <span>· Field Notes on SEO</span></div>
+  <div class="row"><a href="posts.html">Back to all posts</a><span class="muted">Asif, owner</span></div>
+</header>
+<main id="main">
+  <h1 class="visually-hidden">Editing "Why internal links matter"</h1>
+  <div class="layout">
+    <article class="doc">
+      <p class="title">Why internal links matter</p>
+      <p>The text of the post sits here, as on the <a href="editor.html">editor</a> mockup. This page shows only what is new on the right: the score, the search result and the schema.</p>
+    </article>
+
+    <aside aria-labelledby="checks-title">
+      <h2 id="checks-title">Checks</h2>
+      <div class="score">
+        <b aria-hidden="true">95</b>
+        <p><strong>Score: 95 out of 100.</strong> The one warning below costs 5 points. The score sums up the checks; the checks say what to fix.</p>
+      </div>
+      <section class="check warn" aria-label="Warning">
+        <p class="tag">Warning, you can still publish</p>
+        <p><strong>This post links to no other website.</strong></p>
+        <p>Links to good sources show readers and Google where your facts come from.</p>
+        <p>Add a link to a trusted source that backs up a claim in the post.</p>
+      </section>
+
+      <details open>
+        <summary>How it looks in Google</summary>
+        <div>
+          <p class="hint">A search result for this post, made from the same title and description the published page will carry.</p>
+          <div class="serp" aria-label="Search result preview">
+            <p class="site">Field Notes on SEO</p>
+            <p class="url">https://www.example.com › blog › why-internal-links-matter</p>
+            <p class="head">Why internal links matter | Field Notes on SEO</p>
+            <p class="desc">Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.</p>
+          </div>
+          <div class="field"><label for="seo-title">Title in search results</label><span class="hint" id="seo-title-hint">Leave it empty to use the post's title and the blog's name. 46 of about 60 characters.</span><input id="seo-title" aria-describedby="seo-title-hint" value=""></div>
+          <p class="hint">The line under the title is the Description in Post settings.</p>
+          <div class="field"><label for="focus">Focus keyword</label><span class="hint" id="focus-hint">The search a reader types to find this post. The checks look for it in the title, the description and the first paragraph.</span><input id="focus" aria-describedby="focus-hint" value="internal links"></div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Schema</summary>
+        <div>
+          <p class="hint">Schema is information for search engines, written in a format called JSON-LD. Khalid writes it for every post. This post's page tells them it holds:</p>
+          <ul class="types"><li>BlogPosting</li><li>WebPage</li><li>BreadcrumbList</li><li>Person</li><li>Organization</li></ul>
+          <details>
+            <summary>Show the JSON-LD</summary>
+            <div><pre>{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BlogPosting",
+      "headline": "Why internal links matter",
+      "datePublished": "2026-09-14T00:00:00+00:00",
+      "dateModified": "2026-10-20T00:00:00+00:00",
+      "author": {"@id": "https://www.example.com/blog/authors/asif/#person"}
+    }
+  ]
+}</pre></div>
+          </details>
+          <p><a href="https://search.google.com/test/rich-results?url=https%3A%2F%2Fwww.example.com%2Fblog%2Fwhy-internal-links-matter%2F">Test the published page in Google's Rich Results Test</a></p>
+          <div class="field"><label for="own">Your own schema</label><span class="hint" id="own-hint">For a type Khalid does not write, such as an Event. Paste JSON-LD here; Khalid checks it before it saves. Most posts need nothing here.</span><textarea id="own" class="code" rows="6" aria-describedby="own-hint"></textarea></div>
+        </div>
+      </details>
+    </aside>
+  </div>
+
+  <p class="note">Mockup for the founder's review. Nothing on this page saves. The post, its description and its warning are the demo site's real ones; the score is the one Khalid gives that warning. The JSON-LD is shortened here; the real panel shows all of it. <a href="index.html">All mockups</a></p>
+</main>
+</body>
+</html>
