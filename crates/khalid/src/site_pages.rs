@@ -110,9 +110,8 @@ impl SitePages {
         let theme = if config.mode().has_pages() {
             let renderer =
                 Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
-            let css = assets::site_stylesheet(folder)?;
-            let stylesheet = assets::stylesheet_page(&config, &css)?;
             let tokens = Tokens::load(folder).map_err(|error| build_message::tokens(&error))?;
+            let stylesheet = assets::stylesheet_page(&config, &tokens)?;
             Some(Theme {
                 renderer,
                 stylesheet,

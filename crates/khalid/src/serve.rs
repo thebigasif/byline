@@ -37,8 +37,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    announce, comment_pages, db, db_message, late_api, media_library, newsletter, preview,
+    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -144,9 +144,7 @@ fn serve_with(
         announce(output, config, &format!("{address}{}", config.mount()));
         let live = LivePages::new(first);
         hand_back.start(live.replacements());
-        let (failed, failure) = oneshot::channel();
         let rest = (source.clone(), live.clone());
-        tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         // Each part reads the database or the folder alone, so all open at once.
         let (telling, announcing) = announce::start(config, (database, id), outbound)
@@ -165,13 +163,17 @@ fn serve_with(
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
-        let desks = (moderation, media, desk);
-        let apis = api_router((content, door), desks, (database, id, config));
         let app = assembled(
             (site, config, &security),
-            (apis, files, previews, search_route::router(config, search)),
+            (files, previews, search_route::router(config, search)),
             (comments, newsletters, pages),
         );
+        let desks = (moderation, media, desk);
+        let app = with_apis(app, (content, door), desks, (database, id, config));
+        // The rest renders once the routes are ready, so it does not slow
+        // setting them up (ADR "the APIs are built beside the first answer").
+        let (failed, failure) = oneshot::channel();
+        tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
@@ -220,6 +222,22 @@ fn api_router(
     api
 }
 
+/// `app` with the router of [`api_router`] answering under `/api/`, built
+/// on a blocking thread beside the first answer (ADR "the APIs are built
+/// beside the first answer"). An address under `/api/` the APIs lack goes
+/// to `app`, as it did when the routers were merged before the first answer.
+fn with_apis(
+    app: Router,
+    apis: (LiveContent, Arc<PublishDoor>),
+    desks: (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
+    (database, id, config): (&Database, SiteId, &Config),
+) -> Router {
+    let (database, config, rest) = (database.clone(), config.clone(), app.clone());
+    late_api::router(app, move || {
+        api_router(apis, desks, (&database, id, &config)).fallback_service(rest)
+    })
+}
+
 /// The pages, with the stylesheet named as a preload on every HTML answer
 /// when the site has one (G20).
 fn with_hint(pages: Pages, source: &SitePages) -> Pages {
@@ -252,14 +270,14 @@ fn destination(
     }
 }
 
-/// The one router the server answers: the APIs, the site's own routes, the
-/// drawn share cards, the admin, the comments and the newsletters.
+/// The router the server answers outside the APIs: the site's own routes,
+/// the drawn share cards, the admin, the comments and the newsletters.
 fn assembled(
     (site, config, security): (&Path, &Config, &SecurityHeaders),
-    (api, files, previews, searches): (Router, Router, Router, Router),
+    (files, previews, searches): (Router, Router, Router),
     (comments, newsletters, pages): (Router, Router, Router),
 ) -> Router {
-    api.merge(files)
+    files
         .merge(previews)
         .merge(searches)
         .merge(share_images::router(site, config, security.clone()))

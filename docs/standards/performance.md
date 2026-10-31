@@ -47,6 +47,14 @@ Once settled, five readings are taken one second apart and the lowest is the mea
 
 One setting is on: `MIMALLOC_PURGE_DELAY=0`, set in the deployment image and in the server `khalid-perf serve` measures. mimalloc holds a page it frees in its arena for a later reuse, with a reset delay before giving it back; an idle server never touches its arenas again, which is why a heap of 16.5 to 26.8 MB live read 54 to 67 MB resident. With the setting, a freed page returns to the OS at once. A delay of a hundred milliseconds was measured and rejected: the cold start did not recover (120.08 ms) and the idle reading climbed back over the budget (60.48 MB), because the pages a delayed purge would return were never touched again by an idle server. `MIMALLOC_ABANDONED_PAGE_PURGE` was measured and rejected: it made both budgets worse (idle 58.44, cold start 117.23). The measurement that justifies the setting that is on is the eight CI runs in the pull request that added it.
 
+The setting has a cost: every page freed is handed back at once and faulted in again when it is reused, so work that allocates and frees a lot costs more. Before it answers, `khalid serve` therefore does only what the first answer needs. Measured on 2026-10-31 with timing marks in a release build on the 1,000-post site, on a shared server, the start before the first answer was: walking the content folder 12 to 18 ms, reading the posts 22 to 34 ms, checking their bodies 8 to 12 ms, the runtime and database 5 ms, the home pages 6 to 17 ms. Three steps were moved out of that path:
+
+- **The stylesheet's compressed copies** (11 ms). Brotli at its best quality with a 4 MB window sets up tens of megabytes of tables, and the server threw both copies away: it compresses its pages after it answers. It now builds the stylesheet's text and hashed name only.
+- **The Content API and Admin API router** (8 to 9 ms, most of it the OpenAPI document). It is built on a blocking thread once the routes are wired, and a request under `/api/` waits for it.
+- **The full render**, which used to start before the routers were built and competed with them. It starts once the routes are ready.
+
+The first request is answered within a fraction of a millisecond of the routes being ready. What is left is reading the content, which the first page needs.
+
 ## Allocator settings history
 
 The CTO answers of 2026-10-27, section 2, allow tuning the allocator to hand memory back, as long as the setting is recorded here with the measurement behind it. Measured on 2026-10-27 with `khalid-perf serve`, release build, on the generated 1,000-post site, idle memory as defined in the table above. The server was shared and busy (load average 65 to 85 on 16 cores), so each setting ran twice where it mattered.

@@ -54,13 +54,7 @@ impl Asset {
         content_type: &'static str,
         body: Vec<u8>,
     ) -> Result<Self, RenderError> {
-        let hash = Sha256::digest(&body);
-        let mut name = format!("{stem}.");
-        for byte in hash.iter().take(HASH_DIGITS / 2) {
-            let _ = write!(name, "{byte:02x}");
-        }
-        name.push('.');
-        name.push_str(extension);
+        let name = Self::hashed_name(stem, extension, &body);
         let gzip = gzip(&body).map_err(|source| RenderError::Compress { source })?;
         let brotli = brotli(&body).map_err(|source| RenderError::Compress { source })?;
         Ok(Self {
@@ -70,6 +64,19 @@ impl Asset {
             gzip: gzip.into(),
             brotli: brotli.into(),
         })
+    }
+
+    /// The name [`Asset::build`] gives `body`, such as `site.3f2a9c1e.css`,
+    /// without making the compressed copies.
+    pub fn hashed_name(stem: &str, extension: &str, body: &[u8]) -> String {
+        let hash = Sha256::digest(body);
+        let mut name = format!("{stem}.");
+        for byte in hash.iter().take(HASH_DIGITS / 2) {
+            let _ = write!(name, "{byte:02x}");
+        }
+        name.push('.');
+        name.push_str(extension);
+        name
     }
 
     /// The hashed file name, such as `site.3f2a9c1e.css`.
