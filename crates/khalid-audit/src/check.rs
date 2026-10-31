@@ -398,6 +398,18 @@ checks! {
     UnsourcedNumber => "unsourced-number", AiSearch, Notice, "Number without a source or a year",
         "A reader cannot check a bare number, and AI tools prefer facts they can trace.",
         "Link the number to its source, or say the year it held.";
+    /// An answer starts folded away in a closed `<details>`.
+    HiddenAnswer => "hidden-answer", AiSearch, Warning, "Answer folded away",
+        "Readers must click to see the answer, and tools that read the page as it first shows may miss it.",
+        "Show the answer open, as Khalid's FAQ and toggle blocks do, or add open to the details element in the template override.";
+    /// An article's latest date is not shown on the page.
+    DateNotShown => "date-not-shown", AiSearch, Notice, "Article date not shown",
+        "Readers and AI tools look for a visible date to tell whether an answer is still current.",
+        "Show the published date, and the updated date when there is one, in a time element, as Khalid's post template does.";
+    /// An article's latest date is older than the review window.
+    StalePage => "stale-page", AiSearch, Notice, "Article not updated for a year or more",
+        "Readers and AI tools prefer current answers, and an old date tells them the page may be out of date.",
+        "Review the post, and when you really change it, set updated in its front matter. Change the date only for a real update.";
     /// An HTTPS page comes without a `Strict-Transport-Security` header.
     HstsMissing => "hsts-missing", Https, Notice, "No HSTS support",
         "Without it, a browser may still open the first visit over plain HTTP.",

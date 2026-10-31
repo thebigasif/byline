@@ -29,6 +29,7 @@ mod page_checks;
 mod report;
 mod robots;
 mod server;
+mod shown_checks;
 mod sitemap;
 mod sitemap_checks;
 mod thresholds;
