@@ -265,3 +265,29 @@ fn the_agents_guide_explains_every_tool_the_server_offers() {
         );
     }
 }
+
+#[test]
+fn the_webhook_and_staff_tools_reach_the_sites_own_stores() {
+    let (site, _) = demo();
+    let args = ["--name", "Hooks", "--scope", "webhooks:manage"];
+    let key = make_key(site.path(), &args);
+    let mut session = Session::start(site.path(), &key);
+    let hook = json!({ "event": "post.published", "url": "https://hooks.example.com/khalid" });
+    let body = json!({ "body": { "webhooks": [hook] } });
+    let (failed, added) = session.call("add_webhook", &body);
+    assert!(!failed, "{added}");
+    let (failed, hooks) = session.call("list_webhooks", &json!({}));
+    assert!(!failed, "{hooks}");
+    assert_eq!(
+        hooks["webhooks"][0]["url"], "https://hooks.example.com/khalid",
+        "kept in the site's database: {hooks}"
+    );
+    let (refused, problem) = session.call("list_staff", &json!({}));
+    assert!(refused, "{problem}");
+    assert_eq!(
+        problem["status"], 403,
+        "the route is there and asks for a staff role: {problem}"
+    );
+    let output = session.finish();
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+}

@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 
 use axum::http::Method;
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 use crate::call::{Call, Key, Payload};
@@ -255,7 +256,7 @@ impl Operation {
                     )));
                 }
             },
-            BodyKind::Bytes => serde_json::from_value::<Vec<u8>>(value.clone()).map_err(|_| {
+            BodyKind::Bytes => Vec::<u8>::deserialize(value).map_err(|_| {
                 ToolResult::failed(&format!(
                     "{name} takes body as the file's bytes. Send a list of numbers from 0 to 255."
                 ))
