@@ -103,16 +103,30 @@ fn export_with_json_names_the_folder_and_counts_the_pages() {
 }
 
 #[test]
-fn a_refused_export_leaves_the_earlier_one_in_place() {
+fn a_failed_export_leaves_the_earlier_one_in_place() {
     let site = site("static");
-    let post = within(site.path(), "content/en/posts/2026-10-20-no-author.md");
-    let body = "---\ntitle: A post with no author\ndate: 2026-10-20\n---\n\nRead [why internal links matter](/blog/why-internal-links-matter/).\n";
-    fs::write(post, body).unwrap();
+    let settings = within(site.path(), "lint.toml");
+    fs::write(settings, "[rules]\nno-authors = \"off\"\n").unwrap();
     let output = export(site.path(), &[]);
     assert_eq!(output.status.code(), Some(1), "{}", text(&output.stdout));
     let old = within(site.path(), "public/a-deleted-post/index.html");
     assert_eq!(fs::read_to_string(old).unwrap(), "old");
     assert_eq!(leftovers(site.path()), Vec::<String>::new(),);
+}
+
+#[test]
+fn export_leaves_out_a_blocked_post_and_says_so() {
+    let site = site("static");
+    let post = within(site.path(), "content/en/posts/2026-10-20-no-author.md");
+    let body = "---\ntitle: A post with no author\nslug: no-author\ndate: 2026-10-20\n---\n\nRead [why internal links matter](/blog/why-internal-links-matter/).\n";
+    fs::write(post, body).unwrap();
+    let output = export(site.path(), &[]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(said.contains("This post has no author."), "{said}");
+    assert!(said.contains("Left out 1 post"), "{said}");
+    assert!(!within(site.path(), "public/no-author").exists());
+    assert!(within(site.path(), "public/why-internal-links-matter/index.html").exists());
 }
 
 #[test]

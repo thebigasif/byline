@@ -1,91 +1,110 @@
-//! The publish gate in `khalid build`: every post that would go live must
-//! pass before any page is written, so a refused post never leaves half a
-//! site behind.
+//! The publish gate in `khalid build` and `khalid serve`: a post the gate
+//! blocks is left out of the site, and the rest of the site goes live, so
+//! one old post never empties a site and the two commands always agree on
+//! what is published (KH-LNT-1).
 //!
-//! A post with no date is a draft. `khalid build` leaves it out, so the gate
+//! A post with no date is a draft. Neither command shows it, so the gate
 //! leaves it alone too.
 
-use khalid_content::SiteContent;
-use khalid_core::{Config, UserMessage};
-use khalid_lint::{LintFact, PublishGate, Report, Verdict};
-use khalid_routes::Routes;
-use serde::Serialize;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 
-use crate::cli::Output;
-use crate::exit::Exit;
+use khalid_content::SiteContent;
+use khalid_core::{Clock, Config, UserMessage};
+use khalid_lint::{LintFact, Linter, PublishGate, Report, Verdict};
+use khalid_routes::Routes;
+
 use crate::lint_input::{self, LintInput};
 use crate::site_briefs::Briefs;
-use crate::{lint, report};
+use crate::{lint, lint_message, site_briefs, site_facts};
 
-/// The JSON shape of a refused build: the message, then each refused post's
-/// findings, warnings included.
-#[derive(Serialize)]
-struct RefusedBody<'a> {
-    error: &'a UserMessage,
-    refused: &'a [Report],
+/// A dated post the gate keeps off the site, and the report saying why.
+#[derive(Debug)]
+pub(crate) struct Refused {
+    /// The post's file, relative to the site folder.
+    pub(crate) path: PathBuf,
+    /// Every finding about the post, warnings included.
+    pub(crate) report: Report,
 }
 
-/// The report of every dated post in `content` that `gate` refuses, in the
-/// order the posts were read. Empty when the site may be built. Each post
-/// first gets the quick yes or no, and only a refused post the full verdict
-/// with its warnings, so a 10,000-post build stays inside its budget. Posts
-/// are held to `facts`, the site's fact registry, and to their `briefs`.
+/// Every dated post of `content` the gate refuses, judged with the `site`
+/// folder's `lint.toml`, fact registry and briefs, on today's date from
+/// `clock`.
+///
+/// # Errors
+///
+/// What, why and fix when `lint.toml`, the fact registry or a brief cannot
+/// be read.
+pub(crate) fn screen(
+    site: &Path,
+    (config, routes, content): (&Config, &Routes, &SiteContent),
+    clock: &dyn Clock,
+) -> Result<Vec<Refused>, UserMessage> {
+    let settings = lint::lint_settings(site)?;
+    let linter = Linter::new(&settings, clock).map_err(|error| lint_message::of(&error))?;
+    let facts = site_facts::load(site)?;
+    let briefs = site_briefs::load(site)?;
+    Ok(refused(&linter, content, config, routes, (facts, briefs)))
+}
+
+/// Each dated post in `content` that `gate` refuses, in the order the
+/// posts were read. Empty when every post may go live. Each post first
+/// gets the quick yes or no, and only a refused post the full verdict with
+/// its warnings, so a 10,000-post site stays inside its budget. Posts are
+/// held to `facts`, the site's fact registry, and to their `briefs`.
 pub(crate) fn refused(
     gate: &dyn PublishGate,
     content: &SiteContent,
     config: &Config,
     routes: &Routes,
     (facts, briefs): (Vec<LintFact>, Briefs),
-) -> Vec<Report> {
+) -> Vec<Refused> {
     let input = LintInput::new(content, config, routes.clone())
         .with_facts(facts)
         .with_briefs(briefs);
-    let (site, _) = lint_input::lint_site(content, config, &input);
+    let (site, documents) = lint_input::lint_site(content, config, &input);
     site.posts
         .iter()
-        .filter(|post| post.date.is_some() && gate.refuses(post, &site))
-        .filter_map(|post| match gate.verdict(post, &site) {
-            Verdict::Refuse { report } => Some(report),
+        .zip(documents)
+        .filter(|(post, _)| post.date.is_some() && gate.refuses(post, &site))
+        .filter_map(|(post, document)| match gate.verdict(post, &site) {
+            Verdict::Refuse { report } => Some(Refused {
+                path: document.path.clone(),
+                report,
+            }),
             Verdict::Publish { .. } => None,
         })
         .collect()
 }
 
-/// Explains why nothing was built: every finding of each refused post, then
-/// what, why and fix. Ends with exit code 1.
-pub(crate) fn refuse(output: Output, refused: &[Report]) -> Exit {
-    let message = not_ready(refused.len());
-    match output {
-        Output::Json => report::json(
-            &RefusedBody {
-                error: &message,
-                refused,
-            },
-            Exit::Failure,
-        ),
-        Output::Human => {
-            let mut text = String::new();
-            for finding in refused.iter().flat_map(Report::findings) {
-                lint::write_finding(&mut text, finding);
-            }
-            match report::text(&text, Exit::Failure) {
-                Exit::Failure => report::failure(output, &message, Exit::Failure),
-                unwritten => unwritten,
-            }
-        }
+/// `content` without the `refused` posts. Borrowed as it is when the gate
+/// refused none.
+pub(crate) fn published<'c>(content: &'c SiteContent, refused: &[Refused]) -> Cow<'c, SiteContent> {
+    if refused.is_empty() {
+        return Cow::Borrowed(content);
     }
+    let mut kept = content.clone();
+    kept.posts
+        .retain(|doc| !refused.iter().any(|post| post.path == doc.path));
+    Cow::Owned(kept)
 }
 
-/// The message for a build the gate stopped, with `posts` refused.
-fn not_ready(posts: usize) -> UserMessage {
-    let count = if posts == 1 {
-        "1 post is".to_owned()
-    } else {
-        format!("{posts} posts are")
+/// Every finding of each post in `refused`, then what was left out, why
+/// and the fix, for a person to read after a build. Empty when nothing was
+/// left out.
+pub(crate) fn human(refused: &[Report]) -> String {
+    let mut text = String::new();
+    if refused.is_empty() {
+        return text;
+    }
+    for finding in refused.iter().flat_map(Report::findings) {
+        lint::write_finding(&mut text, finding);
+    }
+    let count = match refused.len() {
+        1 => "1 post, because it is".to_owned(),
+        posts => format!("{posts} posts, because they are"),
     };
-    UserMessage::new(
-        format!("Khalid built nothing, because {count} not ready to publish."),
-        "A blocked post would go live with its problems, so no page was written.",
-        "Fix each block listed with its post, or remove `date:` to keep a post as an unpublished draft.",
+    format!(
+        "{text}Left out {count} not ready to publish. The blocks are listed above.\nFix each block and build again, or remove `date:` to keep a post as an unpublished draft.\n"
     )
 }

@@ -153,14 +153,15 @@ fn a_brief_outside_a_language_folder_is_refused() {
 }
 
 #[test]
-fn build_refuses_an_unanswered_question_when_the_site_makes_it_block() {
+fn build_leaves_out_an_unanswered_question_when_the_site_makes_it_block() {
     let site = site(BRIEF);
     let rules = "[rules]\nbrief-question-unanswered = \"block\"\n";
     fs::write(within(site.path(), "lint.toml"), rules).unwrap();
     let output = khalid(site.path(), &["build"]);
-    assert_eq!(output.status.code(), Some(1), "{}", text(&output.stderr));
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let said = text(&output.stdout);
     assert!(said.contains("How many internal links"), "{said}");
+    assert!(said.contains("Left out 1 post"), "{said}");
 }
 
 #[test]
