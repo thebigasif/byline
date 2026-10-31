@@ -2099,6 +2099,101 @@
             "admin_key": []
           }
         ]
+      },
+      "put": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Puts a new list in place of every schema template, made on the copy\n`updated_at` names. Each template is checked as `khalid serve` checks\n`site.toml` at start, and nothing is saved when one is refused. The\nrunning server uses the new templates after a restart. Needs\n`settings:write`.",
+        "operationId": "replace_templates",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplatesChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The schema templates as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaTemplates"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no schema templates",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The templates changed after the copy this change was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a template is not valid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/session/": {
@@ -8758,6 +8853,29 @@
           "collection",
           "category"
         ]
+      },
+      "TemplatesChange": {
+        "type": "object",
+        "description": "A new list of schema templates, made on the copy `updated_at` names.",
+        "required": [
+          "templates",
+          "updated_at"
+        ],
+        "properties": {
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSchemaTemplate"
+            },
+            "description": "Every template, in order. An empty list removes them all."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy the change was made on."
+          }
+        },
+        "additionalProperties": false
       },
       "Term": {
         "type": "object",

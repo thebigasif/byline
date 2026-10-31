@@ -25,6 +25,9 @@ const ADMIN: &str =
 const WRITER: &str =
     "ki_5555666677778888_0000111122223333444455556666777788889999aaaabbbbccccddddeeeeffff";
 
+/// When the templates last changed, before any test changes them.
+const LAST_CHANGE: &str = "2026-10-30T09:00:00Z";
+
 /// An API whose site has a `Course` template for its guides.
 #[cfg(test)]
 fn router() -> axum::Router {
@@ -74,6 +77,12 @@ async fn send(router: &axum::Router, key: &str, body: Option<Value>) -> (StatusC
     (status, serde_json::from_slice(&bytes).unwrap())
 }
 
+#[cfg(test)]
+fn recipe() -> Value {
+    json!({"applies_to": "collection", "name": "posts", "type": "Recipe",
+        "properties": {"name": "{title}", "author": "{author}"}})
+}
+
 #[tokio::test]
 async fn the_templates_are_read_with_the_collections_to_pick_from() {
     let (status, json) = send(&router(), ADMIN, None).await;
@@ -83,6 +92,59 @@ async fn the_templates_are_read_with_the_collections_to_pick_from() {
     assert_eq!(json["templates"], json!([course]));
     assert_eq!(json["collections"], json!(["posts", "guides"]));
     assert_eq!(json["restart_needed"], false);
+}
+
+#[tokio::test]
+async fn a_new_list_replaces_them_all_and_asks_for_a_restart() {
+    let router = router();
+    let change = json!({"templates": [recipe()], "updated_at": LAST_CHANGE});
+    let (status, json) = send(&router, ADMIN, Some(change)).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["templates"], json!([recipe()]));
+    assert_eq!(json["restart_needed"], true);
+    let (_, read) = send(&router, ADMIN, None).await;
+    assert_eq!(read["templates"], json!([recipe()]));
+}
+
+#[tokio::test]
+async fn a_change_on_an_old_copy_is_a_409() {
+    let router = router();
+    let change = json!({"templates": [], "updated_at": LAST_CHANGE});
+    let (status, _) = send(&router, ADMIN, Some(change.clone())).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, json) = send(&router, ADMIN, Some(change)).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert_eq!(json["rule"], "updated_at");
+}
+
+#[tokio::test]
+async fn a_template_google_could_not_read_is_a_422_and_nothing_is_saved() {
+    let router = router();
+    let cases = [
+        json!({"applies_to": "collection", "name": "posts", "type": "recipe"}),
+        json!({"applies_to": "collection", "name": "posts", "type": "Recipe",
+            "properties": {"Name": "{title}"}}),
+        json!({"applies_to": "collection", "name": "posts", "type": "Recipe",
+            "properties": {"name": "{headline}"}}),
+        json!({"applies_to": "collection", "name": " ", "type": "Recipe"}),
+        json!({"applies_to": "folder", "name": "posts", "type": "Recipe"}),
+    ];
+    for template in cases {
+        let change = json!({"templates": [recipe(), template], "updated_at": LAST_CHANGE});
+        let (status, json) = send(&router, ADMIN, Some(change)).await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{template}: {json}"
+        );
+    }
+    let (_, read) = send(&router, ADMIN, None).await;
+    assert_eq!(read["templates"][0]["type"], "Course");
+    let named = json!({"templates": [recipe(), {"applies_to": "collection", "name": "posts",
+        "type": "recipe"}], "updated_at": LAST_CHANGE});
+    let (_, json) = send(&router, ADMIN, Some(named)).await;
+    let what = json["detail"].as_str().unwrap();
+    assert!(what.contains("template 2:"), "{json}");
 }
 
 #[tokio::test]
