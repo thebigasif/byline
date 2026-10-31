@@ -1,11 +1,13 @@
 //! The schema a post's own content writes (plan section 5.9): its FAQ,
 //! how-to, review, recipe and video blocks as their schema.org types, its
-//! videos for the video sitemap, and the entities it links to as
+//! images and videos for the sitemap, and the entities it links to as
 //! `mentions`.
 
 use std::path::Path;
 
-use khalid_content::{HowToBlock, Link, RecipeBlock, ReviewBlock, StructuredBlock, VideoBlock};
+use khalid_content::{
+    HowToBlock, Image, LeadImage, Link, RecipeBlock, ReviewBlock, StructuredBlock, VideoBlock,
+};
 use khalid_core::{AbsoluteUrl, Config, UserMessage};
 use khalid_seo::{
     CustomSchema, Entity, EntityRole, FaqItem, HowTo, HowToStep, Rating, Recipe, Review,
@@ -54,6 +56,32 @@ pub(crate) fn fill(
         seo.blocks.push(schema);
     }
     seo.entities = links.iter().filter_map(entity).collect();
+    Ok(())
+}
+
+/// Lists in `seo`, for the image sitemap, the `lead` image of the post at
+/// `path` and then each image of its `body`, each once, as full addresses.
+///
+/// # Errors
+///
+/// A [`UserMessage`] when an image's address cannot be made a full address
+/// on the site.
+pub(crate) fn images(
+    seo: &mut SeoPage,
+    config: &Config,
+    path: &str,
+    (lead, body): (Option<&LeadImage>, &[Image]),
+) -> Result<(), UserMessage> {
+    let sources = lead
+        .map(|image| image.src.as_str())
+        .into_iter()
+        .chain(body.iter().map(|image| image.src.as_str()));
+    for src in sources {
+        let url = full_address(config, path, src)?;
+        if !seo.images.contains(&url) {
+            seo.images.push(url);
+        }
+    }
     Ok(())
 }
 
