@@ -11,7 +11,39 @@ export const en = {
     dashboard: "Dashboard",
     posts: "Posts",
     comments: "Comments",
+    authors: "Authors",
     redirects: "Redirects",
+  },
+  authors: {
+    title: "Authors",
+    lede: "An author is a person named on a post. Their name, role and profiles show beside every post they write, and tell search engines who stands behind it. Each author is a file in your site folder, so git keeps their history.",
+    add: {
+      title: "Add an author",
+      fields: {
+        name: { label: "Name", hint: "As readers see it under a post's title." },
+        slug: {
+          label: "Short name",
+          hint: "Posts name the author by it. Lowercase words joined by hyphens, such as lena-vogt.",
+        },
+        role: { label: "Role", hint: "What they do, such as Technical SEO editor. Optional." },
+        language: {
+          label: "Language",
+          hint: "The author page's language, such as de. Leave it empty for the blog's main one.",
+        },
+      },
+      submit: "Add author",
+      added: (name: string) => `Added. Posts can now name ${name} as their author.`,
+    },
+    list: {
+      title: "Your authors",
+      loading: "Reading your authors",
+      none: "No authors yet. Add the first one above.",
+      name: "Name",
+      slug: "Short name",
+      language: "Language",
+      role: "Role",
+      noRole: "No role yet",
+    },
   },
   account: {
     nav: "Your account",
@@ -441,6 +473,11 @@ export const en = {
       what: "No CSV file is picked yet.",
       why: "Khalid adds the redirects from a file, so there is nothing to add.",
       fix: "Pick a CSV file under Add redirects from a CSV file, then press Add these redirects.",
+    },
+    notYet: {
+      what: "This blog's server cannot do this yet.",
+      why: "It runs a version of Khalid from before this screen was added.",
+      fix: "Update Khalid on the server with khalid update, then reload this page.",
     },
     noSession: {
       what: "Your account settings need you signed in with your email.",
