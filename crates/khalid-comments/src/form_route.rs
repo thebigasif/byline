@@ -139,8 +139,11 @@ fn links<S>(route: &FormRoute<S>) -> (&str, &str) {
 
 /// The reader's address: the peer's, or, when the peer is a proxy on this
 /// machine or the local network, the last address its `X-Forwarded-For`
-/// names, which is the one the proxy saw.
-fn reader(peer: IpAddr, headers: &HeaderMap) -> IpAddr {
+/// names, which is the one the proxy saw. Other routes with
+/// [`RateLimits`](crate::RateLimits) count readers by it too, as
+/// `reader_address`.
+#[must_use]
+pub fn reader(peer: IpAddr, headers: &HeaderMap) -> IpAddr {
     let local = match peer.to_canonical() {
         IpAddr::V4(v4) => v4.is_loopback() || v4.is_private(),
         IpAddr::V6(v6) => v6.is_loopback() || v6.is_unique_local(),

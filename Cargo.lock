@@ -2196,8 +2196,14 @@ dependencies = [
 name = "khalid-forms"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
+ "khalid-comments",
+ "khalid-core",
  "thiserror",
+ "tokio",
+ "tower",
+ "tracing",
 ]
 
 [[package]]

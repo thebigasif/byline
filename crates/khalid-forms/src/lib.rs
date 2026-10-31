@@ -10,19 +10,13 @@
 //! `khalid-db` implements the store. Sending each answer on by email or
 //! webhook comes later (G40).
 
-#[expect(
-    dead_code,
-    reason = "the form route, the next part of G4, writes these pages"
-)]
 mod answer_page;
 mod form_id;
+mod form_route;
 mod form_store;
-#[expect(
-    dead_code,
-    reason = "the form route, the next part of G4, reads a posted form"
-)]
 mod submission;
 
 pub use form_id::{FormId, FormIdError};
+pub use form_route::{FormRoute, SiteForms, form_router};
 pub use form_store::{FormStore, FormStoreError};
 pub use submission::Submission;

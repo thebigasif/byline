@@ -37,7 +37,7 @@ pub use comment_store::{CommentStore, CommentStoreError, NewComment};
 pub use comments::{CommentEvents, Comments, CommentsError};
 pub use field_problem::FieldProblem;
 pub use fields::{AuthorName, CommentText, ReaderEmail};
-pub use form_route::{FormRoute, PostPage, PostPages, form_router};
+pub use form_route::{FormRoute, PostPage, PostPages, form_router, reader as reader_address};
 #[cfg(any(test, feature = "test-util"))]
 pub use memory_store::MemoryCommentStore;
 pub use rate_limits::{RateLimitError, RateLimits};
