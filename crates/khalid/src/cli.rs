@@ -108,7 +108,9 @@ pub(crate) enum Command {
         fix: bool,
     },
     /// Lint a draft, then publish it and tell the site's webhooks and
-    /// search engines. Refuses when a rule blocks it
+    /// search engines. A draft is a file in `drafts/<language>/`, or a post
+    /// in `content/` with no date. Refuses when a rule blocks it, or when
+    /// the post is already live
     Publish {
         /// The slug of the draft to publish
         slug: Slug,

@@ -82,12 +82,8 @@ impl Site {
             }
             let mut path = self.folder.clone();
             path.push(&doc.path);
-            found.push(Found::read(
-                doc.locale.clone(),
-                slug,
-                path,
-                PostStatus::Published,
-            )?);
+            let status = super::publish::content_status(doc.front.date);
+            found.push(Found::read(doc.locale.clone(), slug, path, status)?);
         }
         Ok(found)
     }

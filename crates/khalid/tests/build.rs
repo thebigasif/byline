@@ -353,7 +353,7 @@ fn build_json_lists_the_refused_posts_and_exits_1() {
     assert!(output.stderr.is_empty(), "{}", text(&output.stderr));
     assert_eq!(text(&output.stdout).lines().count(), 1, "one JSON value");
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(json["error"]["fix"].as_str().unwrap().contains("date:"));
+    assert!(json["error"]["fix"].as_str().unwrap().contains("drafts/"));
     let refused = json["refused"].as_array().unwrap();
     assert_eq!(refused.len(), 1, "{json}");
     assert_eq!(refused[0]["blocks"], true);
