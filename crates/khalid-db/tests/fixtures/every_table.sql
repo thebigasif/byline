@@ -93,5 +93,8 @@ INSERT INTO analytics_counts (site_id, day, path, referrer_group, views) VALUES
 INSERT INTO crawl_log (site_id, day, path, crawler, kind, hits, last_seen, last_status) VALUES
     (1, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200),
     (2, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200);
+INSERT INTO visitor_log (site_id, at, path, status, address, visitor_code, referrer_group, crawler, bot_check) VALUES
+    (1, '2026-10-26T09:00:00Z', '/blog/old-post/', 200, '203.0.113.0', '9f3c2a71d05be448', NULL, 'Googlebot', 'listed'),
+    (2, '2026-10-26T09:00:00Z', '/blog/old-post/', 200, '203.0.113.0', '9f3c2a71d05be448', NULL, 'Googlebot', 'listed');
 INSERT INTO alerts_raised (site_id, key, raised_at) VALUES
     (1, 'stale-post:en.old-post', '2026-10-26T09:00:00Z'), (2, 'stale-post:en.old-post', '2026-10-26T09:00:00Z');
