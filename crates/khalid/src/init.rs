@@ -12,7 +12,7 @@ use serde::Serialize;
 
 use crate::cli::{InitArgs, Output, Prompts, SiteMode};
 use crate::exit::Exit;
-use crate::{init_message, init_prompt, report};
+use crate::{config_message, init_message, init_prompt, report};
 
 /// The language a site writes in when nothing says otherwise.
 const DEFAULT_LANGUAGE: &str = "en";
@@ -72,6 +72,56 @@ pub(crate) fn run(folder: &Path, args: &InitArgs, output: Output) -> Exit {
         Ok(created) => success(output, folder, &answers, created),
         Err(error) => report::failure(output, &init_message::write(folder, &error), Exit::Failure),
     }
+}
+
+/// Makes a site in `folder` when it has none, for `serve --init` on a host
+/// that starts Khalid on an empty disk. The address is the one
+/// `KHALID_ADDRESS` gives, and the rest are `init`'s defaults. A folder that
+/// holds a site already is left as it is.
+///
+/// # Errors
+///
+/// The message to show when `KHALID_ADDRESS` is unset or not an address, or
+/// when a file of the new site cannot be written.
+pub(crate) fn first_start(folder: &Path, environment: &Environment) -> Result<(), UserMessage> {
+    let mut settings = folder.to_path_buf();
+    settings.push(Config::FILE_NAME);
+    if settings.exists() {
+        return Ok(());
+    }
+    let answers = start_address(&settings, environment)
+        .and_then(|address| defaults_at(address).ok_or_else(init_message::needs_start_address))?;
+    write(folder, &answers, &answers.site_toml())
+        .map(drop)
+        .map_err(|error| init_message::write(folder, &error))
+}
+
+/// The address `KHALID_ADDRESS` gives, read the way the settings read it:
+/// a stand-in address in `site.toml` is replaced by the variable's.
+fn start_address(settings: &Path, environment: &Environment) -> Result<AbsoluteUrl, UserMessage> {
+    let stand_in = AbsoluteUrl::parse("https://stand-in.invalid/")
+        .ok()
+        .and_then(defaults_at)
+        .ok_or_else(init_message::needs_start_address)?;
+    let config = Config::from_toml(settings, &stand_in.site_toml(), environment)
+        .map_err(|error| config_message::of(&error))?;
+    Some(config.address().clone())
+        .filter(|address| *address != stand_in.address)
+        .ok_or_else(init_message::needs_start_address)
+}
+
+/// `init`'s answers when only the address is given.
+fn defaults_at(address: AbsoluteUrl) -> Option<Answers> {
+    Answers::from_flags(&InitArgs {
+        folder: None,
+        address: Some(address),
+        mount: None,
+        languages: Vec::new(),
+        mode: None,
+        stack: None,
+        blog: None,
+        prompts: Prompts::Never,
+    })
 }
 
 /// Takes the answers from the flags when Khalid may not ask, because of

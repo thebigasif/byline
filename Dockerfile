@@ -57,4 +57,6 @@ USER 65532:65532
 VOLUME /site
 EXPOSE 8080
 ENTRYPOINT ["/khalid", "--site", "/site"]
-CMD ["serve", "--listen", "0.0.0.0:8080"]
+# --init makes the site on the first start when /site is empty, at the
+# address in KHALID_ADDRESS, as hosts such as Fly.io and Railway need.
+CMD ["serve", "--init", "--listen", "0.0.0.0:8080"]

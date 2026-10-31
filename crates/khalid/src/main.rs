@@ -138,7 +138,7 @@ use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 use khalid_server::FolderLook;
 
-use crate::cli::{Cli, Command, Output, ThemeCommand};
+use crate::cli::{Cli, Command, Output, ServeArgs, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
@@ -164,13 +164,26 @@ fn serving(folder: &Path) -> FolderLook {
     FolderLook::take(folder)
 }
 
+/// For `serve --init`, makes the site before it is checked when the folder
+/// holds none, and returns the exit when that fails.
+fn first_start(cli: &Cli, environment: &Environment) -> Option<Exit> {
+    let (Some(Command::Serve(ServeArgs { init: true, .. })), Some(folder)) =
+        (&cli.command, cli.site.as_deref())
+    else {
+        return None;
+    };
+    let made = init::first_start(folder, environment);
+    made.err()
+        .map(|message| report::failure(cli.output, &message, Exit::Failure))
+}
+
 /// Runs the command the person asked for, after checking the site's settings
 /// and reading its content when `--site` names a folder.
 fn run(cli: &Cli) -> Exit {
-    if let Some(exit) = run_unchecked(cli) {
+    let environment = Environment::from_process();
+    if let Some(exit) = run_unchecked(cli).or_else(|| first_start(cli, &environment)) {
         return exit;
     }
-    let environment = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
     let serves = matches!(cli.command, Some(Command::Serve(_)));
