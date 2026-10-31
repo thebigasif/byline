@@ -40,8 +40,8 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, form_pages, media_library, newsletter, page_counts,
-    preview,
-    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    preview, redirect_route, report, scheduler, search_route, serve_message, share_images, staff,
+    unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system

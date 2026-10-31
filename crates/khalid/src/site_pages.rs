@@ -15,7 +15,6 @@ use khalid_render::{PageBody, RenderSearch, Renderer, SearchMode, SearchResult, 
 use khalid_routes::Routes;
 use khalid_server::{Moved, Page, Render, Rendered};
 
-use crate::build_pages::LanguagePages;
 use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
 use crate::form_pages::{self, LiveForms};
@@ -25,7 +24,7 @@ use crate::post_photos::Shown;
 use crate::search_page::SearchShell;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
-use crate::site_page::HeadNonce;
+use crate::site_render_which::{Which, html_pages};
 use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
@@ -249,7 +248,7 @@ impl SitePages {
         share_images::draw_now(folder, cards)?;
         build_seo::heads(&seo_site, &mut languages)?;
         let mut pages = vec![theme.stylesheet.clone()];
-        html_pages(theme, config, &languages, Which::All, &mut pages)?;
+        html_pages(&theme.renderer, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
     }
 
@@ -431,7 +430,8 @@ impl SitePages {
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner) = shells;
             }
-            served.not_found = html_pages(theme, config, &languages, which, &mut served.pages)?;
+            let renderer = &theme.renderer;
+            served.not_found = html_pages(renderer, config, &languages, which, &mut served.pages)?;
         }
         // The cards draw behind the answers: their addresses are already
         // baked into the heads, so the pages are complete without the
@@ -506,51 +506,8 @@ impl SitePages {
     }
 }
 
-/// Which pages a render makes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Which {
-    /// Every page, the stylesheet and the not-found page.
-    All,
-    /// Only the page of each dated post.
-    Posts,
-}
-
 /// How a wikilink starts in markdown, such as `[[link-equity]]`.
 const WIKILINK: &str = "[[";
-
-/// Renders the `which` pages of `languages` with `theme` into `pages`, and
-/// returns the not-found page of the default language, empty unless
-/// `which` is [`Which::All`].
-fn html_pages(
-    theme: &Theme,
-    config: &Config,
-    languages: &[LanguagePages],
-    which: Which,
-    pages: &mut Vec<Page>,
-) -> Result<String, UserMessage> {
-    let mut not_found = String::new();
-    for language in languages {
-        for page in &language.pages {
-            if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
-                continue;
-            }
-            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
-            if matches!(page.body, PageBody::NotFound) {
-                if &language.site.locale == config.default_language() {
-                    not_found = html;
-                }
-                continue;
-            }
-            pages.push(page.served_at(&page.meta.path, html)?);
-        }
-        for unlocked in &language.unlocked {
-            let page = &unlocked.page;
-            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
-            pages.push(page.served_at(&post_lock::hidden(&page.meta.path), html)?);
-        }
-    }
-    Ok(not_found)
-}
 
 impl Render for SitePages {
     type Error = Unrendered;

@@ -109,6 +109,7 @@ mod site_outline;
 mod site_page;
 mod site_pages;
 mod site_posts;
+mod site_render_which;
 mod slug_moves;
 mod slug_repair;
 mod staff;
