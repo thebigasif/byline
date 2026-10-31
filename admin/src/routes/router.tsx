@@ -16,6 +16,7 @@ import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
 import { SignIn } from "./SignIn";
+import { Trash } from "./Trash";
 
 const root = createRootRoute({ errorComponent: RouteError });
 
@@ -57,6 +58,8 @@ const editor = createRoute({
   component: lazyRouteComponent(() => import("./Editor"), "Editor"),
 });
 
+const trash = createRoute({ getParentRoute: () => signedIn, path: "/trash", component: Trash });
+
 const redirects = createRoute({
   getParentRoute: () => signedIn,
   path: "/redirects",
@@ -65,7 +68,7 @@ const redirects = createRoute({
 
 const routeTree = root.addChildren([
   signIn,
-  signedIn.addChildren([dashboard, posts, newPost, editor, redirects]),
+  signedIn.addChildren([dashboard, posts, newPost, editor, trash, redirects]),
 ]);
 
 /** Makes the admin's router; a test passes a memory history. */

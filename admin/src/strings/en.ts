@@ -1,4 +1,6 @@
 // Every word the admin shows, so a second language is one more file.
+import { records } from "./records";
+
 export const en = {
   brand: "Khalid",
   skip: "Skip to the main content",
@@ -10,8 +12,10 @@ export const en = {
     label: "Admin",
     dashboard: "Dashboard",
     posts: "Posts",
+    trash: "Trash",
     redirects: "Redirects",
   },
+  trash: records.trash,
   redirects: {
     title: "Redirects",
     lede: "A redirect sends visitors and Google from an old web address to a new one. When you rename a post, a redirect keeps old links working and keeps the post's place in search results.",
