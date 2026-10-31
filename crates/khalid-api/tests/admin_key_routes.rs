@@ -1,0 +1,86 @@
+//! The site's API keys through the Admin API: listed without secrets,
+//! made with the secret shown once, and revoked, by an owner only
+//! (KH-API-2, RULES.md BL-SEC-3).
+
+use std::sync::Arc;
+
+use axum::Router;
+use axum::body::{Body, to_bytes};
+use axum::http::{Request, StatusCode};
+use khalid_api::api::{self, AdminDesks};
+use khalid_api::content_store::MemoryContentStore;
+use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
+use khalid_api::post_store::MemoryPostStore;
+use khalid_api::publish_door::{PublishDoor, Silent};
+use serde_json::Value;
+use tower::ServiceExt;
+
+/// Keys made up for these tests. They open nothing real.
+const OWNER: &str =
+    "ki_1111222233334444_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
+const EDITOR: &str =
+    "ki_2222333344445555_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
+
+const KEYS: &str = "/api/admin/v1/keys/";
+
+/// A site with an owner's key and an editor's.
+#[cfg(test)]
+fn site() -> Router {
+    let hashing = KeyHashing::fast_for_tests();
+    let token = |text: &str| text.parse::<KeyToken>().unwrap();
+    let key = |text, scopes| StoredKey::for_integration(&token(text), scopes, &hashing).unwrap();
+    let keys = MemoryKeyStore::new(vec![
+        key(OWNER, vec![Scope::AdminAll]),
+        key(EDITOR, vec![Scope::PostsWrite, Scope::PostsPublish]),
+    ]);
+    let door = PublishDoor::new(Arc::new(MemoryPostStore::default()), Arc::new(Silent));
+    let content = Arc::new(MemoryContentStore::new(Vec::new()));
+    let desks = AdminDesks::none();
+    let (router, _) = api::router_with_desks(content, Arc::new(door), Arc::new(keys), desks);
+    router
+}
+
+#[cfg(test)]
+async fn send(
+    router: &Router,
+    method: &str,
+    uri: &str,
+    key: &str,
+    body: Option<Value>,
+) -> (StatusCode, Value) {
+    let request = Request::builder()
+        .method(method)
+        .uri(uri)
+        .header("authorization", format!("Khalid {key}"))
+        .header("content-type", "application/json");
+    let body = body.map_or_else(Body::empty, |body| Body::from(body.to_string()));
+    let request = request.body(body).unwrap();
+    let response = router.clone().oneshot(request).await.unwrap();
+    let status = response.status();
+    let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    )
+}
+
+#[tokio::test]
+async fn an_owner_lists_the_keys_without_their_secrets() {
+    let (status, json) = send(&site(), "GET", KEYS, OWNER, None).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["keys"][0]["id"], "1111222233334444", "{json}");
+    assert_eq!(json["keys"][0]["scopes"][0], "admin:all", "{json}");
+    assert_eq!(json["keys"][1]["kind"], "integration", "{json}");
+    let text = json.to_string();
+    assert!(
+        !text.contains("aaaabbbbcccc"),
+        "no secret is ever listed: {text}"
+    );
+}
+
+#[tokio::test]
+async fn listing_keys_needs_admin_all() {
+    let (status, json) = send(&site(), "GET", KEYS, EDITOR, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    assert_eq!(json["rule"], "admin:all", "{json}");
+}

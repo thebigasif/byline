@@ -1217,6 +1217,63 @@
         ]
       }
     },
+    "/api/admin/v1/keys/": {
+      "get": {
+        "tags": [
+          "admin keys"
+        ],
+        "summary": "Lists every key that works, oldest first, with what each may do and\nnever its secret. Needs `admin:all`.",
+        "operationId": "list_keys",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every key that works",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKeys"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks admin:all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/media/": {
       "get": {
         "tags": [
@@ -8177,6 +8234,70 @@
               "$ref": "#/components/schemas/AdminComment"
             },
             "description": "The comment or comments."
+          }
+        }
+      },
+      "AdminKey": {
+        "type": "object",
+        "description": "A key that works, in Admin API shape. The secret is shown once, when\nthe key is made, and never again.",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "scopes",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the key was made."
+          },
+          "id": {
+            "type": "string",
+            "description": "The key's identity, the part before its secret, such as\n`1111222233334444`."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`content`, `integration` or `staff`.",
+            "example": "integration"
+          },
+          "name": {
+            "type": "string",
+            "description": "Who or what uses it, such as `SerpDad`."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A staff token's role, such as `editor`."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "An integration key's scopes, such as `posts:write`.",
+            "example": [
+              "posts:write"
+            ]
+          }
+        }
+      },
+      "AdminKeys": {
+        "type": "object",
+        "description": "Keys as the Admin API wraps them.",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminKey"
+            },
+            "description": "The key or keys."
           }
         }
       },

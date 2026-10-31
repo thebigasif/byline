@@ -27,9 +27,9 @@ use crate::settings_store::SettingsStore;
 use crate::tag_store::TagStore;
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_authors, admin_categories, admin_comments, admin_not_found, admin_pages,
-    admin_redirect_csv, admin_redirects, admin_site_settings, admin_snippets, admin_tags,
-    admin_webhooks, api_version, content_api,
+    admin_api, admin_api_keys, admin_authors, admin_categories, admin_comments, admin_not_found,
+    admin_pages, admin_redirect_csv, admin_redirects, admin_site_settings, admin_snippets,
+    admin_tags, admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -332,7 +332,8 @@ fn assemble(
         .merge(admin_authors::routes(desks.authors, door.clone()))
         .merge(admin_tags::routes(desks.tags, door.clone()))
         .merge(admin_categories::routes(desks.categories, door.clone()))
-        .merge(admin_site_settings::routes(desks.settings, door.clone()));
+        .merge(admin_site_settings::routes(desks.settings, door.clone()))
+        .merge(admin_api_keys::routes(Arc::clone(&keys), door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in
