@@ -8,6 +8,7 @@ use serde::{Deserialize, Deserializer};
 use utoipa::ToSchema;
 
 use super::post_settings::access_schema;
+use super::seo_fields::{CustomJsonLd, SearchTitle};
 use super::{Alias, FeatureImage, NonBlank, PostSettings, ReviewState, ShareCards};
 use crate::post_password::{HashPasswordError, NewPassword};
 
@@ -68,6 +69,18 @@ pub struct SettingsEdit {
     #[serde(default)]
     #[schema(value_type = Option<String>, example = "<meta name=\"verify\" content=\"x\">")]
     head_code: Change<HeadCode>,
+    /// A new search title, or `null` for the site's title template.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, example = "Anchor text that says where it goes {sep} {site}")]
+    seo_title: Change<SearchTitle>,
+    /// A new focus keyword, or `null` for none.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, example = "anchor text")]
+    focus_keyword: Change<NonBlank>,
+    /// New hand-written JSON-LD, or `null` for none.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, example = "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}")]
+    schema: Change<CustomJsonLd>,
 }
 
 impl SettingsEdit {
@@ -121,6 +134,9 @@ impl SettingsEdit {
             robots: self.robots.applied_to(settings.robots),
             share_cards: self.share_cards.unwrap_or(settings.share_cards),
             aliases: self.aliases.unwrap_or(settings.aliases),
+            seo_title: self.seo_title.applied_to(settings.seo_title),
+            focus_keyword: self.focus_keyword.applied_to(settings.focus_keyword),
+            schema: self.schema.applied_to(settings.schema),
         }
     }
 }

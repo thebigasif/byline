@@ -3,7 +3,8 @@
 use std::path::Path;
 
 use khalid_api::resources::{
-    FeatureImage, NonBlank, PostSettings, PostStatus, ReviewState, ShareCard,
+    CustomJsonLd, FeatureImage, NonBlank, PostSettings, PostStatus, ReviewState, SearchTitle,
+    ShareCard,
 };
 use khalid_content::parse_post;
 use khalid_core::Slug;
@@ -57,4 +58,20 @@ fn settings_put_back_to_their_defaults_leave_no_line() {
     let defaults = PostSettings::default();
     write_settings(&mut text, &set, &defaults, PostStatus::Draft).unwrap();
     assert_eq!(text.to_text(), FILE);
+}
+
+#[test]
+fn search_title_focus_keyword_and_schema_read_back_the_same() {
+    let mut after = PostSettings::default();
+    let title = "Anchor text: \"say where\" {sep} {site}";
+    after.seo_title = Some(SearchTitle::try_new(title).unwrap());
+    after.focus_keyword = Some(text("anchor text"));
+    let schema = "{\n  \"@type\": \"Event\",\n  \"name\": \"Anchor text clinic\"\n}";
+    after.schema = Some(CustomJsonLd::try_new(schema).unwrap());
+    let (written, read) = round_trip(&after);
+    assert_eq!(read, after, "{written}");
+    assert!(
+        written.contains("focus_keyword: \"anchor text\"\n"),
+        "{written}"
+    );
 }

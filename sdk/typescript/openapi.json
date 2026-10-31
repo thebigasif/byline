@@ -6622,6 +6622,11 @@
           }
         }
       },
+      "CustomJsonLd": {
+        "type": "string",
+        "description": "JSON-LD written by hand for a type Khalid does not write itself, kept\nas written. It is read as schema.org nodes before it is kept, so a page\nnever carries JSON-LD a search engine would throw away.",
+        "example": "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}"
+      },
       "EditPosts": {
         "type": "object",
         "description": "An edit, wrapped the way the Admin API wraps posts: exactly one.",
@@ -7753,6 +7758,14 @@
             "type": "boolean",
             "description": "Whether the post is featured in lists and the featured channel."
           },
+          "focus_keyword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The one search phrase the post is written to answer, which the\nlinter checks the title, description and text against.",
+            "example": "anchor text"
+          },
           "head_code": {
             "type": [
               "string",
@@ -7776,6 +7789,28 @@
             ],
             "description": "The post's own robots directives, in place of the site's.",
             "example": "noindex, nofollow"
+          },
+          "schema": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CustomJsonLd",
+                "description": "Hand-written JSON-LD the page carries beside the schema Khalid\nwrites, for a type Khalid does not write itself."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seo_title": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchTitle",
+                "description": "The title search results show, in place of the site's title\ntemplate, or `null` for the template's."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "share_cards": {
             "$ref": "#/components/schemas/ShareCards",
@@ -8029,6 +8064,11 @@
         },
         "additionalProperties": false
       },
+      "SearchTitle": {
+        "type": "string",
+        "description": "The title search results show for a post, in place of the site's title\ntemplate. It may use the template variables, such as `{site}`.",
+        "example": "Anchor text that says where it goes {sep} {site}"
+      },
       "SessionAnswer": {
         "type": "object",
         "description": "A signed-in session: who it is, and the CSRF token every request with\nthe cookie sends in `x-khalid-csrf`.",
@@ -8164,6 +8204,14 @@
             ],
             "description": "Whether the post is featured."
           },
+          "focus_keyword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new focus keyword, or `null` for none.",
+            "example": "anchor text"
+          },
           "head_code": {
             "type": [
               "string",
@@ -8198,6 +8246,22 @@
             ],
             "description": "New robots directives, or `null` for the site's.",
             "example": "noindex, nofollow"
+          },
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New hand-written JSON-LD, or `null` for none.",
+            "example": "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}"
+          },
+          "seo_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new search title, or `null` for the site's title template.",
+            "example": "Anchor text that says where it goes {sep} {site}"
           },
           "share_cards": {
             "oneOf": [
