@@ -108,5 +108,9 @@ required-features = ["test-util"]
 name = "bing_cli"
 required-features = ["test-util"]
 
+[[test]]
+name = "serve_indexnow"
+required-features = ["test-util"]
+
 [lints]
 workspace = true

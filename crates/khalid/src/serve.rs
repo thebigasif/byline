@@ -136,6 +136,7 @@ fn serve_with(
         (&content, &hand_back),
         (&redirects, &addresses),
     );
+    let pings = to.pings.clone();
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     // Only the home pages are rendered before the server listens; the rest
     // follows behind the first answer (ADR "khalid serve answers before the
@@ -145,10 +146,7 @@ fn serve_with(
         .and_then(|source| {
             let first = source.render_first(&checked)?;
             let first = Pages::first(first).map_err(|_| serve_message::internal())?;
-            let first = match source.stylesheet() {
-                Some(href) => first.with_preloads(vec![href]),
-                None => first,
-            };
+            let first = with_hint(first, &source);
             Ok((source, first))
         })
         .map_err(|message| (message, Exit::Failure))?;
@@ -171,7 +169,7 @@ fn serve_with(
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         // Each part reads the database or the folder alone, so all open at once.
-        let (telling, announcing) = announce::start(config, (database, id), outbound)
+        let (telling, announcing) = announce::start(config, (database, id), (outbound, &pings))
             .map_err(|message| (message, Exit::Failure))?;
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
@@ -272,6 +270,7 @@ fn destination(
         hand_back: hand_back.clone(),
         addresses: addresses.clone(),
         redirects: redirects.clone(),
+        pings: content_feed::UpdatePings::default(),
     }
 }
 
