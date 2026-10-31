@@ -21,16 +21,22 @@ pub enum Kind {
     FailedSchedule,
     /// A live post unchanged for longer than the site allows.
     StalePost,
+    /// The site did not answer at its public address, from the watch.
+    SiteDown,
+    /// The site answered slowly at its public address, from the watch.
+    SlowSite,
 }
 
 impl Kind {
     /// Every kind, in the order alerts are sent in one round.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::BrokenLinks,
         Self::NotFoundSpike,
         Self::Certificate,
         Self::FailedSchedule,
         Self::StalePost,
+        Self::SiteDown,
+        Self::SlowSite,
     ];
 
     /// The wire name, such as `stale-post`.
@@ -41,6 +47,8 @@ impl Kind {
             Self::Certificate => "certificate",
             Self::FailedSchedule => "failed-schedule",
             Self::StalePost => "stale-post",
+            Self::SiteDown => "site-down",
+            Self::SlowSite => "slow-site",
         }
     }
 
@@ -51,11 +59,15 @@ impl Kind {
 
     /// Whether a check of this kind sees the whole picture, so a finding
     /// it no longer makes has cleared: a renewed certificate, a fixed link,
-    /// an updated post. A spike or a refused schedule happens once and
-    /// never clears.
+    /// an updated post, a site that answers again or fast again. A spike or
+    /// a refused schedule happens once and never clears.
     pub fn clears(self) -> bool {
         match self {
-            Self::BrokenLinks | Self::Certificate | Self::StalePost => true,
+            Self::BrokenLinks
+            | Self::Certificate
+            | Self::StalePost
+            | Self::SiteDown
+            | Self::SlowSite => true,
             Self::NotFoundSpike | Self::FailedSchedule => false,
         }
     }
@@ -94,6 +106,16 @@ impl Kind {
                 "Some live posts have not changed for a long time.",
                 "Old facts and dead links make readers and search engines trust a post less.",
                 "Read each post below, update what has changed, and save it.",
+            ],
+            Self::SiteDown => [
+                "The blog did not answer at its public address.",
+                "Readers and search engines get an error or nothing at all.",
+                "Check that khalid serve runs, then check the domain's DNS, the proxy and the firewall in front of it.",
+            ],
+            Self::SlowSite => [
+                "The blog answered slowly at its public address in the last hour.",
+                "Readers wait for every page, and many leave before it shows.",
+                "Run khalid watch to see when it began, then check the server's load and anything new in front of it.",
             ],
         }
     }
