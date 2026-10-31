@@ -10,6 +10,87 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/analytics/ai-visitors/": {
+      "get": {
+        "tags": [
+          "admin analytics"
+        ],
+        "summary": "Lists how many readers each AI assistant sent in the last `days` days,\nagainst the days before, with the pages they landed on. Needs\n`settings:write`.",
+        "operationId": "ai_visitors",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "path",
+            "description": "From 1 to 366; 28 when left out.",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The readers per assistant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAiVisitors"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The days are not from 1 to 366",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/comments/": {
       "get": {
         "tags": [
@@ -5769,6 +5850,55 @@
   },
   "components": {
     "schemas": {
+      "AdminAiVisitors": {
+        "type": "object",
+        "description": "The readers AI assistants sent, per tool. The counts are page views,\nnot people, and never include AI bots.",
+        "required": [
+          "first",
+          "last",
+          "days",
+          "arrivals",
+          "ai_views",
+          "tools"
+        ],
+        "properties": {
+          "ai_views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The views AI assistants sent.",
+            "minimum": 0
+          },
+          "arrivals": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Every view that came from outside the site, AI search included.",
+            "minimum": 0
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many days were counted.",
+            "minimum": 0
+          },
+          "first": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day counted, in UTC."
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day counted: today, in UTC."
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminToolVisitors"
+            },
+            "description": "Each assistant that sent readers in the period or the one before,\nmost views first."
+          }
+        }
+      },
       "AdminComment": {
         "type": "object",
         "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",
@@ -6024,6 +6154,27 @@
           }
         }
       },
+      "AdminPageViews": {
+        "type": "object",
+        "description": "The views of one page from one assistant.",
+        "required": [
+          "path",
+          "views"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The page's path.",
+            "example": "/blog/internal-links/"
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many views.",
+            "minimum": 0
+          }
+        }
+      },
       "AdminPost": {
         "type": "object",
         "description": "A post in Admin API shape: any status, with its markdown source and\nthe `updated_at` an edit must send back (RULES.md BL-API-7).",
@@ -6199,6 +6350,48 @@
               "$ref": "#/components/schemas/AdminRedirect"
             },
             "description": "The redirects, oldest first."
+          }
+        }
+      },
+      "AdminToolVisitors": {
+        "type": "object",
+        "description": "What one AI assistant sent.",
+        "required": [
+          "tool",
+          "name",
+          "views",
+          "before",
+          "pages"
+        ],
+        "properties": {
+          "before": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views from its readers in the period of the same length before.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string",
+            "description": "The assistant's name, for people.",
+            "example": "ChatGPT"
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPageViews"
+            },
+            "description": "The pages its readers landed on, most views first, at most ten."
+          },
+          "tool": {
+            "type": "string",
+            "description": "The assistant, for programs: `chatgpt`, `perplexity`, `gemini`,\n`copilot`, `claude`, `deepseek`, `le-chat`, `meta-ai`, `grok`,\n`you`, `phind`, or `unnamed` for views counted before tools were\nnamed.",
+            "example": "chatgpt"
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views from its readers in the period.",
+            "minimum": 0
           }
         }
       },

@@ -25,8 +25,8 @@ use crate::resources::MediaItems;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects,
-    admin_webhooks, api_version, content_api,
+    admin_analytics, admin_api, admin_comments, admin_not_found, admin_redirect_csv,
+    admin_redirects, admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -242,6 +242,21 @@ impl AdminDesks {
     }
 }
 
+/// [`router_with_door`] with the analytics routes under
+/// `/api/admin/v1/analytics/` reading the views in `analytics`.
+pub fn router_with_analytics(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    analytics: AnalyticsDesk,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        analytics,
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
+}
+
 /// [`router_with_door`] with the webhook routes under
 /// `/api/admin/v1/webhooks/` reading and writing through `webhooks`.
 pub fn router_with_webhooks(
@@ -292,7 +307,8 @@ fn assemble(
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))
         .merge(admin_redirect_csv::routes(redirects.clone(), door.clone()))
         .merge(admin_redirects::routes(redirects, door.clone()))
-        .merge(admin_webhooks::routes(desks.webhooks, door.clone()));
+        .merge(admin_webhooks::routes(desks.webhooks, door.clone()))
+        .merge(admin_analytics::routes(desks.analytics, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

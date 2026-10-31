@@ -113,6 +113,14 @@ impl AiTool {
         }
     }
 
+    /// A short name for programs, such as `chatgpt`, or `unnamed`.
+    pub fn key(self) -> &'static str {
+        match self.stored().strip_prefix("ai:") {
+            Some(key) => key,
+            None => "unnamed",
+        }
+    }
+
     /// The group name its readers' views are stored under, such as
     /// `ai:chatgpt`. [`AiTool::Unnamed`] is plain `ai`, as views were
     /// stored before tools were named.
