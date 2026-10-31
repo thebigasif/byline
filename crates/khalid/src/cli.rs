@@ -80,8 +80,8 @@ pub(crate) enum Command {
         /// The language the post is written in [default: the site's default language]
         #[arg(long, value_name = "CODE")]
         language: Option<Locale>,
-        /// Git mode: start the branch post/<slug> and commit the new post on it, so merging the
-        /// branch publishes the post
+        /// Git mode: start a branch named post/ and the post's slug, and commit the new post on
+        /// it, so merging the branch publishes the post
         #[arg(long)]
         branch: bool,
     },
