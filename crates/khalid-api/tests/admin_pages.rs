@@ -15,7 +15,7 @@ use khalid_api::post_store::MemoryPostStore;
 use khalid_api::publish_door::{PublishDoor, Silent};
 use khalid_api::resources::AdminPage;
 use khalid_core::{FixedClock, Locale, Slug};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 /// Keys made up for these tests. They open nothing real.
@@ -93,6 +93,55 @@ async fn pages_are_listed_with_posts_write() {
     assert_eq!(json["pages"][0]["id"], "en.about", "{json}");
     assert_eq!(json["pages"][0]["title"], "About Field Notes", "{json}");
     assert_eq!(json["pages"][0]["updated_at"], "2026-10-20T09:00:00Z");
+}
+
+#[tokio::test]
+async fn a_new_page_is_live_in_the_default_language() {
+    let router = with_about();
+    let new =
+        json!({"pages": [{"slug": "contact", "title": "Contact", "markdown": "Write to us."}]});
+    let (status, json) = send(&router, "POST", "/api/admin/v1/pages/", EDITOR, Some(new)).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["pages"][0]["id"], "en.contact", "{json}");
+    assert_eq!(json["pages"][0]["updated_at"], "2026-10-27T09:00:00Z");
+    let (_, json) = send(&router, "GET", "/api/admin/v1/pages/", WRITER, None).await;
+    assert_eq!(json["pages"][1]["id"], "en.contact", "{json}");
+}
+
+#[tokio::test]
+async fn a_page_that_cannot_be_kept_is_refused() {
+    let router = with_about();
+    let cases = [
+        (
+            json!({"pages": [{"slug": "a", "title": " ", "markdown": "M."}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
+            json!({"pages": [{"slug": "Not a slug", "title": "T", "markdown": "M."}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (json!({"pages": []}), StatusCode::UNPROCESSABLE_ENTITY),
+        (
+            json!({"pages": [{"slug": "about", "title": "Again", "markdown": "M."}]}),
+            StatusCode::CONFLICT,
+        ),
+    ];
+    for (body, want) in cases {
+        let pages = "/api/admin/v1/pages/";
+        let (status, json) = send(&router, "POST", pages, EDITOR, Some(body.clone())).await;
+        assert_eq!(status, want, "{body} gave {json}");
+    }
+    let (_, json) = send(&router, "GET", "/api/admin/v1/pages/", EDITOR, None).await;
+    assert_eq!(json["pages"].as_array().map(Vec::len), Some(1), "{json}");
+}
+
+#[tokio::test]
+async fn creating_a_page_needs_posts_publish() {
+    let router = with_about();
+    let new = json!({"pages": [{"slug": "contact", "title": "Contact", "markdown": "M."}]});
+    let (status, json) = send(&router, "POST", "/api/admin/v1/pages/", WRITER, Some(new)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    assert_eq!(json["rule"], "posts:publish", "{json}");
 }
 
 #[tokio::test]

@@ -1003,6 +1003,101 @@
             "admin_key": []
           }
         ]
+      },
+      "post": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Creates a page, live at once, in the language it names or the site's\ndefault. Needs `posts:publish`.",
+        "operationId": "create_page",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewPages"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another page in that language has the slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the title is empty, or the site has no such language",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/posts/": {
@@ -7190,6 +7285,63 @@
             "description": "The entries on this page, or the one entry asked for."
           }
         }
+      },
+      "NewPage": {
+        "type": "object",
+        "description": "A new page, as a create request sends it.",
+        "required": [
+          "slug",
+          "title",
+          "markdown"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The text search engines show under the title."
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The language, such as `de`; the site's default when left out.",
+            "example": "en"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "The body, in markdown."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The last part of the address, such as `about`.",
+            "example": "about"
+          },
+          "title": {
+            "type": "string",
+            "description": "The title readers see."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewPages": {
+        "type": "object",
+        "description": "A new page, wrapped the way the Admin API wraps pages: exactly one.",
+        "required": [
+          "pages"
+        ],
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewPage"
+            },
+            "description": "The one new page."
+          }
+        },
+        "additionalProperties": false
       },
       "NewPasskey": {
         "type": "object",
