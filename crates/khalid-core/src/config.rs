@@ -221,23 +221,16 @@ impl Config {
                 return Err(field("bucket", missing));
             }
         }
-        let mail = file.mail.map(|table| table.check(env)).transpose();
-        let mail = mail.map_err(|(key, problem)| ConfigError::Field {
+        let in_table = |table: &str, key: &str, problem: &str| ConfigError::Field {
             path: path.to_path_buf(),
-            line: line_of_key_in(text, "[mail", key),
+            line: line_of_key_in(text, table, key),
             field: key.to_owned(),
             problem: problem.to_owned(),
-        })?;
+        };
+        let mail = file.mail.map(|table| table.check(env)).transpose();
+        let mail = mail.map_err(|(key, problem)| in_table("[mail", key, problem))?;
         if let Some((key, problem)) = file.alerts.mistake(mail.as_ref()) {
-            let line = line_of_key_in(text, "[alerts", key);
-            let field = key.to_owned();
-            let (path, problem) = (path.to_path_buf(), problem.to_owned());
-            return Err(ConfigError::Field {
-                path,
-                line,
-                field,
-                problem,
-            });
+            return Err(in_table("[alerts", key, problem));
         }
         if file.mode == Mode::Static && file.code.waits_for_consent() {
             return Err(static_consent(path, text));

@@ -224,8 +224,9 @@ fn mail_and_alerts(
 ) -> Result<(Router, alert_watch::Ready), (UserMessage, Exit)> {
     let internal = |message| (message, Exit::Internal);
     let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
-    let newsletters = newsletter::router(config, (database, id), (runtime, telling), mailer.clone())
-        .map_err(internal)?;
+    let newsletters =
+        newsletter::router(config, (database, id), (runtime, telling), mailer.clone())
+            .map_err(internal)?;
     let sources = alert_watch::Sources {
         misses: Arc::new(NotFoundTable::new(database.clone(), id)),
         content: content.clone(),

@@ -11,22 +11,18 @@ use khalid_content::{
     ContentTree, Document, PostFront, SiteContent, check_bodies, parse_post, read_content,
 };
 use khalid_core::{Clock, Config, Locale, Slug, UserMessage};
-use khalid_render::{
-    PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult, Tokens,
-};
+use khalid_render::{PageBody, RenderSearch, Renderer, SearchMode, SearchResult, Tokens};
 use khalid_routes::Routes;
 use khalid_server::{Moved, Page, Render, Rendered};
 
-use crate::build_pages::LanguagePages;
 use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
 use crate::listed_post::ListedPost;
-use crate::page_code::PageCode;
 use crate::post_files::Assets;
 use crate::post_photos::Shown;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
-use crate::site_page::{HeadNonce, served_at};
+use crate::site_html::{SearchShell, Which, html_pages, search_shells};
 use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
@@ -241,7 +237,7 @@ impl SitePages {
         share_images::draw_now(folder, cards)?;
         build_seo::heads(&seo_site, &mut languages)?;
         let mut pages = vec![theme.stylesheet.clone()];
-        html_pages(theme, config, &languages, Which::All, &mut pages)?;
+        html_pages(&theme.renderer, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
     }
 
@@ -423,7 +419,13 @@ impl SitePages {
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner) = shells;
             }
-            served.not_found = html_pages(theme, config, &languages, which, &mut served.pages)?;
+            served.not_found = html_pages(
+                &theme.renderer,
+                config,
+                &languages,
+                which,
+                &mut served.pages,
+            )?;
         }
         // The cards draw behind the answers: their addresses are already
         // baked into the heads, so the pages are complete without the
@@ -498,76 +500,8 @@ impl SitePages {
     }
 }
 
-/// Which pages a render makes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Which {
-    /// Every page, the stylesheet and the not-found page.
-    All,
-    /// Only the page of each dated post.
-    Posts,
-}
-
 /// How a wikilink starts in markdown, such as `[[link-equity]]`.
 const WIKILINK: &str = "[[";
-
-/// A language's search page without results: the site as its pages show it
-/// and the page's head, with its title and its SEO tags.
-#[derive(Debug, Clone)]
-struct SearchShell {
-    site: RenderSite,
-    meta: PageMeta,
-}
-
-/// The search page of each of `languages`.
-fn search_shells(languages: &[LanguagePages]) -> Vec<SearchShell> {
-    let mut shells = Vec::new();
-    for language in languages {
-        let searches = language
-            .pages
-            .iter()
-            .filter(|page| matches!(page.body, PageBody::Search(_)));
-        shells.extend(searches.map(|page| SearchShell {
-            site: language.site.clone(),
-            meta: page.meta.clone(),
-        }));
-    }
-    shells
-}
-
-/// Renders the `which` pages of `languages` with `theme` into `pages`, and
-/// returns the not-found page of the default language, empty unless
-/// `which` is [`Which::All`].
-fn html_pages(
-    theme: &Theme,
-    config: &Config,
-    languages: &[LanguagePages],
-    which: Which,
-    pages: &mut Vec<Page>,
-) -> Result<String, UserMessage> {
-    let mut not_found = String::new();
-    let code = PageCode::new(config, HeadNonce::PerRequest);
-    for language in languages {
-        for page in &language.pages {
-            if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
-                continue;
-            }
-            let html = page.rendered(&theme.renderer, &language.site, &code)?;
-            if matches!(page.body, PageBody::NotFound) {
-                if &language.site.locale == config.default_language() {
-                    not_found = html;
-                }
-                continue;
-            }
-            pages.push(served_at(&page.meta.path, html)?);
-        }
-        for unlocked in &language.unlocked {
-            let page = &unlocked.page;
-            let html = page.rendered(&theme.renderer, &language.site, &code)?;
-            pages.push(served_at(&post_lock::hidden(&page.meta.path), html)?);
-        }
-    }
-    Ok(not_found)
-}
 
 impl Render for SitePages {
     type Error = Unrendered;
