@@ -26,6 +26,7 @@ mod etag;
 mod html_source;
 pub mod keys;
 pub mod media_api;
+mod media_picture;
 mod media_search;
 pub mod not_found_log;
 pub mod pagination;

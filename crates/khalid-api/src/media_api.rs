@@ -25,16 +25,16 @@ use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
 use crate::content_store::select;
 use crate::keys::{Principal, Scope};
-use crate::media_search;
 use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
 use crate::query::{ListQuery, RawListQuery};
 use crate::resources::{AdminMedia, MediaEditBody, MediaEdits, MediaItems, MediaList};
+use crate::{media_picture, media_search};
 
 /// A site's media library, and the address its own files are served under.
 #[derive(Debug, Clone)]
 pub struct MediaLibrary {
-    library: Arc<Library>,
+    pub(crate) library: Arc<Library>,
     site: String,
     /// Photo and GIF search for the editor, when the server has it.
     pub(crate) search: Option<Arc<StockSearch>>,
@@ -70,6 +70,7 @@ pub(crate) fn routes(media: Media, door: AdminDoor) -> OpenApiRouter {
         .routes(routes!(read_media, edit_media))
         .routes(routes!(media_search::search_pictures))
         .routes(routes!(media_search::photo_used))
+        .routes(routes!(media_picture::copy_picture))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(media)
@@ -284,7 +285,7 @@ fn stale(updated_at: DateTime<Utc>, updated_by: &str) -> Problem {
     Problem::new(ProblemType::Conflict, &message).with_rule("updated_at")
 }
 
-fn missing(path: &str) -> Problem {
+pub(crate) fn missing(path: &str) -> Problem {
     let message = UserMessage::new(
         "No media item has this identity.",
         "It may never have been uploaded, or the identity may be mistyped.",
@@ -322,7 +323,7 @@ fn bad_folder() -> Problem {
     Problem::new(ProblemType::InvalidQuery, &message).with_rule("folder")
 }
 
-fn no_library() -> Problem {
+pub(crate) fn no_library() -> Problem {
     let message = UserMessage::new(
         "This site has no media library.",
         "The library needs the site's server, which keeps the files.",

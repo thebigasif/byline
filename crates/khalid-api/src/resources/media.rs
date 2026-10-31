@@ -99,6 +99,33 @@ pub struct MediaEdits {
     pub media: Vec<MediaEditBody>,
 }
 
+/// A turned or cropped copy of a picture to make. The original stays.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PictureEditBody {
+    /// How far to turn it clockwise first: 0, 90, 180 or 270 degrees; 0
+    /// when left out.
+    #[serde(default)]
+    pub turn: u16,
+    /// The box to keep after turning, or left out for all of it.
+    pub crop: Option<CropBoxBody>,
+}
+
+/// A box in thousandths of a picture's width and height, from its top left
+/// corner, the scale focal points use.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CropBoxBody {
+    /// From the left edge, 0 to 999.
+    pub left: u16,
+    /// From the top edge, 0 to 999.
+    pub top: u16,
+    /// How wide, so that `left` plus `width` is at most 1000.
+    pub width: u16,
+    /// How high, so that `top` plus `height` is at most 1000.
+    pub height: u16,
+}
+
 /// Media items, wrapped the way the Admin API wraps resources.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct MediaItems {

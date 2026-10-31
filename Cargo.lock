@@ -2116,6 +2116,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hmac",
  "htmd",
+ "image",
  "khalid-api",
  "khalid-core",
  "khalid-lint",

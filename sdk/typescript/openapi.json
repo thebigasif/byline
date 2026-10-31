@@ -993,6 +993,112 @@
         ]
       }
     },
+    "/api/admin/v1/media/{id}/copies/": {
+      "post": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Makes a copy of a picture, turned and then cropped, as a new item in\nthe same folder with the same name, alt text and caption. The original\nstays, so posts that show it do not change. The same edit made again\nanswers 200 with the first copy. Needs `media:write`.",
+        "operationId": "copy_picture",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The picture's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PictureEditBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The copy this edit already made",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The new copy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No item has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The edit could not be read, changes nothing, or the item is not a picture",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/not-found/": {
       "get": {
         "tags": [
@@ -7103,6 +7209,43 @@
           }
         }
       },
+      "CropBoxBody": {
+        "type": "object",
+        "description": "A box in thousandths of a picture's width and height, from its top left\ncorner, the scale focal points use.",
+        "required": [
+          "left",
+          "top",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How high, so that `top` plus `height` is at most 1000.",
+            "minimum": 0
+          },
+          "left": {
+            "type": "integer",
+            "format": "int32",
+            "description": "From the left edge, 0 to 999.",
+            "minimum": 0
+          },
+          "top": {
+            "type": "integer",
+            "format": "int32",
+            "description": "From the top edge, 0 to 999.",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How wide, so that `left` plus `width` is at most 1000.",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "EditPosts": {
         "type": "object",
         "description": "An edit, wrapped the way the Admin API wraps posts: exactly one.",
@@ -7870,6 +8013,30 @@
           "new": {
             "type": "string",
             "description": "The new password: at least 12 characters."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PictureEditBody": {
+        "type": "object",
+        "description": "A turned or cropped copy of a picture to make. The original stays.",
+        "properties": {
+          "crop": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CropBoxBody",
+                "description": "The box to keep after turning, or left out for all of it."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turn": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How far to turn it clockwise first: 0, 90, 180 or 270 degrees; 0\nwhen left out.",
+            "minimum": 0
           }
         },
         "additionalProperties": false
