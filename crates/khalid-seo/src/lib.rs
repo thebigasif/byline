@@ -13,6 +13,8 @@
 //! crates that read content and render pages build its inputs and place its
 //! output.
 
+mod bing_answer;
+mod bing_error;
 mod comment;
 mod escape;
 mod feed;
@@ -49,6 +51,8 @@ mod url_path;
 mod verification;
 mod video;
 
+pub use bing_answer::{BingSitemap, CrawlDay, CrawlIssue, CrawlIssueKind};
+pub use bing_error::{BingError, RequestFailure};
 pub use comment::SeoComment;
 pub use feed::{Feed, FeedContent, FeedFormat, FeedItem, FeedOptions, FeedScope};
 pub use head::{HeadTag, HeadTags, head_tags};
