@@ -66,6 +66,7 @@ mod media_library;
 mod memory;
 mod miss_log;
 mod new;
+mod new_branch;
 mod new_message;
 mod newsletter;
 mod outbound;
@@ -138,7 +139,6 @@ use khalid_server::FolderLook;
 use crate::cli::{Cli, Command, Output, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
-use crate::new::NewPost;
 use crate::post_files::Assets;
 
 #[global_allocator]
@@ -201,12 +201,8 @@ fn run(cli: &Cli) -> Exit {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
             lint::run(folder, path.as_deref(), mode, cli.output)
         }
-        (Some(Command::New { title, language }), Some((folder, config, ..))) => {
-            let post = NewPost {
-                title,
-                language: language.as_ref(),
-            };
-            new::run(folder, config, post, &SystemClock, cli.output)
+        (Some(command @ Command::New { .. }), Some((folder, config, ..))) => {
+            new::asked(folder, config, command, cli.output)
         }
         (
             Some(asked @ (Command::Build { .. } | Command::Export | Command::Audit { .. })),

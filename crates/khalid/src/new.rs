@@ -5,13 +5,13 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use khalid_core::{Clock, Config, Locale, Slug};
+use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
 use serde::Serialize;
 
-use crate::cli::Output;
+use crate::cli::{Command, Output};
 use crate::exit::Exit;
 use crate::init::quoted;
-use crate::{atomic, new_message, report};
+use crate::{atomic, new_branch, new_message, report};
 
 /// What `new` writes in.
 #[derive(Debug, Clone, Copy)]
@@ -20,9 +20,12 @@ pub(crate) struct NewPost<'a> {
     pub(crate) title: &'a str,
     /// The language from `--language`, or `None` for the site's default.
     pub(crate) language: Option<&'a Locale>,
+    /// Whether `--branch` asks for the post on its own git branch.
+    pub(crate) branch: bool,
 }
 
-/// The JSON shape of `khalid new --json`. `path` is relative to the site.
+/// The JSON shape of `khalid new --json`. `path` is relative to the site;
+/// `branch` is there with `--branch`.
 #[derive(Serialize)]
 struct NewBody<'a> {
     path: &'a str,
@@ -30,6 +33,26 @@ struct NewBody<'a> {
     slug: &'a str,
     language: &'a str,
     date: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    branch: Option<&'a str>,
+}
+
+/// Runs `khalid new` as `command` asks, dated by the system clock.
+pub(crate) fn asked(site: &Path, config: &Config, command: &Command, output: Output) -> Exit {
+    let Command::New {
+        title,
+        language,
+        branch,
+    } = command
+    else {
+        return Exit::Internal;
+    };
+    let post = NewPost {
+        title,
+        language: language.as_ref(),
+        branch: *branch,
+    };
+    run(site, config, post, &SystemClock, output)
 }
 
 /// Writes a new post in the `site` folder, dated today by `clock`, into
@@ -54,7 +77,9 @@ pub(crate) fn run(
     let posts = format!("content/{locale}/posts");
     let name = format!("{date}-{slug}.md");
     let relative = format!("{posts}/{name}");
-    match write(site, &posts, &name, &post_text(title, &slug, &date)) {
+    let branch = post.branch.then(|| new_branch::branch_for(&slug));
+    let text = post_text(title, &slug, &date);
+    match written(site, (&posts, &name, &text), branch.as_deref(), title) {
         Ok(()) => {
             let body = NewBody {
                 path: &relative,
@@ -62,18 +87,39 @@ pub(crate) fn run(
                 slug: slug.as_str(),
                 language: locale.as_str(),
                 date,
+                branch: branch.as_deref(),
             };
             success(output, site, &body)
         }
-        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-            report::failure(output, &new_message::exists(&relative), Exit::Failure)
-        }
-        Err(error) => report::failure(
-            output,
-            &new_message::write(&relative, &error),
-            Exit::Failure,
-        ),
+        Err(message) => report::failure(output, &message, Exit::Failure),
     }
+}
+
+/// Writes the post `text` as `name` in the `posts` folder of `site`, and
+/// with a `branch`, first starts it and then commits the post on it.
+fn written(
+    site: &Path,
+    (posts, name, text): (&str, &str, &str),
+    branch: Option<&str>,
+    title: &str,
+) -> Result<(), UserMessage> {
+    let relative = format!("{posts}/{name}");
+    if let Some(branch) = branch {
+        let mut file = site.to_path_buf();
+        file.push(&relative);
+        if file.exists() {
+            return Err(new_message::exists(&relative));
+        }
+        new_branch::start(site, branch)?;
+    }
+    write(site, posts, name, text).map_err(|error| {
+        if error.kind() == io::ErrorKind::AlreadyExists {
+            new_message::exists(&relative)
+        } else {
+            new_message::write(&relative, &error)
+        }
+    })?;
+    branch.map_or(Ok(()), |_| new_branch::commit(site, &relative, title))
 }
 
 /// The text of a new post: its front matter and an empty body.
@@ -97,14 +143,21 @@ fn write(site: &Path, posts: &str, name: &str, text: &str) -> io::Result<()> {
 /// Says what `new` wrote and what to do next.
 fn success(output: Output, site: &Path, body: &NewBody<'_>) -> Exit {
     match output {
-        Output::Human => report::text(
-            &format!(
+        Output::Human => {
+            let mut said = format!(
                 "Wrote {} in {}.\nOpen it and write the post below the front matter.\n",
                 body.path,
                 site.display()
-            ),
-            Exit::Success,
-        ),
+            );
+            if let Some(branch) = body.branch {
+                let next = format!(
+                    "It is committed on the branch {branch}. Commit your writing there, then \
+                     `git push -u origin {branch}` and open a pull request. Merging it publishes the post.\n"
+                );
+                said.push_str(&next);
+            }
+            report::text(&said, Exit::Success)
+        }
         Output::Json => report::json(body, Exit::Success),
     }
 }

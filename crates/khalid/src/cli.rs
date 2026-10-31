@@ -80,6 +80,10 @@ pub(crate) enum Command {
         /// The language the post is written in [default: the site's default language]
         #[arg(long, value_name = "CODE")]
         language: Option<Locale>,
+        /// Git mode: start the branch post/<slug> and commit the new post on it, so merging the
+        /// branch publishes the post
+        #[arg(long)]
+        branch: bool,
     },
     /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked.
     /// A headless site gets its feeds, sitemaps and redirects and no HTML.
