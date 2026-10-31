@@ -159,7 +159,7 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
-    let newsletters = newsletter::router(config, (database, id), (keys.mail, outbound))
+    let newsletters = newsletter::router(config, (database, id, runtime), (keys.mail, outbound))
         .map_err(|message| (message, Exit::Internal))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
@@ -310,8 +310,9 @@ async fn publish_door(
 }
 
 /// `pages`, the site's page router, with the password form and the cookie
-/// check of `source`'s password posts. The cookies are signed with the
-/// site's preview key under their own label, and marked `Secure` when the
+/// checks of `source`'s password posts and posts with gated content. The
+/// cookies are signed with the site's preview key, each under its own
+/// label, and marked `Secure` when the
 /// site's address is `https`.
 async fn unlocking(
     (site, config): (&Path, &Config),
@@ -328,10 +329,11 @@ async fn unlocking(
         Transport::Http
     };
     let signer = UnlockSigner::new(&key, transport, SystemClock);
+    let reader = newsletter::reader_pass(config, &key);
     Ok(unlock::router(
         config,
         source.gate(),
-        signer,
+        (signer, reader),
         pages,
         SystemClock,
     ))

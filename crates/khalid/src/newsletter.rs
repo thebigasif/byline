@@ -10,18 +10,20 @@ use axum::Router;
 use khalid_core::{Config, MailTransport, Secret, SystemClock, UserMessage};
 use khalid_db::{Database, SiteId, SubscriberTable};
 use khalid_mail::{ApiMailer, Sender, Service, SmtpMailer};
-use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, SiteLinks};
+use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, ReaderPass, SiteLinks};
 use khalid_outbound::{Outbound, Resolver};
+use tokio::runtime::Runtime;
 
 use crate::serve_message;
 
 /// The newsletter's routes for the site with `config`, in its default
 /// language, keeping subscribers in site `id` of `database` and sending
 /// with the mail `secret` from the environment, the APIs through
-/// `outbound`.
+/// `outbound`. A reader who confirms gets the reader cookie, signed with
+/// the site's preview key read on `runtime`.
 pub(crate) fn router(
     config: &Config,
-    (database, id): (&Database, SiteId),
+    (database, id, runtime): (&Database, SiteId, &Runtime),
     (secret, outbound): (Option<Secret<String>>, &Outbound),
 ) -> Result<Router, UserMessage> {
     let site = NewsletterSite {
@@ -33,12 +35,21 @@ pub(crate) fn router(
     let newsletter = match mailer(config, secret, outbound)? {
         Some(mailer) => {
             let store = Arc::new(SubscriberTable::new(database.clone(), id));
+            let key = runtime.block_on(database.preview_key(id, &SystemClock));
+            let key = key.map_err(|_| serve_message::internal())?;
             let made = Newsletter::new(store, mailer, Arc::new(SystemClock), site);
-            Some(made.map_err(|_| serve_message::internal())?)
+            let made = made.map_err(|_| serve_message::internal())?;
+            Some(made.with_pass(reader_pass(config, &key)))
         }
         None => None,
     };
     Ok(khalid_newsletter::router(pages, newsletter))
+}
+
+/// The reader pass of the site with `config`, signed with its `key`.
+pub(crate) fn reader_pass(config: &Config, key: &Secret<[u8; 32]>) -> ReaderPass {
+    let links = SiteLinks::new(config.address(), config.mount());
+    ReaderPass::new(key, &links, Arc::new(SystemClock))
 }
 
 /// The way mail leaves, as `[mail]` names it, or `None` when the site
