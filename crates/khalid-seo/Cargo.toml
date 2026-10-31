@@ -25,7 +25,7 @@ khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = [
 tokio.workspace = true
 wiremock = "0.6"
 robotstxt = "0.3"
-roxmltree = "0.20"
+roxmltree = "0.21"
 rss = { version = "2", features = ["validation"] }
 serde_json.workspace = true
 
