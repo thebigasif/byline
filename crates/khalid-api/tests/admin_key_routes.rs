@@ -12,7 +12,7 @@ use khalid_api::content_store::MemoryContentStore;
 use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
 use khalid_api::post_store::MemoryPostStore;
 use khalid_api::publish_door::{PublishDoor, Silent};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 /// Keys made up for these tests. They open nothing real.
@@ -75,6 +75,69 @@ async fn an_owner_lists_the_keys_without_their_secrets() {
     assert!(
         !text.contains("aaaabbbbcccc"),
         "no secret is ever listed: {text}"
+    );
+}
+
+#[tokio::test]
+async fn a_new_integration_key_is_shown_once_and_works_with_its_scopes() {
+    let router = site();
+    let new =
+        json!({"keys": [{"name": "SerpDad", "kind": "integration", "scopes": ["posts:write"]}]});
+    let (status, json) = send(&router, "POST", KEYS, OWNER, Some(new)).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["keys"][0]["name"], "SerpDad", "{json}");
+    let key = json["keys"][0]["key"].as_str().unwrap().to_owned();
+    assert!(key.starts_with("ki_"), "an integration key");
+    let (status, json) = send(&router, "GET", KEYS, &key, None).await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "it opens, without admin:all: {json}"
+    );
+    let (_, json) = send(&router, "GET", KEYS, OWNER, None).await;
+    assert_eq!(json["keys"][2]["name"], "SerpDad", "{json}");
+    assert_eq!(
+        json["keys"][2]["key"],
+        Value::Null,
+        "never shown again: {json}"
+    );
+}
+
+#[tokio::test]
+async fn a_new_content_key_takes_no_scopes() {
+    let new = json!({"keys": [{"name": "Main site", "kind": "content"}]});
+    let (status, json) = send(&site(), "POST", KEYS, OWNER, Some(new)).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["keys"][0]["kind"], "content", "{json}");
+    assert_eq!(json["keys"][0]["scopes"], json!([]), "{json}");
+}
+
+#[tokio::test]
+async fn a_key_that_does_not_fit_its_kind_is_not_made() {
+    let router = site();
+    let cases = [
+        json!({"keys": [{"name": " ", "kind": "content"}]}),
+        json!({"keys": [{"name": "Site", "kind": "content", "scopes": ["posts:write"]}]}),
+        json!({"keys": [{"name": "Tool", "kind": "integration"}]}),
+        json!({"keys": [{"name": "Tool", "kind": "integration", "scopes": ["posts:everything"]}]}),
+        json!({"keys": [{"name": "Lena", "kind": "staff"}]}),
+    ];
+    for body in cases {
+        let (status, json) = send(&router, "POST", KEYS, OWNER, Some(body.clone())).await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{body} gave {json}"
+        );
+    }
+    let new = json!({"keys": [{"name": "Mine", "kind": "content"}]});
+    let (status, _) = send(&router, "POST", KEYS, EDITOR, Some(new)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (_, json) = send(&router, "GET", KEYS, OWNER, None).await;
+    assert_eq!(
+        json["keys"].as_array().map(Vec::len),
+        Some(2),
+        "nothing made: {json}"
     );
 }
 

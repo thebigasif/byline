@@ -1272,6 +1272,81 @@
             "admin_key": []
           }
         ]
+      },
+      "post": {
+        "tags": [
+          "admin keys"
+        ],
+        "summary": "Makes a content key or an integration key with the scopes it names.\nThe answer shows the key this once; keep it, because only its hash is\nstored (RULES.md BL-SEC-3). Needs `admin:all`.",
+        "operationId": "create_key",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewKeys"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new key, with the key itself this once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKeys"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks admin:all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the name is empty, or the scopes do not fit the kind",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/media/": {
@@ -8257,6 +8332,13 @@
             "type": "string",
             "description": "The key's identity, the part before its secret, such as\n`1111222233334444`."
           },
+          "key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key itself. Only the answer that makes it holds it; keep it\nthen, because it is never shown again."
+          },
           "kind": {
             "type": "string",
             "description": "`content`, `integration` or `staff`.",
@@ -9988,6 +10070,60 @@
             "type": "string",
             "description": "The slug posts will name it by, such as `link-building`.",
             "example": "link-building"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewKey": {
+        "type": "object",
+        "description": "A new key, as a create request sends it.",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/NewKeyKind",
+            "description": "What kind of key to make."
+          },
+          "name": {
+            "type": "string",
+            "description": "Who or what will use it, such as `SerpDad`."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "An integration key's scopes, such as `posts:write`; a content key\ntakes none.",
+            "example": [
+              "posts:write"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewKeyKind": {
+        "type": "string",
+        "description": "The kinds of key the Admin API makes. Staff tokens belong to staff\naccounts and are made by signing in.",
+        "enum": [
+          "content",
+          "integration"
+        ]
+      },
+      "NewKeys": {
+        "type": "object",
+        "description": "A new key, wrapped the way the Admin API wraps keys: exactly one.",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewKey"
+            },
+            "description": "The one new key."
           }
         },
         "additionalProperties": false

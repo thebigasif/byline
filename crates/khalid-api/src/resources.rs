@@ -24,7 +24,7 @@ mod term;
 
 pub use admin_author::{AdminAuthor, AuthorEdit, AuthorFile, NewAuthor};
 pub use admin_category::{AdminCategory, CategoryEdit, NewCategory, names_problem};
-pub use admin_key::AdminKey;
+pub use admin_key::{AdminKey, NewKey, NewKeyKind};
 pub use admin_page::{AdminPage, NewPage, PageEdit};
 pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
 pub use admin_settings::{AdminSettings, SettingsChange};
