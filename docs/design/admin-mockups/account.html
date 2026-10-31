@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your account · Khalid admin mockup</title>
+<style>
+/* Shared admin styles. Each mockup carries its own copy so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--block:#b42318;--block-bg:#fef3f2;--warn:#8a4b00;--warn-bg:#fff8eb;--ok:#1a7f37;--ok-bg:#eefbf1;--radius:.375rem}
+html{background:var(--bg);color:var(--text);font:400 1rem/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;overflow-wrap:break-word}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.skip{position:absolute;left:-100vw}.skip:focus{left:1rem;top:.5rem;background:var(--bg);padding:.5rem 1rem}
+.top{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.brand{font-weight:700}.brand span{color:var(--muted);font-weight:400}
+.shell{display:grid;grid-template-columns:minmax(0,1fr)}
+@media (min-width:60em){.shell{grid-template-columns:13rem minmax(0,1fr)}.side{border-right:1px solid var(--border);min-height:calc(100vh - 3.6rem)}.side ul{flex-direction:column}}
+.side ul{list-style:none;margin:0;padding:.75rem;display:flex;flex-wrap:wrap;gap:.25rem}
+.side a{display:flex;align-items:center;min-height:44px;padding:.5rem .75rem;border-radius:var(--radius);color:var(--text);text-decoration:none}
+.side a:hover{background:var(--surface)}
+main{padding:1.5rem 1.25rem 3rem;max-width:72rem}
+h1{font-size:clamp(1.5rem,1.2rem + 1.2vw,2rem);line-height:1.2;margin:0 0 .5rem}
+h2{font-size:1.25rem;line-height:1.3;margin:2rem 0 .5rem}
+p{margin:0 0 1rem}
+.lede{color:var(--muted);max-width:68ch;font-size:1.0625rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);color:var(--text);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.focus{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.5rem;max-width:40rem}
+.focus>h2:first-child{margin-top:0}
+label{display:block;font-weight:600;margin:0 0 .25rem}
+.hint{display:block;color:var(--muted);font-weight:400;font-size:.9375rem;margin:0 0 .4rem}
+input{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--field);border-radius:var(--radius);padding:.5rem .7rem;min-height:44px;width:100%}
+.field{margin:0 0 1.25rem;max-width:36rem}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.muted{color:var(--muted)}
+.note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
+/* This screen */
+section{max-width:40rem}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the main content</a>
+<header class="top">
+  <div class="brand">Khalid <span>· Field Notes on SEO</span></div>
+  <div class="row"><a href="https://www.example.com/blog/">View the blog</a><a href="account.html" aria-current="page">Your account</a></div>
+</header>
+<div class="shell">
+<nav class="side" aria-label="Admin">
+  <ul>
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="posts.html">Posts</a></li>
+    <li><a href="comments.html">Comments</a></li>
+    <li><a href="authors.html">Authors</a></li>
+    <li><a href="design.html">Design</a></li>
+    <li><a href="redirects.html">Redirects</a></li>
+    <li><a href="api-keys.html">API keys</a></li>
+    <li><a href="settings.html">Settings</a></li>
+  </ul>
+</nav>
+<main id="main">
+  <h1>Your account</h1>
+  <p class="lede">How you sign in to this blog's admin, and how to lock everyone else out if a laptop goes missing.</p>
+
+  <section class="focus" aria-labelledby="passkey-title">
+    <h2 id="passkey-title">Add a passkey</h2>
+    <p>A passkey lets you sign in with your fingerprint, your face or your device's PIN instead of a password. It cannot be guessed or stolen by a fake sign-in page. Your device asks you to confirm, then keeps the passkey.</p>
+    <form action="account.html" method="post">
+      <div class="field"><label for="passkey-name">Name for this passkey</label><span class="hint" id="passkey-name-hint">So you can tell your passkeys apart, such as Work laptop.</span><input id="passkey-name" aria-describedby="passkey-name-hint" value="Work laptop"></div>
+      <button class="btn primary" type="submit">Add a passkey</button>
+    </form>
+    <p class="muted">To stop a passkey working, delete it from the device that keeps it.</p>
+  </section>
+
+  <section aria-labelledby="password-title">
+    <h2 id="password-title">Change your password</h2>
+    <p class="muted">Changing it signs you out on every other device.</p>
+    <form action="account.html" method="post">
+      <div class="field"><label for="current">Current password</label><input id="current" type="password" autocomplete="current-password"></div>
+      <div class="field"><label for="new">New password</label><span class="hint" id="new-hint">At least 12 characters. A short sentence is easy to remember.</span><input id="new" type="password" autocomplete="new-password" aria-describedby="new-hint"></div>
+      <button class="btn" type="submit">Change password</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="everywhere-title">
+    <h2 id="everywhere-title">Sign out everywhere</h2>
+    <p class="muted">For a lost laptop or a phone someone else picked up. Every device signed in as you is signed out, this one too, and you sign in again.</p>
+    <button class="btn" type="button">Sign out everywhere</button>
+  </section>
+
+  <p class="note">Mockup for the founder's review. Nothing on this page saves, and no password or passkey appears on it. <a href="index.html">All mockups</a></p>
+</main>
+</div>
+</body>
+</html>
