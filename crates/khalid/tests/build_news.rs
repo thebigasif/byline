@@ -17,19 +17,14 @@ fn at(base: &Path, rel: &str) -> PathBuf {
     path
 }
 
-/// Copies the folder `from` into `to`, leaving out derived `data/`.
+/// Copies the folder `from` into `to`.
 #[cfg(test)]
 fn copy(from: &Path, to: &Path) {
     fs::create_dir_all(to).unwrap();
-    for entry in fs::read_dir(from).unwrap() {
-        let entry = entry.unwrap();
-        let name = entry.file_name();
-        let mut target = to.to_path_buf();
-        target.push(&name);
+    for entry in fs::read_dir(from).unwrap().map(Result::unwrap) {
+        let target = at(to, &entry.file_name().to_string_lossy());
         if entry.path().is_dir() {
-            if name != "data" {
-                copy(&entry.path(), &target);
-            }
+            copy(&entry.path(), &target);
         } else {
             fs::copy(entry.path(), target).unwrap();
         }
@@ -94,6 +89,8 @@ fn read(out: &TempDir, rel: &str) -> String {
     fs::read_to_string(at(out.path(), rel)).unwrap_or_else(|error| panic!("{rel}: {error}"))
 }
 
+/// The snapshot is the news sitemap; the index lists it, and only the news
+/// post is a `NewsArticle`.
 #[test]
 fn the_news_sitemap_lists_the_fresh_post_of_a_news_collection() {
     let date = yesterday();
@@ -103,13 +100,8 @@ fn the_news_sitemap_lists_the_fresh_post_of_a_news_collection() {
     let index = read(&out, "sitemap.xml");
     let listed = "<loc>https://www.example.com/blog/sitemaps/news.xml</loc>";
     assert!(index.contains(listed), "{index}");
-}
-
-#[test]
-fn a_post_of_a_news_collection_is_a_news_article_and_others_are_not() {
-    let out = build(news_site(&yesterday()).path());
-    let news = read(&out, "news/what-a-sitemap-does/index.html");
-    assert!(news.contains("\"@type\":\"NewsArticle\""), "{news}");
+    let page = read(&out, "news/what-a-sitemap-does/index.html");
+    assert!(page.contains("\"@type\":\"NewsArticle\""), "{page}");
     let other = read(&out, "why-internal-links-matter/index.html");
     assert!(!other.contains("NewsArticle"), "{other}");
 }
