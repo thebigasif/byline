@@ -11,6 +11,7 @@ use utoipa::ToSchema;
 
 use crate::post_store::PostStore;
 use crate::resources::{AdminPost, LintCounts};
+use crate::serpdad_store::ArrivedDraft;
 
 /// A new draft, as the create route answers it.
 #[derive(Debug, Serialize, ToSchema)]
@@ -63,5 +64,14 @@ impl CreatedPosts {
             lint,
             admin_path,
         }
+    }
+
+    /// The draft as the `SerpDad` page records it: identity, title and
+    /// lint counts.
+    pub(crate) fn arrived(&self) -> ArrivedDraft {
+        let (post, title) = self.posts.first().map_or_else(Default::default, |post| {
+            (post.id().to_owned(), post.title().to_owned())
+        });
+        ArrivedDraft::new(post, title, self.lint.as_ref().map(|lint| lint.counts))
     }
 }

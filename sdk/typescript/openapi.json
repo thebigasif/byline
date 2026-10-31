@@ -1963,7 +1963,7 @@
         "tags": [
           "admin serpdad"
         ],
-        "summary": "Reads whether `SerpDad` is connected. Needs `settings:write`.",
+        "summary": "Reads whether `SerpDad` is connected and the last 20 drafts it sent.\nNeeds `settings:write`.",
         "operationId": "read_serpdad",
         "parameters": [
           {
@@ -1978,7 +1978,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The connection",
+            "description": "The connection and the drafts",
             "content": {
               "application/json": {
                 "schema": {
@@ -8291,9 +8291,54 @@
           }
         }
       },
+      "SerpdadDraft": {
+        "type": "object",
+        "description": "A draft `SerpDad` sent.",
+        "required": [
+          "id",
+          "title",
+          "received_at",
+          "admin_path"
+        ],
+        "properties": {
+          "admin_path": {
+            "type": "string",
+            "description": "Where it opens in the admin's editor.",
+            "example": "/admin/posts/en.choosing-anchor-text"
+          },
+          "id": {
+            "type": "string",
+            "description": "The post's identity.",
+            "example": "en.choosing-anchor-text"
+          },
+          "lint": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LintCounts",
+                "description": "What the linter found in it on arrival, or `null` when it could not\nrun."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it arrived."
+          },
+          "title": {
+            "type": "string",
+            "description": "Its title as it arrived."
+          }
+        }
+      },
       "SerpdadState": {
         "type": "object",
-        "description": "Whether `SerpDad` is connected.",
+        "description": "The `SerpDad` connection and the drafts it sent.",
+        "required": [
+          "drafts"
+        ],
         "properties": {
           "connection": {
             "oneOf": [
@@ -8305,6 +8350,13 @@
                 "type": "null"
               }
             ]
+          },
+          "drafts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SerpdadDraft"
+            },
+            "description": "The last 20 drafts `SerpDad` sent, newest first, kept after the\nconnection is turned off."
           }
         }
       },

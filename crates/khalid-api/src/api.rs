@@ -303,7 +303,7 @@ fn assemble(
     };
     let redirects = desks.redirects;
     let serpdad = admin_serpdad::Serpdad::new(desks.serpdad, Arc::clone(&keys));
-    let mut admin = admin_api::routes(posts, door.clone())
+    let mut admin = admin_api::routes(posts, serpdad.clone(), door.clone())
         .merge(admin_comments::routes(desks.comments, door.clone()))
         .merge(media_api::routes(desks.media, door.clone()))
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))

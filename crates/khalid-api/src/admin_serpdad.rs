@@ -17,9 +17,10 @@ use utoipa_axum::routes;
 
 use crate::admin_key::{AdminDoor, require, require_admin_key};
 use crate::api_version::negotiate_version;
-use crate::keys::{KeyHashing, KeyId, KeyKind, KeyStore, KeyToken, Principal, Scope, StoredKey};
+use crate::keys::{KeyHashing, KeyKind, KeyStore, KeyToken, Principal, Scope, StoredKey};
 use crate::problem::{Problem, ProblemType};
-use crate::serpdad_store::{SerpdadLink, SerpdadStore};
+use crate::resources::LintCounts;
+use crate::serpdad_store::{ArrivedDraft, ReceivedDraft, SerpdadLink, SerpdadStore};
 
 /// The name the key `SerpDad` sends drafts with is stored under.
 const KEY_NAME: &str = "SerpDad";
@@ -36,6 +37,23 @@ impl Serpdad {
     /// The connection kept in `store`, making keys in `keys`.
     pub(crate) fn new(store: Option<Arc<dyn SerpdadStore>>, keys: Arc<dyn KeyStore>) -> Self {
         Self { store, keys }
+    }
+
+    /// Records `draft` when `principal` is `SerpDad`'s key. A record that
+    /// fails is logged, never answered: the draft is already made.
+    pub(crate) async fn arrived(&self, principal: &Principal, draft: ArrivedDraft) {
+        let Some(store) = &self.store else {
+            return;
+        };
+        let recorded = match store.link().await {
+            Ok(Some(link)) if &link.key == principal.id() => store.record(&draft).await,
+            Ok(_) => return,
+            Err(failed) => Err(failed),
+        };
+        if let Err(failed) = recorded {
+            let error: &(dyn Error + 'static) = &failed;
+            tracing::error!(error, "a draft from SerpDad could not be recorded");
+        }
     }
 }
 
@@ -72,19 +90,54 @@ impl From<&SerpdadLink> for SerpdadConnection {
     }
 }
 
-/// Whether `SerpDad` is connected.
+/// A draft `SerpDad` sent.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct SerpdadDraft {
+    /// The post's identity.
+    #[schema(example = "en.choosing-anchor-text")]
+    id: String,
+    /// Its title as it arrived.
+    title: String,
+    /// What the linter found in it on arrival, or `null` when it could not
+    /// run.
+    lint: Option<LintCounts>,
+    /// When it arrived.
+    received_at: DateTime<Utc>,
+    /// Where it opens in the admin's editor.
+    #[schema(example = "/admin/posts/en.choosing-anchor-text")]
+    admin_path: String,
+}
+
+impl From<ReceivedDraft> for SerpdadDraft {
+    fn from(received: ReceivedDraft) -> Self {
+        let draft = received.draft;
+        Self {
+            admin_path: format!("/admin/posts/{}", draft.post),
+            id: draft.post,
+            title: draft.title,
+            lint: draft.lint,
+            received_at: received.received_at,
+        }
+    }
+}
+
+/// The `SerpDad` connection and the drafts it sent.
 #[derive(Debug, Serialize, ToSchema)]
 pub(crate) struct SerpdadState {
     /// The connection, or `null` while it is off.
     connection: Option<SerpdadConnection>,
+    /// The last 20 drafts `SerpDad` sent, newest first, kept after the
+    /// connection is turned off.
+    drafts: Vec<SerpdadDraft>,
 }
 
-/// Reads whether `SerpDad` is connected. Needs `settings:write`.
+/// Reads whether `SerpDad` is connected and the last 20 drafts it sent.
+/// Needs `settings:write`.
 #[utoipa::path(
     get, path = "/serpdad/", tag = "admin serpdad",
     security(("admin_key" = [])),
     responses(
-        (status = 200, description = "The connection", body = SerpdadState),
+        (status = 200, description = "The connection and the drafts", body = SerpdadState),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "The key lacks settings:write", body = Problem, content_type = "application/problem+json"),
     )
@@ -94,12 +147,18 @@ async fn read_serpdad(
     Extension(principal): Extension<Principal>,
 ) -> Result<Json<SerpdadState>, Problem> {
     require(&principal, Scope::SettingsWrite)?;
-    let link = match &serpdad.store {
-        Some(store) => store.link().await.map_err(|e| Problem::internal(&e))?,
-        None => None,
+    let Some(store) = serpdad.store else {
+        let drafts = Vec::new();
+        return Ok(Json(SerpdadState {
+            connection: None,
+            drafts,
+        }));
     };
+    let link = store.link().await.map_err(|e| Problem::internal(&e))?;
+    let recent = store.recent().await.map_err(|e| Problem::internal(&e))?;
     let connection = link.as_ref().map(SerpdadConnection::from);
-    Ok(Json(SerpdadState { connection }))
+    let drafts = recent.into_iter().map(SerpdadDraft::from).collect();
+    Ok(Json(SerpdadState { connection, drafts }))
 }
 
 /// Turns the connection on with a new key that may only write posts, and
@@ -140,12 +199,15 @@ async fn connect_serpdad(
     }
     let link = store.link().await.map_err(|e| Problem::internal(&e))?;
     let link = link.ok_or_else(|| Problem::internal(&NotKept))?;
+    let recent = store.recent().await.map_err(|e| Problem::internal(&e))?;
     let connection = SerpdadConnection {
         key: Some(token.reveal().expose().clone()),
         ..SerpdadConnection::from(&link)
     };
+    let drafts = recent.into_iter().map(SerpdadDraft::from).collect();
     let state = SerpdadState {
         connection: Some(connection),
+        drafts,
     };
     Ok((StatusCode::CREATED, Json(state)))
 }
@@ -201,7 +263,7 @@ async fn new_key() -> Result<(KeyToken, StoredKey), Problem> {
 }
 
 /// Revokes `id`, logging a failure: the connection has already moved on.
-async fn revoke(keys: &dyn KeyStore, id: &KeyId) {
+async fn revoke(keys: &dyn KeyStore, id: &crate::keys::KeyId) {
     if let Err(failed) = keys.revoke(id).await {
         let error: &(dyn Error + 'static) = &failed;
         tracing::error!(

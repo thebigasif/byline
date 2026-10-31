@@ -123,3 +123,37 @@ fn an_article_the_linter_would_hold_is_staged_with_its_blocks_named() {
     assert!(rules.iter().any(|f| f["rule"] == "no-author"), "{made}");
     assert!(server.answers("/blog/a-weak-post/", 404));
 }
+
+#[test]
+fn the_connect_page_makes_the_key_lists_its_drafts_and_turns_it_off() {
+    let site = demo_copy();
+    let owner = new_key(
+        site.path(),
+        &["--name", "Owner", "--scope", "settings:write"],
+    );
+    let server = start(site.path(), &owner);
+    let (status, off) = server.admin("GET", "/api/admin/v1/serpdad/", None);
+    assert_eq!(status, 200, "{off}");
+    assert_eq!(off, json!({"connection": null, "drafts": []}));
+
+    let (status, made) = server.admin("POST", "/api/admin/v1/serpdad/", None);
+    assert_eq!(status, 201, "{made}");
+    let key = made["connection"]["key"].as_str().unwrap();
+    let article = json!({"posts": [{"title": "Choosing anchor text", "author": "asif",
+        "html": "<p>Anchor text is the visible words of a link.</p>"}]});
+    let (status, staged, _) = stage(&server, key, "serpdad-article-383", &article);
+    assert_eq!(status, 201, "{staged}");
+
+    let (_, read) = server.admin("GET", "/api/admin/v1/serpdad/", None);
+    let draft = &read["drafts"][0];
+    assert_eq!(draft["id"], "en.choosing-anchor-text", "{read}");
+    assert_eq!(draft["admin_path"], "/admin/posts/en.choosing-anchor-text");
+    assert_eq!(draft["lint"]["blocks"], staged["lint"]["blocks"], "{read}");
+    assert_eq!(draft["lint"]["warnings"], staged["lint"]["warnings"]);
+    assert_eq!(read["connection"].get("key"), None, "the key is shown once");
+
+    let (status, _) = server.admin("DELETE", "/api/admin/v1/serpdad/", None);
+    assert_eq!(status, 204);
+    let (status, refused, _) = stage(&server, key, "serpdad-article-384", &article);
+    assert_eq!(status, 401, "a switched-off key is refused: {refused}");
+}

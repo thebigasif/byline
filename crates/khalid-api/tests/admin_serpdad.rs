@@ -1,6 +1,7 @@
 //! The `SerpDad` route of the Admin API (KH-API-6): off until a key is
-//! made, the key shown once, a new key revoking the old, and turning off
-//! refusing the key. Every route needs `settings:write`.
+//! made, the key shown once, a new key revoking the old, drafts made with
+//! the key recorded, and turning off refusing the key. Every route needs
+//! `settings:write`.
 
 mod common;
 
@@ -13,7 +14,8 @@ use khalid_api::api;
 use khalid_api::keys::{KeyHashing, KeyId, KeyToken, MemoryKeyStore, Scope, StoredKey};
 use khalid_api::post_store::MemoryPostStore;
 use khalid_api::publish_door::{PublishDoor, Silent};
-use khalid_api::serpdad_store::{MemorySerpdadStore, SerpdadStore};
+use khalid_api::resources::LintCounts;
+use khalid_api::serpdad_store::{ArrivedDraft, MemorySerpdadStore, SerpdadStore};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -80,7 +82,7 @@ async fn the_connection_is_off_until_a_key_is_linked() {
     let router = router(Some(store()));
     let (status, json) = send(&router, OWNER, ("GET", "/serpdad/"), None).await;
     assert_eq!(status, StatusCode::OK, "{json}");
-    assert_eq!(json, json!({"connection": null}));
+    assert_eq!(json, json!({"connection": null, "drafts": []}));
 }
 
 #[tokio::test]
@@ -92,7 +94,7 @@ async fn a_linked_key_shows_when_it_was_made() {
     let (status, json) = send(&router, OWNER, ("GET", "/serpdad/"), None).await;
     assert_eq!(status, StatusCode::OK, "{json}");
     let connected = json!({"connected_at": "2026-10-31T09:40:00Z"});
-    assert_eq!(json, json!({"connection": connected}));
+    assert_eq!(json, json!({"connection": connected, "drafts": []}));
 }
 
 /// Stages a draft titled `title` with `key`, the way `SerpDad` does.
@@ -132,6 +134,43 @@ async fn turning_on_makes_a_key_that_writes_drafts_and_shows_it_once() {
 }
 
 #[tokio::test]
+async fn drafts_made_with_the_serpdad_key_are_listed_and_kept_after_turning_off() {
+    let router = router(Some(store()));
+    let key = connect(&router).await;
+    stage(&router, &key, "Choosing anchor text").await;
+    stage(&router, WRITER, "Written by hand").await;
+    stage(&router, &key, "A weak post").await;
+    send(&router, OWNER, ("DELETE", "/serpdad/"), None).await;
+
+    let (_, read) = send(&router, OWNER, ("GET", "/serpdad/"), None).await;
+    let at = "2026-10-31T09:40:00Z";
+    assert_eq!(
+        read["drafts"],
+        json!([
+            {"id": "a-weak-post", "title": "A weak post", "lint": null,
+                "received_at": at, "admin_path": "/admin/posts/a-weak-post"},
+            {"id": "choosing-anchor-text", "title": "Choosing anchor text", "lint": null,
+                "received_at": at, "admin_path": "/admin/posts/choosing-anchor-text"},
+        ]),
+        "newest first, and the post written by hand is not among them"
+    );
+}
+
+#[tokio::test]
+async fn a_recorded_draft_carries_its_lint_counts() {
+    let serpdad = store();
+    let counts = Some(LintCounts::new(0, 2));
+    let draft = ArrivedDraft::new("en.anchors".to_owned(), "Anchors".to_owned(), counts);
+    serpdad.record(&draft).await.unwrap();
+    let router = router(Some(serpdad));
+    let (_, read) = send(&router, OWNER, ("GET", "/serpdad/"), None).await;
+    assert_eq!(
+        read["drafts"][0]["lint"],
+        json!({"blocks": 0, "warnings": 2})
+    );
+}
+
+#[tokio::test]
 async fn a_new_key_revokes_the_old_one() {
     let router = router(Some(store()));
     let old = connect(&router).await;
@@ -156,6 +195,7 @@ async fn turning_off_refuses_the_key_and_a_second_time_is_a_404() {
     );
     let (_, read) = send(&router, OWNER, ("GET", "/serpdad/"), None).await;
     assert_eq!(read["connection"], Value::Null);
+    assert_eq!(read["drafts"].as_array().map(Vec::len), Some(0));
 
     let (status, json) = send(&router, OWNER, ("DELETE", "/serpdad/"), None).await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
@@ -177,7 +217,7 @@ async fn a_key_without_settings_write_is_refused() {
 async fn a_site_with_no_database_is_off_and_says_why_it_cannot_connect() {
     let router = router(None);
     let (_, read) = send(&router, OWNER, ("GET", "/serpdad/"), None).await;
-    assert_eq!(read, json!({"connection": null}));
+    assert_eq!(read, json!({"connection": null, "drafts": []}));
     let (status, json) = send(&router, OWNER, ("POST", "/serpdad/"), None).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
     let fix = json["fix"].as_str().unwrap_or_default();
