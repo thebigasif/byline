@@ -22,10 +22,12 @@ env:
 jobs:
   # The project's own branches run on the maintainer's runners (label khalid);
   # pull requests from forks stay on GitHub's runners and need approval first.
+  # Integration branches of this repository, which land many tasks at once,
+  # get a runner of their own (label khalid-priority).
   # Performance budgets stay on GitHub's runners, where their numbers were set.
   text:
     name: Text rules
-    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && (startsWith(github.head_ref, 'task/p1-integration-') && 'khalid-priority' || 'khalid') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
       - name: No em dashes (RULES.md BL-TXT-1)
@@ -37,7 +39,7 @@ jobs:
 
   rust:
     name: Rust
-    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && (startsWith(github.head_ref, 'task/p1-integration-') && 'khalid-priority' || 'khalid') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
       - name: Any crates yet?
@@ -119,7 +121,7 @@ jobs:
 
   admin:
     name: Admin
-    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && (startsWith(github.head_ref, 'task/p1-integration-') && 'khalid-priority' || 'khalid') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
       - name: Any admin yet?
