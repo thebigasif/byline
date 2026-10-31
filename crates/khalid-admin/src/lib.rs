@@ -22,10 +22,11 @@ mod built {
 }
 
 /// The admin's own policy: its scripts, styles and API calls come from the
-/// blog itself, and no other site may frame it.
+/// blog itself, and no other site may frame it. Pictures may also come
+/// from Unsplash and GIPHY, where photo and GIF search find them.
 const POLICY: &str = "default-src 'self'; script-src 'self'; style-src 'self'; \
-    img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; \
-    form-action 'self'";
+    img-src 'self' data: https://images.unsplash.com https://*.giphy.com; \
+    connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 
 /// Vite names every file under `assets/` by a hash of its content, so a
 /// browser may keep it; the page itself is checked on every visit.

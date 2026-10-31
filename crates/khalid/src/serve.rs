@@ -34,6 +34,7 @@ use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::entry_events::Entries;
 use crate::exit::Exit;
+use crate::media_library::PictureKeys;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::serve_https::{self, Listen};
@@ -68,6 +69,8 @@ pub(crate) struct Keys {
     pub(crate) bucket: Option<S3Keys>,
     /// The password, key or token the `[mail]` transport signs in with.
     pub(crate) mail: Option<Secret<String>>,
+    /// The keys photo and GIF search ask Unsplash and GIPHY with.
+    pub(crate) pictures: PictureKeys,
 }
 
 impl Keys {
@@ -77,6 +80,10 @@ impl Keys {
         Self {
             bucket: env.s3_keys(),
             mail: mail.and_then(|transport| env.mail_secret(transport)),
+            pictures: PictureKeys {
+                unsplash: env.unsplash_key(),
+                giphy: env.giphy_key(),
+            },
         }
     }
 }
@@ -176,7 +183,7 @@ fn serve_with(
         let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
-            media_library::open(site, config, keys.bucket, outbound),
+            media_library::open(site, config, (keys.bucket, keys.pictures), outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
         let scheduling = scheduler::start(Arc::clone(&door), alerting);
