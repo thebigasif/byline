@@ -41,6 +41,16 @@ Other briefs own the rest of section 4.6: the editor (G50), Media (G51), the too
 - The mockup is approved. No route reads or writes `theme/tokens.toml` yet, on `main` or any open branch.
 - Done when: the screen edits colours and fonts through an Admin API route, and a test shows the contrast score beside each colour.
 
+### 4.8 Webhooks
+- Status: `todo`.
+- List, add and switch off webhooks on `/api/admin/v1/webhooks/`, each event in a plain sentence, the signing secret shown once. Decision: `docs/decisions/2026-10-31-admin-webhooks-team.md`.
+- Done when: a test adds a webhook and sees its secret once, switches one off, shows the API's 422 for a bad address in plain words, and axe finds nothing.
+
+### 4.9 Team
+- Status: `todo`.
+- List staff, invite someone with a role, change a role and remove someone on `/api/admin/v1/staff/`. Handing the site to a new owner waits for its own screen.
+- Done when: a test invites someone, changes a role, removes someone, shows the API's 403 and 409 in plain words, and axe finds nothing.
+
 ## Questions for the founder
 
 None. Choices taken without asking are in the decision above.
