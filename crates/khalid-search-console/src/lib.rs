@@ -14,8 +14,10 @@
 
 mod client;
 mod error;
+mod index_status;
 mod numbers;
 
 pub use client::{Credentials, SearchConsole, Session};
 pub use error::SearchConsoleError;
+pub use index_status::{IndexStatus, Verdict};
 pub use numbers::{PageNumbers, Window};

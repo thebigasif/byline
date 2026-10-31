@@ -1,6 +1,6 @@
-//! Signing in to Google with the owner's refresh token, and reading the
-//! numbers of each page (KH-GRO-5). Google is a `wiremock` stand-in that
-//! answers as its OAuth and Search Console references show.
+//! Signing in to Google with the owner's refresh token, reading the
+//! numbers of each page and its queries, and index status (KH-GRO-5).
+//! Google is a `wiremock` stand-in answering as its references show.
 
 #![cfg(test)]
 
@@ -145,4 +145,64 @@ async fn no_rows_is_no_pages_and_a_property_out_of_reach_is_named() {
     assert_eq!(session.pages(window).await.unwrap(), []);
     let error = session.pages(window).await.unwrap_err();
     assert!(matches!(error, SearchConsoleError::NotAllowed), "{error}");
+}
+
+#[tokio::test]
+async fn the_queries_behind_one_page_are_asked_for_that_page_only() {
+    let server = MockServer::start().await;
+    grant(&server).await;
+    let page = "https://www.example.com/blog/why-links-matter/";
+    let only = json!({ "dimension": "page", "operator": "equals", "expression": page });
+    let rows = json!({ "rows": [{ "keys": ["internal links"],
+        "clicks": 40.0, "impressions": 900.0, "ctr": 0.044, "position": 5.1 }] });
+    Mock::given(method("POST"))
+        .and(path(ANALYTICS))
+        .and(body_json(json!({
+            "startDate": "2026-10-01", "endDate": "2026-10-28",
+            "dimensions": ["query"], "dimensionFilterGroups": [{ "filters": [only] }],
+            "rowLimit": 10,
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(rows))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let (console, outbound) = client(&server);
+    let session = console.sign_in(&outbound).await.unwrap();
+    let window = Window::ending("2026-10-28".parse().unwrap(), 28).unwrap();
+    let queries = session.queries(window, page, 10).await.unwrap();
+    let keys: Vec<&str> = queries.iter().map(|row| row.key.as_str()).collect();
+    assert_eq!(keys, ["internal links"]);
+}
+
+#[tokio::test]
+async fn index_status_comes_from_url_inspection_and_its_quota_is_named() {
+    let server = MockServer::start().await;
+    grant(&server).await;
+    let page = "https://www.example.com/blog/why-links-matter/";
+    let inspected = json!({ "inspectionResult": { "indexStatusResult": {
+        "verdict": "NEUTRAL", "coverageState": "Crawled - currently not indexed" } } });
+    Mock::given(method("POST"))
+        .and(path("/v1/urlInspection/index:inspect"))
+        .and(header("authorization", "Bearer ya29.made-up"))
+        .and(body_json(
+            json!({ "inspectionUrl": page, "siteUrl": "https://www.example.com/" }),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(inspected))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    let spent = json!({ "error": { "code": 429, "status": "RESOURCE_EXHAUSTED" } });
+    Mock::given(method("POST"))
+        .and(path("/v1/urlInspection/index:inspect"))
+        .respond_with(ResponseTemplate::new(429).set_body_json(spent))
+        .mount(&server)
+        .await;
+    let (console, outbound) = client(&server);
+    let session = console.sign_in(&outbound).await.unwrap();
+    let page = AbsoluteUrl::parse(page).unwrap();
+    let status = session.inspect(&page).await.unwrap();
+    assert!(!status.is_indexed());
+    assert_eq!(status.coverage_state, "Crawled - currently not indexed");
+    let error = session.inspect(&page).await.unwrap_err();
+    assert!(matches!(error, SearchConsoleError::Quota), "{error}");
 }

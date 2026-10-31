@@ -9,13 +9,16 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::json;
 
-use crate::{PageNumbers, SearchConsoleError, Window};
+use crate::{IndexStatus, PageNumbers, SearchConsoleError, Window};
 
 /// Where Google trades a refresh token for an access token.
 const TOKEN: &str = "https://oauth2.googleapis.com/token";
 
 /// The Search Console API's root (`searchAnalytics` and `sites`).
 const WEBMASTERS: &str = "https://www.googleapis.com/webmasters/v3/";
+
+/// The URL Inspection API's root.
+const INSPECTION: &str = "https://searchconsole.googleapis.com/v1/";
 
 /// The most rows one Search Analytics answer holds.
 const MAX_ROWS: u32 = 25_000;
@@ -40,6 +43,7 @@ pub struct SearchConsole {
     credentials: Credentials,
     token: String,
     webmasters: String,
+    inspection: String,
 }
 
 impl SearchConsole {
@@ -50,18 +54,20 @@ impl SearchConsole {
             credentials,
             token: TOKEN.to_owned(),
             webmasters: WEBMASTERS.to_owned(),
+            inspection: INSPECTION.to_owned(),
         }
     }
 
     /// The same connection with every Google address under `endpoint`
-    /// instead, such as a stand-in server in a test: `token` and
-    /// `webmasters/v3/`.
+    /// instead, such as a stand-in server in a test: `token`,
+    /// `webmasters/v3/` and `v1/`.
     #[must_use]
     pub fn with_endpoint(self, endpoint: &AbsoluteUrl) -> Self {
         let root = endpoint.as_str().trim_end_matches('/');
         Self {
             token: format!("{root}/token"),
             webmasters: format!("{root}/webmasters/v3/"),
+            inspection: format!("{root}/v1/"),
             ..self
         }
     }
@@ -150,6 +156,45 @@ impl Session<'_> {
             "rowLimit": MAX_ROWS,
         });
         PageNumbers::read_all(&self.call(&self.analytics()?, &body).await?)
+    }
+
+    /// The searches that showed `page` in `window`, up to `limit`, the
+    /// most clicked first. Each row's key is the query.
+    ///
+    /// # Errors
+    ///
+    /// The errors of [`Session::pages`].
+    pub async fn queries(
+        &self,
+        window: Window,
+        page: &str,
+        limit: u32,
+    ) -> Result<Vec<PageNumbers>, SearchConsoleError> {
+        let only = json!({ "dimension": "page", "operator": "equals", "expression": page });
+        let body = json!({
+            "startDate": window.first.to_string(),
+            "endDate": window.last.to_string(),
+            "dimensions": ["query"],
+            "dimensionFilterGroups": [{ "filters": [only] }],
+            "rowLimit": limit.min(MAX_ROWS),
+        });
+        PageNumbers::read_all(&self.call(&self.analytics()?, &body).await?)
+    }
+
+    /// Whether Google has `page` in its index. Google allows 2,000 of
+    /// these a day and 600 a minute for each property.
+    ///
+    /// # Errors
+    ///
+    /// [`SearchConsoleError::Quota`] when the day's or the minute's calls
+    /// are spent, and otherwise the errors of [`Session::pages`].
+    pub async fn inspect(&self, page: &AbsoluteUrl) -> Result<IndexStatus, SearchConsoleError> {
+        let body = json!({ "inspectionUrl": page.as_str(), "siteUrl": self.console.property });
+        let url = address(&format!(
+            "{}urlInspection/index:inspect",
+            self.console.inspection
+        ))?;
+        IndexStatus::read(&self.call(&url, &body).await?)
     }
 
     /// The Search Analytics address of the property.
