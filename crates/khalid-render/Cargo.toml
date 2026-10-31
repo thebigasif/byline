@@ -19,7 +19,7 @@ minijinja = { version = "3", default-features = false, features = ["builtins", "
 rust-embed = { version = "8", features = ["debug-embed"] }
 serde.workspace = true
 thiserror.workspace = true
-toml = "0.9"
+toml = "1.1"
 
 [dev-dependencies]
 insta = "1"
