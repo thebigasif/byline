@@ -7,7 +7,7 @@ use khalid_core::{AbsoluteUrl, Locale};
 use serde::Deserialize;
 
 use crate::pages::PageWords;
-use crate::{EmailAddress, Mail, SubscriberToken};
+use crate::{EmailAddress, Mail, PostalAddress, SubscriberToken};
 
 /// The language whose words fill in for a language with no file.
 const FALLBACK_LANGUAGE: &str = "en";
@@ -26,6 +26,9 @@ const FILES: [(&str, &str); 2] = [
 struct Words {
     confirm_subject: String,
     confirm_text: String,
+    digest_subject: String,
+    digest_text: String,
+    footer_text: String,
     page: PageWords,
 }
 
@@ -74,6 +77,36 @@ impl NewsletterWords {
             (fill(&words.confirm_subject), fill(&words.confirm_text))
         });
         Mail::new(to, subject, text)
+    }
+
+    /// The subject and the first line of the email of new posts from the
+    /// site called `site`, in `locale`.
+    pub fn digest(&self, locale: &Locale, site: &str) -> (String, String) {
+        self.of(locale).map_or_else(Default::default, |words| {
+            (
+                words.digest_subject.replace("{site}", site),
+                words.digest_text.replace("{site}", site),
+            )
+        })
+    }
+
+    /// The end of every newsletter email from the site called `site`, in
+    /// `locale`: why the reader gets it, the `remove` link that
+    /// unsubscribes them in one click, and the site's `postal` address.
+    pub fn footer(
+        &self,
+        locale: &Locale,
+        site: &str,
+        remove: &str,
+        postal: &PostalAddress,
+    ) -> String {
+        self.of(locale).map_or_else(String::new, |words| {
+            words
+                .footer_text
+                .replace("{remove}", remove)
+                .replace("{postal}", postal.as_str())
+                .replace("{site}", site)
+        })
     }
 
     /// The words of the pages in `locale`, or in English when the language
@@ -126,6 +159,12 @@ impl SiteLinks {
     /// The page an unsubscribe link opens, with `token`.
     pub fn unsubscribe(&self, token: &SubscriberToken) -> String {
         format!("{}unsubscribe?token={}", self.base, token.expose_text())
+    }
+
+    /// The full address the sign-up form posts to, for a form on another
+    /// site.
+    pub fn subscribe(&self) -> String {
+        format!("{}subscribe", self.base)
     }
 }
 

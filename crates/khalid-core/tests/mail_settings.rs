@@ -152,6 +152,36 @@ fn refuses_a_name_on_two_lines() {
 }
 
 #[test]
+fn reads_the_postal_address_newsletters_need() {
+    let config = load(&format!("{SITE}{SMTP}"), &with(Environment::SMTP_PASSWORD)).unwrap();
+    assert_eq!(config.mail().unwrap().postal_address, None);
+    let text = format!("{SITE}{SMTP}").replace(
+        "name = \"Field Notes\"",
+        "name = \"Field Notes\"\npostal_address = \"Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK\"",
+    );
+    let config = load(&text, &with(Environment::SMTP_PASSWORD)).unwrap();
+    assert_eq!(
+        config.mail().unwrap().postal_address.as_deref(),
+        Some("Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK")
+    );
+}
+
+#[test]
+fn refuses_a_postal_address_that_is_empty_or_on_two_lines() {
+    for address in ["\"\"", "\"1 Park Row\\nLeeds\""] {
+        let text = format!("{SITE}{SMTP}").replace(
+            "name = \"Field Notes\"",
+            &format!("name = \"Field Notes\"\npostal_address = {address}"),
+        );
+        assert_eq!(
+            load(&text, &with(Environment::SMTP_PASSWORD)).unwrap_err(),
+            "site.toml, line 9, field \"postal_address\": the postal address is one line of up to 300 characters, such as Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK",
+            "{address}"
+        );
+    }
+}
+
+#[test]
 fn plain_smtp_only_to_a_private_host() {
     let plain =
         format!("{SITE}{SMTP}").replace("[mail.smtp]\n", "[mail.smtp]\nsecurity = \"none\"\n");

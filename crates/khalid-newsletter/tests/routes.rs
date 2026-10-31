@@ -11,7 +11,9 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use khalid_core::{AbsoluteUrl, Locale, Slug, SystemClock};
 use khalid_db::{Database, SubscriberTable};
-use khalid_newsletter::{MemoryMailer, Newsletter, NewsletterSite, Pages, SiteLinks, router};
+use khalid_newsletter::{
+    Lists, MemoryMailer, Newsletter, NewsletterSite, Pages, SiteLinks, router,
+};
 use tower::ServiceExt;
 
 #[cfg(test)]
@@ -35,7 +37,10 @@ async fn routes(mailer: &MemoryMailer) -> (tempfile::TempDir, Router) {
     let id = db.site(&Slug::try_new("demo").unwrap()).await.unwrap();
     let store = Arc::new(SubscriberTable::new(db, id));
     let mail = Arc::new(mailer.clone());
-    let newsletter = Newsletter::new(store, mail, Arc::new(SystemClock), site()).unwrap();
+    let weekly = Lists::new([Slug::try_new("weekly").unwrap()]);
+    let newsletter = Newsletter::new(store, mail, Arc::new(SystemClock), site())
+        .unwrap()
+        .with_lists(weekly);
     (dir, router(Pages::new(site()).unwrap(), Some(newsletter)))
 }
 
@@ -85,6 +90,25 @@ async fn the_plain_form_signs_up_and_the_link_s_button_confirms() {
     let (status, html) = ask(&app, Method::POST, "/blog/subscribe/confirm", &button).await;
     assert_eq!(status, StatusCode::OK);
     assert!(html.contains("<h1>You are subscribed</h1>"), "{html}");
+}
+
+#[tokio::test]
+async fn a_form_joins_the_newsletter_it_names_and_only_one_the_site_has() {
+    let mailer = MemoryMailer::default();
+    let (_dir, app) = routes(&mailer).await;
+    let form = "email=grace%40example.com&list=weekly";
+    let (status, html) = ask(&app, Method::POST, "/blog/subscribe", form).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("<h1>Check your inbox</h1>"), "{html}");
+    assert_eq!(mailer.sent().len(), 1);
+    let form = "email=ada%40example.com&list=made-up";
+    let (status, html) = ask(&app, Method::POST, "/blog/subscribe", form).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(
+        html.contains("<h1>There is no such newsletter</h1>"),
+        "{html}"
+    );
+    assert_eq!(mailer.sent().len(), 1, "a made-up list sent an email");
 }
 
 #[tokio::test]

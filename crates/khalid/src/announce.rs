@@ -332,7 +332,7 @@ async fn send_webhooks<R: Serialize + Sync>(
 }
 
 /// The public address of the post with identity `<language>.<slug>`.
-fn post_url(config: &Config, post: &AdminPost) -> Option<AbsoluteUrl> {
+pub(crate) fn post_url(config: &Config, post: &AdminPost) -> Option<AbsoluteUrl> {
     let (language, _) = post.id().split_once('.')?;
     let locale = config.languages().iter().find(|l| l.as_str() == language)?;
     let path = build_pages::path_of(config, locale, &format!("{}/", post.slug()));

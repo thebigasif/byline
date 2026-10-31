@@ -13,22 +13,30 @@
 
 mod confirmation;
 mod email_address;
+mod issue;
+mod lists;
 mod mail;
 mod newsletter;
 mod pages;
 mod routes;
+mod segment;
 mod store;
 mod token;
+mod welcome;
 
 pub use confirmation::{ConfirmationLinks, NewsletterWords, SiteLinks, WordsError};
 pub use email_address::{EmailAddress, ParseEmailError};
+pub use issue::{Issue, PostalAddress, SendId, SendNumbers, SendTotals, Sent};
+pub use lists::Lists;
 #[cfg(any(test, feature = "test-util"))]
 pub use mail::MemoryMailer;
 pub use mail::{Mail, MailError, Mailer};
 pub use newsletter::{Newsletter, NewsletterError, NewsletterSite};
 pub use pages::{Page, Pages};
 pub use routes::router;
+pub use segment::{Labelled, Member, Recipient, Segment};
 pub use store::{
     BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, Unsubscribed,
 };
 pub use token::{GenerateTokenError, ParseTokenError, SubscriberToken, TokenHash};
+pub use welcome::{Welcome, Welcomes};

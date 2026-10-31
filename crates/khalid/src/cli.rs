@@ -10,6 +10,9 @@ use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
 use khalid_webhooks::Event;
 
+use crate::newsletter_cli::NewsletterCommand;
+use crate::update::UpdateTarget;
+
 /// The command line.
 #[derive(Debug, Parser)]
 #[command(
@@ -204,6 +207,12 @@ pub(crate) enum Command {
         /// What to do with the webhooks
         #[command(subcommand)]
         command: WebhooksCommand,
+    },
+    /// Email posts and digests to subscribers, label them, and see the numbers
+    Newsletter {
+        /// What to do with the newsletters
+        #[command(subcommand)]
+        command: NewsletterCommand,
     },
     /// Hand Bing Webmaster Tools the sitemap, or read how Bing crawls the
     /// site. Uses the key in the `KHALID_BING_API_KEY` environment variable
@@ -520,15 +529,6 @@ pub(crate) enum Network {
     Offline,
 }
 
-/// Which version `khalid update` installs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum UpdateTarget {
-    /// The newest release.
-    Latest,
-    /// The version before the last update.
-    Previous,
-}
-
 impl Command {
     /// The command as a person types it, such as `theme sync`.
     pub(crate) fn name(&self) -> &'static str {
@@ -587,6 +587,7 @@ impl Command {
             Self::Webhooks {
                 command: WebhooksCommand::Remove { .. },
             } => "webhooks remove",
+            Self::Newsletter { command } => command.name(),
             Self::Bing {
                 command: BingCommand::Sitemap,
             } => "bing sitemap",

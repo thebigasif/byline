@@ -11,6 +11,18 @@ Sie waren es nicht? Dann ignorieren Sie diese E-Mail, und es kommt nichts mehr. 
 {remove}
 """
 
+digest_subject = "Neu bei {site}"
+digest_text = "Das ist neu bei {site} seit der letzten E-Mail."
+
+footer_text = """
+
+--
+Sie bekommen diese E-Mail, weil Sie {site} abonniert haben. Um sie abzubestellen, öffnen Sie diesen Link:
+{remove}
+
+{postal}
+"""
+
 [page]
 back = "Zurück zu {site}"
 email_label = "Ihre E-Mail-Adresse"
@@ -37,3 +49,5 @@ closed_title = "Die Anmeldung ist noch nicht offen"
 closed_text = "Diese Website kann noch keine E-Mails senden, daher wurde nichts gespeichert; versuchen Sie es an einem anderen Tag."
 failed_title = "Etwas ist schiefgegangen"
 failed_text = "Es wurde nichts gesendet, also versuchen Sie es in zehn Minuten noch einmal."
+no_list_title = "Diesen Newsletter gibt es nicht"
+no_list_text = "Dieses Formular nennt einen Newsletter, den {site} nicht hat, daher wurde nichts gespeichert; sagen Sie es dem Betreiber der Website."

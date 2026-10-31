@@ -67,6 +67,10 @@ mod miss_log;
 mod new;
 mod new_message;
 mod newsletter;
+mod newsletter_cli;
+mod newsletter_digest;
+mod newsletter_files;
+mod newsletter_send;
 mod outbound;
 mod page_counts;
 mod post_files;
@@ -220,7 +224,11 @@ fn run(cli: &Cli) -> Exit {
             bing::run(config, &environment, *command, cli)
         }
         (
-            Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
+            Some(
+                command @ (Command::Theme { .. }
+                | Command::Publish { .. }
+                | Command::Newsletter { .. }),
+            ),
             Some((folder, config, ..)),
         ) => on_settings(folder, config, command, cli),
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
@@ -237,6 +245,7 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Mcp
                 | Command::Lint { .. }
                 | Command::Publish { .. }
+                | Command::Newsletter { .. }
                 | Command::New { .. }
                 | Command::Build { .. }
                 | Command::Export
@@ -249,10 +258,11 @@ fn run(cli: &Cli) -> Exit {
     }
 }
 
-/// Runs the commands that need only a checked site's settings: `theme`
-/// and `publish`.
+/// Runs the commands that need only a checked site's settings: `theme`,
+/// `publish` and `newsletter`.
 fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
     match command {
+        Command::Newsletter { command } => newsletter_cli::run(cli, (folder, config), command),
         Command::Theme { command } => theme(folder, config, command, cli),
         Command::Publish { slug, language } => {
             publish::run(cli, (folder, config), (slug, language.as_ref()))

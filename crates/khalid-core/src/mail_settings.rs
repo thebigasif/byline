@@ -11,6 +11,7 @@ use crate::Environment;
 /// [mail]
 /// from = "news@example.com"
 /// name = "Field Notes"
+/// postal_address = "Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK"
 ///
 /// [mail.smtp]
 /// host = "smtp.example.com"
@@ -27,6 +28,9 @@ pub struct MailSettings {
     pub from: String,
     /// The name shown beside it, or `None` for the address alone.
     pub name: Option<String>,
+    /// The postal address every newsletter email ends with, as anti-spam
+    /// laws ask. Khalid refuses to send a newsletter until it is set.
+    pub postal_address: Option<String>,
     /// How the mail leaves.
     pub transport: MailTransport,
 }
@@ -113,6 +117,7 @@ struct ResendTable {}
 pub(crate) struct MailTable {
     from: String,
     name: Option<String>,
+    postal_address: Option<String>,
     smtp: Option<SmtpSettings>,
     resend: Option<ResendTable>,
     postmark: Option<PostmarkSettings>,
@@ -120,6 +125,10 @@ pub(crate) struct MailTable {
 
 /// The longest sender's name, in characters.
 const LONGEST_NAME: usize = 100;
+
+/// The longest postal address, in characters: room for a company, a street,
+/// a town, a postcode and a country.
+const LONGEST_POSTAL_ADDRESS: usize = 300;
 
 impl MailTable {
     /// The checked settings, with the secret they need in `env`, or the
@@ -140,6 +149,16 @@ impl MailTable {
             return Err((
                 "name",
                 "the sender's name is one line of up to 100 characters",
+            ));
+        }
+        if let Some(postal) = &self.postal_address
+            && (postal.trim().is_empty()
+                || postal.chars().any(char::is_control)
+                || postal.chars().count() > LONGEST_POSTAL_ADDRESS)
+        {
+            return Err((
+                "postal_address",
+                "the postal address is one line of up to 300 characters, such as Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK",
             ));
         }
         let transport = match (self.smtp, self.resend, self.postmark) {
@@ -168,6 +187,7 @@ impl MailTable {
         Ok(MailSettings {
             from: self.from,
             name: self.name,
+            postal_address: self.postal_address,
             transport,
         })
     }

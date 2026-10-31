@@ -109,11 +109,14 @@ Through the mail server your host gives you, with SMTP (the protocol mail server
 [mail]
 from = "news@example.com"
 name = "Field Notes"
+postal_address = "Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK"
 
 [mail.smtp]
 host = "smtp.example.com"
 username = "news@example.com"
 ```
+
+`postal_address` is the address where people can reach you or your business by post. Anti-spam laws ask every newsletter email to show one, so Khalid sends no newsletter until it is set; sign-up emails work without it.
 
 Khalid connects on port 587 and turns encryption on before it sends anything. Add `port = 465` and `security = "tls"` for a server that is encrypted from the start. A relay on the same machine or your own network needs `private_host = true`; only then may it use `security = "none"`.
 

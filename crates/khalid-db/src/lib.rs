@@ -29,6 +29,7 @@ mod db_error;
 mod delivery_log;
 mod key_table;
 mod link_table;
+mod newsletter_sends;
 mod not_found_table;
 mod passkey_table;
 mod posts;
@@ -41,6 +42,7 @@ mod session_table;
 mod site_id;
 mod site_keys;
 mod site_lists;
+mod subscriber_segments;
 mod subscriber_table;
 mod webhook_table;
 

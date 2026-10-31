@@ -41,7 +41,9 @@ A test reads the table below and checks it lists every table in the schema, once
 | `form_submissions` | visitor | What people sent through forms on the site |
 | `subscribers` | visitor | Newsletter subscribers, whether they confirmed, and when they left |
 | `subscriber_lists` | visitor | Which newsletters each subscriber gets, by the newsletter's name |
+| `subscriber_labels` | visitor | The labels each subscriber carries, such as paid, which make segments |
 | `subscriber_tokens` | visitor | The confirmation and unsubscribe links sent to each subscriber, as hashes of their tokens |
+| `newsletter_sends` | visitor | Each email that went out to a newsletter, under a key that stops a post going out twice, with its totals: copies sent, refused and unsubscribes from it |
 | `comments` | visitor | Comments on posts, named by the post's path so they survive a rebuild: who wrote each, a reader or staff, its text and where it stands in moderation |
 | `analytics_counts` | visitor | Page views per day, page and referrer group, counted without cookies |
 | `crawl_log` | visitor | Which bots asked for which address each day, as their user agent named them, with the latest time and status; 90 days kept |
