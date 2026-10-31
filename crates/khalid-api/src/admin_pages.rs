@@ -1,8 +1,8 @@
 //! The Admin API's page routes: the site's pages, such as About (plan
 //! section 5.12, KH-API-2).
 
-use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
+use axum::extract::{OriginalUri, Path, State};
 use axum::http::header::LOCATION;
 use axum::http::{HeaderName, StatusCode};
 use axum::{Extension, Json, middleware};
@@ -18,7 +18,7 @@ use crate::api_version::negotiate_version;
 use crate::entry_store::Entry;
 use crate::keys::{Principal, Scope};
 use crate::problem::Problem;
-use crate::resources::{AdminPage, NewPage};
+use crate::resources::{AdminPage, NewPage, PageEdit};
 
 /// How messages name a page.
 const PAGE: Noun = Noun {
@@ -32,6 +32,7 @@ const PAGE: Noun = Noun {
 pub(crate) fn routes(pages: Kept<AdminPage>, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_pages, create_page))
+        .routes(routes!(read_page, edit_page))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(pages)
@@ -64,6 +65,31 @@ async fn list_pages(
     let listed = PAGE.store(pages.as_deref())?.list().await;
     let pages = listed.map_err(|error| Problem::internal(&error))?;
     Ok(Json(AdminPages { pages }))
+}
+
+/// Reads one page. Needs `posts:write`.
+#[utoipa::path(
+    get, path = "/pages/{id}/", tag = "admin pages",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The language and slug, such as en.about")),
+    responses(
+        (status = 200, description = "The page", body = AdminPages),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No page has this identity, or this server keeps no pages", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn read_page(
+    State(pages): State<Kept<AdminPage>>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<Json<AdminPages>, Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let found = PAGE.store(pages.as_deref())?.get(&id).await;
+    let page = found.map_err(|error| Problem::internal(&error))?;
+    let page = page.ok_or_else(|| PAGE.missing(uri.path()))?;
+    Ok(Json(AdminPages { pages: vec![page] }))
 }
 
 /// A new page, wrapped the way the Admin API wraps pages: exactly one.
@@ -106,6 +132,46 @@ async fn create_page(
         [(LOCATION, location)],
         Json(AdminPages { pages }),
     ))
+}
+
+/// An edit, wrapped the way the Admin API wraps pages: exactly one.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PageEdits {
+    /// The one edit.
+    pages: Vec<PageEdit>,
+}
+
+/// Edits one page: only the fields sent change. The edit carries the
+/// `updated_at` of the copy it was made on; when the page changed since,
+/// the answer is a 409 (RULES.md BL-API-7). Needs `posts:publish`.
+#[utoipa::path(
+    put, path = "/pages/{id}/", tag = "admin pages",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The language and slug, such as en.about")),
+    request_body = PageEdits,
+    responses(
+        (status = 200, description = "The page as saved", body = AdminPages),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:publish", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No page has this identity, or this server keeps no pages", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The page changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, or the title is empty", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn edit_page(
+    State(pages): State<Kept<AdminPage>>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Json<PageEdits>, JsonRejection>,
+) -> Result<Json<AdminPages>, Problem> {
+    require(&principal, Scope::PostsPublish)?;
+    let edit = PAGE.one(PAGE.body(body)?.pages)?;
+    edit.title().map(titled).transpose()?;
+    let saved = PAGE.store(pages.as_deref())?.update(&id, edit).await;
+    let page = saved.map_err(|error| PAGE.problem(error, uri.path()))?;
+    Ok(Json(AdminPages { pages: vec![page] }))
 }
 
 /// Refuses an empty title.

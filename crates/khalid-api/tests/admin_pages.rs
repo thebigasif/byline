@@ -167,3 +167,62 @@ async fn a_server_without_pages_answers_404_naming_why() {
         "{json}"
     );
 }
+
+/// When About last changed, as an edit names it.
+const LAST_CHANGE: &str = "2026-10-20T09:00:00Z";
+
+#[tokio::test]
+async fn one_page_is_read_by_its_identity() {
+    let router = with_about();
+    let about = "/api/admin/v1/pages/en.about/";
+    let (status, json) = send(&router, "GET", about, WRITER, None).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["pages"][0]["markdown"], "Who writes here.", "{json}");
+    let nothing = "/api/admin/v1/pages/en.nothing/";
+    let (status, json) = send(&router, "GET", nothing, WRITER, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
+    assert_eq!(json["instance"], nothing, "{json}");
+}
+
+#[tokio::test]
+async fn an_edit_on_the_latest_copy_changes_only_what_it_sends() {
+    let router = with_about();
+    let about = "/api/admin/v1/pages/en.about/";
+    let edit = json!({"pages": [{"title": "About us", "updated_at": LAST_CHANGE}]});
+    let (status, json) = send(&router, "PUT", about, EDITOR, Some(edit)).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["pages"][0]["title"], "About us", "{json}");
+    assert_eq!(json["pages"][0]["markdown"], "Who writes here.", "{json}");
+    assert_eq!(json["pages"][0]["updated_at"], "2026-10-27T09:00:00Z");
+}
+
+#[tokio::test]
+async fn a_stale_edit_is_a_409_and_changes_nothing() {
+    let router = with_about();
+    let about = "/api/admin/v1/pages/en.about/";
+    let edit = json!({"pages": [{"title": "Lost", "updated_at": "2026-10-19T09:00:00Z"}]});
+    let (status, json) = send(&router, "PUT", about, EDITOR, Some(edit)).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert_eq!(json["rule"], "updated_at", "{json}");
+    let (_, json) = send(&router, "GET", about, EDITOR, None).await;
+    assert_eq!(json["pages"][0]["title"], "About Field Notes", "{json}");
+}
+
+#[tokio::test]
+async fn an_edit_that_cannot_be_kept_is_refused() {
+    let router = with_about();
+    let about = "/api/admin/v1/pages/en.about/";
+    let blank = json!({"pages": [{"title": " ", "updated_at": LAST_CHANGE}]});
+    let (status, json) = send(&router, "PUT", about, EDITOR, Some(blank)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+    assert_eq!(json["rule"], "title", "{json}");
+    let undated = json!({"pages": [{"title": "About us"}]});
+    let (status, _) = send(&router, "PUT", about, EDITOR, Some(undated)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let edit = json!({"pages": [{"title": "About us", "updated_at": LAST_CHANGE}]});
+    let (status, json) = send(&router, "PUT", about, WRITER, Some(edit.clone())).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    let missing = "/api/admin/v1/pages/en.nothing/";
+    let (status, _) = send(&router, "PUT", missing, EDITOR, Some(edit)).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

@@ -1100,6 +1100,186 @@
         ]
       }
     },
+    "/api/admin/v1/pages/{id}/": {
+      "get": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Reads one page. Needs `posts:write`.",
+        "operationId": "read_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.about",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No page has this identity, or this server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Edits one page: only the fields sent change. The edit carries the\n`updated_at` of the copy it was made on; when the page changed since,\nthe answer is a 409 (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "edit_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.about",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The page as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No page has this identity, or this server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The page changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the title is empty",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "get": {
         "tags": [
@@ -7521,6 +7701,59 @@
       "NonBlank": {
         "type": "string",
         "description": "Text with something in it other than spaces."
+      },
+      "PageEdit": {
+        "type": "object",
+        "description": "A change to a page: only the fields sent change.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new description; an empty one removes it."
+          },
+          "markdown": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new body, in markdown."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new title."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PageEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps pages: exactly one.",
+        "required": [
+          "pages"
+        ],
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PageEdit"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
       },
       "Pages": {
         "type": "object",
