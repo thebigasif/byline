@@ -25,8 +25,8 @@ use crate::resources::MediaItems;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_calendar, admin_comments, admin_draft_comments, admin_not_found,
-    admin_redirect_csv, admin_redirects, admin_webhooks, api_version, content_api,
+    admin_api, admin_calendar, admin_comments, admin_draft_comments, admin_draft_threads,
+    admin_not_found, admin_redirect_csv, admin_redirects, admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -305,6 +305,11 @@ fn assemble(
     let mut admin = admin_api::routes(Arc::clone(&posts), door.clone())
         .merge(admin_calendar::routes(Arc::clone(&posts), door.clone()))
         .merge(admin_draft_comments::routes(
+            Arc::clone(&posts),
+            desks.draft_comments.clone(),
+            door.clone(),
+        ))
+        .merge(admin_draft_threads::routes(
             posts,
             desks.draft_comments,
             door.clone(),

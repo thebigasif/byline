@@ -34,7 +34,10 @@ pub(crate) fn routes(
     keys: AdminDoor,
 ) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(add_draft_comment))
+        .routes(routes!(
+            crate::admin_draft_threads::list_draft_comments,
+            add_draft_comment
+        ))
         .route_layer(middleware::from_fn_with_state(keys, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state((door, comments))

@@ -155,3 +155,46 @@ async fn bad_comments_are_refused_with_what_to_send() {
         "a refused comment tells nobody"
     );
 }
+
+/// The texts of the post's comments, in the order the list sends them,
+/// and whether the first is resolved.
+#[cfg(test)]
+async fn listed(router: &Router) -> (Vec<String>, bool) {
+    let (status, json) = send(router, WRITER, "GET", COMMENTS, None).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    let all = json["draft_comments"].as_array().unwrap();
+    let texts = all.iter().map(|c| c["text"].as_str().unwrap().to_owned());
+    (texts.collect(), all[0]["resolved"] == true)
+}
+
+#[tokio::test]
+async fn threads_list_together_and_resolve_by_their_first_comment() {
+    let (router, _) = site();
+    for (token, body) in [
+        (EDITOR, json!({"text": "Shorter title?"})),
+        (EDITOR, json!({"text": "Good start."})),
+        (WRITER, json!({"text": "Yes.", "parent": 1})),
+    ] {
+        let body = Some(json!({"draft_comments": [body]}));
+        send(&router, token, "POST", COMMENTS, body).await;
+    }
+    let order = ["Shorter title?", "Yes.", "Good start."];
+    assert_eq!(
+        listed(&router).await,
+        (order.map(str::to_owned).to_vec(), false)
+    );
+    let thread = |id: u8| format!("{COMMENTS}{id}/");
+    let resolve = |resolved| Some(json!({"draft_comments": [{"resolved": resolved}]}));
+    let (status, json) = send(&router, WRITER, "PUT", &thread(1), resolve(true)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{json}");
+    assert!(listed(&router).await.1);
+    let (status, _) = send(&router, WRITER, "PUT", &thread(1), resolve(false)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert!(!listed(&router).await.1);
+    let (status, json) = send(&router, WRITER, "PUT", &thread(3), resolve(true)).await;
+    assert_eq!(
+        status,
+        StatusCode::NOT_FOUND,
+        "a reply begins no thread: {json}"
+    );
+}

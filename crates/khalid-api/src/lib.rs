@@ -11,6 +11,7 @@ pub mod admin_calendar;
 mod admin_comments;
 mod admin_delete;
 mod admin_draft_comments;
+mod admin_draft_threads;
 mod admin_key;
 mod admin_not_found;
 mod admin_redirect_csv;
