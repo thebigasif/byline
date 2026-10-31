@@ -10,6 +10,8 @@ use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
 use khalid_webhooks::Event;
 
+use crate::newsletter_cli::NewsletterCommand;
+
 /// The command line.
 #[derive(Debug, Parser)]
 #[command(
@@ -188,6 +190,12 @@ pub(crate) enum Command {
         /// What to do with the webhooks
         #[command(subcommand)]
         command: WebhooksCommand,
+    },
+    /// Label subscribers and count the segments they make
+    Newsletter {
+        /// What to do with the newsletters
+        #[command(subcommand)]
+        command: NewsletterCommand,
     },
 }
 
@@ -553,6 +561,7 @@ impl Command {
             Self::Webhooks {
                 command: WebhooksCommand::Remove { .. },
             } => "webhooks remove",
+            Self::Newsletter { command } => command.name(),
         }
     }
 }
