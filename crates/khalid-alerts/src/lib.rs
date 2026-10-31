@@ -9,5 +9,7 @@
 //! Sending is the binary's; this crate reads nothing and sends nothing.
 
 mod alert;
+mod checks;
 
 pub use alert::{Alert, Finding, Kind};
+pub use checks::{LivePost, ServedCertificate, certificate, not_found_spike, stale_posts};
