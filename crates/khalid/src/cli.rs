@@ -299,6 +299,11 @@ pub(crate) struct ServeArgs {
     #[cfg(feature = "test-util")]
     #[arg(long, hide = true, value_name = "SECONDS")]
     pub(crate) alert_every: Option<u64>,
+    /// Test builds only: look at the public address this many seconds
+    /// apart, even when answering on loopback.
+    #[cfg(feature = "test-util")]
+    #[arg(long, hide = true, value_name = "SECONDS")]
+    pub(crate) watch_every: Option<u64>,
 }
 
 /// What `khalid init` takes. Each flag answers one of the four questions, and

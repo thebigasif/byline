@@ -64,7 +64,7 @@ pub(crate) fn serve(
     match listen(cli, config.mode(), args) {
         Ok(listen) => {
             let to = (&listen, outbound::client(cli), keys);
-            let every = alert_watch::every(args);
+            let every = alert_watch::every(args, config);
             serve::run(site, (config, routes), start, to, (cli.output, every))
         }
         Err(message) => report::failure(cli.output, &message, Exit::Failure),
