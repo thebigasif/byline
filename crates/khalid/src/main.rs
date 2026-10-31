@@ -81,6 +81,7 @@ mod media_library;
 mod memory;
 mod miss_log;
 mod new;
+mod new_author;
 mod new_message;
 mod new_template;
 mod newsletter;

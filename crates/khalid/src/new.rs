@@ -12,6 +12,7 @@ use serde::Serialize;
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::init::quoted;
+use crate::new_author::{self, Byline};
 use crate::new_template::{self, Template};
 use crate::{atomic, new_message, report};
 
@@ -28,6 +29,11 @@ pub(crate) struct NewArgs {
     /// read as that kind, such as "Ahrefs vs Semrush" for a comparison
     #[arg(long, value_name = "KIND")]
     pub(crate) template: Option<Template>,
+    /// The writer's name, such as "Sam Lee". Khalid makes their profile in
+    /// `content/<language>/authors/` when there is none. Left out, the post
+    /// names the language's only author, if it has one
+    #[arg(long, value_name = "NAME")]
+    pub(crate) author: Option<String>,
 }
 
 /// What `new` writes in.
@@ -39,6 +45,9 @@ pub(crate) struct NewPost<'a> {
     pub(crate) language: Option<&'a Locale>,
     /// The kind of post from `--template`, or `None` for an empty body.
     pub(crate) template: Option<Template>,
+    /// The writer's name from `--author`, or `None` to take the language's
+    /// only profile.
+    pub(crate) author: Option<&'a str>,
 }
 
 impl<'a> From<&'a NewArgs> for NewPost<'a> {
@@ -47,6 +56,7 @@ impl<'a> From<&'a NewArgs> for NewPost<'a> {
             title: &args.title,
             language: args.language.as_ref(),
             template: args.template,
+            author: args.author.as_deref(),
         }
     }
 }
@@ -59,6 +69,9 @@ struct NewBody<'a> {
     slug: &'a str,
     language: &'a str,
     date: String,
+    author: Option<&'a str>,
+    /// The author profile `new` made, relative to the site.
+    profile: Option<&'a str>,
 }
 
 /// Writes a new post in the `site` folder, dated today by `clock`, into
@@ -90,20 +103,32 @@ pub(crate) fn run(
             starter
         }
     };
-    let text = post_text(title, &slug, &date, &tail);
+    let byline = match new_author::choose(site, config, locale, post.author) {
+        Ok(byline) => byline,
+        Err(message) => return report::failure(output, &message, Exit::Failure),
+    };
+    let text = post_text(title, (&slug, byline.slug()), &date, &tail);
     let posts = format!("content/{locale}/posts");
     let name = format!("{date}-{slug}.md");
     let relative = format!("{posts}/{name}");
     match write(site, &posts, &name, &text) {
         Ok(()) => {
+            // The profile is made only once the post is written, so a
+            // refused post leaves nothing behind.
+            let profile = match new_author::make_profile(site, locale, &byline) {
+                Ok(profile) => profile,
+                Err(message) => return report::failure(output, &message, Exit::Failure),
+            };
             let body = NewBody {
                 path: &relative,
                 title,
                 slug: slug.as_str(),
                 language: locale.as_str(),
                 date,
+                author: byline.slug().map(Slug::as_str),
+                profile: profile.as_deref(),
             };
-            success(output, site, &body)
+            success(output, site, &body, &byline)
         }
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
             report::failure(output, &new_message::exists(&relative), Exit::Failure)
@@ -119,37 +144,44 @@ pub(crate) fn run(
 /// The front matter's closing line and an empty body.
 const EMPTY_BODY: &str = "---\n\n";
 
-/// The text of a new post: its front matter fields, then `tail`, which
-/// closes the front matter and holds the body: [`EMPTY_BODY`], or a
-/// starter whose guidance sits in comments above the closing line.
-fn post_text(title: &str, slug: &Slug, date: &str, tail: &str) -> String {
+/// The text of a new post: its front matter fields, with `author` when one
+/// was chosen, then `tail`, which closes the front matter and holds the
+/// body: [`EMPTY_BODY`], or a starter whose guidance sits in comments above
+/// the closing line.
+fn post_text(
+    title: &str,
+    (slug, author): (&Slug, Option<&Slug>),
+    date: &str,
+    tail: &str,
+) -> String {
+    let author = author.map_or_else(String::new, |author| {
+        format!("author: {}\n", quoted(author.as_str()))
+    });
     format!(
-        "---\ntitle: {}\nslug: {}\ndate: {date}\n{tail}",
+        "---\ntitle: {}\nslug: {}\ndate: {date}\n{author}{tail}",
         quoted(title),
         quoted(slug.as_str())
     )
 }
 
-/// Makes the `posts` folder in `site` when missing, then writes `text` to the
-/// new file `name` in it, atomically (RULES.md BL-RUN-9).
-fn write(site: &Path, posts: &str, name: &str, text: &str) -> io::Result<()> {
-    let mut folder = site.to_path_buf();
-    folder.push(posts);
-    fs::create_dir_all(&folder)?;
-    atomic::create(&folder, name, text)
+/// Makes the `folder` in `site` when missing, then writes `text` to the new
+/// file `name` in it, atomically (RULES.md BL-RUN-9).
+pub(crate) fn write(site: &Path, folder: &str, name: &str, text: &str) -> io::Result<()> {
+    let mut path = site.to_path_buf();
+    path.push(folder);
+    fs::create_dir_all(&path)?;
+    atomic::create(&path, name, text)
 }
 
-/// Says what `new` wrote and what to do next.
-fn success(output: Output, site: &Path, body: &NewBody<'_>) -> Exit {
+/// Says what `new` wrote, who it names as the author, and what to do next.
+fn success(output: Output, site: &Path, body: &NewBody<'_>, byline: &Byline<'_>) -> Exit {
     match output {
-        Output::Human => report::text(
-            &format!(
-                "Wrote {} in {}.\nOpen it and write the post below the front matter.\n",
-                body.path,
-                site.display()
-            ),
-            Exit::Success,
-        ),
+        Output::Human => {
+            let mut said = format!("Wrote {} in {}.\n", body.path, site.display());
+            said.push_str(&new_message::byline(byline, body.profile));
+            said.push_str("Open it and write the post below the front matter.\n");
+            report::text(&said, Exit::Success)
+        }
         Output::Json => report::json(body, Exit::Success),
     }
 }
@@ -166,10 +198,12 @@ mod tests {
     fn the_post_text_reads_back_with_the_same_fields() {
         let title = "Links: \"why\" \\ how\u{7}";
         let slug = Slug::try_new("links-why-how").unwrap();
-        let text = post_text(title, &slug, "2026-10-26", EMPTY_BODY);
+        let author = Slug::try_new("sam-lee").unwrap();
+        let text = post_text(title, (&slug, Some(&author)), "2026-10-26", EMPTY_BODY);
         let post = parse_post(Path::new("post.md"), &text).unwrap();
         assert_eq!(post.front.title.as_deref(), Some(title));
         assert_eq!(post.front.slug, Some(slug));
+        assert_eq!(post.front.author, Some(author));
         assert_eq!(post.front.date.unwrap().to_string(), "2026-10-26");
         assert_eq!(post.body.trim(), "");
     }
