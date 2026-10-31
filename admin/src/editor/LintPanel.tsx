@@ -1,13 +1,21 @@
 import { en } from "../strings/en";
-import type { Finding } from "./lint";
+import type { Finding, Score } from "./lint";
 
-type Props = { findings: Finding[] };
+type Props = { findings: Finding[]; score: Score | null };
 
-/** The linter's findings beside the post, each saying what, why and fix. */
-export function LintPanel({ findings }: Props) {
+/** The linter's findings beside the post, each saying what, why and fix, under the score. */
+export function LintPanel({ findings, score }: Props) {
   return (
     <aside className="checks" aria-labelledby="checks-title">
       <h2 id="checks-title">{en.editor.checks}</h2>
+      {score === null ? null : (
+        <div className="score">
+          <b aria-hidden="true">{score.value}</b>
+          <p>
+            <strong>{en.editor.score(score.value)}</strong> {en.editor.scoreWhy(score.lost)}
+          </p>
+        </div>
+      )}
       {findings.length === 0 ? <p className="hint">{en.editor.noChecks}</p> : null}
       {findings.map((finding) => {
         const block = finding.severity === "block";
