@@ -16,7 +16,9 @@ test-util = []
 axum = { version = "0.8", default-features = false, features = ["form", "query"] }
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 getrandom = "0.4"
+hmac = "0.13"
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
+percent-encoding = "2"
 serde.workspace = true
 sha2 = "0.11"
 thiserror.workspace = true

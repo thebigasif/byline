@@ -65,8 +65,8 @@ pub(crate) fn lock(
                 .map(|doc| &doc.front);
             if let Some(lock) = front.and_then(Lock::of) {
                 if let Lock::Password(hash) = &lock {
-                    let (page, hash) = (page.clone(), hash.clone());
-                    unlocked.push(Unlocked { page, hash });
+                    let (page, key) = (page.clone(), Key::Password(hash.clone()));
+                    unlocked.push(Unlocked { page, key });
                 }
                 let words = Words {
                     renderer,
@@ -78,12 +78,21 @@ pub(crate) fn lock(
     }
 }
 
-/// The full page of a password post, kept for a reader who gave the
-/// password, with the hash of that password.
+/// The full page of a post, kept for a reader who holds its key.
 #[derive(Debug, Clone)]
 pub(crate) struct Unlocked {
     pub(crate) page: Page,
-    pub(crate) hash: PasswordHash,
+    pub(crate) key: Key,
+}
+
+/// What opens a full page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Key {
+    /// The password this hash was made from, for a password post.
+    Password(PasswordHash),
+    /// The reader cookie a confirmed subscriber holds, for a post with
+    /// gated content.
+    Reader,
 }
 
 /// The folder at the site's root that holds the full pages of password

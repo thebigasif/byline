@@ -1,0 +1,7 @@
+---
+source: crates/khalid-content/tests/blocks_subscribe.rs
+expression: page.html
+---
+<section class="gated gated-open">
+<p>The <strong>secret</strong> checklist, with <a href="/guides/secret/">a link</a>.</p>
+</section>

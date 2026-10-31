@@ -3,7 +3,7 @@
 
 use serde::Deserialize;
 
-use crate::{NewsletterSite, NewsletterWords, WordsError};
+use crate::{BackPath, NewsletterSite, NewsletterWords, WordsError};
 
 /// One language's words for the pages. `{site}` stands for the site's name.
 #[derive(Debug, Clone, Deserialize)]
@@ -47,7 +47,12 @@ pub enum Page<'a> {
     /// A confirmation link was opened: one button confirms, with this
     /// token. Opening a link never changes anything by itself, since mail
     /// programs open links to scan them.
-    Confirm(&'a str),
+    Confirm {
+        /// The token the button posts.
+        token: &'a str,
+        /// The page the reader comes back to, posted with the token.
+        back: Option<&'a BackPath>,
+    },
     /// The subscriber is confirmed.
     Confirmed,
     /// The confirmation link is too old; the form again.
@@ -100,19 +105,17 @@ impl Pages {
         let (title, text, form) = match page {
             Page::Check => (&w.check_title, &w.check_text, String::new()),
             Page::WrongEmail => (&w.wrong_email_title, &w.wrong_email_text, sign_up()),
-            Page::Confirm(token) => {
-                let form = button_form(
-                    &format!("{mount}subscribe/confirm"),
-                    token,
-                    &w.confirm_button,
-                );
+            Page::Confirm { token, back } => {
+                let action = format!("{mount}subscribe/confirm");
+                let form = button_form(&action, (token, back), &w.confirm_button);
                 (&w.confirm_title, &w.confirm_text, form)
             }
             Page::Confirmed => (&w.confirmed_title, &w.confirmed_text, String::new()),
             Page::Expired => (&w.expired_title, &w.expired_text, sign_up()),
             Page::Unknown => (&w.unknown_title, &w.unknown_text, sign_up()),
             Page::Leave(token) => {
-                let form = button_form(&format!("{mount}unsubscribe"), token, &w.leave_button);
+                let action = format!("{mount}unsubscribe");
+                let form = button_form(&action, (token, None), &w.leave_button);
                 (&w.leave_title, &w.leave_text, form)
             }
             Page::Left => (&w.left_title, &w.left_text, String::new()),
@@ -145,11 +148,18 @@ fn sign_up_form(w: &PageWords, mount: &str) -> String {
     )
 }
 
-/// A form of one button that posts `token` to `action`.
-fn button_form(action: &str, token: &str, button: &str) -> String {
+/// A form of one button that posts `token`, and `back` when there is one,
+/// to `action`.
+fn button_form(action: &str, (token, back): (&str, Option<&BackPath>), button: &str) -> String {
+    let back = back.map_or_else(String::new, |back| {
+        format!(
+            "<input type=\"hidden\" name=\"back\" value=\"{}\">\n",
+            escape(back.as_str())
+        )
+    });
     format!(
         "<form method=\"post\" action=\"{}\">\n<input type=\"hidden\" name=\"token\" value=\"{}\">\n\
-         <p><button type=\"submit\">{}</button></p>\n</form>\n",
+         {back}<p><button type=\"submit\">{}</button></p>\n</form>\n",
         escape(action),
         escape(token),
         escape(button)

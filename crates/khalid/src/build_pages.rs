@@ -8,7 +8,8 @@ use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::{
-    AuthorFront, Document, LeadImage, PostFront, Rendered, SiteContent, Wikilinks, render_linked,
+    AuthorFront, Document, Gated, LeadImage, PostFront, Rendered, SiteContent, Wikilinks,
+    render_gated, render_linked,
 };
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
@@ -180,7 +181,11 @@ fn post_pages(
         let (title, slug) = named(config, doc, front.slug.as_ref(), front.title.as_deref())?;
         let entry = PostAddress::new(&doc.collection, locale, &slug, Some(date));
         let rest = routed(config, routes, locale, &entry, &doc.path)?;
-        let mut rendered = render_linked(&doc.body, &doc.locale, config.slugs(), links)
+        let back = Some(path_of(config, locale, &rest));
+        let gated = Gated::Locked {
+            back: back.as_deref(),
+        };
+        let mut rendered = render_gated(&doc.body, &doc.locale, config.slugs(), links, gated)
             .map_err(|error| build_message::block(&doc.path, &error))?;
         rendered.html = build_seo::with_link_policy(config, mem::take(&mut rendered.html));
         drafts.push(Draft {

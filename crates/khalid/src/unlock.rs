@@ -18,12 +18,13 @@ use axum::routing::post;
 use khalid_api::post_password::password_matches;
 use khalid_api::unlock::UnlockSigner;
 use khalid_core::{Clock, Config, PasswordHash};
+use khalid_newsletter::ReaderPass;
 use percent_encoding::percent_decode_str;
 use serde::Deserialize;
 use tower::ServiceExt;
 
 use crate::build_pages::LanguagePages;
-use crate::post_lock::{UNLOCK_FOLDER, UNLOCKED_FOLDER, hidden};
+use crate::post_lock::{Key, UNLOCK_FOLDER, UNLOCKED_FOLDER, hidden};
 
 /// The most a form may send: an address and a password.
 const BODY_LIMIT: usize = 4 * 1024;
@@ -35,26 +36,27 @@ const TRIES_PER_MINUTE: u32 = 10;
 /// The largest locked page read back to show its alert.
 const PAGE_LIMIT: usize = 4 * 1024 * 1024;
 
-/// The password posts of the last full render: each one's address, its
-/// file and its password's hash. Cloning shares it.
+/// The password posts and the posts with gated content of the last full
+/// render: each one's address, its file and what opens it. Cloning shares
+/// it.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Gate(Arc<Mutex<BTreeMap<String, (PathBuf, PasswordHash)>>>);
+pub(crate) struct Gate(Arc<Mutex<BTreeMap<String, (PathBuf, Key)>>>);
 
 impl Gate {
-    /// Takes the password posts of `languages` in place of the old ones.
+    /// Takes the locked posts of `languages` in place of the old ones.
     pub(crate) fn replace(&self, languages: &[LanguagePages]) {
         let posts = languages.iter().flat_map(|language| &language.unlocked);
         let entries = posts.filter_map(|unlocked| {
             let source = unlocked.page.source.clone()?;
             Some((
                 unlocked.page.meta.path.clone(),
-                (source, unlocked.hash.clone()),
+                (source, unlocked.key.clone()),
             ))
         });
         *self.0.lock().unwrap_or_else(PoisonError::into_inner) = entries.collect();
     }
 
-    /// Whether the post file `source` is a password post now.
+    /// Whether the post file `source` has a full page kept now.
     pub(crate) fn guards(&self, source: &std::path::Path) -> bool {
         let posts = self.0.lock().unwrap_or_else(PoisonError::into_inner);
         posts.values().any(|(file, _)| file == source)
@@ -62,8 +64,16 @@ impl Gate {
 
     /// The hash of the password of the post at `path`, if it has one.
     fn hash(&self, path: &str) -> Option<PasswordHash> {
+        match self.key(path) {
+            Some(Key::Password(hash)) => Some(hash),
+            _ => None,
+        }
+    }
+
+    /// What opens the full page of the post at `path`, if it has one.
+    fn key(&self, path: &str) -> Option<Key> {
         let posts = self.0.lock().unwrap_or_else(PoisonError::into_inner);
-        posts.get(path).map(|(_, hash)| hash.clone())
+        posts.get(path).map(|(_, key)| key.clone())
     }
 }
 
@@ -71,6 +81,8 @@ impl Gate {
 struct Unlock {
     gate: Gate,
     signer: UnlockSigner,
+    /// Checks the reader cookie of confirmed subscribers.
+    reader: ReaderPass,
     /// The site's page router, which answers with every security header.
     pages: Router,
     clock: Box<dyn Clock>,
@@ -79,11 +91,12 @@ struct Unlock {
 }
 
 /// `pages`, the site's page router, with the password form's route at
-/// `<mount>_unlock/` and the cookie check in front of every page.
+/// `<mount>_unlock/` and the cookie checks in front of every page: the
+/// password cookie `signer` made, and the reader cookie `reader` made.
 pub(crate) fn router(
     config: &Config,
     gate: Gate,
-    signer: UnlockSigner,
+    (signer, reader): (UnlockSigner, ReaderPass),
     pages: Router,
     clock: impl Clock + 'static,
 ) -> Router {
@@ -91,6 +104,7 @@ pub(crate) fn router(
     let unlock = Arc::new(Unlock {
         gate,
         signer,
+        reader,
         pages: pages.clone(),
         clock: Box::new(clock),
         tries: Mutex::default(),
@@ -167,9 +181,11 @@ impl Unlock {
 }
 
 /// Answers a request for a page: a hidden full page asked for from
-/// outside gets 404, a password post asked for with its cookie gets its
-/// full page, never kept by any shared cache, and the rest go on as they
-/// came.
+/// outside gets 404, a password post asked for with its cookie, or a post
+/// with gated content asked for with the reader cookie, gets its full
+/// page, never kept by any shared cache, and the rest go on as they came.
+/// A locked page says it varies by cookie, so no cache hands it to a
+/// reader who holds one.
 async fn let_in(State(unlock): State<Arc<Unlock>>, mut request: Request, next: Next) -> Response {
     // The pages are looked up by the decoded path, so the checks read it
     // decoded too: /%5Funlocked/ is /_unlocked/.
@@ -185,12 +201,22 @@ async fn let_in(State(unlock): State<Arc<Unlock>>, mut request: Request, next: N
         .headers()
         .get(header::COOKIE)
         .and_then(|v| v.to_str().ok());
-    let opens = match (reads, cookies, unlock.gate.hash(&path)) {
-        (true, Some(cookies), Some(hash)) => unlock.signer.opens(cookies, &path, &hash),
+    let key = unlock.gate.key(&path);
+    let locked = key.is_some();
+    let opens = match (reads, cookies, key) {
+        (true, Some(cookies), Some(Key::Password(hash))) => {
+            unlock.signer.opens(cookies, &path, &hash)
+        }
+        (true, Some(cookies), Some(Key::Reader)) => unlock.reader.admits(cookies),
         _ => false,
     };
     if !opens {
-        return next.run(request).await;
+        let mut response = next.run(request).await;
+        if locked {
+            let vary = HeaderValue::from_static("cookie");
+            response.headers_mut().append(header::VARY, vary);
+        }
+        return response;
     }
     if let Ok(uri) = Uri::try_from(hidden(&path)) {
         *request.uri_mut() = uri;

@@ -30,8 +30,8 @@ use crate::site_page::{HeadNonce, served_at};
 use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
-    categories, content_message, post_files, post_lock, search_page, serve_message, share_images,
-    site_files, site_outline,
+    categories, content_message, post_files, post_gate, post_lock, search_page, serve_message,
+    share_images, site_files, site_outline,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -392,6 +392,7 @@ impl SitePages {
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
         let beside = post_files::served(folder, config, assets, &mut languages, shown)?;
+        post_gate::open(config, routes, content, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let default_tokens = Tokens::default();
         let tokens = theme.as_ref().map_or(&default_tokens, |t| &t.tokens);
@@ -590,10 +591,11 @@ impl Render for SitePages {
         let (Some(assets), Some((saved, others))) = (kept, self.saved_posts(files)) else {
             return Ok(None);
         };
-        // A post that is or was locked changes the password posts the
-        // form checks, which only the full render keeps.
+        // A post that is or was locked or gated changes the posts the
+        // gate checks, which only the full render keeps.
         let locked = |doc: &Document<PostFront>| {
-            post_lock::Lock::of(&doc.front).is_some() || self.0.gate.guards(&doc.path)
+            let gated = doc.body.contains(":::gated");
+            post_lock::Lock::of(&doc.front).is_some() || gated || self.0.gate.guards(&doc.path)
         };
         if saved.posts.iter().any(locked) {
             return Ok(None);

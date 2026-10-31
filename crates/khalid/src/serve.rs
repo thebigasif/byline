@@ -150,7 +150,7 @@ fn serve_with(
     };
     let to = (site, config, listen, alert_every);
     let (newsletters, alerting) =
-        mail_and_alerts(to, (database, id), &content, (keys.mail, outbound))?;
+        mail_and_alerts(to, (database, id, runtime), &content, (keys.mail, outbound))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
@@ -213,14 +213,14 @@ fn serve_with(
 /// The alert checks run `every` so often.
 fn mail_and_alerts(
     (site, config, listen, every): (&Path, &Config, &Listen, Duration),
-    (database, id): (&Database, SiteId),
+    (database, id, runtime): (&Database, SiteId, &Runtime),
     content: &LiveContent,
     (secret, outbound): (Option<Secret<String>>, &Outbound),
 ) -> Result<(Router, alert_watch::Ready), (UserMessage, Exit)> {
     let internal = |message| (message, Exit::Internal);
     let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
     let newsletters =
-        newsletter::router(config, (database, id), mailer.clone()).map_err(internal)?;
+        newsletter::router(config, (database, id, runtime), mailer.clone()).map_err(internal)?;
     let sources = alert_watch::Sources {
         misses: Arc::new(NotFoundTable::new(database.clone(), id)),
         content: content.clone(),
@@ -359,8 +359,9 @@ async fn publish_door(
 }
 
 /// `pages`, the site's page router, with the password form and the cookie
-/// check of `source`'s password posts. The cookies are signed with the
-/// site's preview key under their own label, and marked `Secure` when the
+/// checks of `source`'s password posts and posts with gated content. The
+/// cookies are signed with the site's preview key, each under its own
+/// label, and marked `Secure` when the
 /// site's address is `https`.
 async fn unlocking(
     (site, config): (&Path, &Config),
@@ -377,10 +378,11 @@ async fn unlocking(
         Transport::Http
     };
     let signer = UnlockSigner::new(&key, transport, SystemClock);
+    let reader = newsletter::reader_pass(config, &key);
     Ok(unlock::router(
         config,
         source.gate(),
-        signer,
+        (signer, reader),
         pages,
         SystemClock,
     ))
