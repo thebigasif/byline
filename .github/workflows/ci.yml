@@ -203,6 +203,61 @@ jobs:
             target/demo-check/serve.log
           if-no-files-found: ignore
 
+  # Getting and renewing a certificate, against pebble, Let's Encrypt's own
+  # test server (task 5.13, gap audit 2 G35). The tests in
+  # crates/khalid-https/tests/pebble.rs are ignored elsewhere because they
+  # need pebble running; this job starts it as their first lines say.
+  # On pull requests only, and not a required check.
+  https:
+    name: HTTPS against pebble
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      PEBBLE_VERSION: v2.9.0
+    steps:
+      - uses: actions/checkout@v5
+      - name: Toolchain from rust-toolchain.toml
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: https
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: false
+      - name: Build the tests first, while pebble is not running
+        run: cargo test -p khalid-https --test pebble --no-run
+      - name: Start pebble
+        run: |
+          go install "github.com/letsencrypt/pebble/v2/cmd/pebble@$PEBBLE_VERSION"
+          go install "github.com/letsencrypt/pebble/v2/cmd/pebble-challtestsrv@$PEBBLE_VERSION"
+          src="$(go env GOMODCACHE)/github.com/letsencrypt/pebble/v2@$PEBBLE_VERSION"
+          mkdir -p target/pebble
+          cp "$src/test/certs/pebble.minica.pem" target/pebble/pebble.minica.pem
+          # The test DNS server answers every name with this machine. Its own
+          # challenge servers stay off, because the tests answer the checks
+          # on ports 5001 and 5002 themselves.
+          "$(go env GOPATH)/bin/pebble-challtestsrv" -defaultIPv4 127.0.0.1 -defaultIPv6 "" \
+            -http01 "" -https01 "" -tlsalpn01 "" -doh "" \
+            > target/pebble/challtestsrv.log 2>&1 &
+          (cd "$src" && PEBBLE_VA_NOSLEEP=1 PEBBLE_WFE_NONCEREJECT=0 \
+            "$(go env GOPATH)/bin/pebble" -config test/config/pebble-config.json -dnsserver 127.0.0.1:8053) \
+            > target/pebble/pebble.log 2>&1 &
+          for _ in $(seq 30); do
+            curl -fsS --cacert target/pebble/pebble.minica.pem -o /dev/null https://localhost:14000/dir && exit 0
+            sleep 1
+          done
+          echo "Pebble did not answer within 30 seconds, so the HTTPS tests cannot run. Its output is below."
+          cat target/pebble/pebble.log target/pebble/challtestsrv.log
+          exit 1
+      - name: The ignored HTTPS tests
+        run: cargo test -p khalid-https --test pebble -- --ignored
+      - name: Pebble's output
+        if: failure()
+        run: cat target/pebble/pebble.log target/pebble/challtestsrv.log || true
+
   perf:
     name: Performance budgets
     runs-on: ubuntu-latest
