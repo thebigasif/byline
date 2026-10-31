@@ -131,6 +131,19 @@ async fn a_real_update_to_a_post_that_is_not_live_is_refused() {
 }
 
 #[tokio::test]
+async fn a_real_update_that_takes_the_post_down_is_refused() {
+    let edit = json!({
+        "markdown": "Anchor text tells readers where a link will take them.",
+        "real_update": {"note": "Rewrote the opening."},
+        "status": "draft",
+        "updated_at": LAST_CHANGE,
+    });
+    let (status, json) = put("live", &edit).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+    assert_eq!(json["rule"], "real_update");
+}
+
+#[tokio::test]
 async fn a_real_update_needs_a_note_of_one_short_sentence() {
     let long = "Rewrote it. ".repeat(30);
     for note in [json!(""), json!("   "), json!(long), json!(null)] {

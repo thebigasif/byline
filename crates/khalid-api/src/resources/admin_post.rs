@@ -328,8 +328,8 @@ impl PostEdit {
     }
 
     /// Whether the edit may claim to be a real update of `post`: a post
-    /// that is live, with text the edit changes. An edit without the
-    /// claim always may.
+    /// that is live and stays live, with text the edit changes. An edit
+    /// without the claim always may.
     ///
     /// # Errors
     ///
@@ -338,7 +338,7 @@ impl PostEdit {
         if self.real_update.is_none() {
             return Ok(());
         }
-        if post.status() != PostStatus::Published {
+        if post.status() != PostStatus::Published || self.status == Some(PostStatus::Draft) {
             return Err(NotRealUpdate::NotLive);
         }
         match &self.markdown {
