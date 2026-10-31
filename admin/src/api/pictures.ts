@@ -35,6 +35,36 @@ export async function pictureSources(): Promise<Sources> {
   }
 }
 
+/** A search as Settings shows it: off, ready to ask, or on without its key (decision E15). */
+export type SearchState = "off" | "ready" | "missing";
+
+/** The state of each search. */
+export type SearchStates = Record<StockSource, SearchState>;
+
+/** The state of a search that is `on` and has its `key` or not. */
+export function stateOf(on: boolean, key: boolean): SearchState {
+  if (!on) {
+    return "off";
+  }
+  return key ? "ready" : "missing";
+}
+
+/** The state of each search, or `null` when the blog cannot say. */
+export async function searchStates(): Promise<SearchStates | null> {
+  try {
+    const { data } = await api.GET("/api/admin/v1/media/search/");
+    if (data === undefined) {
+      return null;
+    }
+    return {
+      unsplash: stateOf(data.unsplash, data.keys.unsplash),
+      gifs: stateOf(data.gifs, data.keys.gifs),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Which searches are on, once the blog has said. */
 export function usePictureSources(): Sources | undefined {
   return useQuery({ queryKey: ["picture-sources"], queryFn: pictureSources }).data;
