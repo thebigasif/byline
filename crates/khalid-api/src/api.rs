@@ -24,7 +24,7 @@ use crate::resources::MediaItems;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects,
+    admin_api, admin_audit, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects,
     admin_webhooks, api_version, content_api,
 };
 
@@ -301,10 +301,11 @@ fn assemble(
     let door = AdminDoor {
         keys: Arc::clone(&keys),
         sessions,
-        audit: desks.audit,
+        audit: desks.audit.clone(),
     };
     let redirects = desks.redirects;
     let mut admin = admin_api::routes(posts, door.clone())
+        .merge(admin_audit::routes(desks.audit, door.clone()))
         .merge(admin_comments::routes(desks.comments, door.clone()))
         .merge(media_api::routes(desks.media, door.clone()))
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))

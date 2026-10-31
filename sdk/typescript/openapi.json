@@ -10,6 +10,94 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/audit/": {
+      "get": {
+        "tags": [
+          "admin audit"
+        ],
+        "summary": "Lists who changed what through the Admin API and when, newest first:\nevery write that succeeded, to content, settings or staff accounts.\nNeeds `admin:all`.",
+        "operationId": "list_changes",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Only changes older than this one, by its `id`: the `next` of the\npage before. Left out, the list starts at the newest.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "From 1 to 100; 50 when left out.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChanges"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The limit is not from 1 to 100, or before is not a number",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks admin:all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/comments/": {
       "get": {
         "tags": [
@@ -5769,6 +5857,72 @@
   },
   "components": {
     "schemas": {
+      "AdminChange": {
+        "type": "object",
+        "description": "One change, as the Admin API shows it.",
+        "required": [
+          "id",
+          "at",
+          "by",
+          "action",
+          "route",
+          "path"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`added`, `changed` or `removed`."
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made."
+          },
+          "by": {
+            "type": "string",
+            "description": "The identity of the key or staff account that made it."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Its place in the log: a later change has a larger number."
+          },
+          "path": {
+            "type": "string",
+            "description": "The address it was made at.",
+            "example": "/api/admin/v1/posts/en.internal-links/"
+          },
+          "route": {
+            "type": "string",
+            "description": "The route it went through.",
+            "example": "/api/admin/v1/posts/{id}/"
+          }
+        }
+      },
+      "AdminChanges": {
+        "type": "object",
+        "description": "One page of the audit log.",
+        "required": [
+          "changes"
+        ],
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminChange"
+            },
+            "description": "The changes, newest first."
+          },
+          "next": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The `before` that lists the next page, or null on the last page."
+          }
+        }
+      },
       "AdminComment": {
         "type": "object",
         "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",
