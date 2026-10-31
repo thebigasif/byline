@@ -11,6 +11,7 @@ import { readKey } from "../auth/session";
 import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
 import { postSearch } from "../posts/filters";
+import { Analytics } from "./Analytics";
 import { Dashboard } from "./Dashboard";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
@@ -63,9 +64,15 @@ const redirects = createRoute({
   component: Redirects,
 });
 
+const analytics = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/analytics",
+  component: Analytics,
+});
+
 const routeTree = root.addChildren([
   signIn,
-  signedIn.addChildren([dashboard, posts, newPost, editor, redirects]),
+  signedIn.addChildren([dashboard, posts, newPost, editor, redirects, analytics]),
 ]);
 
 /** Makes the admin's router; a test passes a memory history. */

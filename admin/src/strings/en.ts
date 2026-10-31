@@ -11,6 +11,48 @@ export const en = {
     dashboard: "Dashboard",
     posts: "Posts",
     redirects: "Redirects",
+    analytics: "Analytics",
+  },
+  analytics: {
+    title: "Analytics",
+    lede: "How many people read your blog, where they came from, and what AI assistants do with it. Khalid counts on its own server, with no cookies, so readers who block scripts count too. It never keeps who a reader is.",
+    loading: "Counting the page views",
+    total: (days: number) => `Page views in the last ${days} days`,
+    rise: (percent: number, days: number, before: string) =>
+      `${percent}% more than the ${days} days before, which had ${before}.`,
+    fall: (percent: number, days: number, before: string) =>
+      `${percent}% fewer than the ${days} days before, which had ${before}.`,
+    level: (days: number) => `The same as the ${days} days before.`,
+    fresh: (days: number) => `The ${days} days before had none to compare with.`,
+    viewMeans:
+      "A page view is one page opened by a person. A reader who opens two pages counts twice. Bots never count.",
+    days: "Days to count",
+    period: (days: number) => `The last ${days} days`,
+    show: "Show these days",
+    chart: {
+      title: "Each day",
+      none: "No page views were counted in these days.",
+      summary: (least: string, most: string, busiest: string) =>
+        `From ${least} to ${most} page views a day. The busiest day was ${busiest}, with ${most}.`,
+      table: "Show each day as a table",
+      day: "Day",
+    },
+    views: "Page views",
+    before: (days: number) => `The ${days} days before`,
+    sources: {
+      title: "Where readers came from",
+      lede: (arrivals: string) =>
+        `${arrivals} of the page views came from outside the blog. The rest were readers moving from one of your pages to another.`,
+      from: "From",
+      names: {
+        direct: "Typed in or bookmarked",
+        search: "Search engines, such as Google",
+        social: "Social sites",
+        ai: "AI assistants, such as ChatGPT",
+        other: "Other websites",
+        internal: "Your own pages",
+      },
+    },
   },
   redirects: {
     title: "Redirects",
