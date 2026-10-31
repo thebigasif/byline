@@ -12,6 +12,7 @@ use chrono::{Days, NaiveDate};
 use khalid_core::Slug;
 
 use crate::plan_post::{ClusterRole, Pace, PaceFrom, PlanPost, PlanState};
+use crate::plan_warning::{PlanWarning, warnings};
 
 /// Whether a day on the calendar is already set or only suggested.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,8 +60,8 @@ pub struct Waiting {
     pub why: WaitReason,
 }
 
-/// The plan: the pace, the calendar from tomorrow, and the drafts that
-/// wait.
+/// The plan: the pace, the calendar from tomorrow, the drafts that wait,
+/// and the warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Plan {
@@ -72,6 +73,8 @@ pub struct Plan {
     pub calendar: Vec<Slot>,
     /// Drafts with no day.
     pub waiting: Vec<Waiting>,
+    /// What to act on.
+    pub warnings: Vec<PlanWarning>,
 }
 
 /// Plans `posts` from the day after `today`, at `pace` or else the site's
@@ -109,11 +112,13 @@ pub fn plan(posts: &[PlanPost], today: NaiveDate, pace: Option<Pace>) -> Plan {
     let suggested = suggest(&queue, &calendar, &pillars, (today, pace));
     calendar.extend(suggested);
     calendar.sort_by(|a, b| (a.day, &a.id).cmp(&(b.day, &b.id)));
+    let warnings = warnings(posts, &calendar, &pillars, today);
     Plan {
         pace,
         pace_from,
         calendar,
         waiting,
+        warnings,
     }
 }
 
@@ -130,7 +135,10 @@ fn pillars(posts: &[PlanPost]) -> BTreeMap<&Slug, &PlanPost> {
 
 /// The pillar of a member's cluster, if the member has one other than
 /// itself.
-fn pillar_of<'a>(post: &PlanPost, pillars: &BTreeMap<&Slug, &'a PlanPost>) -> Option<&'a PlanPost> {
+pub(crate) fn pillar_of<'a>(
+    post: &PlanPost,
+    pillars: &BTreeMap<&Slug, &'a PlanPost>,
+) -> Option<&'a PlanPost> {
     let (name, ClusterRole::Member) = post.cluster.as_ref()? else {
         return None;
     };
