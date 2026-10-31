@@ -24,6 +24,19 @@ export function addWebhook(webhook: NewWebhook): Promise<Reply<AdminWebhook[]>> 
   return call("/webhooks/", sending("POST", body), webhooks);
 }
 
+/** One message a webhook sent: where it stands, and every try. */
+export type AdminDelivery = components["schemas"]["AdminDelivery"];
+
+async function deliveries(response: Response): Promise<AdminDelivery[]> {
+  const body: components["schemas"]["AdminDeliveries"] = await response.json();
+  return body.deliveries;
+}
+
+/** The 50 newest messages one webhook that is on sent, newest first. */
+export function listDeliveries(id: string): Promise<Reply<AdminDelivery[]>> {
+  return call(`/webhooks/${encodeURIComponent(id)}/deliveries/`, {}, deliveries);
+}
+
 /** Switches a webhook off; its past deliveries stay in the log. */
 export function removeWebhook(id: number): Promise<Reply<null>> {
   return call(`/webhooks/${id}/`, { method: "DELETE" }, nothing);

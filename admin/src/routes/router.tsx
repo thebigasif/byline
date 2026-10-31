@@ -24,6 +24,7 @@ import { Redirects } from "./Redirects";
 import { SignIn } from "./SignIn";
 import { Site } from "./Site";
 import { Team } from "./Team";
+import { WebhookActivity } from "./WebhookActivity";
 import { Webhooks } from "./Webhooks";
 
 const root = createRootRoute({ errorComponent: RouteError });
@@ -111,6 +112,12 @@ const webhooks = createRoute({
   component: Webhooks,
 });
 
+const webhookActivity = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/webhooks/$id",
+  component: WebhookActivity,
+});
+
 const team = createRoute({ getParentRoute: () => signedIn, path: "/team", component: Team });
 
 // The whole blog's settings; post settings live in the editor.
@@ -130,6 +137,7 @@ const routeTree = root.addChildren([
     redirects,
     keys,
     webhooks,
+    webhookActivity,
     team,
     site,
     account,

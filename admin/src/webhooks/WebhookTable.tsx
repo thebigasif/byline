@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { AdminWebhook } from "../api/webhooks";
 import { day } from "../strings/dates";
 import { en } from "../strings/en";
@@ -33,6 +34,14 @@ export function WebhookTable({ webhooks, onRemove }: Props) {
               <td data-label={words.url}>{webhook.url}</td>
               <td data-label={words.added}>{day(webhook.created_at)}</td>
               <td>
+                <Link
+                  to="/webhooks/$id"
+                  params={{ id: String(webhook.id) }}
+                  className="btn"
+                  aria-label={words.seeLabel(eventSentence(webhook.event), hostOf(webhook.url))}
+                >
+                  {words.see}
+                </Link>{" "}
                 <button
                   type="button"
                   className="btn"

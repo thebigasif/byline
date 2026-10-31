@@ -56,5 +56,35 @@ export const webhookWords = {
     removeLabel: (event: string, host: string) => `Switch off the webhook for ${event} to ${host}`,
     removed: (event: string, host: string) =>
       `Switched off: ${event}, to ${host}. Nothing more is sent.`,
+    see: "See what it sent",
+    seeLabel: (event: string, host: string) => `See what the webhook for ${event} to ${host} sent`,
+  },
+  sent: {
+    back: "Back to your webhooks",
+    title: "What this webhook sent",
+    lede: (event: string, host: string) =>
+      `This webhook sends "${event}" to ${host}. Each time it fires, Khalid sends one message and notes how the receiver answered. When the receiver fails, Khalid tries again: seven tries in all, over about a day.`,
+    loading: "Reading what this webhook sent",
+    gone: {
+      what: "This webhook is not on.",
+      why: "Only a webhook that is on shows what it sent. It may have been switched off.",
+      fix: "Go back to your webhooks and pick one from the list.",
+    },
+    list: "The last 50 messages",
+    listLede:
+      "Newest first. A receiver answers with a number: 200 to 299 means it got the message.",
+    none: "Nothing sent yet. A message goes out the next time this happens on your blog.",
+    first: "First sent",
+    stands: "Where it stands",
+    tries: "Each try",
+    notYet: "Not sent yet",
+    delivered: "Delivered",
+    sending: (time: string) => `Sending at ${time}`,
+    retrying: (time: string) => `Trying again at ${time}`,
+    gaveUp: "Gave up",
+    gaveUpHint: "Every try failed. Check the address with the receiving service.",
+    unknown: "Not known to this admin",
+    answered: (time: string, status: number) => `${time}, answered ${status}`,
+    unreachable: (time: string, reason: string) => `${time}, could not reach it: ${reason}`,
   },
 } as const;
