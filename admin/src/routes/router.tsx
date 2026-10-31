@@ -16,6 +16,7 @@ import { AuthorPage } from "./AuthorPage";
 import { Authors } from "./Authors";
 import { Comments } from "./Comments";
 import { Dashboard } from "./Dashboard";
+import { Keys } from "./Keys";
 import { LinkSignIn } from "./LinkSignIn";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
@@ -99,6 +100,8 @@ const authorPage = createRoute({
   component: AuthorPage,
 });
 
+const keys = createRoute({ getParentRoute: () => signedIn, path: "/keys", component: Keys });
+
 const routeTree = root.addChildren([
   signIn,
   linkSignIn,
@@ -111,6 +114,7 @@ const routeTree = root.addChildren([
     authors,
     authorPage,
     redirects,
+    keys,
     account,
   ]),
 ]);
