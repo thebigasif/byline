@@ -11,7 +11,9 @@ use axum::Router;
 use khalid_core::{Config, MailTransport, Secret, SystemClock, UserMessage};
 use khalid_db::{Database, SiteId, SubscriberTable};
 use khalid_mail::{ApiMailer, Sender, Service, SmtpMailer};
-use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, SiteLinks};
+use khalid_newsletter::{
+    Mailer, Newsletter, NewsletterSite, Pages, PostalAddress, SiteLinks, Welcomes,
+};
 use khalid_outbound::{Outbound, Resolver};
 
 use crate::{newsletter_files, serve_message};
@@ -33,11 +35,29 @@ pub(crate) fn router(
             let store = Arc::new(SubscriberTable::new(database.clone(), id));
             let made = Newsletter::new(store, mailer, Arc::new(SystemClock), site);
             let made = made.map_err(|_| serve_message::internal())?;
-            Some(made.with_lists(newsletter_files::lists(folder)))
+            Some(with_files(made, folder, config))
         }
         None => None,
     };
     Ok(khalid_newsletter::router(pages, newsletter))
+}
+
+/// `newsletter` with the lists and welcome emails in the site's
+/// `content/newsletters/`. Welcomes go out only once `[mail]` has a postal
+/// address, as every newsletter email ends with it.
+fn with_files(newsletter: Newsletter, folder: &Path, config: &Config) -> Newsletter {
+    let lists = newsletter_files::lists(folder);
+    let postal = config
+        .mail()
+        .and_then(|mail| mail.postal_address.as_deref());
+    let welcomes = postal
+        .and_then(PostalAddress::new)
+        .map(|postal| Welcomes::new(newsletter_files::welcomes(folder, &lists), postal));
+    let newsletter = newsletter.with_lists(lists);
+    match welcomes {
+        Some(welcomes) => newsletter.with_welcomes(welcomes),
+        None => newsletter,
+    }
 }
 
 /// The site the emails come from, in its default language.

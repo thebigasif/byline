@@ -44,3 +44,15 @@ khalid --site <folder> newsletter send what-a-sitemap-does --list weekly --label
 The post must be published. Each confirmed subscriber in the newsletter, or in the segment the labels name, gets one copy: the title, a link to read it on the site, and its text. Forms, galleries and other blocks that only work on a page are left out. Every copy ends with that reader's own one-click unsubscribe link and the site's postal address.
 
 Khalid sends nothing until `postal_address` is set under `[mail]` in `site.toml`, because anti-spam laws ask every newsletter email to show one. A post that went out before is never sent again, even after an edit. A copy the mail server refuses is counted and not sent again.
+
+## Welcome emails
+
+A newsletter can greet each reader the moment they confirm. Write the email in `content/newsletters/<name>/welcome.md`, such as `content/newsletters/weekly/welcome.md`, or `content/newsletters/main/welcome.md` for `main`. The first line is a `# ` heading that becomes the subject, and the rest is the text:
+
+```markdown
+# Welcome to the weekly links
+
+Every Friday you get five links worth your time, with a line on why each one matters.
+```
+
+Like every newsletter email, a welcome ends with the reader's one-click unsubscribe link and the postal address, so it goes out only once `postal_address` is set under `[mail]`. `khalid serve` reads the files when it starts.
