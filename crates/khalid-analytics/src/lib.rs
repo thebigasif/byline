@@ -15,6 +15,9 @@
 //! Between writes the server counts into a [`Tally`] in memory, and hands
 //! it to an [`AnalyticsStore`] in batches.
 //!
+//! [`uncited`] lists the pages AI bots read that no AI assistant ever sent
+//! a reader to. A bot's visit is never counted as a citation.
+//!
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
@@ -22,6 +25,7 @@ mod crawler;
 mod referrer;
 mod store;
 mod tally;
+mod uncited;
 
 pub use crawler::{Crawler, CrawlerKind};
 pub use referrer::ReferrerGroup;
@@ -29,3 +33,4 @@ pub use store::{
     AnalyticsError, AnalyticsStore, BoxFuture, CRAWL_DAYS_KEPT, MAX_CRAWL_ROWS_PER_DAY,
 };
 pub use tally::{Crawls, MAX_ROWS, Tally, Views};
+pub use uncited::{Uncited, uncited};
