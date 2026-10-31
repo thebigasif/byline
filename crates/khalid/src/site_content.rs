@@ -19,7 +19,9 @@ use khalid_core::{AbsoluteUrl, Config, Locale, SitePath, SlugMode, UserMessage};
 use khalid_db::{ContentIndex, IndexedPost, PostChanges};
 use tokio::sync::watch;
 
+use crate::entry_events::Entries;
 use crate::post_lock::Lock;
+use crate::tag_events::Tags;
 use crate::{build_message, build_pages, index, site_lists};
 
 /// What one render of the pages read for the Content API, without a single
@@ -30,10 +32,15 @@ pub(crate) struct Catalog {
     pub(crate) index: ContentIndex,
     /// The paths of the posts marked `featured`.
     featured: BTreeSet<String>,
-    /// The `updated:` date of each post that has one, by path, so a new
-    /// one can be sent to `IndexNow`.
+    /// The `updated:` date of each post that has one, by path, so the
+    /// Content API says when a post last really changed and a new one can
+    /// be sent to `IndexNow`.
     pub(crate) updated: BTreeMap<String, NaiveDate>,
     lists: SiteResources,
+    /// The pages, glossary terms, case studies and changelog entries.
+    pub(crate) entries: Entries,
+    /// The tags the posts name.
+    pub(crate) tags: Tags,
 }
 
 impl Catalog {
@@ -66,6 +73,8 @@ impl Catalog {
             featured,
             updated,
             lists,
+            entries: Entries::of(content),
+            tags: Tags::of(config, content),
         })
     }
 }
@@ -337,6 +346,9 @@ fn listings<'a>(
         if catalog.featured.contains(&row.path) {
             post = post.featured();
         }
+        if let Some(day) = catalog.updated.get(&row.path).filter(|day| **day > date) {
+            post = post.with_updated_at(midnight(*day));
+        }
         let locale = row.locale.clone();
         found.push((row.path.clone(), Listing { post, locale, date }));
     }
@@ -350,7 +362,7 @@ fn post_of(config: &Config, row: &IndexedPost, date: NaiveDate) -> Result<Post, 
     let path = build_pages::path_of(config, locale, &format!("{}/", row.slug));
     let address = format!("{}{path}", config.address().as_str().trim_end_matches('/'));
     let url = AbsoluteUrl::parse(&address).map_err(|_| build_message::address(&address))?;
-    let at = DateTime::<Utc>::from_naive_utc_and_offset(date.and_time(NaiveTime::MIN), Utc);
+    let at = midnight(date);
     let id = format!("{}.{}", locale.as_str(), row.slug);
     let title = row.title.clone().unwrap_or_else(|| row.slug.to_string());
     let mut post = Post::new(&id, row.slug.clone(), &title, url, locale.clone(), at)
@@ -359,6 +371,11 @@ fn post_of(config: &Config, row: &IndexedPost, date: NaiveDate) -> Result<Post, 
         post = post.with_excerpt(excerpt);
     }
     Ok(post)
+}
+
+/// The first second of `day`, in UTC.
+fn midnight(day: NaiveDate) -> DateTime<Utc> {
+    DateTime::from_naive_utc_and_offset(day.and_time(NaiveTime::MIN), Utc)
 }
 
 /// `html` with its tags removed, the common entities read back, and runs

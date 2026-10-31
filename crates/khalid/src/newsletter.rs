@@ -10,19 +10,24 @@ use axum::Router;
 use khalid_core::{Config, MailTransport, Secret, SystemClock, UserMessage};
 use khalid_db::{Database, SiteId, SubscriberTable};
 use khalid_mail::{ApiMailer, Sender, Service, SmtpMailer};
-use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, SiteLinks};
+use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, ReaderPass, SiteLinks};
 use khalid_outbound::{Outbound, Resolver};
+use tokio::runtime::Runtime;
 
+use crate::announce::SiteAnnounce;
 use crate::serve_message;
+use crate::subscriber_events::AnnouncedSubscribers;
 
 /// The newsletter's routes for the site with `config`, in its default
-/// language, keeping subscribers in site `id` of `database` and sending
-/// with the mail `secret` from the environment, the APIs through
-/// `outbound`.
+/// language, keeping subscribers in site `id` of `database`, telling
+/// `announce` of each one confirmed, and sending through `mailer`, the way
+/// [`mailer`] made from `[mail]`. A reader who confirms gets the reader
+/// cookie, signed with the site's preview key read on `runtime`.
 pub(crate) fn router(
     config: &Config,
     (database, id): (&Database, SiteId),
-    (secret, outbound): (Option<Secret<String>>, &Outbound),
+    (runtime, announce): (&Runtime, &SiteAnnounce),
+    mailer: Option<Arc<dyn Mailer>>,
 ) -> Result<Router, UserMessage> {
     let site = NewsletterSite {
         name: config.name().to_owned(),
@@ -30,21 +35,33 @@ pub(crate) fn router(
         links: SiteLinks::new(config.address(), config.mount()),
     };
     let pages = Pages::new(site.clone()).map_err(|_| serve_message::internal())?;
-    let newsletter = match mailer(config, secret, outbound)? {
+    let newsletter = match mailer {
         Some(mailer) => {
-            let store = Arc::new(SubscriberTable::new(database.clone(), id));
+            let table = Arc::new(SubscriberTable::new(database.clone(), id));
+            let store = Arc::new(AnnouncedSubscribers::new(table, announce.clone()));
+            let key = runtime.block_on(database.preview_key(id, &SystemClock));
+            let key = key.map_err(|_| serve_message::internal())?;
             let made = Newsletter::new(store, mailer, Arc::new(SystemClock), site);
-            Some(made.map_err(|_| serve_message::internal())?)
+            let made = made.map_err(|_| serve_message::internal())?;
+            Some(made.with_pass(reader_pass(config, &key)))
         }
         None => None,
     };
     Ok(khalid_newsletter::router(pages, newsletter))
 }
 
-/// The way mail leaves, as `[mail]` names it, or `None` when the site
-/// sends none. The settings and the secret were checked at start, so a
-/// failure here is Khalid's own.
-fn mailer(
+/// The reader pass of the site with `config`, signed with its `key`.
+pub(crate) fn reader_pass(config: &Config, key: &Secret<[u8; 32]>) -> ReaderPass {
+    let links = SiteLinks::new(config.address(), config.mount());
+    ReaderPass::new(key, &links, Arc::new(SystemClock))
+}
+
+/// The way mail leaves, sending with the `secret` from the environment
+/// and reaching the APIs through `outbound`, as `[mail]` names it, or
+/// `None` when the site sends none. The newsletter and the alerts share
+/// it. The settings and the secret were checked at start, so a failure
+/// here is Khalid's own.
+pub(crate) fn mailer(
     config: &Config,
     secret: Option<Secret<String>>,
     outbound: &Outbound,

@@ -2029,6 +2029,7 @@ dependencies = [
  "image",
  "insta",
  "khalid-admin",
+ "khalid-alerts",
  "khalid-analytics",
  "khalid-api",
  "khalid-audit",
@@ -2082,6 +2083,18 @@ dependencies = [
  "http-body-util",
  "tokio",
  "tower",
+]
+
+[[package]]
+name = "khalid-alerts"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "khalid-alerts",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -2230,7 +2243,9 @@ name = "khalid-db"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "futures-util",
  "getrandom 0.4.3",
+ "khalid-alerts",
  "khalid-analytics",
  "khalid-api",
  "khalid-auth",
@@ -2380,9 +2395,11 @@ dependencies = [
  "axum",
  "chrono",
  "getrandom 0.4.3",
+ "hmac",
  "khalid-core",
  "khalid-db",
  "khalid-newsletter",
+ "percent-encoding",
  "serde",
  "sha2 0.11.1",
  "tempfile",

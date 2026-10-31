@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use khalid_core::{AbsoluteUrl, Secret, Slug, SystemClock};
 use khalid_db::{Database, WebhookTable};
+use khalid_mail::StubSmtp;
 use khalid_webhooks::{Event, SIGNATURE_HEADER, SigningKey, Verifier};
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -341,4 +342,41 @@ async fn a_deleted_post_fires_post_deleted_with_the_post_as_it_was() {
     let body = the_delivery(&receiver, Event::PostDeleted, &secret).await;
     assert_eq!(body["post"]["id"], "en.what-a-sitemap-does", "{body}");
     assert_eq!(body["post"]["title"], live["posts"][0]["title"], "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_confirmed_sign_up_fires_subscriber_added_without_the_address() {
+    let receiver = receiver().await;
+    let (site, secret) = demo_site(&receiver, Event::SubscriberAdded).await;
+    let stub = StubSmtp::start().unwrap();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let text = fs::read_to_string(&settings).unwrap();
+    let port = stub.port();
+    let mail = format!(
+        "\n[mail]\nfrom = \"news@example.com\"\n\n[mail.smtp]\nhost = \"127.0.0.1\"\n\
+         port = {port}\nsecurity = \"none\"\nprivate_host = true\n"
+    );
+    fs::write(&settings, format!("{text}{mail}")).unwrap();
+    let server = start(site.path());
+
+    let form = ["Content-Type: application/x-www-form-urlencoded"];
+    let signing_up = "email=grace%40example.com&homepage=";
+    let (status, page) = send(&server, ("POST", "/blog/subscribe"), &form, signing_up);
+    assert_eq!(status, 200, "{page}");
+    let message = stub.received()[0].replace("=\n", "").replace("=3D", "=");
+    let (_, rest) = message.split_once("subscribe/confirm?token=").unwrap();
+    let token = rest.split(char::is_whitespace).next().unwrap();
+    let confirming = format!("token={token}");
+    let route = ("POST", "/blog/subscribe/confirm");
+    let (status, page) = send(&server, route, &form, &confirming);
+    assert!(page.contains("You are subscribed"), "{status} {page}");
+
+    let body = the_delivery(&receiver, Event::SubscriberAdded, &secret).await;
+    assert!(body["subscriber"]["id"].is_i64(), "{body}");
+    assert!(body["subscriber"]["confirmed_at"].is_string(), "{body}");
+    assert!(
+        !body.to_string().contains("grace"),
+        "the address stays private: {body}"
+    );
 }

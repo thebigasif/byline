@@ -101,6 +101,8 @@ Compose runs Khalid as user 1000, the first user on most Linux machines. If `id 
 
 Khalid sends email when a reader signs up for the newsletter: one message with a link that confirms the address. Until `site.toml` says how mail is sent, the sign-up form says sign-ups are not open yet and stores nothing.
 
+Gated content, the part of a post inside `:::gated`, opens with the same email. A reader types their address in the form where the part would be, opens the link, clicks the button, and lands back on the post with the part open, with scripts off. Their browser keeps a cookie for 180 days that opens gated content on every post. On another phone or browser they type the same address again and get a link that opens it there. Without `[mail]` the part stays locked for everyone.
+
 Add a `[mail]` table with the address mail comes from and exactly one way to send it.
 
 Through the mail server your host gives you, with SMTP (the protocol mail servers speak):
@@ -128,6 +130,53 @@ The password, API key or token never goes in `site.toml`. Set it in the server's
 | Postmark | `KHALID_POSTMARK_TOKEN` |
 
 With systemd, run `sudo systemctl edit khalid` and add `Environment=KHALID_SMTP_PASSWORD=...` under `[Service]`, or keep it in a file only root can read and name it with `EnvironmentFile=`. With Compose, put it in the `.env` file and pass it on under `environment:` in `compose.yaml`, as `KHALID_SMTP_PASSWORD: ${KHALID_SMTP_PASSWORD}`. Khalid refuses to start, and says which variable is missing, when the way you picked needs one that is not set.
+
+## Alerts
+
+`khalid serve` tells you when something on the blog needs you. Once an hour it checks for a burst of visits ending on missing pages (404s), an HTTPS certificate with under two weeks left, and live posts that have not changed in a year. It also tells you when a scheduled post did not go live because the linter refused it, and `khalid audit` tells you about broken links. Each problem is sent once while it lasts, and again if it clears and comes back.
+
+Every alert goes to the webhooks registered for `alert.raised`, so Slack, Zapier or Make can pass it on:
+
+```sh
+khalid webhooks add --event alert.raised --url https://hooks.example.com/khalid
+```
+
+To get alerts by email too, set up `[mail]` as above and add the address:
+
+```toml
+[alerts]
+email = "owner@example.com"
+not_found_spike = 50     # new 404s in one hour that count as a burst
+stale_after_days = 365   # 0 switches the stale-post alert off
+```
+
+## Taking your data out
+
+`khalid db export` writes every table of the site's database as a CSV file and a JSON file (two plain formats spreadsheets and reporting tools read), one pair per table, into `data/export/`. Add `--out <folder>` to write them somewhere else. Google Sheets, Excel and Looker Studio open the CSV files as they are.
+
+Sign-in material never leaves: sessions, sign-in links, passkeys and the site's own keys are left out, and so are the hashes of passwords and keys and the secrets that sign webhooks. A text field that a spreadsheet would run as a formula starts with `'`, so opening a file runs nothing.
+
+## Your own code and the consent banner
+
+Some tools ask you to paste code on every page: a tag manager, an analytics snippet or a chat window. Put it in a `[code]` table in `site.toml`.
+
+```toml
+[code]
+head = """
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-1"></script>
+<script>gtag('config', 'G-1');</script>"""
+body = "<script src='https://chat.example.com/widget.js' defer></script>"
+```
+
+`head` goes at the end of every page's head and may hold `script`, `style`, `meta` and `link`. `body` goes at the end of every page's body and may hold only `script`. Khalid checks both when it starts and says what to change if something does not belong.
+
+By default this code waits for each reader's consent, which means their yes. Every page then ends with a short note and two buttons, Allow and Do not allow. The buttons are a plain form, so they work with scripts turned off. The code runs only for a reader who pressed Allow, and a post's own head code waits too. A reader's choice is kept in a cookie for 180 days, and a small form at the bottom of each page lets them change it.
+
+For code that sets no cookie and tracks no one, add `consent = "not-needed"` to `[code]`. The code then runs for every reader and no note is shown.
+
+Each script gets the page's nonce, a random value the browser checks against the page's security policy, so the code is allowed to run and nothing else is. A script may load other scripts and send data to any `https` address, as analytics tools do.
+
+A static site cannot keep a reader's choice, so Khalid refuses to start in `mode = "static"` with code that waits for consent. Set `consent = "not-needed"` or switch to `mode = "server"`. Site verification tags belong in `[seo]`, which never waits.
 
 ## Bing Webmaster Tools
 

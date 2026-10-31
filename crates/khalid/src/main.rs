@@ -6,9 +6,13 @@
 //! which this binary calls the same way the API does.
 
 mod agents;
+mod alert_watch;
+mod alerts;
 mod announce;
 mod assets;
 mod atomic;
+mod audit_alert;
+mod audit_events;
 mod audit_message;
 mod backup;
 mod backup_message;
@@ -20,6 +24,7 @@ mod build_gate;
 mod build_home;
 mod build_lists;
 mod build_message;
+mod build_named_pages;
 mod build_pages;
 mod build_reader;
 mod build_redirects;
@@ -28,11 +33,14 @@ mod build_seo;
 mod build_sitemap;
 mod categories;
 mod cli;
+mod cli_access;
 mod comment_pages;
 mod config_message;
+mod consent_route;
 mod content_feed;
 mod content_message;
 mod db;
+mod db_export;
 mod db_message;
 mod doctor;
 mod doctor_address;
@@ -40,6 +48,7 @@ mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
 mod doctor_robots;
+mod entry_events;
 mod exit;
 mod export;
 mod https_message;
@@ -68,8 +77,10 @@ mod new;
 mod new_message;
 mod newsletter;
 mod outbound;
+mod page_code;
 mod page_counts;
 mod post_files;
+mod post_gate;
 mod post_images;
 mod post_lock;
 mod post_photos;
@@ -102,6 +113,7 @@ mod site_audit;
 mod site_config;
 mod site_content;
 mod site_files;
+mod site_html;
 mod site_lists;
 mod site_outline;
 mod site_page;
@@ -113,6 +125,8 @@ mod staff;
 mod staff_message;
 mod staff_owner;
 mod static_mode;
+mod subscriber_events;
+mod tag_events;
 mod theme_check;
 mod theme_message;
 mod theme_preview;
@@ -166,13 +180,13 @@ fn run(cli: &Cli) -> Exit {
     if let Some(exit) = run_unchecked(cli) {
         return exit;
     }
-    let environment = Environment::from_process();
+    let env = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
     let serves = matches!(cli.command, Some(Command::Serve(_)));
     let look = cli.site.as_deref().filter(|_| serves).map(serving);
     let site = match cli.site.as_deref() {
-        Some(folder) => match check(folder, &environment) {
+        Some(folder) => match check(folder, &env) {
             Ok((config, routes, content, assets)) => {
                 Some((folder, config, routes, (content, assets)))
             }
@@ -186,7 +200,7 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve(args)), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let (checked, start) = ((&config, &routes), (content, assets, look));
-            let keys = serve::Keys::read(&environment, &config);
+            let keys = serve::Keys::read(&env, &config);
             return serve_https::serve(cli, folder, checked, start, (args, keys));
         }
         (_, site) => site,
@@ -194,7 +208,7 @@ fn run(cli: &Cli) -> Exit {
     match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some((folder, ..))) => {
-            db::run(folder, *command, cli.output)
+            db::run(folder, command.clone(), cli.output)
         }
         (Some(Command::Lint { path, fix }), Some((folder, ..))) => {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
@@ -210,14 +224,14 @@ fn run(cli: &Cli) -> Exit {
         (
             Some(asked @ (Command::Build { .. } | Command::Export | Command::Audit { .. })),
             Some((folder, config, routes, (content, _))),
-        ) => on_content(folder, (config, routes, content), asked, cli),
+        ) => on_content(folder, (config, routes, content), asked, (cli, &env)),
         (
             Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
             Some((folder, config, ..)),
         ) => access(folder, config, command, cli.output),
-        (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
+        (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &env),
         (Some(Command::Bing { command }), Some((_, config, ..))) => {
-            bing::run(config, &environment, *command, cli)
+            bing::run(config, &env, *command, cli)
         }
         (
             Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
@@ -267,7 +281,7 @@ fn on_content(
     folder: &Path,
     checked: (&Config, &Routes, &SiteContent),
     asked: &Command,
-    cli: &Cli,
+    (cli, environment): (&Cli, &Environment),
 ) -> Exit {
     match asked {
         Command::Build { out } => {
@@ -279,7 +293,7 @@ fn on_content(
             checked,
             (server.as_ref(), *network),
             &SystemClock,
-            cli,
+            (cli, serve::Keys::read(environment, checked.0).mail),
         ),
         _ => report::failure(cli.output, &not_built(asked), Exit::Internal),
     }

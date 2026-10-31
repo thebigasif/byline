@@ -6,7 +6,10 @@
 //! trailing slash or `index.html`, and sending each [`Moved`] address on
 //! with 301. Every response carries the
 //! [`SecurityHeaders`], with a Content Security Policy whose nonce is new
-//! for each request (BL-SEC-2). [`serve`] answers until told to stop, then
+//! for each request (BL-SEC-2). On a site whose own code waits for
+//! consent, [`router_with_consent`] answers through [`chosen`], which makes
+//! each page for the reader's [`Choice`], with the [`HeldCode`] only for a
+//! reader who agreed. [`serve`] answers until told to stop, then
 //! stops gracefully (BL-RUN-10). Beside the requests it runs two
 //! [`Background`] jobs: [`watch`], which renders the pages again when a file
 //! changes, and [`retry_deliveries`], which sends due webhooks again.
@@ -18,6 +21,7 @@
 mod background;
 mod clean_url;
 mod compress;
+mod consent;
 mod etag;
 mod live_pages;
 mod media_type;
@@ -35,6 +39,10 @@ mod watch;
 mod watch_events;
 
 pub use background::Background;
+pub use consent::{
+    ASK_END, ASK_START, CHOSEN_END, CHOSEN_START, CONSENT_COOKIE, Choice, HELD_END, HELD_START,
+    HeldCode, SITE_BODY_SLOT, SITE_HEAD_SLOT, chosen,
+};
 pub use live_pages::{LivePages, Replacements};
 pub use media_type::MediaType;
 pub use moved::Moved;
@@ -42,7 +50,7 @@ pub use page::{NONCE_SLOT, Page};
 pub use page_path::{PagePath, ParsePagePathError};
 pub use pages::Pages;
 pub use render::{Render, Rendered, render_pages};
-pub use respond::router;
+pub use respond::{router, router_with_consent};
 pub use retry::retry_deliveries;
 pub use security::SecurityHeaders;
 pub use serve::{Stopped, serve};

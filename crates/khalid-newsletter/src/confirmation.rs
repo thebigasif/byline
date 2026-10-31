@@ -4,10 +4,11 @@
 use std::collections::BTreeMap;
 
 use khalid_core::{AbsoluteUrl, Locale};
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::Deserialize;
 
 use crate::pages::PageWords;
-use crate::{EmailAddress, Mail, SubscriberToken};
+use crate::{BackPath, EmailAddress, Mail, SubscriberToken};
 
 /// The language whose words fill in for a language with no file.
 const FALLBACK_LANGUAGE: &str = "en";
@@ -26,6 +27,8 @@ const FILES: [(&str, &str); 2] = [
 struct Words {
     confirm_subject: String,
     confirm_text: String,
+    pass_subject: String,
+    pass_text: String,
     page: PageWords,
 }
 
@@ -72,6 +75,17 @@ impl NewsletterWords {
         };
         let (subject, text) = words.map_or_else(Default::default, |words| {
             (fill(&words.confirm_subject), fill(&words.confirm_text))
+        });
+        Mail::new(to, subject, text)
+    }
+
+    /// The email to `to`, a subscriber confirmed before, from the site
+    /// called `site`, with the pass `link` that lets them read gated
+    /// content on this device too.
+    pub fn pass(&self, locale: &Locale, site: &str, to: EmailAddress, link: &str) -> Mail {
+        let fill = |text: &str| text.replace("{pass}", link).replace("{site}", site);
+        let (subject, text) = self.of(locale).map_or_else(Default::default, |words| {
+            (fill(&words.pass_subject), fill(&words.pass_text))
         });
         Mail::new(to, subject, text)
     }
@@ -127,6 +141,18 @@ impl SiteLinks {
     pub fn unsubscribe(&self, token: &SubscriberToken) -> String {
         format!("{}unsubscribe?token={}", self.base, token.expose_text())
     }
+
+    /// The page a pass link opens, with its `code` and the path `back` the
+    /// reader returns to.
+    pub fn pass(&self, code: &str, back: &str) -> String {
+        let back = encoded(back);
+        format!("{}subscribe/pass?code={code}&back={back}", self.base)
+    }
+
+    /// Whether the site answers over HTTPS, so cookies get `Secure`.
+    pub fn is_https(&self) -> bool {
+        self.base.starts_with("https://")
+    }
 }
 
 /// The two links in a confirmation email.
@@ -138,16 +164,28 @@ pub struct ConfirmationLinks<'a> {
     pub confirm: &'a SubscriberToken,
     /// The unsubscribe token that removes the address instead.
     pub remove: &'a SubscriberToken,
+    /// The page the reader comes back to once they confirm, if they
+    /// signed up on one.
+    pub back: Option<&'a BackPath>,
 }
 
 impl ConfirmationLinks<'_> {
     fn confirm(&self) -> String {
-        self.site.confirm(self.confirm)
+        let link = self.site.confirm(self.confirm);
+        match self.back {
+            Some(back) => format!("{link}&back={}", encoded(back.as_str())),
+            None => link,
+        }
     }
 
     fn remove(&self) -> String {
         self.site.unsubscribe(self.remove)
     }
+}
+
+/// `text` safe as one value in a link's query.
+fn encoded(text: &str) -> String {
+    utf8_percent_encode(text, NON_ALPHANUMERIC).to_string()
 }
 
 /// A built-in words file is not valid.

@@ -6,9 +6,9 @@ use std::sync::Arc;
 use khalid_core::{Clock, Locale, Slug};
 
 use crate::{
-    ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, MailError, Mailer,
-    NewsletterWords, SignUp, SignedUp, SiteLinks, StoreError, SubscriberStore, SubscriberToken,
-    Unsubscribed, WordsError,
+    BackPath, ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, MailError, Mailer,
+    NewsletterWords, ReaderPass, SignUp, SignedUp, SiteLinks, StoreError, SubscriberStore,
+    SubscriberToken, Unsubscribed, WordsError,
 };
 
 /// The site the emails come from: its name, its language and where its
@@ -31,6 +31,7 @@ pub struct Newsletter {
     mailer: Arc<dyn Mailer>,
     clock: Arc<dyn Clock>,
     site: Arc<(NewsletterSite, NewsletterWords)>,
+    pass: Option<ReaderPass>,
 }
 
 impl Newsletter {
@@ -53,7 +54,44 @@ impl Newsletter {
             mailer,
             clock,
             site: Arc::new((site, words)),
+            pass: None,
         })
+    }
+
+    /// This newsletter, giving each reader who confirms the cookie `pass`
+    /// makes, so they can read gated content.
+    #[must_use]
+    pub fn with_pass(mut self, pass: ReaderPass) -> Self {
+        self.pass = Some(pass);
+        self
+    }
+
+    /// The reader pass, when gated content opens for subscribers.
+    pub fn pass(&self) -> Option<&ReaderPass> {
+        self.pass.as_ref()
+    }
+
+    /// Signs `email` up for `list` from the gated content at `back`, as
+    /// [`sign_up`](Self::sign_up) does, with `back` in the confirmation
+    /// link. An address confirmed before gets a pass link to `back`
+    /// instead, so a subscriber on a new device can read too.
+    ///
+    /// # Errors
+    ///
+    /// [`NewsletterError`] as [`sign_up`](Self::sign_up) returns it.
+    pub async fn sign_up_to_read(
+        &self,
+        email: EmailAddress,
+        list: Slug,
+        back: &BackPath,
+    ) -> Result<SignedUp, NewsletterError> {
+        let signed = self.signed_up(email.clone(), list, Some(back)).await?;
+        if let (SignedUp::AlreadyConfirmed, Some(pass)) = (&signed, &self.pass) {
+            let (site, words) = &*self.site;
+            let mail = words.pass(&site.locale, &site.name, email, &pass.link(back));
+            self.mailer.send(&mail).await?;
+        }
+        Ok(signed)
     }
 
     /// Signs `email` up for `list`. When a confirmation is due, sends it,
@@ -71,6 +109,16 @@ impl Newsletter {
         email: EmailAddress,
         list: Slug,
     ) -> Result<SignedUp, NewsletterError> {
+        self.signed_up(email, list, None).await
+    }
+
+    /// Signs up as [`sign_up`](Self::sign_up) says, with `back` in the link.
+    async fn signed_up(
+        &self,
+        email: EmailAddress,
+        list: Slug,
+        back: Option<&BackPath>,
+    ) -> Result<SignedUp, NewsletterError> {
         let (confirm, remove) = (SubscriberToken::generate()?, SubscriberToken::generate()?);
         let at = self.clock.now();
         let asked = SignUp::new(email.clone(), list, confirm.hash(), at);
@@ -84,6 +132,7 @@ impl Newsletter {
                 site: &site.links,
                 confirm: &confirm,
                 remove: &remove,
+                back,
             };
             let mail = words.confirmation(&site.locale, &site.name, email, links);
             self.mailer.send(&mail).await?;

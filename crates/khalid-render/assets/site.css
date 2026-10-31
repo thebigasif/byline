@@ -274,3 +274,26 @@ mark { color: inherit; background: var(--color-surface); font-weight: 700; }
   pre, blockquote, figure, table { break-inside: avoid; }
   h2, h3 { break-after: avoid; }
 }
+
+/* The consent banner: a plain form that works with scripts off (G45). */
+.consent {
+  position: sticky;
+  inset-block-end: 0;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-block-start: 1px solid var(--color-border);
+}
+.consent form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; max-inline-size: var(--measure); margin-inline: auto; }
+.consent p { flex-basis: 100%; margin: 0; }
+.consent button {
+  min-block-size: 44px;
+  padding: 0.5rem 1.25rem;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-background);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.consent button[value="yes"] { color: var(--color-background); background: var(--color-accent); border-color: var(--color-accent); }
+.consent-chosen { position: static; font-size: 0.875rem; }

@@ -201,7 +201,7 @@ fn missing_secret(
 
 /// Whether `text` is a plain address: one `@`, no spaces or control
 /// characters, and a domain with a dot that does not start or end it.
-fn is_address(text: &str) -> bool {
+pub(crate) fn is_address(text: &str) -> bool {
     let Some((local, domain)) = text.split_once('@') else {
         return false;
     };

@@ -1,5 +1,5 @@
-//! `khalid db migrate` and `khalid db rebuild`: the database in the site's
-//! `data/` folder.
+//! `khalid db migrate`, `khalid db rebuild` and `khalid db export`: the
+//! database in the site's `data/` folder.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use crate::cli::{DbCommand, Output};
 use crate::exit::Exit;
-use crate::{db_message, index, report};
+use crate::{db_export, db_message, index, report};
 
 /// The folder inside a site that holds everything Khalid derives or keeps.
 pub(crate) const DATA: &str = "data";
@@ -34,6 +34,7 @@ struct DbBody<'a> {
 /// Runs a database command on the `site` folder, whose settings and content were checked.
 pub(crate) fn run(site: &Path, command: DbCommand, output: Output) -> Exit {
     let index = match command {
+        DbCommand::Export { out } => return db_export::run(site, out.as_deref(), output),
         DbCommand::Migrate => None,
         DbCommand::Rebuild => match index::of(site) {
             Ok(index) => Some(index),

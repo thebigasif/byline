@@ -16,10 +16,12 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::announce::SiteAnnounce;
+use crate::entry_events::Entries;
 use crate::live_redirects::LiveRedirects;
 use crate::memory::HandBack;
 use crate::site_addresses::{self, LiveAddresses};
 use crate::site_content::{Catalog, LiveContent, Published};
+use crate::tag_events::Tags;
 use crate::{db_message, search_index, slug_moves};
 
 /// Hands the catalog of each render to the background task. When every
@@ -28,6 +30,13 @@ use crate::{db_message, search_index, slug_moves};
 pub(crate) struct ContentFeed(mpsc::UnboundedSender<Catalog>);
 
 impl ContentFeed {
+    /// A feed whose catalogs a test reads from the receiver.
+    #[cfg(test)]
+    pub(crate) fn for_tests() -> (Self, mpsc::UnboundedReceiver<Catalog>) {
+        let (feed, catalogs) = mpsc::unbounded_channel();
+        (Self(feed), catalogs)
+    }
+
     /// Queues `catalog` and returns at once. Of several catalogs queued
     /// while one is built, only the last is built next.
     pub(crate) fn send(&self, catalog: Catalog) {
@@ -53,6 +62,13 @@ pub(crate) struct Destination {
     pub(crate) addresses: LiveAddresses,
     /// The stored redirects, which get a move for each page that moved.
     pub(crate) redirects: LiveRedirects,
+    /// Told of each page, glossary term, case study or changelog entry that
+    /// is new, changed or gone since the last catalog, when the site has
+    /// webhooks to tell.
+    pub(crate) announce: Option<SiteAnnounce>,
+    /// The entries and tags the run started with, which the first catalog
+    /// is compared with.
+    pub(crate) started: (Entries, Tags),
     /// Where the addresses of live posts with news go, for `IndexNow`.
     pub(crate) pings: UpdatePings,
 }
@@ -159,10 +175,18 @@ async fn moved(to: &Destination, catalog: &Catalog, applied: &mut Applied) {
 /// served and written, so no catalog stays in memory.
 async fn take_catalogs(mut catalogs: mpsc::UnboundedReceiver<Catalog>, to: Arc<Destination>) {
     let mut applied = Applied::default();
+    let (mut entries, mut tags) = to.started.clone();
     while let Some(mut catalog) = catalogs.recv().await {
         while let Ok(later) = catalogs.try_recv() {
             catalog = later;
         }
+        let now = std::mem::take(&mut catalog.entries);
+        let tagged = std::mem::take(&mut catalog.tags);
+        if let Some(announce) = &to.announce {
+            now.fire_since(&entries, announce);
+            tagged.fire_since(&tags, announce);
+        }
+        (entries, tags) = (now, tagged);
         apply(&to, Arc::new(catalog), &mut applied).await;
         to.hand_back.after_work();
     }
@@ -286,6 +310,8 @@ mod tests {
             hand_back: HandBack::default(),
             addresses: LiveAddresses::default(),
             redirects: LiveRedirects::new(Arc::new(khalid_db::RedirectRows::new(db.clone(), site))),
+            announce: None,
+            started: (Entries::default(), Tags::default()),
             pings: UpdatePings::default(),
         };
         let (feed, task) = start(&Handle::current(), to);

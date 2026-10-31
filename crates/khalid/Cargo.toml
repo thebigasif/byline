@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 khalid-admin = { path = "../khalid-admin", version = "0.0.0" }
+khalid-alerts = { path = "../khalid-alerts", version = "0.0.0" }
 khalid-analytics = { path = "../khalid-analytics", version = "0.0.0" }
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-audit = { path = "../khalid-audit", version = "0.0.0" }
@@ -66,7 +67,9 @@ test-util = ["khalid-outbound/test-util"]
 atom_syndication = "0.12"
 khalid-api = { path = "../khalid-api", version = "0.0.0", features = ["test-util"] }
 khalid-core = { workspace = true, features = ["test-util"] }
+khalid-alerts = { path = "../khalid-alerts", version = "0.0.0", features = ["test-util"] }
 khalid-mail = { path = "../khalid-mail", version = "0.0.0", features = ["test-util"] }
+khalid-newsletter = { path = "../khalid-newsletter", version = "0.0.0", features = ["test-util"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 insta = "1"
 rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
@@ -97,6 +100,14 @@ name = "serve_webhooks"
 required-features = ["test-util"]
 
 [[test]]
+name = "serve_entry_webhooks"
+required-features = ["test-util"]
+
+[[test]]
+name = "audit_webhooks"
+required-features = ["test-util"]
+
+[[test]]
 name = "serve_https"
 required-features = ["test-util"]
 
@@ -106,6 +117,14 @@ required-features = ["test-util"]
 
 [[test]]
 name = "audit_outside"
+required-features = ["test-util"]
+
+[[test]]
+name = "serve_alerts"
+required-features = ["test-util"]
+
+[[test]]
+name = "audit_alerts"
 required-features = ["test-util"]
 
 [[test]]

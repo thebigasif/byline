@@ -1,12 +1,12 @@
 //! `khalid --site <folder> audit`: build the site into `data/audit/site/`,
 //! or ask a running server with `--server`, crawl it the way Ahrefs and
 //! Semrush do, and print its health score out of 100 with every issue and
-//! its fix. It keeps each run's score in
-//! `data/audit/runs.jsonl` for the trend, and writes the issues and the
-//! internal linking report as CSV beside it. It exits with 1 when it finds
-//! an error. The AI search checks read the answer length, the paragraph
-//! length and the stale window from the site's `lint.toml`, like the
-//! linter.
+//! its fix. It keeps each run's score in `data/audit/runs.jsonl` for the
+//! trend, writes the issues and the internal linking report as CSV beside
+//! it, and fires `audit.finished` to the site's webhooks. It exits with 1
+//! when it finds an error. The AI search checks read the answer length,
+//! the paragraph length and the stale window from the site's `lint.toml`,
+//! like the linter.
 
 use std::fs::{self, OpenOptions};
 use std::io::Write as _;
@@ -17,13 +17,13 @@ use khalid_audit::{
     history,
 };
 use khalid_content::SiteContent;
-use khalid_core::{AbsoluteUrl, Clock, Config, UserMessage};
+use khalid_core::{AbsoluteUrl, Clock, Config, Secret, UserMessage};
 use khalid_outbound::{Limits, Outbound, Resolver};
 use khalid_routes::Routes;
 
 use crate::cli::{Cli, Network, Output};
 use crate::exit::Exit;
-use crate::{audit_message, build, lint, outbound, report};
+use crate::{audit_alert, audit_events, audit_message, build, lint, outbound, report};
 
 /// The folder in `data/` the audit keeps its files in.
 const FOLDER: &str = "data/audit";
@@ -31,13 +31,14 @@ const FOLDER: &str = "data/audit";
 /// Audits the checked site in `site`: the running `server` when one is
 /// given, or else the site built into `data/audit/site/`. Unless `network`
 /// says to stay offline, it then asks every address on another site the
-/// pages link to or load, through the public client.
+/// pages link to or load, through the public client. Broken links on the
+/// blog are raised to the owner, emailed with the `[mail]` secret `mail`.
 pub(crate) fn run(
     site: &Path,
     checked: (&Config, &Routes, &SiteContent),
     (server, network): (Option<&AbsoluteUrl>, Network),
     clock: &dyn Clock,
-    cli: &Cli,
+    (cli, mail): (&Cli, Option<Secret<String>>),
 ) -> Exit {
     let output = cli.output;
     let folder = within(site, FOLDER);
@@ -80,6 +81,8 @@ pub(crate) fn run(
         Ok(trend) => trend,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
+    audit_alert::raise((site, config), &audit, mail, cli, &runtime);
+    audit_events::fire((site, config), &audit, cli, &runtime);
     let exit = if audit.count(Severity::Error) == 0 {
         Exit::Success
     } else {

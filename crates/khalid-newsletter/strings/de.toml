@@ -10,6 +10,15 @@ Um zuzustimmen, öffnen Sie innerhalb von zwei Tagen diesen Link:
 Sie waren es nicht? Dann ignorieren Sie diese E-Mail, und es kommt nichts mehr. Um diese Adresse sofort zu entfernen, öffnen Sie diesen Link:
 {remove}
 """
+pass_subject = "Ihr Link, um {site} zu lesen"
+pass_text = """
+Jemand möchte die Teile von {site} für Abonnenten mit dieser Adresse lesen. Sie haben schon abonniert, an Ihren E-Mails ändert sich nichts.
+
+Um auf dem Gerät zu lesen, von dem Sie gefragt haben, öffnen Sie innerhalb von zwei Tagen diesen Link:
+{pass}
+
+Sie waren es nicht? Dann ignorieren Sie diese E-Mail.
+"""
 
 [page]
 back = "Zurück zu {site}"

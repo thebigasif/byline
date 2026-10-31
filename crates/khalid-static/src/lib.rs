@@ -4,13 +4,15 @@
 //!
 //! A static host only sends files, so nothing answers a form, a search or a
 //! comment. This crate names those features, finds the forms on a rendered
-//! page and puts a note in the page's language where each one was. It knows
+//! page, and the comments and gated content as whole sections, and puts a
+//! note in the page's language where each one was. It knows
 //! nothing of templates, the build or the messages the owner reads: the
 //! binary makes those from [`ServerFeature`].
 
 mod lock_error;
 mod locks;
 mod page_form;
+mod section;
 mod server_feature;
 
 pub use lock_error::LockError;

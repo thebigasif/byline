@@ -7,10 +7,11 @@
 //! outputs share, the [`IndexNowKey`] that settings and the SEO pings
 //! share, and a post's [`PostAccess`], [`TemplateName`], [`PasswordHash`]
 //! and checked [`HeadCode`], which front matter, the Admin API and the
-//! server share. It must not know about HTTP or SQL. It depends on no other Khalid crate, and its only
+//! server share, and the site's own [`SiteCode`] with its [`Consent`]. It must not know about HTTP or SQL. It depends on no other Khalid crate, and its only
 //! I/O is reading the system clock and resolving a [`SitePath`] on disk.
 
 mod absolute_url;
+mod alert_settings;
 mod clock;
 mod config;
 mod head_code;
@@ -26,6 +27,7 @@ mod secret;
 mod seo_head_settings;
 mod seo_publisher_settings;
 mod seo_settings;
+mod site_code;
 mod site_path;
 mod slug;
 mod slug_from_title;
@@ -33,6 +35,7 @@ pub mod toml_location;
 mod user_message;
 
 pub use absolute_url::{AbsoluteUrl, ParseUrlError};
+pub use alert_settings::AlertSettings;
 #[cfg(any(test, feature = "test-util"))]
 pub use clock::FixedClock;
 pub use clock::{Clock, SystemClock};
@@ -63,6 +66,7 @@ pub use seo_publisher_settings::{
     WeekdaySetting,
 };
 pub use seo_settings::{ArchiveIndex, IndexNowSettings, SeoSettings};
+pub use site_code::{BodyCode, BodyCodeError, Consent, SiteCode};
 pub use site_path::{SitePath, SitePathError};
 pub use slug::{ParseSlugError, Slug};
 pub use user_message::UserMessage;

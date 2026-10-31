@@ -10,7 +10,9 @@ publish.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+futures-util = { version = "0.3", default-features = false }
 getrandom = "0.4"
+khalid-alerts = { path = "../khalid-alerts", version = "0.0.0" }
 khalid-analytics = { path = "../khalid-analytics", version = "0.0.0" }
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-auth = { path = "../khalid-auth", version = "0.0.0" }

@@ -5,10 +5,11 @@ use std::path::PathBuf;
 
 use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
-use khalid_api::keys::{KeyId, Role, Scope};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
 use khalid_webhooks::Event;
+
+pub(crate) use crate::cli_access::{KeyKindArg, KeysCommand, NewKeyArgs, OwnerArgs, StaffCommand};
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -147,7 +148,8 @@ pub(crate) enum Command {
     },
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
     /// health out of 100. Keeps the issues, the internal linking report and
-    /// the score's trend in data/audit/, and exits with 1 on any error
+    /// the score's trend in data/audit/, and exits with 1 on any error.
+    /// Broken links on the blog go to the owner as an alert, once
     Audit {
         /// Ask this running server for the site's pages instead of
         /// building them, such as `http://127.0.0.1:8080` for `khalid serve`
@@ -155,7 +157,7 @@ pub(crate) enum Command {
         #[arg(long, value_name = "ADDRESS")]
         server: Option<AbsoluteUrl>,
         /// Leave links to other sites unchecked, so the audit fetches
-        /// nothing from the internet
+        /// nothing from the internet. Alerts still go to the site's webhooks
         #[arg(
             long = "offline",
             action = ArgAction::SetTrue,
@@ -292,6 +294,11 @@ pub(crate) struct ServeArgs {
     /// Another ACME directory than Let's Encrypt's, such as its staging one
     #[arg(long, value_name = "URL", requires = "domain", hide = true)]
     pub(crate) acme_directory: Option<String>,
+    /// Test builds only: run the alert checks this many seconds apart
+    /// instead of hourly.
+    #[cfg(feature = "test-util")]
+    #[arg(long, hide = true, value_name = "SECONDS")]
+    pub(crate) alert_every: Option<u64>,
 }
 
 /// What `khalid init` takes. Each flag answers one of the four questions, and
@@ -365,75 +372,19 @@ impl SiteMode {
 }
 
 /// The database commands. The database is `data/site.db` in the site folder.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub(crate) enum DbCommand {
     /// Make the database if it is missing and apply every new migration
     Migrate,
     /// Empty the index and fill it again from the content files, keeping visitor data
     Rebuild,
-}
-
-/// The key commands. Keys are stored as hashes in `data/site.db`.
-#[derive(Debug, Clone, Subcommand)]
-pub(crate) enum KeysCommand {
-    /// Make a key and show it once. Khalid keeps only a hash of it
-    Create(NewKeyArgs),
-    /// Stop a key from working, at once and for good
-    Revoke {
-        /// The key's identity: the 16 characters after the first `_`
-        #[arg(value_name = "ID", value_parser = |text: &str| KeyId::try_new(text))]
-        id: KeyId,
+    /// Write every table of the site as one CSV and one JSON file each, for
+    /// spreadsheets and Looker Studio. Sign-in material and secrets stay out
+    Export {
+        /// The folder to write the files to [default: data/export in the site folder]
+        #[arg(long, value_name = "FOLDER")]
+        out: Option<PathBuf>,
     },
-}
-
-/// The staff commands. Accounts are kept in `data/site.db`.
-#[derive(Debug, Clone, Subcommand)]
-pub(crate) enum StaffCommand {
-    /// Make the owner if the site has none, and show a sign-in link once
-    Owner(OwnerArgs),
-}
-
-/// What `khalid staff owner` takes.
-#[derive(Debug, Clone, Args)]
-pub(crate) struct OwnerArgs {
-    /// The owner's email address, which they sign in with
-    #[arg(long)]
-    pub(crate) email: String,
-
-    /// The owner's name, as the admin shows it
-    #[arg(long)]
-    pub(crate) name: String,
-}
-
-/// What `khalid keys create` takes.
-#[derive(Debug, Clone, Args)]
-pub(crate) struct NewKeyArgs {
-    /// Who or what uses the key, such as a publishing tool or a name
-    #[arg(long)]
-    pub(crate) name: String,
-
-    /// What the key is for
-    #[arg(long, value_enum, default_value_t = KeyKindArg::Integration)]
-    pub(crate) kind: KeyKindArg,
-
-    /// What an integration key may do, such as posts:write. Repeat for more
-    #[arg(long = "scope", value_name = "SCOPE")]
-    pub(crate) scopes: Vec<Scope>,
-
-    /// A staff token's role: owner, admin, editor, writer or contributor
-    #[arg(long)]
-    pub(crate) role: Option<Role>,
-}
-
-/// The kinds of key, as `--kind` spells them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum KeyKindArg {
-    /// Reads published posts through the Content API. Safe in a web page
-    Content,
-    /// Lets a tool, such as a publishing service, use the Admin API, with scopes
-    Integration,
-    /// Lets one staff member use the Admin API, with a role
-    Staff,
 }
 
 /// The theme commands.
@@ -569,6 +520,9 @@ impl Command {
             Self::Db {
                 command: DbCommand::Rebuild,
             } => "db rebuild",
+            Self::Db {
+                command: DbCommand::Export { .. },
+            } => "db export",
             Self::Redirects {
                 command: RedirectsCommand::Import { .. },
             } => "redirects import",

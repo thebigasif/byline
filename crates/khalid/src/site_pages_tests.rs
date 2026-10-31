@@ -9,7 +9,7 @@ use chrono::{TimeZone, Utc};
 use khalid_core::{Config, Environment, FixedClock, SystemClock};
 use khalid_routes::Routes;
 
-use super::{Assets, ContentTree, Render, SitePages, read_content};
+use super::{Assets, ContentFeed, ContentTree, Render, SitePages, read_content};
 
 fn fixture(name: &str) -> PathBuf {
     let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
@@ -78,6 +78,36 @@ fn the_checked_content_renders_the_same_pages_as_the_folder() {
     assert_eq!(given.pages, read.pages);
     assert_eq!(given.not_found, read.not_found);
     assert_eq!(given.moves, read.moves);
+}
+
+#[test]
+fn the_start_render_finishing_after_a_saved_one_hands_on_nothing() {
+    let site = demo_copy();
+    let checked = read_content(&ContentTree::walk(site.path()).unwrap()).unwrap();
+    let config = Config::load(site.path(), &Environment::empty()).unwrap();
+    let routes = Routes::load(site.path()).unwrap();
+    let (feed, mut catalogs) = ContentFeed::for_tests();
+    let clock = Arc::new(SystemClock);
+    let source = SitePages::new(site.path(), config, routes, Some(feed), clock).unwrap();
+    // A post saved while the start render of the checked content runs.
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-10-30-a-saved-post.md");
+    let text = "---\ntitle: A saved post\nslug: a-saved-post\ndate: 2026-10-30\nauthor: lena-vogt\ncategory: technical-seo\n---\n\nSaved while serve started.\n";
+    fs::write(&file, text).unwrap();
+    source.render_all().unwrap();
+    let saved = catalogs
+        .try_recv()
+        .expect("the saved render hands on its catalog");
+    let posts = outlined(&source);
+    assert_eq!(saved.index.posts.len(), checked.posts.len() + 1);
+
+    // The start render, of content read before the save, finishes last.
+    source.render_content(&checked, Assets::default()).unwrap();
+    assert!(
+        catalogs.try_recv().is_err(),
+        "older content would undo the save"
+    );
+    assert_eq!(outlined(&source), posts);
 }
 
 fn copy_dir(from: &Path, into: &Path) {
