@@ -448,6 +448,73 @@
         ]
       }
     },
+    "/api/admin/v1/categories/": {
+      "get": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Lists every category with its names and how many posts are in it. A\nsite has tens, so the list comes whole. Needs `posts:write`.",
+        "operationId": "list_categories",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/comments/": {
       "get": {
         "tags": [
@@ -7438,6 +7505,68 @@
               "$ref": "#/components/schemas/AdminAuthor"
             },
             "description": "The author or authors."
+          }
+        }
+      },
+      "AdminCategories": {
+        "type": "object",
+        "description": "Categories as the Admin API wraps them.",
+        "required": [
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminCategory"
+            },
+            "description": "The category or categories."
+          }
+        }
+      },
+      "AdminCategory": {
+        "type": "object",
+        "description": "A category, in Admin API shape: one slug, named in each of the site's\nlanguages, as one entry of `categories.toml` holds it.",
+        "required": [
+          "id",
+          "slug",
+          "names",
+          "posts",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The identity: the slug, the same in every language."
+          },
+          "names": {
+            "type": "object",
+            "description": "The name readers see, by language code.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "en": "On-page SEO",
+              "de": "Onpage-SEO"
+            }
+          },
+          "posts": {
+            "type": "integer",
+            "description": "How many posts, drafts included, are in it.",
+            "minimum": 0
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts name the category by in their `category` field.",
+            "example": "on-page-seo"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the site's categories last changed. An edit or delete sends it\nback."
           }
         }
       },

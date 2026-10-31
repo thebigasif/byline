@@ -149,4 +149,8 @@ impl Entry for AdminCategory {
             ..self
         }
     }
+
+    fn used_by(&self) -> usize {
+        self.posts
+    }
 }

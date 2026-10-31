@@ -8,6 +8,7 @@
 
 mod admin_api;
 mod admin_authors;
+mod admin_categories;
 mod admin_comments;
 mod admin_delete;
 mod admin_entries;

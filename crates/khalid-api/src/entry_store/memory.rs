@@ -75,6 +75,10 @@ impl<T: Entry> MemoryEntries<T> {
     fn remove(&self, id: &str, seen: DateTime<Utc>) -> Result<(), EntryError> {
         let mut entries = self.entries();
         let at = Self::current(&entries, id, seen)?;
+        let posts = entries.get(at).map_or(0, Entry::used_by);
+        if posts > 0 {
+            return Err(EntryError::InUse { posts });
+        }
         entries.remove(at);
         Ok(())
     }

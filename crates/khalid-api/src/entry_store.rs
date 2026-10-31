@@ -41,6 +41,12 @@ pub trait Entry: fmt::Debug + Clone + Send + Sync + 'static {
     /// The same entry with `edit` applied at `at`.
     #[must_use]
     fn edited(self, edit: Self::Edit, at: DateTime<Utc>) -> Self;
+
+    /// How many posts use the entry, so it may not be deleted: none for
+    /// most kinds.
+    fn used_by(&self) -> usize {
+        0
+    }
 }
 
 /// The site's entries of one kind, for the Admin API. `khalid serve` keeps
