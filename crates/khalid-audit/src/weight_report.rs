@@ -14,7 +14,9 @@ const MOST_HOPS: usize = 5;
 
 /// What one page weighs: its HTML and each file it loads, once each, as a
 /// first visit downloads them. Sizes are the bytes the crawl received,
-/// before any compression the server may add.
+/// before any compression the server may add. The files are those
+/// [`Page::resources`] lists, so a font a stylesheet loads and an image
+/// named only in `srcset` are not weighed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PageWeight {
     url: AbsoluteUrl,
