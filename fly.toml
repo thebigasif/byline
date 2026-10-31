@@ -1,0 +1,36 @@
+# Runs Khalid on Fly.io. The steps are in docs/deploy.md.
+#
+# In a copy of this repository:
+#   fly launch --no-deploy
+# Then set KHALID_ADDRESS below to https://<the app's name>.fly.dev, and:
+#   fly deploy
+#
+# Fly builds the Dockerfile next to this file. The site lives on one
+# volume, so the app runs on one machine.
+
+app = "khalid"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # The blog's address. On the first start Khalid makes the site there.
+  KHALID_ADDRESS = "https://khalid.fly.dev"
+
+[mounts]
+  source = "khalid_site"
+  destination = "/site"
+  initial_size = "1gb"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

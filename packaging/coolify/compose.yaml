@@ -1,0 +1,27 @@
+# Runs Khalid on Coolify. The steps are in docs/deploy.md.
+#
+# In Coolify, add a resource from this repository with the Docker Compose
+# build pack, and set the Docker Compose location to
+# /packaging/coolify/compose.yaml. Coolify makes the blog's address,
+# sends it to port 8080, and Khalid makes the site there on the first start.
+
+services:
+  khalid:
+    build:
+      context: ../..
+    restart: unless-stopped
+    environment:
+      - SERVICE_URL_KHALID_8080
+      - KHALID_ADDRESS=${SERVICE_URL_KHALID_8080}
+    volumes:
+      - khalid-site:/site
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  khalid-site:
