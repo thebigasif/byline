@@ -358,9 +358,15 @@ fn success(output: Output, folder: &Path, answers: &Answers, created: Vec<String
             &format!(
                 "Made a Khalid site in {shown} for {}.\n{}Next, write your first post with \
                  `khalid --site {shown} new --draft \"Your title\" --author \"Your name\"`. \
-                 It waits in drafts/ until `khalid --site {shown} publish <slug>` takes it live.\n",
+                 It waits in drafts/ until `khalid --site {shown} publish <slug>` takes it live.\n{}",
                 answers.address,
                 proxy.as_ref().map_or(String::new(), proxy_text),
+                match answers.mode {
+                    SiteMode::Server => format!(
+                        "To sign in to the admin, run `khalid --site {shown} staff owner --email you@example.com --name \"Your name\"`.\n"
+                    ),
+                    SiteMode::Static => String::new(),
+                },
             ),
             Exit::Success,
         ),

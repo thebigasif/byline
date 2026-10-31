@@ -94,7 +94,7 @@ pub(crate) enum Command {
     Serve(ServeArgs),
     /// Create a post file with correct front matter
     New(NewArgs),
-    /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked.
+    /// Render every page of the site as HTML into a folder, leaving out any dated post the linter blocks.
     /// A headless site gets its feeds, sitemaps and redirects and no HTML.
     /// A static site gets a note in place of each form, and a list of the
     /// features that need a server, which are off

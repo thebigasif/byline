@@ -65,21 +65,28 @@ impl fmt::Display for Report<'_> {
             "Tag archives not mapped until posts can hold tags: {}.",
             self.tags
         )?;
-        let holding = |wanted: fn(&Held) -> bool| {
-            plan.posts
-                .iter()
-                .filter(|post| post.held.iter().any(wanted))
-                .count()
-        };
+        let held: Vec<String> = plan
+            .posts
+            .iter()
+            .filter(|post| !post.held.is_empty())
+            .map(|post| {
+                let fields: Vec<&str> = post.held.iter().map(field).collect();
+                format!("{} ({})", post.slug, fields.join(", "))
+            })
+            .collect();
+        list(f, "Posts with fields their files cannot hold yet", &held)?;
+        let members = plan
+            .posts
+            .iter()
+            .filter(|post| {
+                post.held
+                    .iter()
+                    .any(|held| matches!(held, Held::MembersOnly(_)))
+            })
+            .count();
         writeln!(
             f,
-            "Posts with fields their files cannot hold yet: {}, listed with each post.",
-            holding(|_| true)
-        )?;
-        writeln!(
-            f,
-            "Posts for members only, kept as drafts so nothing paid is published: {}.",
-            holding(|held| matches!(held, Held::MembersOnly(_)))
+            "Posts for members only, kept as drafts so nothing paid is published: {members}."
         )?;
         left_out(f, plan)
     }
@@ -165,6 +172,21 @@ fn cards(plan: &Plan) -> Vec<String> {
         .into_iter()
         .map(|(kind, posts)| format!("{kind} ({})", count(posts, "post", "posts")))
         .collect()
+}
+
+/// The name of a field a post holds back, as the report lists it.
+fn field(held: &Held) -> &'static str {
+    match held {
+        Held::SearchTitle(_) => "search title",
+        Held::MoreAuthors(_) => "more authors",
+        Held::Tags(_) => "tags",
+        Held::FeatureImage(_) => "feature image",
+        Held::OpenGraph(_) => "Open Graph card",
+        Held::Twitter(_) => "X card",
+        Held::Scheduled(_) => "scheduled time",
+        Held::MembersOnly(_) => "members only",
+        Held::Canonical(_) => "canonical address",
+    }
 }
 
 fn left(reason: &LeftReason) -> String {

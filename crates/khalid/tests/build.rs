@@ -366,14 +366,18 @@ fn init_then_new_then_build_writes_the_post_to_public() {
     assert_eq!(new.status.code(), Some(0), "{}", text(&new.stderr));
 
     let public = at(temp.path(), "public");
-    let refused = khalid(&["--site", site, "build"]);
+    let unready = khalid(&["--site", site, "build"]);
     assert_eq!(
-        refused.status.code(),
-        Some(1),
+        unready.status.code(),
+        Some(0),
+        "the rest of the site builds"
+    );
+    assert!(text(&unready.stdout).contains("This post has no author."));
+    assert!(public.exists(), "the home page is written");
+    assert!(
+        !at(&public, "why-links-matter").exists(),
         "a new post has no author yet"
     );
-    assert!(text(&refused.stdout).contains("This post has no author."));
-    assert!(!public.exists(), "a refused build writes nothing");
 
     let posts = at(temp.path(), "content/en/posts");
     let file = fs::read_dir(&posts)
@@ -434,13 +438,13 @@ fn site(posts: &[(&str, &str)]) -> tempfile::TempDir {
 }
 
 #[test]
-fn build_refuses_a_post_the_gate_blocks_and_explains_every_finding() {
+fn build_leaves_out_a_post_the_gate_blocks_and_builds_the_rest() {
     let site = site(&[
         ("2026-09-14-why-internal-links-matter.md", READY),
         ("2026-09-21-choosing-link-text.md", BLOCKED),
     ]);
     let output = khalid(&["--site", path(site.path()), "build"]);
-    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let said = text(&output.stdout);
     assert!(
         said.contains("en/choosing-link-text: blocks publishing"),
@@ -449,25 +453,26 @@ fn build_refuses_a_post_the_gate_blocks_and_explains_every_finding() {
     assert!(said.contains("This post has no author."), "{said}");
     assert!(said.contains("Rule no-internal-link"), "{said}");
     assert!(!said.contains("en/why-internal-links-matter"), "{said}");
-    let why = text(&output.stderr);
-    assert!(why.contains("1 post is not ready"), "{why}");
-    assert_eq!(why.lines().count(), 3, "what, why, fix:\n{why}");
-    assert!(!at(site.path(), "public").exists(), "nothing is written");
+    assert!(said.contains("Left out 1 post"), "{said}");
+    let public = at(site.path(), "public");
+    assert!(at(&public, "why-internal-links-matter/index.html").exists());
+    assert!(!at(&public, "choosing-link-text").exists());
+    let home = page(&public, "index.html");
+    assert!(!home.contains("Choosing link text"), "{home}");
 }
 
 #[test]
-fn build_json_lists_the_refused_posts_and_exits_1() {
+fn build_json_lists_the_posts_it_left_out() {
     let site = site(&[("2026-09-21-choosing-link-text.md", BLOCKED)]);
     let output = khalid(&["--site", path(site.path()), "build", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.status.code(), Some(0));
     assert!(output.stderr.is_empty(), "{}", text(&output.stderr));
     assert_eq!(text(&output.stdout).lines().count(), 1, "one JSON value");
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(json["error"]["fix"].as_str().unwrap().contains("drafts/"));
-    let refused = json["refused"].as_array().unwrap();
-    assert_eq!(refused.len(), 1, "{json}");
-    assert_eq!(refused[0]["blocks"], true);
-    let rules: Vec<_> = refused[0]["findings"]
+    let left_out = json["left_out"].as_array().unwrap();
+    assert_eq!(left_out.len(), 1, "{json}");
+    assert_eq!(left_out[0]["blocks"], true);
+    let rules: Vec<_> = left_out[0]["findings"]
         .as_array()
         .unwrap()
         .iter()

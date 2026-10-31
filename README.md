@@ -16,7 +16,13 @@ khalid init blog --address https://blog.example.com --yes
 khalid --site blog serve
 ```
 
-The blog is then at `http://127.0.0.1:8080/`.
+The blog is then at `http://127.0.0.1:8080/`. To sign in to the admin, make yourself the owner from a second terminal:
+
+```sh
+khalid --site blog staff owner --email you@example.com --name "Your Name"
+```
+
+Khalid shows the sign-in link only this once. Open the `localhost` address it shows while `khalid serve` runs.
 
 To write a post, run `khalid --site blog new --draft "Your title"`. It writes `blog/drafts/en/your-title.md`, which readers never see. Write the post below its front matter, then run `khalid --site blog publish your-title`. The linter checks it first, and only a post it lets through moves into `blog/content/en/posts/` with today's date. Without `--draft`, `new` writes the post straight into `content/`, dated today, and it goes live at once.
 

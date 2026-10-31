@@ -27,8 +27,9 @@ use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::site_html::{SearchShell, Unrendered, Which, html_pages, search_shells};
 use crate::unlock::Gate;
 use crate::{
-    assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
-    categories, content_message, own_descriptions, post_files, post_gate, post_lock, search_page,
+    assets, build_gate, build_home, build_lists, build_message, build_pages, build_seo,
+    build_sitemap, categories, content_message, own_descriptions, post_files, post_gate,
+    post_lock, search_page,
     serve_message, share_images, site_files, site_outline,
 };
 
@@ -363,12 +364,17 @@ impl SitePages {
         let Site {
             folder,
             config,
+            routes,
             feed,
             outline,
             assets: kept,
             handed_on,
+            clock,
             ..
         } = &*self.0;
+        // Readers never see a post `khalid build` leaves out (KH-LNT-1).
+        let checked = (config, routes, content);
+        let content = &*build_gate::for_readers(folder, checked, clock.as_ref())?;
         // The catalog holds no post body, so it is quick to make here, and
         // the Content API's store is built from it in the background.
         let catalog = match feed {

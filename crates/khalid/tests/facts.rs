@@ -143,14 +143,15 @@ fn a_broken_facts_file_stops_lint_and_build_with_a_plain_message() {
 }
 
 #[test]
-fn build_refuses_an_old_value_when_the_site_makes_it_block() {
+fn build_leaves_out_an_old_value_when_the_site_makes_it_block() {
     let site = site(FACTS);
     let rules = "[rules]\nfact-old-value = \"block\"\n";
     fs::write(within(site.path(), "lint.toml"), rules).unwrap();
     let output = khalid(site.path(), &["build"]);
-    assert_eq!(output.status.code(), Some(1), "{}", text(&output.stderr));
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let said = text(&output.stdout);
     assert!(said.contains("19 USD a month"), "{said}");
+    assert!(said.contains("Left out 1 post"), "{said}");
 }
 
 #[test]

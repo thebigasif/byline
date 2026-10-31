@@ -9,13 +9,15 @@ use std::path::{Path, PathBuf};
 
 use khalid_content::SiteContent;
 use khalid_core::{Clock, Config, Mode, UserMessage};
+use khalid_lint::Report;
 use khalid_routes::Routes;
 use serde::Serialize;
 use tempfile::TempDir;
 
+use crate::build::Built;
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{build, build_message, report};
+use crate::{build, build_gate, build_message, report};
 
 /// The folder a static site is exported into.
 const PUBLIC: &str = "public";
@@ -25,6 +27,9 @@ const PUBLIC: &str = "public";
 struct ExportBody {
     out: String,
     pages: usize,
+    /// The posts the publish gate kept out, each with every finding.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    left_out: Vec<Report>,
 }
 
 /// Exports the static `site`, whose settings, routes and content were
@@ -50,11 +55,12 @@ pub(crate) fn run(
             );
         }
     };
-    // A refused or failed build drops `fresh`, so the earlier export stays.
-    let pages = match build::into_folder(site, checked, fresh.path(), clock, output) {
-        Ok(pages) => pages,
-        Err(exit) => return exit,
-    };
+    // A failed build drops `fresh`, so the earlier export stays.
+    let Built { pages, left_out } =
+        match build::into_folder(site, checked, fresh.path(), clock, output) {
+            Ok(built) => built,
+            Err(exit) => return exit,
+        };
     if let Err(error) = swap(site, &public, fresh) {
         return report::failure(
             output,
@@ -66,11 +72,19 @@ pub(crate) fn run(
     match output {
         Output::Human => report::text(
             &format!(
-                "Exported {pages} pages to {out}, with nothing left from earlier exports.\nCopy that folder to your host.\n"
+                "{}Exported {pages} pages to {out}, with nothing left from earlier exports.\nCopy that folder to your host.\n",
+                build_gate::human(&left_out)
             ),
             Exit::Success,
         ),
-        Output::Json => report::json(&ExportBody { out, pages }, Exit::Success),
+        Output::Json => report::json(
+            &ExportBody {
+                out,
+                pages,
+                left_out,
+            },
+            Exit::Success,
+        ),
     }
 }
 
