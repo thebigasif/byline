@@ -18,6 +18,7 @@ export const en = {
   },
   trash: records.trash,
   audit: records.audit,
+  bulk: records.bulk,
   redirects: {
     title: "Redirects",
     lede: "A redirect sends visitors and Google from an old web address to a new one. When you rename a post, a redirect keeps old links working and keeps the post's place in search results.",

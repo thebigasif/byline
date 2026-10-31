@@ -72,4 +72,21 @@ export const records = {
     older: "Show older changes",
     newest: "Back to the newest",
   },
+  bulk: {
+    label: "Change the posts you tick",
+    tickColumn: "Tick",
+    tick: (title: string) => `Tick ${title}`,
+    ticked: (n: number) => (n === 1 ? "1 post ticked." : `${n} posts ticked.`),
+    careful:
+      "Each post is changed on its own. A post someone else changed meanwhile is left as it is, and you are told which.",
+    action: "Change",
+    author: "Set the author",
+    trash: "Move to the trash",
+    newAuthor: "New author",
+    newAuthorHint: "The authors of the posts on this page.",
+    submit: (n: number) => (n === 1 ? "Change 1 post" : `Change ${n} posts`),
+    working: "Changing the posts",
+    done: (n: number) => (n === 1 ? "Changed 1 post." : `Changed ${n} posts.`),
+    left: (title: string, why: string) => `${title} was left as it is. ${why}`,
+  },
 } as const;
