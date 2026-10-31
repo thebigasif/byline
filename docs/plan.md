@@ -487,6 +487,8 @@ Severities come from `lint.toml`. The defaults:
 | Anchor text reused for a different page | The same anchor text pointed at another post before. Google reads anchor text as a label: one label, one page |
 | Same anchor to the same page too often | The same exact anchor text to the same URL more than N times across the site |
 | Vague anchors | "click here", "read more", "here", "this post" |
+| Anchor misses its target | The anchor text shares no word with the title, search title or focus keyword of the post it opens |
+| Anchor is the post's own topic | An internal link to another page whose anchor text holds this post's own focus keyword |
 | Same target linked twice in one post | Only the first link counts |
 | Link to a redirecting or dead URL | Internal or external |
 | Orphan post | A published post with no inbound internal link. Checked after publish and shown on the dashboard |

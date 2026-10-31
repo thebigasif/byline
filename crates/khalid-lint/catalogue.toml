@@ -64,6 +64,18 @@ why = "People using screen readers and Google cannot tell where it goes."
 fix = "Add words to the link, or describe the image inside it."
 guide = "link-text"
 
+[link-text-misses-target]
+what = "These link words share no word with the title of the page they open."
+why = "Google reads link words as a label for the page, and this label does not match it."
+fix = "Rewrite the link with words from the title of the page it opens."
+guide = "link-text"
+
+[link-text-is-own-focus]
+what = "These link words hold this post's own focus keyword, but they open another page."
+why = "Link words tell Google which page answers a phrase, so these send your phrase elsewhere."
+fix = "Rewrite the link to name the other page's topic, and keep your focus keyword for this post."
+guide = "link-text"
+
 [heading-order]
 what = "This heading skips a level, such as a `####` right after a `##`."
 why = "Screen readers and Google follow headings like a table of contents."

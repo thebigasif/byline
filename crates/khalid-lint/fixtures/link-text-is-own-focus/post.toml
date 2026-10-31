@@ -1,0 +1,13 @@
+# The post wants to be found for "internal links", and its link to another
+# page uses those same words.
+extends = "clean"
+
+[[links]]
+kind = "internal"
+target = "/blog/internal-links-for-shops/"
+text = "internal links for shops"
+
+[[links]]
+kind = "external"
+target = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+text = "Google's guide to links"
