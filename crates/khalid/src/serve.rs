@@ -34,6 +34,7 @@ use crate::exit::Exit;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::serve_https::{self, Listen};
+use crate::site_categories::SiteCategories;
 use crate::site_content::LiveContent;
 use crate::site_entries::SiteEntries;
 use crate::site_pages::SitePages;
@@ -242,7 +243,7 @@ fn api_router(
         snippets: Some(Arc::new(SiteEntries::<AdminSnippet>::new(site, config))),
         authors: Some(Arc::new(SiteEntries::<AdminAuthor>::new(site, config))),
         tags: Some(Arc::new(SiteTags::new(site, config))),
-        ..AdminDesks::none()
+        categories: Some(Arc::new(SiteCategories::new(site, config))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

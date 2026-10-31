@@ -14,7 +14,7 @@ use khalid_api::entry_store::{EntryError, EntryStoreError};
 use khalid_api::resources::{AdminTag, TagEdit};
 use khalid_api::tag_store::{TagStore, TaggedPost, current, retagged, tag_id, tags_of, unnamed};
 use khalid_content::{ContentTree, PostFront};
-use khalid_core::{Config, Locale, SlugMode};
+use khalid_core::{Config, Locale, Slug, SlugMode};
 
 use crate::atomic;
 use crate::entry_files::front;
@@ -40,11 +40,13 @@ pub(crate) struct SiteTags {
     writing: Arc<Mutex<()>>,
 }
 
-/// A post file and its tags.
+/// A post file, its tags and its category.
 pub(crate) struct PostFile {
     path: PathBuf,
     text: PostText,
     tagged: TaggedPost,
+    /// The category the post is in, if any.
+    pub(crate) category: Option<Slug>,
 }
 
 /// Every post file in `site`, published and draft.
@@ -202,7 +204,13 @@ fn post_file(path: PathBuf, language: &Locale) -> Result<PostFile, EntryStoreErr
         tags: post.tags,
         updated_at: changed.into(),
     };
-    Ok(PostFile { path, text, tagged })
+    let category = post.category;
+    Ok(PostFile {
+        path,
+        text,
+        tagged,
+        category,
+    })
 }
 
 /// The items in `folder`, sorted; none when it does not exist.

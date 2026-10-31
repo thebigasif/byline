@@ -193,3 +193,47 @@ fn a_tag_renamed_through_the_admin_api_moves_its_posts_and_then_goes() {
         "the draft keeps its other tag: {text}"
     );
 }
+
+#[test]
+fn a_category_renamed_through_the_admin_api_shows_on_its_page_and_keeps_its_file() {
+    let site = demo_copy();
+    let server = start(site.path(), &new_key(site.path(), &EDITOR));
+    let (status, listed) = server.admin("GET", "/api/admin/v1/categories/", None);
+    assert_eq!(status, 200, "{listed}");
+    assert_eq!(listed["categories"][0]["id"], "on-page-seo", "{listed}");
+    assert!(
+        listed["categories"][0]["posts"].as_u64().unwrap() > 0,
+        "{listed}"
+    );
+
+    let on_page = "/api/admin/v1/categories/on-page-seo/";
+    let seen = listed["categories"][0]["updated_at"].as_str().unwrap();
+    let names = json!({"en": "On-page optimisation", "de": "Onpage-SEO"});
+    let edit = json!({"categories": [{"names": names, "updated_at": seen}]});
+    let (status, saved) = server.admin("PUT", on_page, Some(&edit));
+    assert_eq!(status, 200, "{saved}");
+    assert!(server.shows("/blog/category/on-page-seo/", "On-page optimisation"));
+    let seen = saved["categories"][0]["updated_at"].as_str().unwrap();
+    let (status, body) = server.admin("DELETE", &format!("{on_page}?updated_at={seen}"), None);
+    assert_eq!(status, 409, "posts are still in it: {body}");
+
+    let new = json!({"categories": [{"slug": "link-building", "names": {"en": "Link building"}}]});
+    let (status, made) = server.admin("POST", "/api/admin/v1/categories/", Some(&new));
+    assert_eq!(status, 201, "{made}");
+    let french = json!({"categories": [{"slug": "liens", "names": {"fr": "Liens"}}]});
+    let (status, body) = server.admin("POST", "/api/admin/v1/categories/", Some(&french));
+    assert_eq!(status, 422, "the demo is not written in French: {body}");
+    let seen = made["categories"][0]["updated_at"].as_str().unwrap();
+    let links = format!("/api/admin/v1/categories/link-building/?updated_at={seen}");
+    assert_eq!(server.admin("DELETE", &links, None).0, 204);
+
+    let mut file = PathBuf::from(site.path());
+    file.push("categories.toml");
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        text.starts_with("# The demo site's categories"),
+        "comments stay: {text}"
+    );
+    assert!(text.contains("en = \"On-page optimisation\""), "{text}");
+    assert!(!text.contains("link-building"), "{text}");
+}

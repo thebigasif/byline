@@ -91,6 +91,7 @@ mod settings_text;
 mod share_images;
 mod site_addresses;
 mod site_audit;
+mod site_categories;
 mod site_config;
 mod site_content;
 mod site_entries;
