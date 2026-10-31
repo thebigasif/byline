@@ -20,7 +20,7 @@ chrono = { version = "0.4", default-features = false, features = ["serde"] }
 khalid-core.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-toml = "0.9"
+toml = "1.1"
 
 [dev-dependencies]
 khalid-core = { workspace = true, features = ["test-util"] }
