@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 use khalid_webhooks::Event;
 
 /// The catalogue as `docs/standards/api.md` and plan section 5.12 list it.
-const DOCUMENTED: [&str; 32] = [
+const DOCUMENTED: [&str; 33] = [
     "post.published",
     "post.published.edited",
     "post.unpublished",
@@ -39,6 +39,7 @@ const DOCUMENTED: [&str; 32] = [
     "lint.blocked",
     "audit.finished",
     "site.changed",
+    "alert.raised",
 ];
 
 #[test]

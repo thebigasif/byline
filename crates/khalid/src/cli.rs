@@ -131,7 +131,8 @@ pub(crate) enum Command {
     Backup,
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
     /// health out of 100. Keeps the issues, the internal linking report and
-    /// the score's trend in data/audit/, and exits with 1 on any error
+    /// the score's trend in data/audit/, and exits with 1 on any error.
+    /// Broken links on the blog go to the owner as an alert, once
     Audit {
         /// Ask this running server for the site's pages instead of
         /// building them, such as `http://127.0.0.1:8080` for `khalid serve`
@@ -139,7 +140,7 @@ pub(crate) enum Command {
         #[arg(long, value_name = "ADDRESS")]
         server: Option<AbsoluteUrl>,
         /// Leave links to other sites unchecked, so the audit fetches
-        /// nothing from the internet
+        /// nothing from the internet. Alerts still go to the site's webhooks
         #[arg(
             long = "offline",
             action = ArgAction::SetTrue,
@@ -258,6 +259,11 @@ pub(crate) struct ServeArgs {
     /// Another ACME directory than Let's Encrypt's, such as its staging one
     #[arg(long, value_name = "URL", requires = "domain", hide = true)]
     pub(crate) acme_directory: Option<String>,
+    /// Test builds only: run the alert checks this many seconds apart
+    /// instead of hourly.
+    #[cfg(feature = "test-util")]
+    #[arg(long, hide = true, value_name = "SECONDS")]
+    pub(crate) alert_every: Option<u64>,
 }
 
 /// What `khalid init` takes. Each flag answers one of the four questions, and
@@ -331,12 +337,19 @@ impl SiteMode {
 }
 
 /// The database commands. The database is `data/site.db` in the site folder.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub(crate) enum DbCommand {
     /// Make the database if it is missing and apply every new migration
     Migrate,
     /// Empty the index and fill it again from the content files, keeping visitor data
     Rebuild,
+    /// Write every table of the site as one CSV and one JSON file each, for
+    /// spreadsheets and Looker Studio. Sign-in material and secrets stay out
+    Export {
+        /// The folder to write the files to [default: data/export in the site folder]
+        #[arg(long, value_name = "FOLDER")]
+        out: Option<PathBuf>,
+    },
 }
 
 /// The key commands. Keys are stored as hashes in `data/site.db`.
@@ -535,6 +548,9 @@ impl Command {
             Self::Db {
                 command: DbCommand::Rebuild,
             } => "db rebuild",
+            Self::Db {
+                command: DbCommand::Export { .. },
+            } => "db export",
             Self::Redirects {
                 command: RedirectsCommand::Import { .. },
             } => "redirects import",

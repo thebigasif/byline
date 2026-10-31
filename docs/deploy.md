@@ -126,3 +126,28 @@ The password, API key or token never goes in `site.toml`. Set it in the server's
 | Postmark | `KHALID_POSTMARK_TOKEN` |
 
 With systemd, run `sudo systemctl edit khalid` and add `Environment=KHALID_SMTP_PASSWORD=...` under `[Service]`, or keep it in a file only root can read and name it with `EnvironmentFile=`. With Compose, put it in the `.env` file and pass it on under `environment:` in `compose.yaml`, as `KHALID_SMTP_PASSWORD: ${KHALID_SMTP_PASSWORD}`. Khalid refuses to start, and says which variable is missing, when the way you picked needs one that is not set.
+
+## Alerts
+
+`khalid serve` tells you when something on the blog needs you. Once an hour it checks for a burst of visits ending on missing pages (404s), an HTTPS certificate with under two weeks left, and live posts that have not changed in a year. It also tells you when a scheduled post did not go live because the linter refused it, and `khalid audit` tells you about broken links. Each problem is sent once while it lasts, and again if it clears and comes back.
+
+Every alert goes to the webhooks registered for `alert.raised`, so Slack, Zapier or Make can pass it on:
+
+```sh
+khalid webhooks add --event alert.raised --url https://hooks.example.com/khalid
+```
+
+To get alerts by email too, set up `[mail]` as above and add the address:
+
+```toml
+[alerts]
+email = "owner@example.com"
+not_found_spike = 50     # new 404s in one hour that count as a burst
+stale_after_days = 365   # 0 switches the stale-post alert off
+```
+
+## Taking your data out
+
+`khalid db export` writes every table of the site's database as a CSV file and a JSON file (two plain formats spreadsheets and reporting tools read), one pair per table, into `data/export/`. Add `--out <folder>` to write them somewhere else. Google Sheets, Excel and Looker Studio open the CSV files as they are.
+
+Sign-in material never leaves: sessions, sign-in links, passkeys and the site's own keys are left out, and so are the hashes of passwords and keys and the secrets that sign webhooks. A text field that a spreadsheet would run as a formula starts with `'`, so opening a file runs nothing.

@@ -18,7 +18,8 @@ use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_db::{Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
@@ -37,8 +38,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, page_counts, preview,
-    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    alert_watch, announce, comment_pages, db, db_message, media_library, newsletter, page_counts,
+    preview, redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -90,7 +91,7 @@ pub(crate) fn run(
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
     (listen, outbound, keys): (&Listen, Result<Outbound, OutboundError>, Keys),
-    output: Output,
+    (output, alert_every): (Output, Duration),
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -106,7 +107,7 @@ pub(crate) fn run(
     let served = serve_with(
         (site, config, routes),
         start,
-        (listen, &outbound, output, keys),
+        (listen, &outbound, (output, alert_every), keys),
         &runtime,
         (&database, id),
     );
@@ -122,10 +123,7 @@ pub(crate) fn run(
 fn first_pages(source: &SitePages, checked: &SiteContent) -> Result<Pages, UserMessage> {
     let first = source.render_first(checked)?;
     let first = Pages::first(first).map_err(|_| serve_message::internal())?;
-    Ok(match source.stylesheet() {
-        Some(href) => first.with_preloads(vec![href]),
-        None => first,
-    })
+    Ok(with_hint(first, source))
 }
 
 /// Renders the site with its checked settings and routes, then answers on
@@ -133,7 +131,7 @@ fn first_pages(source: &SitePages, checked: &SiteContent) -> Result<Pages, UserM
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, outbound, output, keys): (&Listen, &Outbound, Output, Keys),
+    (listen, outbound, (output, alert_every), keys): (&Listen, &Outbound, (Output, Duration), Keys),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -161,8 +159,9 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
-    let newsletters = newsletter::router(config, (database, id), (keys.mail, outbound))
-        .map_err(|message| (message, Exit::Internal))?;
+    let to = (site, config, listen, alert_every);
+    let (newsletters, alerting) =
+        mail_and_alerts(to, (database, id), &content, (keys.mail, outbound))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
@@ -175,6 +174,7 @@ fn serve_with(
         // Each part reads the database or the folder alone, so all open at once.
         let (telling, announcing) = announce::start(config, (database, id), outbound)
             .map_err(|message| (message, Exit::Failure))?;
+        let (alerting, alert_watching) = alerting.start((config, database, id, telling.clone()));
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
         let shown_pages = router(live.clone(), security.clone());
@@ -184,7 +184,7 @@ fn serve_with(
             media_library::open(site, config, keys.bucket, outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
-        let scheduling = scheduler::start(Arc::clone(&door));
+        let scheduling = scheduler::start(Arc::clone(&door), alerting);
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
@@ -201,7 +201,7 @@ fn serve_with(
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
         watching.stop().await;
-        scheduling.stop().await;
+        tokio::join!(scheduling.stop(), alert_watching.stop());
         tokio::join!(announcing.stop(), counter.stop());
         if let Some(message) = why.lock().unwrap_or_else(PoisonError::into_inner).take() {
             return Err((message, Exit::Failure));
@@ -217,6 +217,45 @@ fn serve_with(
         tracing::warn!(?error, "the Content API's task stopped early");
     }
     served
+}
+
+/// The newsletter's routes and the alerts ready to start, sharing the one
+/// way mail leaves, made from `[mail]` with its `secret` and `outbound`.
+/// The alert checks run `every` so often.
+fn mail_and_alerts(
+    (site, config, listen, every): (&Path, &Config, &Listen, Duration),
+    (database, id): (&Database, SiteId),
+    content: &LiveContent,
+    (secret, outbound): (Option<Secret<String>>, &Outbound),
+) -> Result<(Router, alert_watch::Ready), (UserMessage, Exit)> {
+    let internal = |message| (message, Exit::Internal);
+    let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
+    let newsletters =
+        newsletter::router(config, (database, id), mailer.clone()).map_err(internal)?;
+    let sources = alert_watch::Sources {
+        misses: Arc::new(NotFoundTable::new(database.clone(), id)),
+        content: content.clone(),
+        https: https_folder(site, listen),
+        settings: config.alerts().clone(),
+    };
+    let ready = alert_watch::Ready {
+        mailer,
+        sources,
+        every,
+    };
+    Ok((newsletters, ready))
+}
+
+/// The domain and the folder of its certificate, when `listen` serves
+/// HTTPS, for the certificate alert.
+fn https_folder(site: &Path, listen: &Listen) -> Option<(Domain, HttpsFolder)> {
+    match listen {
+        Listen::Https(https) => Some((
+            https.domain.clone(),
+            HttpsFolder::new(serve_https::folder(site)),
+        )),
+        Listen::Plain(_) => None,
+    }
 }
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
