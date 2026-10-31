@@ -9,7 +9,7 @@ use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
 use chrono::NaiveDate;
-use khalid_analytics::{AnalyticsStore, CrawlerKind, Crawls, ReferrerGroup, Views};
+use khalid_analytics::{AiTool, AnalyticsStore, CrawlerKind, Crawls, ReferrerGroup, Views};
 use khalid_core::Slug;
 use khalid_db::{AnalyticsTable, Database};
 use serde_json::Value;
@@ -133,6 +133,11 @@ async fn readers_with_scripts_off_are_counted_by_source_and_bots_are_logged() {
         ("GET", POST),
         &[ua, ("Referer", "https://www.google.com/")],
     );
+    send(
+        &server,
+        ("GET", POST),
+        &[ua, ("Referer", "https://www.perplexity.ai/search")],
+    );
     // Not views: a HEAD, a prefetch, a 404, and a script.
     send(&server, ("HEAD", POST), &[ua]);
     send(&server, ("GET", POST), &[ua, ("Sec-Purpose", "prefetch")]);
@@ -145,7 +150,7 @@ async fn readers_with_scripts_off_are_counted_by_source_and_bots_are_logged() {
         &[("User-Agent", GOOGLEBOT)],
     );
     let (views, crawls) = stored(site.path(), |views, crawls| {
-        views.iter().map(|row| row.views).sum::<u64>() >= 3 && crawls.len() >= 3
+        views.iter().map(|row| row.views).sum::<u64>() >= 4 && crawls.len() >= 3
     })
     .await;
     let counted: Vec<_> = views
@@ -156,7 +161,8 @@ async fn readers_with_scripts_off_are_counted_by_source_and_bots_are_logged() {
         counted,
         [
             (POST, ReferrerGroup::Search, 1),
-            (POST, ReferrerGroup::Ai, 2)
+            (POST, ReferrerGroup::Ai(AiTool::ChatGpt), 2),
+            (POST, ReferrerGroup::Ai(AiTool::Perplexity), 1)
         ]
     );
     let logged: Vec<_> = crawls
