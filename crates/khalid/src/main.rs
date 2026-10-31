@@ -118,6 +118,14 @@ mod site_files;
     reason = "khalid sites and serve add sites through this later in this stack"
 )]
 mod site_folders;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "khalid serve on a sites folder fills the hosts in the next part"
+    )
+)]
+mod site_hosts;
 mod site_html;
 #[expect(
     dead_code,

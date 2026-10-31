@@ -98,6 +98,31 @@ pub(crate) fn add(root: &Path, domain: &DomainName) -> Result<SiteList, AddError
     Ok(list)
 }
 
+/// The directory of a site with no super admin: one served alone, or one
+/// among many that is not the home site. Its panel routes refuse everyone.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NoPanel;
+
+impl SiteDirectory for NoPanel {
+    fn sites(&self) -> BoxFuture<'_, Result<Vec<ListedSite>, SiteDirectoryError>> {
+        Box::pin(async { Ok(Vec::new()) })
+    }
+
+    fn add<'a>(
+        &'a self,
+        _domain: &'a DomainName,
+    ) -> BoxFuture<'a, Result<ListedSite, AddSiteError>> {
+        Box::pin(async { Err(unavailable(AddError::Failed(sites_message::no_panel()))) })
+    }
+
+    fn is_super_admin<'a>(
+        &'a self,
+        _email: &'a Email,
+    ) -> BoxFuture<'a, Result<bool, SiteDirectoryError>> {
+        Box::pin(async { Ok(false) })
+    }
+}
+
 fn unavailable(error: impl std::error::Error + Send + Sync + 'static) -> AddSiteError {
     AddSiteError::Unavailable(SiteDirectoryError::new(error))
 }

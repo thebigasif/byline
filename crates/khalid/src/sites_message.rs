@@ -72,6 +72,14 @@ pub(crate) fn not_saved(path: &Path) -> UserMessage {
     )
 }
 
+pub(crate) fn no_panel() -> UserMessage {
+    UserMessage::new(
+        "This site has no super-admin panel.",
+        "Only the home site of a sites folder adds sites.",
+        "Sign in on the home site, or run khalid sites add on the server.",
+    )
+}
+
 pub(crate) fn not_made(folder: &Path) -> UserMessage {
     UserMessage::new(
         format!("The site in {} could not be made.", folder.display()),
