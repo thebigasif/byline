@@ -1,6 +1,7 @@
 //! The form route answers as plain HTML: a kept submission, and bait too,
 //! go on to the thank-you page with 303, anything else gets a page saying
-//! why, and nothing but a kept submission is stored (KH-GRO-1, BL-SEC-5).
+//! why, and nothing but a kept submission is stored and sent on
+//! (KH-GRO-1, BL-SEC-5, G40).
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -13,7 +14,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use khalid_comments::RateLimits;
 use khalid_core::FixedClock;
 use khalid_forms::{
-    FormId, FormRoute, FormStore, FormStoreError, SiteForms, Submission, form_router,
+    FormDelivery, FormId, FormRoute, FormStore, FormStoreError, SiteForms, Submission, form_router,
 };
 use tower::ServiceExt;
 
@@ -57,12 +58,32 @@ impl FormStore for Kept {
     }
 }
 
+/// Notes each submission it is asked to send on, and when it was kept.
+#[derive(Debug, Default)]
+struct Sent(Mutex<Vec<(Submission, DateTime<Utc>)>>);
+
 #[cfg(test)]
-fn site(store: Kept) -> (Router, Arc<Kept>) {
+impl FormDelivery for Sent {
+    fn kept(&self, submission: &Submission, at: DateTime<Utc>) {
+        self.0.lock().unwrap().push((submission.clone(), at));
+    }
+}
+
+/// The form route over a store, and what it kept and sent on.
+struct Site {
+    router: Router,
+    store: Arc<Kept>,
+    sent: Arc<Sent>,
+}
+
+#[cfg(test)]
+fn site(store: Kept) -> Site {
     let clock = FixedClock::new(Utc.with_ymd_and_hms(2026, 10, 31, 9, 0, 0).unwrap());
-    let store = Arc::new(store);
+    let (store, sent) = (Arc::new(store), Arc::new(Sent::default()));
+    let delivery: Arc<dyn FormDelivery> = Arc::<Sent>::clone(&sent);
     let route = FormRoute {
         store: Arc::clone(&store),
+        delivery,
         forms: Arc::new(OneForm),
         limits: RateLimits::new(clock),
         clock: Box::new(clock),
@@ -70,7 +91,12 @@ fn site(store: Kept) -> (Router, Arc<Kept>) {
         stylesheet: "/blog/assets/site.css".to_owned(),
     };
     let peer: SocketAddr = "203.0.113.7:50000".parse().unwrap();
-    (form_router(route).layer(MockConnectInfo(peer)), store)
+    let router = form_router(route).layer(MockConnectInfo(peer));
+    Site {
+        router,
+        store,
+        sent,
+    }
 }
 
 /// Sends `method` to `path` with `body` as a browser posts a form, and
@@ -100,7 +126,11 @@ async fn send(
 
 #[tokio::test]
 async fn a_filled_form_is_kept_and_thanked_for() {
-    let (router, store) = site(Kept::default());
+    let Site {
+        router,
+        store,
+        sent,
+    } = site(Kept::default());
     let body = "name=Ada&reply_to=ada%40example.com&message=Hello+there&homepage=";
     let (status, location, _) = send(&router, ("POST", ACTION), body).await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -123,6 +153,8 @@ async fn a_filled_form_is_kept_and_thanked_for() {
         ]
     );
     assert_eq!(at.to_rfc3339(), "2026-10-31T09:00:00+00:00");
+    let sent = sent.0.lock().unwrap().clone();
+    assert_eq!(sent, rows, "each kept answer is sent on once");
 
     let (status, _, page) = send(&router, ("GET", "/blog/forms/contact/sent"), "").await;
     assert_eq!(status, StatusCode::OK);
@@ -133,7 +165,11 @@ async fn a_filled_form_is_kept_and_thanked_for() {
 
 #[tokio::test]
 async fn a_robot_that_fills_the_trap_is_thanked_and_kept_nowhere() {
-    let (router, store) = site(Kept::default());
+    let Site {
+        router,
+        store,
+        sent,
+    } = site(Kept::default());
     let body = "name=Bot&message=Buy+now&homepage=https%3A%2F%2Fspam.example";
     let (status, location, _) = send(&router, ("POST", ACTION), body).await;
     assert_eq!(
@@ -141,11 +177,12 @@ async fn a_robot_that_fills_the_trap_is_thanked_and_kept_nowhere() {
         (StatusCode::SEE_OTHER, "/blog/forms/contact/sent")
     );
     assert!(store.rows.lock().unwrap().is_empty());
+    assert!(sent.0.lock().unwrap().is_empty(), "bait is sent nowhere");
 }
 
 #[tokio::test]
 async fn a_form_the_site_does_not_have_is_not_found() {
-    let (router, store) = site(Kept::default());
+    let Site { router, store, .. } = site(Kept::default());
     for path in ["/blog/forms/survey", "/blog/forms/Not_An_Id"] {
         let (status, _, page) = send(&router, ("POST", path), "name=Ada").await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
@@ -159,7 +196,7 @@ async fn a_form_the_site_does_not_have_is_not_found() {
 
 #[tokio::test]
 async fn an_empty_or_unreadable_form_says_why_and_keeps_nothing() {
-    let (router, store) = site(Kept::default());
+    let Site { router, store, .. } = site(Kept::default());
     let long = "a".repeat(5_001);
     let cases = [
         ("name=&message=+&homepage=", "Every field was empty."),
@@ -177,7 +214,7 @@ async fn an_empty_or_unreadable_form_says_why_and_keeps_nothing() {
 
 #[tokio::test]
 async fn one_address_sending_too_often_is_asked_to_wait() {
-    let (router, store) = site(Kept::default());
+    let Site { router, store, .. } = site(Kept::default());
     for _ in 0..RateLimits::BURST {
         let (status, _, _) = send(&router, ("POST", ACTION), "name=Ada").await;
         assert_eq!(status, StatusCode::SEE_OTHER);
@@ -191,7 +228,7 @@ async fn one_address_sending_too_often_is_asked_to_wait() {
 
 #[tokio::test]
 async fn a_store_that_cannot_write_says_to_try_again() {
-    let (router, _) = site(Kept {
+    let Site { router, sent, .. } = site(Kept {
         broken: true,
         ..Kept::default()
     });
@@ -202,4 +239,8 @@ async fn a_store_that_cannot_write_says_to_try_again() {
         "{page}"
     );
     assert!(!page.contains("disk"), "{page}");
+    assert!(
+        sent.0.lock().unwrap().is_empty(),
+        "what is not kept is not sent"
+    );
 }

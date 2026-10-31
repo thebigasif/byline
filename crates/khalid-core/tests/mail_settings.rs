@@ -124,6 +124,30 @@ fn refuses_none_or_two_ways_to_send() {
 }
 
 #[test]
+fn form_answers_go_to_forms_to_or_else_to_from() {
+    let env = with(Environment::SMTP_PASSWORD);
+    let config = load(&format!("{SITE}{SMTP}"), &env).unwrap();
+    let mail = config.mail().unwrap();
+    assert_eq!(mail.forms_to, None);
+    assert_eq!(mail.form_answers_to(), "news@example.com");
+
+    let forms_to = |to: &str| {
+        let from = "from = \"news@example.com\"\n";
+        format!("{SITE}{SMTP}").replace(from, &format!("{from}forms_to = {to:?}\n"))
+    };
+    let config = load(&forms_to("hello@example.com"), &env).unwrap();
+    let mail = config.mail().unwrap();
+    assert_eq!(mail.forms_to.as_deref(), Some("hello@example.com"));
+    assert_eq!(mail.form_answers_to(), "hello@example.com");
+
+    let text = forms_to("hello");
+    assert_eq!(
+        load(&text, &env).unwrap_err(),
+        "site.toml, line 8, field \"forms_to\": forms_to is the address form answers are emailed to, such as hello@example.com",
+    );
+}
+
+#[test]
 fn refuses_a_from_that_is_not_an_address() {
     for from in [
         "news",

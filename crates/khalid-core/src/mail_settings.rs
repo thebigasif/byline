@@ -11,6 +11,7 @@ use crate::Environment;
 /// [mail]
 /// from = "news@example.com"
 /// name = "Field Notes"
+/// forms_to = "hello@example.com"
 ///
 /// [mail.smtp]
 /// host = "smtp.example.com"
@@ -27,8 +28,19 @@ pub struct MailSettings {
     pub from: String,
     /// The name shown beside it, or `None` for the address alone.
     pub name: Option<String>,
+    /// The address each form block's answers are emailed to, or `None` to
+    /// send them to [`MailSettings::from`].
+    pub forms_to: Option<String>,
     /// How the mail leaves.
     pub transport: MailTransport,
+}
+
+impl MailSettings {
+    /// The address form answers are emailed to: `forms_to`, else `from`.
+    #[must_use]
+    pub fn form_answers_to(&self) -> &str {
+        self.forms_to.as_deref().unwrap_or(&self.from)
+    }
 }
 
 /// The one way a site's mail leaves.
@@ -113,6 +125,7 @@ struct ResendTable {}
 pub(crate) struct MailTable {
     from: String,
     name: Option<String>,
+    forms_to: Option<String>,
     smtp: Option<SmtpSettings>,
     resend: Option<ResendTable>,
     postmark: Option<PostmarkSettings>,
@@ -142,6 +155,12 @@ impl MailTable {
                 "the sender's name is one line of up to 100 characters",
             ));
         }
+        if self.forms_to.as_deref().is_some_and(|to| !is_address(to)) {
+            return Err((
+                "forms_to",
+                "forms_to is the address form answers are emailed to, such as hello@example.com",
+            ));
+        }
         let transport = match (self.smtp, self.resend, self.postmark) {
             (Some(smtp), None, None) => MailTransport::Smtp(smtp),
             (None, Some(_), None) => MailTransport::Resend,
@@ -168,6 +187,7 @@ impl MailTable {
         Ok(MailSettings {
             from: self.from,
             name: self.name,
+            forms_to: self.forms_to,
             transport,
         })
     }

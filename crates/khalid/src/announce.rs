@@ -121,8 +121,9 @@ impl SiteAnnounce {
         });
     }
 
-    /// Runs `sending` on a task the server waits for as it stops.
-    fn send(&self, sending: impl Future<Output = ()> + Send + 'static) {
+    /// Runs `sending` on a task the server waits for as it stops, such as
+    /// a form answer's email.
+    pub(crate) fn send(&self, sending: impl Future<Output = ()> + Send + 'static) {
         let mut tasks = self.sending.lock().unwrap_or_else(PoisonError::into_inner);
         while tasks.try_join_next().is_some() {}
         tasks.spawn(sending);
