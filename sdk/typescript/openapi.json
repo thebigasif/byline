@@ -2996,6 +2996,73 @@
         ]
       }
     },
+    "/api/admin/v1/snippets/": {
+      "get": {
+        "tags": [
+          "admin snippets"
+        ],
+        "summary": "Lists every snippet in every language. A site has tens, so the list\ncomes whole. Needs `posts:write`.",
+        "operationId": "list_snippets",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every snippet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSnippets"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no snippets",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/staff/": {
       "get": {
         "tags": [
@@ -6686,6 +6753,63 @@
               "$ref": "#/components/schemas/AdminRedirect"
             },
             "description": "The redirects, oldest first."
+          }
+        }
+      },
+      "AdminSnippet": {
+        "type": "object",
+        "description": "A snippet in one language, such as an affiliate disclosure, in Admin API\nshape. A post places it by its slug, so a change shows in every post\nthat uses it as soon as it is saved.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "title",
+          "markdown",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.affiliate-disclosure`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en`.",
+            "example": "en"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "The blocks, in markdown."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug a post names the snippet by.",
+            "example": "affiliate-disclosure"
+          },
+          "title": {
+            "type": "string",
+            "description": "The name shown in the editor."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the snippet last changed. An edit or delete sends it back."
+          }
+        }
+      },
+      "AdminSnippets": {
+        "type": "object",
+        "description": "Snippets as the Admin API wraps them.",
+        "required": [
+          "snippets"
+        ],
+        "properties": {
+          "snippets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSnippet"
+            },
+            "description": "The snippet or snippets."
           }
         }
       },

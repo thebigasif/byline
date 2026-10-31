@@ -22,6 +22,8 @@ pub(crate) struct Noun {
     pub(crate) one: &'static str,
     /// Many, such as `pages`, as in the routes.
     pub(crate) many: &'static str,
+    /// An identity the messages give as an example, such as `en.about`.
+    pub(crate) example: &'static str,
 }
 
 impl Noun {
@@ -103,11 +105,20 @@ impl Noun {
             format!("No {} has this identity.", self.one),
             "It may have been deleted, or the identity may be mistyped.",
             format!(
-                "Check the identity, such as en.about, or list the {}.",
-                self.many
+                "Check the identity, such as {}, or list the {}.",
+                self.example, self.many
             ),
         );
         Problem::new(ProblemType::NotFound, &message).with_instance(path)
+    }
+
+    /// Refuses a `field` sent empty, such as a title of only spaces.
+    pub(crate) fn filled(self, field: &'static str, value: &str) -> Result<(), Problem> {
+        if value.trim().is_empty() {
+            let reason = format!("{field} must not be empty");
+            return Err(self.invalid(&reason, Some(field)));
+        }
+        Ok(())
     }
 
     /// The 400 for a delete that does not say which copy it was made on.

@@ -25,6 +25,7 @@ use crate::resources::{AdminPage, NewPage, PageEdit};
 const PAGE: Noun = Noun {
     one: "page",
     many: "pages",
+    example: "en.about",
 };
 
 /// The page routes, under the Admin API's base. Reading needs
@@ -123,7 +124,7 @@ async fn create_page(
 ) -> Result<(StatusCode, [(HeaderName, String); 1], Json<AdminPages>), Problem> {
     require(&principal, Scope::PostsPublish)?;
     let new = PAGE.one(PAGE.body(body)?.pages)?;
-    titled(new.title())?;
+    PAGE.filled("title", new.title())?;
     let made = PAGE.store(pages.as_deref())?.create(new).await;
     let page = made.map_err(|error| PAGE.problem(error, ""))?;
     let location = format!("{BASE}/pages/{}/", page.id());
@@ -169,7 +170,9 @@ async fn edit_page(
 ) -> Result<Json<AdminPages>, Problem> {
     require(&principal, Scope::PostsPublish)?;
     let edit = PAGE.one(PAGE.body(body)?.pages)?;
-    edit.title().map(titled).transpose()?;
+    edit.title()
+        .map(|title| PAGE.filled("title", title))
+        .transpose()?;
     let saved = PAGE.store(pages.as_deref())?.update(&id, edit).await;
     let page = saved.map_err(|error| PAGE.problem(error, uri.path()))?;
     Ok(Json(AdminPages { pages: vec![page] }))
@@ -204,12 +207,4 @@ async fn delete_page(
     let deleted = PAGE.store(pages.as_deref())?.delete(&id, seen).await;
     deleted.map_err(|error| PAGE.problem(error, uri.path()))?;
     Ok(StatusCode::NO_CONTENT)
-}
-
-/// Refuses an empty title.
-fn titled(title: &str) -> Result<(), Problem> {
-    if title.trim().is_empty() {
-        return Err(PAGE.invalid("title must not be empty", Some("title")));
-    }
-    Ok(())
 }
