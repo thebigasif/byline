@@ -5,7 +5,7 @@ use std::net::IpAddr;
 
 use chrono::{DateTime, TimeZone, Utc};
 use khalid_analytics::{
-    BotCheck, CrawledPage, Crawler, ReferrerGroup, ShortAddress, Visit, Visitor, VisitorKey,
+    AiTool, BotCheck, CrawledPage, Crawler, ReferrerGroup, ShortAddress, Visit, Visitor, VisitorKey,
 };
 
 #[cfg(test)]
@@ -65,7 +65,12 @@ fn a_listed_bot_answered_with_a_page_is_kept_with_its_first_and_last_fetch() {
 #[test]
 fn people_unchecked_bots_and_failed_answers_are_not_crawled_pages() {
     let visits = [
-        visit(9, "/blog/geo/", 200, Visitor::Person(ReferrerGroup::Ai)),
+        visit(
+            9,
+            "/blog/geo/",
+            200,
+            Visitor::Person(ReferrerGroup::Ai(AiTool::ChatGpt)),
+        ),
         visit(9, "/blog/geo/", 200, bot("Googlebot", BotCheck::NotListed)),
         visit(9, "/blog/geo/", 200, bot("ClaudeBot", BotCheck::NoList)),
         visit(9, "/blog/gone/", 404, bot("Googlebot", BotCheck::Listed)),

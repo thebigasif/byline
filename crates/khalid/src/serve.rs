@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use axum::Router;
 use khalid_analytics::VisitorLogStore;
+use khalid_api::analytics_desk::AnalyticsDesk;
 use khalid_api::api::{self, AdminDesks, AuditDesk};
 use khalid_api::comment_moderation::CommentModeration;
 use khalid_api::media_api::MediaLibrary;
@@ -21,8 +22,8 @@ use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{
-    AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, VisitorLogTable,
-    WebhookTable,
+    AnalyticsTable, AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SiteId,
+    VisitorLogTable, WebhookTable,
 };
 use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
@@ -341,6 +342,10 @@ fn api_router(
         tags: Some(Arc::new(SiteTags::new(site, config))),
         categories: Some(Arc::new(SiteCategories::new(site, config))),
         settings: Some(Arc::new(SiteSettings::new(site, config))),
+        analytics: AnalyticsDesk::new(
+            Arc::new(AnalyticsTable::new(database.clone(), id)),
+            Arc::new(SystemClock),
+        ),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

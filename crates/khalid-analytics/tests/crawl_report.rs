@@ -5,7 +5,7 @@ use std::net::IpAddr;
 
 use chrono::{DateTime, TimeZone, Utc};
 use khalid_analytics::{
-    Answers, BotCheck, CrawledPage, Crawler, ReferrerGroup, ShortAddress, Visit, Visitor,
+    AiTool, Answers, BotCheck, CrawledPage, Crawler, ReferrerGroup, ShortAddress, Visit, Visitor,
     VisitorKey, bot_errors, crawl_health,
 };
 
@@ -90,7 +90,7 @@ fn health_counts_answers_per_crawler_and_keeps_pretenders_apart() {
             at(3, 15),
             "/blog/geo/",
             200,
-            Visitor::Person(ReferrerGroup::Ai),
+            Visitor::Person(ReferrerGroup::Ai(AiTool::ChatGpt)),
         ),
     ];
     // Bingbot fetched a page before the log's oldest row.
@@ -163,7 +163,7 @@ fn bot_errors_group_by_address_and_status_most_hits_first() {
             at(3, 13),
             "/blog/gone/",
             404,
-            Visitor::Person(ReferrerGroup::Ai),
+            Visitor::Person(ReferrerGroup::Ai(AiTool::ChatGpt)),
         ),
     ];
     let errors = bot_errors(&visits);

@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, TimeZone, Utc};
 use khalid_analytics::{
-    BotCheck, Crawler, MAX_VISITS_PER_DAY, ReferrerGroup, ShortAddress, Visit, Visitor, VisitorKey,
-    VisitorLogStore,
+    AiTool, BotCheck, Crawler, MAX_VISITS_PER_DAY, ReferrerGroup, ShortAddress, Visit, Visitor,
+    VisitorKey, VisitorLogStore,
 };
 use khalid_core::Slug;
 use khalid_db::{Database, VisitorLogTable};
@@ -34,7 +34,11 @@ fn visit(at: DateTime<Utc>, address: &str, visitor: Visitor) -> Visit {
 
 #[cfg(test)]
 fn person(at: DateTime<Utc>) -> Visit {
-    visit(at, "203.0.113.57", Visitor::Person(ReferrerGroup::Ai))
+    visit(
+        at,
+        "203.0.113.57",
+        Visitor::Person(ReferrerGroup::Ai(AiTool::ChatGpt)),
+    )
 }
 
 #[cfg(test)]
