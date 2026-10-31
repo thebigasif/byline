@@ -43,6 +43,39 @@ export const en = {
       language: "Language",
       role: "Role",
       noRole: "No role yet",
+      action: "Action",
+      edit: "Edit",
+      editLabel: (name: string, language: string) => `Edit ${name}, ${language}`,
+    },
+    edit: {
+      title: "Author",
+      back: "All authors",
+      loading: "Reading the author",
+      lede: (slug: string, language: string) =>
+        `Posts name this author ${slug}. This is their ${language} page; each language has its own.`,
+      fields: {
+        name: { label: "Name", hint: "As readers see it under a post's title." },
+        role: { label: "Role", hint: "What they do. Leave it empty for none." },
+        credentials: {
+          label: "Why to trust them",
+          hint: "Such as ten years running SEO for small teams. Search engines read it.",
+        },
+        photo: { label: "Photo", hint: "A media path or a full address. Leave it empty for none." },
+        bio: { label: "Bio", hint: "A few sentences about them, in markdown." },
+        sameAs: {
+          label: "Profiles elsewhere",
+          hint: "Full addresses, one per line, such as their LinkedIn page. Search engines use them to tell people apart.",
+        },
+      },
+      save: "Save author",
+      saved: "Saved. Every post that names this author shows the change.",
+      unchanged: "Nothing changed, so nothing was saved.",
+      remove: {
+        title: "Delete this author",
+        lede: (name: string) =>
+          `Deleting removes ${name}'s file. A post that still names them loses its byline, so give those posts another author first.`,
+        submit: (name: string) => `Delete ${name}`,
+      },
     },
   },
   account: {

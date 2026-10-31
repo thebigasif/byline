@@ -12,6 +12,7 @@ import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
 import { postSearch } from "../posts/filters";
 import { Account } from "./Account";
+import { AuthorPage } from "./AuthorPage";
 import { Authors } from "./Authors";
 import { Comments } from "./Comments";
 import { Dashboard } from "./Dashboard";
@@ -92,10 +93,26 @@ const authors = createRoute({
   component: Authors,
 });
 
+const authorPage = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/authors/$id",
+  component: AuthorPage,
+});
+
 const routeTree = root.addChildren([
   signIn,
   linkSignIn,
-  signedIn.addChildren([dashboard, posts, newPost, editor, comments, authors, redirects, account]),
+  signedIn.addChildren([
+    dashboard,
+    posts,
+    newPost,
+    editor,
+    comments,
+    authors,
+    authorPage,
+    redirects,
+    account,
+  ]),
 ]);
 
 /** Makes the admin's router; a test passes a memory history. */

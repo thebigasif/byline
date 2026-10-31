@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { AdminAuthor } from "../api/authors";
 import { en } from "../strings/en";
 import { languageName } from "../strings/languages";
@@ -16,6 +17,9 @@ export function AuthorTable({ authors }: Props) {
             <th scope="col">{words.slug}</th>
             <th scope="col">{words.language}</th>
             <th scope="col">{words.role}</th>
+            <th scope="col">
+              <span className="muted">{words.action}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -27,6 +31,16 @@ export function AuthorTable({ authors }: Props) {
               </td>
               <td data-label={words.language}>{languageName(author.language)}</td>
               <td data-label={words.role}>{author.role ?? words.noRole}</td>
+              <td>
+                <Link
+                  to="/authors/$id"
+                  params={{ id: author.id }}
+                  className="btn"
+                  aria-label={words.editLabel(author.name, languageName(author.language))}
+                >
+                  {words.edit}
+                </Link>
+              </td>
             </tr>
           ))}
         </tbody>
