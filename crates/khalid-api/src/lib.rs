@@ -7,6 +7,7 @@
 //! about content files, markdown, SQL or templates.
 
 mod admin_api;
+pub mod admin_calendar;
 mod admin_comments;
 mod admin_delete;
 mod admin_key;
