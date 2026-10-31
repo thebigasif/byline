@@ -16,7 +16,7 @@ use crate::site_entries::EntryFile;
 
 /// The front matter of `text`, read with the schema the site's content
 /// reader uses, so a file the Admin API reads is one the site shows.
-fn front<F: DeserializeOwned + Default>(text: &PostText) -> Result<F, EntryStoreError> {
+pub(crate) fn front<F: DeserializeOwned + Default>(text: &PostText) -> Result<F, EntryStoreError> {
     let yaml = text.front_matter();
     if yaml.trim().is_empty() {
         return Ok(F::default());

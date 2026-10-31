@@ -130,3 +130,66 @@ fn an_author_edited_through_the_admin_api_shows_on_their_page_and_a_new_one_goes
     assert_eq!(server.admin("DELETE", &sam, None).0, 204);
     assert!(!file.exists(), "the author's file is gone");
 }
+
+#[test]
+fn a_tag_renamed_through_the_admin_api_moves_its_posts_and_then_goes() {
+    let site = demo_copy();
+    let post = |name: &str| {
+        let mut path = PathBuf::from(site.path());
+        path.push(format!("content/en/posts/{name}.md"));
+        path
+    };
+    let posts = [
+        post("2026-09-21-how-to-write-a-title-tag"),
+        post("2026-09-28-what-a-sitemap-does"),
+    ];
+    for path in &posts {
+        let text = std::fs::read_to_string(path).unwrap();
+        let tagged = text.replacen("\nslug: ", "\ntags: [\"crawling\"]\nslug: ", 1);
+        std::fs::write(path, tagged).unwrap();
+    }
+    let mut draft = PathBuf::from(site.path());
+    draft.push("drafts/en");
+    std::fs::create_dir_all(&draft).unwrap();
+    draft.push("crawl-budget.md");
+    let text =
+        "---\ntitle: Crawl budget\nslug: crawl-budget\ntags: [crawling, sitemaps]\n---\n\nSoon.\n";
+    std::fs::write(&draft, text).unwrap();
+    let server = start(site.path(), &new_key(site.path(), &EDITOR));
+    let (status, listed) = server.admin("GET", "/api/admin/v1/tags/", None);
+    assert_eq!(status, 200, "{listed}");
+    assert_eq!(listed["tags"][0]["id"], "en.crawling", "{listed}");
+    assert_eq!(
+        listed["tags"][0]["posts"], 3,
+        "two posts and a draft: {listed}"
+    );
+    assert!(server.answers("/blog/tag/crawling/", 200));
+
+    let tag = "/api/admin/v1/tags/en.crawling/";
+    let seen = listed["tags"][0]["updated_at"].as_str().unwrap();
+    let rename = json!({"tags": [{"name": "Crawling and indexing", "updated_at": seen}]});
+    let (status, renamed) = server.admin("PUT", tag, Some(&rename));
+    assert_eq!(status, 200, "{renamed}");
+    for path in &posts {
+        let text = std::fs::read_to_string(path).unwrap();
+        assert!(
+            text.contains("\ntags: [\"Crawling and indexing\"]\n"),
+            "{text}"
+        );
+    }
+    assert!(server.answers("/blog/tag/crawling-and-indexing/", 200));
+    assert!(server.answers("/blog/tag/crawling/", 404));
+
+    let seen = renamed["tags"][0]["updated_at"].as_str().unwrap();
+    let removal = format!("/api/admin/v1/tags/en.crawling-and-indexing/?updated_at={seen}");
+    assert_eq!(server.admin("DELETE", &removal, None).0, 204);
+    for path in &posts {
+        let text = std::fs::read_to_string(path).unwrap();
+        assert!(!text.contains("\ntags:"), "{text}");
+    }
+    let text = std::fs::read_to_string(&draft).unwrap();
+    assert!(
+        text.contains("\ntags: [\"sitemaps\"]\n"),
+        "the draft keeps its other tag: {text}"
+    );
+}
