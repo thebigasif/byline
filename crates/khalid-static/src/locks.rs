@@ -95,7 +95,7 @@ impl Locks {
             };
             written.push_str(html.get(copied..form.start).unwrap_or_default());
             let note = notes.map_or("", |notes| notes.of(kind));
-            written.push_str("<p class=\"locked\" data-feature=\"");
+            written.push_str("<p class=\"lock locked\" data-feature=\"");
             written.push_str(kind.feature().name());
             written.push_str("\">");
             written.push_str(&escape(note));

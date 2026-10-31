@@ -224,8 +224,8 @@ fn a_static_build_of_the_demo_has_no_form_posting_to_a_missing_endpoint() {
     assert_eq!(forms_to_missing_endpoints(out.path()), []);
     let post = fs::read_to_string(at(out.path(), "what-a-sitemap-does/index.html")).unwrap();
     for note in [
-        "<p class=\"locked\" data-feature=\"newsletter\">Signing up by email is not open on this site.</p>",
-        "<p class=\"locked\" data-feature=\"forms\">This form cannot be sent from this site.</p>",
+        "<p class=\"lock locked\" data-feature=\"newsletter\">Signing up by email is not open on this site.</p>",
+        "<p class=\"lock locked\" data-feature=\"forms\">This form cannot be sent from this site.</p>",
     ] {
         assert!(post.contains(note), "{note}");
     }
@@ -247,5 +247,5 @@ fn a_server_build_keeps_its_forms_and_lists_nothing_off() {
     assert!(!said.contains("features that need a server"), "{said}");
     let post = fs::read_to_string(at(out.path(), "what-a-sitemap-does/index.html")).unwrap();
     assert!(post.contains("action=\"/subscribe\""));
-    assert!(!post.contains("class=\"locked\""));
+    assert!(!post.contains("class=\"lock locked\""));
 }
