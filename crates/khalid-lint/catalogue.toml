@@ -196,6 +196,12 @@ why = "Readers and Google trust recent information more, and old facts may now b
 fix = "Refresh this post: check its facts, update what changed and set `updated:` to today."
 guide = "refreshing-posts"
 
+[updated-date-wrong]
+what = "This post's `updated:` date is before its publish date or still to come."
+why = "A date that cannot be true makes readers and search engines doubt the whole page."
+fix = "Change `updated:` to the day you last changed what the post says, or remove it."
+guide = "refreshing-posts"
+
 [near-duplicate]
 what = "This post shares most of its text with another post on your site."
 why = "Google shows only one of two near copies, so the two posts compete and both lose."

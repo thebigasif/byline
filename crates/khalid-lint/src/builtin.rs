@@ -132,5 +132,6 @@ pub(crate) fn site_rules(thresholds: Thresholds, today: NaiveDate) -> Vec<Box<dy
             months: thresholds.stale_months,
             today,
         }),
+        Box::new(site_content::UpdatedDateWrong { today }),
     ]
 }
