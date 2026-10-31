@@ -17,11 +17,9 @@ argon2 = "0.6"
 axum = { version = "0.8", default-features = false, features = ["json", "tokio"] }
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
-ciborium = "0.2"
 getrandom = "0.4"
 khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-core = { path = "../khalid-core", version = "0.0.0" }
-ring = "0.17"
 serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.11"
