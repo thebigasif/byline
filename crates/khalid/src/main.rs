@@ -113,6 +113,11 @@ mod site_audit;
 mod site_config;
 mod site_content;
 mod site_files;
+#[expect(
+    dead_code,
+    reason = "khalid sites and serve add sites through this later in this stack"
+)]
+mod site_folders;
 mod site_html;
 #[expect(
     dead_code,
@@ -124,9 +129,12 @@ mod site_outline;
 mod site_page;
 mod site_pages;
 mod site_posts;
-#[expect(
-    dead_code,
-    reason = "khalid sites and serve say these later in this stack"
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "khalid sites and serve say these later in this stack"
+    )
 )]
 mod sites_message;
 mod slug_moves;

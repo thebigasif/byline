@@ -199,6 +199,28 @@ pub(crate) fn quoted(text: &str) -> String {
     format!("\"{escaped}\"")
 }
 
+/// Makes a server site in `folder` with the usual answers for `address`:
+/// the whole domain, in English. A folder that has a `site.toml` already
+/// is kept as it is.
+///
+/// # Errors
+///
+/// Returns the error when a folder or file cannot be made.
+pub(crate) fn make_site(folder: &Path, address: AbsoluteUrl) -> io::Result<()> {
+    let answers = Answers {
+        address,
+        mount: "/".to_owned(),
+        languages: vec![Locale::try_new(DEFAULT_LANGUAGE).map_err(io::Error::other)?],
+        mode: SiteMode::Server,
+        stack: None,
+        blog: None,
+    };
+    match write(folder, &answers, &answers.site_toml()) {
+        Err(error) if error.kind() != io::ErrorKind::AlreadyExists => Err(error),
+        _ => Ok(()),
+    }
+}
+
 /// Makes the site's folders and files, `site.toml` last so a failed run can be
 /// repeated, keeping any `routes.toml`. Returns what it made, relative to `folder`.
 fn write(folder: &Path, answers: &Answers, settings: &str) -> io::Result<Vec<String>> {
