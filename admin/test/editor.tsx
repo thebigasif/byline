@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Editor } from "@tiptap/core";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { Editor } from "@tiptap/core";
 import { vi } from "vitest";
 import { RichText } from "../src/editor/RichText";
 
