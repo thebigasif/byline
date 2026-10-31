@@ -6,9 +6,9 @@ use std::sync::Arc;
 use khalid_core::{Clock, Locale, Slug};
 
 use crate::{
-    BackPath, ConfirmationLinks, ReaderPass, Confirmed, EmailAddress, GenerateTokenError, MailError, Mailer,
-    NewsletterWords, SignUp, SignedUp, SiteLinks, StoreError, SubscriberStore, SubscriberToken,
-    Unsubscribed, WordsError,
+    BackPath, ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, MailError, Mailer,
+    NewsletterWords, ReaderPass, SignUp, SignedUp, SiteLinks, StoreError, SubscriberStore,
+    SubscriberToken, Unsubscribed, WordsError,
 };
 
 /// The site the emails come from: its name, its language and where its

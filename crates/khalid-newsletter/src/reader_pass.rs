@@ -96,7 +96,8 @@ impl ReaderPass {
     /// cookie and brings them to `back`, a path on the blog. It works for
     /// two days.
     pub fn link(&self, back: &BackPath) -> String {
-        self.site.pass(&self.code(Use::Link, LINK_DAYS), back.as_str())
+        self.site
+            .pass(&self.code(Use::Link, LINK_DAYS), back.as_str())
     }
 
     /// Whether `code`, from a pass link, is one this site made, still in
