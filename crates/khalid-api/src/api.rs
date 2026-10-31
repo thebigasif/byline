@@ -14,17 +14,18 @@ use crate::admin_key::{AdminDoor, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_store::ContentStore;
+use crate::entry_store::EntryStore;
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
 use crate::post_store::PostStore;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
-use crate::resources::MediaItems;
+use crate::resources::{AdminPage, MediaItems};
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects,
+    admin_api, admin_comments, admin_not_found, admin_pages, admin_redirect_csv, admin_redirects,
     admin_webhooks, api_version, content_api,
 };
 
@@ -214,6 +215,9 @@ pub struct AdminDesks {
     /// The site's webhooks, or `None` when the webhook routes list none
     /// and answer that the site keeps none.
     pub webhooks: Option<Arc<dyn WebhookStore>>,
+    /// The site's pages, or `None` when the page routes answer that this
+    /// server keeps none.
+    pub pages: Option<Arc<dyn EntryStore<AdminPage>>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -226,15 +230,27 @@ impl std::fmt::Debug for AdminDesks {
 }
 
 impl AdminDesks {
-    /// No comments, no media library, no stored redirects and no webhooks.
+    /// No comments, no media library, no stored redirects, no webhooks and
+    /// no pages.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
             media: None,
             redirects: RedirectDesk::none(),
             webhooks: None,
+            pages: None,
         }
     }
+}
+
+/// [`router_with_door`] with every store in `desks`, and no staff.
+pub fn router_with_desks(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    desks: AdminDesks,
+) -> (Router, Document) {
+    assemble(content, door, keys, desks, None)
 }
 
 /// [`router_with_door`] with the webhook routes under
@@ -287,7 +303,8 @@ fn assemble(
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))
         .merge(admin_redirect_csv::routes(redirects.clone(), door.clone()))
         .merge(admin_redirects::routes(redirects, door.clone()))
-        .merge(admin_webhooks::routes(desks.webhooks, door.clone()));
+        .merge(admin_webhooks::routes(desks.webhooks, door.clone()))
+        .merge(admin_pages::routes(desks.pages, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

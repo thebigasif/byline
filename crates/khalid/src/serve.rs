@@ -235,6 +235,7 @@ fn api_router(
             id,
             SystemClock,
         ))),
+        ..AdminDesks::none()
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

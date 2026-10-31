@@ -938,6 +938,73 @@
         ]
       }
     },
+    "/api/admin/v1/pages/": {
+      "get": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Lists every page in every language, ordered by language and slug. A\nsite has tens of pages, so the list comes whole. Needs `posts:write`.",
+        "operationId": "list_pages",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "get": {
         "tags": [
@@ -6021,6 +6088,70 @@
               "$ref": "#/components/schemas/AdminMiss"
             },
             "description": "The addresses, most requested first."
+          }
+        }
+      },
+      "AdminPage": {
+        "type": "object",
+        "description": "A page in one language, such as About, in Admin API shape. It is live\nas soon as it is saved: pages have no drafts.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "title",
+          "markdown",
+          "updated_at"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The text search engines show under the title, if set."
+          },
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.about`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en`.",
+            "example": "en"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "The body, in markdown."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The last part of the page's address.",
+            "example": "about"
+          },
+          "title": {
+            "type": "string",
+            "description": "The title readers see."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the page last changed. An edit or delete sends it back."
+          }
+        }
+      },
+      "AdminPages": {
+        "type": "object",
+        "description": "Pages as the Admin API wraps them.",
+        "required": [
+          "pages"
+        ],
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPage"
+            },
+            "description": "The page or pages."
           }
         }
       },
