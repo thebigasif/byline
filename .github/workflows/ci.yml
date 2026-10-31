@@ -40,6 +40,14 @@ jobs:
     runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
+      # The maintainer's runners share one user. Each gets its own Rust home,
+      # so one job's toolchain install cannot swap cargo out under another.
+      - name: Per-runner Rust home
+        if: runner.environment == 'self-hosted'
+        run: |
+          echo "CARGO_HOME=$RUNNER_WORKSPACE/../.cargo-home" >> "$GITHUB_ENV"
+          echo "RUSTUP_HOME=$RUNNER_WORKSPACE/../.rustup-home" >> "$GITHUB_ENV"
+          echo "$RUNNER_WORKSPACE/../.cargo-home/bin" >> "$GITHUB_PATH"
       - name: Any crates yet?
         id: crates
         run: |
