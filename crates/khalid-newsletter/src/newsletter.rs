@@ -1,14 +1,14 @@
 //! The sign-up flow: a form makes a subscriber wait, one email asks them,
-//! and a link confirms or removes them.
+//! and a link confirms or removes them. Then the issues that go out to them.
 
 use std::sync::Arc;
 
 use khalid_core::{Clock, Locale, Slug};
 
 use crate::{
-    ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, Lists, MailError, Mailer,
-    NewsletterWords, SignUp, SignedUp, SiteLinks, StoreError, SubscriberStore, SubscriberToken,
-    Unsubscribed, WordsError,
+    ConfirmationLinks, Confirmed, EmailAddress, GenerateTokenError, Issue, Lists, Mail, MailError,
+    Mailer, NewsletterWords, PostalAddress, Segment, SendTotals, Sent, SignUp, SignedUp, SiteLinks,
+    StoreError, SubscriberStore, SubscriberToken, Unsubscribed, WordsError,
 };
 
 /// The site the emails come from: its name, its language and where its
@@ -135,6 +135,57 @@ impl Newsletter {
             .store
             .unsubscribe(&token.hash(), self.clock.now())
             .await?)
+    }
+}
+
+impl Newsletter {
+    /// Emails `issue` to everyone in `segment`, once: an issue whose key
+    /// went out before sends nothing. Each copy ends with the reader's own
+    /// one-click unsubscribe link and the site's `postal` address. A copy
+    /// the transport refuses is counted and the rest still go.
+    ///
+    /// # Errors
+    ///
+    /// [`NewsletterError`] when there is no randomness for a link or the
+    /// store fails. The copies sent before a failure stay sent, and the
+    /// key stays used, so a second try never sends anyone a copy twice.
+    pub async fn send(
+        &self,
+        issue: &Issue,
+        segment: &Segment,
+        postal: &PostalAddress,
+    ) -> Result<Sent, NewsletterError> {
+        let at = self.clock.now();
+        let Some(send) = self
+            .store
+            .start_send(issue.key(), segment.list(), at)
+            .await?
+        else {
+            return Ok(Sent::Before);
+        };
+        let (site, words) = &*self.site;
+        let mut totals = SendTotals::default();
+        for recipient in self.store.audience(segment).await? {
+            let remove = SubscriberToken::generate()?;
+            self.store
+                .add_send_unsubscribe(send, recipient.id, &remove.hash(), at)
+                .await?;
+            let link = site.links.unsubscribe(&remove);
+            let footer = words.footer(&site.locale, &site.name, &link, postal);
+            let text = format!("{}{footer}", issue.text());
+            let mail = Mail::new(recipient.email, issue.subject().to_owned(), text);
+            match self.mailer.send(&mail).await {
+                Ok(()) => totals.sent = totals.sent.saturating_add(1),
+                Err(error) => {
+                    tracing::warn!(%error, "a newsletter copy was not sent");
+                    totals.failed = totals.failed.saturating_add(1);
+                }
+            }
+        }
+        self.store
+            .finish_send(send, totals, self.clock.now())
+            .await?;
+        Ok(Sent::Now(totals))
     }
 }
 

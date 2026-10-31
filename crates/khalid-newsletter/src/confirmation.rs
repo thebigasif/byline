@@ -7,7 +7,7 @@ use khalid_core::{AbsoluteUrl, Locale};
 use serde::Deserialize;
 
 use crate::pages::PageWords;
-use crate::{EmailAddress, Mail, SubscriberToken};
+use crate::{EmailAddress, Mail, PostalAddress, SubscriberToken};
 
 /// The language whose words fill in for a language with no file.
 const FALLBACK_LANGUAGE: &str = "en";
@@ -26,6 +26,7 @@ const FILES: [(&str, &str); 2] = [
 struct Words {
     confirm_subject: String,
     confirm_text: String,
+    footer_text: String,
     page: PageWords,
 }
 
@@ -74,6 +75,25 @@ impl NewsletterWords {
             (fill(&words.confirm_subject), fill(&words.confirm_text))
         });
         Mail::new(to, subject, text)
+    }
+
+    /// The end of every newsletter email from the site called `site`, in
+    /// `locale`: why the reader gets it, the `remove` link that
+    /// unsubscribes them in one click, and the site's `postal` address.
+    pub fn footer(
+        &self,
+        locale: &Locale,
+        site: &str,
+        remove: &str,
+        postal: &PostalAddress,
+    ) -> String {
+        self.of(locale).map_or_else(String::new, |words| {
+            words
+                .footer_text
+                .replace("{remove}", remove)
+                .replace("{postal}", postal.as_str())
+                .replace("{site}", site)
+        })
     }
 
     /// The words of the pages in `locale`, or in English when the language

@@ -11,6 +11,15 @@ Sie waren es nicht? Dann ignorieren Sie diese E-Mail, und es kommt nichts mehr. 
 {remove}
 """
 
+footer_text = """
+
+--
+Sie bekommen diese E-Mail, weil Sie {site} abonniert haben. Um sie abzubestellen, öffnen Sie diesen Link:
+{remove}
+
+{postal}
+"""
+
 [page]
 back = "Zurück zu {site}"
 email_label = "Ihre E-Mail-Adresse"
