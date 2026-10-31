@@ -4,9 +4,21 @@
 mod common;
 
 use std::path::PathBuf;
+use std::thread;
+use std::time::Duration;
 
-use common::{demo_copy, new_key, start};
+use common::{Server, demo_copy, new_key, start};
 use serde_json::json;
+
+/// Whether `path` on `server` answers with `text` in its body within 20
+/// seconds, looking every 100 ms.
+#[cfg(test)]
+fn shows(server: &Server, path: &str, text: &str) -> bool {
+    (0..200).any(|_| {
+        thread::sleep(Duration::from_millis(100));
+        server.raw("GET", path, &[], None).1.contains(text)
+    })
+}
 
 /// The scopes every test here sends: whatever an editor may do.
 const EDITOR: [&str; 6] = [
@@ -48,13 +60,13 @@ fn a_page_made_edited_and_deleted_through_the_admin_api_is_shown_then_gone() {
     let new = json!({"pages": [{"slug": "contact", "title": "Contact us", "markdown": "Write to us at the address below."}]});
     let (status, made) = server.admin("POST", "/api/admin/v1/pages/", Some(&new));
     assert_eq!(status, 201, "{made}");
-    assert!(server.shows("/blog/contact/", "Contact us"));
+    assert!(shows(&server, "/blog/contact/", "Contact us"));
     let page = "/api/admin/v1/pages/en.contact/";
     let seen = made["pages"][0]["updated_at"].as_str().unwrap();
     let edit = json!({"pages": [{"title": "Get in touch", "updated_at": seen}]});
     let (status, saved) = server.admin("PUT", page, Some(&edit));
     assert_eq!(status, 200, "{saved}");
-    assert!(server.shows("/blog/contact/", "Get in touch"));
+    assert!(shows(&server, "/blog/contact/", "Get in touch"));
     let (status, body) = server.admin("PUT", page, Some(&edit));
     assert_eq!(status, 409, "{body}");
 
@@ -115,7 +127,11 @@ fn an_author_edited_through_the_admin_api_shows_on_their_page_and_a_new_one_goes
     let edit = json!({"authors": [{"role": "Editor of Field Notes", "updated_at": seen}]});
     let (status, body) = server.admin("PUT", asif, Some(&edit));
     assert_eq!(status, 200, "{body}");
-    assert!(server.shows("/blog/authors/asif/", "Editor of Field Notes"));
+    assert!(shows(
+        &server,
+        "/blog/authors/asif/",
+        "Editor of Field Notes"
+    ));
 
     let new = json!({"authors": [{"slug": "sam-lee", "name": "Sam Lee", "same_as": ["https://example.com/sam/"], "bio": "Sam writes about links."}]});
     let (status, made) = server.admin("POST", "/api/admin/v1/authors/", Some(&new));
@@ -212,7 +228,11 @@ fn a_category_renamed_through_the_admin_api_shows_on_its_page_and_keeps_its_file
     let edit = json!({"categories": [{"names": names, "updated_at": seen}]});
     let (status, saved) = server.admin("PUT", on_page, Some(&edit));
     assert_eq!(status, 200, "{saved}");
-    assert!(server.shows("/blog/category/on-page-seo/", "On-page optimisation"));
+    assert!(shows(
+        &server,
+        "/blog/category/on-page-seo/",
+        "On-page optimisation"
+    ));
     let seen = saved["categories"][0]["updated_at"].as_str().unwrap();
     let (status, body) = server.admin("DELETE", &format!("{on_page}?updated_at={seen}"), None);
     assert_eq!(status, 409, "posts are still in it: {body}");

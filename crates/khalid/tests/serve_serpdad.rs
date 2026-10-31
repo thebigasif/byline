@@ -7,10 +7,11 @@ mod common;
 
 use std::fs;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use common::{Server, demo_copy, new_key, start};
 use serde_json::{Value, json};
+use tokio::time::Instant;
 
 /// The plan's promise for publishing from `SerpDad` (plan section 11).
 const DEADLINE: Duration = Duration::from_secs(5);
@@ -24,10 +25,6 @@ const SERPDAD: [&str; 4] = ["--name", "SerpDad", "--scope", "posts:write"];
 /// Sends `article` once with `key` and the idempotency key `request`, and
 /// returns the status, the answer and how long it took.
 #[cfg(test)]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the test times a real request to a separate process, which no Clock can see"
-)]
 fn stage(server: &Server, key: &str, request: &str, article: &Value) -> (u16, Value, Duration) {
     let authorization = format!("Khalid {key}");
     let headers = [

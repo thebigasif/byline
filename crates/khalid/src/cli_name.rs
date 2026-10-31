@@ -76,23 +76,42 @@ impl Command {
                 command: BingCommand::Report,
             } => "bing report",
             Self::SearchConsole { command } => command.name(),
-            Self::Crawl { command } => match command {
-                CrawlCommand::First => "crawl first",
-                CrawlCommand::Health => "crawl health",
-                CrawlCommand::Errors => "crawl errors",
-            },
+            Self::Crawl { command } => command.name(),
             Self::Watch => "watch",
-            Self::Sites { command } => match command {
-                SitesCommand::List => "sites list",
-                SitesCommand::Add { .. } => "sites add",
-                SitesCommand::Admin { .. } => "sites admin",
-            },
-            Self::Analytics {
-                command: AnalyticsCommand::Ai { .. },
-            } => "analytics ai",
-            Self::Analytics {
-                command: AnalyticsCommand::Uncited { .. },
-            } => "analytics uncited",
+            Self::Sites { command } => command.name(),
+            Self::Analytics { command } => command.name(),
+        }
+    }
+}
+
+impl CrawlCommand {
+    /// The command as a person types it, such as `crawl health`.
+    fn name(self) -> &'static str {
+        match self {
+            Self::First => "crawl first",
+            Self::Health => "crawl health",
+            Self::Errors => "crawl errors",
+        }
+    }
+}
+
+impl SitesCommand {
+    /// The command as a person types it, such as `sites add`.
+    fn name(&self) -> &'static str {
+        match self {
+            Self::List => "sites list",
+            Self::Add { .. } => "sites add",
+            Self::Admin { .. } => "sites admin",
+        }
+    }
+}
+
+impl AnalyticsCommand {
+    /// The command as a person types it, such as `analytics ai`.
+    fn name(self) -> &'static str {
+        match self {
+            Self::Ai { .. } => "analytics ai",
+            Self::Uncited { .. } => "analytics uncited",
         }
     }
 }

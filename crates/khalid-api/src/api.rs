@@ -456,7 +456,7 @@ fn assemble(
         .merge(admin_tags::routes(desks.tags, door.clone()))
         .merge(admin_categories::routes(desks.categories, door.clone()))
         .merge(admin_site_settings::routes(desks.settings, door.clone()))
-        .merge(admin_api_keys::routes(Arc::clone(&keys), door.clone()))
+        .merge(admin_api_keys::routes(keys, door.clone()))
         .merge(admin_analytics::routes(desks.analytics, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff

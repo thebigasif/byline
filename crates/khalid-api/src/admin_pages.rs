@@ -34,7 +34,7 @@ const PAGE: Noun = Noun {
 pub(crate) fn routes(pages: Kept<AdminPage>, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_pages, create_page))
-        .routes(routes!(read_page, edit_page, delete_page))
+        .routes(routes!(read_admin_page, edit_page, delete_page))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(pages)
@@ -81,7 +81,7 @@ async fn list_pages(
         (status = 404, description = "No page has this identity, or this server keeps no pages", body = Problem, content_type = "application/problem+json"),
     )
 )]
-async fn read_page(
+async fn read_admin_page(
     State(pages): State<Kept<AdminPage>>,
     Extension(principal): Extension<Principal>,
     Path(id): Path<String>,

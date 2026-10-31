@@ -190,7 +190,7 @@ async fn a_site_that_switches_it_on_logs_each_visit_with_a_short_address() {
     assert_eq!(
         visits.iter().map(row).collect::<Vec<_>>(),
         [
-            format!("{POST} 200 127.0.0.0 ai"),
+            format!("{POST} 200 127.0.0.0 ai:chatgpt"),
             format!("{POST} 200 66.249.64.0 Googlebot listed"),
             format!("{POST} 200 127.0.0.0 Googlebot not-listed"),
             "/blog/no-such-post/ 404 127.0.0.0 GPTBot no-list".to_owned(),
