@@ -91,3 +91,69 @@ async fn a_deleted_post_is_listed_newest_first_with_the_status_it_had() {
     ]});
     assert_eq!(json, listed);
 }
+
+#[tokio::test]
+async fn a_deleted_draft_is_restored_where_it_was() {
+    let router = router();
+    delete(&router, WRITER, "en.draft").await;
+    let restore = ("POST", "/trash/20261020T083000Z-en.draft/restore/");
+    let (status, json) = send(&router, WRITER, restore).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["posts"][0]["id"], "en.draft", "{json}");
+    let (status, _) = send(&router, WRITER, ("GET", "/posts/en.draft/")).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, json) = send(&router, WRITER, ("GET", "/trash/")).await;
+    assert_eq!(json, json!({"trash": []}));
+    let (status, json) = send(&router, WRITER, restore).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
+}
+
+#[tokio::test]
+async fn a_live_post_comes_back_only_with_posts_publish() {
+    let router = router();
+    delete(&router, PUBLISHER, "en.live").await;
+    let restore = ("POST", "/trash/20261020T083000Z-en.live/restore/");
+    let (status, json) = send(&router, WRITER, restore).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    let (status, json) = send(&router, PUBLISHER, restore).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["posts"][0]["status"], "published", "{json}");
+}
+
+#[tokio::test]
+async fn a_post_whose_address_is_taken_stays_in_the_trash() {
+    let router = router();
+    delete(&router, WRITER, "en.draft").await;
+    let request = Request::builder()
+        .method("POST")
+        .uri("/api/admin/v1/posts/")
+        .header("authorization", format!("Khalid {WRITER}"))
+        .header("content-type", "application/json")
+        .body(Body::from(
+            json!({"posts": [{"title": "Again", "slug": "draft", "markdown": "New."}]}).to_string(),
+        ))
+        .unwrap();
+    let made = router.clone().oneshot(request).await.unwrap();
+    assert_eq!(made.status(), StatusCode::CREATED);
+    let restore = ("POST", "/trash/20261020T083000Z-en.draft/restore/");
+    let (status, json) = send(&router, WRITER, restore).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert!(json["fix"].as_str().unwrap().contains("slug"), "{json}");
+    let (_, json) = send(&router, WRITER, ("GET", "/trash/")).await;
+    assert_eq!(json["trash"].as_array().map(Vec::len), Some(1), "{json}");
+}
+
+#[tokio::test]
+async fn deleting_for_good_needs_posts_publish_and_empties_the_trash() {
+    let router = router();
+    delete(&router, WRITER, "en.draft").await;
+    let purge = ("DELETE", "/trash/20261020T083000Z-en.draft/");
+    let (status, json) = send(&router, WRITER, purge).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    let (status, json) = send(&router, PUBLISHER, purge).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{json}");
+    let (status, json) = send(&router, PUBLISHER, purge).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
+    let (_, json) = send(&router, WRITER, ("GET", "/trash/")).await;
+    assert_eq!(json, json!({"trash": []}));
+}
