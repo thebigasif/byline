@@ -8,6 +8,7 @@ import { GoLive } from "./GoLive";
 import { LintPanel } from "./LintPanel";
 import { LivePage } from "./LivePage";
 import { PostSettings } from "./PostSettings";
+import { Presence } from "./Presence";
 import { PreviewLink } from "./PreviewLink";
 import { PublishButton } from "./PublishButton";
 import { RichText } from "./RichText";
@@ -15,6 +16,7 @@ import { fitsRichText } from "./richText";
 import { scheduledAt } from "./schedule";
 import { type SettingsDraft, withSetting } from "./settings";
 import { type SaveState, useAutosave } from "./useAutosave";
+import { usePresence } from "./usePresence";
 import { usePublish } from "./usePublish";
 import { Versions } from "./Versions";
 
@@ -31,6 +33,8 @@ function statusText(state: SaveState, dirty: boolean): string {
 export function EditorForm({ post }: Props) {
   const { draft, setDraft, dirty, state, save, updatedAt } = useAutosave(post);
   const { publishing, publish } = usePublish(post, save, updatedAt);
+  // While someone else holds the post, this writer reads it and changes nothing.
+  const { presence, locked, takeOver } = usePresence(post.id);
   const [rich, setRich] = useState(() => fitsRichText(post.markdown));
   const [held, setHeld] = useState(!rich);
   const [at, setAt] = useState(() => scheduledAt(post));
@@ -85,12 +89,15 @@ export function EditorForm({ post }: Props) {
         <span className="hint" role="status">
           {statusText(state, dirty)}
         </span>
-        <PublishButton
-          publishing={publishing}
-          scheduling={at !== ""}
-          onPublish={() => void publish(at)}
-        />
+        {locked ? null : (
+          <PublishButton
+            publishing={publishing}
+            scheduling={at !== ""}
+            onPublish={() => void publish(at)}
+          />
+        )}
       </div>
+      <Presence presence={presence} onTakeOver={() => void takeOver()} />
       {publishing.problem === null ? null : <Problem message={publishing.problem} />}
       {leaving.status === "blocked" ? (
         <div className="problem" role="alertdialog" aria-labelledby="leave-what">
@@ -118,6 +125,7 @@ export function EditorForm({ post }: Props) {
             id="title"
             className="title"
             value={draft.title}
+            readOnly={locked}
             onChange={(event) => setTitle(event.target.value)}
             onBlur={onBlur}
           />
@@ -125,6 +133,7 @@ export function EditorForm({ post }: Props) {
             <RichText
               key={restored}
               markdown={draft.markdown}
+              readOnly={locked}
               onChange={setMarkdown}
               onBlur={onBlur}
             />
@@ -132,6 +141,7 @@ export function EditorForm({ post }: Props) {
             <textarea
               className="source"
               aria-label={en.editor.text}
+              readOnly={locked}
               value={draft.markdown}
               onChange={(event) => setMarkdown(event.target.value)}
               onBlur={onBlur}
@@ -143,7 +153,7 @@ export function EditorForm({ post }: Props) {
         {live ? (
           <LivePage id={post.id} version={updatedAt.current} />
         ) : (
-          <div>
+          <div inert={locked}>
             <LintPanel findings={publishing.findings} />
             <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
               {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}

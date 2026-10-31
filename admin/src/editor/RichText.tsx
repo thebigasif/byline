@@ -1,5 +1,5 @@
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { en } from "../strings/en";
 import { BlockForm } from "./aids/BlockForm";
 import { applyDetails, type Details, detailsOf, selectedDetails } from "./aids/blockForm";
@@ -16,12 +16,14 @@ import { extensions, fileText } from "./richText";
 
 type Props = {
   markdown: string;
+  /** Shows the text without letting the writer change it, while someone else holds the post. */
+  readOnly?: boolean;
   onChange: (markdown: string) => void;
   onBlur: () => void;
 };
 
 /** The post's text as formatted text, read from and written to markdown. */
-export function RichText({ markdown, onChange, onBlur }: Props) {
+export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props) {
   // The open menu takes the arrow keys, Enter and Escape before the text does.
   const keys = useRef<KeyHandler>(noKeys);
   const [details, setDetails] = useState<Details | null>(null);
@@ -39,6 +41,7 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
     extensions,
     content: markdown,
     contentType: "markdown",
+    editable: !readOnly,
     // The admin's policy allows only its own stylesheet, so no style tag.
     injectCSS: false,
     editorProps: {
@@ -61,14 +64,21 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
           return true;
         }
         // Enter on a selected block card opens its details.
-        const selected = menuKey(event) === "pick" ? selectedDetails(view.state) : null;
-        return opened(selected);
+        if (menuKey(event) !== "pick" || !view.editable) {
+          return false;
+        }
+        return opened(selectedDetails(view.state));
       },
-      handleDoubleClickOn: (_view, _pos, node, nodePos) => opened(detailsOf(node, nodePos)),
+      handleDoubleClickOn: (view, _pos, node, nodePos) =>
+        view.editable && opened(detailsOf(node, nodePos)),
     },
     onUpdate: ({ editor: current }) => onChange(fileText(current.getMarkdown())),
     onBlur,
   });
+  useEffect(() => {
+    // No update event: locking the text changes nothing in it.
+    editor.setEditable(!readOnly, false);
+  }, [editor, readOnly]);
   const trigger = useEditorState({
     editor,
     selector: (snapshot) => openTrigger(snapshot.editor.state),
@@ -142,7 +152,7 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
   return (
     <div className="writing">
       <EditorContent editor={editor} />
-      {aid === null && selecting ? (
+      {aid === null && selecting && !readOnly ? (
         <button
           type="button"
           className="btn mt-3"
