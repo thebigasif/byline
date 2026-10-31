@@ -34,6 +34,7 @@ mod build_sitemap;
 mod categories;
 mod cli;
 mod cli_access;
+mod cli_name;
 mod comment_pages;
 mod config_message;
 mod consent_route;
@@ -62,6 +63,7 @@ mod init_message;
 mod init_prompt;
 mod keys;
 mod keys_message;
+mod link_graph;
 mod lint;
 mod lint_fix;
 mod lint_input;
@@ -102,6 +104,11 @@ mod repair;
 mod report;
 mod routes_message;
 mod scheduler;
+mod search_console;
+mod search_console_email;
+mod search_console_lost;
+mod search_console_post;
+mod search_console_report;
 mod search_index;
 mod search_page;
 mod search_route;
@@ -117,6 +124,7 @@ mod settings_text;
 mod share_images;
 mod site_addresses;
 mod site_audit;
+mod site_chrome;
 mod site_config;
 mod site_content;
 mod site_facts;
@@ -132,6 +140,7 @@ mod slug_repair;
 mod staff;
 mod staff_message;
 mod staff_owner;
+mod staff_toolbar;
 mod static_mode;
 mod subscriber_events;
 mod tag_events;
@@ -244,9 +253,10 @@ fn run(cli: &Cli) -> Exit {
             Some((folder, config, ..)),
         ) => access(folder, config, command, cli.output),
         (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &env),
-        (Some(Command::Bing { command }), Some((_, config, ..))) => {
-            bing::run(config, &env, *command, cli)
-        }
+        (
+            Some(command @ (Command::Bing { .. } | Command::SearchConsole { .. })),
+            Some((folder, config, _, (content, _))),
+        ) => outside((folder, config, content), &env, command, cli),
         (
             Some(
                 command @ (Command::Theme { .. }
@@ -259,27 +269,27 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
             import::run(folder, (config, routes), args, cli)
         }
-        (
-            Some(
-                command @ (Command::Db { .. }
-                | Command::Import(_)
-                | Command::Theme { .. }
-                | Command::Serve(_)
-                | Command::Keys { .. }
-                | Command::Staff { .. }
-                | Command::Mcp
-                | Command::Lint { .. }
-                | Command::Publish { .. }
-                | Command::Newsletter { .. }
-                | Command::New { .. }
-                | Command::Build { .. }
-                | Command::Export
-                | Command::Audit { .. }
-                | Command::Bing { .. }),
-            ),
-            None,
-        ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
+        // Every command that works without a site returned in
+        // `run_unchecked`, so each one left needs `--site`.
+        (Some(command), None) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs the commands that ask a search engine about the checked site, with
+/// the keys in `env`: `bing` and `search-console`.
+fn outside(
+    (folder, config, content): (&Path, &Config, &SiteContent),
+    env: &Environment,
+    command: &Command,
+    cli: &Cli,
+) -> Exit {
+    match command {
+        Command::Bing { command } => bing::run(config, env, *command, cli),
+        Command::SearchConsole { command } => {
+            search_console::run((folder, config, content), env, command.clone(), cli)
+        }
+        _ => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
 }
 

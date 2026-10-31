@@ -1,0 +1,13 @@
+---
+source: crates/khalid/tests/build_reader.rs
+expression: figure
+---
+<figure>
+<a class="enlarge" href="/blog/media/d9df18e6d7e8625d/800.png"><picture>
+<source type="image/webp" srcset="/blog/media/d9df18e6d7e8625d/320.webp 320w, /blog/media/d9df18e6d7e8625d/480.webp 480w, /blog/media/d9df18e6d7e8625d/640.webp 640w, /blog/media/d9df18e6d7e8625d/800.webp 800w" sizes="(min-width: 48rem) 48rem, 100vw">
+<img src="/blog/media/d9df18e6d7e8625d/800.png" srcset="/blog/media/d9df18e6d7e8625d/320.png 320w, /blog/media/d9df18e6d7e8625d/480.png 480w, /blog/media/d9df18e6d7e8625d/640.png 640w, /blog/media/d9df18e6d7e8625d/800.png 800w" sizes="(min-width: 48rem) 48rem, 100vw" width="800" height="450" alt="Bar chart of a slow page&#39;s bytes: images take the most, then scripts, fonts, styles and HTML" loading="lazy" decoding="async">
+</picture></a>
+<figcaption>
+<p>Where the bytes of a typical slow page go.</p>
+</figcaption>
+</figure>

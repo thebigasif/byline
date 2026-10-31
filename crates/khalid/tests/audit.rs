@@ -195,6 +195,57 @@ fn each_run_adds_to_the_trend() {
 }
 
 #[test]
+fn the_page_weight_meter_names_the_heaviest_page_and_lists_every_page() {
+    let site = demo_copy();
+    let output = audit(site.path(), &["--json"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let body: Value = serde_json::from_str(&stdout).unwrap_or_else(|_| panic!("{stdout}"));
+    let heaviest = &body["heaviest"];
+    let weight = |kind: &str| {
+        heaviest[kind]
+            .as_u64()
+            .unwrap_or_else(|| panic!("{stdout}"))
+    };
+    // Every page loads the site's stylesheet, so it weighs more than its
+    // HTML alone, and the parts add up to the whole.
+    assert!(weight("html") > 0 && weight("styles") > 0, "{stdout}");
+    let parts: u64 = ["html", "styles", "scripts", "images", "other"]
+        .into_iter()
+        .map(weight)
+        .sum();
+    assert_eq!(weight("total"), parts, "{stdout}");
+    let weights = file(site.path(), "weights.csv");
+    let mut lines = weights.lines();
+    assert_eq!(
+        lines.next(),
+        Some("url,total,html,styles,scripts,images,other,unweighed")
+    );
+    let url = heaviest["url"].as_str().unwrap();
+    let first = format!("{url},{},", weight("total"));
+    assert!(lines.next().unwrap().starts_with(&first), "{weights}");
+    assert_eq!(
+        lines.count() + 1,
+        usize::try_from(body["pages"].as_u64().unwrap()).unwrap(),
+        "{weights}"
+    );
+    assert!(
+        body["files"]["weights"]
+            .as_str()
+            .unwrap()
+            .ends_with("data/audit/weights.csv"),
+        "{stdout}"
+    );
+
+    let said = String::from_utf8_lossy(&audit(site.path(), &[]).stdout).into_owned();
+    assert!(
+        said.contains(&format!("The heaviest page is {url}: ")),
+        "{said}"
+    );
+    assert!(said.contains("of HTML,"), "{said}");
+    assert!(said.contains("weights.csv"), "{said}");
+}
+
+#[test]
 fn a_link_to_a_missing_page_fails_the_audit_and_says_how_to_fix_it() {
     let site = demo_copy();
     let mut post = site.path().to_path_buf();

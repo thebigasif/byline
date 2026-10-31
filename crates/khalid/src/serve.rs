@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use axum::Router;
-use khalid_api::api::{self, AdminDesks};
+use khalid_api::api::{self, AdminDesks, AuditDesk};
 use khalid_api::comment_moderation::CommentModeration;
 use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
@@ -18,7 +18,9 @@ use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_db::{
+    AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable,
+};
 use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
@@ -42,9 +44,9 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::tag_events::Tags;
 use crate::{
-    alert_watch, announce, comment_pages, consent_route, db, db_message, form_pages, media_library,
-    newsletter, page_counts, preview, redirect_route, report, scheduler, search_route,
-    serve_message, share_images, staff, unlock,
+    alert_watch, announce, assets, comment_pages, consent_route, db, db_message, form_pages,
+    media_library, newsletter, page_counts, preview, redirect_route, report, scheduler,
+    search_route, serve_message, share_images, staff, staff_toolbar, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -173,7 +175,7 @@ fn serve_with(
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
         let shown_pages = consent_route::pages(config, live.clone(), security.clone());
-        let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
+        let ((comments, moderation), (door, posts), (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
             media_library::open(site, config, keys.bucket, outbound),
@@ -185,8 +187,10 @@ fn serve_with(
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
+        let editing = (content.clone(), posts.clone());
+        let pages = staff_toolbar::start((database, id, config), editing, pages);
         let desks = (moderation, media, desk);
-        let apis = api_router((content, door), desks, (database, id, config));
+        let apis = api_router((content, door, posts), desks, (database, id, config));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -284,7 +288,7 @@ fn first_pages(
 /// comment moderation, media library, stored redirects, webhooks and staff
 /// accounts of site `id`.
 fn api_router(
-    (content, door): (LiveContent, Arc<PublishDoor>),
+    (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
     (database, id, config): (&Database, SiteId, &Config),
 ) -> Router {
@@ -300,6 +304,11 @@ fn api_router(
             id,
             SystemClock,
         ))),
+        trash: Some(Arc::new(posts)),
+        audit: Some(AuditDesk::new(
+            Arc::new(AuditTable::new(database.clone(), id)),
+            SystemClock,
+        )),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
@@ -377,15 +386,15 @@ async fn publish_door(
     (site, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
     telling: SiteAnnounce,
-) -> Result<Arc<PublishDoor>, (UserMessage, Exit)> {
+) -> Result<(Arc<PublishDoor>, SitePosts), (UserMessage, Exit)> {
     let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
     let posts = SitePosts::new(site, config.clone(), SystemClock);
     let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
     let signer = preview::signer(config, (database, id, &file)).await;
-    let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
+    let door = PublishDoor::new(Arc::new(posts.clone()), Arc::new(telling))
         .with_schedules(schedules, SystemClock)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
-    Ok(Arc::new(door))
+    Ok((Arc::new(door), posts))
 }
 
 /// `pages`, the site's page router, with the password form and the cookie
@@ -498,10 +507,12 @@ pub(crate) fn open(site: &Path, runtime: &Runtime) -> Result<(Database, SiteId),
 }
 
 /// The security headers of every page, letting in the frames of the embed
-/// providers.
+/// providers and the reader script by its hash.
 fn security_headers() -> Result<SecurityHeaders, (UserMessage, Exit)> {
     let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
-    SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))
+    SecurityHeaders::new(&origins)
+        .and_then(|headers| headers.with_script(&assets::reader().integrity))
+        .map_err(|_| (serve_message::internal(), Exit::Internal))
 }
 
 /// Says where the site answers. In JSON, this one line is the whole output.

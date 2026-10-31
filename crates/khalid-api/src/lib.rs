@@ -7,16 +7,20 @@
 //! about content files, markdown, SQL or templates.
 
 mod admin_api;
+mod admin_audit;
 mod admin_comments;
 mod admin_delete;
 mod admin_key;
 mod admin_not_found;
 mod admin_redirect_csv;
 mod admin_redirects;
+mod admin_trash;
 mod admin_webhooks;
 pub mod api;
 pub mod api_limits;
 mod api_version;
+mod audit_desk;
+pub mod audit_log;
 pub mod comment_moderation;
 pub mod content_api;
 mod content_key;
@@ -29,6 +33,7 @@ pub mod not_found_log;
 pub mod pagination;
 pub mod post_password;
 pub mod post_store;
+pub mod post_trash;
 pub mod preview_link;
 pub mod problem;
 pub mod publish_door;

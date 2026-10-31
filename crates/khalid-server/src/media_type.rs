@@ -15,6 +15,9 @@ pub enum MediaType {
     Json,
     /// A stylesheet.
     Css,
+    /// The reader script. [`MediaType::for_file`] never gives it, so a
+    /// file a writer put beside a post is never served as a script.
+    JavaScript,
     /// A PNG image.
     Png,
     /// A JPEG image.
@@ -42,6 +45,7 @@ impl MediaType {
             Self::PlainText => "text/plain; charset=utf-8",
             Self::Json => "application/json",
             Self::Css => "text/css; charset=utf-8",
+            Self::JavaScript => "text/javascript; charset=utf-8",
             Self::Png => "image/png",
             Self::Jpeg => "image/jpeg",
             Self::Webp => "image/webp",
@@ -83,7 +87,13 @@ impl MediaType {
     pub(crate) fn compresses(self) -> bool {
         matches!(
             self,
-            Self::Html | Self::Xml | Self::PlainText | Self::Json | Self::Css | Self::Svg
+            Self::Html
+                | Self::Xml
+                | Self::PlainText
+                | Self::Json
+                | Self::Css
+                | Self::JavaScript
+                | Self::Svg
         )
     }
 }

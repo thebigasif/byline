@@ -223,6 +223,7 @@ impl Demo {
                 ],
                 footer: Vec::new(),
             },
+            announcement: None,
             main_site: Some(link("example.com", format!("{ADDRESS}/"))),
             share_image: None,
             features: Features::all(),
@@ -549,6 +550,7 @@ impl Demo {
             contents: None,
             originals: BTreeMap::new(),
             related: Vec::new(),
+            mentions: Vec::new(),
             comments: None,
             body,
         };

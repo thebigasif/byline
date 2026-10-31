@@ -58,7 +58,7 @@ pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
 #[derive(Debug, Serialize, ToSchema)]
 pub(crate) struct AdminPosts {
     /// The post or posts.
-    posts: Vec<AdminPost>,
+    pub(crate) posts: Vec<AdminPost>,
 }
 
 /// One page of the admin's posts table, as every list is wrapped.

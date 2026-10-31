@@ -43,6 +43,8 @@ pub struct RenderPost {
     pub originals: BTreeMap<String, String>,
     /// The posts shown under this one, from [`related`](crate::related).
     pub related: Vec<PostCard>,
+    /// The site's posts whose bodies link to this one, newest first.
+    pub mentions: Vec<Link>,
     /// The readers' comments and the form to leave one, or `None` where
     /// the site takes no comments, such as a page built without a server.
     pub comments: Option<RenderComments>,

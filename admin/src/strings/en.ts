@@ -1,4 +1,6 @@
 // Every word the admin shows, so a second language is one more file.
+import { records } from "./records";
+
 export const en = {
   brand: "Khalid",
   skip: "Skip to the main content",
@@ -10,7 +12,85 @@ export const en = {
     label: "Admin",
     dashboard: "Dashboard",
     posts: "Posts",
+    media: "Media",
+    trash: "Trash",
+    audit: "Audit log",
     redirects: "Redirects",
+  },
+  trash: records.trash,
+  audit: records.audit,
+  bulk: records.bulk,
+  media: {
+    title: "Media",
+    lede: "The images, videos, sound and files your posts use. Khalid reads each file's content to learn its type, so a program renamed to look like a photo is refused. A file uploaded twice is kept once.",
+    add: {
+      title: "Add a file",
+      file: "File",
+      fileHint:
+        "A JPEG, PNG or WebP image up to 20 MB, a video up to 100 MB, sound up to 50 MB, or a PDF, ZIP or text file.",
+      folder: "Folder",
+      folderHint:
+        "Optional. Lowercase words joined by /, such as guides/2026. Leave it empty for the top of the library.",
+      submit: "Upload",
+      uploading: "Uploading the file",
+      added: (name: string) => `Added. ${name} is in your library.`,
+      addAlt: "Give it alt text next, so readers who cannot see it know what it shows.",
+      duplicate: (name: string) => `${name} was already in your library, so nothing new was added.`,
+    },
+    library: {
+      title: "Your library",
+      lede: "Newest first. Alt text describes an image for people who use a screen reader, and for Google. The checks warn about any image in a post that has none.",
+      show: "Show",
+      every: "Every file",
+      noAlt: "Images with no alt text",
+      loading: "Reading your library",
+      empty: "Your library is empty. Add a file above to start it.",
+      allHaveAlt: "Every image in your library has alt text.",
+      found: (count: number) => (count === 1 ? "1 file" : `${count} files`),
+      preview: "Preview",
+      name: "Name",
+      folder: "Folder",
+      kind: "Kind",
+      alt: "Alt text",
+      top: "Top",
+      missing: "Missing",
+      notNeeded: "Not needed",
+      action: "Action",
+      edit: (name: string) => `Edit details of ${name}`,
+      editText: "Edit details",
+    },
+    details: {
+      back: "Back to media",
+      loading: "Reading the file's details",
+      uploaded: (summary: string, by: string, on: string) =>
+        `${summary}. ${by} uploaded it on ${on}.`,
+      address: "Its address:",
+      copy: "Copy the address",
+      copied: "Copied. Paste it into a post to use the file.",
+      title: "Details",
+      alt: "Alt text",
+      altHint:
+        "What the image shows, for people who use a screen reader and for Google. One sentence is enough.",
+      caption: "Caption",
+      captionHint: "Optional. The line shown under it in a post.",
+      folderHint:
+        "Lowercase words joined by /, such as guides/2026. Empty means the top of the library. Its address stays the same.",
+      point: "Focal point",
+      pointHint:
+        "The ring marks the focal point, the part every crop keeps. Click the picture to move it, or type the two numbers.",
+      picture: "Move the focal point to where you click",
+      left: "From the left, in %",
+      top: "From the top, in %",
+      save: "Save details",
+      saving: "Saving",
+      saved: "Saved.",
+    },
+    kinds: { image: "Image", video: "Video", audio: "Sound", file: "File" },
+    size: (bytes: number) =>
+      bytes < 1024 * 1024
+        ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+        : `${(bytes / (1024 * 1024)).toFixed(1)} MB`,
+    pixels: (width: number, height: number) => `${width} × ${height}`,
   },
   redirects: {
     title: "Redirects",
@@ -364,6 +444,16 @@ export const en = {
       what: "No CSV file is picked yet.",
       why: "Khalid adds the redirects from a file, so there is nothing to add.",
       fix: "Pick a CSV file under Add redirects from a CSV file, then press Add these redirects.",
+    },
+    noMediaItem: {
+      what: "This file is not in the media library.",
+      why: "It may never have been uploaded, or the address is mistyped.",
+      fix: "Go back to Media and open the file from the list.",
+    },
+    noMedia: {
+      what: "No file is picked yet.",
+      why: "Khalid adds the file you pick, so there is nothing to upload.",
+      fix: "Pick a file under File, then press Upload.",
     },
     badAlias: {
       what: "The old address is not a path on this blog.",

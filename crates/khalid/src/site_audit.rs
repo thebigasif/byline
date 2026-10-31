@@ -2,19 +2,20 @@
 //! or ask a running server with `--server`, crawl it the way Ahrefs and
 //! Semrush do, and print its health score out of 100 with every issue and
 //! its fix. It keeps each run's score in `data/audit/runs.jsonl` for the
-//! trend, writes the issues and the internal linking report as CSV beside
-//! it, and fires `audit.finished` to the site's webhooks. It exits with 1
-//! when it finds an error. The AI search checks read the answer length,
-//! the paragraph length and the stale window from the site's `lint.toml`,
-//! like the linter.
+//! trend, writes the issues, the internal linking report and the
+//! page-weight meter as CSV beside it, names the heaviest page, and fires
+//! `audit.finished` to the site's webhooks. It exits with 1 when it finds
+//! an error. The AI search checks read the answer length, the paragraph
+//! length and the stale window from the site's `lint.toml`, like the
+//! linter.
 
 use std::fs::{self, OpenOptions};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 use khalid_audit::{
-    Folder, Limit, LinkReport, Report, Run, Server, Severity, Thresholds, check_outside, crawl,
-    history,
+    Folder, Limit, LinkReport, Report, Run, Server, Severity, Thresholds, WeightReport,
+    check_outside, crawl, history,
 };
 use khalid_content::SiteContent;
 use khalid_core::{AbsoluteUrl, Clock, Config, Secret, UserMessage};
@@ -77,7 +78,8 @@ pub(crate) fn run(
         audit = audit.with(runtime.block_on(check_outside(&crawled, &public)));
     }
     let links = LinkReport::of(&crawled);
-    let trend = match keep(&folder, &audit, &links, clock) {
+    let weights = WeightReport::of(&crawled);
+    let trend = match keep(&folder, &audit, (&links, &weights), clock) {
         Ok(trend) => trend,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
@@ -89,8 +91,14 @@ pub(crate) fn run(
         Exit::Failure
     };
     match output {
-        Output::Json => report::json(&audit_message::body(&audit, &trend, &folder), exit),
-        Output::Human => report::text(&audit_message::human(&audit, &trend, &folder), exit),
+        Output::Json => {
+            let body = audit_message::body((&audit, &weights), &trend, &folder);
+            report::json(&body, exit)
+        }
+        Output::Human => {
+            let said = audit_message::human((&audit, &weights), &trend, &folder);
+            report::text(&said, exit)
+        }
     }
 }
 
@@ -137,12 +145,13 @@ fn home(config: &Config) -> Result<AbsoluteUrl, ()> {
     AbsoluteUrl::parse(&format!("{address}{}", config.mount())).map_err(drop)
 }
 
-/// Writes the issues and the link report as CSV into `folder`, adds this
-/// run to the history, and returns every run, oldest first.
+/// Writes the issues, the link report and the page weights as CSV into
+/// `folder`, adds this run to the history, and returns every run, oldest
+/// first.
 fn keep(
     folder: &Path,
     audit: &Report,
-    links: &LinkReport,
+    (links, weights): (&LinkReport, &WeightReport),
     clock: &dyn Clock,
 ) -> Result<Vec<Run>, UserMessage> {
     fs::create_dir_all(folder).map_err(|error| audit_message::write(folder, &error))?;
@@ -152,6 +161,7 @@ fn keep(
     };
     write("issues.csv", &audit.csv())?;
     write("links.csv", &links.csv())?;
+    write("weights.csv", &weights.csv())?;
     let line = Run::of(audit, clock.now())
         .line()
         .map_err(|_| audit_message::internal())?;

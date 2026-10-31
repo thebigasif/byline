@@ -31,6 +31,8 @@ pub(crate) fn features(reader: &Reader) -> Features {
         (reader.authors_page, Feature::AuthorsPage),
         (reader.archive, Feature::Archive),
         (reader.search_shortcut, Feature::SearchShortcut),
+        (reader.linked_mentions, Feature::LinkedMentions),
+        (reader.link_previews, Feature::LinkPreviews),
     ]
     .into_iter()
     .filter(|&(on, _)| !on)

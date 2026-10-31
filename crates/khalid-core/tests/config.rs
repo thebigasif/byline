@@ -57,7 +57,7 @@ fn refuses_an_unknown_field() {
             "mode = \"server\"\n",
             "mode = \"server\"\ncolour = \"blue\"\n"
         ),
-        "site.toml, line 5, field \"colour\": unknown field `colour`, expected one of `name`, `address`, `mount`, `mode`, `slugs`, `default_language`, `languages`, `seo`, `reader`, `media`, `mail`, `alerts`, `code`, `preview_link_days`, `preview_link_hours`"
+        "site.toml, line 5, field \"colour\": unknown field `colour`, expected one of `name`, `address`, `mount`, `mode`, `slugs`, `default_language`, `languages`, `seo`, `reader`, `nav`, `announcement`, `media`, `mail`, `alerts`, `code`, `search_console`, `preview_link_days`, `preview_link_hours`"
     );
 }
 

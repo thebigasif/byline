@@ -51,6 +51,11 @@ pub(crate) struct Cli {
     #[arg(long, global = true, hide = true, value_name = "URL")]
     pub(crate) test_bing: Option<AbsoluteUrl>,
 
+    /// Test builds only: send every Google call under this endpoint.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "URL")]
+    pub(crate) test_google: Option<AbsoluteUrl>,
+
     /// Test builds only: where `khalid update` reads releases from.
     #[cfg(feature = "test-util")]
     #[arg(long, global = true, hide = true, value_name = "URL")]
@@ -144,9 +149,10 @@ pub(crate) enum Command {
         out: Option<PathBuf>,
     },
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
-    /// health out of 100. Keeps the issues, the internal linking report and
-    /// the score's trend in data/audit/, and exits with 1 on any error.
-    /// Broken links on the blog go to the owner as an alert, once
+    /// health out of 100. Keeps the issues, the internal linking report,
+    /// each page's weight and the score's trend in data/audit/, and exits
+    /// with 1 on any error. Broken links on the blog go to the owner as an
+    /// alert, once
     Audit {
         /// Ask this running server for the site's pages instead of
         /// building them, such as `http://127.0.0.1:8080` for `khalid serve`
@@ -217,6 +223,36 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: BingCommand,
     },
+    /// Read the site's Google Search Console numbers with the owner's own
+    /// Google account, once `[search_console]` in site.toml opts in
+    SearchConsole {
+        /// What to ask Search Console
+        #[command(subcommand)]
+        command: SearchConsoleCommand,
+    },
+}
+
+/// The Search Console commands, for the property `[search_console]` names.
+#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
+pub(crate) enum SearchConsoleCommand {
+    /// Sign in to Google and check that the property can be read
+    Check,
+    /// Show each post's clicks, impressions, click-through rate and
+    /// position for the last 28 days, posts in decay, and the week's
+    /// winners and losers
+    Report,
+    /// Show one post's numbers, the searches that showed it, and whether
+    /// Google has it in its index
+    Post {
+        /// The slug of the published post
+        slug: Slug,
+    },
+    /// Ask Google whether each published post is in its index, up to 200
+    /// posts a run, within Google's daily quota of 2,000
+    Index,
+    /// Email the week in Google search to `report_to` under `[search_console]`,
+    /// through `[mail]`. Run it once a week from a timer
+    Email,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in
@@ -474,76 +510,4 @@ pub(crate) enum Network {
     Fetch,
     /// Stay offline, because `--offline` was given.
     Offline,
-}
-
-impl Command {
-    /// The command as a person types it, such as `theme sync`.
-    pub(crate) fn name(&self) -> &'static str {
-        match self {
-            Self::Init(_) => "init",
-            Self::Serve(_) => "serve",
-            Self::New(_) => "new",
-            Self::Build { .. } => "build",
-            Self::Lint { .. } => "lint",
-            Self::Publish { .. } => "publish",
-            Self::Theme {
-                command: ThemeCommand::Sync { .. },
-            } => "theme sync",
-            Self::Theme {
-                command: ThemeCommand::Check { .. },
-            } => "theme check",
-            Self::Import(_) => "import",
-            Self::Export => "export",
-            Self::Mcp => "mcp",
-            Self::Agents => "agents",
-            Self::Doctor { .. } => "doctor",
-            Self::Backup { .. } => "backup",
-            Self::Audit { .. } => "audit",
-            Self::Update { .. } => "update",
-            Self::Pull => "pull",
-            Self::Keys {
-                command: KeysCommand::Create(_),
-            } => "keys create",
-            Self::Keys {
-                command: KeysCommand::Revoke { .. },
-            } => "keys revoke",
-            Self::Staff {
-                command: StaffCommand::Owner(_),
-            } => "staff owner",
-            Self::Db {
-                command: DbCommand::Migrate,
-            } => "db migrate",
-            Self::Db {
-                command: DbCommand::Rebuild,
-            } => "db rebuild",
-            Self::Db {
-                command: DbCommand::Export { .. },
-            } => "db export",
-            Self::Redirects {
-                command: RedirectsCommand::Import { .. },
-            } => "redirects import",
-            Self::Redirects {
-                command: RedirectsCommand::Export,
-            } => "redirects export",
-            Self::Redirects {
-                command: RedirectsCommand::Explain { .. },
-            } => "redirects explain",
-            Self::Webhooks {
-                command: WebhooksCommand::Add { .. },
-            } => "webhooks add",
-            Self::Webhooks {
-                command: WebhooksCommand::List,
-            } => "webhooks list",
-            Self::Webhooks {
-                command: WebhooksCommand::Remove { .. },
-            } => "webhooks remove",
-            Self::Newsletter { command } => command.name(),
-            Self::Bing {
-                command: BingCommand::Sitemap,
-            } => "bing sitemap",
-            Self::Bing {
-                command: BingCommand::Report,
-            } => "bing report",
-        }
-    }
 }

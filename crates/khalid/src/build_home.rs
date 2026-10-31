@@ -8,11 +8,11 @@ use std::collections::BTreeMap;
 use chrono::NaiveDate;
 use khalid_content::{PostFront, SiteContent, Wikilinks};
 use khalid_core::{Config, Locale, Slug, UserMessage};
-use khalid_render::{Nav, Person, PostCard, RenderSite};
+use khalid_render::{Person, PostCard};
 use khalid_routes::{PostAddress, Routes};
 
 use crate::build_pages::{self, LanguagePages};
-use crate::build_reader;
+use crate::{build_reader, site_chrome};
 
 /// The home page of each language of `content`, in the order of
 /// `site.toml`, linking the stylesheet at `stylesheet`: the page
@@ -44,7 +44,7 @@ pub(crate) fn home_pages(
         // their file order.
         cards.sort_by_key(|card| Reverse(card.date));
         languages.push(LanguagePages {
-            site: render_site(config, locale, stylesheet),
+            site: site_chrome::render_site(config, locale, stylesheet),
             pages: vec![build_pages::home_page(config, locale, cards)?],
             listed: Vec::new(),
             unlocked: Vec::new(),
@@ -73,21 +73,5 @@ pub(crate) fn card(
             .as_ref()
             .map(|slug| build_reader::person(people, slug, config, locale)),
         category: None,
-    }
-}
-
-/// The site as pages in `locale` show it, linking the stylesheet at `stylesheet`.
-pub(crate) fn render_site(config: &Config, locale: &Locale, stylesheet: &str) -> RenderSite {
-    RenderSite {
-        name: config.name().to_owned(),
-        locale: locale.clone(),
-        home: build_pages::path_of(config, locale, ""),
-        stylesheet: stylesheet.to_owned(),
-        nav: Nav::default(),
-        main_site: None,
-        share_image: None,
-        features: build_reader::features(config.reader()),
-        search: None,
-        script: None,
     }
 }

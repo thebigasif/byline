@@ -90,11 +90,12 @@ struct Outline {
     shown: Shown,
 }
 
-/// The theme's renderer, and the stylesheet every page links.
+/// The theme's renderer, and the stylesheet and reader script every page links.
 #[derive(Debug)]
 struct Theme {
     renderer: Renderer,
     stylesheet: Page,
+    script: Page,
     /// The tokens the stylesheet was built from, for the share cards.
     tokens: Tokens,
 }
@@ -128,6 +129,7 @@ impl SitePages {
             Some(Theme {
                 renderer,
                 stylesheet,
+                script: assets::script_page(&config)?,
                 tokens,
             })
         } else {
@@ -262,7 +264,7 @@ impl SitePages {
         // rest warm in the background once the pages are live (G14).
         share_images::draw_now(folder, cards)?;
         build_seo::heads(&seo_site, &mut languages)?;
-        let mut pages = vec![theme.stylesheet.clone()];
+        let mut pages = vec![theme.stylesheet.clone(), theme.script.clone()];
         html_pages(&theme.renderer, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
     }
@@ -457,7 +459,7 @@ impl SitePages {
         }
         if let Some(theme) = theme {
             if which == Which::All {
-                served.pages.push(theme.stylesheet.clone());
+                (served.pages).extend([theme.stylesheet.clone(), theme.script.clone()]);
                 let shells = search_shells(&languages);
                 *self
                     .0
