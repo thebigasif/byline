@@ -16,6 +16,9 @@ use std::time::Duration;
 use serde_json::Value;
 use tempfile::TempDir;
 
+/// How long one request may wait for its whole answer.
+const ANSWER_WITHIN: Duration = Duration::from_secs(30);
+
 /// The pause between looks for an edit.
 const PAUSE: Duration = Duration::from_millis(100);
 
@@ -120,6 +123,9 @@ fn exchange(
 ) -> (u16, String, String) {
     let host = &server.host;
     let mut stream = TcpStream::connect(host).unwrap();
+    // A route that never answers fails the test by name instead of
+    // holding it forever.
+    stream.set_read_timeout(Some(ANSWER_WITHIN)).unwrap();
     let body = body.map(Value::to_string).unwrap_or_default();
     let mut head = format!(
         "{method} {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nContent-Length: {}\r\n",
@@ -135,7 +141,9 @@ fn exchange(
         .write_all(format!("{head}\r\n{body}").as_bytes())
         .unwrap();
     let mut raw = String::new();
-    stream.read_to_string(&mut raw).unwrap();
+    stream
+        .read_to_string(&mut raw)
+        .unwrap_or_else(|error| panic!("{method} {path} gave no answer: {error}"));
     let (head, body) = raw.split_once("\r\n\r\n").unwrap();
     let media = head
         .lines()

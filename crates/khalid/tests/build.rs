@@ -83,11 +83,15 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     assert!(ai.contains("runs this site"), "{ai}");
     assert!(ai.contains("Name Field Notes on SEO"), "{ai}");
     assert!(ai.contains("\"AboutPage\""), "{ai}");
-    // Scripts off still shows every fact: the only script tag on the page
-    // is the JSON-LD block, which carries no behaviour.
+    // Scripts off still shows every fact: besides the JSON-LD block, which
+    // carries no behaviour, the only script is the reader script every
+    // page loads deferred, which adds behaviour and no text.
+    let scripts: Vec<&str> = ai.split("<script").skip(1).collect();
     assert!(
-        !ai.replace("<script type=\"application/ld+json\">", "")
-            .contains("<script"),
+        scripts.iter().all(|tag| {
+            tag.starts_with(" type=\"application/ld+json\">")
+                || tag.starts_with(" src=\"/blog/assets/reader.")
+        }),
         "{ai}"
     );
     let home_body = page(out.path(), "index.html");
