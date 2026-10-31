@@ -1,7 +1,8 @@
 //! The editor's SEO panel on a running `khalid serve` (G54): the check
 //! route answers a post's score, search snippet and schema graph, and a
 //! search title and hand-written JSON-LD saved through the Admin API reach
-//! the post file and the next check.
+//! the post file and the next check. A schema template saved through the
+//! Admin API reaches `site.toml`, and the check after a restart.
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -45,14 +46,14 @@ fn demo_site() -> tempfile::TempDir {
     temp
 }
 
-/// A key that may write posts and change live ones, made by `khalid keys
-/// create`.
+/// A key that may write posts, change live ones and change the site's
+/// settings, made by `khalid keys create`.
 #[cfg(test)]
 fn writer_key(site: &Path) -> String {
     let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
         .args(["--site", site.to_str().unwrap(), "keys", "create", "--json"])
         .args(["--name", "Writer", "--scope", "posts:write"])
-        .args(["--scope", "posts:publish"])
+        .args(["--scope", "posts:publish", "--scope", "settings:write"])
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(0));
@@ -165,6 +166,41 @@ fn the_check_follows_a_saved_search_title_and_custom_schema() {
     assert!(title.ends_with("Field Notes on SEO"), "{after}");
     assert!(
         types(&after["schema"]).contains(&"\"Event\"".to_owned()),
+        "{after}"
+    );
+}
+
+#[test]
+fn a_saved_schema_template_reaches_site_toml_and_the_check_after_a_restart() {
+    let site = demo_site();
+    let key = writer_key(site.path());
+    let server = start(site.path());
+    let route = "/api/admin/v1/schema-templates/";
+    let (status, read) = send(&server, &key, ("GET", route), "");
+    assert_eq!(status, 200, "{read}");
+    assert_eq!(read["templates"], json!([]), "{read}");
+    let collections = read["collections"].as_array().unwrap();
+    assert!(collections.contains(&json!("posts")), "{read}");
+
+    let course = json!({"applies_to": "collection", "name": "posts", "type": "Course",
+        "properties": {"provider": "{site}"}});
+    let change = json!({"templates": [course], "updated_at": read["updated_at"]});
+    let (status, saved) = send(&server, &key, ("PUT", route), &change.to_string());
+    assert_eq!(status, 200, "{saved}");
+    assert_eq!(saved["restart_needed"], true, "{saved}");
+    let mut file = site.path().to_path_buf();
+    file.push("site.toml");
+    let text = fs::read_to_string(file).unwrap();
+    assert!(
+        text.contains("[[seo.schema]]\ncollection = \"posts\"\n"),
+        "{text}"
+    );
+
+    drop(server);
+    let server = start(site.path());
+    let after = check(&server, &key);
+    assert!(
+        types(&after["schema"]).contains(&"\"Course\"".to_owned()),
         "{after}"
     );
 }

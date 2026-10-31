@@ -36,6 +36,7 @@ use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
+use crate::site_schema_templates::SiteSchemaTemplates;
 use crate::{
     announce, comment_pages, db, db_message, media_library, newsletter, page_counts, preview,
     redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
@@ -219,7 +220,8 @@ fn serve_with(
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
 /// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`, and the post checks of the site in `site`.
+/// accounts of site `id`, and the post checks and schema templates of the
+/// site in `site`.
 fn api_router(
     (content, door): (LiveContent, Arc<PublishDoor>),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
@@ -238,7 +240,7 @@ fn api_router(
             SystemClock,
         ))),
         checks: Some(Arc::new(SitePosts::new(site, config.clone(), SystemClock))),
-        schema_templates: None,
+        schema_templates: Some(Arc::new(SiteSchemaTemplates::new(site, config))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
