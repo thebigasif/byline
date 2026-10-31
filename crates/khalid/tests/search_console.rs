@@ -71,6 +71,89 @@ async fn grant(google: &MockServer) {
         .await;
 }
 
+/// Lets `google` answer the page numbers of the `days` days that end
+/// `back` days before the last final day with `rows`, each a page and its
+/// clicks.
+#[cfg(test)]
+async fn pages(google: &MockServer, (days, back): (u64, u64), rows: &[(&str, f64)]) {
+    let last = SystemClock.now().date_naive() - Days::new(3 + back);
+    let first = last - Days::new(days - 1);
+    let rows: Vec<Value> = rows
+        .iter()
+        .map(|(slug, clicks)| {
+            json!({ "keys": [format!("https://www.example.com/blog/{slug}/")],
+                "clicks": clicks, "impressions": clicks * 20.0, "ctr": 0.05, "position": 3.1 })
+        })
+        .collect();
+    let dates = json!({ "startDate": first.to_string(), "endDate": last.to_string() });
+    Mock::given(method("POST"))
+        .and(path(ANALYTICS))
+        .and(body_partial_json(dates))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "rows": rows })))
+        .mount(google)
+        .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_report_shows_each_posts_month_decay_and_the_weeks_movers() {
+    let google = MockServer::start().await;
+    grant(&google).await;
+    let month = [
+        ("what-a-sitemap-does", 40.0),
+        ("why-internal-links-matter", 120.0),
+    ];
+    pages(&google, (28, 0), &month).await;
+    for (back, clicks) in [(28, 50.0), (56, 70.0), (84, 90.0)] {
+        pages(&google, (28, back), &[("what-a-sitemap-does", clicks)]).await;
+    }
+    pages(
+        &google,
+        (7, 0),
+        &[("why-internal-links-matter", 9.0), ("gone", 3.0)],
+    )
+    .await;
+    pages(&google, (7, 7), &[("why-internal-links-matter", 30.0)]).await;
+    let site = demo_site(OPT_IN);
+
+    let output = khalid(site.path(), &google, Some(()), &["report", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let posts = body["posts"].as_array().unwrap();
+    assert_eq!(posts[0]["title"], "Why internal links matter");
+    assert_eq!(
+        posts[1]["url"],
+        "https://www.example.com/blog/what-a-sitemap-does/"
+    );
+    let unseen = posts.last().unwrap();
+    assert_eq!(
+        (&unseen["clicks"], &unseen["position"]),
+        (&json!(0.0), &Value::Null)
+    );
+    assert_eq!(
+        body["winners"][0]["title"],
+        "https://www.example.com/blog/gone/"
+    );
+    let loser = &body["losers"][0];
+    assert_eq!(
+        (&loser["before"], &loser["now"]),
+        (&json!(30.0), &json!(9.0))
+    );
+    let link = loser["go_deeper"].as_str().unwrap();
+    assert!(link.starts_with("https://app.serpdad.com/go-deeper?question=why-it-dropped"));
+    let decaying = body["decaying"].as_array().unwrap();
+    assert_eq!(decaying.len(), 1);
+    assert_eq!(decaying[0]["clicks"], json!([90.0, 70.0, 50.0, 40.0]));
+    assert_eq!(decaying[0]["action"], "Refresh this post");
+
+    let output = khalid(site.path(), &google, Some(()), &["report"]);
+    let said = String::from_utf8(output.stdout).unwrap();
+    let month_line = "- Why internal links matter: 120 clicks, 2400 impressions, 5.0% clicked, average position 3.1.";
+    assert!(said.contains(month_line), "{said}");
+    assert!(said.contains("no search showed it"), "{said}");
+    assert!(said.contains("- What a sitemap does, and what it does not: 90, 70, 50, 40 clicks a month, oldest first."), "{said}");
+    assert!(said.contains("- Why internal links matter: 9 clicks, from 30.\n  Go deeper in SerpDad: https://app.serpdad.com/"), "{said}");
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn check_signs_in_and_reads_the_last_28_final_days() {
     let google = MockServer::start().await;

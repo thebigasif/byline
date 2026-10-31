@@ -73,6 +73,9 @@ impl Command {
             Self::SearchConsole {
                 command: SearchConsoleCommand::Check,
             } => "search-console check",
+            Self::SearchConsole {
+                command: SearchConsoleCommand::Report,
+            } => "search-console report",
         }
     }
 }

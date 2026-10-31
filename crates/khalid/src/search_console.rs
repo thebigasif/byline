@@ -15,7 +15,7 @@ use serde::Serialize;
 use crate::bing::{Failed, block_on};
 use crate::cli::{Cli, Output, SearchConsoleCommand};
 use crate::exit::Exit;
-use crate::{outbound, report, serve_message};
+use crate::{outbound, report, search_console_report, serve_message};
 
 /// Days Google takes to make a day's numbers final.
 const SETTLING_DAYS: u64 = 3;
@@ -44,9 +44,10 @@ pub(crate) fn run(
     let (_, config, _) = site;
     let output = cli.output;
     let done = connect(config, env, cli).and_then(|(console, outbound)| {
-        let today = SystemClock.now().date_naive();
+        let asked = (&console, &outbound, SystemClock.now().date_naive());
         match command {
-            SearchConsoleCommand::Check => check((&console, &outbound, today), output),
+            SearchConsoleCommand::Check => check(asked, output),
+            SearchConsoleCommand::Report => search_console_report::run(site, asked, output),
         }
     });
     done.unwrap_or_else(|(message, exit)| report::failure(output, &message, exit))

@@ -231,6 +231,10 @@ pub(crate) enum Command {
 pub(crate) enum SearchConsoleCommand {
     /// Sign in to Google and check that the property can be read
     Check,
+    /// Show each post's clicks, impressions, click-through rate and
+    /// position for the last 28 days, posts in decay, and the week's
+    /// winners and losers
+    Report,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in
