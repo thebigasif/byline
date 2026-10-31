@@ -2,8 +2,10 @@
 //!
 //! Read from the structured data guides on Google Search Central on
 //! 2026-10-26. Types Google no longer shows as a rich result have no rule:
-//! `FAQPage` (ended 2026-05-07), course info (ended 2025-09-09) and `HowTo`
-//! (ended 2023). Their schema is still written, and still valid schema.org.
+//! `FAQPage` (ended 2026-05-07), course info (ended 2025-09-09), fact
+//! checks with `ClaimReview` (ended 2025) and `HowTo` (ended 2023). `Book`
+//! and `PodcastEpisode` have no open rich result either. Their schema is
+//! still written, and still valid schema.org.
 
 /// One rule per line, five columns split by `;`: the types, by exact name;
 /// what Google shows when the rule holds, finishing "Google shows ..."; the
