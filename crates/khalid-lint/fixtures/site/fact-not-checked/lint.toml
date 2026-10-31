@@ -1,0 +1,3 @@
+# These posts do not link to each other; this fixture is about facts only.
+[rules]
+orphan-post = "off"

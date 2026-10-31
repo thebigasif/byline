@@ -17,6 +17,7 @@ mod blocking;
 mod builtin;
 mod catalogue;
 mod collections;
+mod facts;
 mod finding;
 mod focus;
 mod gate;
@@ -58,7 +59,7 @@ pub use lint_post::{
     Cluster, ClusterRole, FormDestination, Heading, HeadingLevel, Image, LinkKind, LintForm,
     LintLink, LintPost, StructuredDataGap,
 };
-pub use lint_site::{GlossaryTerm, LintCollection, LintSite, PageRef, SiteView};
+pub use lint_site::{GlossaryTerm, LintCollection, LintFact, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};
 pub use page_kind::PageKind;
 pub use rule::{Hit, Rule, RuleId, SiteRule};

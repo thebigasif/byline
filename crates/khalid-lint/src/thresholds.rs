@@ -41,6 +41,9 @@ pub struct Thresholds {
     /// How many months a post may go without an update before it is stale.
     /// Default 12: most facts in a how-to post hold for about a year.
     pub stale_months: u32,
+    /// How many months a fact in `facts.toml` may go unchecked. Default 6,
+    /// the review cadence of decision D4.
+    pub fact_check_months: u32,
     /// How much text, in percent, two posts may share before they count as
     /// near copies, measured on runs of five words. Default 50: above that,
     /// the posts read as one text with small edits.
@@ -87,6 +90,7 @@ impl Default for Thresholds {
             slug_max_chars: 60,
             max_clicks: 3,
             stale_months: 12,
+            fact_check_months: 6,
             near_duplicate_percent: 50,
             max_links: 100,
             hard_reading_index: 60,

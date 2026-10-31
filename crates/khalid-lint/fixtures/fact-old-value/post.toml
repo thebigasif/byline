@@ -1,0 +1,9 @@
+# A post that still gives the Pro plan's old price, in other letter case,
+# next to the free trial's current value.
+extends = "clean"
+
+body_text = """
+Internal links help readers find the next useful post on your site.
+The Pro plan costs 19 usd a month and includes every report.
+The free trial lasts 14 days, no card needed.
+"""

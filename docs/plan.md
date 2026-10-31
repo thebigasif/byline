@@ -143,6 +143,7 @@ my-blog/
   media/                 originals; derived sizes and formats are generated and cached
   data/site.db           SQLite: the index, versions, forms, subscribers, comments, analytics
   lint.toml              rule severities and thresholds
+  facts.toml             the fact registry: values posts repeat, their old values, when last checked
   public/                static export output, static mode only
 ```
 
@@ -521,6 +522,8 @@ Severities come from `lint.toml`. The defaults:
 | Glossary term not linked | The post uses a term the glossary defines without linking it. Shown with a one-click fix |
 | Form without a destination | A form block that delivers to no email address and no webhook |
 | Overlapping collections | Two collections in `routes.toml` could claim the same post |
+| Old value of a fact | The post gives a value `facts.toml` lists as one a fact held before. Suggests the current value |
+| Fact not checked | The post gives a fact from `facts.toml` whose `checked` date is older than a configurable number of months, default 6 |
 
 `khalid lint --fix` repairs the safe ones: alt text from the caption, slug cleanup, heading order. Everything else is for the writer.
 
