@@ -178,6 +178,16 @@ fn the_content_api_lists_the_demo_posts_and_shows_an_edit() {
         ]
     );
     assert_eq!(listed["meta"]["pagination"]["total"], 5, "{listed}");
+    let updated = &posts[4];
+    assert_eq!(updated["published_at"], "2026-09-14T00:00:00Z", "{updated}");
+    assert_eq!(
+        updated["updated_at"], "2026-10-20T00:00:00Z",
+        "from updated:"
+    );
+    assert_eq!(
+        posts[3]["updated_at"], posts[3]["published_at"],
+        "no updated:"
+    );
     let html = posts[0]["html"].as_str().unwrap_or_default();
     assert!(html.contains("<p>"), "each body is rendered on request");
 
