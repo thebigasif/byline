@@ -3,8 +3,8 @@
 
 use khalid_api::post_store::UpdatePostError;
 use khalid_api::resources::{
-    AdminPost, Alias, FeatureImage, NonBlank, PostSettings, PostStatus, ReviewState, ShareCard,
-    ShareCards,
+    AdminPost, Alias, CustomJsonLd, FeatureImage, NonBlank, PostSettings, PostStatus, ReviewState,
+    SearchTitle, ShareCard, ShareCards,
 };
 use khalid_content::{self as content, PostFront};
 use khalid_core::{PostAccess, Slug};
@@ -36,6 +36,14 @@ pub(crate) fn settings_of(front: &PostFront) -> PostSettings {
     settings.password.clone_from(&front.password_hash);
     settings.template.clone_from(&front.template);
     settings.head_code.clone_from(&front.head_code);
+    // A file edited by hand may hold a title or JSON-LD the API would
+    // refuse; it reads as unset here, and the build names the mistake.
+    let seo_title = front.seo_title.as_deref();
+    settings.seo_title = seo_title.and_then(|title| SearchTitle::try_new(title).ok());
+    let keyword = front.focus_keyword.as_deref();
+    settings.focus_keyword = keyword.and_then(NonBlank::try_new);
+    let schema = front.schema.as_deref();
+    settings.schema = schema.and_then(|text| CustomJsonLd::try_new(text).ok());
     settings
 }
 
@@ -104,7 +112,25 @@ pub(crate) fn write_settings(
     }
     write_links(text, before, after);
     write_access(text, before, after);
+    write_search(text, before, after);
     Ok(())
+}
+
+/// Writes the search title, focus keyword and custom JSON-LD that differ
+/// between `before` and `after`. The JSON-LD keeps its line breaks.
+fn write_search(text: &mut PostText, before: &PostSettings, after: &PostSettings) {
+    if after.seo_title != before.seo_title {
+        let title = after.seo_title.as_ref().map(|t| quoted(t.as_str()));
+        put(text, "seo_title", title);
+    }
+    if after.focus_keyword != before.focus_keyword {
+        let keyword = after.focus_keyword.as_ref().map(|k| quoted(k.as_str()));
+        put(text, "focus_keyword", keyword);
+    }
+    if after.schema != before.schema {
+        let schema = after.schema.as_ref().map(|s| lines_quoted(s.as_str()));
+        put(text, "schema", schema);
+    }
 }
 
 /// Writes the settings about where the post points and how it is shared:

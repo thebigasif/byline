@@ -42,6 +42,7 @@ use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
+use crate::site_schema_templates::SiteSchemaTemplates;
 use crate::tag_events::Tags;
 use crate::{
     alert_watch, announce, assets, comment_pages, consent_route, db, db_message, form_pages,
@@ -190,7 +191,7 @@ fn serve_with(
         let editing = (content.clone(), posts.clone());
         let pages = staff_toolbar::start((database, id, config), editing, pages);
         let desks = (moderation, media, desk);
-        let apis = api_router((content, door, posts), desks, (database, id, config));
+        let apis = api_router((content, door, posts), desks, (database, id, (site, config)));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -286,11 +287,12 @@ fn first_pages(
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
 /// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`.
+/// accounts of site `id`, and the post checks and schema templates of the
+/// site in `site`.
 fn api_router(
     (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
-    (database, id, config): (&Database, SiteId, &Config),
+    (database, id, (site, config)): (&Database, SiteId, (&Path, &Config)),
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
     let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
@@ -309,6 +311,8 @@ fn api_router(
             Arc::new(AuditTable::new(database.clone(), id)),
             SystemClock,
         )),
+        checks: Some(Arc::new(SitePosts::new(site, config.clone(), SystemClock))),
+        schema_templates: Some(Arc::new(SiteSchemaTemplates::new(site, config))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

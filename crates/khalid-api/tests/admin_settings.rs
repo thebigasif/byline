@@ -101,7 +101,10 @@ fn every_setting() -> Value {
         "aliases": ["/2019/05/anchor-text/"],
         "access": "members",
         "template": "wide",
-        "head_code": null
+        "head_code": null,
+        "seo_title": "Anchor text that says where it goes {sep} {site}",
+        "focus_keyword": "anchor text",
+        "schema": "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}"
     })
 }
 
@@ -178,6 +181,11 @@ async fn settings_that_cannot_be_right_are_a_422() {
         json!({"password_protected": true}),
         json!({"access": "paid"}),
         json!({"template": "../base"}),
+        json!({"seo_title": "  "}),
+        json!({"seo_title": "Unclosed {site"}),
+        json!({"focus_keyword": ""}),
+        json!({"schema": "{\"@type\": \"Event\",}"}),
+        json!({"schema": "{\"name\": \"No type\"}"}),
     ];
     for settings in cases {
         let (status, json) = edit(json!({"settings": settings})).await;
@@ -189,4 +197,13 @@ async fn settings_that_cannot_be_right_are_a_422() {
         let detail = json["detail"].as_str().unwrap();
         assert!(detail.contains("could not be read"), "{json}");
     }
+}
+
+#[tokio::test]
+async fn a_slip_in_custom_schema_names_its_line() {
+    let schema = "{\n  \"@type\": \"Event\",\n  \"name\": \"Clinic\",\n}";
+    let (status, json) = edit(json!({"settings": {"schema": schema}})).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+    let detail = json["detail"].as_str().unwrap();
+    assert!(detail.contains("not valid JSON at line 4"), "{json}");
 }

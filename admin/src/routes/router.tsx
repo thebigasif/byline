@@ -19,6 +19,7 @@ import { MediaDetails } from "./MediaDetails";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
+import { SchemaTemplates } from "./SchemaTemplates";
 import { SignIn } from "./SignIn";
 import { Trash } from "./Trash";
 
@@ -86,6 +87,12 @@ const redirects = createRoute({
   component: Redirects,
 });
 
+const templates = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/schema-templates",
+  component: SchemaTemplates,
+});
+
 const routeTree = root.addChildren([
   signIn,
   signedIn.addChildren([
@@ -98,6 +105,7 @@ const routeTree = root.addChildren([
     trash,
     audit,
     redirects,
+    templates,
   ]),
 ]);
 

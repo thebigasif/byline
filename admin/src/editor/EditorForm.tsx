@@ -1,15 +1,20 @@
+import { useQuery } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { useState } from "react";
+import { readCheck } from "../api/check";
 import type { AdminPost } from "../api/posts";
 import { Problem } from "../components/Problem";
 import { en } from "../strings/en";
 import { GoLive } from "./GoLive";
 import { LintPanel } from "./LintPanel";
+import { findingsOf, scoreOf } from "./lint";
 import { PostSettings } from "./PostSettings";
 import { PreviewLink } from "./PreviewLink";
 import { PublishButton } from "./PublishButton";
 import { RichText } from "./RichText";
 import { fitsRichText } from "./richText";
+import { SchemaPanel } from "./SchemaPanel";
+import { SearchPreview } from "./SearchPreview";
 import { scheduledAt } from "./schedule";
 import { type SettingsDraft, withSetting } from "./settings";
 import { type SaveState, useAutosave } from "./useAutosave";
@@ -28,6 +33,14 @@ function statusText(state: SaveState, dirty: boolean): string {
 export function EditorForm({ post }: Props) {
   const { draft, setDraft, dirty, state, save, updatedAt } = useAutosave(post);
   const { publishing, publish } = usePublish(post, save, updatedAt);
+  // Checked again after each save, since the key holds the saved copy's time.
+  const check = useQuery({
+    queryKey: ["check", post.id, updatedAt.current],
+    queryFn: () => readCheck(post.id),
+  });
+  const checked = check.data ?? null;
+  const refused = publishing.findings;
+  const findings = refused.length > 0 ? refused : findingsOf(checked?.lint);
   const [rich, setRich] = useState(() => fitsRichText(post.markdown));
   const [held, setHeld] = useState(!rich);
   const [at, setAt] = useState(() => scheduledAt(post));
@@ -46,6 +59,7 @@ export function EditorForm({ post }: Props) {
   const setMarkdown = (markdown: string) => setDraft((current) => ({ ...current, markdown }));
   const setSetting = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) =>
     setDraft((current) => ({ ...current, settings: withSetting(current.settings, key, value) }));
+  const fields = { settings: draft.settings, onSetting: setSetting, onBlur };
 
   return (
     <>
@@ -113,7 +127,9 @@ export function EditorForm({ post }: Props) {
           )}
         </div>
         <div>
-          <LintPanel findings={publishing.findings} />
+          <LintPanel findings={findings} score={scoreOf(checked?.lint)} />
+          <SearchPreview snippet={checked?.snippet ?? null} {...fields} />
+          <SchemaPanel check={checked} live={publishing.status === "published"} {...fields} />
           <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
             {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}
             <PreviewLink id={post.id} />
