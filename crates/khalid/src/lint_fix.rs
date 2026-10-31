@@ -14,7 +14,7 @@ use khalid_lint::{Finding, LintSite};
 use khalid_routes::Routes;
 use serde::Serialize;
 
-use crate::repair::{Change, RULES, repaired_body};
+use crate::repair::{Change, INSECURE_INTERNAL_LINK, RULES, repaired_body};
 use crate::slug_repair::{Move, SLUG_RULES, moved_header};
 
 /// One repair made in one post file.
@@ -48,12 +48,19 @@ pub(crate) fn repair(
     let routes = Routes::load(site).ok();
     let mut repairs = Vec::new();
     for (post, document) in lint_site.posts.iter().zip(documents) {
-        let reported = |rule: &&'static str| {
-            findings.iter().any(|finding| {
+        let own: Vec<&Finding> = findings
+            .iter()
+            .filter(|finding| {
                 let at = finding.location();
-                finding.rule().as_str() == *rule && at.locale == post.locale && at.slug == post.slug
+                at.locale == post.locale && at.slug == post.slug
             })
-        };
+            .collect();
+        let reported = |rule: &&'static str| own.iter().any(|f| f.rule().as_str() == *rule);
+        let insecure: Vec<&str> = own
+            .iter()
+            .filter(|finding| finding.rule().as_str() == INSECURE_INTERNAL_LINK)
+            .filter_map(|finding| finding.location().subject.as_deref())
+            .collect();
         let rules: Vec<&'static str> = RULES.into_iter().filter(reported).collect();
         let slug_rules: Vec<&'static str> = SLUG_RULES.into_iter().filter(reported).collect();
         let (Some(path), false) = (
@@ -65,7 +72,7 @@ pub(crate) fn repair(
         let edit = |header: &str| {
             let body = &document.body;
             let mut changes = Vec::new();
-            let repaired = repaired_body(body, &rules, &post.locale, config.slugs());
+            let repaired = repaired_body(body, &rules, &insecure, &post.locale, config.slugs());
             let body = repaired.map_or_else(
                 || body.clone(),
                 |(fixed, made)| {

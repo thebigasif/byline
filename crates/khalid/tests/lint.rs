@@ -447,6 +447,32 @@ fn lint_fix_describes_an_image_with_its_caption() {
     );
 }
 
+#[test]
+fn lint_fix_moves_a_link_to_the_own_site_onto_https() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", INSECURE)]);
+    let output = khalid(site.path(), &["lint", "--fix", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let file = within(
+        site.path(),
+        "content/en/posts/2026-09-14-why-internal-links-matter.md",
+    );
+    let secure = INSECURE.replace("(http://example.com/", "(https://example.com/");
+    assert_eq!(fs::read_to_string(file).unwrap(), secure);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    assert_eq!(json["fixed"][0]["rule"], "insecure-internal-link");
+    assert_eq!(
+        json["fixed"][0]["subject"],
+        "http://example.com/blog/pruning-old-posts/"
+    );
+    let findings = json["findings"].as_array().unwrap();
+    assert!(
+        findings
+            .iter()
+            .all(|f| f["rule"] != "insecure-internal-link"),
+        "{json}"
+    );
+}
+
 /// A post with no `slug:`, so its address comes from a title full of
 /// filler words and a year.
 const WORDY: &str = "---
