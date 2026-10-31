@@ -47,6 +47,7 @@ mod doctor_address;
 mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
+mod doctor_pictures;
 mod doctor_robots;
 mod entry_events;
 mod exit;

@@ -194,6 +194,6 @@ unsplash = true
 gifs = true
 ```
 
-Each needs a key, the password the blog uses to ask for you. Make an app at unsplash.com/developers and set its access key as `KHALID_UNSPLASH_ACCESS_KEY`, and make one at developers.giphy.com and set its key as `KHALID_GIPHY_API_KEY`, the same way as the mail secrets above. The keys never go in `site.toml` and never reach the writer's browser.
+Each needs a key, the password the blog uses to ask for you. Make an app at unsplash.com/developers and set its access key as `KHALID_UNSPLASH_ACCESS_KEY`, and make one at developers.giphy.com and set its key as `KHALID_GIPHY_API_KEY`, the same way as the mail secrets above. The keys never go in `site.toml` and never reach the writer's browser. Run `khalid doctor` afterwards: its "Picture search" line says which searches are on and names any key the server cannot see. It only checks that the key is set; it does not send it to Unsplash or GIPHY.
 
 A chosen photo or GIF loads from Unsplash or GIPHY, as their terms ask, so readers' browsers fetch that picture from there. A photo gets its photographer's name and links under it.
