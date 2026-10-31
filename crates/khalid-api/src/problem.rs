@@ -45,6 +45,9 @@ pub enum ProblemType {
     /// A service Khalid asked on the request's behalf, such as Google, did
     /// not give a usable answer.
     Upstream,
+    /// A feature is turned off or lacks a key, or a service it relies on
+    /// did not answer.
+    Unavailable,
 }
 
 impl ProblemType {
@@ -63,6 +66,7 @@ impl ProblemType {
             Self::TooManyRequests => "too-many-requests",
             Self::NotSetUp => "not-set-up",
             Self::Upstream => "upstream",
+            Self::Unavailable => "unavailable",
         }
     }
 
@@ -78,6 +82,7 @@ impl ProblemType {
             Self::VersionNotSupported => StatusCode::NOT_ACCEPTABLE,
             Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
             Self::Upstream => StatusCode::BAD_GATEWAY,
+            Self::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 
@@ -96,6 +101,7 @@ impl ProblemType {
             Self::TooManyRequests => "Too many attempts",
             Self::NotSetUp => "This is not set up yet",
             Self::Upstream => "Another service did not answer",
+            Self::Unavailable => "This is not available now",
         }
     }
 }

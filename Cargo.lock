@@ -2602,11 +2602,13 @@ dependencies = [
  "getrandom 0.4.3",
  "hmac",
  "htmd",
+ "image",
  "khalid-analytics",
  "khalid-api",
  "khalid-core",
  "khalid-lint",
  "khalid-media",
+ "khalid-outbound",
  "khalid-seo",
  "khalid-webhooks",
  "proptest",
@@ -2621,6 +2623,7 @@ dependencies = [
  "tracing",
  "utoipa",
  "utoipa-axum",
+ "wiremock",
 ]
 
 [[package]]
@@ -2867,6 +2870,7 @@ dependencies = [
  "chrono",
  "divan",
  "fast_image_resize",
+ "form_urlencoded",
  "hmac",
  "http",
  "image",
@@ -2874,6 +2878,7 @@ dependencies = [
  "khalid-outbound",
  "rayon",
  "serde",
+ "serde_json",
  "sha2 0.11.1",
  "tempfile",
  "thiserror 2.0.21",

@@ -20,7 +20,9 @@
 //! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
 //! analytics, as the [`AnalyticsTable`] `khalid serve` counts into, and the
 //! audit log, as the [`AuditTable`] the Admin API records each change in,
-//! and the `SerpDad` connection, as the [`SerpdadTable`] the Admin API keeps.
+//! the `SerpDad` connection, as the [`SerpdadTable`] the Admin API keeps,
+//! and the earlier versions of posts, as the [`VersionTable`] the publish
+//! door keeps.
 
 mod account_table;
 mod alert_table;
@@ -51,6 +53,7 @@ mod site_keys;
 mod site_lists;
 mod subscriber_segments;
 mod subscriber_table;
+mod version_table;
 mod webhook_table;
 
 pub use account_table::AccountTable;
@@ -77,4 +80,5 @@ pub use session_table::SessionTable;
 pub use site_export::{Cell, ExportTable, SiteExport, is_withheld_column};
 pub use site_id::SiteId;
 pub use subscriber_table::SubscriberTable;
+pub use version_table::VersionTable;
 pub use webhook_table::WebhookTable;

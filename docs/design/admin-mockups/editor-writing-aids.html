@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing aids in the editor · Khalid admin mockup</title>
+<style>
+/* Each mockup carries its own copy of the styles so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--radius:.375rem}
+body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.6 system-ui,sans-serif}
+main{max-width:68ch;margin:2rem auto;padding:0 1rem}
+h1{font-size:1.5rem;margin:0 0 1rem}
+h2{font-size:1.125rem;margin:2.5rem 0 .5rem}
+.lede,.hint{color:var(--muted)}
+.hint{display:block;font-size:.9375rem;margin:0 0 .4rem}
+.text{line-height:1.7}
+.text p{margin:0 0 .5rem}
+.wikilink{color:var(--link);text-decoration:underline dotted;text-underline-offset:.2em}
+.menu{border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 .5rem 1.5rem rgb(31 35 40 / .12);background:var(--bg);max-width:24rem;margin:.25rem 0 1rem}
+.menu h3{font-size:.875rem;color:var(--muted);padding:.75rem 1rem .25rem;margin:0}
+.menu ul{list-style:none;margin:0;padding:0 .25rem .25rem}
+.menu li{padding:.55rem .75rem;border-radius:var(--radius)}
+.menu li b{display:block;font-weight:600}
+.menu li span{color:var(--muted);font-size:.9375rem}
+.menu li.on{background:var(--tint)}
+.menu li.on b{color:var(--link)}
+.menu p{margin:0;padding:.6rem 1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.875rem}
+.form{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.25rem;max-width:30rem}
+.form h3{margin:0 0 .25rem;font-size:1.0625rem}
+label{display:block;font-weight:600;margin:0 0 .25rem}
+input{font:inherit;width:100%;min-height:44px;padding:.5rem .7rem;border:1px solid var(--field);border-radius:var(--radius);background:var(--bg);margin:0 0 1rem}
+.btn{display:inline-flex;align-items:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);font:inherit;font-weight:600}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+kbd{font-family:ui-monospace,monospace;font-size:.9em;background:var(--surface);padding:.05rem .3rem;border-radius:.25rem}
+table{border-collapse:collapse;width:100%}
+td,th{text-align:left;padding:.4rem .5rem;border-bottom:1px solid var(--border)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Writing aids in the editor</h1>
+  <p class="lede">Five ways to write faster without leaving the keyboard. Every link to another post is written as a wikilink, <code>[[slug|words]]</code>, so it keeps working when the post's address changes.</p>
+
+  <h2>1. Add a block, then fill in its details</h2>
+  <p class="hint">Type / on an empty line, pick "Button", and the details form opens before the block goes in.</p>
+  <div class="form" role="dialog" aria-labelledby="form-title">
+    <h3 id="form-title">Button</h3>
+    <p class="hint">A link styled as a button, for the one thing you want readers to do next.</p>
+    <label for="href">Link address</label><input id="href" value="/pricing/">
+    <label for="label">Button words</label><input id="label" value="See prices">
+    <button class="btn primary" type="button">Add the button</button> <button class="btn" type="button">Cancel</button>
+  </div>
+
+  <h2>2. Link the selected words to a post</h2>
+  <p class="hint">Select "internal links" and press <kbd>Ctrl</kbd> <kbd>K</kbd>, or <kbd>⌘</kbd> <kbd>K</kbd> on a Mac.</p>
+  <div class="form" role="dialog" aria-labelledby="link-title">
+    <h3 id="link-title">Link "internal links"</h3>
+    <label for="find">Find a post, or paste a web address</label><input id="find" value="internal">
+    <div class="menu"><ul>
+      <li class="on"><b>Why internal links matter</b><span>why-internal-links-matter</span></li>
+      <li><b>Internal links for a small shop</b><span>internal-links-small-shop</span></li>
+    </ul></div>
+  </div>
+
+  <h2>3. Mention a post with @</h2>
+  <div class="text"><p>Start with the guide on @site</p></div>
+  <div class="menu" aria-label="Mention a post">
+    <h3>Mention a post</h3>
+    <ul>
+      <li class="on"><b>What a sitemap does, and what it does not</b><span>sitemaps-explained</span></li>
+      <li><b>How to write a title tag</b><span>title-tags</span></li>
+    </ul>
+    <p>Type to narrow the list. <kbd>↑</kbd> <kbd>↓</kbd> to move, <kbd>Enter</kbd> to add, <kbd>Esc</kbd> to close.</p>
+  </div>
+
+  <h2>4. Wikilinks</h2>
+  <p class="hint">Typing [[ opens the same list. A wikilink shows as a dotted link and is written to the file as you typed it.</p>
+  <div class="text"><p>That is what <span class="wikilink">topical authority</span> means.</p></div>
+
+  <h2>5. Markdown shortcuts</h2>
+  <table>
+    <tr><th scope="col">Type</th><th scope="col">You get</th></tr>
+    <tr><td><kbd>##</kbd> and a space</td><td>A section heading</td></tr>
+    <tr><td><kbd>-</kbd> and a space</td><td>A bulleted list</td></tr>
+    <tr><td><kbd>1.</kbd> and a space</td><td>A numbered list</td></tr>
+    <tr><td><kbd>&gt;</kbd> and a space</td><td>A quote</td></tr>
+    <tr><td><kbd>```</kbd></td><td>A code block</td></tr>
+    <tr><td><kbd>---</kbd></td><td>A dividing line</td></tr>
+    <tr><td><kbd>**words**</kbd></td><td>Bold words</td></tr>
+  </table>
+  <p class="hint">Press <kbd>Ctrl</kbd> <kbd>/</kbd> in the editor to see this list there.</p>
+</main>
+</body>
+</html>

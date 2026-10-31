@@ -3,6 +3,7 @@ import { useState } from "react";
 import { failureMessage, isData } from "../api/call";
 import { changeSite, readSite, type SiteSettings } from "../api/site";
 import { Problem } from "../components/Problem";
+import { PictureSearches } from "../site/PictureSearches";
 import { SiteForm } from "../site/SiteForm";
 import { type SiteFields, siteChange } from "../site/siteChange";
 import { en, type UserMessage } from "../strings/en";
@@ -40,6 +41,7 @@ export function Site() {
         {failed === null ? null : <Problem message={failed} />}
         <p role="status">{said}</p>
         <SiteForm site={site} onSave={(fields) => save(site, fields)} />
+        <PictureSearches />
       </>
     );
   }

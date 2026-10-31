@@ -23,7 +23,7 @@ use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{
     AnalyticsTable, AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SerpdadTable,
-    SiteId, WebhookTable,
+    SiteId, VersionTable, WebhookTable,
 };
 use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
@@ -40,6 +40,7 @@ use crate::content_feed::{self, Destination};
 use crate::entry_events::Entries;
 use crate::exit::Exit;
 use crate::form_delivery::SiteDelivery;
+use crate::media_library::PictureKeys;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::search_console_finder::SiteFollowUps;
@@ -84,6 +85,8 @@ pub(crate) struct Keys {
     /// The Search Console follow-ups, signed in with the owner's Google
     /// secrets when the site opts in.
     pub(crate) follow_ups: SiteFollowUps,
+    /// The keys photo and GIF search ask Unsplash and GIPHY with.
+    pub(crate) pictures: PictureKeys,
 }
 
 impl Keys {
@@ -94,6 +97,10 @@ impl Keys {
             bucket: env.s3_keys(),
             mail: mail_secret(env, config),
             follow_ups: SiteFollowUps::new(folder, config, env, cli),
+            pictures: PictureKeys {
+                unsplash: env.unsplash_key(),
+                giphy: env.giphy_key(),
+            },
         }
     }
 }
@@ -213,7 +220,7 @@ fn serve_with(
         let ((comments, moderation), (door, posts), (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
-            media_library::open(site, config, keys.bucket, outbound),
+            media_library::open(site, config, (keys.bucket, keys.pictures), outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
         let scheduling = scheduler::start(Arc::clone(&door), alerting);
@@ -447,8 +454,8 @@ fn assembled(
 }
 
 /// The publish door the Admin API, the scheduler and preview links share.
-/// It keeps schedules in the database and tells `telling` about each post
-/// that goes live.
+/// It keeps schedules and the text each edit replaces in the database, and
+/// tells `telling` about each post that goes live.
 async fn publish_door(
     (site, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
@@ -457,9 +464,11 @@ async fn publish_door(
     let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
     let posts = SitePosts::new(site, config.clone(), SystemClock);
     let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+    let versions = Arc::new(VersionTable::new(database.clone(), id));
     let signer = preview::signer(config, (database, id, &file)).await;
     let door = PublishDoor::new(Arc::new(posts.clone()), Arc::new(telling))
         .with_schedules(schedules, SystemClock)
+        .with_versions(versions)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
     Ok((Arc::new(door), posts))
 }

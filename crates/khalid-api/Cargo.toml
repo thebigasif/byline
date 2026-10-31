@@ -37,12 +37,15 @@ utoipa = { version = "6", features = ["chrono"] }
 utoipa-axum = "0.3"
 
 [dev-dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
 khalid-api = { path = ".", version = "0.0.0", features = ["test-util"] }
 khalid-core = { workspace = true, features = ["test-util"] }
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
 proptest = "1"
 tempfile = "3"
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
+wiremock = "0.6"
 
 [lints]
 workspace = true

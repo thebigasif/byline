@@ -88,6 +88,21 @@ pub enum ContentError {
         /// The file's language, where the target was looked for.
         language: Locale,
     },
+    /// A `::snippet{slug="..."}` names no snippet in its language.
+    #[error(
+        "{}, line {line}: there is no snippet called {slug} in {language}",
+        path.display()
+    )]
+    Snippet {
+        /// The file.
+        path: PathBuf,
+        /// The 1-based line in the file.
+        line: usize,
+        /// The slug the block names.
+        slug: String,
+        /// The file's language, where the snippet was looked for.
+        language: Locale,
+    },
     /// A formula between `$` signs cannot be drawn.
     #[error("{}, line {line}: the maths cannot be drawn: {problem}", path.display())]
     Maths {

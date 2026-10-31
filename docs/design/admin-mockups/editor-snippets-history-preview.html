@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snippets, earlier versions and the live page · Khalid admin mockup</title>
+<style>
+/* Each mockup carries its own copy of the styles so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--added:#e6f4ea;--removed:#fdecea;--radius:.375rem}
+body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.6 system-ui,sans-serif}
+main{max-width:72ch;margin:2rem auto;padding:0 1rem}
+h1{font-size:1.5rem;margin:0 0 1rem}
+h2{font-size:1.125rem;margin:2.5rem 0 .5rem}
+.lede,.hint{color:var(--muted)}
+.hint{display:block;font-size:.9375rem;margin:0 0 .4rem}
+.card{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:.6rem .9rem;margin:.5rem 0}
+.card b{display:block}
+.card span{color:var(--muted);font-size:.9375rem}
+.form{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.25rem;max-width:30rem}
+.form h3{margin:0 0 .25rem;font-size:1.0625rem}
+label{display:block;font-weight:600;margin:0 0 .25rem}
+input,select{font:inherit;width:100%;min-height:44px;padding:.5rem .7rem;border:1px solid var(--field);border-radius:var(--radius);background:var(--bg);margin:0 0 1rem}
+.btn{display:inline-flex;align-items:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);font:inherit;font-weight:600}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+ol.versions{list-style:none;margin:0 0 1rem;padding:0;border:1px solid var(--border);border-radius:var(--radius)}
+ol.versions li{padding:.6rem .9rem;border-bottom:1px solid var(--border)}
+ol.versions li:last-child{border-bottom:0}
+ol.versions li.on{background:var(--tint)}
+.diff{font-family:ui-monospace,monospace;font-size:.9375rem;border:1px solid var(--border);border-radius:var(--radius);padding:.5rem 0;margin:0 0 1rem}
+.diff p{margin:0;padding:.1rem .9rem;white-space:pre-wrap}
+.diff ins{display:block;text-decoration:none;background:var(--added);padding:.1rem .9rem}
+.diff del{display:block;text-decoration:none;background:var(--removed);padding:.1rem .9rem}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.frame{border:1px solid var(--border);border-radius:var(--radius);padding:1rem;min-height:14rem}
+@media (max-width:40rem){.split{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Snippets, earlier versions and the live page</h1>
+  <p class="lede">Three additions to the editor. A snippet is a group of blocks you save once, such as an affiliate disclosure, and place in many posts: change it once and every post shows the change. Earlier versions let you see what changed and bring back an old text. The live page shows the post in your site's own design while you write.</p>
+
+  <h2>1. Save the selected blocks as a snippet</h2>
+  <p class="hint">Select the blocks, then press "Save as a snippet" under the text. The blocks are replaced by the snippet, so the post keeps showing them.</p>
+  <div class="form" role="dialog" aria-labelledby="save-title">
+    <h3 id="save-title">Save as a snippet</h3>
+    <p class="hint">A snippet shows the same blocks in every post that uses it. Change it once and every post changes.</p>
+    <label for="name">Name</label><input id="name" value="Affiliate disclosure">
+    <button class="btn primary" type="button">Save the snippet</button> <button class="btn" type="button">Cancel</button>
+  </div>
+
+  <h2>2. A snippet in a post</h2>
+  <p class="hint">Type /snippet on an empty line and pick one. In the text it shows as a card; double-click it to pick another.</p>
+  <div class="card"><b>Snippet</b><span>Affiliate disclosure</span></div>
+  <div class="form" role="dialog" aria-labelledby="pick-title">
+    <h3 id="pick-title">Snippet</h3>
+    <p class="hint">A saved group of blocks that stays the same in every post.</p>
+    <label for="pick">Which snippet</label>
+    <select id="pick"><option>Affiliate disclosure</option><option>About the author</option></select>
+    <button class="btn primary" type="button">Add the block</button> <button class="btn" type="button">Cancel</button>
+  </div>
+
+  <h2>3. Earlier versions</h2>
+  <p class="hint">"Earlier versions" under the post settings. Each save that changes the text keeps the text it replaced. Pick one to see what changed since.</p>
+  <ol class="versions" aria-label="Earlier versions">
+    <li class="on"><b>Today at 10:42</b> by Asif</li>
+    <li><b>Yesterday at 16:05</b> by Maria</li>
+  </ol>
+  <div class="diff" aria-label="Changes since this version">
+    <p>## Why links matter</p>
+    <del>− Internal links help Google.</del>
+    <ins>+ Internal links help readers and Google find the rest of your site.</ins>
+    <p>Start with one link per post.</p>
+  </div>
+  <button class="btn primary" type="button">Bring back this version</button>
+  <p class="hint">This puts the old text in the editor and saves it. The text you have now becomes an earlier version, so you can undo this.</p>
+
+  <h2>4. The live page beside the text</h2>
+  <p class="hint">"Show the page" opens the post in your site's design beside the text. It updates each time the post saves.</p>
+  <div class="split">
+    <div class="frame"><b>Why internal links matter</b><p>Internal links help readers and Google find the rest of your site.</p></div>
+    <div class="frame" aria-label="This post as readers will see it"><h3>Why internal links matter</h3><p>Internal links help readers and Google find the rest of your site.</p></div>
+  </div>
+</main>
+</body>
+</html>
