@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main, 'task/**']
+  # The builder workflow pushes with the workflow token, which starts no
+  # push run, so it dispatches CI on each branch it pushed.
+  workflow_dispatch:
 
 permissions:
   contents: read
