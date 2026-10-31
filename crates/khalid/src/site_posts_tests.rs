@@ -505,3 +505,13 @@ async fn a_new_slug_moves_a_draft_but_not_a_live_post() {
         })
     ));
 }
+
+#[test]
+fn a_trash_key_names_one_folder_inside_trash_and_never_climbs() {
+    let (_site, posts) = demo();
+    let names = |key: &str| posts.0.names_one_copy(key);
+    assert!(names("20261031T093000Z-en.hello"));
+    for climbing in ["..", "20261031T093000Z-x/../..", "a/b", "/etc", ""] {
+        assert!(!names(climbing), "{climbing}");
+    }
+}

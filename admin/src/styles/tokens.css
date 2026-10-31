@@ -18,6 +18,7 @@
   --color-ok: #1a7f37;
   --color-ok-bg: #eefbf1;
   --radius-field: 0.375rem;
+  --shadow-menu: 0 0.5rem 1.5rem rgb(31 35 40 / 0.12);
   --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }

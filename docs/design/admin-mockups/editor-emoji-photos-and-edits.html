@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emoji, photos and GIFs, and turning or cropping a picture · Khalid admin mockup</title>
+<style>
+/* Each mockup carries its own copy of the styles so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--radius:.375rem}
+body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.6 system-ui,sans-serif}
+main{max-width:72ch;margin:2rem auto;padding:0 1rem}
+h1{font-size:1.5rem;margin:0 0 1rem}
+h2{font-size:1.125rem;margin:2.5rem 0 .5rem}
+.lede,.hint{color:var(--muted)}
+.hint{display:block;font-size:.9375rem;margin:0 0 .4rem}
+.text{border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem}
+.menu{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);padding:.5rem;margin:.25rem 0;max-width:22rem}
+.menu p{margin:.25rem .5rem;font-weight:600}
+.menu ul{list-style:none;margin:0;padding:0}
+.menu li{display:flex;gap:.75rem;padding:.4rem .5rem;border-radius:var(--radius)}
+.menu li[aria-current]{background:var(--tint)}
+.menu span{color:var(--muted)}
+.form{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.25rem}
+.form h3{margin:0 0 .25rem;font-size:1.0625rem}
+label{display:block;font-weight:600;margin:.75rem 0 .25rem}
+input[type=search]{font:inherit;width:100%;min-height:44px;padding:.4rem .6rem;border:1px solid var(--field);border-radius:var(--radius)}
+.btn{display:inline-flex;align-items:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);font:inherit;font-weight:600}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.found{display:grid;grid-template-columns:repeat(auto-fill,minmax(9rem,1fr));gap:.75rem;margin:1rem 0;padding:0;list-style:none}
+.found button{width:100%;padding:0;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);font:inherit;text-align:left}
+.found .pic{display:block;aspect-ratio:3/2;background:var(--surface)}
+.found small{display:block;padding:.25rem .5rem;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;margin:.5rem 0 1rem}
+fieldset{border:0;padding:0;margin:.75rem 0}
+legend{font-weight:600}
+.preview{aspect-ratio:16/9;max-width:28rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:grid;place-items:center;color:var(--muted)}
+footer{margin:3rem 0 2rem;color:var(--muted);font-size:.9375rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Emoji, photos and GIFs, and turning or cropping a picture</h1>
+  <p class="lede">The last writing aids in the editor. Type a colon to add an emoji by its name. Find a free photo on Unsplash or a GIF on GIPHY without leaving the post. Turn or crop a picture from your media library.</p>
+
+  <h2>1. An emoji by its name</h2>
+  <p class="hint">Type a colon and two letters of a name. Enter adds the emoji itself to the text; Esc leaves what you typed.</p>
+  <div class="text">We shipped it :tad</div>
+  <section class="menu" aria-label="Add an emoji">
+    <p>Add an emoji</p>
+    <ul>
+      <li aria-current="true"><b>🎉</b> <span>:tada:</span></li>
+      <li><b>🥳</b> <span>:partying_face:</span></li>
+    </ul>
+  </section>
+
+  <h2>2. Photo and GIF in the block menu</h2>
+  <p class="hint">They appear only when the site owner has turned them on. Until then nothing in the editor mentions them.</p>
+  <section class="menu" aria-label="Add a block">
+    <p>Add a block</p>
+    <ul>
+      <li aria-current="true"><b>Photo from Unsplash</b> <span>A free photo, with its credit under it</span></li>
+      <li><b>GIF</b> <span>A moving picture from GIPHY</span></li>
+    </ul>
+  </section>
+
+  <h2>3. Finding a photo</h2>
+  <p class="hint">The box says where the photo comes from and what goes under it before you pick one.</p>
+  <form class="form" role="search" aria-labelledby="photo-title">
+    <h3 id="photo-title">Photo from Unsplash</h3>
+    <p class="hint">Photos stay on Unsplash and load from there. The photographer's name and a link go under the photo, as Unsplash asks.</p>
+    <label for="photo-words">Words to look for</label>
+    <input id="photo-words" type="search" value="mountain lake">
+    <ul class="found">
+      <li><button type="button"><span class="pic"></span><small>Lake at dawn, by Ana Silva</small></button></li>
+      <li><button type="button"><span class="pic"></span><small>Pines over water, by Ken Ito</small></button></li>
+      <li><button type="button"><span class="pic"></span><small>Boat on a lake, by Sam Lee</small></button></li>
+    </ul>
+    <button class="btn" type="button">Cancel</button>
+  </form>
+  <p class="hint">After a click the post has the photo, with "Photo by Ana Silva on Unsplash" under it. The GIF box works the same way, with "Via GIPHY".</p>
+
+  <h2>4. Turning or cropping a picture</h2>
+  <p class="hint">Open a picture's details, as for any block, and press "Turn or crop". The preview changes as you choose.</p>
+  <form class="form" aria-labelledby="edit-title">
+    <h3 id="edit-title">Turn or crop the picture</h3>
+    <p class="hint">Saving makes a new copy in the media library and puts it in this post. The original stays, so other posts that use it do not change.</p>
+    <div class="preview" role="img" aria-label="The picture as it will look">The picture, turned and cropped</div>
+    <div class="row">
+      <button class="btn" type="button">Turn left</button>
+      <button class="btn" type="button">Turn right</button>
+    </div>
+    <fieldset>
+      <legend>Shape</legend>
+      <label><input type="radio" name="shape" checked> As taken</label>
+      <label><input type="radio" name="shape"> Square</label>
+      <label><input type="radio" name="shape"> Wide, 16 by 9</label>
+      <label><input type="radio" name="shape"> Standing, 3 by 4</label>
+      <span class="hint">The crop keeps the picture's focus point in view.</span>
+    </fieldset>
+    <button class="btn primary" type="submit">Save as a new copy</button> <button class="btn" type="button">Cancel</button>
+  </form>
+
+  <footer>The names and photos are made up. Only pictures in your media library can be turned or cropped, because the blog can only change files it keeps.</footer>
+</main>
+</body>
+</html>

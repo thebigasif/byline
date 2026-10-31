@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Every block name, for messages.
-pub(crate) const BLOCKS: [&str; 23] = [
+pub(crate) const BLOCKS: [&str; 24] = [
     "audio",
     "bookmark",
     "business",
@@ -31,6 +31,7 @@ pub(crate) const BLOCKS: [&str; 23] = [
     "product",
     "recipe",
     "review",
+    "snippet",
     "toc",
     "toggle",
     "video",
@@ -81,7 +82,7 @@ fn distance(a: &str, b: &str) -> usize {
 
 /// Blocks with no body, written on one line as `::name{...}`. Every other
 /// block opens with `:::name{...}` and closes with `:::`.
-const LEAVES: [&str; 9] = [
+const LEAVES: [&str; 10] = [
     "audio",
     "bookmark",
     "business",
@@ -89,6 +90,7 @@ const LEAVES: [&str; 9] = [
     "embed",
     "file",
     "newsletter",
+    "snippet",
     "toc",
     "video",
 ];
@@ -141,6 +143,7 @@ pub(crate) fn directive(
         "review" => review(&attributes, body),
         "product" => product(&attributes, body),
         "business" => cards::business(&attributes),
+        "snippet" => cards::snippet(&attributes),
         "header" => cards::header(&attributes),
         "html" => cards::html(&attributes),
         "form" => forms::form(&attributes, body),

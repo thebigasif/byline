@@ -2,7 +2,9 @@
 //! `/api/admin/v1/`: signing in and out, and managing staff (BL-API-4).
 
 mod links;
+mod passkey_list;
 mod passkeys;
+mod sites;
 mod staff;
 mod staff_changes;
 mod take_back;
@@ -24,6 +26,8 @@ use utoipa_axum::routes;
 
 use crate::{Account, Accounts, Password, SessionToken, SignInError, SignedIn};
 
+pub use sites::with_sites;
+
 /// The staff routes for a site's [`Accounts`], for
 /// `khalid_api::api::router_with_staff`.
 pub fn staff_routes(accounts: Accounts) -> StaffRoutes {
@@ -41,7 +45,11 @@ pub fn staff_routes(accounts: Accounts) -> StaffRoutes {
             .routes(routes!(take_back::change_password))
             .routes(routes!(staff::list_staff, staff::invite))
             .routes(routes!(passkeys::passkey_options))
-            .routes(routes!(passkeys::add_passkey))
+            .routes(routes!(passkeys::add_passkey, passkey_list::list_passkeys))
+            .routes(routes!(
+                passkey_list::rename_passkey,
+                passkey_list::remove_passkey
+            ))
             .routes(routes!(
                 staff_changes::change_role,
                 staff_changes::remove_staff

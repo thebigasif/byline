@@ -2,7 +2,7 @@
 
 use comrak::nodes::NodeValue;
 use comrak::{Arena, Options, parse_document};
-use khalid_core::{AbsoluteUrl, ParseUrlError};
+use khalid_core::{AbsoluteUrl, ParseUrlError, Slug};
 
 use crate::{
     BusinessBlock, FormField, HowToBlock, ProductBlock, Question, RecipeBlock, ReviewBlock,
@@ -72,6 +72,12 @@ pub enum BlockKind {
     },
     /// `::toc`: a list of the body's headings, linked.
     Toc,
+    /// `::snippet{slug="..."}`: the blocks of the snippet with that slug in
+    /// the post's language, so one change to it shows in every post.
+    Snippet {
+        /// The snippet's slug, the name it has in `snippets/`.
+        slug: String,
+    },
     /// `::button{href="..." label="..."}`: a link styled as a button.
     Button {
         /// Where it leads.
@@ -163,13 +169,15 @@ pub enum BlockKind {
         /// Its fields, in order.
         fields: Vec<FormField>,
     },
-    /// `::newsletter{label="..." button="..."}`: an email field that posts
-    /// to `/subscribe`.
+    /// `::newsletter{label="..." button="..." list="..."}`: an email field
+    /// that posts to `/subscribe`.
     Newsletter {
         /// The words beside the email field.
         label: String,
         /// The words on the button.
         button: String,
+        /// The newsletter it joins, or `None` for the site's main one.
+        list: Option<Slug>,
     },
     /// `:::gated{note="..." label="..." button="..."}`: a body only
     /// subscribers read. The page shows the note and a subscribe form, never

@@ -1,5 +1,5 @@
 //! The checks on every body that need the whole site: wikilinks reach a
-//! page, and formulas can be drawn.
+//! page, snippets are the site's, and formulas can be drawn.
 
 use comrak::nodes::NodeValue;
 use comrak::{Arena, parse_document};
@@ -7,7 +7,7 @@ use khalid_core::{Config, Locale};
 use khalid_routes::Routes;
 
 use crate::render::options;
-use crate::{ContentError, Document, SiteContent, Wikilinks, maths};
+use crate::{BlockKind, ContentError, Document, SiteContent, Wikilinks, maths, parse_blocks};
 
 /// Checks every content file of `site`'s languages: each wikilink reaches a
 /// page, as [`Wikilinks::for_language`] finds them with `routes`, and each
@@ -79,6 +79,33 @@ impl Check<'_> {
                     _ => {}
                 }
             }
+            self.snippets(doc)?;
+        }
+        Ok(())
+    }
+
+    /// Checks that each snippet `doc` places is one of the site's, in its
+    /// own language. A body whose blocks cannot be read is left to the
+    /// reader that renders it, which names the block's problem.
+    fn snippets<F>(&self, doc: &Document<F>) -> Result<(), ContentError> {
+        let Ok(blocks) = parse_blocks(&doc.body) else {
+            return Ok(());
+        };
+        for block in blocks {
+            let BlockKind::Snippet { slug } = block.kind else {
+                continue;
+            };
+            if self.links.snippet(&slug).is_some() {
+                continue;
+            }
+            let at = doc.body.find(&block.source).unwrap_or_default();
+            let before = doc.body.get(..at).unwrap_or_default().matches('\n');
+            return Err(ContentError::Snippet {
+                path: doc.path.clone(),
+                line: doc.body_line.saturating_add(before.count()),
+                slug,
+                language: self.locale.clone(),
+            });
         }
         Ok(())
     }

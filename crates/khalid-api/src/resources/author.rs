@@ -80,7 +80,10 @@ impl Author {
 }
 
 /// Writes each address through its `Display`.
-fn addresses<S: serde::Serializer>(urls: &[AbsoluteUrl], serializer: S) -> Result<S::Ok, S::Error> {
+pub(super) fn addresses<S: serde::Serializer>(
+    urls: &[AbsoluteUrl],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
     serializer.collect_seq(urls.iter().map(AbsoluteUrl::as_str))
 }
 

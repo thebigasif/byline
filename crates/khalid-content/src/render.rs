@@ -12,8 +12,8 @@ use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
 use crate::{
-    Block, BlockError, BlockKind, CalloutKind, StructuredBlock, Wikilinks, embed, maths,
-    parse_blocks, wikilink,
+    Block, BlockError, BlockKind, CalloutKind, StructuredBlock, Wikilinks, maths, parse_blocks,
+    wikilink,
 };
 
 mod cards;
@@ -23,6 +23,7 @@ mod formula;
 pub use forms::Gated;
 mod media;
 mod recipe;
+mod snippet;
 mod steps;
 
 /// A body rendered to HTML.
@@ -149,18 +150,9 @@ pub fn render_gated(
         html: String::new(),
         subscribe_forms: 0,
         gated,
+        in_snippet: false,
     };
-    let mut run: Vec<&str> = Vec::new();
-    for block in &blocks {
-        if is_markdown(&block.kind) {
-            run.push(&block.source);
-        } else {
-            renderer.markdown(&run.join("\n\n"));
-            run.clear();
-            renderer.directive(block);
-        }
-    }
-    renderer.markdown(&run.join("\n\n"));
+    renderer.blocks(&blocks);
     let state = renderer
         .ids
         .state
@@ -210,6 +202,8 @@ struct Renderer<'links> {
     subscribe_forms: usize,
     /// How gated blocks are written.
     gated: Gated<'links>,
+    /// Whether a snippet's blocks are being written, so it places no other.
+    in_snippet: bool,
 }
 
 impl Renderer<'_> {
@@ -251,6 +245,7 @@ impl Renderer<'_> {
                 self.html.push_str("</details>\n");
             }
             BlockKind::Toc => self.html.push_str(TOC_MARK),
+            BlockKind::Snippet { slug } => self.snippet(slug),
             BlockKind::Button { href, label } => self.button(href, label),
             BlockKind::Bookmark {
                 href,
@@ -277,7 +272,11 @@ impl Renderer<'_> {
             BlockKind::Business(card) => self.business(card),
             BlockKind::SafeHtml { show } => self.safe_html(block, *show),
             BlockKind::Form { id, button, fields } => self.form(id, button, fields),
-            BlockKind::Newsletter { label, button } => self.subscribe(label, button, None),
+            BlockKind::Newsletter {
+                label,
+                button,
+                list,
+            } => self.subscribe((label, button), list.as_ref(), None),
             BlockKind::Gated {
                 note,
                 label,
@@ -353,42 +352,6 @@ impl Renderer<'_> {
             ]);
         }
         self.html.push_str("</a></p>\n");
-    }
-
-    /// Writes an embed: an allowed provider's player in a lazy, sandboxed
-    /// frame of fixed size with the page's link under it, or the link alone.
-    fn embed(&mut self, src: &AbsoluteUrl, title: &str) {
-        self.link_out(src, title);
-        let link = [
-            "<a href=\"",
-            &attribute(src.as_str()),
-            "\">",
-            &attribute(title),
-            "</a>",
-        ]
-        .concat();
-        let Some((provider, player)) = embed::player(src) else {
-            self.push(&["<p class=\"bookmark\">", &link, "</p>\n"]);
-            return;
-        };
-        let (shape, height) = if provider.is_audio() {
-            ("audio", "152")
-        } else {
-            ("wide", "315")
-        };
-        self.push(&[
-            "<figure class=\"embed embed-",
-            shape,
-            "\">\n<iframe src=\"",
-            &attribute(&player),
-            "\" title=\"",
-            &attribute(title),
-            "\" width=\"560\" height=\"",
-            height,
-            "\" loading=\"lazy\" referrerpolicy=\"strict-origin-when-cross-origin\" sandbox=\"allow-scripts allow-same-origin allow-popups allow-presentation\" allow=\"encrypted-media; fullscreen; picture-in-picture\"></iframe>\n<figcaption>",
-            &link,
-            "</figcaption>\n</figure>\n",
-        ]);
     }
 
     /// Records a link to another site.

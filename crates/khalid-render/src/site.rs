@@ -26,6 +26,8 @@ pub struct RenderSite {
     pub nav: Nav,
     /// The link back to the main website, when the blog lives beside one.
     pub main_site: Option<NavLink>,
+    /// The one line above the header of every page, if the site has one.
+    pub announcement: Option<AnnouncementBar>,
     /// The share image for pages that have none of their own.
     pub share_image: Option<ShareImage>,
     /// The reader features that are on, from `[reader]` in `site.toml`.
@@ -45,6 +47,16 @@ pub struct Nav {
     pub primary: Vec<NavLink>,
     /// The menu in the footer.
     pub footer: Vec<NavLink>,
+}
+
+/// One line shown above the header, such as news of a launch, in plain
+/// HTML so it reads the same with scripts off.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AnnouncementBar {
+    /// What it says.
+    pub text: String,
+    /// Where the line links to, or `None` for text alone.
+    pub href: Option<String>,
 }
 
 /// One link in a menu.

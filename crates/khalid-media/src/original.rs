@@ -3,14 +3,17 @@
 use std::io::Cursor;
 
 use fast_image_resize::images::Image;
-use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
+use fast_image_resize::{
+    FilterType, ImageBufferError, PixelType, ResizeAlg, ResizeOptions, Resizer,
+};
 use image::codecs::jpeg::JpegEncoder;
 use image::codecs::png::PngEncoder;
 use image::{
     DynamicImage, ExtendedColorType, ImageDecoder, ImageEncoder, ImageFormat, ImageReader,
+    RgbaImage, imageops,
 };
 
-use crate::{Crop, FocalPoint, Format, MediaError, Pixels, Variant};
+use crate::{Crop, FocalPoint, Format, MediaError, PictureEdit, Pixels, Turn, Variant};
 
 /// How hard an encoder may squeeze: derived files for pages, or the stored
 /// original every derived file is later made from, which loses less.
@@ -167,6 +170,42 @@ impl Original {
     pub fn reencode(&self) -> Result<Vec<u8>, MediaError> {
         let size = (self.width, self.height);
         self.encode_area(self.source, size, None, Quality::Kept)
+    }
+
+    /// The image turned, then cut to the box `edit` keeps. Like
+    /// [`Original::encode`], call it off the async runtime.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MediaError::ResizeBuffer`] when the pixels do not make an
+    /// image, which never happens for a decoded original.
+    pub fn edited(&self, edit: PictureEdit) -> Result<Self, MediaError> {
+        let whole = RgbaImage::from_raw(self.width, self.height, self.pixels.clone()).ok_or(
+            MediaError::ResizeBuffer(ImageBufferError::InvalidBufferSize),
+        )?;
+        let turned = match edit.turn {
+            Turn::None => whole,
+            Turn::Quarter => imageops::rotate90(&whole),
+            Turn::Half => imageops::rotate180(&whole),
+            Turn::ThreeQuarters => imageops::rotate270(&whole),
+        };
+        let kept = match edit.crop {
+            Some(crop) => {
+                let size = Pixels {
+                    width: turned.width(),
+                    height: turned.height(),
+                };
+                let area = crop.pixels(size);
+                imageops::crop_imm(&turned, area.left, area.top, area.width, area.height).to_image()
+            }
+            None => turned,
+        };
+        Ok(Self {
+            width: kept.width(),
+            height: kept.height(),
+            pixels: kept.into_raw(),
+            ..*self
+        })
     }
 
     /// `crop` of the image, or all of it, resized to `size` and encoded.

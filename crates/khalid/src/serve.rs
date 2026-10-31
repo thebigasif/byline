@@ -9,16 +9,13 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use axum::Router;
-use khalid_api::api::{self, AdminDesks};
-use khalid_api::comment_moderation::CommentModeration;
-use khalid_api::media_api::MediaLibrary;
+use khalid_analytics::VisitorLogStore;
 use khalid_api::publish_door::PublishDoor;
-use khalid_api::redirect_desk::RedirectDesk;
-use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_db::{Database, NotFoundTable, ScheduleTable, SiteId, VersionTable, VisitorLogTable};
+use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -27,23 +24,30 @@ use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
+use crate::alert_watch::Every;
 use crate::announce::{Announcing, SiteAnnounce};
-use crate::cli::Output;
+use crate::cli::{Cli, Output};
 use crate::content_feed::{self, Destination};
 use crate::entry_events::Entries;
 use crate::exit::Exit;
+use crate::form_delivery::SiteDelivery;
+use crate::media_library::PictureKeys;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
+use crate::search_console_finder::SiteFollowUps;
 use crate::serve_check::BodyCheck;
 use crate::serve_https::{self, Listen};
+use crate::settings_events::Settings;
 use crate::site_content::LiveContent;
+use crate::site_hosts::{self, Among, Door};
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
+use crate::site_watch::SiteWatch;
 use crate::tag_events::Tags;
 use crate::{
-    alert_watch, announce, comment_pages, consent_route, db, db_message, late_api, media_library,
-    newsletter, page_counts, preview, redirect_route, report, scheduler, search_route,
-    serve_message, share_images, staff, unlock,
+    alert_watch, announce, assets, comment_pages, consent_route, db, db_message, form_pages,
+    media_library, newsletter, page_counts, preview, push_hook, redirect_route, report, scheduler,
+    search_route, serve_apis, serve_message, share_images, staff_toolbar, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -52,7 +56,7 @@ const WATCH_EVERY: Duration = Duration::from_millis(500);
 
 /// How long requests in flight may take to finish after a stop signal
 /// before their connections are closed (RULES.md BL-RUN-10).
-const GRACE: Duration = Duration::from_secs(10);
+pub(crate) const GRACE: Duration = Duration::from_secs(10);
 
 /// The JSON shape of the line `khalid serve --json` prints once it listens.
 #[derive(Serialize)]
@@ -67,17 +71,37 @@ pub(crate) struct Keys {
     pub(crate) bucket: Option<S3Keys>,
     /// The password, key or token the `[mail]` transport signs in with.
     pub(crate) mail: Option<Secret<String>>,
+    /// The secret git mode's push hook checks, which opens the hook.
+    pub(crate) git_hook: Option<Secret<String>>,
+    /// The Search Console follow-ups, signed in with the owner's Google
+    /// secrets when the site opts in.
+    pub(crate) follow_ups: SiteFollowUps,
+    /// The keys photo and GIF search ask Unsplash and GIPHY with.
+    pub(crate) pictures: PictureKeys,
 }
 
 impl Keys {
-    /// The keys `env` holds for the site with `config`.
-    pub(crate) fn read(env: &Environment, config: &Config) -> Self {
-        let mail = config.mail().map(|mail| &mail.transport);
+    /// The keys `env` holds for the site in `folder` with `config`, as
+    /// `cli` reaches the outside.
+    pub(crate) fn read(env: &Environment, (folder, config): (&Path, &Config), cli: &Cli) -> Self {
         Self {
             bucket: env.s3_keys(),
-            mail: mail.and_then(|transport| env.mail_secret(transport)),
+            mail: mail_secret(env, config),
+            git_hook: env.git_hook_secret(),
+            follow_ups: SiteFollowUps::new(folder, config, env, cli),
+            pictures: PictureKeys {
+                unsplash: env.unsplash_key(),
+                giphy: env.giphy_key(),
+            },
         }
     }
+}
+
+/// The password, key or token `env` holds for the `[mail]` transport of
+/// the site with `config`, for the commands that send mail without serving.
+pub(crate) fn mail_secret(env: &Environment, config: &Config) -> Option<Secret<String>> {
+    let mail = config.mail().map(|mail| &mail.transport);
+    mail.and_then(|transport| env.mail_secret(transport))
 }
 
 /// Serves the `site` folder, whose `config`, `routes` and content were
@@ -97,7 +121,7 @@ pub(crate) fn run(
     (config, routes): (&Config, &Routes),
     (content, assets, look): (SiteContent, Assets, FolderLook),
     (listen, outbound, keys): (&Listen, Result<Outbound, OutboundError>, Keys),
-    (output, alert_every): (Output, Duration),
+    (output, alert_every): (Output, Every),
 ) -> Exit {
     let content = Arc::new(content);
     let bodies = BodyCheck::start(site, &content, (config, routes));
@@ -109,33 +133,47 @@ pub(crate) fn run(
     let (Ok(runtime), Ok(outbound)) = (built, outbound) else {
         return report::failure(output, &serve_message::internal(), Exit::Internal);
     };
-    let (database, id) = match open(site, &runtime) {
-        Ok(opened) => opened,
-        Err(message) => return report::failure(output, &message, Exit::Failure),
-    };
-    let served = serve_with(
-        (site, config, routes),
-        start,
-        (listen, &outbound, (output, alert_every), keys),
-        &runtime,
-        (&database, id),
-    );
-    runtime.block_on(database.close());
-    match served {
+    let to = (listen, &outbound, (output, alert_every), keys);
+    match serve_site(&runtime, (site, config, routes), start, to, None) {
         Ok(()) if output == Output::Human => report::text("Stopped.\n", Exit::Success),
         Ok(()) => Exit::Success,
         Err((message, exit)) => report::failure(output, &message, exit),
     }
 }
 
+/// Serves one site on `runtime` as [`run`] does, or, `among` many, in its
+/// place behind the sites folder's listener. Its database opens first and
+/// closes last, after every request, the watch, the scheduler and the
+/// announcing have stopped.
+pub(crate) fn serve_site(
+    runtime: &Runtime,
+    (site, config, routes): (&Path, &Config, &Routes),
+    start: (Arc<SiteContent>, Assets, FolderLook, BodyCheck),
+    to: (&Listen, &Outbound, (Output, Every), Keys),
+    among: Option<&Among>,
+) -> Result<(), (UserMessage, Exit)> {
+    let (database, id) = open(site, runtime).map_err(|message| (message, Exit::Failure))?;
+    let served = serve_with(
+        (site, config, routes),
+        start,
+        to,
+        runtime,
+        (&database, id),
+        among,
+    );
+    runtime.block_on(database.close());
+    served
+}
+
 /// Renders the site with its checked settings and routes, then answers on
-/// `listen` until told to stop.
+/// `listen`, or in its place `among` many, until told to stop.
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look, bodies): (Arc<SiteContent>, Assets, FolderLook, BodyCheck),
-    (listen, outbound, (output, alert_every), keys): (&Listen, &Outbound, (Output, Duration), Keys),
+    (listen, outbound, (output, alert_every), keys): (&Listen, &Outbound, (Output, Every), Keys),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
+    among: Option<&Among>,
 ) -> Result<(), (UserMessage, Exit)> {
     let (content, hand_back) = (LiveContent::default(), HandBack::default());
     let (redirects, addresses) = redirect_route::stores((database, id));
@@ -150,22 +188,16 @@ fn serve_with(
         .and_then(|first| bodies.finish().map(|()| first))
         .map_err(|message| (message, Exit::Failure))?;
     let security = security_headers()?;
-    let search = search_route::Search {
-        pages: source.clone(),
-        db: database.clone(),
-        site: id,
-        security: security.clone(),
-    };
-    let to = (site, config, listen, alert_every);
-    let (newsletters, alerting) = mail_and_alerts(
-        to,
-        (database, id, runtime, &telling),
+    let search = search_of(&source, (database, id), &security);
+    let (posted, alerting) = mail_and_alerts(
+        (site, config, listen, alert_every),
+        (&search, runtime, &telling),
         &content,
         (keys.mail, outbound),
     )?;
+    let (mailer, panel) = (alerting.mailer.clone(), site_hosts::panel(among));
     let served = runtime.block_on(async {
-        let (listener, address) = serve_https::open(site, listen).await?;
-        announce(output, config, &format!("{address}{}", config.mount()));
+        let front = Door::open((site, listen, among), (output, config)).await?;
         let live = LivePages::new(first);
         hand_back.start(live.replacements());
         let rest = (source.clone(), live.clone());
@@ -176,10 +208,10 @@ fn serve_with(
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
         let shown_pages = consent_route::pages(config, live.clone(), security.clone());
-        let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
+        let ((comments, moderation), (door, posts), (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
-            media_library::open(site, config, keys.bucket, outbound),
+            media_library::open(site, config, (keys.bucket, keys.pictures), outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
         let scheduling = scheduler::start(Arc::clone(&door), alerting);
@@ -187,21 +219,29 @@ fn serve_with(
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
-        let (counter, pages) = page_counts::start((database, id), pages, config.mount());
+        let (counter, pages) = page_counts::start((database, id), pages, (site, config, outbound));
+        let editing = (content.clone(), posts.clone());
+        let pages = staff_toolbar::start((database, id, config), editing, pages);
         let app = assembled(
             (site, config, &security),
             (files, previews, search_route::router(config, search)),
-            (comments, newsletters, pages),
+            (comments, posted, pages),
         );
-        let desks = (moderation, media, desk);
-        let app = with_apis(app, (content, door), desks, (database, id, config));
+        let (desks, helpers) = ((moderation, media, desk, keys.follow_ups), (panel, mailer));
+        let apis = (
+            (content, door, posts),
+            desks,
+            (database, id, (site, config)),
+            helpers,
+        );
+        let app = serve_apis::with_apis(app, apis, push_hook::router(site, keys.git_hook));
         // The rest renders once the routes are ready, so it does not slow
         // setting them up (ADR "the APIs are built beside the first answer").
         let (failed, failure) = oneshot::channel();
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
-        let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
+        let stopped = front.answer(app, stopping).await;
         watching.stop().await;
         tokio::join!(scheduling.stop(), alert_watching.stop());
         tokio::join!(announcing.stop(), counter.stop());
@@ -221,33 +261,69 @@ fn serve_with(
     served
 }
 
-/// The newsletter's routes and the alerts ready to start, sharing the one
-/// way mail leaves, made from `[mail]` with its `secret` and `outbound`.
-/// The alert checks run `every` so often, and each confirmed subscriber is
-/// told to `telling`.
+/// What the search route reads: the pages of `source`, the database of
+/// site `id`, and the headers of every page.
+fn search_of(
+    source: &SitePages,
+    (database, id): (&Database, SiteId),
+    security: &SecurityHeaders,
+) -> search_route::Search {
+    search_route::Search {
+        pages: source.clone(),
+        db: database.clone(),
+        site: id,
+        security: security.clone(),
+    }
+}
+
+/// The routes a reader posts to from a page besides comments, and the
+/// alerts ready to start, sharing the one way mail leaves, made from
+/// `[mail]` with its `secret` and `outbound`. The routes are the
+/// newsletter's and the form block's (G4), whose answers are emailed and
+/// told to `telling` (G40), as is each confirmed subscriber; both keep
+/// what they receive in the database `site` reads. The alert checks and
+/// the speed and uptime watch run `every` so often.
 fn mail_and_alerts(
-    (site, config, listen, every): (&Path, &Config, &Listen, Duration),
-    (database, id, runtime, telling): (&Database, SiteId, &Runtime, &SiteAnnounce),
+    (folder, config, listen, every): (&Path, &Config, &Listen, Every),
+    (site, runtime, telling): (&search_route::Search, &Runtime, &SiteAnnounce),
     content: &LiveContent,
     (secret, outbound): (Option<Secret<String>>, &Outbound),
 ) -> Result<(Router, alert_watch::Ready), (UserMessage, Exit)> {
+    let (database, id) = (&site.db, site.site);
     let internal = |message| (message, Exit::Internal);
     let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
-    let newsletters =
-        newsletter::router(config, (database, id), (runtime, telling), mailer.clone())
-            .map_err(internal)?;
+    let newsletters = newsletter::router(
+        (folder, config),
+        (database, id),
+        (runtime, telling),
+        mailer.clone(),
+    )
+    .map_err(internal)?;
+    let delivery = SiteDelivery::new(config, mailer.clone(), telling.clone()).map_err(internal)?;
+    let delivery: Arc<dyn FormDelivery> = Arc::new(delivery);
+    let forms = (&site.security, delivery);
+    let forms = form_pages::router(config, (database, id), &site.pages, forms);
     let sources = alert_watch::Sources {
         misses: Arc::new(NotFoundTable::new(database.clone(), id)),
         content: content.clone(),
-        https: https_folder(site, listen),
+        https: https_folder(folder, listen),
         settings: config.alerts().clone(),
+        visitors: config.visitor_log().on.then(|| {
+            let log: Arc<dyn VisitorLogStore> =
+                Arc::new(VisitorLogTable::new(database.clone(), id));
+            log
+        }),
+        watch: every.watch.and_then(|looks| {
+            let watch = SiteWatch::new(config, outbound, (database, id))?;
+            Some((watch, looks))
+        }),
     };
     let ready = alert_watch::Ready {
         mailer,
         sources,
-        every,
+        every: every.checks,
     };
-    Ok((newsletters, ready))
+    Ok((newsletters.merge(forms), ready))
 }
 
 /// The domain and the folder of its certificate, when `listen` serves
@@ -277,48 +353,6 @@ fn first_pages(
     let first = Pages::first(first).map_err(|_| serve_message::internal())?;
     let first = with_hint(first, &source);
     Ok((source, first))
-}
-
-/// The Content API and the Admin API as `khalid serve` runs them, with the
-/// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`.
-fn api_router(
-    (content, door): (LiveContent, Arc<PublishDoor>),
-    (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
-    (database, id, config): (&Database, SiteId, &Config),
-) -> Router {
-    let accounts = staff::accounts(database, id, config);
-    let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
-    let staff = (khalid_auth::staff_routes(accounts), sessions);
-    let desks = AdminDesks {
-        comments,
-        media: Some(media),
-        redirects,
-        webhooks: Some(Arc::new(WebhookTable::new(
-            database.clone(),
-            id,
-            SystemClock,
-        ))),
-    };
-    let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
-    let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
-    api
-}
-
-/// `app` with the router of [`api_router`] answering under `/api/`, built
-/// on a blocking thread beside the first answer (ADR "the APIs are built
-/// beside the first answer"). An address under `/api/` the APIs lack goes
-/// to `app`, as it did when the routers were merged before the first answer.
-fn with_apis(
-    app: Router,
-    apis: (LiveContent, Arc<PublishDoor>),
-    desks: (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
-    (database, id, config): (&Database, SiteId, &Config),
-) -> Router {
-    let (database, config, rest) = (database.clone(), config.clone(), app.clone());
-    late_api::router(app, move || {
-        api_router(apis, desks, (&database, id, &config)).fallback_service(rest)
-    })
 }
 
 /// The pages, with the stylesheet named as a preload on every HTML answer
@@ -359,7 +393,11 @@ fn destination(
         addresses: addresses.clone(),
         redirects: redirects.clone(),
         announce: Some(telling.clone()),
-        started: (Entries::of(checked), Tags::of(config, checked)),
+        started: (
+            Entries::of(checked),
+            Tags::of(config, checked),
+            Settings::read(site),
+        ),
         pings: content_feed::UpdatePings::default(),
     };
     to.pings.set(telling.clone());
@@ -367,7 +405,8 @@ fn destination(
 }
 
 /// The router the server answers outside the APIs: the site's own routes,
-/// the drawn share cards, the admin, the comments and the newsletters.
+/// the drawn share cards, the admin, the comments, the newsletters and the
+/// forms.
 fn assembled(
     (site, config, security): (&Path, &Config, &SecurityHeaders),
     (files, previews, searches): (Router, Router, Router),
@@ -385,21 +424,23 @@ fn assembled(
 }
 
 /// The publish door the Admin API, the scheduler and preview links share.
-/// It keeps schedules in the database and tells `telling` about each post
-/// that goes live.
+/// It keeps schedules and the text each edit replaces in the database, and
+/// tells `telling` about each post that goes live.
 async fn publish_door(
     (site, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
     telling: SiteAnnounce,
-) -> Result<Arc<PublishDoor>, (UserMessage, Exit)> {
+) -> Result<(Arc<PublishDoor>, SitePosts), (UserMessage, Exit)> {
     let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
     let posts = SitePosts::new(site, config.clone(), SystemClock);
     let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+    let versions = Arc::new(VersionTable::new(database.clone(), id));
     let signer = preview::signer(config, (database, id, &file)).await;
-    let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
+    let door = PublishDoor::new(Arc::new(posts.clone()), Arc::new(telling))
         .with_schedules(schedules, SystemClock)
+        .with_versions(versions)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
-    Ok(Arc::new(door))
+    Ok((Arc::new(door), posts))
 }
 
 /// `pages`, the site's page router, with the password form and the cookie
@@ -512,14 +553,16 @@ pub(crate) fn open(site: &Path, runtime: &Runtime) -> Result<(Database, SiteId),
 }
 
 /// The security headers of every page, letting in the frames of the embed
-/// providers.
+/// providers and the reader script by its hash.
 fn security_headers() -> Result<SecurityHeaders, (UserMessage, Exit)> {
     let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
-    SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))
+    SecurityHeaders::new(&origins)
+        .and_then(|headers| headers.with_script(&assets::reader().integrity))
+        .map_err(|_| (serve_message::internal(), Exit::Internal))
 }
 
 /// Says where the site answers. In JSON, this one line is the whole output.
-fn announce(output: Output, config: &Config, address: &str) {
+pub(crate) fn announce(output: Output, config: &Config, address: &str) {
     match output {
         Output::Human => report::text(
             &format!(
@@ -533,7 +576,7 @@ fn announce(output: Output, config: &Config, address: &str) {
 }
 
 /// Completes on Ctrl+C or, on Unix, the stop signal a service manager sends.
-async fn stop() {
+pub(crate) async fn stop() {
     #[cfg(unix)]
     {
         use tokio::signal::unix::{SignalKind, signal};

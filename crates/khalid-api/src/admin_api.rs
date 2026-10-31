@@ -17,8 +17,12 @@ use utoipa_axum::routes;
 
 use crate::admin_delete;
 use crate::admin_key::{AdminDoor, require, require_admin_key, require_publish};
+use crate::admin_presence;
+use crate::admin_serpdad::Serpdad;
+use crate::admin_versions;
 use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
+use crate::draft_lint::CreatedPosts;
 use crate::html_source::markdown_from_html;
 use crate::keys::{Principal, Scope};
 use crate::pagination::Meta;
@@ -28,8 +32,9 @@ use crate::problem::{Problem, ProblemType};
 use crate::publish_door::{PublishDoor, ScheduleError};
 use crate::query::{Limit, ListQuery, RawListQuery};
 use crate::resources::{
-    AdminPost, Listable, NewPost, NotRealUpdate, PostDraft, PostEdit, PostRow, PostStatus,
+    AdminPost, Listable, NewPost, NonBlank, NotRealUpdate, PostDraft, PostEdit, PostRow, PostStatus,
 };
+use crate::review_rule;
 
 /// Where the Admin API lives.
 pub(crate) const BASE: &str = "/api/admin/v1";
@@ -39,8 +44,9 @@ type Posts = Arc<PublishDoor>;
 
 /// The Admin API routes, each declared with `utoipa::path` and registered
 /// through `routes!` (RULES.md BL-API-4). Every route needs an
-/// integration key or staff token, and checks its own scope.
-pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
+/// integration key or staff token, and checks its own scope. A draft
+/// made with `SerpDad`'s key is recorded in `serpdad`.
+pub(crate) fn routes(posts: Posts, serpdad: Serpdad, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(browse_admin_posts, create_admin_post))
         .routes(routes!(
@@ -49,16 +55,19 @@ pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
             admin_delete::delete_admin_post
         ))
         .routes(routes!(make_preview_link))
+        .routes(routes!(admin_versions::list_post_versions))
+        .routes(routes!(admin_presence::check_in, admin_presence::leave))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(posts)
+        .layer(Extension(serpdad))
 }
 
 /// Posts as the Admin API wraps them.
 #[derive(Debug, Serialize, ToSchema)]
 pub(crate) struct AdminPosts {
     /// The post or posts.
-    posts: Vec<AdminPost>,
+    pub(crate) posts: Vec<AdminPost>,
 }
 
 /// One page of the admin's posts table, as every list is wrapped.
@@ -195,8 +204,9 @@ pub(crate) struct EditPosts {
 /// made on; when the post changed since, the answer is a 409 naming who
 /// changed it and when (RULES.md BL-API-7). Needs `posts:write`, and
 /// `posts:publish` to publish, schedule or take down a post, or to edit one
-/// that is live or scheduled. A change to head code needs an owner, an
-/// admin or `admin:all`.
+/// that is live or scheduled. Without `posts:publish`, an edit may move a
+/// draft between `draft` and `in_review` but never leave it `ready`. A
+/// change to head code needs an owner, an admin or `admin:all`.
 #[utoipa::path(
     put, path = "/posts/{id}/", tag = "admin posts",
     security(("admin_key" = [])),
@@ -205,7 +215,7 @@ pub(crate) struct EditPosts {
     responses(
         (status = 200, description = "The post as saved", body = AdminPosts),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
-        (status = 403, description = "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, or changes head code without being an owner or admin", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, leaves a post ready without posts:publish, or changes head code without being an owner or admin", body = Problem, content_type = "application/problem+json"),
         (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The post changed after the copy the edit was made on, or another post has the new slug", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "The body could not be read, a setting is not valid, the schedule cannot be kept, or the linter refused to publish the post", body = Problem, content_type = "application/problem+json"),
@@ -222,8 +232,14 @@ async fn edit_admin_post(
     let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
     let [edit] = <[PostEdit; 1]>::try_from(body.posts)
         .map_err(|_| invalid_body("posts must hold exactly one post"))?;
-    if !principal.access().allows(Scope::PostsPublish) && publishes(&posts, &id, &edit).await? {
-        require_publish(&principal)?;
+    if !principal.access().allows(Scope::PostsPublish) {
+        let post = posts.get(&id).await.map_err(|e| Problem::internal(&e))?;
+        if publishes(post.as_ref(), &edit) {
+            require_publish(&principal)?;
+        }
+        if let Some(post) = &post {
+            review_rule::check(post, &edit)?;
+        }
     }
     if edit.names_head_code() && !principal.access().allows(Scope::AdminAll) {
         let post = posts.get(&id).await.map_err(|e| Problem::internal(&e))?;
@@ -255,19 +271,13 @@ async fn edit_admin_post(
 /// Whether `edit` to post `id` changes what readers see, which needs
 /// `posts:publish`: it publishes, schedules or sets a time to take the
 /// post down, or the post is already live or scheduled.
-async fn publishes(posts: &Posts, id: &str, edit: &PostEdit) -> Result<bool, Problem> {
+fn publishes(post: Option<&AdminPost>, edit: &PostEdit) -> bool {
     let asks = matches!(
         edit.status(),
         Some(PostStatus::Published | PostStatus::Scheduled)
     );
-    if asks || edit.unpublish_at().is_some() {
-        return Ok(true);
-    }
-    let post = posts
-        .get(id)
-        .await
-        .map_err(|error| Problem::internal(&error))?;
-    Ok(post.is_some_and(|post| post.status() != PostStatus::Draft))
+    asks || edit.unpublish_at().is_some()
+        || post.is_some_and(|post| post.status() != PostStatus::Draft)
 }
 
 /// The 403 for a head code change from anyone but an owner, an admin or
@@ -392,17 +402,18 @@ pub(crate) struct CreateOptions {
     source: Option<Source>,
 }
 
-/// Creates a draft post from markdown, or from HTML with `source=html`. A
-/// retry with the same `Idempotency-Key` returns the post the first
-/// request made, so it never makes two (RULES.md BL-API-7). Needs
-/// `posts:write`.
+/// Creates a draft post from markdown, or from HTML with `source=html`,
+/// and answers with what the linter finds in it as it would go live and
+/// where it opens in the admin (KH-API-6). A retry with the same
+/// `Idempotency-Key` returns the post the first request made, so it never
+/// makes two (RULES.md BL-API-7). Needs `posts:write`.
 #[utoipa::path(
     post, path = "/posts/", tag = "admin posts",
     security(("admin_key" = [])),
     params(CreateOptions, ("Idempotency-Key" = Option<String>, Header, description = "Any text up to 255 characters that names this request, so a retry makes no second post")),
     request_body = NewPosts,
     responses(
-        (status = 201, description = "The new draft", body = AdminPosts),
+        (status = 201, description = "The new draft, its lint findings and its admin path", body = CreatedPosts),
         (status = 400, description = "The source is neither markdown nor html", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
@@ -412,11 +423,11 @@ pub(crate) struct CreateOptions {
 )]
 async fn create_admin_post(
     State(posts): State<Posts>,
-    Extension(principal): Extension<Principal>,
+    (Extension(principal), Extension(serpdad)): (Extension<Principal>, Extension<Serpdad>),
     options: Result<Query<CreateOptions>, QueryRejection>,
     headers: HeaderMap,
     body: Result<Json<NewPosts>, JsonRejection>,
-) -> Result<(StatusCode, [(HeaderName, String); 1], Json<AdminPosts>), Problem> {
+) -> Result<(StatusCode, [(HeaderName, String); 1], Json<CreatedPosts>), Problem> {
     require(&principal, Scope::PostsWrite)?;
     let Query(options) = options.map_err(|_| unknown_source())?;
     let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
@@ -439,11 +450,9 @@ async fn create_admin_post(
         CreatePostError::Store(error) => Problem::internal(&error),
     })?;
     let location = format!("{BASE}/posts/{}/", post.id());
-    Ok((
-        StatusCode::CREATED,
-        [(LOCATION, location)],
-        Json(AdminPosts { posts: vec![post] }),
-    ))
+    let created = CreatedPosts::linted(post, posts.posts()).await;
+    serpdad.arrived(&principal, created.arrived()).await;
+    Ok((StatusCode::CREATED, [(LOCATION, location)], Json(created)))
 }
 
 /// Checks a new post: a title, a slug that is valid if given, and a body
@@ -466,6 +475,10 @@ async fn checked(new: NewPost, source: Source) -> Result<PostDraft, Problem> {
         .map(Slug::try_new_unicode)
         .transpose()
         .map_err(|_| invalid_body("author must be an author's slug, such as asif"))?;
+    let excerpt = match new.excerpt.as_deref().map(NonBlank::try_new) {
+        Some(None) => return Err(invalid_body("excerpt must not be blank")),
+        given => given.flatten(),
+    };
     let markdown = match (source, new.markdown, new.html) {
         (Source::Markdown, Some(markdown), None) => markdown,
         (Source::Html, None, Some(html)) => {
@@ -481,7 +494,8 @@ async fn checked(new: NewPost, source: Source) -> Result<PostDraft, Problem> {
             ));
         }
     };
-    Ok(PostDraft::new(&new.title, slug, &markdown).with_author(author))
+    let draft = PostDraft::new(&new.title, slug, &markdown).with_author(author);
+    Ok(draft.with_excerpt(excerpt))
 }
 
 /// The 400 for a `source` that is neither `markdown` nor `html`.
@@ -537,7 +551,7 @@ fn slug_taken(slug: &str, fix: &'static str) -> Problem {
     Problem::new(ProblemType::Conflict, &message).with_rule("slug")
 }
 
-fn invalid_body(reason: &str) -> Problem {
+pub(crate) fn invalid_body(reason: &str) -> Problem {
     let message = UserMessage::new(
         format!("The request body could not be read: {reason}."),
         "Nothing was changed.",

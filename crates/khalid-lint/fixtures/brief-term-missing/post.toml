@@ -1,0 +1,6 @@
+# The brief lists two terms. The body uses "next useful post" and never
+# "anchor text".
+extends = "clean"
+
+[brief]
+terms = ["next useful post", "anchor text"]

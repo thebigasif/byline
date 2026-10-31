@@ -1,6 +1,6 @@
 //! The search page of each language: the plain `GET` form when a running
-//! server answers it, the lock card when the site is plain files (plan
-//! section 7, KH-WEB-2, KH-OPS-1).
+//! server answers it, one sentence for readers when the site is plain
+//! files (plan section 7, KH-WEB-2, KH-OPS-1).
 
 use khalid_core::{Config, Mode, UserMessage};
 use khalid_render::{PageBody, PageKind, RenderSearch, Renderer, SearchMode};
@@ -171,8 +171,15 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_static_site_shows_the_lock_card_and_links_no_search() {
+    /// The page's `main` element, which holds the search form or its note.
+    fn main_of(page: &str) -> &str {
+        let start = page.find("<main").unwrap();
+        let end = page.find("</main>").unwrap();
+        page.get(start..end).unwrap()
+    }
+
+    /// A copy of the demo site in static mode.
+    fn static_demo() -> tempfile::TempDir {
         let site = tempfile::tempdir().unwrap();
         copy_dir(&demo(), site.path());
         let mut settings = site.path().to_path_buf();
@@ -183,13 +190,40 @@ mod tests {
             text.replace("mode = \"server\"", "mode = \"static\""),
         )
         .unwrap();
+        site
+    }
+
+    #[test]
+    fn a_static_site_shows_the_one_sentence_and_links_no_search() {
+        let site = static_demo();
 
         let page = served(site.path(), "/blog/search/");
-        assert!(page.contains("Search needs a running server"), "{page}");
-        assert!(page.contains("<code>khalid serve</code>"));
+        assert!(
+            page.contains(
+                r#"<p class="lock locked" data-feature="search">Search is not available on this site.</p>"#
+            ),
+            "{page}"
+        );
+        assert!(
+            !page.contains("khalid serve"),
+            "the owner's fix is not for readers"
+        );
         assert!(!page.contains("<form"));
         let home = served(site.path(), "/blog/");
         assert!(!home.contains("search-link"));
         assert!(!home.contains("SearchAction"));
+    }
+
+    #[test]
+    fn the_static_search_page_is_the_live_one_with_its_form_locked() {
+        let site = static_demo();
+        let locks = khalid_static::Locks::load().unwrap();
+        for (address, language) in [("/blog/search/", "en"), ("/blog/de/search/", "de")] {
+            let live = served(&demo(), address);
+            let locale = khalid_core::Locale::try_new(language).unwrap();
+            let locked = locks.page(main_of(&live), &locale).unwrap().html;
+            let shown = served(site.path(), address);
+            assert_eq!(main_of(&shown), locked, "{address}");
+        }
     }
 }

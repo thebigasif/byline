@@ -15,6 +15,9 @@ const BLOCKS: Record<string, string> = {
   quote: "> Write the short posts first.",
   codeBlock: "```sh\nkhalid serve\n```",
   divider: "One part.\n\n---\n\nAnother part.",
+  wikilink: "Read [[why-internal-links-matter]] next.",
+  wikilinkWords: "Read [[why-internal-links-matter|the case for links]] next.",
+  wikilinkTitle: "Read [[why internal links matter]] next.",
 };
 
 describe("the rich-text view", () => {
@@ -24,10 +27,6 @@ describe("the rich-text view", () => {
       expect(fitsRichText(markdown)).toBe(true);
     });
   }
-
-  it("keeps a post with a block directive out of the rich-text view", () => {
-    expect(fitsRichText(':::callout{tone="tip"}\nFeed it daily.\n:::')).toBe(false);
-  });
 
   it("ends a saved file in exactly one line break", () => {
     expect(fileText("Hello\n\n")).toBe("Hello\n");

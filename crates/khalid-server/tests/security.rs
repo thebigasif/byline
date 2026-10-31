@@ -142,3 +142,41 @@ fn refuses_an_origin_that_would_change_the_policy() {
         );
     }
 }
+
+/// The reader script's integrity value, as `Asset::integrity` gives it.
+const READER: &str = "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=";
+
+#[tokio::test]
+async fn the_site_script_runs_by_its_hash_beside_the_nonce() {
+    let path = PagePath::try_new("/blog/").unwrap();
+    let pages = Pages::new(vec![Page::new(path, MediaType::Html, "<h1>Blog</h1>")], "").unwrap();
+    let security = SecurityHeaders::default().with_script(READER).unwrap();
+    let request = Request::builder()
+        .uri("/blog/")
+        .body(Body::empty())
+        .unwrap();
+    let response = router(pages, security).oneshot(request).await.unwrap();
+    let policy = value(&response, &header::CONTENT_SECURITY_POLICY);
+    let script = directive(policy, "script-src");
+    assert_eq!(script.len(), 3, "{policy}");
+    assert!(script[0].starts_with("'nonce-"), "{policy}");
+    assert_eq!(script[1..], ["'strict-dynamic'", &format!("'{READER}'")]);
+    assert_eq!(directive(policy, "style-src"), ["'self'"]);
+}
+
+#[test]
+fn refuses_a_script_hash_that_would_change_the_policy() {
+    for bad in [
+        "sha256-abc'; script-src *",
+        "sha1-47DEQpj8HBSa",
+        "sha256-",
+        "47DEQpj8HBSa",
+        "sha256-a b",
+    ] {
+        let error = SecurityHeaders::default().with_script(bad).unwrap_err();
+        assert!(
+            matches!(&error, ServerError::ScriptHash { integrity } if integrity == bad),
+            "{error:?}"
+        );
+    }
+}

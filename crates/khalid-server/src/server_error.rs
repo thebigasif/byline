@@ -19,6 +19,13 @@ pub enum ServerError {
         /// The origin as given.
         origin: String,
     },
+    /// A script's integrity value for the Content Security Policy is not
+    /// a SHA-2 hash in base64.
+    #[error("the script hash {integrity:?} is not a sha256, sha384 or sha512 value")]
+    ScriptHash {
+        /// The value as given.
+        integrity: String,
+    },
     /// The site's renderer failed, so the pages being served stay as they
     /// were.
     #[error("the site could not be rendered")]

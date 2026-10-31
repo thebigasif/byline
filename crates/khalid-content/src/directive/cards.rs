@@ -1,7 +1,25 @@
 //! Cards: blocks drawn as a box from their attributes.
 
+use khalid_core::Slug;
+
 use super::Attributes;
 use crate::{BlockError, BlockKind, BusinessBlock, Visibility};
+
+/// Reads a snippet's place: the slug of the snippet shown there.
+pub(super) fn snippet(attributes: &Attributes) -> Result<BlockKind, BlockError> {
+    attributes.only("snippet", &["slug"], "slug")?;
+    let slug = attributes.need(
+        "slug",
+        "a snippet needs slug, the name of a file in snippets/",
+    )?;
+    if slug.parse::<Slug>().is_err() {
+        return Err(BlockError::Value {
+            line: attributes.line,
+            problem: "a snippet's slug is written in small letters, digits and hyphens",
+        });
+    }
+    Ok(BlockKind::Snippet { slug })
+}
 
 /// Reads a business card: the name and postal address, and how to reach it.
 pub(super) fn business(attributes: &Attributes) -> Result<BlockKind, BlockError> {

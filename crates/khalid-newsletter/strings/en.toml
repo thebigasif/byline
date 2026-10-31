@@ -23,6 +23,21 @@ To read on the device you asked from, open this link within two days:
 Not you? Ignore this email.
 """
 
+# The email of new posts, sent with khalid newsletter digest.
+digest_subject = "New on {site}"
+digest_text = "Here is what is new on {site} since the last email."
+
+# The end of every newsletter email. {remove} is its one-click unsubscribe
+# link and {postal} the postal address from [mail].
+footer_text = """
+
+--
+You get this email because you subscribed to {site}. To stop, open this link:
+{remove}
+
+{postal}
+"""
+
 # The pages a reader sees after the form and the links. Titles say what
 # happened; texts say why it matters or what to do, in one sentence.
 [page]
@@ -51,3 +66,5 @@ closed_title = "Signing up is not open yet"
 closed_text = "This site cannot send email yet, so nothing was saved; try again another day."
 failed_title = "Something went wrong"
 failed_text = "Nothing was sent, so try again in ten minutes."
+no_list_title = "There is no such newsletter"
+no_list_text = "This form names a newsletter {site} does not have, so nothing was saved; tell the site's owner."

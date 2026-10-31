@@ -56,6 +56,26 @@ fn collections_are_read_and_the_default_stays() {
 }
 
 #[test]
+fn a_collection_marked_news_is_news_and_others_are_not() {
+    let routes = read(
+        "[collections.news]\npermalink = \"/news/{year}/{slug}/\"\nnews = true\n\n\
+         [collections.guides]\npermalink = \"/guides/{slug}/\"\nnews = false\n",
+    )
+    .unwrap();
+    let news = |name: &str| routes.collection(name).unwrap().is_news();
+    assert!(news("news"));
+    assert!(!news("guides"));
+    assert!(!news("posts"));
+}
+
+#[test]
+fn news_takes_true_or_false_only() {
+    let (line, field, _) =
+        located("[collections.news]\npermalink = \"/news/{slug}/\"\nnews = \"yes\"\n");
+    assert_eq!((line, field.as_str()), (3, "news"));
+}
+
+#[test]
 fn a_permalink_must_hold_the_slug() {
     let (line, field, problem) = located("[collections.news]\npermalink = \"/news/{year}/\"\n");
     assert_eq!((line, field.as_str()), (2, "permalink"));

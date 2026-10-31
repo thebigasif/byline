@@ -5,8 +5,8 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, Days, NaiveDate, TimeZone, Utc};
 use khalid_analytics::{
-    AnalyticsStore, CRAWL_DAYS_KEPT, Crawler, CrawlerKind, MAX_CRAWL_ROWS_PER_DAY, ReferrerGroup,
-    Tally,
+    AiTool, AnalyticsStore, CRAWL_DAYS_KEPT, Crawler, CrawlerKind, MAX_CRAWL_ROWS_PER_DAY,
+    ReferrerGroup, Tally,
 };
 use khalid_core::Slug;
 use khalid_db::{AnalyticsTable, Database};
@@ -41,7 +41,7 @@ async fn tallies_add_up_and_outlast_closing_the_database() {
     let gptbot = bot("GPTBot/1.2");
     for (hour, status) in [(9, 404), (11, 200)] {
         let mut tally = Tally::default();
-        tally.view(at(3, hour), POST, ReferrerGroup::Ai);
+        tally.view(at(3, hour), POST, ReferrerGroup::Ai(AiTool::ChatGpt));
         tally.view(at(3, hour), POST, ReferrerGroup::Direct);
         tally.crawl(at(3, hour), POST, gptbot, status);
         table.save(&tally).await.unwrap();
@@ -61,7 +61,13 @@ async fn tallies_add_up_and_outlast_closing_the_database() {
         .into_iter()
         .map(|row| (row.group, row.views))
         .collect();
-    assert_eq!(views, [(ReferrerGroup::Direct, 2), (ReferrerGroup::Ai, 2)]);
+    assert_eq!(
+        views,
+        [
+            (ReferrerGroup::Direct, 2),
+            (ReferrerGroup::Ai(AiTool::ChatGpt), 2)
+        ]
+    );
     let crawls = table.crawls(day, day).await.unwrap();
     assert_eq!(crawls.len(), 1);
     let row = &crawls[0];

@@ -1,10 +1,13 @@
 //! The webhooks `khalid serve` fires as the files of pages, glossary terms,
 //! case studies and changelog entries are saved (audit brief G25). These
-//! entries have no draft and no publish time, so an entry whose file is
-//! there is live: a new file fires `.published`, a changed one
-//! `.published.edited` and a removed one `.deleted`.
+//! entries have no publish time, so an entry whose file is there is live: a
+//! new file fires `.published`, a changed one `.published.edited` and a
+//! removed one `.deleted`. A removed file that left a draft of the same
+//! name under `drafts/` fires `.unpublished` instead.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::path::Path;
 
 use khalid_content::{ContentHash, Document, SiteContent};
 use khalid_core::Slug;
@@ -28,8 +31,13 @@ enum Kind {
 enum Change {
     Published,
     Edited,
+    Unpublished,
     Deleted,
 }
+
+/// The folder of each kind under `content/<language>/`, which a draft of
+/// that kind keeps under `drafts/<language>/`.
+const KIND_FOLDERS: [&str; 4] = ["pages", "glossary", "case-studies", "changelog"];
 
 impl Kind {
     /// The name the entry goes under in a delivery's body.
@@ -47,15 +55,19 @@ impl Kind {
         match (self, change) {
             (Self::Page, Change::Published) => Event::PagePublished,
             (Self::Page, Change::Edited) => Event::PagePublishedEdited,
+            (Self::Page, Change::Unpublished) => Event::PageUnpublished,
             (Self::Page, Change::Deleted) => Event::PageDeleted,
             (Self::GlossaryTerm, Change::Published) => Event::GlossaryTermPublished,
             (Self::GlossaryTerm, Change::Edited) => Event::GlossaryTermPublishedEdited,
+            (Self::GlossaryTerm, Change::Unpublished) => Event::GlossaryTermUnpublished,
             (Self::GlossaryTerm, Change::Deleted) => Event::GlossaryTermDeleted,
             (Self::CaseStudy, Change::Published) => Event::CaseStudyPublished,
             (Self::CaseStudy, Change::Edited) => Event::CaseStudyPublishedEdited,
+            (Self::CaseStudy, Change::Unpublished) => Event::CaseStudyUnpublished,
             (Self::CaseStudy, Change::Deleted) => Event::CaseStudyDeleted,
             (Self::ChangelogEntry, Change::Published) => Event::ChangelogEntryPublished,
             (Self::ChangelogEntry, Change::Edited) => Event::ChangelogEntryPublishedEdited,
+            (Self::ChangelogEntry, Change::Unpublished) => Event::ChangelogEntryUnpublished,
             (Self::ChangelogEntry, Change::Deleted) => Event::ChangelogEntryDeleted,
         }
     }
@@ -83,9 +95,10 @@ struct Seen {
     hash: ContentHash,
 }
 
-/// Every entry of one render, by file.
+/// Every entry of one render, by file, and the entry files that have a
+/// draft under `drafts/`.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Entries(BTreeMap<String, Seen>);
+pub(crate) struct Entries(BTreeMap<String, Seen>, BTreeSet<String>);
 
 impl Entries {
     /// The entries of `content`. A file whose name is not valid UTF-8 is
@@ -122,7 +135,37 @@ impl Entries {
             seen(Kind::ChangelogEntry, doc, None, title)
         });
         let all = pages.chain(terms).chain(studies).chain(changelog);
-        Self(all.flatten().collect())
+        Self(all.flatten().collect(), BTreeSet::new())
+    }
+
+    /// These entries, knowing which entry files have a draft in the site
+    /// `folder`: the entry at `content/<language>/<kind>/<name>.md` has one
+    /// when `drafts/<language>/<kind>/<name>.md` is there (ADR 0030).
+    /// Hidden files and folders that cannot be read are left out. Reads
+    /// folders, so it runs where the content is read.
+    pub(crate) fn with_drafts(mut self, folder: &Path) -> Self {
+        let mut drafts = folder.to_path_buf();
+        drafts.push("drafts");
+        let Ok(languages) = fs::read_dir(&drafts) else {
+            return self;
+        };
+        for language in languages.filter_map(Result::ok) {
+            let Ok(name) = language.file_name().into_string() else {
+                continue;
+            };
+            for kind in KIND_FOLDERS {
+                let mut path = language.path();
+                path.push(kind);
+                let Ok(files) = fs::read_dir(&path) else {
+                    continue;
+                };
+                let names = files.filter_map(|file| file.ok()?.file_name().into_string().ok());
+                let kept = names.filter(|file| is_markdown(file) && !file.starts_with('.'));
+                self.1
+                    .extend(kept.map(|file| format!("content/{name}/{kind}/{file}")));
+            }
+        }
+        self
     }
 
     /// Fires on `announce` the event of each entry that is new, changed or
@@ -134,7 +177,8 @@ impl Entries {
     }
 
     /// Each entry that is new, changed or gone in `self` since `before`,
-    /// with its event: a gone entry as it was last.
+    /// with its event: a gone entry as it was last, unpublished when
+    /// `self` saw a draft of it and deleted when not.
     fn changes_since<'a>(&'a self, before: &'a Self) -> Vec<(Event, Kind, &'a Entry)> {
         let now = self.0.iter().filter_map(|(file, seen)| {
             let change = match before.0.get(file) {
@@ -148,9 +192,24 @@ impl Entries {
             .0
             .iter()
             .filter(|(file, _)| !self.0.contains_key(*file))
-            .map(|(_, was)| (was.kind.event(Change::Deleted), was.kind, &was.entry));
+            .map(|(file, was)| {
+                let change = if self.1.contains(file) {
+                    Change::Unpublished
+                } else {
+                    Change::Deleted
+                };
+                (was.kind.event(change), was.kind, &was.entry)
+            });
         now.chain(gone).collect()
     }
+}
+
+/// Whether the file `name` ends in `.md`, in any case, as the content tree
+/// reads them.
+fn is_markdown(name: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
 }
 
 /// `doc` as an entry of `kind`, by its file. The slug is `slug` when the
@@ -180,6 +239,7 @@ fn seen<F>(
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::PathBuf;
 
     use khalid_content::{ContentTree, read_content};
@@ -243,6 +303,36 @@ mod tests {
                 "case-study.published en.harbour-cafe",
                 "glossary-term.published.edited en.topical-authority",
                 "page.deleted en.about",
+            ]
+        );
+    }
+
+    #[test]
+    fn an_entry_moved_to_drafts_is_unpublished_and_one_removed_is_deleted() {
+        let site = tempfile::tempdir().unwrap();
+        for draft in [
+            "drafts/en/pages/about.md",
+            "drafts/en/glossary/.topical-authority.md",
+            "drafts/en/case-studies/notes.txt",
+            "drafts/en/a-post-draft.md",
+        ] {
+            let mut file = site.path().to_path_buf();
+            file.push(draft);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, "---\ntitle: Kept back\n---\n").unwrap();
+        }
+        let before = demo();
+        let mut now = demo().with_drafts(site.path());
+        now.0.remove("content/en/pages/about.md").unwrap();
+        now.0
+            .remove("content/en/glossary/topical-authority.md")
+            .unwrap();
+
+        assert_eq!(
+            names(&now.changes_since(&before)),
+            [
+                "glossary-term.deleted en.topical-authority",
+                "page.unpublished en.about",
             ]
         );
     }

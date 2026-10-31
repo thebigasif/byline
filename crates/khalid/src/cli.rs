@@ -5,11 +5,18 @@ use std::path::PathBuf;
 
 use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+use khalid_analytics::CRAWL_DAYS_KEPT;
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
+use khalid_seo::Pace;
 use khalid_webhooks::Event;
 
-pub(crate) use crate::cli_access::{KeyKindArg, KeysCommand, NewKeyArgs, OwnerArgs, StaffCommand};
+pub(crate) use crate::cli_access::{
+    KeyKindArg, KeysCommand, NewKeyArgs, OwnerArgs, SitesCommand, StaffCommand,
+};
+use crate::new::NewArgs;
+use crate::newsletter_cli::NewsletterCommand;
+use crate::update::UpdateTarget;
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -43,10 +50,21 @@ pub(crate) struct Cli {
     #[arg(long, global = true, hide = true, value_name = "HOST=ADDRESS")]
     pub(crate) test_hosts: Option<String>,
 
+    /// Test builds only, with `--test-hosts`: trust this PEM certificate alone for outbound
+    /// HTTPS, such as pebble's, the test certificate authority.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "FILE", value_parser = crate::outbound::read_test_root)]
+    pub(crate) test_root: Option<crate::outbound::TestRoot>,
+
     /// Test builds only: send Bing Webmaster Tools calls to this endpoint.
     #[cfg(feature = "test-util")]
     #[arg(long, global = true, hide = true, value_name = "URL")]
     pub(crate) test_bing: Option<AbsoluteUrl>,
+
+    /// Test builds only: send every Google call under this endpoint.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "URL")]
+    pub(crate) test_google: Option<AbsoluteUrl>,
 
     /// Test builds only: where `khalid update` reads releases from.
     #[cfg(feature = "test-util")]
@@ -75,13 +93,7 @@ pub(crate) enum Command {
     /// Run the blog and the admin, showing each saved edit at once
     Serve(ServeArgs),
     /// Create a post file with correct front matter
-    New {
-        /// The post's title
-        title: String,
-        /// The language the post is written in [default: the site's default language]
-        #[arg(long, value_name = "CODE")]
-        language: Option<Locale>,
-    },
+    New(NewArgs),
     /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked.
     /// A headless site gets its feeds, sitemaps and redirects and no HTML.
     /// A static site gets a note in place of each form, and a list of the
@@ -110,6 +122,18 @@ pub(crate) enum Command {
         /// The language the draft is written in [default: the site's default language]
         #[arg(long, value_name = "CODE")]
         language: Option<Locale>,
+    },
+    /// Suggest a day for each ready draft at a steady pace, each topic
+    /// group's main post first, and say what to act on. Changes nothing
+    Plan {
+        /// Posts a week, from 1 to 14 [default: the site's pace over the
+        /// last twelve weeks, at least 1]
+        #[arg(
+            long,
+            value_name = "COUNT",
+            value_parser = |text: &str| text.parse().ok().and_then(Pace::per_week).ok_or("give a number of posts a week from 1 to 14"),
+        )]
+        per_week: Option<Pace>,
     },
     /// Pull the main site's look again, or check a template override
     Theme {
@@ -147,9 +171,10 @@ pub(crate) enum Command {
         out: Option<PathBuf>,
     },
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
-    /// health out of 100. Keeps the issues, the internal linking report and
-    /// the score's trend in data/audit/, and exits with 1 on any error.
-    /// Broken links on the blog go to the owner as an alert, once
+    /// health out of 100. Keeps the issues, the internal linking report,
+    /// each page's weight and the score's trend in data/audit/, and exits
+    /// with 1 on any error. Broken links on the blog go to the owner as an
+    /// alert, once
     Audit {
         /// Ask this running server for the site's pages instead of
         /// building them, such as `http://127.0.0.1:8080` for `khalid serve`
@@ -189,6 +214,12 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: StaffCommand,
     },
+    /// Serve many sites from one folder: list them, add one, add a super admin
+    Sites {
+        /// What to do with the sites
+        #[command(subcommand)]
+        command: SitesCommand,
+    },
     /// Bring the site's database up to date, or rebuild its index from the files
     Db {
         /// What to do with the database
@@ -207,12 +238,99 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: WebhooksCommand,
     },
+    /// Email posts and digests to subscribers, label them, and see the numbers
+    Newsletter {
+        /// What to do with the newsletters
+        #[command(subcommand)]
+        command: NewsletterCommand,
+    },
     /// Hand Bing Webmaster Tools the sitemap, or read how Bing crawls the
     /// site. Uses the key in the `KHALID_BING_API_KEY` environment variable
     Bing {
         /// What to ask Bing
         #[command(subcommand)]
         command: BingCommand,
+    },
+    /// Read the site's Google Search Console numbers with the owner's own
+    /// Google account, once `[search_console]` in site.toml opts in
+    SearchConsole {
+        /// What to ask Search Console
+        #[command(subcommand)]
+        command: SearchConsoleCommand,
+    },
+    /// Read what the visitor log says about crawlers, while it is on
+    Crawl {
+        /// What to read
+        #[command(subcommand)]
+        command: CrawlCommand,
+    },
+    /// Show how fast and how reliably the blog answered at its public
+    /// address over the last day and the last 30 days
+    Watch,
+    /// Read what `khalid serve` counted: the readers AI assistants sent and
+    /// the pages AI bots read
+    Analytics {
+        /// What to read
+        #[command(subcommand)]
+        command: AnalyticsCommand,
+    },
+}
+
+/// The Search Console commands, for the property `[search_console]` names.
+#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
+pub(crate) enum SearchConsoleCommand {
+    /// Sign in to Google and check that the property can be read
+    Check,
+    /// Show each post's clicks, impressions, click-through rate and
+    /// position for the last 28 days, posts in decay, and the week's
+    /// winners and losers
+    Report,
+    /// Show one post's numbers, the searches that showed it, and whether
+    /// Google has it in its index
+    Post {
+        /// The slug of the published post
+        slug: Slug,
+    },
+    /// Ask Google whether each published post is in its index, up to 200
+    /// posts a run, within Google's daily quota of 2,000
+    Index,
+    /// List the long searches of 8 words or more, the way people ask an
+    /// AI assistant, that showed each post in the last 28 days, and
+    /// whether a heading of the post answers each
+    FollowUps,
+    /// Email the week in Google search to `report_to` under `[search_console]`,
+    /// through `[mail]`. Run it once a week from a timer
+    Email,
+}
+
+/// The crawl reports. They read the visitor log in `data/site.db` and
+/// count a crawler only from an address its company publishes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum CrawlCommand {
+    /// Show how long each new post waited for its first crawl
+    First,
+    /// Show each search and AI crawler's visits and what it got
+    Health,
+    /// List the addresses that answered crawlers with an error
+    Errors,
+}
+
+/// The analytics commands. They read `data/site.db`, so they work while
+/// `khalid serve` runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum AnalyticsCommand {
+    /// Show how many readers each AI assistant, such as `ChatGPT` or
+    /// Perplexity, sent in the last days, against the days before
+    Ai {
+        /// How many days to count back from today, from 1 to 366
+        #[arg(long, default_value_t = 28, value_parser = clap::value_parser!(u32).range(1..=366))]
+        days: u32,
+    },
+    /// List the pages AI bots read but no AI assistant sent a reader to
+    Uncited {
+        /// How many days back to look, today included, from 1 to 90
+        #[arg(long, default_value_t = 30, value_parser = clap::value_parser!(u32).range(1..=i64::from(CRAWL_DAYS_KEPT)))]
+        days: u32,
     },
 }
 
@@ -277,12 +395,14 @@ pub(crate) struct ServeArgs {
     /// The address and port to answer on over plain HTTP
     #[arg(long, value_name = "ADDRESS", default_value = "127.0.0.1:8080")]
     pub(crate) listen: SocketAddr,
+    /// Make the site first when the folder has none, at the address in `KHALID_ADDRESS`
+    #[arg(long)]
+    pub(crate) init: bool,
     /// Answer over HTTPS for this domain on ports 443 and 80, with a free
     /// certificate from Let's Encrypt that Khalid gets and renews
     #[arg(long, value_name = "DOMAIN", conflicts_with = "listen")]
     pub(crate) domain: Option<Domain>,
-    /// Agree to Let's Encrypt's subscriber agreement without being asked,
-    /// such as in a service or a container
+    /// Agree to Let's Encrypt's subscriber agreement unasked, as in a service or a container
     #[arg(long, requires = "domain")]
     pub(crate) accept_terms: bool,
     /// The address for HTTPS instead of port 443 on every address
@@ -299,6 +419,11 @@ pub(crate) struct ServeArgs {
     #[cfg(feature = "test-util")]
     #[arg(long, hide = true, value_name = "SECONDS")]
     pub(crate) alert_every: Option<u64>,
+    /// Test builds only: look at the public address this many seconds
+    /// apart, even when answering on loopback.
+    #[cfg(feature = "test-util")]
+    #[arg(long, hide = true, value_name = "SECONDS")]
+    pub(crate) watch_every: Option<u64>,
 }
 
 /// What `khalid init` takes. Each flag answers one of the four questions, and
@@ -469,84 +594,4 @@ pub(crate) enum Network {
     Fetch,
     /// Stay offline, because `--offline` was given.
     Offline,
-}
-
-/// Which version `khalid update` installs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum UpdateTarget {
-    /// The newest release.
-    Latest,
-    /// The version before the last update.
-    Previous,
-}
-
-impl Command {
-    /// The command as a person types it, such as `theme sync`.
-    pub(crate) fn name(&self) -> &'static str {
-        match self {
-            Self::Init(_) => "init",
-            Self::Serve(_) => "serve",
-            Self::New { .. } => "new",
-            Self::Build { .. } => "build",
-            Self::Lint { .. } => "lint",
-            Self::Publish { .. } => "publish",
-            Self::Theme {
-                command: ThemeCommand::Sync { .. },
-            } => "theme sync",
-            Self::Theme {
-                command: ThemeCommand::Check { .. },
-            } => "theme check",
-            Self::Import(_) => "import",
-            Self::Export => "export",
-            Self::Mcp => "mcp",
-            Self::Agents => "agents",
-            Self::Doctor { .. } => "doctor",
-            Self::Backup { .. } => "backup",
-            Self::Audit { .. } => "audit",
-            Self::Update { .. } => "update",
-            Self::Pull => "pull",
-            Self::Keys {
-                command: KeysCommand::Create(_),
-            } => "keys create",
-            Self::Keys {
-                command: KeysCommand::Revoke { .. },
-            } => "keys revoke",
-            Self::Staff {
-                command: StaffCommand::Owner(_),
-            } => "staff owner",
-            Self::Db {
-                command: DbCommand::Migrate,
-            } => "db migrate",
-            Self::Db {
-                command: DbCommand::Rebuild,
-            } => "db rebuild",
-            Self::Db {
-                command: DbCommand::Export { .. },
-            } => "db export",
-            Self::Redirects {
-                command: RedirectsCommand::Import { .. },
-            } => "redirects import",
-            Self::Redirects {
-                command: RedirectsCommand::Export,
-            } => "redirects export",
-            Self::Redirects {
-                command: RedirectsCommand::Explain { .. },
-            } => "redirects explain",
-            Self::Webhooks {
-                command: WebhooksCommand::Add { .. },
-            } => "webhooks add",
-            Self::Webhooks {
-                command: WebhooksCommand::List,
-            } => "webhooks list",
-            Self::Webhooks {
-                command: WebhooksCommand::Remove { .. },
-            } => "webhooks remove",
-            Self::Bing {
-                command: BingCommand::Sitemap,
-            } => "bing sitemap",
-            Self::Bing {
-                command: BingCommand::Report,
-            } => "bing report",
-        }
-    }
 }

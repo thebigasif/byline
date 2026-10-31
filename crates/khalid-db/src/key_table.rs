@@ -3,10 +3,11 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use chrono::SecondsFormat;
+use chrono::{DateTime, SecondsFormat, Utc};
 use khalid_api::content_store::BoxFuture;
 use khalid_api::keys::{
-    Access, CreateKeyError, KeyHash, KeyId, KeyStore, KeyStoreError, Role, Scope, StoredKey,
+    Access, CreateKeyError, KeyHash, KeyId, KeyStore, KeyStoreError, ListedKey, Role, Scope,
+    StoredKey,
 };
 use khalid_core::Clock;
 use sqlx::Row;
@@ -49,15 +50,7 @@ impl KeyTable {
         let (row_id, kind): (i64, String) = (row.try_get("id")?, row.try_get("kind")?);
         let (role, hash): (Option<String>, String) =
             (row.try_get("role")?, row.try_get("key_hash")?);
-        let access = match (kind.as_str(), role) {
-            ("content", None) => Access::Content,
-            ("integration", None) => Access::Integration(self.scopes(row_id).await?),
-            ("staff", Some(role)) => Access::Staff(
-                role.parse::<Role>()
-                    .map_err(|_| unreadable("role", &role))?,
-            ),
-            _ => return Err(unreadable("kind", &kind)),
-        };
+        let access = self.access(row_id, &kind, role).await?;
         let hash = if kind == "content" {
             KeyHash::Sha256(
                 from_hex(&hash).ok_or_else(|| unreadable("key_hash", "not 64 hex digits"))?,
@@ -66,6 +59,56 @@ impl KeyTable {
             KeyHash::Argon2id(hash)
         };
         Ok(Some(StoredKey::new(id.clone(), access, hash)))
+    }
+
+    /// What key row `row_id` of `kind` may do, with its staff `role`.
+    async fn access(
+        &self,
+        row_id: i64,
+        kind: &str,
+        role: Option<String>,
+    ) -> Result<Access, DbError> {
+        Ok(match (kind, role) {
+            ("content", None) => Access::Content,
+            ("integration", None) => Access::Integration(self.scopes(row_id).await?),
+            ("staff", Some(role)) => Access::Staff(
+                role.parse::<Role>()
+                    .map_err(|_| unreadable("role", &role))?,
+            ),
+            _ => return Err(unreadable("kind", kind)),
+        })
+    }
+
+    /// Every key that works, oldest first. Keys made in the same second
+    /// come in the order they were made, by their row.
+    async fn list_now(&self) -> Result<Vec<ListedKey>, DbError> {
+        let rows = sqlx::query(
+            "SELECT id, key_id, kind, role, name, created_at FROM api_keys \
+             WHERE site_id = ?1 AND revoked_at IS NULL ORDER BY created_at, id",
+        )
+        .bind(self.site.as_row())
+        .fetch_all(&self.db.readers)
+        .await?;
+        let mut keys = Vec::with_capacity(rows.len());
+        for row in rows {
+            let (row_id, key_id): (i64, String) = (row.try_get("id")?, row.try_get("key_id")?);
+            let (kind, role): (String, Option<String>) =
+                (row.try_get("kind")?, row.try_get("role")?);
+            let (name, created_at): (String, String) =
+                (row.try_get("name")?, row.try_get("created_at")?);
+            let id = KeyId::try_new(&key_id).map_err(|_| unreadable("key_id", &key_id))?;
+            let created_at = DateTime::parse_from_rfc3339(&created_at)
+                .map_err(|_| unreadable("created_at", &created_at))?
+                .with_timezone(&Utc);
+            let access = self.access(row_id, &kind, role).await?;
+            keys.push(ListedKey {
+                id,
+                name,
+                access,
+                created_at,
+            });
+        }
+        Ok(keys)
     }
 
     /// The scopes of key row `key`, once each, in the order the API
@@ -178,6 +221,10 @@ impl KeyStore for KeyTable {
 
     fn revoke<'a>(&'a self, id: &'a KeyId) -> BoxFuture<'a, Result<bool, KeyStoreError>> {
         Box::pin(async move { self.revoke_now(id).await.map_err(KeyStoreError::new) })
+    }
+
+    fn list(&self) -> BoxFuture<'_, Result<Vec<ListedKey>, KeyStoreError>> {
+        Box::pin(async move { self.list_now().await.map_err(KeyStoreError::new) })
     }
 }
 

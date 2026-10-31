@@ -5,7 +5,7 @@ use khalid_core::{AbsoluteUrl, Locale, Slug};
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use super::{Listable, display};
+use super::{HeadParts, Listable, PostHead, display};
 use crate::query::{FieldValues, Format, Literal};
 
 /// A published post in API shape. Bodies are present only when asked for
@@ -40,6 +40,12 @@ pub struct Post {
     published_at: DateTime<Utc>,
     /// When it last changed.
     updated_at: DateTime<Utc>,
+    /// What its page carries in `<head>` for search engines and share
+    /// cards, so a front end of its own keeps the meta tags and schema.
+    /// Absent until the site's pages have been made once.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<HeadParts>)]
+    head: Option<PostHead>,
     /// The body, in the formats asked for.
     #[serde(flatten)]
     bodies: Bodies,
@@ -109,6 +115,7 @@ impl Post {
             authors: Vec::new(),
             published_at,
             updated_at: published_at,
+            head: None,
             bodies: Bodies::default(),
         }
     }
@@ -147,6 +154,12 @@ impl Post {
         Self { updated_at, ..self }
     }
 
+    /// The same post with the head of its page, or none.
+    #[must_use]
+    pub fn with_head(self, head: Option<PostHead>) -> Self {
+        Self { head, ..self }
+    }
+
     /// The same post with these bodies.
     #[must_use]
     pub fn with_bodies(self, bodies: Bodies) -> Self {
@@ -173,6 +186,16 @@ impl Post {
     /// The slug.
     pub fn slug(&self) -> &Slug {
         &self.slug
+    }
+
+    /// The full public address.
+    pub fn url(&self) -> &AbsoluteUrl {
+        &self.url
+    }
+
+    /// The language.
+    pub fn language(&self) -> &Locale {
+        &self.language
     }
 }
 

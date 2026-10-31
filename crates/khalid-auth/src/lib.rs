@@ -16,20 +16,21 @@ mod limiter;
 mod magic_link;
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
-mod passkey;
+#[cfg(any(test, feature = "test-util"))]
+mod memory_sites;
+mod passkey_site;
 mod passkey_store;
 mod password;
 mod permission;
 mod routes;
 mod session;
 mod session_door;
+mod super_admin;
 
 pub use account::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, StoredAccount,
 };
-pub use accounts::{
-    Accounts, CEREMONY, FRESH, Links, Passkeys, RegistrationRequest, SignInError, SignedIn,
-};
+pub use accounts::{Accounts, CEREMONY, FRESH, Links, Passkeys, SignInError, SignedIn};
 pub use email::{Email, ParseEmailError};
 pub use limiter::{MAX_FAILURES, SignInLimiter, WINDOW};
 pub use magic_link::{
@@ -37,17 +38,28 @@ pub use magic_link::{
 };
 #[cfg(any(test, feature = "test-util"))]
 pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemoryPasskeys, MemorySessions};
-pub use passkey::{
-    AuthenticatorData, Challenge, PasskeyError, PublicKey, Registration, RelyingParty,
-    verify_assertion, verify_registration,
+#[cfg(any(test, feature = "test-util"))]
+pub use memory_sites::MemorySites;
+pub use passkey_site::{PasskeyCheckError, PasskeySite, Registering, SavedPasskey, SigningIn};
+pub use passkey_store::{
+    ListedPasskey, MAX_NAME_CHARS, PasskeyId, PasskeyName, PasskeyNameError, PasskeyStore,
+    PasskeyStoreError, StoredPasskey,
 };
-pub use passkey_store::{PasskeyStore, PasskeyStoreError, StoredPasskey};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
 pub use permission::{ParsePermissionError, Permission, may_assign, may_manage};
-pub use routes::staff_routes;
+pub use routes::{staff_routes, with_sites};
 pub use session::{
     CLEAR_COOKIE, COOKIE, CSRF_HEADER, CsrfToken, IDLE, LIFETIME, SessionError, SessionHash,
     SessionStore, SessionStoreError, SessionToken, StoredSession,
+};
+pub use super_admin::{
+    AddSiteError, Home, ListedSite, SiteDirectory, SiteDirectoryError, site_domain,
+};
+/// The `webauthn-rs` types the passkey ceremonies send and receive, so
+/// callers name the same version.
+pub use webauthn_rs::prelude::{
+    CreationChallengeResponse, PublicKeyCredential, RegisterPublicKeyCredential,
+    RequestChallengeResponse, WebauthnError,
 };

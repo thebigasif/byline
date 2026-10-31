@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who else is editing, and tables as a grid · Khalid admin mockup</title>
+<style>
+/* Each mockup carries its own copy of the styles so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--radius:.375rem}
+body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.6 system-ui,sans-serif}
+main{max-width:72ch;margin:2rem auto;padding:0 1rem}
+h1{font-size:1.5rem;margin:0 0 1rem}
+h2{font-size:1.125rem;margin:2.5rem 0 .5rem}
+.lede,.hint{color:var(--muted)}
+.hint{display:block;font-size:.9375rem;margin:0 0 .4rem}
+.card{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:.6rem .9rem;margin:.5rem 0}
+.card b{display:block}
+.form{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.25rem}
+.form h3{margin:0 0 .25rem;font-size:1.0625rem}
+.btn{display:inline-flex;align-items:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);font:inherit;font-weight:600}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.title{font-size:1.375rem;font-weight:700;margin:.75rem 0 .25rem}
+.text{border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;color:var(--muted)}
+.grid{overflow-x:auto;margin:0 0 1rem}
+.grid table{border-collapse:collapse;min-width:100%}
+.grid th,.grid td{border:1px solid var(--border);padding:0}
+.grid input{font:inherit;width:100%;min-width:8rem;min-height:44px;padding:.4rem .6rem;border:0;background:var(--bg)}
+.grid th input{font-weight:700;background:var(--surface)}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;margin:0 0 1rem}
+footer{margin:3rem 0 2rem;color:var(--muted);font-size:.9375rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Who else is editing, and tables as a grid</h1>
+  <p class="lede">Two additions to the editor. When two people open the same post, the first one writes and the second one reads, so nobody types over somebody else. And a table opens as a grid of cells you fill in, instead of lines of markdown.</p>
+
+  <h2>1. You hold the post</h2>
+  <p class="hint">A quiet line under the bar says who else has the post open. Nothing changes for you.</p>
+  <p class="hint" role="status">Also here: Maria, reading.</p>
+  <div class="title">Why internal links matter</div>
+  <div class="text">Internal links help readers and Google find the rest of your site.</div>
+
+  <h2>2. Someone else holds the post</h2>
+  <p class="hint">The text is locked, so you can read but not type. The box says who is writing, why the text is locked, and what taking over does before it offers it.</p>
+  <div class="form" role="region" aria-labelledby="held-title">
+    <h3 id="held-title">Maria is editing this post</h3>
+    <p>You can read it, but not change it. It is locked so two people never overwrite each other. It opens for you when Maria closes it.</p>
+    <p class="hint">Taking over locks it for Maria instead. Anything Maria has not saved yet is not kept.</p>
+    <button class="btn" type="button">Take over editing</button>
+  </div>
+  <div class="title">Why internal links matter</div>
+  <div class="text">Internal links help readers and Google find the rest of your site.</div>
+
+  <h2>3. A table in the text</h2>
+  <p class="hint">A table shows as a card. Double-click it, or select it and press Enter, to open the grid. Type /table on an empty line to add a new one.</p>
+  <div class="card"><b>Table</b>| Block | What it adds |</div>
+
+  <h2>4. Editing the table as a grid</h2>
+  <p class="hint">Each cell is a box you type in. Tab moves to the next cell. The buttons add or remove a row or a column at the end.</p>
+  <form class="form" aria-labelledby="grid-title">
+    <h3 id="grid-title">Table</h3>
+    <p class="hint">The top row holds the headings. Each row below is one line of the table.</p>
+    <div class="grid">
+      <table>
+        <thead><tr><th><input aria-label="Heading 1" value="Block"></th><th><input aria-label="Heading 2" value="What it adds"></th></tr></thead>
+        <tbody>
+          <tr><td><input aria-label="Row 1, column 1" value="Callout"></td><td><input aria-label="Row 1, column 2" value="A tinted box for a tip or a warning"></td></tr>
+          <tr><td><input aria-label="Row 2, column 1" value="FAQ"></td><td><input aria-label="Row 2, column 2" value="Questions and answers Google can show"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="row">
+      <button class="btn" type="button">Add a row</button>
+      <button class="btn" type="button">Add a column</button>
+      <button class="btn" type="button">Remove the last row</button>
+      <button class="btn" type="button">Remove the last column</button>
+    </div>
+    <button class="btn primary" type="submit">Save the table</button> <button class="btn" type="button">Cancel</button>
+  </form>
+
+  <footer>Maria stands in for a second writer on your site. The table is from the demo post about blocks.</footer>
+</main>
+</body>
+</html>

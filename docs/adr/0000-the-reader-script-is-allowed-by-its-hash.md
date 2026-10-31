@@ -19,6 +19,7 @@ The ADR "the CSP nonce lives in the header" keeps rendered pages byte for byte t
 
 ## Consequences
 
-- The server track must serve `reader_script()` beside the stylesheet and add its hash to the policy. Until then `khalid build` and `khalid serve` leave `RenderSite.script` as `None`, and no page loads the script.
+- `khalid serve` answers `reader_script()` beside the stylesheet and adds its hash with `SecurityHeaders::with_script`, and `khalid build` writes it to `assets/` (G19). Pages link it whenever one of the features it improves is on. `MediaType::for_file` never gives `JavaScript`, so a file a writer puts beside a post is never served as a script.
+- A browser that does not match a hash source to an external script blocks it, and the page reads as it does with scripts off.
 - Each change to `reader.js` changes its name and its hash together, so a page, its policy and the file always agree.
 - Not checked on this server: the script's behaviour in a browser, since there is no headless browser here. The six-width and scripts-off CI runs are where it gets exercised.

@@ -94,6 +94,7 @@ One Rust binary. Run with no arguments it prints help. Its roles:
 | `khalid new "Title"` | Create a post file with correct front matter. |
 | `khalid lint [path]` | Check one post or the whole site. Exit code 1 on a block, 0 otherwise. `--json` for agents. |
 | `khalid publish <slug>` | Lint, then flip a draft to published. Refuses on a block. |
+| `khalid plan` | Suggest a day for each ready draft at a steady pace, each topic group's pillar first. Changes nothing. `--per-week` sets the pace. |
 | `khalid theme sync <url>` | Pull colours, fonts and logo again. Shows a diff. Manual edits win. |
 | `khalid import <source>` | Bring in a blog from WordPress, Ghost, Medium, Substack or a folder of markdown. |
 | `khalid export` | Static mode: write plain HTML to `public/`. |
@@ -143,6 +144,8 @@ my-blog/
   media/                 originals; derived sizes and formats are generated and cached
   data/site.db           SQLite: the index, versions, forms, subscribers, comments, analytics
   lint.toml              rule severities and thresholds
+  facts.toml             the fact registry: values posts repeat, their old values, when last checked
+  briefs/<lang>/<slug>.toml  optional plan per post: questions, terms, links the linter checks
   public/                static export output, static mode only
 ```
 
@@ -487,6 +490,8 @@ Severities come from `lint.toml`. The defaults:
 | Anchor text reused for a different page | The same anchor text pointed at another post before. Google reads anchor text as a label: one label, one page |
 | Same anchor to the same page too often | The same exact anchor text to the same URL more than N times across the site |
 | Vague anchors | "click here", "read more", "here", "this post" |
+| Anchor misses its target | The anchor text shares no word with the title, search title or focus keyword of the post it opens |
+| Anchor is the post's own topic | An internal link to another page whose anchor text holds this post's own focus keyword |
 | Same target linked twice in one post | Only the first link counts |
 | Link to a redirecting or dead URL | Internal or external |
 | Orphan post | A published post with no inbound internal link. Checked after publish and shown on the dashboard |
@@ -519,6 +524,11 @@ Severities come from `lint.toml`. The defaults:
 | Glossary term not linked | The post uses a term the glossary defines without linking it. Shown with a one-click fix |
 | Form without a destination | A form block that delivers to no email address and no webhook |
 | Overlapping collections | Two collections in `routes.toml` could claim the same post |
+| Old value of a fact | The post gives a value `facts.toml` lists as one a fact held before. Suggests the current value |
+| Fact not checked | The post gives a fact from `facts.toml` whose `checked` date is older than a configurable number of months, default 6 |
+| Brief question unanswered | The post's brief lists a question no heading asks, in any word order |
+| Brief term missing | The post's brief lists a term the body and headings never use |
+| Brief link missing | The post's brief lists a page the post does not link to |
 
 `khalid lint --fix` repairs the safe ones: alt text from the caption, slug cleanup, heading order. Everything else is for the writer.
 

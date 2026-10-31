@@ -12,6 +12,7 @@ use utoipa::ToSchema;
 use utoipa::openapi::schema::{ObjectBuilder, Schema, Type};
 
 use super::display_option;
+use super::seo_fields::{CustomJsonLd, SearchTitle};
 
 /// Where a post stands in review, before it is published (KH-EDT-4).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -203,6 +204,16 @@ pub struct PostSettings {
     #[serde(serialize_with = "display_option")]
     #[schema(value_type = Option<String>, example = "<meta name=\"verify\" content=\"x\">")]
     pub head_code: Option<HeadCode>,
+    /// The title search results show, in place of the site's title
+    /// template, or `null` for the template's.
+    pub seo_title: Option<SearchTitle>,
+    /// The one search phrase the post is written to answer, which the
+    /// linter checks the title, description and text against.
+    #[schema(value_type = Option<String>, example = "anchor text")]
+    pub focus_keyword: Option<NonBlank>,
+    /// Hand-written JSON-LD the page carries beside the schema Khalid
+    /// writes, for a type Khalid does not write itself.
+    pub schema: Option<CustomJsonLd>,
 }
 
 /// The schema for [`PostAccess`]: one of its names.

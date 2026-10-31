@@ -1,0 +1,14 @@
+# The fact registry, from the site's `facts.toml`. The Pro plan used to
+# cost 19 and then 24 USD a month. The free trial's old value is part of its
+# current one, so a post that gives the current value is never flagged.
+[[facts]]
+key = "pro-plan-price"
+value = "29 USD a month"
+old = ["19 USD a month", "24 USD a month"]
+checked = "2026-09-01"
+
+[[facts]]
+key = "free-trial"
+value = "14 days, no card needed"
+old = ["14 days"]
+checked = "2026-09-01"

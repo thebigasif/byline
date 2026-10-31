@@ -1,19 +1,29 @@
+import { useQuery } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { useState } from "react";
+import { readCheck } from "../api/check";
 import type { AdminPost } from "../api/posts";
+import type { PostVersion } from "../api/versions";
 import { Problem } from "../components/Problem";
 import { en } from "../strings/en";
 import { GoLive } from "./GoLive";
 import { LintPanel } from "./LintPanel";
+import { LivePage } from "./LivePage";
+import { findingsOf, scoreOf } from "./lint";
 import { PostSettings } from "./PostSettings";
+import { Presence } from "./Presence";
 import { PreviewLink } from "./PreviewLink";
 import { PublishButton } from "./PublishButton";
 import { RichText } from "./RichText";
 import { fitsRichText } from "./richText";
+import { SchemaPanel } from "./SchemaPanel";
+import { SearchPreview } from "./SearchPreview";
 import { scheduledAt } from "./schedule";
 import { type SettingsDraft, withSetting } from "./settings";
 import { type SaveState, useAutosave } from "./useAutosave";
+import { usePresence } from "./usePresence";
 import { usePublish } from "./usePublish";
+import { Versions } from "./Versions";
 
 type Props = { post: AdminPost };
 
@@ -28,9 +38,31 @@ function statusText(state: SaveState, dirty: boolean): string {
 export function EditorForm({ post }: Props) {
   const { draft, setDraft, dirty, state, save, updatedAt } = useAutosave(post);
   const { publishing, publish } = usePublish(post, save, updatedAt);
+  // Checked again after each save, since the key holds the saved copy's time.
+  const check = useQuery({
+    queryKey: ["check", post.id, updatedAt.current],
+    queryFn: () => readCheck(post.id),
+  });
+  const checked = check.data ?? null;
+  const refused = publishing.findings;
+  const findings = refused.length > 0 ? refused : findingsOf(checked?.lint);
+  // While someone else holds the post, this writer reads it and changes nothing.
+  const { presence, locked, takeOver } = usePresence(post.id);
   const [rich, setRich] = useState(() => fitsRichText(post.markdown));
   const [held, setHeld] = useState(!rich);
   const [at, setAt] = useState(() => scheduledAt(post));
+  // The page as readers see it takes the side column while it is shown.
+  const [live, setLive] = useState(false);
+  // Counts restores, so the rich-text view opens again on the text brought back.
+  const [restored, setRestored] = useState(0);
+  const restore = ({ title, markdown }: PostVersion) => {
+    setDraft((current) => ({ ...current, title, markdown }));
+    if (!fitsRichText(markdown)) {
+      setRich(false);
+      setHeld(true);
+    }
+    setRestored((count) => count + 1);
+  };
   const toRich = () => {
     const fits = fitsRichText(draft.markdown);
     setRich(fits);
@@ -46,6 +78,7 @@ export function EditorForm({ post }: Props) {
   const setMarkdown = (markdown: string) => setDraft((current) => ({ ...current, markdown }));
   const setSetting = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) =>
     setDraft((current) => ({ ...current, settings: withSetting(current.settings, key, value) }));
+  const fields = { settings: draft.settings, onSetting: setSetting, onBlur };
 
   return (
     <>
@@ -59,15 +92,26 @@ export function EditorForm({ post }: Props) {
             {en.editor.markdown}
           </button>
         </fieldset>
+        <button
+          type="button"
+          className="btn"
+          aria-pressed={live}
+          onClick={() => setLive((shown) => !shown)}
+        >
+          {en.live.show}
+        </button>
         <span className="hint" role="status">
           {statusText(state, dirty)}
         </span>
-        <PublishButton
-          publishing={publishing}
-          scheduling={at !== ""}
-          onPublish={() => void publish(at)}
-        />
+        {locked ? null : (
+          <PublishButton
+            publishing={publishing}
+            scheduling={at !== ""}
+            onPublish={() => void publish(at)}
+          />
+        )}
       </div>
+      <Presence presence={presence} onTakeOver={() => void takeOver()} />
       {publishing.problem === null ? null : <Problem message={publishing.problem} />}
       {leaving.status === "blocked" ? (
         <div className="problem" role="alertdialog" aria-labelledby="leave-what">
@@ -86,7 +130,7 @@ export function EditorForm({ post }: Props) {
       ) : null}
       {held ? <p className="hint">{en.editor.onlyMarkdown}</p> : null}
       {state.kind === "failed" ? <Problem message={state.message} /> : null}
-      <div className="layout">
+      <div className={live ? "layout live" : "layout"}>
         <div>
           <label className="sr-only" htmlFor="title">
             {en.editor.title}
@@ -95,15 +139,23 @@ export function EditorForm({ post }: Props) {
             id="title"
             className="title"
             value={draft.title}
+            readOnly={locked}
             onChange={(event) => setTitle(event.target.value)}
             onBlur={onBlur}
           />
           {rich ? (
-            <RichText markdown={draft.markdown} onChange={setMarkdown} onBlur={onBlur} />
+            <RichText
+              key={restored}
+              markdown={draft.markdown}
+              readOnly={locked}
+              onChange={setMarkdown}
+              onBlur={onBlur}
+            />
           ) : (
             <textarea
               className="source"
               aria-label={en.editor.text}
+              readOnly={locked}
               value={draft.markdown}
               onChange={(event) => setMarkdown(event.target.value)}
               onBlur={onBlur}
@@ -112,13 +164,20 @@ export function EditorForm({ post }: Props) {
             />
           )}
         </div>
-        <div>
-          <LintPanel findings={publishing.findings} />
-          <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
-            {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}
-            <PreviewLink id={post.id} />
-          </PostSettings>
-        </div>
+        {live ? (
+          <LivePage id={post.id} version={updatedAt.current} />
+        ) : (
+          <div inert={locked}>
+            <LintPanel findings={findings} score={scoreOf(checked?.lint)} />
+            <SearchPreview snippet={checked?.snippet ?? null} {...fields} />
+            <SchemaPanel check={checked} live={publishing.status === "published"} {...fields} />
+            <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
+              {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}
+              <PreviewLink id={post.id} />
+              <Versions id={post.id} version={updatedAt.current} now={draft} onRestore={restore} />
+            </PostSettings>
+          </div>
+        )}
       </div>
     </>
   );

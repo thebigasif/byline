@@ -1,5 +1,6 @@
 //! The rest of the site, for rules that compare a post with its neighbours.
 
+use chrono::NaiveDate;
 use khalid_core::{Locale, Slug, SlugMode};
 use serde::Deserialize;
 
@@ -55,6 +56,13 @@ pub trait SiteView {
     fn collections(&self) -> &[LintCollection] {
         &[]
     }
+
+    /// The facts the site keeps in `facts.toml`, in the order findings
+    /// about them are listed. Empty when the site has none, and the rules
+    /// that need them skip.
+    fn facts(&self) -> &[LintFact] {
+        &[]
+    }
 }
 
 /// A site's posts, pages and glossary, held in memory.
@@ -80,6 +88,8 @@ pub struct LintSite {
     pub sibling_hosts: Vec<String>,
     /// The site's collections.
     pub collections: Vec<LintCollection>,
+    /// The facts the site keeps in its fact registry.
+    pub facts: Vec<LintFact>,
 }
 
 impl SiteView for LintSite {
@@ -117,6 +127,47 @@ impl SiteView for LintSite {
 
     fn collections(&self) -> &[LintCollection] {
         &self.collections
+    }
+
+    fn facts(&self) -> &[LintFact] {
+        &self.facts
+    }
+}
+
+/// One fact from the site's fact registry: a value posts repeat, such as a
+/// price, with the values it replaced and the day someone last checked it.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct LintFact {
+    /// The fact's name in `facts.toml`, such as `pro-plan-price`.
+    pub key: String,
+    /// The value as posts should give it, such as "29 USD a month".
+    pub value: String,
+    /// Values the fact held before, which a post should no longer give.
+    #[serde(default)]
+    pub old: Vec<String>,
+    /// The day someone last made sure the value still holds.
+    pub checked: NaiveDate,
+}
+
+impl LintFact {
+    /// The fact `key` with `value`, last checked on `checked`, with no old
+    /// values.
+    pub fn new(key: impl Into<String>, value: impl Into<String>, checked: NaiveDate) -> Self {
+        Self {
+            key: key.into(),
+            value: value.into(),
+            old: Vec::new(),
+            checked,
+        }
+    }
+
+    /// This fact with `old`, the values it held before.
+    #[must_use]
+    pub fn with_old(mut self, old: Vec<String>) -> Self {
+        self.old = old;
+        self
     }
 }
 

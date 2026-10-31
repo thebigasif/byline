@@ -1,0 +1,2 @@
+warn no-focus-keyword
+warn fewer-picks-than-title: the title promises 3 picks, but no heading level holds more than 1 (suggest: give each pick its own heading, or change the number in the title)

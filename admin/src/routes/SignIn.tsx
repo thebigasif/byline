@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { checkKey, type KeyCheck } from "../auth/checkKey";
 import { saveKey } from "../auth/session";
+import { EmailSignIn } from "../components/EmailSignIn";
 import { Problem } from "../components/Problem";
 import { en, type UserMessage } from "../strings/en";
 
@@ -57,6 +58,7 @@ export function SignIn() {
           {checking ? en.signIn.checking : en.signIn.submit}
         </button>
       </form>
+      <EmailSignIn />
     </main>
   );
 }

@@ -1,6 +1,8 @@
 //! The HTML of the blocks that post to the server. Each is a real form that
 //! works with scripts off, with a spam trap people never see.
 
+use khalid_core::Slug;
+
 use super::{Renderer, attribute, inside};
 use crate::directive::TRAP;
 use crate::{Block, FormField};
@@ -67,9 +69,15 @@ impl Renderer<'_> {
     }
 
     /// Writes an email field that posts to `/subscribe`, numbered so two
-    /// on one page keep their own ids. With `back`, the form names the page
-    /// a confirmed reader returns to.
-    pub(super) fn subscribe(&mut self, label: &str, button: &str, back: Option<&str>) {
+    /// on one page keep their own ids. With `list`, the form signs the
+    /// reader up to that list. With `back`, the form names the page a
+    /// confirmed reader returns to.
+    pub(super) fn subscribe(
+        &mut self,
+        (label, button): (&str, &str),
+        list: Option<&Slug>,
+        back: Option<&str>,
+    ) {
         self.subscribe_forms = self.subscribe_forms.saturating_add(1);
         let id = format!("subscribe-{}", self.subscribe_forms);
         self.html
@@ -90,6 +98,13 @@ impl Renderer<'_> {
             &id,
             "-email\" name=\"email\" type=\"email\" autocomplete=\"email\" required /></p>\n",
         ]);
+        if let Some(list) = list {
+            self.push(&[
+                "<input type=\"hidden\" name=\"list\" value=\"",
+                list.as_str(),
+                "\" />\n",
+            ]);
+        }
         self.trap(&id);
         self.push(&[
             "<p><button type=\"submit\">",
@@ -117,7 +132,7 @@ impl Renderer<'_> {
             &attribute(note),
             "</p>\n",
         ]);
-        self.subscribe(label, button, back);
+        self.subscribe((label, button), None, back);
         self.html.push_str("</section>\n");
     }
 

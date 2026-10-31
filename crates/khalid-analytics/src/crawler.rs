@@ -158,6 +158,21 @@ impl Crawler {
             .then(|| Self::new("Other bot", CrawlerKind::Other))
     }
 
+    /// The bot the log names `name`, such as `GPTBot`, or `None` for a
+    /// name this version does not know.
+    pub fn named(name: &str) -> Option<Self> {
+        let other = [
+            ("Other bot", CrawlerKind::Other),
+            ("No user agent", CrawlerKind::Other),
+        ];
+        KNOWN
+            .iter()
+            .map(|(_, known, kind)| (*known, *kind))
+            .chain(other)
+            .find(|(known, _)| *known == name)
+            .map(|(known, kind)| Self::new(known, kind))
+    }
+
     /// The bot's name as the log shows it, such as `Googlebot`, or
     /// `Other bot` for one with no entry of its own.
     pub fn name(self) -> &'static str {

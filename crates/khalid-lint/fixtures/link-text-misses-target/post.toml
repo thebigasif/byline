@@ -1,0 +1,13 @@
+# The link opens "How to choose link text" (site.toml), but its words share
+# no word with that title.
+extends = "clean"
+
+[[links]]
+kind = "internal"
+target = "/blog/choosing-link-text/"
+text = "a guide from last spring"
+
+[[links]]
+kind = "external"
+target = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+text = "Google's guide to links"

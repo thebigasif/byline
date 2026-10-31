@@ -1,9 +1,23 @@
 import { Editor } from "@tiptap/core";
 import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
+import { WritingAids } from "./aids/trigger";
+import { directiveNodes } from "./blocks/directiveNode";
+import { FootnoteMark, FootnoteText, MarkdownTable } from "./blocks/markdownBlocks";
+import { BLOCK_SPECS, INNER_BLOCKS } from "./blocks/specs";
+import { Wikilink } from "./blocks/wikilink";
 
 /** The blocks the rich-text view knows, each with its markdown form. */
-export const extensions = [StarterKit, Markdown];
+export const extensions = [
+  StarterKit,
+  Markdown,
+  WritingAids,
+  ...directiveNodes,
+  MarkdownTable,
+  FootnoteText,
+  FootnoteMark,
+  Wikilink,
+];
 
 /** The markdown the rich-text view writes for `markdown` after reading it. */
 export function throughRichText(markdown: string): string {
@@ -15,19 +29,25 @@ export function throughRichText(markdown: string): string {
 
 /**
  * Whether the rich-text view gives back exactly this markdown. A post with
- * a block it does not know yet, such as a directive or a wikilink, opens
- * as markdown instead, so nothing is ever rewritten by surprise.
+ * a block it does not know, such as a directive with a name Khalid does not
+ * have, opens as markdown instead, so nothing is ever rewritten by surprise.
  */
 export function fitsRichText(markdown: string): boolean {
-  if (BEYOND_RICH_TEXT.some((pattern) => pattern.test(markdown))) {
+  if (unknownDirective(markdown)) {
     return false;
   }
   return throughRichText(markdown).trimEnd() === markdown.trimEnd();
 }
 
-// Block and leaf directives, and wikilinks, which would read as plain text
-// and could come back escaped after an edit.
-const BEYOND_RICH_TEXT = [/^\s*::/m, /\[\[/];
+const KNOWN = new Set([...BLOCK_SPECS.map((spec) => spec.name), ...INNER_BLOCKS]);
+
+// A directive line whose name is not a block would read as plain text.
+const DIRECTIVE = /^\s*:{2,}([A-Za-z][\w-]*)/gm;
+
+function unknownDirective(markdown: string): boolean {
+  const names = [...markdown.matchAll(DIRECTIVE)].map((found) => found[1] ?? "");
+  return names.some((name) => !KNOWN.has(name));
+}
 
 /** The file's text from the rich-text view, ending in one line break. */
 export function fileText(richMarkdown: string): string {

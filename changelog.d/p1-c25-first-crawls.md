@@ -1,0 +1,1 @@
+- **First-crawl timer.** The analytics crate works out how long each new post waited for each checked crawler, from the crawled pages the visitor log keeps (GEO C2).

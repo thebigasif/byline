@@ -2,7 +2,7 @@
 //! sentence, forms that post, nothing a page opens by itself, and every
 //! word from the site's language (task 5.5, FRONTEND.md).
 
-use khalid_core::{AbsoluteUrl, Locale};
+use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_newsletter::{NewsletterSite, Page, Pages, SiteLinks};
 
 const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -111,4 +111,21 @@ fn a_german_site_gets_german_pages_and_others_english() {
     let french = pages("Notes", "fr").html(Page::Confirmed);
     assert!(french.contains("<html lang=\"fr\">"), "{french}");
     assert!(french.contains("<h1>You are subscribed</h1>"), "{french}");
+}
+
+#[test]
+fn the_embeddable_form_posts_to_the_blog_s_full_address_with_its_list() {
+    let form = pages("Field Notes", "en").embed(&Slug::try_new("weekly").unwrap());
+    assert!(
+        form.starts_with(
+            "<form class=\"khalid-subscribe\" method=\"post\" \
+             action=\"https://www.example.com/blog/subscribe\">"
+        ),
+        "{form}"
+    );
+    assert!(form.contains("<input type=\"hidden\" name=\"list\" value=\"weekly\">"));
+    assert!(form.contains("<label for=\"khalid-subscribe-email\">Your email address</label>"));
+    assert!(form.contains("<p hidden aria-hidden=\"true\">"), "{form}");
+    assert!(!form.contains("<script"), "{form}");
+    assert!(form.ends_with("<p><button type=\"submit\">Sign up</button></p>\n</form>\n"));
 }

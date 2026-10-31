@@ -1,12 +1,13 @@
 //! The files `khalid build` writes beside the pages, from `khalid-seo`: the
-//! sitemap index and its sitemaps, `robots.txt`, `llms.txt`, the RSS,
+//! sitemap index and its sitemaps, the news sitemap, `robots.txt`, `llms.txt`, the RSS,
 //! Atom and JSON feeds of each language, and the `IndexNow` key file
 //! (KH-SEO-5, KH-SEO-6, KH-SEO-7, KH-SEO-11).
 
 use chrono::{DateTime, Utc};
 use khalid_core::{IndexNowSettings, Locale, UserMessage};
 use khalid_seo::{
-    Feed, FeedScope, IndexNow, LlmsTxt, RobotsTxt, SeoError, SeoPage, SeoSite, SitemapSet, UrlPath,
+    ArticleType, Feed, FeedScope, IndexNow, LlmsTxt, NewsSitemap, RobotsTxt, SeoError, SeoPage,
+    SeoSite, SitemapSet, UrlPath,
 };
 
 use crate::build_message;
@@ -58,6 +59,11 @@ pub(crate) fn root_files(site: &SeoSite) -> Result<Vec<SiteFile>, UserMessage> {
     Ok(files)
 }
 
+/// Where the news sitemap lives in the mount folder, beside the others. It
+/// is written only for a site with a news collection, and lists its posts
+/// of the last two days, so Google News reads it often.
+const NEWS_SITEMAP: &str = "/sitemaps/news.xml";
+
 fn collect(
     site: &SeoSite,
     pages: &[SeoPage],
@@ -65,7 +71,8 @@ fn collect(
     now: DateTime<Utc>,
 ) -> Result<Vec<SiteFile>, SeoError> {
     let sitemaps = SitemapSet::from_pages(site, pages)?;
-    let mut files = vec![file("sitemap.xml", sitemaps.index().to_xml())];
+    let mut index = sitemaps.index().clone();
+    let mut files = Vec::new();
     for sitemap in sitemaps.files() {
         let path = sitemap.path.as_str();
         files.push(file(
@@ -73,6 +80,17 @@ fn collect(
             sitemap.sitemap.to_xml(),
         ));
     }
+    if pages
+        .iter()
+        .any(|page| page.article_type == ArticleType::NewsArticle)
+    {
+        let news = NewsSitemap::from_pages(site, pages, now)?;
+        let path = UrlPath::try_new(NEWS_SITEMAP)?;
+        let lastmod = news.entries().iter().map(|entry| entry.published).max();
+        index.push(site.url_for(&site.default_language, &path)?, lastmod);
+        files.push(file(NEWS_SITEMAP.trim_start_matches('/'), news.to_xml()));
+    }
+    files.insert(0, file("sitemap.xml", index.to_xml()));
     files.push(file("robots.txt", RobotsTxt::for_site(site)?.to_string()));
     files.push(file(
         "llms.txt",

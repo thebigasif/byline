@@ -44,7 +44,13 @@
 </footer>
 {% endif %}{% if "author_box" in site.features and page.authors %}{{ author_box(page.authors, page.reviewers if "reviewed_by" in site.features else []) }}
 {% endif %}</article>
-{% if page.comments %}{{ comments_section(page.comments) }}
+{% if "linked_mentions" in site.features and page.mentions %}<section class="mentions">
+<h2>{{ t.mentions }}</h2>
+<ul>
+{% for link in page.mentions %}<li><a href="{{ link.href }}">{{ link.name }}</a></li>
+{% endfor %}</ul>
+</section>
+{% endif %}{% if page.comments %}{{ comments_section(page.comments) }}
 {% endif %}{% if "related_posts" in site.features and page.related %}<section class="related">
 <h2>{{ t.related_posts }}</h2>
 {{ cards(page.related, 3) }}

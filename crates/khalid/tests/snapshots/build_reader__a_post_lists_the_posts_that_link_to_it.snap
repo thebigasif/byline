@@ -1,0 +1,12 @@
+---
+source: crates/khalid/tests/build_reader.rs
+expression: list
+---
+<section class="mentions">
+<h2>Posts that link here</h2>
+<ul>
+<li><a href="/blog/planning-a-topic-cluster/">Planning a topic cluster in an afternoon</a></li>
+<li><a href="/blog/what-a-sitemap-does/">What a sitemap does, and what it does not</a></li>
+<li><a href="/blog/how-to-write-a-title-tag/">How to write a title tag</a></li>
+</ul>
+</section>

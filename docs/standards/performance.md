@@ -110,6 +110,49 @@ CI's runner tells another story. With the hand-back, its trace (run 40470523235)
 
 What a settled server holds, from `/proc/<pid>/smaps` at 51 MB: 27 MB in mimalloc's arena, 16.4 MB of the binary's code, 5.3 MB in the C allocator's heap, where SQLite keeps its page caches, and 1.4 MB of the C library.
 
+## Binary size
+
+The budget is 31,457,280 bytes (30 MB), checked by CI's "Binary size" step after `cargo build --release -p khalid`. On 2026-10-31 integration branch 15 built 33,249,512 bytes and integration branch 16 built 31,639,784. Both merged together built 33,755,112 bytes.
+
+What the release profile already did: fat LTO, one codegen unit, symbols stripped, `panic = "abort"`, and opt-level `"s"` for a few cold crates (the share image stack, the font reader, the import command's HTML reader, and on branch 15 the API crate). The panic behaviour is unchanged.
+
+Where the bytes were, from an unstripped build of both branches merged: 25.8 MB of machine code, 3.5 MB of read-only data, 1.5 MB of unwind tables and 1.4 MB of relocations. The biggest code was the API's router builders (`khalid_api::api::assemble` alone was 650 KB), the `khalid` crate's commands (2.3 MB), image resizing (0.6 MB), and 2.4 MB of C: SQLite, libwebp and mimalloc. Nearly all of it was built at opt-level 3, which trades size for speed even where speed does not matter.
+
+What changed (task/p1-binary-size), each measured on both integration branches merged:
+
+| Profile | Bytes | Saving |
+|---|---|---|
+| Before | 33,755,112 | |
+| Everything at `"s"` | 25,528,680 | 8,226,432 |
+| `"s"` by default, the reader's path at 3 (kept) | 27,490,792 | 6,264,320 |
+| As kept, plus the `khalid` crate at 3 | 35,331,752 | none, 1,576,640 more |
+| As kept, plus SQLite, sqlx, toml and five more Khalid crates at 3 | 28,693,480 | 5,061,632 |
+
+The kept profile builds everything at `"s"` except the crates on a reader's path and on the build's path, which stay at 3: tokio, hyper, axum, http, tower and the allocator; `khalid-core`, `khalid-content`, `khalid-render`, `khalid-static`, `khalid-lint` and `khalid-search`; and the parsers and compressors they run for every post (`comrak`, `minijinja`, `syntect`, the regex crates, `serde` and `serde_json`, the YAML front matter reader, and the brotli and gzip compressors). `opt-level` also reaches the C that a crate's build script compiles, so SQLite and libwebp are now built for size and mimalloc for speed.
+
+The `khalid` crate must stay at `"s"`. With fat LTO the whole program is optimised again at the binary crate's level, so opt-level 3 there inlines the size-built crates back into it, and the binary grew past where it started. Putting the start-up path's crates back at 3 (the last row) cost 1.2 MB and did not move the first byte.
+
+Speed and memory, `scripts/perf.sh` on both branches merged, two runs each, on this server with other builds running:
+
+| Measure | Before | After |
+|---|---|---|
+| Cold start to first byte, 1,000 posts | 72.94 ms, 75.06 ms | 77.52 ms, 77.44 ms |
+| Idle memory, 1,000 posts | 75.12 MB, 72.34 MB | 66.36 MB, 65.94 MB |
+| `khalid --help` | 1.78 ms, 1.85 ms | 1.81 ms, 2.29 ms |
+| Post page render p50 | 0.0282 ms, 0.0285 ms | 0.0277 ms, 0.0271 ms |
+| Full rebuild, 10,000 posts | 13.26 s, 11.92 s | 14.77 s, 12.22 s |
+| Incremental rebuild | 13.24 ms, 13.44 ms | 13.81 ms, 14.82 ms |
+
+Idle memory falls by about 8 MB because less code is mapped in: a settled server holds the binary's code in its resident memory (see above). The first byte is about 3.5 ms slower, well inside its 100 ms budget. Render and rebuild differences are within the noise between runs.
+
+Looked at and left alone:
+
+- **Duplicate crate versions.** html5ever 0.38 (through htmd) beside 0.40 (through ammonia and scraper), png 0.17 (through tiny-skia) beside 0.18, and argon2 0.5 (through webauthn-rs) beside 0.6. Each older copy comes from a crate whose newest release still needs it, so removing one means dropping a feature or downgrading a security crate such as ammonia, for at most about 200 KB.
+- **Dependency features.** The direct dependencies already turn off default features and name only what the code uses.
+- **A non-PIE binary** would drop 1.4 MB of relocations but give up address space layout randomisation for the binary. No.
+- **Unwind tables** (1.5 MB) can only be dropped with a `rustflags` setting for every build, and backtraces need them.
+- **The embedded admin** is only in a binary built after `npm run build`, which CI's size step does not run.
+
 ## Fast to build
 
 - `sccache` and `mold` in CI. `cargo nextest` with the default partitioning.
@@ -119,3 +162,10 @@ What a settled server holds, from `/proc/<pid>/smaps` at 51 MB: 27 MB in mimallo
 ## Baseline
 
 `perf/baseline.json` holds the last accepted numbers and the fixture version. `scripts/perf.sh` runs every measure that can run on a CI runner and writes `perf/current.json`. The gate compares the two.
+
+How `scripts/perf.sh` takes the four measures added for brief G9, all through `khalid-perf`:
+
+- **Lint one post**: the median of 100 posts of the 1,000-post site, spread evenly, each linted against the whole site (`khalid-perf lint`). The `divan` benchmark in `crates/khalid-perf/benches/lint.rs` times the same thing.
+- **Cached post page**: one post page of the 1,000-post site, asked for once so it is cached, then over 50 keep-alive connections for 30 seconds, `oha`'s defaults, with the client on the same machine (`khalid-perf requests`).
+- **Public CSS, compressed**: the Brotli copy of each stylesheet the built home page links, from the 10,000-post build (`khalid-perf sizes`).
+- **Admin initial JavaScript, compressed**: each script `admin/dist/index.html` loads at once (`<script src>` and `modulepreload`), gzipped at level 9 as `admin/scripts/size-budget.mjs` counts. `perf.sh` does not run npm, so it is measured only when `admin/dist` holds a build; otherwise the gate lists it as not measured.

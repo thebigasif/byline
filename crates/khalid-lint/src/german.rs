@@ -18,6 +18,22 @@ pub(crate) const QUESTION_WORDS: &[&str] = &[
     "wieso", "wo", "woher", "wohin",
 ];
 
+/// Title words that ask for a list of the best picks.
+pub(crate) const BEST_OF_WORDS: &[&str] = &["beste", "besten", "bester", "bestes", "top"];
+
+/// Title words that ask for the choices beside one thing.
+pub(crate) const ALTERNATIVES_WORDS: &[&str] = &["alternative", "alternativen"];
+
+/// Title words that ask for a verdict on one thing.
+pub(crate) const REVIEW_WORDS: &[&str] = &[
+    "bewertung",
+    "erfahrungen",
+    "erfahrungsbericht",
+    "rezension",
+    "test",
+    "testbericht",
+];
+
 /// Short forms that end with a full stop inside a sentence, in lowercase.
 pub(crate) const ABBREVIATIONS: &[&str] = &[
     "z.", "b.", "z.b.", "d.h.", "u.a.", "usw.", "bzw.", "ca.", "dr.", "nr.", "vgl.", "evtl.",

@@ -1,0 +1,8 @@
+---
+source: crates/khalid-render/tests/render/glossary.rs
+expression: main_of(&page)
+---
+ id="main" tabindex="-1">
+
+<h1>Search</h1>
+<p class="lock locked" data-feature="search">Search is not available on this site.</p>

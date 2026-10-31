@@ -1,0 +1,27 @@
+---
+// The blog's front page: every post in the site's main language, newest
+// first, each linking to its page.
+import Base from "../layouts/Base.astro";
+import { getPosts, getSettings, routeOf, siteFrom } from "../lib/khalid.js";
+
+const site = siteFrom(import.meta.env);
+const settings = await getSettings(site);
+const posts = (await getPosts(site)).filter(
+  (post) => post.language === settings.default_language,
+);
+const base = import.meta.env.BASE_URL;
+---
+
+<Base lang={settings.default_language} title={settings.title}>
+  <h1>{settings.title}</h1>
+  <ul>
+    {
+      posts.map((post) => (
+        <li>
+          <a href={`${base}/${routeOf(post, base)}/`.replace(/\/+/g, "/")}>{post.title}</a>
+          {post.excerpt && <p>{post.excerpt}</p>}
+        </li>
+      ))
+    }
+  </ul>
+</Base>

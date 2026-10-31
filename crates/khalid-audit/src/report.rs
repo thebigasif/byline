@@ -123,7 +123,7 @@ impl Report {
 /// `field` as one CSV field: in quotes, with quotes doubled, when it holds
 /// a comma, a quote or a line break. A field a spreadsheet would read as a
 /// formula gets a leading `'`, so opening the file runs nothing.
-fn quoted(field: &str) -> String {
+pub(crate) fn quoted(field: &str) -> String {
     let field = if field.starts_with(['=', '+', '-', '@']) {
         format!("'{field}")
     } else {

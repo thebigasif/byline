@@ -47,9 +47,13 @@ export function renderAt(path: string) {
   return { router, ...view };
 }
 
-/** The accessibility problems axe finds on the page; colour needs a real browser. */
+/**
+ * The accessibility problems axe finds on the page. Colour needs a real
+ * browser, and so does a framed page: jsdom cannot pass axe into an iframe.
+ */
 export async function axeViolations(): Promise<string[]> {
   const result = await axe.run(document.body, {
+    iframes: false,
     rules: { "color-contrast": { enabled: false } },
   });
   return result.violations.map((violation) => violation.id);

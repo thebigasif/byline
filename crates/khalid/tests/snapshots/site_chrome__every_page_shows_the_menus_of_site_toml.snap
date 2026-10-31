@@ -1,0 +1,22 @@
+---
+source: crates/khalid/tests/site_chrome.rs
+expression: "format!(\"{header}\\n{footer}\")"
+---
+<header class="site-header">
+<a class="site-name" href="/blog/">Field Notes on SEO</a>
+<nav aria-label="Main menu">
+<ul>
+<li><a href="/blog/guides/">Guides</a></li>
+<li><a href="https://shop.example.com/">Shop</a></li>
+</ul>
+</nav>
+<a class="search-link" href="/blog/search/">Search</a>
+</header>
+<footer class="site-footer">
+<nav aria-label="Footer menu">
+<ul>
+<li><a href="/blog/privacy/">Privacy</a></li>
+<li><a href="/blog/ai/">AI info</a></li>
+</ul>
+</nav>
+</footer>

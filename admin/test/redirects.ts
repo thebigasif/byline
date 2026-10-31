@@ -1,9 +1,9 @@
 import type { Miss, StoredRedirect } from "../src/api/redirects";
-import { json, serve } from "./render";
+import { type Answers, adminBlog } from "./blog";
+import { json } from "./render";
 import { rowsPage } from "./rows";
 
-/** What the blog answers, keyed by method and route, such as `GET /redirects/`. */
-export type Answers = Record<string, (request: Request) => Response | Promise<Response>>;
+export type { Answers } from "./blog";
 
 // What the Redirects screen reads when it opens, empty unless a test says otherwise.
 const EMPTY: Answers = {
@@ -14,14 +14,7 @@ const EMPTY: Answers = {
 
 /** A blog that answers Admin API routes from `answers`, and the requests it was sent. */
 export function redirectsBlog(answers: Answers) {
-  const sent: Request[] = [];
-  const all = { ...EMPTY, ...answers };
-  serve((request) => {
-    sent.push(request);
-    const route = new URL(request.url).pathname.replace("/api/admin/v1", "");
-    return all[`${request.method} ${route}`]?.(request) ?? json(404, {});
-  });
-  return sent;
+  return adminBlog({ ...EMPTY, ...answers });
 }
 
 /** A redirect Khalid keeps: a permanent move made by hand unless `fields` say otherwise. */

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use axum::extract::{OriginalUri, Path, Query, State};
 use axum::middleware;
 use axum::{Json, Router};
-use khalid_core::{Slug, UserMessage};
+use khalid_core::{Slug, SystemClock, UserMessage};
 use serde::Serialize;
 use utoipa::openapi::OpenApi as Document;
 use utoipa::{OpenApi, ToSchema};
@@ -13,8 +13,9 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::api::{ApiDoc, finish};
+use crate::api_limits::ApiLimits;
 use crate::api_version::negotiate_version;
-use crate::content_key::require_content_key;
+use crate::content_key::{ContentDoor, require_content_key};
 use crate::content_store::{ContentStore, PostKey, SiteResources, select};
 use crate::etag::tag_and_revalidate;
 use crate::keys::KeyStore;
@@ -36,13 +37,17 @@ type Store = Arc<dyn ContentStore>;
 ///
 /// [`api::router`]: crate::api::router
 pub fn router(store: Store, keys: Arc<dyn KeyStore>) -> (Router, Document) {
-    finish(OpenApiRouter::with_openapi(ApiDoc::openapi()).nest(BASE, routes(store, keys)))
+    let door = ContentDoor {
+        keys,
+        limits: Arc::new(ApiLimits::new(SystemClock)),
+    };
+    finish(OpenApiRouter::with_openapi(ApiDoc::openapi()).nest(BASE, routes(store, door)))
 }
 
 /// The Content API routes, each declared with `utoipa::path` and
 /// registered through `routes!`, so a route cannot exist without its
 /// `OpenAPI` entry (RULES.md BL-API-4). Every route needs a content key.
-pub(crate) fn routes(store: Store, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
+pub(crate) fn routes(store: Store, door: ContentDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(browse_posts))
         .routes(routes!(read_post))
@@ -75,7 +80,7 @@ pub(crate) fn routes(store: Store, keys: Arc<dyn KeyStore>) -> OpenApiRouter {
         .routes(routes!(read_menu))
         .routes(routes!(read_menu_by_slug))
         .routes(routes!(read_settings))
-        .route_layer(middleware::from_fn_with_state(keys, require_content_key))
+        .route_layer(middleware::from_fn_with_state(door, require_content_key))
         .route_layer(middleware::from_fn(tag_and_revalidate))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(store)

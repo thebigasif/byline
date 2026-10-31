@@ -1,5 +1,8 @@
-//! Adding a passkey and signing in with one, over the Admin API. Bytes
-//! travel as unpadded base64url, the way browsers give them.
+//! Adding a passkey and signing in with one, over the Admin API, in the
+//! standard `WebAuthn` JSON: the options are what the browser's
+//! `PublicKeyCredential.parseCreationOptionsFromJSON` and
+//! `parseRequestOptionsFromJSON` read, and each answer is the credential's
+//! `toJSON()` with the challenge it answers.
 
 use axum::Json;
 use axum::extract::State;
@@ -13,36 +16,31 @@ use khalid_core::UserMessage;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::passkey_list::bad_name;
 use super::{SessionAnswer, cookie_token, problem, refused, set_cookie};
-use crate::{Accounts, CEREMONY, SignInError};
+use crate::{
+    Accounts, CreationChallengeResponse, PasskeyName, PublicKeyCredential,
+    RegisterPublicKeyCredential, RequestChallengeResponse, SignInError,
+};
 
-/// What the admin passes to `navigator.credentials.create`.
+/// What the admin passes to `navigator.credentials.create`, as
+/// `{"publicKey": {...}}`.
 #[derive(Debug, Serialize, ToSchema)]
 pub(super) struct CreateOptions {
-    /// The challenge to sign.
-    challenge: String,
-    /// The site's host name.
-    rp_id: String,
-    /// The account's handle for authenticators.
-    user_id: String,
-    /// Passkeys the account already has.
-    exclude: Vec<String>,
-    /// The key algorithms Khalid accepts, by their `WebAuthn` numbers:
-    /// ES256, then `EdDSA`.
-    algorithms: Vec<i64>,
-    /// How long the browser may wait, in milliseconds.
-    timeout_ms: i64,
+    /// The options, in `publicKey`.
+    #[serde(flatten)]
+    #[schema(value_type = Object)]
+    options: CreationChallengeResponse,
 }
 
-/// What the admin passes to `navigator.credentials.get`.
+/// What the admin passes to `navigator.credentials.get`, as
+/// `{"publicKey": {...}, "mediation": "conditional"}`.
 #[derive(Debug, Serialize, ToSchema)]
 pub(super) struct GetOptions {
-    /// The challenge to sign.
-    challenge: String,
-    /// The site's host name.
-    rp_id: String,
-    /// How long the browser may wait, in milliseconds.
-    timeout_ms: i64,
+    /// The options, in `publicKey`, and how the browser should ask.
+    #[serde(flatten)]
+    #[schema(value_type = Object)]
+    options: RequestChallengeResponse,
 }
 
 /// A new passkey, as `navigator.credentials.create` returned it.
@@ -51,32 +49,26 @@ pub(super) struct GetOptions {
 pub(super) struct NewPasskey {
     /// A name to tell it apart, such as "Work laptop".
     name: String,
-    /// `clientDataJSON`.
-    client_data: String,
-    /// `attestationObject`.
-    attestation_object: String,
+    /// The `challenge` of the options it answers, as they gave it.
+    challenge: String,
+    /// The credential's `toJSON()`.
+    #[schema(value_type = Object)]
+    credential: RegisterPublicKeyCredential,
 }
 
 /// A sign-in, as `navigator.credentials.get` returned it.
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct PasskeySignIn {
-    /// The credential's `rawId`.
-    credential_id: String,
-    /// `clientDataJSON`.
-    client_data: String,
-    /// `authenticatorData`.
-    authenticator_data: String,
-    /// `signature`.
-    signature: String,
+    /// The `challenge` of the options it answers, as they gave it.
+    challenge: String,
+    /// The credential's `toJSON()`.
+    #[schema(value_type = Object)]
+    credential: PublicKeyCredential,
 }
 
 fn decode(text: &str) -> Option<Vec<u8>> {
     URL_SAFE_NO_PAD.decode(text).ok()
-}
-
-fn encode(bytes: &[u8]) -> String {
-    URL_SAFE_NO_PAD.encode(bytes)
 }
 
 /// Starts adding a passkey to the signed-in account. Needs the session
@@ -98,15 +90,7 @@ pub(super) async fn passkey_options(
         return refused();
     };
     match accounts.begin_registration(&token).await {
-        Ok(request) => Json(CreateOptions {
-            challenge: request.challenge.to_base64(),
-            rp_id: request.rp_id,
-            user_id: encode(&request.user_id),
-            exclude: request.exclude.iter().map(|id| encode(id)).collect(),
-            algorithms: vec![-7, -8],
-            timeout_ms: CEREMONY.num_milliseconds(),
-        })
-        .into_response(),
+        Ok(options) => Json(CreateOptions { options }).into_response(),
         Err(error) => passkey_problem(&error),
     }
 }
@@ -134,14 +118,14 @@ pub(super) async fn add_passkey(
     let Ok(Json(body)) = body else {
         return unreadable();
     };
-    let (Some(client), Some(object)) =
-        (decode(&body.client_data), decode(&body.attestation_object))
-    else {
+    let Some(challenge) = decode(&body.challenge) else {
         return unreadable();
     };
-    let name = body.name.trim();
+    let Ok(name) = PasskeyName::new(&body.name) else {
+        return bad_name();
+    };
     match accounts
-        .finish_registration(&token, (&client, &object), name)
+        .finish_registration(&token, &challenge, &body.credential, name.as_str())
         .await
     {
         Ok(()) => StatusCode::CREATED.into_response(),
@@ -159,12 +143,7 @@ pub(super) async fn add_passkey(
 )]
 pub(super) async fn sign_in_options(State(accounts): State<Accounts>) -> Response {
     match accounts.begin_sign_in() {
-        Ok((challenge, rp_id)) => Json(GetOptions {
-            challenge: challenge.to_base64(),
-            rp_id,
-            timeout_ms: CEREMONY.num_milliseconds(),
-        })
-        .into_response(),
+        Ok(options) => Json(GetOptions { options }).into_response(),
         Err(error) => passkey_problem(&error),
     }
 }
@@ -186,17 +165,10 @@ pub(super) async fn passkey_sign_in(
     let Ok(Json(body)) = body else {
         return refused();
     };
-    let id = decode(&body.credential_id);
-    let (client, data) = (decode(&body.client_data), decode(&body.authenticator_data));
-    let (Some(id), Some(client), Some(data), Some(signature)) =
-        (id, client, data, decode(&body.signature))
-    else {
+    let Some(challenge) = decode(&body.challenge) else {
         return refused();
     };
-    match accounts
-        .finish_sign_in(&id, (&client, &data, &signature))
-        .await
-    {
+    match accounts.finish_sign_in(&challenge, &body.credential).await {
         Ok((session, signed_in)) => {
             let mut response = Json(SessionAnswer::from(&signed_in)).into_response();
             set_cookie(&mut response, session.set_cookie().expose());
@@ -206,13 +178,21 @@ pub(super) async fn passkey_sign_in(
     }
 }
 
-fn passkey_problem(error: &SignInError) -> Response {
+pub(super) fn passkey_problem(error: &SignInError) -> Response {
     match error {
+        SignInError::NoPasskey => {
+            let message = UserMessage::new(
+                "You have no passkey with this number.",
+                "It may have been removed already, or it belongs to someone else.",
+                "Reload your passkeys and pick it again.",
+            );
+            Problem::new(ProblemType::NotFound, &message).into_response()
+        }
         SignInError::PasskeysOff => {
             let message = UserMessage::new(
                 "This site has no passkeys set up.",
-                "A passkey needs the site's address, and it is not set.",
-                "Sign in with your password or an email link, or ask the owner to set the address.",
+                "A passkey belongs to the site's host name, and the site address has none, or is not set.",
+                "Sign in with your password or an email link, or ask the owner to set a named address.",
             );
             Problem::new(ProblemType::NotFound, &message).into_response()
         }
@@ -232,7 +212,7 @@ fn unreadable() -> Response {
     let message = UserMessage::new(
         "The new passkey could not be read.",
         "Khalid needs the browser's answer to check the passkey.",
-        "Send JSON with name, client_data and attestation_object in base64url.",
+        "Send JSON with name, challenge and the credential's toJSON() as credential.",
     );
     Problem::new(ProblemType::InvalidBody, &message).into_response()
 }

@@ -5,6 +5,7 @@
 //! key's scope the way a route would.
 
 use khalid_api::keys::{Principal, Scope};
+use khalid_api::post_store::PostStore;
 use khalid_mcp::{ApiTools, BoxFuture, Tool, ToolResult, Tools};
 use serde_json::{Map, Value, json};
 
@@ -65,7 +66,7 @@ impl SiteTools {
                 Err(_) => ToolResult::failed("The findings could not be written out."),
             },
             Ok(None) => ToolResult::failed(
-                "No post has this identity. Check it, or find it with list_posts.",
+                "No post has this identity. Check it, or find it with browse_admin_posts.",
             ),
             Err(error) => {
                 tracing::error!(%error, "a post could not be linted");

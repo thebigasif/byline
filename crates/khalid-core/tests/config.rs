@@ -57,7 +57,7 @@ fn refuses_an_unknown_field() {
             "mode = \"server\"\n",
             "mode = \"server\"\ncolour = \"blue\"\n"
         ),
-        "site.toml, line 5, field \"colour\": unknown field `colour`, expected one of `name`, `address`, `mount`, `mode`, `slugs`, `default_language`, `languages`, `seo`, `reader`, `media`, `mail`, `alerts`, `code`, `preview_link_days`, `preview_link_hours`"
+        "site.toml, line 5, field \"colour\": unknown field `colour`, expected one of `name`, `address`, `mount`, `mode`, `slugs`, `default_language`, `languages`, `seo`, `reader`, `nav`, `announcement`, `media`, `mail`, `alerts`, `code`, `search_console`, `visitor_log`, `preview_link_days`, `preview_link_hours`"
     );
 }
 
@@ -191,6 +191,18 @@ fn the_environment_carries_the_bing_webmaster_key_as_a_secret() {
     assert!(Environment::empty().bing_api_key().is_none());
     let blank = Environment::from_pairs(&[(Environment::BING_API_KEY, " ")]);
     assert!(blank.bing_api_key().is_none());
+}
+
+#[test]
+fn the_environment_carries_the_git_hook_secret_hidden() {
+    let made_for_this_test = "c4b5a69788796a5b4c3d2e1f00f1e2d3";
+    let env = Environment::from_pairs(&[(Environment::GIT_HOOK_SECRET, made_for_this_test)]);
+    let secret = env.git_hook_secret().unwrap();
+    assert_eq!(secret.expose(), made_for_this_test);
+    assert!(!format!("{env:?}").contains(made_for_this_test), "{env:?}");
+    assert!(Environment::empty().git_hook_secret().is_none());
+    let blank = Environment::from_pairs(&[(Environment::GIT_HOOK_SECRET, " ")]);
+    assert!(blank.git_hook_secret().is_none());
 }
 
 #[test]

@@ -8,8 +8,9 @@ use chrono::{DateTime, TimeDelta, Utc};
 
 use super::{Accounts, SignInError, SignedIn};
 use crate::{
-    AccountId, Challenge, PasskeyStore, RelyingParty, SessionToken, verify_assertion,
-    verify_registration,
+    AccountId, CreationChallengeResponse, ListedPasskey, PasskeyId, PasskeyName, PasskeySite,
+    PasskeyStore, PublicKeyCredential, RegisterPublicKeyCredential, Registering,
+    RequestChallengeResponse, SessionToken, SigningIn,
 };
 
 /// How long a passkey request may take to answer.
@@ -19,79 +20,68 @@ pub const CEREMONY: TimeDelta = TimeDelta::minutes(5);
 /// memory by asking for challenges and never answering.
 const MAX_PENDING: usize = 10_000;
 
-/// The challenges waiting for an answer: what each was asked for, and when.
-type Waiting = BTreeMap<Challenge, (Purpose, DateTime<Utc>)>;
+/// The requests waiting for an answer, by the challenge each sent: what
+/// each was asked for, and when.
+type Pending = BTreeMap<Vec<u8>, (Waiting, DateTime<Utc>)>;
 
 /// What a waiting challenge was asked for.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Purpose {
-    Register(AccountId),
-    SignIn,
+#[derive(Debug, Clone)]
+enum Waiting {
+    Register(AccountId, Registering),
+    SignIn(SigningIn),
 }
 
 /// What passkey sign-in needs: where passkeys are kept, the site they
-/// belong to, and the challenges waiting for an answer. Cloning shares the
-/// waiting challenges.
+/// belong to, and the requests waiting for an answer. Cloning shares the
+/// waiting requests.
 #[derive(Clone)]
 pub struct Passkeys {
     store: Arc<dyn PasskeyStore>,
-    party: RelyingParty,
-    pending: Arc<Mutex<Waiting>>,
+    site: PasskeySite,
+    pending: Arc<Mutex<Pending>>,
 }
 
 impl fmt::Debug for Passkeys {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Passkeys")
-            .field("party", &self.party)
+            .field("site", &self.site.id())
             .finish_non_exhaustive()
     }
 }
 
 impl Passkeys {
-    /// Passkeys kept in `store`, for the site `party` names.
-    pub fn new(store: Arc<dyn PasskeyStore>, party: RelyingParty) -> Self {
+    /// Passkeys kept in `store`, for `site`.
+    pub fn new(store: Arc<dyn PasskeyStore>, site: PasskeySite) -> Self {
         Self {
             store,
-            party,
+            site,
             pending: Arc::default(),
         }
     }
 
-    /// A new challenge waiting for `purpose`, made at `now`.
-    fn ask(&self, purpose: Purpose, now: DateTime<Utc>) -> Result<Challenge, SignInError> {
-        let challenge = Challenge::generate().map_err(SignInError::from)?;
+    /// Keeps `waiting` under `challenge`, made at `now`.
+    fn keep(
+        &self,
+        challenge: Vec<u8>,
+        waiting: Waiting,
+        now: DateTime<Utc>,
+    ) -> Result<(), SignInError> {
         let mut pending = self.pending.lock().map_err(|_| SignInError::Refused)?;
         pending.retain(|_, (_, made)| now < *made + CEREMONY);
         if pending.len() >= MAX_PENDING {
             return Err(SignInError::limited(CEREMONY));
         }
-        pending.insert(challenge.clone(), (purpose, now));
-        Ok(challenge)
+        pending.insert(challenge, (waiting, now));
+        Ok(())
     }
 
-    /// Takes the challenge `client_data` answers, once, when it was asked
-    /// for `purpose` and is still fresh at `now`.
-    fn take(&self, client_data: &[u8], purpose: Purpose, now: DateTime<Utc>) -> Option<Challenge> {
-        let challenge = Challenge::answered_in(client_data)?;
+    /// Takes what waits under `challenge`, once, when it is still fresh at
+    /// `now`.
+    fn take(&self, challenge: &[u8], now: DateTime<Utc>) -> Option<Waiting> {
         let mut pending = self.pending.lock().ok()?;
-        let (asked, made) = pending.remove(&challenge)?;
-        (asked == purpose && now < made + CEREMONY).then_some(challenge)
+        let (waiting, made) = pending.remove(challenge)?;
+        (now < made + CEREMONY).then_some(waiting)
     }
-}
-
-/// What the admin passes to `navigator.credentials.create` to add a
-/// passkey.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RegistrationRequest {
-    /// The challenge to sign.
-    pub challenge: Challenge,
-    /// The site's host name.
-    pub rp_id: String,
-    /// The account's handle for authenticators: its number, in 8 bytes.
-    pub user_id: [u8; 8],
-    /// The passkeys the account already has, so the same one is not added
-    /// twice.
-    pub exclude: Vec<Vec<u8>>,
 }
 
 impl Accounts {
@@ -102,82 +92,139 @@ impl Accounts {
         self
     }
 
-    /// Starts adding a passkey to the account `token` signs in.
+    /// Starts adding a passkey to the account `token` signs in: the
+    /// options for `navigator.credentials.create`, which name the passkeys
+    /// the account already has so the same one is not added twice.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SignInError::Refused`] for no live session,
+    /// [`SignInError::PasskeysOff`] when the site has no passkeys,
+    /// [`SignInError::Limited`] when too many requests are waiting, and
+    /// [`SignInError::Unavailable`] when a store fails.
+    pub async fn begin_registration(
+        &self,
+        token: &SessionToken,
+    ) -> Result<CreationChallengeResponse, SignInError> {
+        let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
+        let account = self.session(token).await?.account;
+        let existing = passkeys.store.of(account.id()).await?;
+        let exclude = existing
+            .iter()
+            .map(|stored| stored.passkey.credential_id().to_vec())
+            .collect();
+        let (options, registering) = passkeys.site.start_registration(&account, exclude)?;
+        let waiting = Waiting::Register(account.id(), registering);
+        let challenge = options.public_key.challenge.clone();
+        passkeys.keep(challenge, waiting, self.clock.now())?;
+        Ok(options)
+    }
+
+    /// Adds `credential`, the passkey the browser made for the options
+    /// whose challenge is `challenge`, to the account `token` signs in,
+    /// under `name`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SignInError::Passkey`] naming why the passkey was refused,
+    /// [`SignInError::Refused`] for no live session, a challenge that was
+    /// not asked for this account, used or too old, or a passkey already
+    /// added, and [`SignInError::Unavailable`] when a store fails.
+    pub async fn finish_registration(
+        &self,
+        token: &SessionToken,
+        challenge: &[u8],
+        credential: &RegisterPublicKeyCredential,
+        name: &str,
+    ) -> Result<(), SignInError> {
+        let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
+        let account = self.session(token).await?.account;
+        let now = self.clock.now();
+        let Some(Waiting::Register(asked, registering)) = passkeys.take(challenge, now) else {
+            return Err(SignInError::Refused);
+        };
+        if asked != account.id() {
+            return Err(SignInError::Refused);
+        }
+        let saved = passkeys
+            .site
+            .finish_registration(credential, &registering)
+            .map_err(SignInError::Passkey)?;
+        let added = passkeys.store.add(account.id(), &saved, name, now).await?;
+        added.then_some(()).ok_or(SignInError::Refused)
+    }
+
+    /// The passkeys of the account `token` signs in, oldest first.
     ///
     /// # Errors
     ///
     /// Returns [`SignInError::Refused`] for no live session,
     /// [`SignInError::PasskeysOff`] when the site has no passkeys, and
     /// [`SignInError::Unavailable`] when a store fails.
-    pub async fn begin_registration(
+    pub async fn passkeys_of(
         &self,
         token: &SessionToken,
-    ) -> Result<RegistrationRequest, SignInError> {
+    ) -> Result<Vec<ListedPasskey>, SignInError> {
         let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
         let account = self.session(token).await?.account;
-        let existing = passkeys.store.of(account.id()).await?;
-        let challenge = passkeys.ask(Purpose::Register(account.id()), self.clock.now())?;
-        Ok(RegistrationRequest {
-            challenge,
-            rp_id: passkeys.party.id().to_owned(),
-            user_id: account.id().as_row().to_be_bytes(),
-            exclude: existing
-                .into_iter()
-                .map(|passkey| passkey.credential_id)
-                .collect(),
-        })
+        Ok(passkeys.store.listed(account.id()).await?)
     }
 
-    /// Adds the passkey the browser made for [`Self::begin_registration`]
-    /// to the account `token` signs in, under `name`.
+    /// Names the passkey `id` of the account `token` signs in `name`.
     ///
     /// # Errors
     ///
-    /// Returns [`SignInError::Passkey`] naming why the answer was refused,
-    /// [`SignInError::Refused`] for no live session or a challenge that was
-    /// not asked for this account, used or too old, and
-    /// [`SignInError::Unavailable`] when a store fails.
-    pub async fn finish_registration(
+    /// Returns [`SignInError::NoPasskey`] when the account has no passkey
+    /// `id`, and the errors of [`Accounts::passkeys_of`].
+    pub async fn rename_passkey(
         &self,
         token: &SessionToken,
-        answer: (&[u8], &[u8]),
-        name: &str,
+        id: PasskeyId,
+        name: &PasskeyName,
     ) -> Result<(), SignInError> {
-        let (client_data, attestation) = answer;
         let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
         let account = self.session(token).await?.account;
-        let now = self.clock.now();
-        let purpose = Purpose::Register(account.id());
-        let challenge = passkeys
-            .take(client_data, purpose, now)
-            .ok_or(SignInError::Refused)?;
-        let registration =
-            verify_registration(&passkeys.party, &challenge, client_data, attestation)
-                .map_err(SignInError::Passkey)?;
-        let added = passkeys
-            .store
-            .add(account.id(), &registration, name, now)
-            .await?;
-        added.then_some(()).ok_or(SignInError::Refused)
+        let store = &passkeys.store;
+        let renamed = store.rename(account.id(), id, name.as_str()).await?;
+        renamed.then_some(()).ok_or(SignInError::NoPasskey)
     }
 
-    /// Starts a passkey sign-in: the challenge for
-    /// `navigator.credentials.get`, with the site's host name. The browser
-    /// offers whichever passkey the person has for this site.
+    /// Removes the passkey `id` of the account `token` signs in, so it
+    /// signs nobody in again. The account keeps its password and links.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SignInError::NoPasskey`] when the account has no passkey
+    /// `id`, and the errors of [`Accounts::passkeys_of`].
+    pub async fn remove_passkey(
+        &self,
+        token: &SessionToken,
+        id: PasskeyId,
+    ) -> Result<(), SignInError> {
+        let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
+        let account = self.session(token).await?.account;
+        let removed = passkeys.store.remove(account.id(), id).await?;
+        removed.then_some(()).ok_or(SignInError::NoPasskey)
+    }
+
+    /// Starts a passkey sign-in: the options for
+    /// `navigator.credentials.get`. The browser offers whichever passkey
+    /// the person has for this site.
     ///
     /// # Errors
     ///
     /// Returns [`SignInError::PasskeysOff`] when the site has no passkeys,
     /// and [`SignInError::Limited`] when too many requests are waiting.
-    pub fn begin_sign_in(&self) -> Result<(Challenge, String), SignInError> {
+    pub fn begin_sign_in(&self) -> Result<RequestChallengeResponse, SignInError> {
         let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
-        let challenge = passkeys.ask(Purpose::SignIn, self.clock.now())?;
-        Ok((challenge, passkeys.party.id().to_owned()))
+        let (options, signing_in) = passkeys.site.start_sign_in()?;
+        let challenge = options.public_key.challenge.clone();
+        passkeys.keep(challenge, Waiting::SignIn(signing_in), self.clock.now())?;
+        Ok(options)
     }
 
-    /// Signs in with the passkey `credential_id` names, from the browser's
-    /// answer to [`Self::begin_sign_in`]: its client data, authenticator
-    /// data and signature.
+    /// Signs in with `credential`, the browser's answer to the options
+    /// whose challenge is `challenge`.
     ///
     /// # Errors
     ///
@@ -187,27 +234,21 @@ impl Accounts {
     /// has no passkeys; and [`SignInError::Unavailable`] when a store fails.
     pub async fn finish_sign_in(
         &self,
-        credential_id: &[u8],
-        answer: (&[u8], &[u8], &[u8]),
+        challenge: &[u8],
+        credential: &PublicKeyCredential,
     ) -> Result<(SessionToken, SignedIn), SignInError> {
-        let (client_data, authenticator_data, signature) = answer;
         let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
         let now = self.clock.now();
-        let challenge = passkeys.take(client_data, Purpose::SignIn, now);
-        let challenge = challenge.ok_or(SignInError::Refused)?;
-        let stored = passkeys.store.find(credential_id).await?;
+        let Some(Waiting::SignIn(signing_in)) = passkeys.take(challenge, now) else {
+            return Err(SignInError::Refused);
+        };
+        let stored = passkeys.store.find(credential.get_credential_id()).await?;
         let stored = stored.ok_or(SignInError::Refused)?;
-        let held = (&stored.public_key, stored.sign_count);
-        let count = verify_assertion(
-            &passkeys.party,
-            &challenge,
-            client_data,
-            authenticator_data,
-            signature,
-            held,
-        )
-        .map_err(|_| SignInError::Refused)?;
-        passkeys.store.used(credential_id, count, now).await?;
+        let saved = passkeys
+            .site
+            .finish_sign_in(credential, signing_in, &stored.passkey)
+            .map_err(|_| SignInError::Refused)?;
+        passkeys.store.used(&saved, now).await?;
         let account = self.store.find(stored.account).await?;
         let account = account.ok_or(SignInError::Refused)?;
         let session = self.begin(&account).await?;

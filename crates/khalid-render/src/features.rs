@@ -38,11 +38,15 @@ pub enum Feature {
     Archive,
     /// The search link in the header.
     SearchShortcut,
+    /// The list of posts that link to a post, under it.
+    LinkedMentions,
+    /// The title and summary of a linked post, shown on pointing at its link.
+    LinkPreviews,
 }
 
 impl Feature {
     /// Every feature, in the order the plan lists them.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 15] = [
         Self::Byline,
         Self::ReviewedBy,
         Self::ReadingTime,
@@ -56,6 +60,8 @@ impl Feature {
         Self::AuthorsPage,
         Self::Archive,
         Self::SearchShortcut,
+        Self::LinkedMentions,
+        Self::LinkPreviews,
     ];
 }
 

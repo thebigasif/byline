@@ -36,6 +36,12 @@ pub(crate) fn of(site: &Path, error: &ContentError) -> UserMessage {
             target,
             language,
         } => wikilink(&at(path), *line, target, language),
+        ContentError::Snippet {
+            path,
+            line,
+            slug,
+            language,
+        } => snippet(&at(path), *line, slug, language),
         ContentError::Maths {
             path,
             line,
@@ -96,6 +102,18 @@ fn wikilink(path: &str, line: usize, target: &str, language: &Locale) -> UserMes
         "A wikilink names a page by its slug, the last part of its address, in the post's own language.",
         format!(
             "Change [[{target}]] on line {line} to the slug of a post, page or glossary term in {language}, or remove the brackets."
+        ),
+    )
+}
+
+/// The message for a snippet block on `line` of the file at `path` that
+/// names no snippet in `language`.
+fn snippet(path: &str, line: usize, slug: &str, language: &Locale) -> UserMessage {
+    UserMessage::new(
+        format!("{path}, line {line}: there is no snippet called {slug} in {language}."),
+        "A snippet block shows a file from snippets/ in the post's own language, so the post would have a gap.",
+        format!(
+            "Add content/{language}/snippets/{slug}.md, or change the slug on line {line} to one that exists."
         ),
     )
 }

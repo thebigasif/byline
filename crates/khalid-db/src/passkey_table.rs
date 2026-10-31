@@ -1,9 +1,11 @@
-//! Staff passkeys on SQLite, for `khalid-auth`.
+//! Staff passkeys on SQLite, for `khalid-auth`: each kept as the JSON
+//! `webauthn-rs` saves, which only `khalid-auth` reads.
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use khalid_api::content_store::BoxFuture;
 use khalid_auth::{
-    AccountId, PasskeyStore, PasskeyStoreError, PublicKey, Registration, StoredPasskey,
+    AccountId, ListedPasskey, PasskeyId, PasskeyStore, PasskeyStoreError, SavedPasskey,
+    StoredPasskey,
 };
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
@@ -27,19 +29,18 @@ impl PasskeyTable {
     async fn add_now(
         &self,
         account: AccountId,
-        registration: &Registration,
+        passkey: &SavedPasskey,
         name: &str,
         at: DateTime<Utc>,
     ) -> Result<bool, DbError> {
         let added = sqlx::query(
-            "INSERT INTO passkeys (site_id, user_id, credential_id, public_key, sign_count, name, created_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT (site_id, credential_id) DO NOTHING",
+            "INSERT INTO passkeys (site_id, user_id, credential_id, credential, name, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (site_id, credential_id) DO NOTHING",
         )
         .bind(self.site.as_row())
         .bind(account.as_row())
-        .bind(registration.credential_id.as_slice())
-        .bind(registration.public_key.to_stored())
-        .bind(i64::from(registration.sign_count))
+        .bind(passkey.credential_id())
+        .bind(passkey.json())
         .bind(name)
         .bind(text(at))
         .execute(&self.db.writer)
@@ -49,7 +50,7 @@ impl PasskeyTable {
 
     async fn find_now(&self, credential_id: &[u8]) -> Result<Option<StoredPasskey>, DbError> {
         let row = sqlx::query(
-            "SELECT user_id, credential_id, public_key, sign_count, name FROM passkeys \
+            "SELECT user_id, credential_id, credential, name FROM passkeys \
              WHERE site_id = ?1 AND credential_id = ?2",
         )
         .bind(self.site.as_row())
@@ -61,7 +62,7 @@ impl PasskeyTable {
 
     async fn of_now(&self, account: AccountId) -> Result<Vec<StoredPasskey>, DbError> {
         let rows = sqlx::query(
-            "SELECT user_id, credential_id, public_key, sign_count, name FROM passkeys \
+            "SELECT user_id, credential_id, credential, name FROM passkeys \
              WHERE site_id = ?1 AND user_id = ?2 ORDER BY id",
         )
         .bind(self.site.as_row())
@@ -71,39 +72,93 @@ impl PasskeyTable {
         rows.iter().map(stored).collect()
     }
 
-    async fn used_now(
-        &self,
-        credential_id: &[u8],
-        sign_count: u32,
-        at: DateTime<Utc>,
-    ) -> Result<(), DbError> {
+    async fn used_now(&self, passkey: &SavedPasskey, at: DateTime<Utc>) -> Result<(), DbError> {
         sqlx::query(
-            "UPDATE passkeys SET sign_count = ?1, last_used_at = ?2 \
+            "UPDATE passkeys SET credential = ?1, last_used_at = ?2 \
              WHERE site_id = ?3 AND credential_id = ?4",
         )
-        .bind(i64::from(sign_count))
+        .bind(passkey.json())
         .bind(text(at))
         .bind(self.site.as_row())
-        .bind(credential_id)
+        .bind(passkey.credential_id())
         .execute(&self.db.writer)
         .await?;
         Ok(())
     }
+
+    async fn listed_now(&self, account: AccountId) -> Result<Vec<ListedPasskey>, DbError> {
+        let rows = sqlx::query(
+            "SELECT id, name, created_at, last_used_at FROM passkeys \
+             WHERE site_id = ?1 AND user_id = ?2 ORDER BY id",
+        )
+        .bind(self.site.as_row())
+        .bind(account.as_row())
+        .fetch_all(&self.db.readers)
+        .await?;
+        rows.iter().map(listed).collect()
+    }
+
+    async fn rename_now(
+        &self,
+        account: AccountId,
+        id: PasskeyId,
+        name: &str,
+    ) -> Result<bool, DbError> {
+        let renamed = sqlx::query(
+            "UPDATE passkeys SET name = ?1 WHERE site_id = ?2 AND user_id = ?3 AND id = ?4",
+        )
+        .bind(name)
+        .bind(self.site.as_row())
+        .bind(account.as_row())
+        .bind(id.as_row())
+        .execute(&self.db.writer)
+        .await?;
+        Ok(renamed.rows_affected() > 0)
+    }
+
+    async fn remove_now(&self, account: AccountId, id: PasskeyId) -> Result<bool, DbError> {
+        let removed =
+            sqlx::query("DELETE FROM passkeys WHERE site_id = ?1 AND user_id = ?2 AND id = ?3")
+                .bind(self.site.as_row())
+                .bind(account.as_row())
+                .bind(id.as_row())
+                .execute(&self.db.writer)
+                .await?;
+        Ok(removed.rows_affected() > 0)
+    }
 }
 
-/// A passkey from a row of `passkeys`.
+/// What the admin lists from a row of `passkeys`.
+fn listed(row: &SqliteRow) -> Result<ListedPasskey, DbError> {
+    Ok(ListedPasskey {
+        id: PasskeyId::from_row(row.try_get("id")?),
+        name: row.try_get("name")?,
+        added_at: time(row.try_get("created_at")?)?,
+        last_used_at: row
+            .try_get::<Option<&str>, _>("last_used_at")?
+            .map(time)
+            .transpose()?,
+    })
+}
+
+fn time(text: &str) -> Result<DateTime<Utc>, DbError> {
+    DateTime::parse_from_rfc3339(text)
+        .map(|at| at.with_timezone(&Utc))
+        .map_err(|_| DbError::Unreadable {
+            column: "passkeys time",
+            value: text.to_owned(),
+        })
+}
+
+/// A passkey from a row of `passkeys`. `khalid-auth` checks the JSON when
+/// the passkey is used.
 fn stored(row: &SqliteRow) -> Result<StoredPasskey, DbError> {
-    let unreadable = |column| DbError::Unreadable {
-        column,
-        value: "a value khalid-auth did not write".to_owned(),
-    };
-    let key: Vec<u8> = row.try_get("public_key")?;
-    let count: i64 = row.try_get("sign_count")?;
     Ok(StoredPasskey {
         account: AccountId::from_row(row.try_get("user_id")?),
-        credential_id: row.try_get("credential_id")?,
-        public_key: PublicKey::from_stored(&key).map_err(|_| unreadable("public_key"))?,
-        sign_count: u32::try_from(count).map_err(|_| unreadable("sign_count"))?,
+        passkey: SavedPasskey::from_store(
+            row.try_get("credential_id")?,
+            row.try_get("credential")?,
+        ),
         name: row.try_get("name")?,
     })
 }
@@ -122,11 +177,11 @@ impl PasskeyStore for PasskeyTable {
     fn add<'a>(
         &'a self,
         account: AccountId,
-        registration: &'a Registration,
+        passkey: &'a SavedPasskey,
         name: &'a str,
         at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<bool, PasskeyStoreError>> {
-        Box::pin(async move { Ok(self.add_now(account, registration, name, at).await?) })
+        Box::pin(async move { Ok(self.add_now(account, passkey, name, at).await?) })
     }
 
     fn find<'a>(
@@ -145,10 +200,33 @@ impl PasskeyStore for PasskeyTable {
 
     fn used<'a>(
         &'a self,
-        credential_id: &'a [u8],
-        sign_count: u32,
+        passkey: &'a SavedPasskey,
         at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<(), PasskeyStoreError>> {
-        Box::pin(async move { Ok(self.used_now(credential_id, sign_count, at).await?) })
+        Box::pin(async move { Ok(self.used_now(passkey, at).await?) })
+    }
+
+    fn listed(
+        &self,
+        account: AccountId,
+    ) -> BoxFuture<'_, Result<Vec<ListedPasskey>, PasskeyStoreError>> {
+        Box::pin(async move { Ok(self.listed_now(account).await?) })
+    }
+
+    fn rename<'a>(
+        &'a self,
+        account: AccountId,
+        id: PasskeyId,
+        name: &'a str,
+    ) -> BoxFuture<'a, Result<bool, PasskeyStoreError>> {
+        Box::pin(async move { Ok(self.rename_now(account, id, name).await?) })
+    }
+
+    fn remove(
+        &self,
+        account: AccountId,
+        id: PasskeyId,
+    ) -> BoxFuture<'_, Result<bool, PasskeyStoreError>> {
+        Box::pin(async move { Ok(self.remove_now(account, id).await?) })
     }
 }

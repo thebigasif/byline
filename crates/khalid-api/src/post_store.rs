@@ -80,7 +80,9 @@ pub trait PostStore: Send + Sync {
 
     /// Removes post `id`, in any status, but only when it has not changed
     /// since `updated_at`, the copy the caller saw (BL-API-7). The check and
-    /// the removal happen together. Returns the post as it was.
+    /// the removal happen together. Returns the post as it was. A store
+    /// that is also a [`PostTrash`](crate::post_trash::PostTrash) keeps it
+    /// there, so it can be restored.
     ///
     /// # Errors
     ///
@@ -93,6 +95,21 @@ pub trait PostStore: Send + Sync {
         id: &'a str,
         updated_at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>>;
+
+    /// What the lint publish gate finds in post `id` now, writing nothing:
+    /// a draft as it would go live today. `None` when no post has that
+    /// identity, or when the store runs no linter, which is what this
+    /// default says. The create route returns it with every new draft, so
+    /// `SerpDad` can show "staged, 0 blocks, 2 warnings" (KH-API-6).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PostStoreError`] when the posts or the lint settings
+    /// cannot be read.
+    fn lint<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<Report>, PostStoreError>> {
+        let _ = id;
+        Box::pin(std::future::ready(Ok(None)))
+    }
 }
 
 /// Why a post was not deleted.
@@ -206,17 +223,24 @@ mod memory {
         AdminPost, BoxFuture, CreatePostError, DeletePostError, ListQuery, Listed, PostDraft,
         PostEdit, PostRow, PostStore, PostStoreError, UpdatePostError,
     };
+    use khalid_lint::Report;
+
     use crate::content_store::select;
-    use crate::resources::LintCounts;
+    use crate::post_trash::{PostTrash, TrashError, Trashed};
+    use crate::resources::{LintCounts, PostSettings};
 
     /// Posts held in memory, for tests. It runs no publish gate: an edit
-    /// that publishes always goes live, and a post's lint counts are
-    /// whatever [`MemoryPostStore::with_lint`] gave it, or none.
+    /// that publishes always goes live, a post's lint counts are whatever
+    /// [`MemoryPostStore::with_lint`] gave it, or none, and its lint report
+    /// whatever [`MemoryPostStore::with_report`] gave it, or none. A deleted
+    /// post waits in its trash.
     #[derive(Debug)]
     pub struct MemoryPostStore {
         posts: Mutex<Vec<AdminPost>>,
+        trash: Mutex<Vec<(Trashed, AdminPost)>>,
         seen: Mutex<BTreeMap<String, String>>,
         lint: BTreeMap<String, LintCounts>,
+        reports: BTreeMap<String, Report>,
         clock: Box<dyn Clock>,
     }
 
@@ -231,8 +255,10 @@ mod memory {
         pub fn new(posts: Vec<AdminPost>) -> Self {
             Self {
                 posts: Mutex::new(posts),
+                trash: Mutex::new(Vec::new()),
                 seen: Mutex::new(BTreeMap::new()),
                 lint: BTreeMap::new(),
+                reports: BTreeMap::new(),
                 clock: Box::new(SystemClock),
             }
         }
@@ -241,6 +267,14 @@ mod memory {
         #[must_use]
         pub fn with_lint(mut self, id: &str, counts: LintCounts) -> Self {
             self.lint.insert(id.to_owned(), counts);
+            self
+        }
+
+        /// The same store, answering [`PostStore::lint`] for post `id`,
+        /// once it exists, with `report`.
+        #[must_use]
+        pub fn with_report(mut self, id: &str, report: Report) -> Self {
+            self.reports.insert(id.to_owned(), report);
             self
         }
 
@@ -304,7 +338,40 @@ mod memory {
                 posts.insert(at, post);
                 return Err(stale);
             }
+            let trashed = Trashed::new(&post, self.clock.now());
+            self.trash().push((trashed, post.clone()));
             Ok(post)
+        }
+
+        fn trash(&self) -> MutexGuard<'_, Vec<(Trashed, AdminPost)>> {
+            self.trash.lock().unwrap_or_else(PoisonError::into_inner)
+        }
+
+        fn take_back(&self, key: &str) -> Result<AdminPost, TrashError> {
+            let mut posts = self.posts();
+            let mut trash = self.trash();
+            let at = trash
+                .iter()
+                .position(|(trashed, _)| trashed.key == key)
+                .ok_or(TrashError::NotFound)?;
+            let (trashed, post) = trash.remove(at);
+            if posts.iter().any(|kept| kept.slug() == post.slug()) {
+                trash.insert(at, (trashed, post.clone()));
+                let id = post.id().to_owned();
+                return Err(TrashError::Taken { id });
+            }
+            posts.push(post.clone());
+            Ok(post)
+        }
+
+        fn forget(&self, key: &str) -> Result<(), TrashError> {
+            let mut trash = self.trash();
+            let before = trash.len();
+            trash.retain(|(trashed, _)| trashed.key != key);
+            if trash.len() == before {
+                return Err(TrashError::NotFound);
+            }
+            Ok(())
         }
 
         /// Adds a draft, making slugs in English ASCII as a site with the
@@ -341,6 +408,10 @@ mod memory {
             )
             .with_author(draft.author().cloned())
             .with_updated_by(by);
+            let post = post.with_settings(PostSettings {
+                excerpt: draft.excerpt().cloned(),
+                ..PostSettings::default()
+            });
             if let Some(key) = idempotency {
                 seen.insert(key.to_owned(), post.id().to_owned());
             }
@@ -390,6 +461,31 @@ mod memory {
             updated_at: DateTime<Utc>,
         ) -> BoxFuture<'a, Result<AdminPost, DeletePostError>> {
             Box::pin(std::future::ready(self.remove(id, updated_at)))
+        }
+
+        fn lint<'a>(
+            &'a self,
+            id: &'a str,
+        ) -> BoxFuture<'a, Result<Option<Report>, PostStoreError>> {
+            let exists = self.posts().iter().any(|post| post.id() == id);
+            let report = self.reports.get(id).filter(|_| exists).cloned();
+            Box::pin(std::future::ready(Ok(report)))
+        }
+    }
+
+    impl PostTrash for MemoryPostStore {
+        fn trashed(&self) -> BoxFuture<'_, Result<Vec<Trashed>, PostStoreError>> {
+            let trash = self.trash();
+            let listed = trash.iter().rev().map(|(trashed, _)| trashed.clone());
+            Box::pin(std::future::ready(Ok(listed.collect())))
+        }
+
+        fn restore<'a>(&'a self, key: &'a str) -> BoxFuture<'a, Result<AdminPost, TrashError>> {
+            Box::pin(std::future::ready(self.take_back(key)))
+        }
+
+        fn purge<'a>(&'a self, key: &'a str) -> BoxFuture<'a, Result<(), TrashError>> {
+            Box::pin(std::future::ready(self.forget(key)))
         }
     }
 }

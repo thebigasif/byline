@@ -411,3 +411,40 @@ fn a_cluster_member_that_never_links_to_its_pillar_is_a_warning() {
         Vec::<String>::new()
     );
 }
+
+#[test]
+fn a_table_and_a_review_block_in_markdown_settle_the_page_shape_rules() {
+    let compared = "Pick Ahrefs for links and Semrush for ads.\n\n\
+                    | | Ahrefs | Semrush |\n|---|---|---|\n| Best for | Links | Ads |";
+    let rated = "My verdict.\n\n:::review{item=\"Ahrefs\" type=\"SoftwareApplication\" \
+                 rating=\"4.5\" best=\"5\"}\nFast and clear.\n:::";
+    let site = site(
+        None,
+        &[
+            ("posts/vs.md", &post("Ahrefs vs Semrush", "", compared)),
+            ("posts/rated.md", &post("Ahrefs review", "", rated)),
+            (
+                "posts/unrated.md",
+                &post("Semrush review", "", "My verdict."),
+            ),
+        ],
+    );
+    let report = lint(site.path());
+    let none = Vec::<String>::new();
+    assert_eq!(
+        found(&report, "comparison-without-table", "ahrefs-vs-semrush"),
+        none
+    );
+    assert_eq!(
+        found(&report, "comparison-answer-late", "ahrefs-vs-semrush"),
+        none
+    );
+    assert_eq!(
+        found(&report, "review-without-rating", "ahrefs-review"),
+        none
+    );
+    assert_eq!(
+        found(&report, "review-without-rating", "semrush-review"),
+        ["the review gives no rating"]
+    );
+}

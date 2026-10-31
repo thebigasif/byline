@@ -14,6 +14,7 @@ mod contrast;
 mod css;
 mod fetch;
 mod fetch_error;
+mod font_files;
 mod fonts;
 mod links;
 mod palette;
@@ -33,10 +34,8 @@ pub use fetch::{
     MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_STYLESHEETS, Origin, SiteSource, Stylesheet, fetch_site,
 };
 pub use fetch_error::FetchError;
-pub use fonts::{
-    FontHost, FontMetrics, FontSource, HeldFont, MAX_FONT_BYTES, SavedFont, Typography, download,
-    download_and_report,
-};
+pub use font_files::{FontMetrics, MAX_FONT_BYTES, SavedFont, download, download_and_report};
+pub use fonts::{FontHost, FontSource, HeldFont, Typography};
 pub use links::{PageStyle, SkipReason, Skipped, page_styles};
 pub use palette::Palette;
 pub use properties::CustomProperties;

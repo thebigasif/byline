@@ -5,9 +5,9 @@ use std::error::Error;
 use std::future::Future;
 use std::pin::Pin;
 
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 
-use crate::{Crawls, Tally, Views};
+use crate::{CrawledPage, Crawls, Tally, Views, Visit};
 
 /// A boxed future, so the store traits stay object safe.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
@@ -54,6 +54,48 @@ pub trait AnalyticsStore: Send + Sync {
         first: NaiveDate,
         last: NaiveDate,
     ) -> BoxFuture<'_, Result<Vec<Crawls>, AnalyticsError>>;
+}
+
+/// The most visits the visitor log keeps for one day. Past it, new visits
+/// are dropped, so a flood of requests cannot fill the disk.
+pub const MAX_VISITS_PER_DAY: usize = 100_000;
+
+/// The site's visitor log, one row per [`Visit`], kept a few days.
+pub trait VisitorLogStore: Send + Sync {
+    /// Adds `visits`, up to [`MAX_VISITS_PER_DAY`] for each day, and
+    /// erases every visit that came before `keep_from`. Each
+    /// [`CrawledPage`] in `visits` is kept too, and never erased: its first
+    /// fetch never moves later, and its last never earlier.
+    ///
+    /// # Errors
+    ///
+    /// [`AnalyticsError`] when the log cannot be written.
+    fn save<'a>(
+        &'a self,
+        visits: &'a [Visit],
+        keep_from: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<(), AnalyticsError>>;
+
+    /// The visits from `first` to `last`, both included, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// [`AnalyticsError`] when the log cannot be read, or holds a row this
+    /// version cannot read.
+    fn visits(
+        &self,
+        first: DateTime<Utc>,
+        last: DateTime<Utc>,
+    ) -> BoxFuture<'_, Result<Vec<Visit>, AnalyticsError>>;
+
+    /// Every page a listed bot fetched while the log was on, by page then
+    /// bot.
+    ///
+    /// # Errors
+    ///
+    /// [`AnalyticsError`] when the pages cannot be read, or hold a row this
+    /// version cannot read.
+    fn crawled(&self) -> BoxFuture<'_, Result<Vec<CrawledPage>, AnalyticsError>>;
 }
 
 /// The counts could not be read or written.

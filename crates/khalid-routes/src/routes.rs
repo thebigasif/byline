@@ -23,16 +23,24 @@ pub struct Routes {
     category_prefix: String,
 }
 
-/// A collection: the folder its posts live in, and their address pattern.
+/// A collection: the folder its posts live in, their address pattern, and
+/// whether they are news.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Collection {
     permalink: Permalink,
+    news: bool,
 }
 
 impl Collection {
     /// The address pattern of the collection's posts.
     pub fn permalink(&self) -> &Permalink {
         &self.permalink
+    }
+
+    /// Whether the collection's posts are news, set by `news = true`: their
+    /// schema type is `NewsArticle` and the news sitemap lists them.
+    pub fn is_news(&self) -> bool {
+        self.news
     }
 }
 
@@ -72,6 +80,8 @@ struct TaxonomiesFile {
 #[serde(deny_unknown_fields)]
 struct CollectionFile {
     permalink: Spanned<String>,
+    #[serde(default)]
+    news: bool,
 }
 
 #[derive(Deserialize)]
@@ -129,7 +139,10 @@ impl Routes {
             let permalink = at.check("permalink", &collection.permalink, |text| {
                 Permalink::parse(text)
             })?;
-            routes.collections.insert(name, Collection { permalink });
+            let news = collection.news;
+            routes
+                .collections
+                .insert(name, Collection { permalink, news });
         }
         for (name, channel) in file.channels {
             let path = at.check("path", &channel.path, |text| {
