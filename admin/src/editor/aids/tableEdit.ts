@@ -38,11 +38,7 @@ export function selectedTable(state: EditorState): TableEdit | null {
 export function applyTable(editor: Editor, edit: TableEdit, grid: Grid) {
   const source = writeTable(grid);
   if (!edit.editing) {
-    editor
-      .chain()
-      .focus()
-      .insertContentAt(edit.at, { type: TABLE_NODE, attrs: { source } })
-      .run();
+    editor.chain().focus().insertContentAt(edit.at, { type: TABLE_NODE, attrs: { source } }).run();
     return;
   }
   editor

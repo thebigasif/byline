@@ -46,7 +46,9 @@ export function DeliveryTable({ deliveries }: Props) {
               </td>
               <td data-label={words.tries}>
                 <ol>
-                  {delivery.attempts.map((attempt) => <li key={attempt.at}>{tried(attempt)}</li>)}
+                  {delivery.attempts.map((attempt) => (
+                    <li key={attempt.at}>{tried(attempt)}</li>
+                  ))}
                 </ol>
               </td>
             </tr>

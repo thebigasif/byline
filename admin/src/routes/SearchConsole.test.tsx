@@ -29,10 +29,7 @@ describe("the Search Console screen", () => {
       "href",
       "https://www.example.com/blog/why-internal-links-matter/",
     );
-    expect(screen.getByRole("link", { name: words.title })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(screen.getByRole("link", { name: words.title })).toHaveAttribute("aria-current", "page");
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(await axeViolations()).toEqual([]);
   });

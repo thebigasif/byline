@@ -25,7 +25,8 @@ const NOT_LISTED = {
   type: "https://khalid.dev/problems/forbidden",
   title: "Only a super admin may see and add the sites on this server.",
   status: 403,
-  detail: "Adding a site gives it a domain on this server, so only the people the server lists may.",
+  detail:
+    "Adding a site gives it a domain on this server, so only the people the server lists may.",
   fix: "Sign in on the home site with a super-admin account, or ask the server's owner to add you.",
 };
 

@@ -82,14 +82,7 @@ export function CropStage({ src, facts, degrees, box, onChange }: Props) {
         fillRule="evenodd"
         d={`M0 0H${width}V${height}H0Z M${x} ${y}h${w}v${h}h${-w}Z`}
       />
-      <rect
-        className="crop-box"
-        data-part="box"
-        x={x}
-        y={y}
-        width={w}
-        height={h}
-      />
+      <rect className="crop-box" data-part="box" x={x} y={y} width={w} height={h} />
       <circle className="crop-handle" data-part="corner" cx={x + w} cy={y + h} r={handle} />
     </svg>
   );

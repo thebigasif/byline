@@ -1,5 +1,5 @@
-import type { Editor } from "@tiptap/core";
 import { act, fireEvent, screen } from "@testing-library/react";
+import type { Editor } from "@tiptap/core";
 import { describe, expect, it } from "vitest";
 import { writing } from "../../../test/editor";
 import { axeViolations } from "../../../test/render";

@@ -23,7 +23,9 @@ export function SiteTable({ sites }: Props) {
               <td data-label={words.domain}>
                 <a href={`https://${site.domain}/`}>{site.domain}</a>
               </td>
-              <td data-label={words.kind}>{site.home ? <span className="pill quiet">{words.home}</span> : null}</td>
+              <td data-label={words.kind}>
+                {site.home ? <span className="pill quiet">{words.home}</span> : null}
+              </td>
             </tr>
           ))}
         </tbody>

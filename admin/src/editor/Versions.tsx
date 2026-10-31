@@ -26,7 +26,7 @@ const whole = (words: Words) => `${words.title}\n\n${words.markdown}`;
 function Changes({ then, now }: { then: Words; now: Words }) {
   const lines = lineDiff(whole(then), whole(now)).map((line, n) => ({ ...line, id: `line-${n}` }));
   return (
-    <div className="diff" role="group" aria-label={en.versions.changes}>
+    <fieldset className="diff" aria-label={en.versions.changes}>
       {lines.map((line) => {
         if (line.kind === "removed") {
           return (
@@ -44,7 +44,7 @@ function Changes({ then, now }: { then: Words; now: Words }) {
         }
         return <p key={line.id}>{line.text}</p>;
       })}
-    </div>
+    </fieldset>
   );
 }
 

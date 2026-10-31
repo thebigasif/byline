@@ -35,7 +35,8 @@ export const sitesWords = {
     sending: "Sending the link",
     sent: (email: string) =>
       `If ${email} has an account here, a sign-in link is on its way. It works once, within 15 minutes.`,
-    noMail: "No email arrives? The server may have no mail set up yet. Ask whoever runs it for a sign-in link.",
+    noMail:
+      "No email arrives? The server may have no mail set up yet. Ask whoever runs it for a sign-in link.",
   },
   link: {
     title: "Signing you in",

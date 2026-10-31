@@ -24,8 +24,7 @@ const states: Record<SearchState, string> = {
 // near its size limit.
 export const searches = {
   title: "Photo and GIF search",
-  lede:
-    "Whether writers can find free photos and GIFs from the editor. You change this in site.toml and on the server, because the keys never go through the browser.",
+  lede: "Whether writers can find free photos and GIFs from the editor. You change this in site.toml and on the server, because the keys never go through the browser.",
   loading: "Checking the searches",
   failed:
     "The blog did not answer, so it cannot say whether the searches work. Check the connection, then reload the page.",

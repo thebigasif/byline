@@ -39,7 +39,9 @@ export function HandOver() {
       <p className="lede">{words.lede}</p>
       <h2 id="changes-title">{words.changes}</h2>
       <ul className="list-disc pl-6" aria-labelledby="changes-title">
-        {words.consequences.map((consequence) => <li key={consequence}>{consequence}</li>)}
+        {words.consequences.map((consequence) => (
+          <li key={consequence}>{consequence}</li>
+        ))}
       </ul>
       <section className="focus" aria-labelledby="pick-title">
         <h2 id="pick-title">{words.pick}</h2>
