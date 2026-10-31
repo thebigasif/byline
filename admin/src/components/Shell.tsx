@@ -37,6 +37,11 @@ export function Shell() {
               </Link>
             </li>
             <li>
+              <Link to="/media" search={{}} activeOptions={{ includeSearch: false }}>
+                {en.nav.media}
+              </Link>
+            </li>
+            <li>
               <Link to="/trash">{en.nav.trash}</Link>
             </li>
             <li>
