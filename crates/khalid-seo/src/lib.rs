@@ -34,6 +34,11 @@ mod meta_template;
 mod meta_templates;
 mod news_sitemap;
 mod page;
+#[expect(
+    dead_code,
+    reason = "the planner reads these; it lands in the next part"
+)]
+mod plan_post;
 mod redirect_columns;
 mod redirect_csv;
 mod redirect_explain;
@@ -69,6 +74,7 @@ pub use meta_template::MetaTemplate;
 pub use meta_templates::{MetaTemplates, TemplatePair};
 pub use news_sitemap::{NewsEntry, NewsSitemap};
 pub use page::{ArticleType, Crumb, PageKind, PublishState, SeoPage, SitemapListing};
+pub use plan_post::{ClusterRole, Pace, PaceFrom, PlanPost, PlanState};
 pub use redirect_columns::{Matching, RedirectColumns};
 pub use redirect_csv::{read_redirects_csv, write_redirects_csv};
 pub use redirect_explain::{Explanation, Hop, Matched};
