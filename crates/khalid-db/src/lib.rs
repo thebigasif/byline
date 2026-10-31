@@ -29,6 +29,7 @@ mod db_error;
 mod delivery_log;
 mod key_table;
 mod link_table;
+mod newsletter_sends;
 mod not_found_table;
 mod passkey_table;
 mod posts;

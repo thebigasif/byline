@@ -3,8 +3,8 @@
 use chrono::{DateTime, SecondsFormat, Utc};
 use khalid_core::Slug;
 use khalid_newsletter::{
-    BoxFuture, Confirmed, EmailAddress, Labelled, Recipient, Segment, SignUp, SignedUp, StoreError,
-    SubscriberId, SubscriberStore, TokenHash, Unsubscribed,
+    BoxFuture, Confirmed, EmailAddress, Labelled, Recipient, Segment, SendId, SendTotals, SignUp,
+    SignedUp, StoreError, SubscriberId, SubscriberStore, TokenHash, Unsubscribed,
 };
 use sqlx::{Sqlite, Transaction};
 
@@ -279,6 +279,43 @@ impl SubscriberStore for SubscriberTable {
             self.unlabel_now(email, label)
                 .await
                 .map_err(StoreError::new)
+        })
+    }
+
+    fn start_send<'a>(
+        &'a self,
+        key: &'a str,
+        list: &'a Slug,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<Option<SendId>, StoreError>> {
+        Box::pin(async move {
+            let started = self.start_send_now(key, list, at).await;
+            started.map_err(StoreError::new)
+        })
+    }
+
+    fn add_send_unsubscribe<'a>(
+        &'a self,
+        send: SendId,
+        subscriber: SubscriberId,
+        token: &'a TokenHash,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<(), StoreError>> {
+        Box::pin(async move {
+            let added = self.add_send_unsubscribe_now(send, subscriber, token, at);
+            added.await.map_err(StoreError::new)
+        })
+    }
+
+    fn finish_send(
+        &self,
+        send: SendId,
+        totals: SendTotals,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'_, Result<(), StoreError>> {
+        Box::pin(async move {
+            let finished = self.finish_send_now(send, totals, at).await;
+            finished.map_err(StoreError::new)
         })
     }
 
