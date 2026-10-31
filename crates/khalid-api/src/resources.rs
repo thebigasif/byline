@@ -9,6 +9,7 @@ mod content_collection;
 mod media;
 mod menu;
 mod post;
+mod post_head;
 mod post_row;
 mod post_settings;
 mod real_update;
@@ -24,6 +25,7 @@ pub use content_collection::ContentCollection;
 pub use media::{AdminMedia, FocalPointBody, MediaEditBody, MediaEdits, MediaItems, MediaList};
 pub use menu::{Menu, MenuLink};
 pub use post::{Bodies, Post};
+pub use post_head::{HeadElement, HeadParts, PostHead};
 pub use post_row::{Gate, IndexStatus, LintCounts, PostRow};
 pub use post_settings::{
     Alias, FeatureImage, NonBlank, PostSettings, ReviewState, ShareCard, ShareCards,
