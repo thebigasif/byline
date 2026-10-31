@@ -46,13 +46,19 @@ impl Template {
     }
 }
 
-/// The starter for `template` from `starters/content/en/`.
-fn starter(template: Template) -> &'static str {
-    match template {
-        Template::Comparison => include_str!("../starters/content/en/comparison.md"),
-        Template::Alternatives => include_str!("../starters/content/en/alternatives.md"),
-        Template::BestOf => include_str!("../starters/content/en/best-of.md"),
-        Template::Review => include_str!("../starters/content/en/review.md"),
+/// The starter for `template` from `starters/content/<language>/`: German
+/// for `de`, English for every other language.
+fn starter(template: Template, locale: &Locale) -> &'static str {
+    let german = locale.language() == "de";
+    match (template, german) {
+        (Template::Comparison, false) => include_str!("../starters/content/en/comparison.md"),
+        (Template::Alternatives, false) => include_str!("../starters/content/en/alternatives.md"),
+        (Template::BestOf, false) => include_str!("../starters/content/en/best-of.md"),
+        (Template::Review, false) => include_str!("../starters/content/en/review.md"),
+        (Template::Comparison, true) => include_str!("../starters/content/de/comparison.md"),
+        (Template::Alternatives, true) => include_str!("../starters/content/de/alternatives.md"),
+        (Template::BestOf, true) => include_str!("../starters/content/de/best-of.md"),
+        (Template::Review, true) => include_str!("../starters/content/de/review.md"),
     }
 }
 
@@ -61,10 +67,11 @@ fn starter(template: Template) -> &'static str {
 /// closing line, and the body. `None` when the title does not read as that
 /// kind of post, so the linter would never check its shape.
 ///
-/// Every language gets the English starter, for the writer to translate.
+/// German posts get German guidance and headings; every other language
+/// gets English, for the writer to translate.
 pub(crate) fn body(template: Template, title: &str, locale: &Locale) -> Option<String> {
     let kind = PageKind::of_title(locale.language(), title)?;
-    let text = starter(template);
+    let text = starter(template, locale);
     match (template, kind) {
         // The starters are plain markdown files, so the two names compared
         // go in by replacing their marks rather than through `format!`.
@@ -109,7 +116,10 @@ mod tests {
     }
 
     #[test]
-    fn other_languages_get_the_english_starter() {
+    fn german_posts_get_german_starters_and_others_english() {
+        let german = Locale::try_new("de").unwrap();
+        let body_de = body(Template::Review, "Ahrefs im Test", &german).unwrap();
+        assert!(body_de.contains("## So haben wir getestet"), "{body_de}");
         let french = Locale::try_new("fr").unwrap();
         let body_fr = body(Template::Comparison, "Ghost vs WordPress", &french).unwrap();
         assert!(body_fr.contains("## Where Ghost wins"), "{body_fr}");
