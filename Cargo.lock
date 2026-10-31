@@ -2455,6 +2455,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-sdk"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "khalid-search"
 version = "0.0.0"
 dependencies = [
