@@ -43,6 +43,9 @@ const ALLOWED: [(&str, bool); 4] = [
     ("link", false),
 ];
 
+/// The elements code at the end of a page's body may hold.
+const SCRIPTS: [(&str, bool); 1] = [("script", true)];
+
 impl HeadCode {
     /// The most head code a post may have, in bytes. An analytics snippet
     /// is under 1 KB; 16 KB leaves room for several.
@@ -55,6 +58,22 @@ impl HeadCode {
     /// Returns [`HeadCodeError`] naming the first thing that may not be
     /// in a page head.
     pub fn try_new(html: &str) -> Result<Self, HeadCodeError> {
+        Self::parsed(html, &ALLOWED)
+    }
+
+    /// Reads `html` that may hold only `script` elements and comments, as
+    /// code at the end of a page's body does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HeadCodeError::Element`] for any other element, and the
+    /// other errors of [`HeadCode::try_new`].
+    pub(crate) fn scripts_only(html: &str) -> Result<Self, HeadCodeError> {
+        Self::parsed(html, &SCRIPTS)
+    }
+
+    /// Reads `html`, keeping only the `allowed` elements.
+    fn parsed(html: &str, allowed: &[(&'static str, bool)]) -> Result<Self, HeadCodeError> {
         if html.len() > Self::MAX_LEN {
             return Err(HeadCodeError::TooLong { len: html.len() });
         }
@@ -68,7 +87,7 @@ impl HeadCode {
                 rest = after.trim_start();
                 continue;
             }
-            let (element, after) = element(rest)?;
+            let (element, after) = element(rest, allowed)?;
             elements.push(element);
             rest = after.trim_start();
         }
@@ -150,7 +169,10 @@ fn write_element(html: &mut String, element: &Element, nonce: Option<&str>) {
 
 /// Reads the element at the start of `html`, and returns it with what
 /// follows it.
-fn element(html: &str) -> Result<(Element, &str), HeadCodeError> {
+fn element<'html>(
+    html: &'html str,
+    allowed: &[(&'static str, bool)],
+) -> Result<(Element, &'html str), HeadCodeError> {
     let Some(after) = html.strip_prefix('<') else {
         let text: String = html.chars().take(20).collect();
         return Err(HeadCodeError::Text { text });
@@ -164,7 +186,7 @@ fn element(html: &str) -> Result<(Element, &str), HeadCodeError> {
         "" => html.chars().take(7).collect(),
         name => name.to_ascii_lowercase(),
     };
-    let Some(&(name, has_content)) = ALLOWED.iter().find(|(allowed, _)| *allowed == lower) else {
+    let Some(&(name, has_content)) = allowed.iter().find(|(allowed, _)| *allowed == lower) else {
         return Err(HeadCodeError::Element { name: lower });
     };
     let (attributes, after) = attributes(after)?;

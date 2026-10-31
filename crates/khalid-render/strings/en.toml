@@ -109,3 +109,10 @@ locked_password_label = "Password"
 locked_password_button = "Read the post"
 locked_password_wrong = "That password is not right. Check it and try again."
 locked_members_note = "This post is for members. Signing in for readers is not open yet."
+
+# The consent banner a site shows when its own code waits for each reader's yes (G45).
+consent_label = "Code from other companies"
+consent_note = "This blog would like to run code from other companies that counts visits and may set cookies. It runs only if you allow it."
+consent_change = "You can change your choice about code from other companies that counts visits."
+consent_allow = "Allow"
+consent_refuse = "Do not allow"

@@ -21,11 +21,12 @@ use crate::build_pages::LanguagePages;
 use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
 use crate::listed_post::ListedPost;
+use crate::page_code::PageCode;
 use crate::post_files::Assets;
 use crate::post_photos::Shown;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
-use crate::site_page::HeadNonce;
+use crate::site_page::{HeadNonce, served_at};
 use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
@@ -543,24 +544,25 @@ fn html_pages(
     pages: &mut Vec<Page>,
 ) -> Result<String, UserMessage> {
     let mut not_found = String::new();
+    let code = PageCode::new(config, HeadNonce::PerRequest);
     for language in languages {
         for page in &language.pages {
             if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
                 continue;
             }
-            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
+            let html = page.rendered(&theme.renderer, &language.site, &code)?;
             if matches!(page.body, PageBody::NotFound) {
                 if &language.site.locale == config.default_language() {
                     not_found = html;
                 }
                 continue;
             }
-            pages.push(page.served_at(&page.meta.path, html)?);
+            pages.push(served_at(&page.meta.path, html)?);
         }
         for unlocked in &language.unlocked {
             let page = &unlocked.page;
-            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
-            pages.push(page.served_at(&post_lock::hidden(&page.meta.path), html)?);
+            let html = page.rendered(&theme.renderer, &language.site, &code)?;
+            pages.push(served_at(&post_lock::hidden(&page.meta.path), html)?);
         }
     }
     Ok(not_found)

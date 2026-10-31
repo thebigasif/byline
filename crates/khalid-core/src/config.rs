@@ -13,7 +13,7 @@ use crate::mail_settings::MailTable;
 use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
     AbsoluteUrl, AlertSettings, Locale, MailSettings, MailTransport, MediaSettings, ParseUrlError,
-    Reader, S3Keys, Secret, SeoSettings,
+    Reader, S3Keys, Secret, SeoSettings, SiteCode,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -36,6 +36,7 @@ pub struct Config {
     media: MediaSettings,
     mail: Option<MailSettings>,
     alerts: AlertSettings,
+    code: SiteCode,
     preview_link_lifetime: Duration,
 }
 
@@ -98,6 +99,8 @@ struct SiteFile {
     mail: Option<MailTable>,
     #[serde(default)]
     alerts: AlertSettings,
+    #[serde(default)]
+    code: SiteCode,
     preview_link_days: Option<u64>,
     preview_link_hours: Option<u64>,
 }
@@ -133,6 +136,21 @@ fn preview_lifetime(file: &SiteFile) -> Result<Duration, (&'static str, &'static
         return Err((key, RANGE));
     }
     Ok(Duration::from_secs(hours.saturating_mul(HOUR)))
+}
+
+/// The refusal of `[code]` that waits for consent on a static site, at the
+/// consent line when it is written, else at the table's own line.
+fn static_consent(path: &Path, text: &str) -> ConfigError {
+    let table = text
+        .lines()
+        .position(|line| line.trim_start().starts_with("[code]"))
+        .map_or(1, |index| index.saturating_add(1));
+    ConfigError::Field {
+        path: path.to_path_buf(),
+        line: line_of_key_in(text, "[code", "consent").max(table),
+        field: "consent".to_owned(),
+        problem: "a static host cannot keep a reader's choice, so code that waits for consent would never run; set consent = \"not-needed\" in [code], or mode = \"server\"".to_owned(),
+    }
 }
 
 impl Config {
@@ -221,6 +239,9 @@ impl Config {
                 problem,
             });
         }
+        if file.mode == Mode::Static && file.code.waits_for_consent() {
+            return Err(static_consent(path, text));
+        }
         let address = match env.get(Environment::ADDRESS) {
             Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
                 variable: Environment::ADDRESS.to_owned(),
@@ -241,6 +262,7 @@ impl Config {
             media: file.media,
             mail,
             alerts: file.alerts,
+            code: file.code,
             preview_link_lifetime,
         })
     }
@@ -248,6 +270,12 @@ impl Config {
     /// When alerts are raised and who gets them by email, from `[alerts]`.
     pub fn alerts(&self) -> &AlertSettings {
         &self.alerts
+    }
+
+    /// The site's own code for every page, from `[code]`; empty when the
+    /// site has none.
+    pub fn code(&self) -> &SiteCode {
+        &self.code
     }
 
     /// How the site sends email, from `[mail]`, or `None` when it sends

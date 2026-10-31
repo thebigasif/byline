@@ -22,7 +22,7 @@ use khalid_db::{Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, Webhoo
 use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
-use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
+use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, watch};
 use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
@@ -38,8 +38,9 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    alert_watch, announce, comment_pages, db, db_message, media_library, newsletter, page_counts,
-    preview, redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    alert_watch, announce, comment_pages, consent_route, db, db_message, media_library, newsletter,
+    page_counts, preview, redirect_route, report, scheduler, search_route, serve_message,
+    share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -119,13 +120,6 @@ pub(crate) fn run(
     }
 }
 
-/// Renders the home pages that answer first, with the stylesheet preloaded.
-fn first_pages(source: &SitePages, checked: &SiteContent) -> Result<Pages, UserMessage> {
-    let first = source.render_first(checked)?;
-    let first = Pages::first(first).map_err(|_| serve_message::internal())?;
-    Ok(with_hint(first, source))
-}
-
 /// Renders the site with its checked settings and routes, then answers on
 /// `listen` until told to stop.
 fn serve_with(
@@ -145,12 +139,7 @@ fn serve_with(
         (&redirects, &addresses),
     );
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
-    // Only the home pages are rendered before the server listens; the rest
-    // follows behind the first answer (ADR "khalid serve answers before the
-    // full render").
-    let clock = Arc::new(SystemClock);
-    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)
-        .and_then(|source| first_pages(&source, &checked).map(|first| (source, first)))
+    let (source, first) = first_pages((site, config, routes), feed, &checked)
         .map_err(|message| (message, Exit::Failure))?;
     let security = security_headers()?;
     let search = search_route::Search {
@@ -177,7 +166,7 @@ fn serve_with(
         let (alerting, alert_watching) = alerting.start((config, database, id, telling.clone()));
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
-        let shown_pages = router(live.clone(), security.clone());
+        let shown_pages = consent_route::pages(config, live.clone(), security.clone());
         let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
@@ -258,6 +247,23 @@ fn https_folder(site: &Path, listen: &Listen) -> Option<(Domain, HttpsFolder)> {
     }
 }
 
+/// The site's pages, fed by `feed`, and the first of them to serve: only
+/// the home pages are rendered before the server listens, and the rest
+/// follows behind the first answer (ADR "khalid serve answers before the
+/// full render").
+fn first_pages(
+    (site, config, routes): (&Path, &Config, &Routes),
+    feed: content_feed::ContentFeed,
+    checked: &SiteContent,
+) -> Result<(SitePages, Pages), UserMessage> {
+    let clock = Arc::new(SystemClock);
+    let source = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)?;
+    let first = source.render_first(checked)?;
+    let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+    let first = with_hint(first, &source);
+    Ok((source, first))
+}
+
 /// The Content API and the Admin API as `khalid serve` runs them, with the
 /// comment moderation, media library, stored redirects, webhooks and staff
 /// accounts of site `id`.
@@ -330,6 +336,7 @@ fn assembled(
         .merge(khalid_admin::router(khalid_admin::built()))
         .merge(comments)
         .merge(newsletters)
+        .merge(consent_route::router(config, security.clone()))
         .merge(pages)
 }
 
