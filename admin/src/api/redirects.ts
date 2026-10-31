@@ -2,8 +2,9 @@
 // field for field as `AdminRedirect` and `AdminMiss`, because the OpenAPI
 // document gains them only when the redirects track lands. Then these
 // types become `components["schemas"]` and the calls go through `createApi`.
-import { readKey } from "../auth/session";
-import { isProblem, type Problem } from "./posts";
+import { call, nothing, sending } from "./call";
+
+export { type Failure, isData, type Reply } from "./call";
 
 /** A redirect Khalid keeps in its database, as the Admin API sends it. */
 export type StoredRedirect = {
@@ -30,42 +31,6 @@ export type Miss = {
   nearest: string | null;
 };
 
-/** A call that failed: the problem the API sent, if any, and the status; 0 when unreachable. */
-export type Failure = { problem: Problem | null; status: number };
-
-/** What a redirect call gave back: its data, or the problem. */
-export type Reply<T> = { data: T } | Failure;
-
-/** Whether a call gave back its data. */
-export function isData<T>(reply: Reply<T> | undefined): reply is { data: T } {
-  return reply !== undefined && "data" in reply;
-}
-
-const ADMIN = "/api/admin/v1";
-
-/** Sends one request to the blog with the signed-in key, and reads what came back. */
-async function call<T>(
-  path: string,
-  init: RequestInit,
-  read: (response: Response) => Promise<T>,
-): Promise<Reply<T>> {
-  const request = new Request(`${globalThis.location.origin}${ADMIN}${path}`, init);
-  const key = readKey();
-  if (key !== null) {
-    request.headers.set("Authorization", `Khalid ${key}`);
-  }
-  try {
-    const response = await globalThis.fetch(request);
-    if (response.ok) {
-      return { data: await read(response) };
-    }
-    const body: unknown = await response.json().catch(() => null);
-    return { problem: isProblem(body) ? body : null, status: response.status };
-  } catch {
-    return { problem: null, status: 0 };
-  }
-}
-
 async function redirects(response: Response): Promise<StoredRedirect[]> {
   const body: { redirects: StoredRedirect[] } = await response.json();
   return body.redirects;
@@ -78,7 +43,7 @@ export function listRedirects(): Promise<Reply<StoredRedirect[]>> {
 
 /** Removes one kept redirect. */
 export function removeRedirect(id: number): Promise<Reply<null>> {
-  return call(`/redirects/${id}/`, { method: "DELETE" }, async () => null);
+  return call(`/redirects/${id}/`, { method: "DELETE" }, nothing);
 }
 
 /** Stores every redirect in a CSV list, or none; gives back those stored. */
@@ -102,10 +67,5 @@ export function listMisses(): Promise<Reply<Miss[]>> {
 
 /** Sends an address that answered 404 to `to` for good, and drops it from the log. */
 export function redirectMiss(path: string, to: string): Promise<Reply<StoredRedirect[]>> {
-  const init = {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path, to }),
-  };
-  return call("/not-found/redirect/", init, redirects);
+  return call("/not-found/redirect/", sending("POST", { path, to }), redirects);
 }
