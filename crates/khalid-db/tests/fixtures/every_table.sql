@@ -95,3 +95,7 @@ INSERT INTO crawl_log (site_id, day, path, crawler, kind, hits, last_seen, last_
     (2, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200);
 INSERT INTO alerts_raised (site_id, key, raised_at) VALUES
     (1, 'stale-post:en.old-post', '2026-10-26T09:00:00Z'), (2, 'stale-post:en.old-post', '2026-10-26T09:00:00Z');
+INSERT INTO serpdad_links (site_id, key_id, connected_at) VALUES
+    (1, '0123456789abcdef', '2026-10-26T09:00:00Z'), (2, 'fedcba9876543210', '2026-10-26T09:00:00Z');
+INSERT INTO serpdad_drafts (site_id, post_id, title, blocks, warnings, received_at) VALUES
+    (1, 'en.old-post', 'Old post', 0, 2, '2026-10-26T09:00:00Z'), (2, 'en.old-post', 'Old post', NULL, NULL, '2026-10-26T09:00:00Z');

@@ -18,7 +18,8 @@
 //! [`CommentTable`] that `khalid-comments` moderates through, and the staff
 //! accounts, as the [`AccountTable`], [`SessionTable`], [`LinkTable`] and
 //! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
-//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into.
+//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into, and the
+//! `SerpDad` connection, as the [`SerpdadTable`] the Admin API keeps.
 
 mod account_table;
 mod alert_table;
@@ -38,6 +39,7 @@ mod redirect_rows;
 mod schedule_table;
 mod search_find;
 mod search_index;
+mod serpdad_table;
 mod session_table;
 mod site_export;
 mod site_id;
@@ -63,6 +65,7 @@ pub use redirect_rows::RedirectRows;
 pub use schedule_table::ScheduleTable;
 pub use search_find::{SearchHit, SearchResults};
 pub use search_index::SearchPage;
+pub use serpdad_table::SerpdadTable;
 pub use session_table::SessionTable;
 pub use site_export::{Cell, ExportTable, SiteExport, is_withheld_column};
 pub use site_id::SiteId;
