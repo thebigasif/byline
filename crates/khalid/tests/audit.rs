@@ -153,6 +153,34 @@ fn the_ai_search_checks_report_each_page_with_its_reason() {
 }
 
 #[test]
+fn the_audit_takes_its_limits_from_lint_toml_and_its_day_from_the_clock() {
+    let site = demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("lint.toml");
+    fs::write(&settings, "[thresholds]\nstale-months = 0\n").unwrap();
+    let output = audit(site.path(), &["--json"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let body: Value = serde_json::from_str(&stdout).unwrap_or_else(|_| panic!("{stdout}"));
+    let checked = |check: &str| -> Vec<&str> {
+        body["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|issue| issue["check"] == check)
+            .map(|issue| issue["url"].as_str().unwrap())
+            .collect()
+    };
+    // With no months of grace, every post is past its review window.
+    assert!(
+        checked("stale-page").contains(&"https://www.example.com/blog/how-to-write-a-title-tag/"),
+        "{stdout}"
+    );
+    // Every post shows its dates, and every answer is open.
+    assert_eq!(checked("date-not-shown"), Vec::<&str>::new(), "{stdout}");
+    assert_eq!(checked("hidden-answer"), Vec::<&str>::new(), "{stdout}");
+}
+
+#[test]
 fn each_run_adds_to_the_trend() {
     let site = demo_copy();
     assert_eq!(audit(site.path(), &[]).status.code(), Some(0));
