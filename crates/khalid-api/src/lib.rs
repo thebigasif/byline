@@ -14,6 +14,7 @@ mod admin_not_found;
 mod admin_redirect_csv;
 mod admin_redirects;
 mod admin_webhooks;
+pub mod analytics_desk;
 pub mod api;
 mod api_version;
 pub mod comment_moderation;

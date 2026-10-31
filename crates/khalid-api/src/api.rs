@@ -11,6 +11,7 @@ use utoipa::{Modify, OpenApi};
 use utoipa_axum::router::OpenApiRouter;
 
 use crate::admin_key::{AdminDoor, require_admin_key};
+use crate::analytics_desk::AnalyticsDesk;
 use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_store::ContentStore;
@@ -214,6 +215,8 @@ pub struct AdminDesks {
     /// The site's webhooks, or `None` when the webhook routes list none
     /// and answer that the site keeps none.
     pub webhooks: Option<Arc<dyn WebhookStore>>,
+    /// The views `khalid serve` counted, read under `/api/admin/v1/analytics/`.
+    pub analytics: AnalyticsDesk,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -226,13 +229,15 @@ impl std::fmt::Debug for AdminDesks {
 }
 
 impl AdminDesks {
-    /// No comments, no media library, no stored redirects and no webhooks.
+    /// No comments, no media library, no stored redirects, no webhooks and
+    /// no counted views.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
             media: None,
             redirects: RedirectDesk::none(),
             webhooks: None,
+            analytics: AnalyticsDesk::none(),
         }
     }
 }
