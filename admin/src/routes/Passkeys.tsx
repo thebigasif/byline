@@ -4,13 +4,14 @@ import { listPasskeys, type Passkey, removePasskey, renamePasskey } from "../api
 import { problemMessage } from "../api/posts";
 import { isData, type Reply } from "../api/redirects";
 import { Problem } from "../components/Problem";
+import { AddPasskey } from "../passkeys/AddPasskey";
 import { PasskeyTable } from "../passkeys/PasskeyTable";
 import { en, type UserMessage } from "../strings/en";
 
 /** The query key the screen refreshes after a passkey is added, renamed or removed. */
 export const PASSKEYS = ["passkeys"];
 
-/** The signed-in person's own passkeys, to see, name and remove. */
+/** The signed-in person's own passkeys, to add, name and remove. */
 export function Passkeys() {
   const words = en.passkeys;
   const queries = useQueryClient();
@@ -36,6 +37,11 @@ export function Passkeys() {
   };
   const remove = async (passkey: Passkey) => {
     await settle(await removePasskey(passkey.id), words.removed(passkey.name));
+  };
+  const added = async (name: string | null, problem: UserMessage | null) => {
+    setDone(name === null ? null : words.madeOne(name));
+    setFailed(problem);
+    await queries.invalidateQueries({ queryKey: PASSKEYS });
   };
 
   let list = <p role="status">{words.loading}</p>;
@@ -70,6 +76,7 @@ export function Passkeys() {
       <p className="lede">{words.lede}</p>
       {failed === null ? null : <Problem message={failed} />}
       <p role="status">{done}</p>
+      <AddPasskey onDone={added} />
       <h2 id="passkeys-list-title">{words.listTitle}</h2>
       <p className="muted">{words.listHint}</p>
       {list}

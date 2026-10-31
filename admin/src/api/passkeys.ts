@@ -1,6 +1,7 @@
 // The signed-in person's own passkeys. These routes read the session
 // cookie the browser sends on its own: a passkey belongs to a person, so
 // a tab signed in with a key alone gets a 401.
+import type { MadePasskey } from "../passkeys/webauthn";
 import { createApi } from "./client";
 import { isProblem } from "./posts";
 import type { Failure, Reply } from "./redirects";
@@ -24,6 +25,28 @@ export async function listPasskeys(): Promise<Reply<Passkey[]>> {
   try {
     const { data, error, response } = await api.GET("/api/admin/v1/session/passkeys/");
     return data === undefined ? failed(error, response) : { data };
+  } catch {
+    return UNREACHABLE;
+  }
+}
+
+/** Starts adding a passkey: the options for `navigator.credentials.create`. */
+export async function passkeyOptions(): Promise<Reply<unknown>> {
+  try {
+    const { data, error, response } = await api.POST("/api/admin/v1/session/passkeys/options/");
+    return data === undefined ? failed(error, response) : { data };
+  } catch {
+    return UNREACHABLE;
+  }
+}
+
+/** Adds the passkey the browser made, under `name`, to the signed-in account. */
+export async function addPasskey(name: string, made: MadePasskey): Promise<Reply<null>> {
+  try {
+    const { error, response } = await api.POST("/api/admin/v1/session/passkeys/", {
+      body: { name, ...made },
+    });
+    return response.ok ? { data: null } : failed(error, response);
   } catch {
     return UNREACHABLE;
   }
