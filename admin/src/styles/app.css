@@ -71,6 +71,10 @@
   .table-grid th,.table-grid td{padding:0;border:1px solid var(--color-border)}
   .table-grid input{width:100%;min-width:8rem;min-height:44px;padding:.4rem .6rem;border:0;background:var(--color-bg);font:inherit}
   .table-grid th input{font-weight:700;background:var(--color-surface)}
+  .picture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(9rem,1fr));gap:.75rem;list-style:none;margin:1rem 0;padding:0}
+  .picture-grid button{display:block;width:100%;min-height:44px;padding:0;border:1px solid var(--color-border);border-radius:var(--radius-field);background:var(--color-bg);text-align:left;cursor:pointer;overflow:hidden}
+  .picture-grid img{display:block;width:100%;height:auto;background:var(--color-surface)}
+  .picture-grid span{display:block;padding:.25rem .5rem;color:var(--color-muted);font-size:.875rem}
   .aid-title{font-size:.875rem;color:var(--color-muted);padding:.75rem 1rem .25rem;margin:0}
   .aid-menu ul{list-style:none;margin:0;padding:0 .25rem .25rem}
   .aid-menu button{display:block;width:100%;min-height:44px;text-align:left;padding:.55rem .75rem;border-radius:var(--radius-field);background:var(--color-bg);cursor:pointer}

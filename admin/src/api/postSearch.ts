@@ -22,7 +22,7 @@ export function findPosts(words: string): Promise<Rows> {
 }
 
 /** `value` once it has stayed the same for `ms`, so a search waits for a pause. */
-function useSettled(value: string, ms: number): string {
+export function useSettled(value: string, ms: number): string {
   const [settled, setSettled] = useState(value);
   useEffect(() => {
     const timer = setTimeout(() => setSettled(value), ms);
