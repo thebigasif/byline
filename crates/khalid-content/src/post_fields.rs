@@ -1,6 +1,8 @@
 //! The post fields that carry more than one value or a rule of their own:
-//! the lead image, the search title, tags and the sitemap choice.
+//! the lead image, the search title, tags, the sitemap choice and the topic
+//! cluster.
 
+use khalid_core::Slug;
 use serde::{Deserialize, Deserializer};
 
 /// The image at the top of a post, also used on its cards and share cards.
@@ -124,6 +126,33 @@ pub enum ReviewState {
     InReview,
     /// An editor has said it may go live.
     Ready,
+}
+
+/// The topic cluster a post belongs to: a group of posts on one subject,
+/// with one main post, the pillar, that the others link to.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct TopicCluster {
+    /// The group's name, the same on every post in it, such as
+    /// `internal-links`.
+    pub name: Slug,
+    /// Whether the post is the group's pillar or one of its members.
+    #[serde(default)]
+    pub role: TopicRole,
+}
+
+/// A post's role in its topic cluster, written `pillar` or `member`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum TopicRole {
+    /// The main post, which covers the whole subject.
+    Pillar,
+    /// A post on one part of the subject, which links to the pillar, as
+    /// every post in a cluster is unless it says otherwise.
+    #[default]
+    Member,
 }
 
 /// How a post looks when shared on one network. Anything left out comes
