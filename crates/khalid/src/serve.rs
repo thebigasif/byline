@@ -188,20 +188,14 @@ fn serve_with(
         .and_then(|first| bodies.finish().map(|()| first))
         .map_err(|message| (message, Exit::Failure))?;
     let security = security_headers()?;
-    let search = search_route::Search {
-        pages: source.clone(),
-        db: database.clone(),
-        site: id,
-        security: security.clone(),
-    };
-    let to = (site, config, listen, alert_every);
+    let search = search_of(&source, (database, id), &security);
     let (posted, alerting) = mail_and_alerts(
-        to,
+        (site, config, listen, alert_every),
         (&search, runtime, &telling),
         &content,
         (keys.mail, outbound),
     )?;
-    let mailer = alerting.mailer.clone();
+    let (mailer, panel) = (alerting.mailer.clone(), site_hosts::panel(among));
     let served = runtime.block_on(async {
         let front = Door::open((site, listen, among), (output, config)).await?;
         let live = LivePages::new(first);
@@ -233,12 +227,14 @@ fn serve_with(
             (files, previews, search_route::router(config, search)),
             (comments, posted, pages),
         );
-        let desks = (moderation, media, desk, keys.follow_ups);
-        let at = (database, id, (site, config));
-        let helpers = (site_hosts::panel(among), mailer);
-        let hook = push_hook::router(site, keys.git_hook);
-        let apis = ((content, door, posts), desks, at, helpers);
-        let app = serve_apis::with_apis(app, apis, hook);
+        let (desks, helpers) = ((moderation, media, desk, keys.follow_ups), (panel, mailer));
+        let apis = (
+            (content, door, posts),
+            desks,
+            (database, id, (site, config)),
+            helpers,
+        );
+        let app = serve_apis::with_apis(app, apis, push_hook::router(site, keys.git_hook));
         // The rest renders once the routes are ready, so it does not slow
         // setting them up (ADR "the APIs are built beside the first answer").
         let (failed, failure) = oneshot::channel();
@@ -263,6 +259,21 @@ fn serve_with(
         tracing::warn!(?error, "the Content API's task stopped early");
     }
     served
+}
+
+/// What the search route reads: the pages of `source`, the database of
+/// site `id`, and the headers of every page.
+fn search_of(
+    source: &SitePages,
+    (database, id): (&Database, SiteId),
+    security: &SecurityHeaders,
+) -> search_route::Search {
+    search_route::Search {
+        pages: source.clone(),
+        db: database.clone(),
+        site: id,
+        security: security.clone(),
+    }
 }
 
 /// The routes a reader posts to from a page besides comments, and the

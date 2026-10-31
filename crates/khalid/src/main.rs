@@ -79,6 +79,7 @@ mod lint;
 mod lint_fix;
 mod lint_input;
 mod lint_message;
+mod lint_text;
 mod listed_post;
 mod live_redirects;
 mod mcp;
