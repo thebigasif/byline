@@ -41,7 +41,10 @@ pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemoryPasskeys, Mem
 #[cfg(any(test, feature = "test-util"))]
 pub use memory_sites::MemorySites;
 pub use passkey_site::{PasskeyCheckError, PasskeySite, Registering, SavedPasskey, SigningIn};
-pub use passkey_store::{PasskeyStore, PasskeyStoreError, StoredPasskey};
+pub use passkey_store::{
+    ListedPasskey, MAX_NAME_CHARS, PasskeyId, PasskeyName, PasskeyNameError, PasskeyStore,
+    PasskeyStoreError, StoredPasskey,
+};
 pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };

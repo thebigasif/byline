@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, TimeDelta, TimeZone, Utc};
 use khalid_api::keys::Role;
 use khalid_auth::{Account, AccountStore, PasskeyStore, SavedPasskey};
 use khalid_core::Slug;
@@ -106,4 +106,45 @@ async fn the_table_refuses_a_passkey_that_is_not_json() {
     let broken = SavedPasskey::from_store(vec![1; 16], "not json".into());
     let refused = passkeys.add(ana.id(), &broken, "Laptop", at()).await;
     assert!(refused.is_err(), "{refused:?}");
+}
+
+#[tokio::test]
+async fn a_passkey_is_listed_renamed_and_removed_only_by_its_own_account() {
+    let (_dir, passkeys, other, _, [ana, ben]) = opened().await;
+    let later = at() + TimeDelta::days(2);
+    let (ana, ben) = (ana.id(), ben.id());
+    passkeys
+        .add(ana, &passkey(1, 3), "Laptop", at())
+        .await
+        .unwrap();
+    passkeys
+        .add(ana, &passkey(2, 3), "Phone", at())
+        .await
+        .unwrap();
+    passkeys.used(&passkey(1, 4), later).await.unwrap();
+    let listed = passkeys.listed(ana).await.unwrap();
+    let shown: Vec<_> = listed
+        .iter()
+        .map(|p| (p.name.as_str(), p.added_at, p.last_used_at))
+        .collect();
+    assert_eq!(
+        shown,
+        [("Laptop", at(), Some(later)), ("Phone", at(), None)]
+    );
+    let (laptop, phone) = (listed[0].id, listed[1].id);
+    assert!(!passkeys.rename(ben, laptop, "Mine now").await.unwrap());
+    let elsewhere = other.rename(ana, laptop, "Mine now").await.unwrap();
+    assert!(!elsewhere, "another site's table");
+    assert!(passkeys.rename(ana, laptop, "Work laptop").await.unwrap());
+    assert!(!passkeys.remove(ben, phone).await.unwrap());
+    assert!(
+        !other.remove(ana, phone).await.unwrap(),
+        "another site's table"
+    );
+    assert!(passkeys.remove(ana, phone).await.unwrap());
+    assert!(!passkeys.remove(ana, phone).await.unwrap(), "already gone");
+    let listed = passkeys.listed(ana).await.unwrap();
+    let names: Vec<&str> = listed.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, ["Work laptop"]);
+    assert_eq!(passkeys.find(&[2; 16]).await.unwrap(), None);
 }

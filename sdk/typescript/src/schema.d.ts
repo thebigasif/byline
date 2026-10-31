@@ -546,6 +546,24 @@ export type Pagination = {
   total: number;
 };
 
+/** One of the signed-in person's passkeys. The key itself never leaves the server. */
+export type PasskeyEntry = {
+  /** When it was added. */
+  added_at: string;
+  /** The passkey's number, for renaming or removing it. */
+  id: number;
+  /** When it last signed someone in; `null` when it never has. */
+  last_used_at?: string | null;
+  /** The name the person gave it, such as "Work laptop". */
+  name: string;
+};
+
+/** A new name for a passkey. */
+export type PasskeyRename = {
+  /** The new name, 1 to 60 characters once trimmed. */
+  name: string;
+};
+
 /** A sign-in, as `navigator.credentials.get` returned it. */
 export type PasskeySignIn = {
   /** The `challenge` of the options it answers, as they gave it. */
@@ -1401,6 +1419,16 @@ export interface Operations {
     };
     output: GetOptions;
   };
+  /** The signed-in person's passkeys, oldest first. Needs the session cookie. */
+  list_passkeys: {
+    input: {
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: PasskeyEntry[];
+  };
   /** Adds the passkey the browser made to the signed-in account. Needs the session cookie. */
   add_passkey: {
     input: {
@@ -1421,6 +1449,35 @@ export interface Operations {
       };
     };
     output: CreateOptions;
+  };
+  /** Removes one of the signed-in person's passkeys, so it signs nobody in again. Needs the session cookie. */
+  remove_passkey: {
+    input: {
+      path: {
+        /** The passkey's number */
+        id: number;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: null;
+  };
+  /** Gives one of the signed-in person's passkeys a new name. Needs the session cookie. */
+  rename_passkey: {
+    input: {
+      path: {
+        /** The passkey's number */
+        id: number;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+      body: PasskeyRename;
+    };
+    output: null;
   };
   /** Changes the password of the signed-in account and ends its other sessions. An account with no password may set its first one only in the 15 minutes after signing in. */
   change_password: {

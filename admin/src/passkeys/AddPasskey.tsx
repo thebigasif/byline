@@ -1,58 +1,59 @@
 import { type FormEvent, useState } from "react";
-import { addPasskey, passkeyOptions } from "../api/account";
-import { isData } from "../api/call";
+import { addPasskey, passkeyOptions } from "../api/passkeys";
 import { problemMessage } from "../api/posts";
-import { Problem } from "../components/Problem";
+import { isData } from "../api/redirects";
 import { en, type UserMessage } from "../strings/en";
-import { makePasskey } from "./passkey";
+import { makePasskey } from "./webauthn";
 
-type Props = { email: string };
+type Props = {
+  /** Called with the new passkey's name once the blog has it, or with what went wrong. */
+  onDone: (name: string | null, problem: UserMessage | null) => void;
+};
 
 /** The screen's focus: a passkey made by this device and added to the account. */
-export function AddPasskey({ email }: Props) {
-  const words = en.account.passkey;
+export function AddPasskey({ onDone }: Props) {
+  const words = en.passkeys;
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
-  const [failed, setFailed] = useState<UserMessage | null>(null);
 
-  // Each step stops at the first problem: the options, the device, the API.
+  // Each step stops at the first problem: the options, the device, the blog.
   const add = async (label: string): Promise<UserMessage | null> => {
     const options = await passkeyOptions();
     if (!isData(options)) {
       return problemMessage(options.problem, en.problems.unreachable);
     }
-    const made = await makePasskey(options.data, email, label);
+    const made = await makePasskey(options.data);
     if (made === null) {
-      return en.problems.noPasskey;
+      return words.problems.noPasskey;
     }
-    const added = await addPasskey({ name: label, ...made });
+    const added = await addPasskey(label, made);
     return isData(added) ? null : problemMessage(added.problem, en.problems.unreachable);
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const label = name.trim();
     if (busy) {
       return;
     }
-    const label = name.trim();
+    if (label === "") {
+      onDone(null, words.problems.blankName);
+      return;
+    }
     setBusy(true);
-    setDone(null);
     const problem = await add(label);
     setBusy(false);
-    setFailed(problem);
     if (problem === null) {
       setName("");
-      setDone(words.added(label));
     }
+    onDone(problem === null ? label : null, problem);
   };
 
   return (
-    <section className="focus" aria-labelledby="passkey-title">
-      <h2 id="passkey-title">{words.title}</h2>
-      <p>{words.lede}</p>
-      {failed === null ? null : <Problem message={failed} />}
-      <p role="status">{busy ? words.adding : done}</p>
+    <section className="focus" aria-labelledby="passkey-add-title">
+      <h2 id="passkey-add-title">{words.addTitle}</h2>
+      <p>{words.addLede}</p>
+      <p role="status">{busy ? words.adding : null}</p>
       <form onSubmit={submit}>
         <div className="field">
           <label htmlFor="passkey-name">{words.name}</label>
@@ -62,16 +63,16 @@ export function AddPasskey({ email }: Props) {
           <input
             id="passkey-name"
             value={name}
+            maxLength={60}
             required
             aria-describedby="passkey-name-hint"
             onChange={(event) => setName(event.target.value)}
           />
         </div>
         <button type="submit" className="btn primary" disabled={busy}>
-          {words.submit}
+          {words.addText}
         </button>
       </form>
-      <p className="muted">{words.remove}</p>
     </section>
   );
 }

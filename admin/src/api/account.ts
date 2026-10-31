@@ -25,16 +25,6 @@ export function readSession(): Promise<Reply<SessionAnswer>> {
   return call("/session/", {}, session);
 }
 
-/** Starts adding a passkey: what to pass to `navigator.credentials.create`. */
-export function passkeyOptions(): Promise<Reply<components["schemas"]["CreateOptions"]>> {
-  return call("/session/passkeys/options/", { method: "POST" }, (response) => response.json());
-}
-
-/** Adds the passkey the browser made to the signed-in account. */
-export function addPasskey(passkey: components["schemas"]["NewPasskey"]): Promise<Reply<null>> {
-  return call("/session/passkeys/", sending("POST", passkey), nothing);
-}
-
 /** Changes the password, and ends every other session; `current` is null for a first one. */
 export function changePassword(current: string | null, next: string): Promise<Reply<null>> {
   const body: components["schemas"]["PasswordChange"] = { current, new: next };

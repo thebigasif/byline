@@ -1,3 +1,4 @@
+import { passkeys } from "./passkeys";
 import { records } from "./records";
 import { sitesWords } from "./sites";
 import { teamWords } from "./teamWords";
@@ -22,6 +23,7 @@ export const en = {
     audit: "Audit log",
     redirects: "Redirects",
     templates: "Schema templates",
+    passkeys: "Passkeys",
     analytics: "Analytics",
     keys: "API keys",
     webhooks: "Webhooks",
@@ -61,6 +63,7 @@ export const en = {
   trash: records.trash,
   audit: records.audit,
   bulk: records.bulk,
+  passkeys,
   media: {
     title: "Media",
     lede: "The images, videos, sound and files your posts use. Khalid reads each file's content to learn its type, so a program renamed to look like a photo is refused. A file uploaded twice is kept once.",
@@ -352,14 +355,9 @@ export const en = {
     lede: (name: string, email: string) =>
       `Signed in as ${name}, ${email}. Here you choose how you sign in, and lock everyone else out if a laptop goes missing.`,
     passkey: {
-      title: "Add a passkey",
-      lede: "A passkey lets you sign in with your fingerprint, your face or your device's PIN instead of a password. It cannot be guessed or stolen by a fake sign-in page. Your device asks you to confirm, then keeps the passkey.",
-      name: "Name for this passkey",
-      nameHint: "So you can tell your passkeys apart, such as Work laptop.",
-      submit: "Add a passkey",
-      adding: "Waiting for your device",
-      added: (name: string) => `Added. You can now sign in with the passkey ${name}.`,
-      remove: "To stop a passkey working, delete it from the device that keeps it.",
+      title: "Passkeys",
+      lede: "A passkey lets you sign in with your fingerprint, your face or your device's PIN instead of a password. It cannot be guessed or stolen by a fake sign-in page.",
+      link: "Add, rename or remove your passkeys",
     },
     password: {
       title: "Change your password",
@@ -856,11 +854,6 @@ export const en = {
       what: "Your account settings need you signed in with your email.",
       why: "This tab signed in with a staff token, and a token belongs to no account.",
       fix: "Sign out, then sign in with your email or with a sign-in link.",
-    },
-    noPasskey: {
-      what: "Your device did not make a passkey.",
-      why: "The request was cancelled, timed out, or this browser cannot make passkeys.",
-      fix: "Press Add a passkey again and confirm on your device, or try another browser.",
     },
     badLink: {
       what: "This sign-in link no longer works.",

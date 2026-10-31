@@ -25,6 +25,7 @@ import { LinkSignIn } from "./LinkSignIn";
 import { Media } from "./Media";
 import { MediaDetails } from "./MediaDetails";
 import { NewPost } from "./NewPost";
+import { Passkeys } from "./Passkeys";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
 import { SchemaTemplates } from "./SchemaTemplates";
@@ -117,6 +118,12 @@ const templates = createRoute({
   component: SchemaTemplates,
 });
 
+const passkeys = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/passkeys",
+  component: Passkeys,
+});
+
 const analytics = createRoute({
   getParentRoute: () => signedIn,
   path: "/analytics",
@@ -197,6 +204,7 @@ const routeTree = root.addChildren([
     audit,
     redirects,
     templates,
+    passkeys,
     analytics,
     searchConsole,
     keys,

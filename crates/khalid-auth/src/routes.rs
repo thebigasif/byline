@@ -2,6 +2,7 @@
 //! `/api/admin/v1/`: signing in and out, and managing staff (BL-API-4).
 
 mod links;
+mod passkey_list;
 mod passkeys;
 mod sites;
 mod staff;
@@ -44,7 +45,11 @@ pub fn staff_routes(accounts: Accounts) -> StaffRoutes {
             .routes(routes!(take_back::change_password))
             .routes(routes!(staff::list_staff, staff::invite))
             .routes(routes!(passkeys::passkey_options))
-            .routes(routes!(passkeys::add_passkey))
+            .routes(routes!(passkeys::add_passkey, passkey_list::list_passkeys))
+            .routes(routes!(
+                passkey_list::rename_passkey,
+                passkey_list::remove_passkey
+            ))
             .routes(routes!(
                 staff_changes::change_role,
                 staff_changes::remove_staff

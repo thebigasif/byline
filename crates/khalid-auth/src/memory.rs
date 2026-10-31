@@ -1,5 +1,6 @@
 //! Stores kept in memory, for tests in this crate and others.
 
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
 use chrono::{DateTime, Utc};
@@ -9,9 +10,9 @@ use khalid_core::Secret;
 
 use crate::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, Email, LINK_LIFETIME,
-    LinkSender, LinkStore, LinkStoreError, PasskeyStore, PasskeyStoreError, PasswordHash,
-    SavedPasskey, SendLinkError, SessionHash, SessionStore, SessionStoreError, StoredAccount,
-    StoredPasskey, StoredSession,
+    LinkSender, LinkStore, LinkStoreError, ListedPasskey, PasskeyId, PasskeyStore,
+    PasskeyStoreError, PasswordHash, SavedPasskey, SendLinkError, SessionHash, SessionStore,
+    SessionStoreError, StoredAccount, StoredPasskey, StoredSession,
 };
 
 /// Staff accounts in memory, numbered from 1 in the order they are made.
@@ -335,10 +336,19 @@ impl LinkSender for MemoryMailbox {
     }
 }
 
-/// Passkeys in memory, oldest first.
+/// One passkey in memory, with what the admin lists.
+#[derive(Debug)]
+struct PasskeyRow {
+    stored: StoredPasskey,
+    listed: ListedPasskey,
+}
+
+/// Passkeys in memory, oldest first, numbered from 1 in the order they
+/// are added.
 #[derive(Debug, Default)]
 pub struct MemoryPasskeys {
-    rows: Mutex<Vec<StoredPasskey>>,
+    rows: Mutex<Vec<PasskeyRow>>,
+    added: AtomicI64,
 }
 
 impl MemoryPasskeys {
@@ -352,8 +362,18 @@ impl MemoryPasskeys {
         clippy::expect_used,
         reason = "a test double; a poisoned lock means a test already failed"
     )]
-    fn rows(&self) -> MutexGuard<'_, Vec<StoredPasskey>> {
+    fn rows(&self) -> MutexGuard<'_, Vec<PasskeyRow>> {
         self.rows.lock().expect("lock poisoned")
+    }
+}
+
+impl PasskeyRow {
+    fn credential_id(&self) -> &[u8] {
+        self.stored.passkey.credential_id()
+    }
+
+    fn is(&self, account: AccountId, id: PasskeyId) -> bool {
+        self.stored.account == account && self.listed.id == id
     }
 }
 
@@ -363,17 +383,26 @@ impl PasskeyStore for MemoryPasskeys {
         account: AccountId,
         passkey: &'a SavedPasskey,
         name: &'a str,
-        _at: DateTime<Utc>,
+        at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<bool, PasskeyStoreError>> {
         let mut rows = self.rows();
         let id = passkey.credential_id();
-        if rows.iter().any(|row| row.passkey.credential_id() == id) {
+        if rows.iter().any(|row| row.credential_id() == id) {
             return ready(Ok(false));
         }
-        rows.push(StoredPasskey {
-            account,
-            passkey: passkey.clone(),
-            name: name.to_owned(),
+        let number = self.added.fetch_add(1, Ordering::Relaxed).saturating_add(1);
+        rows.push(PasskeyRow {
+            stored: StoredPasskey {
+                account,
+                passkey: passkey.clone(),
+                name: name.to_owned(),
+            },
+            listed: ListedPasskey {
+                id: PasskeyId::from_row(number),
+                name: name.to_owned(),
+                added_at: at,
+                last_used_at: None,
+            },
         });
         ready(Ok(true))
     }
@@ -383,10 +412,8 @@ impl PasskeyStore for MemoryPasskeys {
         credential_id: &'a [u8],
     ) -> BoxFuture<'a, Result<Option<StoredPasskey>, PasskeyStoreError>> {
         let rows = self.rows();
-        let found = rows
-            .iter()
-            .find(|row| row.passkey.credential_id() == credential_id);
-        ready(Ok(found.cloned()))
+        let found = rows.iter().find(|row| row.credential_id() == credential_id);
+        ready(Ok(found.map(|row| row.stored.clone())))
     }
 
     fn of(
@@ -394,26 +421,56 @@ impl PasskeyStore for MemoryPasskeys {
         account: AccountId,
     ) -> BoxFuture<'_, Result<Vec<StoredPasskey>, PasskeyStoreError>> {
         let rows = self.rows();
-        ready(Ok(rows
-            .iter()
-            .filter(|row| row.account == account)
-            .cloned()
-            .collect()))
+        let mine = rows.iter().filter(|row| row.stored.account == account);
+        ready(Ok(mine.map(|row| row.stored.clone()).collect()))
     }
 
     fn used<'a>(
         &'a self,
         passkey: &'a SavedPasskey,
-        _at: DateTime<Utc>,
+        at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<(), PasskeyStoreError>> {
         let mut rows = self.rows();
         let id = passkey.credential_id();
-        for row in rows
-            .iter_mut()
-            .filter(|row| row.passkey.credential_id() == id)
-        {
-            row.passkey = passkey.clone();
+        for row in rows.iter_mut().filter(|row| row.credential_id() == id) {
+            row.stored.passkey = passkey.clone();
+            row.listed.last_used_at = Some(at);
         }
         ready(Ok(()))
+    }
+
+    fn listed(
+        &self,
+        account: AccountId,
+    ) -> BoxFuture<'_, Result<Vec<ListedPasskey>, PasskeyStoreError>> {
+        let rows = self.rows();
+        let mine = rows.iter().filter(|row| row.stored.account == account);
+        ready(Ok(mine.map(|row| row.listed.clone()).collect()))
+    }
+
+    fn rename<'a>(
+        &'a self,
+        account: AccountId,
+        id: PasskeyId,
+        name: &'a str,
+    ) -> BoxFuture<'a, Result<bool, PasskeyStoreError>> {
+        let mut rows = self.rows();
+        let Some(row) = rows.iter_mut().find(|row| row.is(account, id)) else {
+            return ready(Ok(false));
+        };
+        name.clone_into(&mut row.stored.name);
+        name.clone_into(&mut row.listed.name);
+        ready(Ok(true))
+    }
+
+    fn remove(
+        &self,
+        account: AccountId,
+        id: PasskeyId,
+    ) -> BoxFuture<'_, Result<bool, PasskeyStoreError>> {
+        let mut rows = self.rows();
+        let before = rows.len();
+        rows.retain(|row| !row.is(account, id));
+        ready(Ok(rows.len() < before))
     }
 }

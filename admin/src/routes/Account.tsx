@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { AddPasskey } from "../account/AddPasskey";
+import { Link } from "@tanstack/react-router";
 import { ChangePassword } from "../account/ChangePassword";
 import { SignOutEverywhere } from "../account/SignOutEverywhere";
 import { readSession } from "../api/account";
@@ -18,7 +18,11 @@ export function Account() {
     shown = (
       <>
         <p className="lede">{words.lede(account.name, account.email)}</p>
-        <AddPasskey email={account.email} />
+        <section className="max-w-160" aria-labelledby="passkeys-title">
+          <h2 id="passkeys-title">{words.passkey.title}</h2>
+          <p>{words.passkey.lede}</p>
+          <Link to="/passkeys">{words.passkey.link}</Link>
+        </section>
         <ChangePassword />
         <SignOutEverywhere />
       </>

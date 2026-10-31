@@ -67,6 +67,9 @@ export function Shell() {
               <Link to="/schema-templates">{en.nav.templates}</Link>
             </li>
             <li>
+              <Link to="/passkeys">{en.nav.passkeys}</Link>
+            </li>
+            <li>
               <Link to="/analytics">{en.nav.analytics}</Link>
             </li>
             <li>
