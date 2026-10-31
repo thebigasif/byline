@@ -289,6 +289,7 @@ Then, all with `--json` when a program reads the answer:
 - `khalid --site <folder> search-console report` shows each post's clicks, impressions, click-through rate and position for the last 28 days Google has final numbers for, posts whose clicks fell three months in a row, missing and noindex pages that still get search traffic, and the week's winners and losers.
 - `khalid --site <folder> search-console post <slug>` shows one post's top searches and whether Google has it in its index.
 - `khalid --site <folder> search-console index` asks Google about every published post, up to 200 a run. Google allows 2,000 of these a day.
+- `khalid --site <folder> search-console follow-ups` lists the long searches, 8 words or more, that showed each post in the last 28 days. People ask AI assistants in whole questions like these, and each is one a reader brings to the post. Next to each, it names the heading that answers it, or says no heading does yet. The fix is a heading that asks the question, with a 40 to 60 word answer under it. Google leaves out searches too rare to share, so a small site may see none.
 - `khalid --site <folder> search-console email` sends the weekly email. Run it once a week, for example from a systemd timer with `OnCalendar=Mon 08:00`, or a cron line such as `0 8 * * 1`.
 
 A refresh token stops working when you take Khalid's permission back in your Google account, or when Google lets it lapse. The commands then say so: make a new one with step 3.

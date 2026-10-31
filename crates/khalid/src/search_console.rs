@@ -16,8 +16,8 @@ use crate::bing::{Failed, block_on};
 use crate::cli::{Cli, Output, SearchConsoleCommand};
 use crate::exit::Exit;
 use crate::{
-    outbound, report, search_console_email, search_console_post, search_console_report,
-    serve_message,
+    outbound, report, search_console_email, search_console_follow_ups, search_console_post,
+    search_console_report, serve_message,
 };
 
 /// Days Google takes to make a day's numbers final.
@@ -57,6 +57,7 @@ pub(crate) fn run(
             SearchConsoleCommand::Index => {
                 search_console_post::index(site, (&console, &outbound), output)
             }
+            SearchConsoleCommand::FollowUps => search_console_follow_ups::run(site, asked, output),
             SearchConsoleCommand::Email => search_console_email::run(site, env, asked, output),
         }
     });

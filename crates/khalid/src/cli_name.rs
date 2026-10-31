@@ -99,6 +99,7 @@ impl SearchConsoleCommand {
             Self::Report => "search-console report",
             Self::Post { .. } => "search-console post",
             Self::Index => "search-console index",
+            Self::FollowUps => "search-console follow-ups",
             Self::Email => "search-console email",
         }
     }

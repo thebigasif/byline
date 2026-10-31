@@ -267,6 +267,10 @@ pub(crate) enum SearchConsoleCommand {
     /// Ask Google whether each published post is in its index, up to 200
     /// posts a run, within Google's daily quota of 2,000
     Index,
+    /// List the long searches of 8 words or more, the way people ask an
+    /// AI assistant, that showed each post in the last 28 days, and
+    /// whether a heading of the post answers each
+    FollowUps,
     /// Email the week in Google search to `report_to` under `[search_console]`,
     /// through `[mail]`. Run it once a week from a timer
     Email,
