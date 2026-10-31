@@ -2463,6 +2463,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-search-console"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "khalid-outbound",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "khalid-seo"
 version = "0.0.0"
 dependencies = [

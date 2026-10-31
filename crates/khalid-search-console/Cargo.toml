@@ -1,0 +1,19 @@
+[package]
+name = "khalid-search-console"
+version = "0.0.0"
+description = "The opt-in Google Search Console connection: per-post numbers, index status, winners and losers, decay and the weekly report."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
