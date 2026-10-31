@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
-use chrono::Utc;
+use khalid_core::{Clock, SystemClock};
 use serde_json::{Value, json};
 
 /// The demo post every edit here changes.
@@ -153,10 +153,12 @@ fn a_real_update_reaches_the_file_and_the_served_page() {
     let real = json!({"markdown": markdown,
         "real_update": {"note": "Added a guide example."},
         "updated_at": saved["posts"][0]["updated_at"]});
+    let before = SystemClock.now().date_naive().to_string();
     let (status, saved) = edit(&server, &key, &real);
     assert_eq!(status, 200, "{saved}");
-    let today = Utc::now().date_naive().to_string();
-    assert_eq!(saved["posts"][0]["updated"], today.as_str(), "{saved}");
+    let after = SystemClock.now().date_naive().to_string();
+    let today = saved["posts"][0]["updated"].as_str().unwrap().to_owned();
+    assert!(today == before || today == after, "{saved}");
 
     let mut file = site.path().to_path_buf();
     file.push(FILE);

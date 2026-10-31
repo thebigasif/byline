@@ -281,15 +281,7 @@ fn definitions() -> Vec<Tool> {
                     "id": { "type": "string" },
                     "title": { "type": "string" },
                     "markdown": { "type": "string", "description": "The whole new body." },
-                    "real_update": {
-                        "type": "object",
-                        "description": "Marks a real update to a live post's text.",
-                        "properties": {
-                            "note": { "type": "string", "description": "What changed, in one short sentence." }
-                        },
-                        "required": ["note"],
-                        "additionalProperties": false
-                    },
+                    "real_update": real_update(),
                     "updated_at": { "type": "string", "description": "As read_post gave it." }
                 },
                 "required": ["id", "updated_at"],
@@ -310,4 +302,17 @@ fn definitions() -> Vec<Tool> {
             }),
         ),
     ]
+}
+
+/// The schema of `edit_post`'s `real_update`, the honest update switch.
+fn real_update() -> Value {
+    json!({
+        "type": "object",
+        "description": "Marks a real update to a live post's text.",
+        "properties": {
+            "note": { "type": "string", "description": "What changed, in one short sentence." }
+        },
+        "required": ["note"],
+        "additionalProperties": false
+    })
 }
