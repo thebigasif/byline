@@ -150,6 +150,24 @@ not_found_spike = 50     # new 404s in one hour that count as a burst
 stale_after_days = 365   # 0 switches the stale-post alert off
 ```
 
+## Many sites on one server
+
+One Khalid process can serve several blogs, each on its own domain. In an empty folder, add each site by its domain. The first one is the home site, where super admins add more:
+
+```sh
+khalid sites add example.com
+khalid sites add news.example.com
+khalid sites admin you@example.com
+khalid --site sites/example.com staff owner --email you@example.com --name "Your Name"
+khalid serve --listen 127.0.0.1:8080
+```
+
+Each site gets its own folder in `sites/`, with its own posts, theme, staff and database, and `khalid --site sites/<domain>` runs any other command on it. `khalid sites list` shows them all.
+
+A super admin is a person whose email `sites.toml` lists and who signs in on the home site. They can add a site from there while the server runs, and it answers at once. Keys and staff of the other sites cannot.
+
+Point each domain's DNS at the server. HTTPS for many domains is not built in yet, so put a proxy such as Caddy in front: it gets a certificate for each domain and passes requests to `127.0.0.1:8080`.
+
 ## Taking your data out
 
 `khalid db export` writes every table of the site's database as a CSV file and a JSON file (two plain formats spreadsheets and reporting tools read), one pair per table, into `data/export/`. Add `--out <folder>` to write them somewhere else. Google Sheets, Excel and Looker Studio open the CSV files as they are.
