@@ -163,6 +163,11 @@ fn failed(property: &str, error: &SearchConsoleError) -> Failed {
             "Google allows a set number of requests a minute and a day for each property.",
             "Wait a minute, or until tomorrow for the daily quota, then run the command again.",
         ),
+        SearchConsoleError::Refused { status } => UserMessage::new(
+            format!("Google turned the request down ({status})."),
+            "Google does this when it is busy, among other reasons.",
+            "Wait a few minutes, then run the command again.",
+        ),
         SearchConsoleError::Request { .. } => UserMessage::new(
             "The request to Google did not complete.",
             "Khalid could not reach Google from this computer.",
