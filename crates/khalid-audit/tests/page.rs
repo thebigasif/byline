@@ -1,6 +1,6 @@
 //! A page read once into what the checks need.
 
-use khalid_audit::Page;
+use khalid_audit::{Block, Page};
 use khalid_core::AbsoluteUrl;
 
 const HEAD: &str = r#"<title>Hello</title>
@@ -95,4 +95,73 @@ fn a_page_with_nothing_in_it_reads_as_empty() {
     assert_eq!(page.headings(), Vec::<String>::new());
     assert!(page.canonical().is_none());
     assert_eq!(page.words(), 0);
+    assert_eq!(page.outline(), []);
+    assert_eq!(page.folded(), Vec::<String>::new());
+    assert_eq!(page.dates(), Vec::<String>::new());
+}
+
+/// A post body with a header and a footer around it.
+const ARTICLE: &str = r#"<header><nav><p>Menu text</p></nav><h2>Site name?</h2></header>
+<main><h1>Rye bread</h1>
+<p>Published <time datetime="2026-03-01">1 March</time>.</p>
+<h2>How long does  rye take?</h2>
+<p>About <a href="https://example.org/">three hours</a>.</p>
+<p>Then it   rests.</p>
+<details><summary>Can I freeze it?</summary><p>Yes.</p></details>
+<details open><summary>Open one</summary><p>Shown.</p></details>
+<h3>Flour</h3></main>
+<footer><p>Footer text</p></footer>"#;
+
+#[test]
+fn reads_the_outline_an_answer_engine_lifts() {
+    let page = read("", ARTICLE);
+    let outline: Vec<(&str, &str, bool)> = page
+        .outline()
+        .iter()
+        .map(|block| match block {
+            Block::Heading(text) => ("heading", text.as_str(), false),
+            Block::Paragraph(paragraph) => ("paragraph", paragraph.text(), paragraph.linked()),
+            _ => ("other", "", false),
+        })
+        .collect();
+    assert_eq!(
+        outline,
+        [
+            ("paragraph", "Published 1 March.", false),
+            ("heading", "How long does rye take?", false),
+            ("paragraph", "About three hours.", true),
+            ("paragraph", "Then it rests.", false),
+            ("paragraph", "Yes.", false),
+            ("paragraph", "Shown.", false),
+            ("heading", "Flour", false),
+        ],
+        "the header, the menu and the footer are not the page's text"
+    );
+    assert_eq!(page.folded(), ["Can I freeze it?"]);
+    assert_eq!(page.dates(), ["2026-03-01"]);
+}
+
+#[test]
+fn in_an_article_comments_menus_and_forms_are_not_the_page_text() {
+    let body = r##"<article><header><h1>Rye</h1><p>Published <time datetime="2026-03-01">then</time></p></header>
+<details><summary>Contents</summary><nav><ul><li><a href="#a">A</a></li></ul></nav></details>
+<div><h2>Why rye?</h2><p>It keeps.</p></div>
+<footer><h2>Tags</h2></footer>
+<section><article><p>A comment with 3 numbers.</p></article>
+<details><summary>Reply</summary><form><p><label>Name</label></p></form></details></section>
+</article>"##;
+    let page = read("", body);
+    assert_eq!(
+        page.outline(),
+        [
+            Block::Heading("Why rye?".to_owned()),
+            read("", "<p>It keeps.</p>")
+                .outline()
+                .first()
+                .cloned()
+                .unwrap(),
+        ]
+    );
+    assert_eq!(page.folded(), Vec::<String>::new());
+    assert_eq!(page.dates(), ["2026-03-01"]);
 }
