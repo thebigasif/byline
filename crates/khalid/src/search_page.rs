@@ -3,7 +3,7 @@
 //! section 7, KH-WEB-2, KH-OPS-1).
 
 use khalid_core::{Config, Mode, UserMessage};
-use khalid_render::{PageBody, PageKind, RenderSearch, Renderer, SearchMode};
+use khalid_render::{PageBody, PageKind, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode};
 use khalid_seo::{PageKind as SeoKind, SeoSite, SiteSearch, UrlPath};
 
 use crate::build_pages::{self, LanguagePages, Page};
@@ -102,6 +102,30 @@ pub(crate) fn announce(config: &Config, site: &mut SeoSite) -> Result<(), UserMe
         site.search = SiteSearch::On(path);
     }
     Ok(())
+}
+
+/// A language's search page without results: the site as its pages show it
+/// and the page's head, with its title and its SEO tags.
+#[derive(Debug, Clone)]
+pub(crate) struct SearchShell {
+    pub(crate) site: RenderSite,
+    pub(crate) meta: PageMeta,
+}
+
+/// The search page of each of `languages`.
+pub(crate) fn shells(languages: &[LanguagePages]) -> Vec<SearchShell> {
+    let mut shells = Vec::new();
+    for language in languages {
+        let searches = language
+            .pages
+            .iter()
+            .filter(|page| matches!(page.body, PageBody::Search(_)));
+        shells.extend(searches.map(|page| SearchShell {
+            site: language.site.clone(),
+            meta: page.meta.clone(),
+        }));
+    }
+    shells
 }
 
 #[cfg(test)]

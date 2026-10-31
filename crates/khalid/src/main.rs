@@ -36,6 +36,7 @@ mod doctor_files;
 mod doctor_folder;
 mod doctor_robots;
 mod exit;
+mod form_pages;
 mod https_message;
 mod import;
 mod import_rest;

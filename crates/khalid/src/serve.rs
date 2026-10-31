@@ -37,8 +37,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    announce, comment_pages, db, db_message, form_pages, media_library, newsletter, preview,
+    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -160,6 +160,7 @@ fn serve_with(
             media_library::open(site, config, bucket_keys, outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
+        let forms = form_pages::router(config, (database, id), &source, &security);
         let scheduling = scheduler::start(Arc::clone(&door));
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let pages = (unlocked, live, config.mount());
@@ -170,7 +171,7 @@ fn serve_with(
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
-            (comments, newsletters, pages),
+            (comments.merge(forms), newsletters, pages),
         );
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));

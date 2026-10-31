@@ -2007,6 +2007,7 @@ dependencies = [
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-forms",
  "khalid-https",
  "khalid-import",
  "khalid-lint",
