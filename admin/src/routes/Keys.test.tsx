@@ -111,7 +111,8 @@ describe("the API keys screen", () => {
     const revoke = en.keys.list.revokeLabel("SerpDad");
     await userEvent.click(await screen.findByRole("button", { name: revoke }));
     expect(await screen.findByText(en.keys.list.revoked("SerpDad"))).toBeVisible();
-    await waitFor(() => expect(screen.queryByText("SerpDad")).toBeNull());
+    const page = screen.getByRole("main");
+    await waitFor(() => expect(within(page).queryByText("SerpDad")).toBeNull());
     expect(sent.filter((request) => request.method === "DELETE")).toHaveLength(1);
   });
 
@@ -129,6 +130,6 @@ describe("the API keys screen", () => {
     const revoke = en.keys.list.revokeLabel("SerpDad");
     await userEvent.click(await screen.findByRole("button", { name: revoke }));
     expect(await screen.findByRole("alert")).toHaveTextContent(own.title);
-    expect(screen.getByText("SerpDad")).toBeVisible();
+    expect(within(screen.getByRole("main")).getByText("SerpDad")).toBeVisible();
   });
 });

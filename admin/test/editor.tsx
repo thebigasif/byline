@@ -4,13 +4,18 @@ import { Editor } from "@tiptap/core";
 import { vi } from "vitest";
 import { RichText } from "../src/editor/RichText";
 
-/** The rich-text view with `markdown`, the editor behind it and what it saved. */
+/**
+ * The rich-text view with `markdown`, the editor behind it and what it saved.
+ * It sits in a `main` landmark, as it does inside the admin shell.
+ */
 export function writing(markdown = "") {
   const onChange = vi.fn();
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queries}>
-      <RichText markdown={markdown} onChange={onChange} onBlur={vi.fn()} />
+      <main>
+        <RichText markdown={markdown} onChange={onChange} onBlur={vi.fn()} />
+      </main>
     </QueryClientProvider>,
   );
   const text: unknown = screen.getByRole("textbox");

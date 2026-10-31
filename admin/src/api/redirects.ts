@@ -2,7 +2,7 @@
 // field for field as `AdminRedirect` and `AdminMiss`, because the OpenAPI
 // document gains them only when the redirects track lands. Then these
 // types become `components["schemas"]` and the calls go through `createApi`.
-import { call, nothing, sending } from "./call";
+import { call, nothing, type Reply, sending } from "./call";
 
 export { type Failure, isData, type Reply } from "./call";
 

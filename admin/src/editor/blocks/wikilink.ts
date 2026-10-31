@@ -67,7 +67,7 @@ export const Wikilink = Node.create({
       if (found === null) {
         return undefined;
       }
-      return { type: "wikilink", raw: found[0], slug: found[1], text: found[2] ?? null };
+      return { type: "wikilink", raw: found[0], slug: found[1], text: found[2] };
     },
   },
   parseMarkdown: (token: MarkdownToken): JSONContent => ({

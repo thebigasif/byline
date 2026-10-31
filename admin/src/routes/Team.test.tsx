@@ -19,7 +19,8 @@ const changeLena = words.list.changeLabel("Lena Vogt");
 function problem(status: number, title: string) {
   const type = status === 403 ? "forbidden" : "conflict";
   const detail = "The API says why.";
-  return json(status, { type: `https://khalid.dev/problems/${type}`, title, status, detail });
+  const fix = "The API says what to do.";
+  return json(status, { type: `https://khalid.dev/problems/${type}`, title, status, detail, fix });
 }
 
 describe("the Team screen", () => {
