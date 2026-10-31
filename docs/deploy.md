@@ -97,6 +97,50 @@ Compose runs Khalid as user 1000, the first user on most Linux machines. If `id 
 
 `KHALID_ADDRESS` changes the site's address without editing `site.toml`, for example when a site moves to a new domain. Uncomment the `environment` lines in `compose.yaml` to set it.
 
+## Hosting platforms
+
+The repository holds a ready file for four hosts. Each one builds the `Dockerfile` or installs the binary, keeps the site on a disk that survives restarts, and makes the site on the first start. `KHALID_ADDRESS` says the blog's address. The image's command, `serve --init`, makes a site there when the disk is empty, and leaves a site it finds as it is.
+
+### Fly.io
+
+Fly.io runs containers close to readers. You need its command line tool, `fly`, and an account.
+
+1. In a copy of this repository, run `fly launch --no-deploy`. It reads `fly.toml` and asks for the app's name.
+2. In `fly.toml`, set `KHALID_ADDRESS` to `https://<the app's name>.fly.dev`, or to your own domain once it points at Fly.
+3. Run `fly deploy`. Fly builds the image, makes a 1 GB disk for the site, and starts the blog.
+
+The site lives on one disk, so the app runs on one machine. Fly stops it when no one reads and starts it on the next visit.
+
+### Railway
+
+Railway builds the `Dockerfile` with the settings in `railway.json`: one copy of the service, checked at `/` before it takes readers.
+
+1. In Railway, make a project from this repository.
+2. Under the service's Settings, Networking, make a public domain, and point it at port 8080.
+3. Add a volume mounted at `/site`.
+4. Under Variables, add `KHALID_ADDRESS` as `https://${{RAILWAY_PUBLIC_DOMAIN}}`, and `RAILWAY_RUN_UID` as `0`. Railway's volumes belong to the root user, so Khalid must run as root to write to it. Railway still keeps the container apart from the machine.
+5. Deploy.
+
+### Coolify
+
+Coolify is a hosting panel you run on your own server.
+
+1. Add a new resource from this repository, with the Docker Compose build pack.
+2. Set the Docker Compose location to `/packaging/coolify/compose.yaml`.
+3. Deploy.
+
+Coolify makes the blog's address, sends it to port 8080, and passes it to Khalid as `KHALID_ADDRESS`. The site lives in the volume `khalid-site`. To use your own domain, change the domain in the service's settings and deploy again.
+
+### A Hetzner Cloud server
+
+`packaging/hetzner/cloud-config.yaml` sets up a new server in its first minute: it runs the install script with `--systemd`, makes the site, and starts Khalid with HTTPS from Let's Encrypt, the free service that issues certificates. Pasting it means you agree to Let's Encrypt's subscriber agreement.
+
+1. In the Hetzner Cloud console, make a Primary IPv4 address under Networking, and point your blog's domain at it.
+2. Copy the file and change `blog.example.com` in it to that domain.
+3. Create a server with that address, and paste the file under "Cloud config".
+
+The blog is at `https://<your domain>/` a few minutes later. Point the domain first: Khalid asks for its certificate on the first start, and Let's Encrypt only gives one for a domain that leads to the server.
+
 ## Sending email
 
 Khalid sends email when a reader signs up for the newsletter: one message with a link that confirms the address. It also sends you each answer to a form block. Until `site.toml` says how mail is sent, the sign-up form says sign-ups are not open yet and stores nothing.
@@ -111,11 +155,14 @@ Through the mail server your host gives you, with SMTP (the protocol mail server
 [mail]
 from = "news@example.com"
 name = "Field Notes"
+postal_address = "Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK"
 
 [mail.smtp]
 host = "smtp.example.com"
 username = "news@example.com"
 ```
+
+`postal_address` is the address where people can reach you or your business by post. Anti-spam laws ask every newsletter email to show one, so Khalid sends no newsletter until it is set; sign-up emails work without it.
 
 Khalid connects on port 587 and turns encryption on before it sends anything. Add `port = 465` and `security = "tls"` for a server that is encrypted from the start. A relay on the same machine or your own network needs `private_host = true`; only then may it use `security = "none"`.
 

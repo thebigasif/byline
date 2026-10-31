@@ -1,0 +1,3 @@
+# This fixture is about facts, not about where numbers come from.
+[rules]
+sourced-statistics = "off"

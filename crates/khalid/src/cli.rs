@@ -10,6 +10,9 @@ use khalid_https::Domain;
 use khalid_webhooks::Event;
 
 pub(crate) use crate::cli_access::{KeyKindArg, KeysCommand, NewKeyArgs, OwnerArgs, StaffCommand};
+use crate::new::NewArgs;
+use crate::newsletter_cli::NewsletterCommand;
+use crate::update::UpdateTarget;
 
 /// The command line.
 #[derive(Debug, Parser)]
@@ -75,13 +78,7 @@ pub(crate) enum Command {
     /// Run the blog and the admin, showing each saved edit at once
     Serve(ServeArgs),
     /// Create a post file with correct front matter
-    New {
-        /// The post's title
-        title: String,
-        /// The language the post is written in [default: the site's default language]
-        #[arg(long, value_name = "CODE")]
-        language: Option<Locale>,
-    },
+    New(NewArgs),
     /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked.
     /// A headless site gets its feeds, sitemaps and redirects and no HTML.
     /// A static site gets a note in place of each form, and a list of the
@@ -207,6 +204,12 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: WebhooksCommand,
     },
+    /// Email posts and digests to subscribers, label them, and see the numbers
+    Newsletter {
+        /// What to do with the newsletters
+        #[command(subcommand)]
+        command: NewsletterCommand,
+    },
     /// Hand Bing Webmaster Tools the sitemap, or read how Bing crawls the
     /// site. Uses the key in the `KHALID_BING_API_KEY` environment variable
     Bing {
@@ -277,12 +280,14 @@ pub(crate) struct ServeArgs {
     /// The address and port to answer on over plain HTTP
     #[arg(long, value_name = "ADDRESS", default_value = "127.0.0.1:8080")]
     pub(crate) listen: SocketAddr,
+    /// Make the site first when the folder has none, at the address in `KHALID_ADDRESS`
+    #[arg(long)]
+    pub(crate) init: bool,
     /// Answer over HTTPS for this domain on ports 443 and 80, with a free
     /// certificate from Let's Encrypt that Khalid gets and renews
     #[arg(long, value_name = "DOMAIN", conflicts_with = "listen")]
     pub(crate) domain: Option<Domain>,
-    /// Agree to Let's Encrypt's subscriber agreement without being asked,
-    /// such as in a service or a container
+    /// Agree to Let's Encrypt's subscriber agreement unasked, as in a service or a container
     #[arg(long, requires = "domain")]
     pub(crate) accept_terms: bool,
     /// The address for HTTPS instead of port 443 on every address
@@ -471,22 +476,13 @@ pub(crate) enum Network {
     Offline,
 }
 
-/// Which version `khalid update` installs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum UpdateTarget {
-    /// The newest release.
-    Latest,
-    /// The version before the last update.
-    Previous,
-}
-
 impl Command {
     /// The command as a person types it, such as `theme sync`.
     pub(crate) fn name(&self) -> &'static str {
         match self {
             Self::Init(_) => "init",
             Self::Serve(_) => "serve",
-            Self::New { .. } => "new",
+            Self::New(_) => "new",
             Self::Build { .. } => "build",
             Self::Lint { .. } => "lint",
             Self::Publish { .. } => "publish",
@@ -541,6 +537,7 @@ impl Command {
             Self::Webhooks {
                 command: WebhooksCommand::Remove { .. },
             } => "webhooks remove",
+            Self::Newsletter { command } => command.name(),
             Self::Bing {
                 command: BingCommand::Sitemap,
             } => "bing sitemap",

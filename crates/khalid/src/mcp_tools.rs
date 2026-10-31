@@ -65,7 +65,7 @@ impl SiteTools {
                 Err(_) => ToolResult::failed("The findings could not be written out."),
             },
             Ok(None) => ToolResult::failed(
-                "No post has this identity. Check it, or find it with list_posts.",
+                "No post has this identity. Check it, or find it with browse_admin_posts.",
             ),
             Err(error) => {
                 tracing::error!(%error, "a post could not be linted");

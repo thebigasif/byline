@@ -1,0 +1,2 @@
+warn no-focus-keyword
+warn review-without-rating: the review gives no rating (suggest: add a review block with the item, your score and a short verdict)

@@ -4,9 +4,9 @@ use chrono::NaiveDate;
 
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
-    Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
-    link_text, page_or_section, reading, site_content, site_links, site_sections, site_trust,
-    snippet, structure, topics, words, writing,
+    Rule, SiteRule, Thresholds, address, blocking, collections, facts, link_hygiene, link_targets,
+    link_text, page_or_section, page_shape, reading, site_content, site_links, site_sections,
+    site_trust, snippet, structure, topics, words, writing,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -53,6 +53,8 @@ fn blocking_and_structure_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(link_text::VagueLinkText),
         Box::new(link_text::SameTargetTwice),
         Box::new(link_text::EmptyLinkText),
+        Box::new(link_text::LinkTextMissesTarget),
+        Box::new(link_text::LinkTextIsOwnFocus),
         Box::new(structure::NoOutboundLink),
         Box::new(link_hygiene::NofollowInternalLink),
         Box::new(link_hygiene::InsecureInternalLink),
@@ -83,6 +85,7 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
             openers: writing::VAGUE_OPENERS.to_vec(),
         }),
         Box::new(writing::SourcedStatistics),
+        Box::new(facts::FactOldValue),
         Box::new(crate::focus::NoFocusKeyword),
         Box::new(FocusNotIn(Place::Title)),
         Box::new(FocusNotIn(Place::Headline)),
@@ -117,6 +120,10 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(page_or_section::SectionWantsOwnPage {
             min_words: thresholds.thin_post_words,
         }),
+        Box::new(page_shape::ComparisonWithoutTable),
+        Box::new(page_shape::ComparisonAnswerLate),
+        Box::new(page_shape::FewerPicksThanTitle),
+        Box::new(page_shape::ReviewWithoutRating),
     ]
 }
 
@@ -133,6 +140,10 @@ pub(crate) fn site_rules(thresholds: Thresholds, today: NaiveDate) -> Vec<Box<dy
         Box::new(site_content::MissingTranslation),
         Box::new(site_content::StalePost {
             months: thresholds.stale_months,
+            today,
+        }),
+        Box::new(facts::FactNotChecked {
+            months: thresholds.fact_check_months,
             today,
         }),
         Box::new(site_sections::SectionRepeatsPost {

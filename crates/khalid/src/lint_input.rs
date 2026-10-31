@@ -6,20 +6,21 @@
 //! rendered with its wikilinks linked, the wikilinks as written, its forms,
 //! focus keywords, collection and topic cluster, the `rel` words the link
 //! policy gives each link, the site's collections, and the links of each
-//! home page, which lists every dated post (audit 2, G5).
+//! home page, which lists every dated post (audit 2, G5), and the site's
+//! fact registry (P7).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::{
-    BlockKind, Document, Link, PostFront, SiteContent, TopicCluster, TopicRole, Wikilinks,
-    parse_blocks, render_linked,
+    BlockKind, Document, Link, PostFront, SiteContent, StructuredBlock, TopicCluster, TopicRole,
+    Wikilinks, parse_blocks, render_linked,
 };
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
     Cluster, ClusterRole, GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection,
-    LintForm, LintLink, LintPost, LintSite, PageRef, StructuredDataGap,
+    LintFact, LintForm, LintLink, LintPost, LintSite, PageRef, StructuredDataGap,
 };
 use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{LinkPolicy, SeoSite};
@@ -36,6 +37,7 @@ pub(crate) struct LintInput {
     links: BTreeMap<Locale, Wikilinks>,
     seo: Option<SeoSite>,
     policy: (LinkPolicy, SeoSite),
+    facts: Vec<LintFact>,
 }
 
 impl LintInput {
@@ -57,7 +59,13 @@ impl LintInput {
             links,
             seo,
             policy,
+            facts: Vec::new(),
         }
+    }
+
+    /// This input with the site's fact registry, read from `facts.toml`.
+    pub(crate) fn with_facts(self, facts: Vec<LintFact>) -> Self {
+        Self { facts, ..self }
     }
 }
 
@@ -114,6 +122,7 @@ pub(crate) fn lint_site<'c>(
         }
     }
     site.locales = config.languages().to_vec();
+    site.facts.clone_from(&input.facts);
     site.slugs = Some(config.slugs());
     let host = config.address().host();
     site.host = (!host.is_empty()).then(|| host.to_owned());
@@ -207,6 +216,12 @@ pub(crate) fn lint_parts(
         .iter()
         .map(|image| Image::new(image.src.clone(), image.alt.clone()))
         .collect();
+    post.tables = rendered.html.matches("<table").count();
+    post.reviews = rendered
+        .structured
+        .iter()
+        .filter(|block| matches!(block, StructuredBlock::Review(_)))
+        .count();
     post.word_count = rendered.words;
     post.body_text = plain_text(&rendered.html);
     Some(post)

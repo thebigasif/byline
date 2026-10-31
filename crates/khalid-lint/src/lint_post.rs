@@ -68,6 +68,13 @@ pub struct LintPost {
     /// The forms in the body, in order.
     #[serde(default)]
     pub forms: Vec<LintForm>,
+    /// How many tables the body holds.
+    #[serde(default)]
+    pub tables: usize,
+    /// How many review blocks, each a rated verdict on one thing, the body
+    /// holds.
+    #[serde(default)]
+    pub reviews: usize,
     /// The phrase the post wants to be found for, such as "internal links",
     /// from `focus_keyword` in the header.
     pub focus_keyword: Option<String>,
@@ -107,6 +114,8 @@ impl LintPost {
             body_text: String::new(),
             aliases: Vec::new(),
             forms: Vec::new(),
+            tables: 0,
+            reviews: 0,
             focus_keyword: None,
             secondary_keywords: Vec::new(),
             collection: None,

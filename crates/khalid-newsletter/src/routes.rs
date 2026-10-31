@@ -10,16 +10,12 @@ use axum::extract::rejection::FormRejection;
 use axum::extract::{DefaultBodyLimit, Form, Query, State};
 use axum::http::{HeaderName, HeaderValue, Response, StatusCode, header};
 use axum::routing::{get, post};
-use khalid_core::Slug;
 use serde::Deserialize;
 
 use crate::{
     BackPath, Confirmed, EmailAddress, Newsletter, Page, Pages, ReaderPass, SubscriberToken,
     Unsubscribed,
 };
-
-/// The newsletter a sign-up joins until task 5.7 adds several.
-const DEFAULT_LIST: &str = "main";
 
 /// The largest form body read. An address and a token fit many times over.
 const LARGEST_FORM: usize = 4 * 1024;
@@ -57,12 +53,14 @@ struct Shared {
 
 /// The fields of the sign-up form. `homepage` is the trap a person never
 /// sees; a program that fills it gets the same page and nothing happens.
+/// `list` names the newsletter, `main` when it is left out.
 #[derive(Debug, Deserialize)]
 struct SignUpForm {
     email: Option<String>,
     homepage: Option<String>,
     /// The page of gated content the form was on.
     back: Option<String>,
+    list: Option<String>,
 }
 
 /// The token of a link, from its query or from the page's one button, and
@@ -119,8 +117,8 @@ async fn sign_up(
     let Some(Ok(email)) = email else {
         return page(&shared, StatusCode::UNPROCESSABLE_ENTITY, Page::WrongEmail);
     };
-    let Ok(list) = Slug::try_new(DEFAULT_LIST) else {
-        return failed(&shared, &"the default newsletter name is not a slug");
+    let Some(list) = newsletter.lists().find(form.list.as_deref()) else {
+        return page(&shared, StatusCode::NOT_FOUND, Page::NoSuchList);
     };
     let signed = match shared.back(form.back.as_deref()) {
         Some(back) => newsletter.sign_up_to_read(email, list, &back).await,

@@ -4,36 +4,36 @@
 //! nothing. With `[mail]`, subscribers are kept in the site's database and
 //! the confirmation leaves the way `[mail]` names.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use axum::Router;
 use khalid_core::{Config, MailTransport, Secret, SystemClock, UserMessage};
 use khalid_db::{Database, SiteId, SubscriberTable};
 use khalid_mail::{ApiMailer, Sender, Service, SmtpMailer};
-use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, ReaderPass, SiteLinks};
+use khalid_newsletter::{
+    Mailer, Newsletter, NewsletterSite, Pages, PostalAddress, ReaderPass, SiteLinks, Welcomes,
+};
 use khalid_outbound::{Outbound, Resolver};
 use tokio::runtime::Runtime;
 
 use crate::announce::SiteAnnounce;
-use crate::serve_message;
 use crate::subscriber_events::AnnouncedSubscribers;
+use crate::{newsletter_files, serve_message};
 
-/// The newsletter's routes for the site with `config`, in its default
-/// language, keeping subscribers in site `id` of `database`, telling
-/// `announce` of each one confirmed, and sending through `mailer`, the way
-/// [`mailer`] made from `[mail]`. A reader who confirms gets the reader
-/// cookie, signed with the site's preview key read on `runtime`.
+/// The newsletter's routes for the site in `folder` with `config`, in its
+/// default language, taking sign-ups for the newsletters in
+/// `content/newsletters/`, keeping subscribers in site `id` of `database`,
+/// telling `announce` of each one confirmed, and sending through `mailer`,
+/// the way [`mailer`] made from `[mail]`. A reader who confirms gets the
+/// reader cookie, signed with the site's preview key read on `runtime`.
 pub(crate) fn router(
-    config: &Config,
+    (folder, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
     (runtime, announce): (&Runtime, &SiteAnnounce),
     mailer: Option<Arc<dyn Mailer>>,
 ) -> Result<Router, UserMessage> {
-    let site = NewsletterSite {
-        name: config.name().to_owned(),
-        locale: config.default_language().clone(),
-        links: SiteLinks::new(config.address(), config.mount()),
-    };
+    let site = site(config);
     let pages = Pages::new(site.clone()).map_err(|_| serve_message::internal())?;
     let newsletter = match mailer {
         Some(mailer) => {
@@ -43,7 +43,8 @@ pub(crate) fn router(
             let key = key.map_err(|_| serve_message::internal())?;
             let made = Newsletter::new(store, mailer, Arc::new(SystemClock), site);
             let made = made.map_err(|_| serve_message::internal())?;
-            Some(made.with_pass(reader_pass(config, &key)))
+            let made = made.with_pass(reader_pass(config, &key));
+            Some(with_files(made, folder, config))
         }
         None => None,
     };
@@ -56,11 +57,38 @@ pub(crate) fn reader_pass(config: &Config, key: &Secret<[u8; 32]>) -> ReaderPass
     ReaderPass::new(key, &links, Arc::new(SystemClock))
 }
 
+/// `newsletter` with the lists and welcome emails in the site's
+/// `content/newsletters/`. Welcomes go out only once `[mail]` has a postal
+/// address, as every newsletter email ends with it.
+fn with_files(newsletter: Newsletter, folder: &Path, config: &Config) -> Newsletter {
+    let lists = newsletter_files::lists(folder);
+    let postal = config
+        .mail()
+        .and_then(|mail| mail.postal_address.as_deref());
+    let welcomes = postal
+        .and_then(PostalAddress::new)
+        .map(|postal| Welcomes::new(newsletter_files::welcomes(folder, &lists), postal));
+    let newsletter = newsletter.with_lists(lists);
+    match welcomes {
+        Some(welcomes) => newsletter.with_welcomes(welcomes),
+        None => newsletter,
+    }
+}
+
+/// The site the emails come from, in its default language.
+pub(crate) fn site(config: &Config) -> NewsletterSite {
+    NewsletterSite {
+        name: config.name().to_owned(),
+        locale: config.default_language().clone(),
+        links: SiteLinks::new(config.address(), config.mount()),
+    }
+}
+
 /// The way mail leaves, sending with the `secret` from the environment
 /// and reaching the APIs through `outbound`, as `[mail]` names it, or
-/// `None` when the site sends none. The newsletter and the alerts share
-/// it. The settings and the secret were checked at start, so a failure
-/// here is Khalid's own.
+/// `None` when the site sends none. The newsletter, the alerts and the
+/// form answers share it. The settings and the secret were checked at
+/// start, so a failure here is Khalid's own.
 pub(crate) fn mailer(
     config: &Config,
     secret: Option<Secret<String>>,

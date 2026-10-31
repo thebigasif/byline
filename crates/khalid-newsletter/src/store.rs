@@ -9,7 +9,9 @@ use std::pin::Pin;
 use chrono::{DateTime, TimeDelta, Utc};
 use khalid_core::Slug;
 
-use crate::{EmailAddress, TokenHash};
+use crate::{
+    EmailAddress, Labelled, Member, Recipient, Segment, SendId, SendNumbers, SendTotals, TokenHash,
+};
 
 /// How long a confirmation link works. Two days covers a weekend away from
 /// the inbox, and a reader who misses it signs up again.
@@ -161,6 +163,98 @@ pub trait SubscriberStore: fmt::Debug + Send + Sync {
         token: &'a TokenHash,
         at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<Unsubscribed, StoreError>>;
+
+    /// Gives the subscriber at `email` the label `label`, `at` that time,
+    /// unless they unsubscribed. Adding it twice changes nothing.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read or written.
+    fn label<'a>(
+        &'a self,
+        email: &'a EmailAddress,
+        label: &'a Slug,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<Labelled, StoreError>>;
+
+    /// Takes the label `label` away from the subscriber at `email`.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read or written.
+    fn unlabel<'a>(
+        &'a self,
+        email: &'a EmailAddress,
+        label: &'a Slug,
+    ) -> BoxFuture<'a, Result<Labelled, StoreError>>;
+
+    /// Records that the issue with `key` starts going out to `list` `at`
+    /// that time, or `None` when an issue with that key went out before.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read or written.
+    fn start_send<'a>(
+        &'a self,
+        key: &'a str,
+        list: &'a Slug,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<Option<SendId>, StoreError>>;
+
+    /// Stores `token` as the unsubscribe link of `subscriber` in their
+    /// copy of `send`, so a click on it counts against that email.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be written, or `subscriber` is
+    /// gone.
+    fn add_send_unsubscribe<'a>(
+        &'a self,
+        send: SendId,
+        subscriber: SubscriberId,
+        token: &'a TokenHash,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<(), StoreError>>;
+
+    /// Records the `totals` of `send` once it has gone out, `at` that time.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be written.
+    fn finish_send(
+        &self,
+        send: SendId,
+        totals: SendTotals,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'_, Result<(), StoreError>>;
+
+    /// The numbers of every email that went out, newest first.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read.
+    fn sends(&self) -> BoxFuture<'_, Result<Vec<SendNumbers>, StoreError>>;
+
+    /// Subscriber `subscriber`, with the newsletters they get in
+    /// alphabetical order, or `None` when they are gone or unsubscribed.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read.
+    fn subscriber(
+        &self,
+        subscriber: SubscriberId,
+    ) -> BoxFuture<'_, Result<Option<Member>, StoreError>>;
+
+    /// Every confirmed subscriber in `segment`, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read.
+    fn audience<'a>(
+        &'a self,
+        segment: &'a Segment,
+    ) -> BoxFuture<'a, Result<Vec<Recipient>, StoreError>>;
 }
 
 /// The store could not be read or written. It keeps the store's own error

@@ -77,7 +77,12 @@ mod memory;
 mod miss_log;
 mod new;
 mod new_message;
+mod new_template;
 mod newsletter;
+mod newsletter_cli;
+mod newsletter_digest;
+mod newsletter_files;
+mod newsletter_send;
 mod outbound;
 mod page_code;
 mod page_counts;
@@ -114,6 +119,7 @@ mod site_addresses;
 mod site_audit;
 mod site_config;
 mod site_content;
+mod site_facts;
 mod site_files;
 mod site_html;
 mod site_lists;
@@ -150,7 +156,7 @@ use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 use khalid_server::FolderLook;
 
-use crate::cli::{Cli, Command, Output, ThemeCommand};
+use crate::cli::{Cli, Command, Output, ServeArgs, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
@@ -176,13 +182,26 @@ fn serving(folder: &Path) -> FolderLook {
     FolderLook::take(folder)
 }
 
+/// For `serve --init`, makes the site before it is checked when the folder
+/// holds none, and returns the exit when that fails.
+fn first_start(cli: &Cli, environment: &Environment) -> Option<Exit> {
+    let (Some(Command::Serve(ServeArgs { init: true, .. })), Some(folder)) =
+        (&cli.command, cli.site.as_deref())
+    else {
+        return None;
+    };
+    let made = init::first_start(folder, environment);
+    made.err()
+        .map(|message| report::failure(cli.output, &message, Exit::Failure))
+}
+
 /// Runs the command the person asked for, after checking the site's settings
 /// and reading its content when `--site` names a folder.
 fn run(cli: &Cli) -> Exit {
-    if let Some(exit) = run_unchecked(cli) {
+    let env = Environment::from_process();
+    if let Some(exit) = run_unchecked(cli).or_else(|| first_start(cli, &env)) {
         return exit;
     }
-    let env = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
     let serves = matches!(cli.command, Some(Command::Serve(_)));
@@ -216,13 +235,6 @@ fn run(cli: &Cli) -> Exit {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
             lint::run(folder, path.as_deref(), mode, cli.output)
         }
-        (Some(Command::New { title, language }), Some((folder, config, ..))) => {
-            let post = NewPost {
-                title,
-                language: language.as_ref(),
-            };
-            new::run(folder, config, post, &SystemClock, cli.output)
-        }
         (
             Some(asked @ (Command::Build { .. } | Command::Export | Command::Audit { .. })),
             Some((folder, config, routes, (content, _))),
@@ -236,7 +248,12 @@ fn run(cli: &Cli) -> Exit {
             bing::run(config, &env, *command, cli)
         }
         (
-            Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
+            Some(
+                command @ (Command::Theme { .. }
+                | Command::Publish { .. }
+                | Command::Newsletter { .. }
+                | Command::New(_)),
+            ),
             Some((folder, config, ..)),
         ) => on_settings(folder, config, command, cli),
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
@@ -253,6 +270,7 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Mcp
                 | Command::Lint { .. }
                 | Command::Publish { .. }
+                | Command::Newsletter { .. }
                 | Command::New { .. }
                 | Command::Build { .. }
                 | Command::Export
@@ -265,10 +283,18 @@ fn run(cli: &Cli) -> Exit {
     }
 }
 
-/// Runs the commands that need only a checked site's settings: `theme`
-/// and `publish`.
+/// Runs the commands that need only a checked site's settings: `theme`,
+/// `publish`, `newsletter` and `new`.
 fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
     match command {
+        Command::New(args) => new::run(
+            folder,
+            config,
+            NewPost::from(args),
+            &SystemClock,
+            cli.output,
+        ),
+        Command::Newsletter { command } => newsletter_cli::run(cli, (folder, config), command),
         Command::Theme { command } => theme(folder, config, command, cli),
         Command::Publish { slug, language } => {
             publish::run(cli, (folder, config), (slug, language.as_ref()))

@@ -1,0 +1,23 @@
+#cloud-config
+# Runs Khalid on a new Hetzner Cloud server, with HTTPS from Let's Encrypt.
+# The steps are in docs/deploy.md.
+#
+# Before you paste this file into "Cloud config" when you create the
+# server, change blog.example.com below to your blog's domain, and point
+# that domain at the server's IPv4 address.
+
+write_files:
+  - path: /etc/khalid/domain.env
+    content: |
+      KHALID_DOMAIN=blog.example.com
+  - path: /etc/systemd/system/khalid.service.d/domain.conf
+    content: |
+      [Service]
+      EnvironmentFile=/etc/khalid/domain.env
+      ExecStart=
+      ExecStart=/usr/local/bin/khalid --site /var/lib/khalid serve --domain ${KHALID_DOMAIN} --accept-terms
+
+runcmd:
+  - [sh, -c, "curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sh -s -- --systemd"]
+  - [sh, -c, ". /etc/khalid/domain.env && runuser -u khalid -- /usr/local/bin/khalid init /var/lib/khalid --address https://$KHALID_DOMAIN --yes"]
+  - [systemctl, enable, --now, khalid]

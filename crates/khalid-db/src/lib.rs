@@ -31,6 +31,7 @@ mod delivery_log;
 mod form_table;
 mod key_table;
 mod link_table;
+mod newsletter_sends;
 mod not_found_table;
 mod passkey_table;
 mod posts;
@@ -44,6 +45,7 @@ mod site_export;
 mod site_id;
 mod site_keys;
 mod site_lists;
+mod subscriber_segments;
 mod subscriber_table;
 mod webhook_table;
 

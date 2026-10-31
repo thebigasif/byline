@@ -68,7 +68,7 @@ impl Rule for NearDuplicate {
 }
 
 /// Whether `term` appears in `text` as whole words. Both are lowercase.
-fn mentions(text: &str, term: &str) -> bool {
+pub(crate) fn mentions(text: &str, term: &str) -> bool {
     text.match_indices(term).any(|(at, _)| {
         let before = text.get(..at).and_then(|head| head.chars().next_back());
         let after = text

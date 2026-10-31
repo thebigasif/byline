@@ -231,7 +231,7 @@ fn mail_and_alerts(
     let internal = |message| (message, Exit::Internal);
     let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
     let newsletters =
-        newsletter::router(config, (database, id), (runtime, telling), mailer.clone())
+        newsletter::router((folder, config), (database, id), (runtime, telling), mailer.clone())
             .map_err(internal)?;
     let delivery = SiteDelivery::new(config, mailer.clone(), telling.clone()).map_err(internal)?;
     let delivery: Arc<dyn FormDelivery> = Arc::new(delivery);

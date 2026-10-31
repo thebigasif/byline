@@ -82,9 +82,14 @@ INSERT INTO subscribers (id, site_id, email, status, created_at) VALUES
     (2, 2, 'reader@example.com', 'confirmed', '2026-10-26T09:00:00Z');
 INSERT INTO subscriber_lists (site_id, subscriber_id, list, joined_at) VALUES
     (1, 1, 'main', '2026-10-26T09:00:00Z'), (2, 2, 'main', '2026-10-26T09:00:00Z');
+INSERT INTO subscriber_labels (site_id, subscriber_id, label, added_at) VALUES
+    (1, 1, 'paid', '2026-10-26T09:00:00Z'), (2, 2, 'paid', '2026-10-26T09:00:00Z');
 INSERT INTO subscriber_tokens (site_id, subscriber_id, purpose, token_hash, created_at) VALUES
     (1, 1, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z'),
     (2, 2, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z');
+INSERT INTO newsletter_sends (site_id, send_key, list, started_at, sent) VALUES
+    (1, 'post:en/old-post', 'main', '2026-10-26T09:00:00Z', 1),
+    (2, 'post:en/old-post', 'main', '2026-10-26T09:00:00Z', 1);
 INSERT INTO comments (site_id, post_path, author_kind, author_name, author_email, body, status, created_at) VALUES
     (1, 'content/en/posts/old-post.md', 'reader', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z'),
     (2, 'content/en/posts/old-post.md', 'reader', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z');
