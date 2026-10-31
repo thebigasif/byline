@@ -9,6 +9,7 @@
 mod admin_api;
 mod admin_comments;
 mod admin_delete;
+mod admin_follow_ups;
 mod admin_key;
 mod admin_not_found;
 mod admin_redirect_csv;

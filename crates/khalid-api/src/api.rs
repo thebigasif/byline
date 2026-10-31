@@ -14,6 +14,7 @@ use crate::admin_key::{AdminDoor, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_store::ContentStore;
+use crate::follow_ups::{FollowUpFinder, NoSearchConsole};
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
 use crate::post_store::PostStore;
@@ -24,8 +25,8 @@ use crate::resources::MediaItems;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects,
-    admin_webhooks, api_version, content_api,
+    admin_api, admin_comments, admin_follow_ups, admin_not_found, admin_redirect_csv,
+    admin_redirects, admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -214,6 +215,9 @@ pub struct AdminDesks {
     /// The site's webhooks, or `None` when the webhook routes list none
     /// and answer that the site keeps none.
     pub webhooks: Option<Arc<dyn WebhookStore>>,
+    /// The Search Console follow-ups, under
+    /// `/api/admin/v1/search-console/follow-ups/`.
+    pub follow_ups: Arc<dyn FollowUpFinder>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -226,15 +230,32 @@ impl std::fmt::Debug for AdminDesks {
 }
 
 impl AdminDesks {
-    /// No comments, no media library, no stored redirects and no webhooks.
+    /// No comments, no media library, no stored redirects, no webhooks and
+    /// no Search Console connection.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
             media: None,
             redirects: RedirectDesk::none(),
             webhooks: None,
+            follow_ups: Arc::new(NoSearchConsole),
         }
     }
+}
+
+/// [`router_with_door`] with the Search Console follow-ups found by
+/// `finder`.
+pub fn router_with_follow_ups(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    finder: Arc<dyn FollowUpFinder>,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        follow_ups: finder,
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
 }
 
 /// [`router_with_door`] with the webhook routes under
@@ -287,7 +308,8 @@ fn assemble(
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))
         .merge(admin_redirect_csv::routes(redirects.clone(), door.clone()))
         .merge(admin_redirects::routes(redirects, door.clone()))
-        .merge(admin_webhooks::routes(desks.webhooks, door.clone()));
+        .merge(admin_webhooks::routes(desks.webhooks, door.clone()))
+        .merge(admin_follow_ups::routes(desks.follow_ups, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

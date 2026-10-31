@@ -1958,6 +1958,83 @@
         ]
       }
     },
+    "/api/admin/v1/search-console/follow-ups/": {
+      "get": {
+        "tags": [
+          "admin search console"
+        ],
+        "summary": "Lists the long searches, of 8 words or more, that showed each post in\nthe last 28 days whose numbers are final, with the heading of the post\nthat answers each. Google is asked on each request, so the answer can\ntake some seconds. Needs `settings:write`.",
+        "operationId": "follow_ups",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The long searches per post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowUps"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The site is not connected to Search Console",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google refused or could not be reached",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/session/": {
       "get": {
         "tags": [
@@ -6741,6 +6818,113 @@
           }
         },
         "additionalProperties": false
+      },
+      "FollowUp": {
+        "type": "object",
+        "description": "One long search and how it did.",
+        "required": [
+          "query",
+          "clicks",
+          "impressions",
+          "position"
+        ],
+        "properties": {
+          "answered_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The heading of the post that answers it, or none yet."
+          },
+          "clicks": {
+            "type": "number",
+            "format": "double",
+            "description": "Clicks from it to the post."
+          },
+          "impressions": {
+            "type": "number",
+            "format": "double",
+            "description": "Times it showed the post."
+          },
+          "position": {
+            "type": "number",
+            "format": "double",
+            "description": "The post's average position in its results, 1 at the top."
+          },
+          "query": {
+            "type": "string",
+            "description": "The search as people typed it.",
+            "example": "do i need a sitemap if my blog has only ten posts"
+          }
+        }
+      },
+      "FollowUpPost": {
+        "type": "object",
+        "description": "One post and the long searches that showed it.",
+        "required": [
+          "title",
+          "url",
+          "searches"
+        ],
+        "properties": {
+          "searches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FollowUp"
+            },
+            "description": "Its long searches, the most shown first."
+          },
+          "title": {
+            "type": "string",
+            "description": "The post's title."
+          },
+          "url": {
+            "type": "string",
+            "description": "The post's full address.",
+            "example": "https://example.com/blog/what-a-sitemap-does/"
+          }
+        }
+      },
+      "FollowUps": {
+        "type": "object",
+        "description": "The long searches that showed the site's posts in a month.",
+        "required": [
+          "property",
+          "first",
+          "last",
+          "words",
+          "posts"
+        ],
+        "properties": {
+          "first": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day looked at."
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day looked at: the last day whose numbers are final."
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FollowUpPost"
+            },
+            "description": "The posts the searches showed, the one with the most shown search\nfirst."
+          },
+          "property": {
+            "type": "string",
+            "description": "The Search Console property the numbers come from.",
+            "example": "sc-domain:example.com"
+          },
+          "words": {
+            "type": "integer",
+            "description": "The fewest words a search had to have to count.",
+            "example": 8,
+            "minimum": 0
+          }
+        }
       },
       "Gate": {
         "type": "string",
