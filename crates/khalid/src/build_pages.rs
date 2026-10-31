@@ -12,7 +12,7 @@ use khalid_content::{
 };
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Link, Nav, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
+    BodyHtml, Link, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
     RenderAuthor, RenderHome, RenderListing, RenderPage, RenderPost, RenderSite, Robots, related,
 };
 use khalid_routes::{PostAddress, Routes};
@@ -21,7 +21,7 @@ use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 use crate::listed_post::{ListedPost, ListedTag};
 use crate::post_lock::Unlocked;
 pub(crate) use crate::site_page::Page;
-use crate::{build_home, build_message, build_reader, build_schema, build_seo};
+use crate::{build_home, build_message, build_reader, build_schema, build_seo, site_chrome};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
@@ -97,7 +97,7 @@ fn language_pages(
         lead: None,
     });
     Ok(LanguagePages {
-        site: render_site(config, locale, stylesheet),
+        site: site_chrome::render_site(config, locale, stylesheet),
         pages,
         listed,
         unlocked: Vec::new(),
@@ -591,22 +591,6 @@ fn page(
         template: None,
         head_code: None,
         lead: None,
-    }
-}
-
-/// The site as pages in `locale` show it, linking the stylesheet at `stylesheet`.
-pub(crate) fn render_site(config: &Config, locale: &Locale, stylesheet: &str) -> RenderSite {
-    RenderSite {
-        name: config.name().to_owned(),
-        locale: locale.clone(),
-        home: path_of(config, locale, ""),
-        stylesheet: stylesheet.to_owned(),
-        nav: Nav::default(),
-        main_site: None,
-        share_image: None,
-        features: build_reader::features(config.reader()),
-        search: None,
-        script: None,
     }
 }
 

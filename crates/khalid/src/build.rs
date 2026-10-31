@@ -153,6 +153,9 @@ fn build(
     let locks = static_mode::locks(config.mode())?;
     if let Some((renderer, css)) = &theme {
         write_asset(out, css)?;
+        if let Some(script) = assets::reader() {
+            write_asset(out, script)?;
+        }
         write_fonts(site, out)?;
         for language in &languages {
             for page in &language.pages {
