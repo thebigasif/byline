@@ -160,6 +160,31 @@ impl AuthorEdit {
         self.name.as_deref()
     }
 
+    /// The new role, if sent: `Some("")` removes it.
+    pub fn role(&self) -> Option<&str> {
+        self.role.as_deref()
+    }
+
+    /// The new credentials, if sent: `Some("")` removes them.
+    pub fn credentials(&self) -> Option<&str> {
+        self.credentials.as_deref()
+    }
+
+    /// The new list of profiles, if sent.
+    pub fn same_as(&self) -> Option<&[AbsoluteUrl]> {
+        self.same_as.as_deref()
+    }
+
+    /// The new photo, if sent: `Some("")` removes it.
+    pub fn photo(&self) -> Option<&str> {
+        self.photo.as_deref()
+    }
+
+    /// The new bio, if sent.
+    pub fn bio(&self) -> Option<&str> {
+        self.bio.as_deref()
+    }
+
     /// `file` with this edit applied.
     #[must_use]
     pub fn applied(&self, file: AuthorFile) -> AuthorFile {

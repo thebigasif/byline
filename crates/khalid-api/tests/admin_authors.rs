@@ -235,3 +235,20 @@ async fn an_edit_that_cannot_be_kept_is_refused() {
         "nothing was saved: {json}"
     );
 }
+
+#[tokio::test]
+async fn an_author_is_deleted_only_on_their_latest_copy() {
+    let router = with_asif();
+    let (status, _) = send(&router, "DELETE", ASIF, EDITOR, None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let stale = format!("{ASIF}?updated_at=2026-10-19T09:00:00Z");
+    let (status, _) = send(&router, "DELETE", &stale, EDITOR, None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    let latest = format!("{ASIF}?updated_at={LAST_CHANGE}");
+    let (status, _) = send(&router, "DELETE", &latest, WRITER, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, _) = send(&router, "DELETE", &latest, EDITOR, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = send(&router, "GET", ASIF, EDITOR, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

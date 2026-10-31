@@ -99,3 +99,34 @@ fn the_demo_snippet_is_edited_in_its_file_and_a_new_one_is_made_and_deleted() {
     file.push("content/de/snippets/werbung.md");
     assert!(!file.exists(), "the German snippet's file is gone");
 }
+
+#[test]
+fn an_author_edited_through_the_admin_api_shows_on_their_page_and_a_new_one_goes() {
+    let site = demo_copy();
+    let server = start(site.path(), &new_key(site.path(), &EDITOR));
+    let asif = "/api/admin/v1/authors/en.asif/";
+    let (status, read) = server.admin("GET", asif, None);
+    assert_eq!(status, 200, "{read}");
+    assert_eq!(
+        read["authors"][0]["same_as"][0], "https://serpdad.com/",
+        "{read}"
+    );
+    let seen = read["authors"][0]["updated_at"].as_str().unwrap();
+    let edit = json!({"authors": [{"role": "Editor of Field Notes", "updated_at": seen}]});
+    let (status, body) = server.admin("PUT", asif, Some(&edit));
+    assert_eq!(status, 200, "{body}");
+    assert!(server.shows("/blog/authors/asif/", "Editor of Field Notes"));
+
+    let new = json!({"authors": [{"slug": "sam-lee", "name": "Sam Lee", "same_as": ["https://example.com/sam/"], "bio": "Sam writes about links."}]});
+    let (status, made) = server.admin("POST", "/api/admin/v1/authors/", Some(&new));
+    assert_eq!(status, 201, "{made}");
+    let mut file = PathBuf::from(site.path());
+    file.push("content/en/authors/sam-lee.md");
+    let text = std::fs::read_to_string(&file).unwrap();
+    let front = "name: \"Sam Lee\"\nslug: sam-lee\nsame_as: [\"https://example.com/sam/\"]\n";
+    assert!(text.contains(front), "{text}");
+    let seen = made["authors"][0]["updated_at"].as_str().unwrap();
+    let sam = format!("/api/admin/v1/authors/en.sam-lee/?updated_at={seen}");
+    assert_eq!(server.admin("DELETE", &sam, None).0, 204);
+    assert!(!file.exists(), "the author's file is gone");
+}

@@ -1,10 +1,13 @@
-//! How pages and snippets are written in their files, for `SiteEntries`.
+//! How pages, snippets and authors are written in their files, for `SiteEntries`.
 
 use chrono::{DateTime, Utc};
 use khalid_api::entry_store::EntryStoreError;
-use khalid_api::resources::{AdminPage, AdminSnippet, NewPage, NewSnippet, PageEdit, SnippetEdit};
-use khalid_content::{PageFront, SnippetFront};
-use khalid_core::{Locale, Slug};
+use khalid_api::resources::{
+    AdminAuthor, AdminPage, AdminSnippet, AuthorEdit, AuthorFile, NewAuthor, NewPage, NewSnippet,
+    PageEdit, SnippetEdit,
+};
+use khalid_content::{AuthorFront, PageFront, SnippetFront};
+use khalid_core::{AbsoluteUrl, Locale, Slug};
 use serde::de::DeserializeOwned;
 
 use crate::post_text::{PostText, quoted};
@@ -97,4 +100,80 @@ impl EntryFile for AdminSnippet {
             text.set_body(markdown);
         }
     }
+}
+
+impl EntryFile for AdminAuthor {
+    const FOLDER: &'static str = "authors";
+
+    fn read(
+        key: (Locale, Slug),
+        text: &PostText,
+        changed: DateTime<Utc>,
+    ) -> Result<Self, EntryStoreError> {
+        let front: AuthorFront = front(text)?;
+        let file = AuthorFile {
+            name: front.name.unwrap_or_default(),
+            role: front.role,
+            credentials: front.credentials,
+            same_as: front.same_as,
+            photo: front.photo,
+            bio: text.markdown().to_owned(),
+        };
+        Ok(Self::new(key, file, changed))
+    }
+
+    fn slug_in(text: &PostText) -> Result<Option<Slug>, EntryStoreError> {
+        Ok(front::<AuthorFront>(text)?.slug)
+    }
+
+    fn slug(new: &NewAuthor) -> &Slug {
+        new.slug()
+    }
+
+    fn text(new: &NewAuthor) -> PostText {
+        let file = new.file();
+        let mut text = PostText::empty();
+        text.set("name", &quoted(&file.name));
+        text.set("slug", new.slug().as_str());
+        put(&mut text, "role", file.role.as_deref().map(quoted));
+        put(
+            &mut text,
+            "credentials",
+            file.credentials.as_deref().map(quoted),
+        );
+        put(&mut text, "same_as", addresses(&file.same_as));
+        put(&mut text, "photo", file.photo.as_deref().map(quoted));
+        text.set_body(&file.bio);
+        text
+    }
+
+    fn edit(text: &mut PostText, edit: &AuthorEdit) {
+        if let Some(name) = edit.name() {
+            text.set("name", &quoted(name));
+        }
+        let texts = [
+            ("role", edit.role()),
+            ("credentials", edit.credentials()),
+            ("photo", edit.photo()),
+        ];
+        for (key, sent) in texts {
+            match sent {
+                Some("") => put(text, key, None),
+                Some(value) => text.set(key, &quoted(value)),
+                None => {}
+            }
+        }
+        if let Some(same_as) = edit.same_as() {
+            put(text, "same_as", addresses(same_as));
+        }
+        if let Some(bio) = edit.bio() {
+            text.set_body(bio);
+        }
+    }
+}
+
+/// `urls` as a YAML list on one line, or `None` for no addresses.
+fn addresses(urls: &[AbsoluteUrl]) -> Option<String> {
+    let quoted: Vec<_> = urls.iter().map(|url| quoted(url.as_str())).collect();
+    (!quoted.is_empty()).then(|| format!("[{}]", quoted.join(", ")))
 }
