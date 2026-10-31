@@ -36,6 +36,7 @@ mod build_sitemap;
 mod categories;
 mod cli;
 mod cli_access;
+mod cli_import;
 mod cli_name;
 mod comment_pages;
 mod config_message;
@@ -90,6 +91,7 @@ mod media_library;
 mod memory;
 mod miss_log;
 mod new;
+mod new_author;
 mod new_branch;
 mod new_message;
 mod new_template;
@@ -99,6 +101,7 @@ mod newsletter_digest;
 mod newsletter_files;
 mod newsletter_send;
 mod outbound;
+mod own_descriptions;
 mod page_code;
 mod page_counts;
 mod plan;
@@ -119,6 +122,8 @@ mod redirect_route;
 mod redirects;
 mod repair;
 mod report;
+mod restore;
+mod restore_message;
 mod routes_message;
 mod scheduler;
 mod search_console;
@@ -407,7 +412,8 @@ fn access(folder: &Path, config: &Config, command: &Command, output: Output) -> 
 }
 
 /// Runs the commands that do not start from a checked site: `init`, which
-/// makes the site, `agents` and `update`, which need none, `doctor`, which
+/// makes the site, `restore`, which makes one from a backup, `agents` and
+/// `update`, which need none, `doctor`, which
 /// checks the settings, routes and content itself so it can list every
 /// problem instead of stopping at the first, and the commands
 /// [`on_folder`] runs. Returns `None` for every other command.
@@ -422,6 +428,9 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(init::run(folder, args, cli.output))
         }
         Some(Command::Agents) => Some(agents::run(cli.output)),
+        Some(Command::Restore { archive, folder }) => {
+            Some(restore::run(archive, folder, cli.output))
+        }
         Some(Command::Sites { command }) => {
             let root = cli.site.as_deref().unwrap_or(Path::new("."));
             Some(sites::run(root, command, cli.output))

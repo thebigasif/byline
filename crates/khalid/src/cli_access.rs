@@ -2,6 +2,8 @@
 //! let people and tools into a site. Kept apart from `cli` to keep each
 //! file short (BL-SIZE-1); `cli` names them all.
 
+use std::net::SocketAddr;
+
 use clap::{Args, Subcommand, ValueEnum};
 use khalid_api::keys::{KeyId, Role, Scope};
 
@@ -55,6 +57,10 @@ pub(crate) struct OwnerArgs {
     /// The owner's name, as the admin shows it
     #[arg(long)]
     pub(crate) name: String,
+
+    /// Where `khalid serve` answers on this computer, for a second link that works before the site is online
+    #[arg(long, value_name = "ADDRESS", default_value = "127.0.0.1:8080")]
+    pub(crate) listen: SocketAddr,
 }
 
 /// What `khalid keys create` takes.

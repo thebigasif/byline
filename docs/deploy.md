@@ -2,11 +2,11 @@
 
 Khalid is one file. Put it on a machine, point it at a site folder, and it serves the blog and the admin. This page shows the ways to keep it running. The files it names are in `packaging/` in the repository.
 
-A site folder is the folder that holds `site.toml`, `content/` and `theme/`. Khalid keeps what it works out from those files, such as its database and image sizes, in `data/` inside the same folder. Back up the site folder and you have backed up the blog.
+A site folder is the folder that holds `site.toml`, `content/` and `theme/`. Khalid keeps what it works out from those files, such as its database and image sizes, in `data/` inside the same folder. `khalid backup` saves the whole folder in one archive, as "Backing up and restoring" below shows.
 
 ## Install with one line
 
-On Linux or a Mac:
+There is no release yet, so until the first one is out, build Khalid from source as `CONTRIBUTING.md` says and copy `target/release/khalid` to the server. Once a release exists, on Linux or a Mac:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sh
@@ -25,6 +25,16 @@ For example, to install and set up the service on a server:
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sudo sh -s -- --systemd
 ```
+
+## Signing in to the admin the first time
+
+The admin is at `/admin/` on the site's host. The first person in is the owner, and the command line makes them:
+
+```sh
+khalid --site blog staff owner --email you@example.com --name "Your Name"
+```
+
+This is the only time Khalid shows the sign-in link. The link works once, within 15 minutes. It is shown on two addresses: the site's own, and `localhost`, for a site that is not online yet. Open the `localhost` one while `khalid serve` runs on the same computer. If `khalid serve` listens somewhere other than `127.0.0.1:8080`, pass the same `--listen` to `staff owner`. Once signed in, choose a password or add a passkey.
 
 ## systemd on a Linux machine
 
@@ -254,6 +264,18 @@ Each site gets its own folder in `sites/`, with its own posts, theme, staff and 
 A super admin is a person whose email `sites.toml` lists and who signs in on the home site. They can add a site from there while the server runs, and it answers at once. Keys and staff of the other sites cannot. The page for it is `/admin/sites` on the home site: it asks for your email, sends you a sign-in link, and opening the link brings you back to it. The sign-in link `khalid staff owner` prints opens the same page.
 
 Point each domain's DNS at the server. HTTPS for many domains is not built in yet, so put a proxy such as Caddy in front: it gets a certificate for each domain and passes requests to `127.0.0.1:8080`.
+
+## Backing up and restoring
+
+`khalid --site /var/lib/khalid backup --out /root/blog.tar.gz` writes one archive of the site folder with a whole copy of the database. It is safe while the service runs. It leaves out `public/` and `data/media/`, which Khalid makes again. Run it from a daily timer and copy the archives off the server.
+
+`khalid restore /root/blog.tar.gz /var/lib/khalid-restored` makes the site again from an archive, in a folder that is new or empty. It never unpacks over a folder that holds files. To put a backup in place of the live site:
+
+1. Stop the service: `systemctl stop khalid`.
+2. Move the site folder away: `mv /var/lib/khalid /var/lib/khalid-old`.
+3. Restore into its place: `khalid restore /root/blog.tar.gz /var/lib/khalid`.
+4. Give the files back to the service's user: `chown -R khalid:khalid /var/lib/khalid`.
+5. Start the service: `systemctl start khalid`. Delete the old folder once the blog looks right.
 
 ## Taking your data out
 

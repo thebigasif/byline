@@ -147,6 +147,47 @@ fn new_needs_a_site_folder() {
 }
 
 #[test]
+fn new_with_draft_writes_an_undated_draft_and_says_how_to_publish_it() {
+    let (temp, folder) = site();
+    let args = ["--site", &folder, "new", "Why links matter", "--draft"];
+    let output = khalid(&[&args[..], &["--language", "en"]].concat());
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let file = at(temp.path(), "drafts/en/why-links-matter.md");
+    let written = fs::read_to_string(&file).unwrap();
+    let post = parse_post(&file, &written).unwrap();
+    assert_eq!(post.front.title.as_deref(), Some("Why links matter"));
+    assert_eq!(post.front.date, None, "{written}");
+    let posts = fs::read_dir(at(temp.path(), "content/en/posts")).map_or(0, Iterator::count);
+    assert_eq!(posts, 0, "nothing goes into content/");
+    let said = text(&output.stdout);
+    assert!(said.contains("drafts/en/why-links-matter.md"), "{said}");
+    assert!(
+        said.contains("publish why-links-matter --language en"),
+        "{said}"
+    );
+
+    let output = khalid(&[&args[..], &["--language", "en", "--json"]].concat());
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "a draft is never overwritten"
+    );
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let what = json["error"]["what"].as_str().unwrap();
+    assert_eq!(what, "drafts/en/why-links-matter.md already exists.");
+}
+
+#[test]
+fn new_without_draft_says_the_post_goes_live_and_where_drafts_live() {
+    let (_temp, folder) = site();
+    let output = khalid(&["--site", &folder, "new", "Why links matter"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(said.contains("--draft"), "{said}");
+    assert!(said.contains("drafts/"), "{said}");
+}
+
+#[test]
 fn new_with_language_writes_in_that_language() {
     let (temp, folder) = site();
     let output = khalid(&["--site", &folder, "new", "Über", "--language", "en"]);
@@ -175,6 +216,55 @@ fn new_says_which_post_already_exists() {
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     let what = json["error"]["what"].as_str().unwrap();
     assert!(what.ends_with("-twice.md already exists."), "{what}");
+}
+
+#[test]
+fn new_with_author_writes_the_byline_and_makes_the_profile_once() {
+    let (temp, folder) = site();
+    let args = ["--site", &folder, "new", "Why links matter"];
+    let output = khalid(&[&args[..], &["--author", "Sam Lee"]].concat());
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(said.contains("content/de/authors/sam-lee.md"), "{said}");
+    let (name, written) = only_post(temp.path(), "de");
+    let post = parse_post(Path::new(&name), &written).unwrap();
+    assert_eq!(post.front.author.unwrap().as_str(), "sam-lee");
+    let profile = at(temp.path(), "content/de/authors/sam-lee.md");
+    let made = fs::read_to_string(&profile).unwrap();
+    assert!(made.contains("name: \"Sam Lee\"\n"), "{made}");
+    assert!(made.contains("slug: \"sam-lee\"\n"), "{made}");
+
+    // The writer's own words in the profile are never overwritten.
+    fs::write(&profile, format!("{made}Sam writes here.\n")).unwrap();
+    let args = [
+        "--site",
+        &folder,
+        "new",
+        "Second post",
+        "--author",
+        "Sam Lee",
+    ];
+    assert_eq!(khalid(&args).status.code(), Some(0));
+    let kept = fs::read_to_string(&profile).unwrap();
+    assert!(kept.ends_with("Sam writes here.\n"), "{kept}");
+}
+
+#[test]
+fn new_without_author_takes_the_only_profile_or_says_how_to_add_one() {
+    let (temp, folder) = site();
+    let output = khalid(&["--site", &folder, "new", "First post", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["author"], Value::Null, "{json}");
+    let said = text(&khalid(&["--site", &folder, "new", "Second post"]).stdout);
+    assert!(said.contains("--author \"Your name\""), "{said}");
+
+    let profile = at(temp.path(), "content/de/authors/asif.md");
+    fs::create_dir_all(profile.parent().unwrap()).unwrap();
+    fs::write(&profile, "---\nname: Asif\nslug: asif\n---\n").unwrap();
+    let output = khalid(&["--site", &folder, "new", "Third post", "--json"]);
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["author"], "asif", "{json}");
 }
 
 /// The rules `khalid lint` finds on the one English post of the site.

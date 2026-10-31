@@ -3,7 +3,8 @@
 use crate::link_graph::LinkGraph;
 use crate::{Hit, LintPost, RuleId, Severity, SiteRule, SiteView};
 
-/// A post no other post links to.
+/// A post no other post links to. A language's only post is left out,
+/// because no post could link to it yet.
 #[derive(Debug)]
 pub(crate) struct OrphanPost;
 
@@ -20,6 +21,13 @@ impl SiteRule for OrphanPost {
         LinkGraph::new(site)
             .posts_with_sources()
             .filter(|(_, sources)| sources.is_empty())
+            .filter(|(post, _)| {
+                let mut in_language = site
+                    .posts()
+                    .iter()
+                    .filter(|other| other.locale == post.locale);
+                in_language.nth(1).is_some()
+            })
             .map(|(post, _)| (post, Hit::post()))
             .collect()
     }

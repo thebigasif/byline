@@ -1,6 +1,6 @@
 //! The Content API and the Admin API as `khalid serve` wires them to one
 //! site: every Admin API desk backed by the site's files and database, built
-//! beside the first answer. Kept apart from `serve.rs` so that file stays
+//! on the first request under `/api/`. Kept apart from `serve.rs` so that file stays
 //! under 600 lines (BL-SIZE-1).
 
 use std::path::Path;
@@ -107,8 +107,9 @@ pub(crate) fn api_router(
 }
 
 /// `app` with the router of [`api_router`] and git mode's push `hook`
-/// answering under `/api/`, built on a blocking thread beside the first
-/// answer (ADR "the APIs are built beside the first answer"). An address
+/// answering under `/api/`, built on a blocking thread when the first
+/// request under `/api/` arrives (ADR "the APIs are built on their first
+/// request"). An address
 /// under `/api/` the APIs lack goes to `app`, as it did when the routers
 /// were merged before the first answer.
 pub(crate) fn with_apis(

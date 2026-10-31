@@ -101,7 +101,7 @@ fn the_start_render_finishing_after_a_saved_one_hands_on_nothing() {
     // A post saved while the start render of the checked content runs.
     let mut file = site.path().to_path_buf();
     file.push("content/en/posts/2026-10-30-a-saved-post.md");
-    let text = "---\ntitle: A saved post\nslug: a-saved-post\ndate: 2026-10-30\nauthor: lena-vogt\ncategory: technical-seo\n---\n\nSaved while serve started.\n";
+    let text = "---\ntitle: A saved post\nslug: a-saved-post\ndate: 2026-10-30\nauthor: lena-vogt\ncategory: technical-seo\n---\n\nSaved while serve started, beside [what a sitemap does](/blog/what-a-sitemap-does/).\n";
     fs::write(&file, text).unwrap();
     source.render_all().unwrap();
     let saved = catalogs

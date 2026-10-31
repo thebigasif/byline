@@ -17,6 +17,10 @@ use crate::{config_message, init_message, init_prompt, report};
 /// The language a site writes in when nothing says otherwise.
 const DEFAULT_LANGUAGE: &str = "en";
 
+/// Where `khalid serve` answers when nothing says otherwise, which a proxy
+/// on the same machine passes the blog to.
+pub(crate) const LOCAL_SERVE: &str = "http://127.0.0.1:8080";
+
 /// `routes.toml` for a new site: the defaults, which need no settings.
 const ROUTES_TOML: &str = "\
 # Collections, channels and address patterns. Empty means the defaults (docs/plan.md 4.11).
@@ -50,6 +54,9 @@ struct ProxyBody {
     stack: String,
     mount: String,
     rule: String,
+    /// The blog address in the rule when Khalid guessed it, to be changed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    guessed: Option<String>,
 }
 
 /// Makes a site in `folder`, asking for what the flags in `args` leave out
@@ -178,10 +185,20 @@ impl Answers {
     }
 }
 
+/// The proxy rule a mounted blog needs, for `stack`.
+pub(crate) struct Proxy {
+    stack: Stack,
+    rule: String,
+    /// The blog address the rule names when Khalid had to guess it.
+    guessed: Option<AbsoluteUrl>,
+}
+
 impl Answers {
     /// The proxy rule for a blog mounted under a folder of another stack,
     /// or `None` when the blog is the whole site or no stack was given.
-    pub(crate) fn proxy_rule(&self) -> Result<Option<(Stack, String)>, UserMessage> {
+    /// With no `--blog`, a proxy on the same machine is sent to
+    /// [`LOCAL_SERVE`], and a hosted one to a guessed `blog.` address.
+    pub(crate) fn proxy_rule(&self) -> Result<Option<Proxy>, UserMessage> {
         // `init` keeps the mount with a trailing slash; the rule has none.
         let folder = self.mount.trim_end_matches('/');
         if folder.is_empty() {
@@ -191,16 +208,36 @@ impl Answers {
         let Some(stack) = self.stack else {
             return Ok(None);
         };
-        let blog = match &self.blog {
-            Some(blog) => blog.clone(),
-            None => blog_origin(&self.address)?,
+        let (blog, guessed) = match &self.blog {
+            Some(blog) => (blog.clone(), None),
+            None if on_one_machine(stack) => {
+                let local = AbsoluteUrl::parse(LOCAL_SERVE);
+                (local.map_err(|_| init_message::address(LOCAL_SERVE))?, None)
+            }
+            None => {
+                let blog = blog_origin(&self.address)?;
+                (blog.clone(), Some(blog))
+            }
         };
         let rule = proxy_rule(stack, &mount, &blog).map_err(|error| of_mount_error(&error))?;
-        Ok(Some((stack, rule)))
+        Ok(Some(Proxy {
+            stack,
+            rule,
+            guessed,
+        }))
     }
 }
 
-/// Where the blog itself answers when nothing says otherwise: `blog.`
+/// Whether `stack` is a proxy that usually runs on the same machine as
+/// `khalid serve`, rather than a hosted platform that needs a public address.
+pub(crate) fn on_one_machine(stack: Stack) -> bool {
+    matches!(
+        stack,
+        Stack::Nginx | Stack::Caddy | Stack::Apache | Stack::Traefik
+    )
+}
+
+/// A guess at where the blog itself answers, for a hosted stack: `blog.`
 /// before the website's host, such as `blog.example.com`.
 fn blog_origin(address: &AbsoluteUrl) -> Result<AbsoluteUrl, UserMessage> {
     let scheme = address
@@ -282,6 +319,12 @@ fn write(folder: &Path, answers: &Answers, settings: &str) -> io::Result<Vec<Str
             .iter()
             .map(|locale| format!("content/{locale}/posts/")),
     );
+    created.extend(
+        answers
+            .languages
+            .iter()
+            .map(|locale| format!("drafts/{locale}/")),
+    );
     for relative in created.iter().skip(2) {
         let mut path = folder.to_path_buf();
         path.push(relative);
@@ -313,11 +356,17 @@ fn success(output: Output, folder: &Path, answers: &Answers, created: Vec<String
     match output {
         Output::Human => report::text(
             &format!(
-                "Made a Khalid site in {shown} for {}.\n{}Next, write your first post with `khalid --site {shown} new \"Your title\"`.\n",
+                "Made a Khalid site in {shown} for {}.\n{}Next, write your first post with \
+                 `khalid --site {shown} new --draft \"Your title\" --author \"Your name\"`. \
+                 It waits in drafts/ until `khalid --site {shown} publish <slug>` takes it live.\n{}",
                 answers.address,
-                proxy.as_ref().map_or(String::new(), |(stack, rule)| format!(
-                    "The blog lives under a folder, so {stack} must pass it to Khalid. Add this rule:\n\n{rule}\n"
-                )),
+                proxy.as_ref().map_or(String::new(), proxy_text),
+                match answers.mode {
+                    SiteMode::Server => format!(
+                        "To sign in to the admin, run `khalid --site {shown} staff owner --email you@example.com --name \"Your name\"`.\n"
+                    ),
+                    SiteMode::Static => String::new(),
+                },
             ),
             Exit::Success,
         ),
@@ -325,15 +374,32 @@ fn success(output: Output, folder: &Path, answers: &Answers, created: Vec<String
             &InitBody {
                 site: shown,
                 created,
-                proxy: proxy.map(|(stack, rule)| ProxyBody {
-                    stack: stack.name().to_owned(),
+                proxy: proxy.map(|proxy| ProxyBody {
+                    stack: proxy.stack.name().to_owned(),
                     mount: answers.mount.clone(),
-                    rule,
+                    rule: proxy.rule,
+                    guessed: proxy.guessed.map(|blog| blog.as_str().to_owned()),
                 }),
             },
             Exit::Success,
         ),
     }
+}
+
+/// The proxy rule as `init` prints it, saying when its blog address is a
+/// guess to change.
+fn proxy_text(proxy: &Proxy) -> String {
+    let guess = proxy.guessed.as_ref().map_or(String::new(), |blog| {
+        let blog = blog.as_str().trim_end_matches('/');
+        format!(
+            "Khalid does not know where the blog answers, so it guessed. \
+             Change {blog} in the rule to the address where `khalid serve` runs.\n"
+        )
+    });
+    format!(
+        "The blog lives under a folder, so {} must pass it to Khalid. Add this rule:\n\n{}\n{guess}",
+        proxy.stack, proxy.rule
+    )
 }
 
 #[cfg(test)]

@@ -54,7 +54,7 @@ pub(crate) fn run(site: &Path, clock: &dyn Clock, output: Output) -> Exit {
     let public = within(site, PUBLIC);
     let pages = if config.mode() == Mode::Static && moved.files > 0 {
         match build::into_folder(site, (&config, &routes, &content), &public, clock, output) {
-            Ok(pages) => Some(pages),
+            Ok(built) => Some(built.pages),
             Err(exit) => return exit,
         }
     } else {

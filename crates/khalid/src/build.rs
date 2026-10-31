@@ -10,7 +10,7 @@ use std::path::{self, Path, PathBuf};
 
 use khalid_content::{ContentTree, SiteContent};
 use khalid_core::{Clock, Config, UserMessage};
-use khalid_lint::Linter;
+use khalid_lint::Report;
 use khalid_render::{Asset, Renderer, Tokens};
 use khalid_routes::Routes;
 use serde::Serialize;
@@ -23,9 +23,8 @@ use crate::post_photos::Shown;
 use crate::site_page::HeadNonce;
 use crate::{
     assets, build_files, build_gate, build_lists, build_message, build_pages, build_redirects,
-    build_seo, build_sitemap, categories, content_message, lint, lint_message, post_files,
-    post_images, post_lock, report, search_page, search_static, share_images, site_briefs,
-    site_facts, static_mode,
+    build_seo, build_sitemap, categories, content_message, own_descriptions, post_files,
+    post_images, post_lock, report, search_page, search_static, share_images, static_mode,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -42,6 +41,17 @@ struct BuildBody {
     /// The features a static site has off, each with what, why and fix.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     off: Vec<static_mode::Off>,
+    /// The posts the publish gate kept out, each with every finding.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    left_out: Vec<Report>,
+}
+
+/// What one build wrote: how many pages, and the report of each post the
+/// publish gate left out.
+#[derive(Debug)]
+pub(crate) struct Built {
+    pub(crate) pages: usize,
+    pub(crate) left_out: Vec<Report>,
 }
 
 /// Renders the `site` folder, whose `config`, `routes` and `content` were
@@ -59,42 +69,28 @@ pub(crate) fn run(
         return report::failure(output, &build_message::into_content(&out), Exit::Failure);
     }
     match into_folder(site, (config, routes, content), &out, clock, output) {
-        Ok(written) => success(output, &out, written, config),
+        Ok(built) => success(output, &out, built, config),
         Err(exit) => exit,
     }
 }
 
-/// Builds the checked site into `out` once the lint gate lets every post
-/// through, as `khalid build` does, and says how many pages it wrote. A
-/// refusal or a failure is printed in `output` and comes back as its exit.
+/// Builds the checked site into `out`, as `khalid build` does, without the
+/// posts the publish gate refuses, and says how many pages it wrote and
+/// which posts it left out. A failure is printed in `output` and comes
+/// back as its exit.
 pub(crate) fn into_folder(
     site: &Path,
     (config, routes, content): (&Config, &Routes, &SiteContent),
     out: &Path,
     clock: &dyn Clock,
     output: Output,
-) -> Result<usize, Exit> {
-    let linter = match lint::lint_settings(site).map(|settings| Linter::new(&settings, clock)) {
-        Ok(Ok(linter)) => linter,
-        Ok(Err(error)) => {
-            return Err(report::failure(
-                output,
-                &lint_message::of(&error),
-                Exit::Internal,
-            ));
-        }
-        Err(message) => return Err(report::failure(output, &message, Exit::Failure)),
-    };
-    let facts = site_facts::load(site)
-        .map_err(|message| report::failure(output, &message, Exit::Failure))?;
-    let briefs = site_briefs::load(site)
-        .map_err(|message| report::failure(output, &message, Exit::Failure))?;
-    let refused = build_gate::refused(&linter, content, config, routes, (facts, briefs));
-    if !refused.is_empty() {
-        return Err(build_gate::refuse(output, &refused));
-    }
-    build(site, config, routes, content, out, clock)
-        .map_err(|message| report::failure(output, &message, Exit::Failure))
+) -> Result<Built, Exit> {
+    let fail = |message| report::failure(output, &message, Exit::Failure);
+    let refused = build_gate::screen(site, (config, routes, content), clock).map_err(fail)?;
+    let published = build_gate::published(content, &refused);
+    let pages = build(site, config, routes, &published, out, clock).map_err(fail)?;
+    let left_out = refused.into_iter().map(|post| post.report).collect();
+    Ok(Built { pages, left_out })
 }
 
 /// Renders every page into `out`, then writes the stylesheet they link and
@@ -135,6 +131,7 @@ fn build(
         let sources = (content, categories.as_slice());
         build_lists::add((config, routes), renderer, sources, &mut languages)?;
         build_sitemap::add(config, renderer, &mut languages)?;
+        own_descriptions::fill(config, renderer, &mut languages)?;
     }
     // The checked content keeps no assets, so the tree is read again for
     // them. A headless site gets them too: its feeds point at them.
@@ -271,16 +268,17 @@ fn inside(path: &Path, folder: &Path) -> bool {
     }
 }
 
-/// Says how many pages were written and where, or for a headless site that
-/// only its files were, where the files for the host's root are, and for a
-/// static site which features are off.
-fn success(output: Output, out: &Path, pages: usize, config: &Config) -> Exit {
+/// Says which posts were left out and why, how many pages were written and
+/// where, or for a headless site that only its files were, where the files
+/// for the host's root are, and for a static site which features are off.
+fn success(output: Output, out: &Path, built: Built, config: &Config) -> Exit {
+    let Built { pages, left_out } = built;
     let shown = out.display().to_string();
     let mode = config.mode();
     let off = static_mode::off(mode);
     let root = (config.mount() != "/")
         .then(|| within(out, build_files::ROOT_FOLDER).display().to_string());
-    let mut said = if mode.has_pages() {
+    let built = if mode.has_pages() {
         format!(
             "Built {pages} pages in {shown}.\n{}",
             static_mode::human(&off)
@@ -290,6 +288,7 @@ fn success(output: Output, out: &Path, pages: usize, config: &Config) -> Exit {
             "Built the feeds, sitemaps and redirects in {shown}. The site is headless, so Khalid writes no pages.\n"
         )
     };
+    let mut said = format!("{}{built}", build_gate::human(&left_out));
     if let Some(root) = &root {
         let host = config.address().as_str().trim_end_matches('/');
         said = format!(
@@ -304,6 +303,7 @@ fn success(output: Output, out: &Path, pages: usize, config: &Config) -> Exit {
                 pages,
                 root,
                 off,
+                left_out,
             },
             Exit::Success,
         ),

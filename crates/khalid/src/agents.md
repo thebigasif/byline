@@ -7,7 +7,8 @@ Khalid is a blog engine. This guide tells an agent, such as Claude Code, how to 
 - `site.toml` holds the settings: the name, the address, the languages.
 - `content/<language>/posts/` holds the published posts, one markdown file each, named `<date>-<slug>.md`.
 - `content/<language>/authors/` holds one file per author. A post names its author by that file's slug.
-- `drafts/<language>/<slug>.md` holds drafts. Nothing reads them but the Admin API, so they are never shown to readers.
+- `drafts/<language>/<slug>.md` holds drafts. Only the Admin API and `khalid publish` read them, so they are never shown to readers. `khalid new --draft "Title"` makes one.
+- A post in `content/` with no `date:` is a draft too: no page is built for it. Publishing it dates it where it is.
 - To take a page, glossary term, case study or changelog entry down without deleting it, move its file to the same place under `drafts/`, such as `drafts/en/pages/about.md`. Its webhooks then say unpublished, not deleted.
 - `data/` and `public/` are made by Khalid from the files. Never write into them.
 
@@ -18,15 +19,17 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 **The command line.** Every command takes `--site <folder>` and `--json`. With `--json`, the result is one JSON value on stdout, and a failure is `{"error": {"what": ..., "why": ..., "fix": ...}}`. The exit code is 0 when it worked, 1 when something blocks and you must act, 2 when the command line was wrong, and 3 for a fault inside Khalid. Run `khalid --help` for every command. The ones you will use most:
 
 - `khalid lint [post]` checks one post or the whole site. `--fix` makes the safe repairs.
-- `khalid build` writes the site as HTML, and writes nothing when a dated post is blocked. With `mode = "static"` in `site.toml`, every form that would send to the site becomes a short note, and the output lists the features a static site has off, under `off` with `--json`.
+- `khalid build` writes the site as HTML. It leaves out each dated post the linter blocks and lists it with its findings, under `left_out` with `--json`. With `mode = "static"` in `site.toml`, every form that would send to the site becomes a short note, and the output lists the features a static site has off, under `off` with `--json`.
 - `khalid export`, on a site with `mode = "static"`, writes the whole site into `public/` and swaps it in only once every page is written, so pages of deleted posts are gone. Copy that folder to the host.
 - `khalid audit` builds the site, crawls it the way Ahrefs and Semrush do, and scores its health out of 100. It exits with 1 on any error, names the heaviest page, and keeps the issues, the internal linking report, each page's weight and the score's trend in `data/audit/`. `--server http://127.0.0.1:8080` audits a running `khalid serve` instead of a build, and `--offline` leaves links to other sites unchecked.
 - `khalid plan` suggests a day for each draft the linter passes, at the site's own pace or `--per-week <count>`, each topic group's pillar before its members, keeping scheduled days. It lists the drafts that wait and warns when the pace dropped. It changes nothing.
+- `khalid publish <slug>` lints a draft and takes it live, as `publish_post` does. It refuses a post that is already live.
 - `khalid serve` runs the blog and the APIs.
 - `khalid watch` shows how fast and how reliably the blog answered at its public address over the last day and the last 30 days, from the looks `khalid serve` takes every few minutes.
 - `khalid import wordpress|ghost|medium|substack|markdown <export> --dry-run` says what an import would bring in and leave behind. Without `--dry-run` it writes the posts with their old slugs and stores a redirect for each old address that moves. For `wordpress`, the export may be the site's address, which brings in its published posts and pages.
 - `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it, and on a static site which features are off.
 - `khalid backup --out <file>.tar.gz` writes one archive of the site folder with a whole copy of the database, safe while `khalid serve` runs. It leaves out `public/` and `data/media/`, which Khalid makes again, and never writes over a file.
+- `khalid restore <file>.tar.gz <folder>` makes the site again from such an archive, database included, in a folder that is new or empty. It never unpacks over a live site.
 - `khalid update` installs the newest release after checking it against the release's `SHA256SUMS`, and keeps the old version beside the binary. `khalid update --rollback` goes back to it.
 - `khalid pull`, in git mode, brings the site's repository forward to what was pushed, checks the site, and builds a static site again. It never merges: when the blog's copy has its own changes, it stops and changes nothing.
 

@@ -107,7 +107,8 @@ impl HeadTags {
 /// the verification tags on the home page, then Open Graph and the Twitter card.
 ///
 /// A page's own title, description, robots directives and canonical address
-/// win over the site's templates and index policy.
+/// win over the site's templates and index policy. A description template
+/// that comes out empty falls back to the page's excerpt.
 ///
 /// # Errors
 ///
@@ -121,7 +122,12 @@ pub fn head_tags(site: &SeoSite, page: &SeoPage) -> Result<HeadTags, SeoError> {
         None => site.url_for(&page.language, &page.path)?,
     };
     let mut tags = vec![HeadTag::Title(title.render(site, page))];
-    let description = description.render(site, page);
+    // A template that comes out empty, such as the home page's `{tagline}`
+    // on a site with no tagline, gives way to the page's own excerpt.
+    let mut description = description.render(site, page);
+    if description.is_empty() {
+        description.clone_from(&page.excerpt);
+    }
     if !description.is_empty() {
         tags.push(HeadTag::Meta {
             name: "description",

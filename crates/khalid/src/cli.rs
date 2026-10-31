@@ -14,6 +14,7 @@ use khalid_webhooks::Event;
 pub(crate) use crate::cli_access::{
     KeyKindArg, KeysCommand, NewKeyArgs, OwnerArgs, SitesCommand, StaffCommand,
 };
+pub(crate) use crate::cli_import::{ImportArgs, ImportSource, Run};
 use crate::new::NewArgs;
 use crate::newsletter_cli::NewsletterCommand;
 use crate::update::UpdateTarget;
@@ -94,7 +95,7 @@ pub(crate) enum Command {
     Serve(ServeArgs),
     /// Create a post file with correct front matter
     New(NewArgs),
-    /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked.
+    /// Render every page of the site as HTML into a folder, leaving out any dated post the linter blocks.
     /// A headless site gets its feeds, sitemaps and redirects and no HTML.
     /// A static site gets a note in place of each form, and a list of the
     /// features that need a server, which are off
@@ -115,7 +116,9 @@ pub(crate) enum Command {
         fix: bool,
     },
     /// Lint a draft, then publish it and tell the site's webhooks and
-    /// search engines. Refuses when a rule blocks it
+    /// search engines. A draft is a file in `drafts/<language>/`, or a post
+    /// in `content/` with no date. Refuses when a rule blocks it, or when
+    /// the post is already live
     Publish {
         /// The slug of the draft to publish
         slug: Slug,
@@ -169,6 +172,16 @@ pub(crate) enum Command {
         /// `<folder>-backup-<date>-<time>.tar.gz` in the current folder
         #[arg(long, value_name = "FILE")]
         out: Option<PathBuf>,
+    },
+    /// Make a site again from an archive `khalid backup` wrote, in a new or
+    /// empty folder, so a live site is never written over
+    Restore {
+        /// The .tar.gz file `khalid backup` wrote
+        #[arg(value_name = "ARCHIVE")]
+        archive: PathBuf,
+        /// The folder to make the site in, new or empty
+        #[arg(value_name = "FOLDER")]
+        folder: PathBuf,
     },
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
     /// health out of 100. Keeps the issues, the internal linking report,
@@ -454,7 +467,8 @@ pub(crate) struct InitArgs {
     #[arg(long, value_name = "NAME")]
     pub(crate) stack: Option<khalid_mount::Stack>,
 
-    /// Where the blog itself answers, when it is not the website's address [default: blog.host]
+    /// Where `khalid serve` answers, for the proxy rule [default: `http://127.0.0.1:8080` for
+    /// nginx, caddy, apache and traefik; a guessed `blog.` address for hosted stacks]
     #[arg(long, value_name = "URL")]
     pub(crate) blog: Option<AbsoluteUrl>,
 
@@ -531,59 +545,6 @@ pub(crate) enum ThemeCommand {
         /// The main site's address [default: the address in site.toml]
         url: Option<AbsoluteUrl>,
     },
-}
-
-/// What `khalid import` takes.
-#[derive(Debug, Args)]
-pub(crate) struct ImportArgs {
-    /// Where the blog comes from
-    pub(crate) source: ImportSource,
-
-    #[arg(
-        value_name = "EXPORT",
-        help = "The export: a WordPress or Ghost file, a WordPress site's address for its published posts, the unpacked Medium or Substack folder, or a folder of markdown"
-    )]
-    pub(crate) export: PathBuf,
-
-    /// Say what would come in and what would stay behind, and write nothing
-    #[arg(long = "dry-run", action = ArgAction::SetTrue, value_parser = BoolValueParser::new().map(|dry| if dry { Run::Dry } else { Run::Write }))]
-    pub(crate) run: Run,
-
-    #[arg(
-        long,
-        value_name = "URL",
-        help = "Where the blog lived, for Ghost, Substack and markdown, such as https://rye.substack.com [default: the address in site.toml]"
-    )]
-    pub(crate) old_site: Option<AbsoluteUrl>,
-
-    #[arg(
-        long,
-        value_name = "FILE",
-        help = "The Redirection plugin's JSON export, whose rules come in with a WordPress export"
-    )]
-    pub(crate) redirection: Option<PathBuf>,
-}
-
-/// Whether `khalid import` writes, or only says what it would write.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Run {
-    Dry,
-    Write,
-}
-
-/// The platforms `khalid import` reads.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum ImportSource {
-    #[value(help = "A WordPress export file")]
-    Wordpress,
-    /// A Ghost export file
-    Ghost,
-    /// A Medium export archive
-    Medium,
-    /// A Substack export archive
-    Substack,
-    /// A folder of markdown files
-    Markdown,
 }
 
 /// Whether `khalid doctor` fetches the blog's public address and the host's

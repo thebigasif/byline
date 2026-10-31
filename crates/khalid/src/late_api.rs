@@ -1,10 +1,13 @@
-//! The Content API and the Admin API, built beside the first answer
-//! instead of before it. Building them sets up the `OpenAPI` document, which
-//! is most of what `khalid serve` did between rendering the home pages and
-//! answering (docs/standards/performance.md, cold start), and no page
-//! needs it. A request under `/api/` waits until they are built.
+//! The Content API and the Admin API, built when the first request under
+//! `/api/` arrives instead of at start. Building them sets up the `OpenAPI`
+//! document, which took most of the time between rendering the home pages
+//! and answering (docs/standards/performance.md, cold start), and the
+//! router and its document are the largest thing an idle server would
+//! hold for them. No page needs either. A request under `/api/` waits
+//! until they are built.
 
 use std::convert::Infallible;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use axum::Router;
 use axum::body::Body;
@@ -17,22 +20,52 @@ use tower::service_fn;
 /// Where the APIs answer. Every route of `khalid_api` sits under it.
 const UNDER: &str = "/api/";
 
+/// What makes the APIs' router.
+type Build = Box<dyn FnOnce() -> Router + Send>;
+
+/// The APIs, built once, on the first request that needs them.
+struct Late {
+    /// The build and where it says it is done, until a request takes them.
+    build: Mutex<Option<(Build, watch::Sender<Option<Router>>)>>,
+    /// The built router, once there is one.
+    ready: watch::Receiver<Option<Router>>,
+}
+
+impl Late {
+    /// Starts the build on a blocking thread (RULES.md BL-RUN-7), unless a
+    /// request already started it. The build finishes even when the request
+    /// that started it goes away, so the next one finds it built.
+    fn start(&self) {
+        let taken = self
+            .build
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        if let Some((build, tell)) = taken {
+            tokio::task::spawn_blocking(move || {
+                // `Late` keeps a receiver, so the send always lands.
+                let _ = tell.send(Some(build()));
+            });
+        }
+    }
+}
+
 /// `app`, with every request under `/api/` sent instead to the router
-/// `build` makes, which runs on a blocking thread from now on (RULES.md
-/// BL-RUN-7). Nothing is routed on the way, so the APIs see each request
-/// as they would have in one merged router. Must be called inside the
-/// tokio runtime.
+/// `build` makes, built when the first of them arrives. Nothing is routed on
+/// the way, so the APIs see each request as they would have in one merged
+/// router.
 pub(crate) fn router(app: Router, build: impl FnOnce() -> Router + Send + 'static) -> Router {
     let (tell, ready) = watch::channel(None);
-    tokio::task::spawn_blocking(move || {
-        // Nobody may be waiting yet, so a send with no receiver is fine.
-        let _ = tell.send(Some(build()));
+    let build: Build = Box::new(build);
+    let late = Arc::new(Late {
+        build: Mutex::new(Some((build, tell))),
+        ready,
     });
     let answer = service_fn(move |request: Request<Body>| {
-        let (app, ready) = (app.clone(), ready.clone());
+        let (app, late) = (app.clone(), Arc::clone(&late));
         async move {
             if request.uri().path().starts_with(UNDER) {
-                apis(ready, request).await
+                apis(&late, request).await
             } else {
                 app.oneshot(request).await
             }
@@ -42,10 +75,9 @@ pub(crate) fn router(app: Router, build: impl FnOnce() -> Router + Send + 'stati
 }
 
 /// The built APIs' answer to `request`, once they are built.
-async fn apis(
-    mut ready: watch::Receiver<Option<Router>>,
-    request: Request<Body>,
-) -> Result<Response, Infallible> {
+async fn apis(late: &Late, request: Request<Body>) -> Result<Response, Infallible> {
+    late.start();
+    let mut ready = late.ready.clone();
     let built = ready
         .wait_for(Option::is_some)
         .await
@@ -60,6 +92,8 @@ async fn apis(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     use axum::extract::Path;
     use axum::routing::get;
 
@@ -89,6 +123,43 @@ mod tests {
     async fn every_other_address_is_the_sites() {
         let app = router(site(), Router::new);
         assert_eq!(status(app, "/blog/").await, StatusCode::IM_A_TEAPOT);
+    }
+
+    /// A build of an empty router that counts how often it ran.
+    fn counted() -> (Arc<AtomicUsize>, impl FnOnce() -> Router + Send + 'static) {
+        let builds = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&builds);
+        let build = move || {
+            counter.fetch_add(1, Ordering::SeqCst);
+            Router::new()
+        };
+        (builds, build)
+    }
+
+    #[tokio::test]
+    async fn the_apis_are_not_built_until_a_request_under_api_arrives() {
+        let (builds, build) = counted();
+        let app = router(site(), build);
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        assert_eq!(builds.load(Ordering::SeqCst), 0, "not at start");
+        status(app.clone(), "/blog/").await;
+        assert_eq!(builds.load(Ordering::SeqCst), 0, "not for a page");
+        status(app, "/api/content/v1/posts/").await;
+        assert_eq!(builds.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn requests_at_once_build_the_apis_once() {
+        let (builds, build) = counted();
+        let app = router(site(), build);
+        let address = "/api/content/v1/posts/";
+        tokio::join!(
+            status(app.clone(), address),
+            status(app.clone(), address),
+            status(app.clone(), address),
+        );
+        status(app, address).await;
+        assert_eq!(builds.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]

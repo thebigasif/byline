@@ -63,6 +63,13 @@ pub trait SiteView {
     fn facts(&self) -> &[LintFact] {
         &[]
     }
+
+    /// The author profiles the site has, each by language and slug. `None`
+    /// when unknown, and the rules that need them skip; an empty list means
+    /// the site has no profile at all.
+    fn authors(&self) -> Option<&[PageRef]> {
+        None
+    }
 }
 
 /// A site's posts, pages and glossary, held in memory.
@@ -90,6 +97,8 @@ pub struct LintSite {
     pub collections: Vec<LintCollection>,
     /// The facts the site keeps in its fact registry.
     pub facts: Vec<LintFact>,
+    /// The author profiles, when known.
+    pub authors: Option<Vec<PageRef>>,
 }
 
 impl SiteView for LintSite {
@@ -131,6 +140,10 @@ impl SiteView for LintSite {
 
     fn facts(&self) -> &[LintFact] {
         &self.facts
+    }
+
+    fn authors(&self) -> Option<&[PageRef]> {
+        self.authors.as_deref()
     }
 }
 

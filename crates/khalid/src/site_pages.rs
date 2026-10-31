@@ -27,9 +27,9 @@ use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::site_html::{SearchShell, Unrendered, Which, html_pages, search_shells};
 use crate::unlock::Gate;
 use crate::{
-    assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
-    categories, content_message, post_files, post_gate, post_lock, search_page, serve_message,
-    share_images, site_files, site_outline,
+    assets, build_gate, build_home, build_lists, build_message, build_pages, build_seo,
+    build_sitemap, categories, content_message, own_descriptions, post_files, post_gate, post_lock,
+    search_page, serve_message, share_images, site_files, site_outline,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -259,6 +259,7 @@ impl SitePages {
         let href = theme.stylesheet.path().as_str();
         let mut languages = build_home::home_pages(config, routes, content, href)?;
         search_page::link(config, &mut languages);
+        own_descriptions::fill(config, &theme.renderer, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let cards = share_images::attach(folder, config, &theme.tokens, &seo_site, &mut languages)?;
         // The home pages answer first, so their cards are drawn now; the
@@ -362,12 +363,17 @@ impl SitePages {
         let Site {
             folder,
             config,
+            routes,
             feed,
             outline,
             assets: kept,
             handed_on,
+            clock,
             ..
         } = &*self.0;
+        // Readers never see a post `khalid build` leaves out (KH-LNT-1).
+        let checked = (config, routes, content);
+        let content = &*build_gate::for_readers(folder, checked, clock.as_ref())?;
         // The catalog holds no post body, so it is quick to make here, and
         // the Content API's store is built from it in the background.
         let catalog = match feed {
@@ -436,6 +442,7 @@ impl SitePages {
                 build_lists::add((config, routes), &theme.renderer, sources, &mut languages)?;
                 build_sitemap::add(config, &theme.renderer, &mut languages)?;
             }
+            own_descriptions::fill(config, &theme.renderer, &mut languages)?;
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
         form_pages::fill(config, self.0.forms.as_ref(), &mut languages);
@@ -508,7 +515,7 @@ impl SitePages {
         let mut saved = SiteContent::default();
         for file in files {
             let mut doc = posts.iter().find(|doc| &doc.path == file)?.clone();
-            self.read_again(&mut doc)?;
+            site_outline::read_again(&self.0.folder, &mut doc)?;
             saved.posts.push(doc);
         }
         // A page's head links its other language versions, so they are
@@ -524,7 +531,7 @@ impl SitePages {
         });
         let mut versions: Vec<_> = versions.cloned().collect();
         for doc in &mut versions {
-            self.read_again(doc)?;
+            site_outline::read_again(&self.0.folder, doc)?;
         }
         saved.posts.extend(versions);
         saved.authors.clone_from(&outline.content.authors);
@@ -534,18 +541,6 @@ impl SitePages {
             return None;
         }
         Some((saved, outline.listed.clone()))
-    }
-
-    /// `doc`, a post of the outline, with its front matter and body read
-    /// from its file now. `None` when the file cannot be read or parsed.
-    fn read_again(&self, doc: &mut Document<PostFront>) -> Option<()> {
-        let mut path = self.0.folder.clone();
-        path.push(&doc.path);
-        let text = fs::read_to_string(&path).ok()?;
-        let post = parse_post(&doc.path, &text).ok()?;
-        doc.front = post.front;
-        doc.body = post.body;
-        Some(())
     }
 }
 

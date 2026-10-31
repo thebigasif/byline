@@ -176,7 +176,13 @@ fn a_threshold_in_lint_toml_reaches_its_rule() {
 
 #[test]
 fn site_rules_run_on_the_whole_site_but_never_before_publishing() {
-    let site = undated_site();
+    let mut site = undated_site();
+    // A language's only post is never an orphan, so the site gets a second.
+    let second = LintPost::new(
+        site.posts[0].locale.clone(),
+        Slug::try_new("second").unwrap(),
+    );
+    site.posts.push(second);
     let linter = Linter::new(&LintConfig::default(), &clock()).unwrap();
     let orphan = |report: &Report| {
         let mut rules = report.findings().iter().map(Finding::rule);
