@@ -101,16 +101,16 @@ fn a_page_with_nothing_in_it_reads_as_empty() {
 }
 
 /// A post body with a header and a footer around it.
-const ARTICLE: &str = r#"<header><nav><p>Menu text</p></nav><h2>Site name?</h2></header>
+const ARTICLE: &str = r##"<header><nav><p>Menu text</p></nav><h2>Site name?</h2></header>
 <main><h1>Rye bread</h1>
 <p>Published <time datetime="2026-03-01">1 March</time>.</p>
-<h2>How long does  rye take?</h2>
+<h2 id="long">How long does  rye take? <a class="heading-link" href="#long">#</a></h2>
 <p>About <a href="https://example.org/">three hours</a>.</p>
 <p>Then it   rests.</p>
 <details><summary>Can I freeze it?</summary><p>Yes.</p></details>
 <details open><summary>Open one</summary><p>Shown.</p></details>
 <h3>Flour</h3></main>
-<footer><p>Footer text</p></footer>"#;
+<footer><p>Footer text</p></footer>"##;
 
 #[test]
 fn reads_the_outline_an_answer_engine_lifts() {

@@ -108,7 +108,7 @@ impl Outline {
                     self.folded.push(summary);
                 }
             }
-            _ => self.blocks.push(Block::Heading(text_of(element))),
+            _ => self.blocks.push(Block::Heading(heading_text(element))),
         }
     }
 
@@ -124,4 +124,26 @@ impl Outline {
         }
         articles == usize::from(self.has_article)
     }
+}
+
+/// The text of the heading `element` without the text of links that point
+/// within the page, such as the `#` a heading link adds after the words.
+fn heading_text(element: ElementRef<'_>) -> String {
+    let mut words: Vec<&str> = Vec::new();
+    for node in element.descendants() {
+        let Some(text) = node.value().as_text() else {
+            continue;
+        };
+        let in_page_link = node.ancestors().filter_map(ElementRef::wrap).any(|parent| {
+            parent.value().name() == "a"
+                && parent
+                    .value()
+                    .attr("href")
+                    .is_some_and(|href| href.starts_with('#'))
+        });
+        if !in_page_link {
+            words.extend(text.split_whitespace());
+        }
+    }
+    words.join(" ")
 }
