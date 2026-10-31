@@ -9,8 +9,7 @@ use crate::{Category, Check, Crawl, Issue, Severity, Thresholds, audit};
 /// them, and the health score out of 100.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Report {
-    pages: usize,
-    healthy: usize,
+    pages: BTreeSet<String>,
     issues: Vec<Issue>,
 }
 
@@ -22,45 +21,51 @@ impl Report {
     pub fn of(crawl: &Crawl, thresholds: Thresholds) -> Self {
         let issues = audit(crawl, thresholds);
         let broken = [Check::Page4xx, Check::Page5xx, Check::PageUnreached];
-        let pages: BTreeSet<&str> = crawl
+        let pages = crawl
             .visits()
             .iter()
             .filter(|visit| visit.page().is_some())
-            .map(|visit| visit.url().as_str())
+            .map(|visit| visit.url().as_str().to_owned())
             .chain(
                 issues
                     .iter()
                     .filter(|issue| broken.contains(&issue.check()))
-                    .map(|issue| issue.url().as_str()),
+                    .map(|issue| issue.url().as_str().to_owned()),
             )
             .collect();
-        let faulty: BTreeSet<&str> = issues
-            .iter()
-            .filter(|issue| issue.check().severity() == Severity::Error)
-            .map(|issue| issue.url().as_str())
-            .filter(|url| pages.contains(url))
-            .collect();
-        Self {
-            pages: pages.len(),
-            healthy: pages.len().saturating_sub(faulty.len()),
-            issues,
-        }
+        Self { pages, issues }
+    }
+
+    /// The same report with `more` issues sorted in, such as the dead
+    /// links to other sites found by [`check_outside`](crate::check_outside).
+    #[must_use]
+    pub fn with(mut self, more: Vec<Issue>) -> Self {
+        self.issues.extend(more);
+        self.issues.sort();
+        self
     }
 
     /// The health score out of 100: the share of pages without an error,
     /// rounded down, as Ahrefs counts it. A crawl with no page scores 0.
     pub fn score(&self) -> u8 {
-        let share = self
-            .healthy
+        let faulty: BTreeSet<&str> = self
+            .issues
+            .iter()
+            .filter(|issue| issue.check().severity() == Severity::Error)
+            .map(|issue| issue.url().as_str())
+            .filter(|url| self.pages.contains(*url))
+            .collect();
+        let healthy = self.pages.len().saturating_sub(faulty.len());
+        let share = healthy
             .saturating_mul(100)
-            .checked_div(self.pages)
+            .checked_div(self.pages.len())
             .unwrap_or(0);
         u8::try_from(share).unwrap_or(100)
     }
 
     /// How many pages the audit read.
     pub fn pages(&self) -> usize {
-        self.pages
+        self.pages.len()
     }
 
     /// Every issue, sorted by check, then address.

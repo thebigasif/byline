@@ -315,4 +315,7 @@ checks! {
     /// An HTTPS page comes without a `Strict-Transport-Security` header.
     HstsMissing => "hsts-missing", Https, Notice, "No HSTS support",
         "Send the Strict-Transport-Security header from the server or the proxy in front of the blog, so browsers always use HTTPS.";
+    /// A page links to, or loads, an address on another site that is broken.
+    BrokenExternal => "broken-external", OutgoingLinks, Warning, "Page has broken links to other sites",
+        "Change the link to a page on that site that still exists, or remove it.";
 }

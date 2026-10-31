@@ -11,29 +11,33 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 use khalid_audit::{
-    Folder, Limit, LinkReport, Report, Run, Server, Severity, Thresholds, crawl, history,
+    Folder, Limit, LinkReport, Report, Run, Server, Severity, Thresholds, check_outside, crawl,
+    history,
 };
 use khalid_content::SiteContent;
 use khalid_core::{AbsoluteUrl, Clock, Config};
 use khalid_outbound::{Limits, Outbound, Resolver};
 use khalid_routes::Routes;
 
-use crate::cli::Output;
+use crate::cli::{Cli, Network, Output};
 use crate::exit::Exit;
-use crate::{audit_message, build, report};
+use crate::{audit_message, build, outbound, report};
 
 /// The folder in `data/` the audit keeps its files in.
 const FOLDER: &str = "data/audit";
 
 /// Audits the checked site in `site`: the running `server` when one is
-/// given, or else the site built into `data/audit/site/`.
+/// given, or else the site built into `data/audit/site/`. Unless `network`
+/// says to stay offline, it then asks every address on another site the
+/// pages link to or load, through the public client.
 pub(crate) fn run(
     site: &Path,
     checked: (&Config, &Routes, &SiteContent),
-    server: Option<&AbsoluteUrl>,
+    (server, network): (Option<&AbsoluteUrl>, Network),
     clock: &dyn Clock,
-    output: Output,
+    cli: &Cli,
 ) -> Exit {
+    let output = cli.output;
     let folder = within(site, FOLDER);
     let config = checked.0;
     let (Ok(home), Ok(runtime)) = (
@@ -58,7 +62,13 @@ pub(crate) fn run(
         };
         runtime.block_on(crawl(&source, &home, Limit::default()))
     };
-    let audit = Report::of(&crawled, Thresholds::default());
+    let mut audit = Report::of(&crawled, Thresholds::default());
+    if network == Network::Fetch {
+        let Ok(public) = outbound::client(cli) else {
+            return report::failure(output, &audit_message::internal(), Exit::Internal);
+        };
+        audit = audit.with(runtime.block_on(check_outside(&crawled, &public)));
+    }
     let links = LinkReport::of(&crawled);
     let trend = match keep(&folder, &audit, &links, clock) {
         Ok(trend) => trend,

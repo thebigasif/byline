@@ -91,5 +91,9 @@ required-features = ["test-util"]
 name = "import_site"
 required-features = ["test-util"]
 
+[[test]]
+name = "audit_outside"
+required-features = ["test-util"]
+
 [lints]
 workspace = true

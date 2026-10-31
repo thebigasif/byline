@@ -133,6 +133,14 @@ pub(crate) enum Command {
         /// on this machine. Addresses stay the site's own
         #[arg(long, value_name = "ADDRESS")]
         server: Option<AbsoluteUrl>,
+        /// Leave links to other sites unchecked, so the audit fetches
+        /// nothing from the internet
+        #[arg(
+            long = "offline",
+            action = ArgAction::SetTrue,
+            value_parser = BoolValueParser::new().map(|offline| if offline { Network::Offline } else { Network::Fetch }),
+        )]
+        network: Network,
     },
     /// Update the binary, or go back to the previous version
     Update {

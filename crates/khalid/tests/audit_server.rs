@@ -74,7 +74,13 @@ fn a_running_server_is_crawled_at_the_sites_own_addresses() {
     let site = demo_copy();
     let served = serve(site.path());
     let output = Command::new(env!("CARGO_BIN_EXE_khalid"))
-        .args(["--site", site.path().to_str().unwrap(), "audit", "--json"])
+        .args([
+            "--site",
+            site.path().to_str().unwrap(),
+            "audit",
+            "--json",
+            "--offline",
+        ])
         .args(["--server", &served.address])
         .output()
         .unwrap();
