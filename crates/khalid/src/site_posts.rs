@@ -329,8 +329,8 @@ impl Site {
         let routes = Routes::load(&self.folder).map_err(PostStoreError::new)?;
         let facts = site_facts::load(&self.folder).map_err(|m| failure(&m.to_string()))?;
         let briefs = site_briefs::load(&self.folder).map_err(|m| failure(&m.to_string()))?;
-        let input = (LintInput::new(content, &self.config, routes).with_facts(facts))
-            .with_briefs(briefs);
+        let input =
+            (LintInput::new(content, &self.config, routes).with_facts(facts)).with_briefs(briefs);
         let (site, _) = lint_site(content, &self.config, &input);
         let settings = lint::lint_settings(&self.folder).map_err(|m| failure(&m.to_string()))?;
         let linter = Linter::new(&settings, self.clock.as_ref()).map_err(PostStoreError::new)?;

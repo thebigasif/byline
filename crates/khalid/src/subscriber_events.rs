@@ -7,9 +7,9 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use khalid_core::Slug;
 use khalid_newsletter::{
-    BoxFuture, Confirmed, EmailAddress, Labelled, Member, Recipient, Segment, SendId,
-    SendNumbers, SendTotals, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore,
-    TokenHash, Unsubscribed,
+    BoxFuture, Confirmed, EmailAddress, Labelled, Member, Recipient, Segment, SendId, SendNumbers,
+    SendTotals, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, TokenHash,
+    Unsubscribed,
 };
 use khalid_webhooks::Event;
 use serde::Serialize;

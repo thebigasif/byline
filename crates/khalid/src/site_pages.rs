@@ -2,11 +2,10 @@
 //! rendered into memory instead of files, with the site's files and moved
 //! addresses. A headless site has the files and moves and no HTML page.
 
-use std::error::Error;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
-use std::{fmt, fs};
 
 use khalid_content::{
     ContentTree, Document, PostFront, SiteContent, check_bodies, parse_post, read_content,
@@ -24,7 +23,7 @@ use crate::post_files::Assets;
 use crate::post_photos::Shown;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
-use crate::site_html::{SearchShell, Which, html_pages, search_shells};
+use crate::site_html::{SearchShell, Unrendered, Which, html_pages, search_shells};
 use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
@@ -588,18 +587,6 @@ impl Render for SitePages {
         Ok(Some(served.pages))
     }
 }
-
-/// Why the site could not be rendered after an edit, as a person reads it.
-#[derive(Debug)]
-pub(crate) struct Unrendered(UserMessage);
-
-impl fmt::Display for Unrendered {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Error for Unrendered {}
 
 #[cfg(test)]
 #[path = "site_pages_tests.rs"]

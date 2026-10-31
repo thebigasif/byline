@@ -190,8 +190,8 @@ fn serve_with(
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
         let editing = (content.clone(), posts.clone());
         let pages = staff_toolbar::start((database, id, config), editing, pages);
-        let desks = (moderation, media, desk);
-        let apis = api_router((content, door, posts), desks, (database, id, (site, config)));
+        let (desks, at) = ((moderation, media, desk), (database, id, (site, config)));
+        let apis = api_router((content, door, posts), desks, at);
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -235,9 +235,13 @@ fn mail_and_alerts(
     let (database, id) = (&site.db, site.site);
     let internal = |message| (message, Exit::Internal);
     let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
-    let newsletters =
-        newsletter::router((folder, config), (database, id), (runtime, telling), mailer.clone())
-            .map_err(internal)?;
+    let newsletters = newsletter::router(
+        (folder, config),
+        (database, id),
+        (runtime, telling),
+        mailer.clone(),
+    )
+    .map_err(internal)?;
     let delivery = SiteDelivery::new(config, mailer.clone(), telling.clone()).map_err(internal)?;
     let delivery: Arc<dyn FormDelivery> = Arc::new(delivery);
     let forms = (&site.security, delivery);

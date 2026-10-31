@@ -1,5 +1,8 @@
-//! The HTML of the pages `khalid serve` renders into memory, and the
-//! search page each language keeps without results.
+//! The HTML of the pages `khalid serve` renders into memory, the search
+//! page each language keeps without results, and why a render failed.
+
+use std::error::Error;
+use std::fmt;
 
 use khalid_core::{Config, UserMessage};
 use khalid_render::{PageBody, PageMeta, RenderSite, Renderer};
@@ -9,6 +12,18 @@ use crate::build_pages::LanguagePages;
 use crate::page_code::PageCode;
 use crate::post_lock;
 use crate::site_page::{HeadNonce, served_at};
+
+/// Why the site could not be rendered after an edit, as a person reads it.
+#[derive(Debug)]
+pub(crate) struct Unrendered(pub(crate) UserMessage);
+
+impl fmt::Display for Unrendered {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Error for Unrendered {}
 
 /// Which pages a render makes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

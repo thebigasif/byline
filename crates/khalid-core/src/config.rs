@@ -111,6 +111,19 @@ struct SiteFile {
     preview_link_hours: Option<u64>,
 }
 
+/// The value of the process's environment variable `name`, or `None` when
+/// it is unset or not Unicode. Only [`crate::Environment::from_process`]
+/// calls it; it lives here because this file is where settings are read
+/// once at start (BL-RUN-2).
+pub(crate) fn process_variable(name: &str) -> Option<String> {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the one place that reads the environment (BL-RUN-2)"
+    )]
+    let value = std::env::var(name);
+    value.ok()
+}
+
 fn root_mount() -> String {
     "/".to_owned()
 }

@@ -76,12 +76,7 @@ impl Environment {
     pub fn from_process() -> Self {
         let mut found = BTreeMap::new();
         for name in Self::ALL {
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "the one place that reads the environment (BL-RUN-2)"
-            )]
-            let value = std::env::var(name);
-            if let Ok(value) = value {
+            if let Some(value) = crate::config::process_variable(name) {
                 found.insert(name.to_owned(), value);
             }
         }

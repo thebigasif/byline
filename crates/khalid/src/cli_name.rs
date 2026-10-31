@@ -74,21 +74,20 @@ impl Command {
             Self::Bing {
                 command: BingCommand::Report,
             } => "bing report",
-            Self::SearchConsole {
-                command: SearchConsoleCommand::Check,
-            } => "search-console check",
-            Self::SearchConsole {
-                command: SearchConsoleCommand::Report,
-            } => "search-console report",
-            Self::SearchConsole {
-                command: SearchConsoleCommand::Post { .. },
-            } => "search-console post",
-            Self::SearchConsole {
-                command: SearchConsoleCommand::Index,
-            } => "search-console index",
-            Self::SearchConsole {
-                command: SearchConsoleCommand::Email,
-            } => "search-console email",
+            Self::SearchConsole { command } => command.name(),
+        }
+    }
+}
+
+impl SearchConsoleCommand {
+    /// The command as a person types it, such as `search-console check`.
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Check => "search-console check",
+            Self::Report => "search-console report",
+            Self::Post { .. } => "search-console post",
+            Self::Index => "search-console index",
+            Self::Email => "search-console email",
         }
     }
 }
