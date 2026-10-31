@@ -10,6 +10,8 @@ export function row(fields: Partial<PostRow> = {}): PostRow {
     author: "asif",
     status: "published",
     review_state: "ready",
+    reviewed: null,
+    review_due: false,
     featured: false,
     published_at: "2026-09-14T09:00:00Z",
     updated_at: "2026-10-12T11:00:00Z",

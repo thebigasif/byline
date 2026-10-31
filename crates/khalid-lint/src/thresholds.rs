@@ -41,6 +41,9 @@ pub struct Thresholds {
     /// How many months a post may go without an update before it is stale.
     /// Default 12: most facts in a how-to post hold for about a year.
     pub stale_months: u32,
+    /// How many months a post may go without a review before it comes up
+    /// again (F3, decision D4). Default 6.
+    pub review_months: u32,
     /// How much text, in percent, two posts may share before they count as
     /// near copies, measured on runs of five words. Default 50: above that,
     /// the posts read as one text with small edits.
@@ -58,6 +61,10 @@ pub struct Thresholds {
     /// The most words a standalone answer after a question-style heading
     /// may hold. Default 60, the answer capsule's ceiling (decision D3).
     pub answer_max_words: usize,
+    /// The largest share in percent two headings may share before they
+    /// read as the same heading. Default 70: near-duplicates share most
+    /// words with small grammar differences, not merely a topic.
+    pub heading_duplicate_percent: usize,
     /// The most words one paragraph may hold before it buries its ideas.
     /// Default 225, about the top of the 75 to 225 word target.
     pub paragraph_max_words: usize,
@@ -76,6 +83,7 @@ impl Default for Thresholds {
         Self {
             answer_min_words: 40,
             answer_max_words: 60,
+            heading_duplicate_percent: 70,
             paragraph_max_words: 225,
             thin_post_words: 300,
             same_link_text_max: 3,
@@ -87,6 +95,7 @@ impl Default for Thresholds {
             slug_max_chars: 60,
             max_clicks: 3,
             stale_months: 12,
+            review_months: 6,
             near_duplicate_percent: 50,
             max_links: 100,
             hard_reading_index: 60,

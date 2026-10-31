@@ -1,4 +1,10 @@
 # Three wikilinks resolve (a post, a page, a glossary term, all in English).
 # One matches nothing, and one matches only a German post.
 extends = "clean"
-wikilinks = ["choosing-link-text", "about", "anchor-text", "link-juice", "interne-links"]
+wikilinks = [
+  "choosing-link-text",
+  "about",
+  "anchor-text",
+  "link-juice",
+  "interne-links",
+]

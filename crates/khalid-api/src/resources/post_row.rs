@@ -1,7 +1,7 @@
 //! A post as the admin's posts table lists it: the columns it shows and
 //! the ones it filters by, without the body.
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
 use khalid_core::{Indexing, Slug};
 use khalid_lint::{Report, Severity};
 use serde::Serialize;
@@ -142,6 +142,14 @@ pub struct PostRow {
     status: PostStatus,
     /// Draft, in review or ready.
     review_state: ReviewState,
+    /// The day it last came up for review (F3), if it ever has.
+    #[serde(serialize_with = "display_option")]
+    #[schema(value_type = Option<String>, format = Date, example = "2026-05-02")]
+    reviewed: Option<NaiveDate>,
+    /// Whether the post is due for review: more than six months since it
+    /// was last reviewed or published, whichever came last. A list
+    /// filters by this, such as `filter=review:due`.
+    review_due: bool,
     /// Whether the post is featured.
     featured: bool,
     /// When it went or goes live; empty for a draft.
@@ -172,6 +180,8 @@ impl PostRow {
             author: post.author().cloned(),
             status: post.status(),
             review_state: post.settings().review_state,
+            reviewed: post.settings().reviewed,
+            review_due: false,
             featured: post.settings().featured,
             published_at: post.published_at(),
             updated_at: post.updated_at(),
@@ -186,6 +196,25 @@ impl PostRow {
     #[must_use]
     pub fn with_lint(self, lint: LintCounts) -> Self {
         Self { lint, ..self }
+    }
+
+    /// The same row marked due for review when `today` is more than six
+    /// months past its last review or its publish day, whichever came
+    /// last, or past its last change when it has neither (F3, decision D4).
+    #[must_use]
+    pub fn with_review_due(self, today: NaiveDate) -> Self {
+        let published = self.published_at.map(|at| at.date_naive());
+        let last = self
+            .reviewed
+            .max(published)
+            .unwrap_or(self.updated_at.date_naive());
+        let due = last
+            .checked_add_months(chrono::Months::new(6))
+            .is_some_and(|until| until < today);
+        Self {
+            review_due: due,
+            ..self
+        }
     }
 
     /// The post's identity.
@@ -207,6 +236,21 @@ impl PostRow {
     pub fn index_status(&self) -> IndexStatus {
         self.index_status
     }
+
+    /// Whether the post is due for review (F3).
+    pub fn review_due(&self) -> bool {
+        self.review_due
+    }
+
+    /// When it went or goes live.
+    pub fn published_at(&self) -> Option<DateTime<Utc>> {
+        self.published_at
+    }
+
+    /// When it last changed.
+    pub fn updated_at(&self) -> DateTime<Utc> {
+        self.updated_at
+    }
 }
 
 impl FieldValues for PostRow {
@@ -220,6 +264,14 @@ impl FieldValues for PostRow {
             "author" => self.author.iter().flat_map(|a| text(a.as_str())).collect(),
             "status" => status_text(self.status),
             "review_state" => text(self.review_state.as_str()),
+            "reviewed" => self
+                .reviewed
+                .iter()
+                .flat_map(|day| text(&day.format("%Y-%m-%d").to_string()))
+                .collect(),
+            "review_due" => vec![Literal::Text(
+                if self.review_due { "due" } else { "fresh" }.to_owned(),
+            )],
             "featured" => vec![Literal::Bool(self.featured)],
             "published_at" => self.published_at.iter().flat_map(time).collect(),
             "updated_at" => time(&self.updated_at),
@@ -238,6 +290,8 @@ impl Listable for PostRow {
         "author",
         "status",
         "review_state",
+        "reviewed",
+        "review_due",
         "featured",
         "published_at",
         "updated_at",

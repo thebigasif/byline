@@ -46,6 +46,7 @@ fn a_new_admin_post_is_a_draft_in_api_shape() {
                 "feature_image": null,
                 "featured": false,
                 "review_state": "draft",
+                "reviewed": null,
                 "canonical": null,
                 "robots": null,
                 "share_cards": {"x": null, "facebook": null},

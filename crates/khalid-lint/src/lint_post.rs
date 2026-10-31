@@ -35,6 +35,8 @@ pub struct LintPost {
     pub date: Option<NaiveDate>,
     /// The date of the last real update, from the header.
     pub updated: Option<NaiveDate>,
+    /// The day the post last came up for review, if it has (F3).
+    pub reviewed: Option<NaiveDate>,
     /// The author from the header.
     pub author: Option<String>,
     /// The `translation` key from the header, shared by every language
@@ -96,6 +98,7 @@ impl LintPost {
             description: None,
             date: None,
             updated: None,
+            reviewed: None,
             author: None,
             translation: None,
             cluster: None,
@@ -211,16 +214,39 @@ pub struct Heading {
     pub level: HeadingLevel,
     /// The heading's text.
     pub text: String,
+    /// The lists and tables between this heading and the next one, as
+    /// the page shows them.
+    #[serde(default)]
+    pub holds: Vec<SectionShape>,
 }
 
 impl Heading {
-    /// A heading at `level` with `text`.
+    /// A heading at `level` with `text`, whose section holds no list or
+    /// table.
     pub fn new(level: HeadingLevel, text: impl Into<String>) -> Self {
         Self {
             level,
             text: text.into(),
+            holds: Vec::new(),
         }
     }
+
+    /// The same heading, whose section holds `shapes`.
+    #[must_use]
+    pub fn holding(mut self, shapes: Vec<SectionShape>) -> Self {
+        self.holds = shapes;
+        self
+    }
+}
+
+/// A shape a reader can scan, found in the section under a heading.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SectionShape {
+    /// A bulleted or numbered list.
+    List,
+    /// A table.
+    Table,
 }
 
 /// The six heading levels of HTML, from `h1` to `h6`, written that way in

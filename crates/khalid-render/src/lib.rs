@@ -65,7 +65,7 @@ pub use renderer::Renderer;
 pub use script::{ScriptTag, reader_script};
 pub use site::{Nav, NavLink, RenderSite};
 pub use sitemap::{RenderSitemap, SitemapGroup, SitemapSection};
-pub use stylesheet::stylesheet;
+pub use stylesheet::{stylesheet, stylesheet_text};
 pub use token_values::{Color, FontStack, Length, ParseTokenError};
 pub use tokens::{
     Brand, Colors, ContrastFailure, FontFile, Fonts, Metrics, Shape, TokenName, Tokens,

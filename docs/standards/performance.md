@@ -45,6 +45,19 @@ Once settled, five readings are taken one second apart and the lowest is the mea
 
 ## Allocator settings
 
+One setting is on: `MIMALLOC_PURGE_DELAY=0`, set in the deployment image and in the server `khalid-perf serve` measures. mimalloc holds a page it frees in its arena for a later reuse, with a reset delay before giving it back; an idle server never touches its arenas again, which is why a heap of 16.5 to 26.8 MB live read 54 to 67 MB resident. With the setting, a freed page returns to the OS at once. A delay of a hundred milliseconds was measured and rejected: the cold start did not recover (120.08 ms) and the idle reading climbed back over the budget (60.48 MB), because the pages a delayed purge would return were never touched again by an idle server. `MIMALLOC_ABANDONED_PAGE_PURGE` was measured and rejected: it made both budgets worse (idle 58.44, cold start 117.23). The measurement that justifies the setting that is on is the eight CI runs in the pull request that added it.
+
+The setting has a cost: every page freed is handed back at once and faulted in again when it is reused, so work that allocates and frees a lot costs more. Before it answers, `khalid serve` therefore does only what the first answer needs. Measured on 2026-10-31 with timing marks in a release build on the 1,000-post site, on a shared server, the start before the first answer was: walking the content folder 12 to 18 ms, reading the posts 22 to 34 ms, checking their bodies 8 to 12 ms, the runtime and database 5 ms, the home pages 6 to 17 ms. Three steps were moved out of that path:
+
+- **The stylesheet's compressed copies** (11 ms). Brotli at its best quality with a 4 MB window sets up tens of megabytes of tables, and the server threw both copies away: it compresses its pages after it answers. It now builds the stylesheet's text and hashed name only.
+- **The Content API and Admin API router** (8 to 9 ms, most of it the OpenAPI document). It is built on a blocking thread once the routes are wired, and a request under `/api/` waits for it.
+- **The full render**, which used to start before the routers were built and competed with them. It starts once the routes are ready.
+- **The body check** (8 to 12 ms) runs on a thread of its own while the runtime, the database and the home pages are set up, and the server waits for it before it listens, so a broken wikilink still stops it before it says where it answers.
+
+The first request is answered within a fraction of a millisecond of the routes being ready. What is left is reading the content, which the first page needs.
+
+## Allocator settings history
+
 The CTO answers of 2026-10-27, section 2, allow tuning the allocator to hand memory back, as long as the setting is recorded here with the measurement behind it. Measured on 2026-10-27 with `khalid-perf serve`, release build, on the generated 1,000-post site, idle memory as defined in the table above. The server was shared and busy (load average 65 to 85 on 16 cores), so each setting ran twice where it mattered.
 
 | Allocator | Idle memory, 1,000 posts | Idle memory, 10 posts |
@@ -96,6 +109,49 @@ CI's runner tells another story. With the hand-back, its trace (run 40470523235)
 `khalid-perf serve` prints, beside its measures and so in CI's log, the resident memory each second of the 15-second wait and the split at its end: anonymous memory, the part of it in huge pages, and code and mapped files.
 
 What a settled server holds, from `/proc/<pid>/smaps` at 51 MB: 27 MB in mimalloc's arena, 16.4 MB of the binary's code, 5.3 MB in the C allocator's heap, where SQLite keeps its page caches, and 1.4 MB of the C library.
+
+## Binary size
+
+The budget is 31,457,280 bytes (30 MB), checked by CI's "Binary size" step after `cargo build --release -p khalid`. On 2026-10-31 integration branch 15 built 33,249,512 bytes and integration branch 16 built 31,639,784. Both merged together built 33,755,112 bytes.
+
+What the release profile already did: fat LTO, one codegen unit, symbols stripped, `panic = "abort"`, and opt-level `"s"` for a few cold crates (the share image stack, the font reader, the import command's HTML reader, and on branch 15 the API crate). The panic behaviour is unchanged.
+
+Where the bytes were, from an unstripped build of both branches merged: 25.8 MB of machine code, 3.5 MB of read-only data, 1.5 MB of unwind tables and 1.4 MB of relocations. The biggest code was the API's router builders (`khalid_api::api::assemble` alone was 650 KB), the `khalid` crate's commands (2.3 MB), image resizing (0.6 MB), and 2.4 MB of C: SQLite, libwebp and mimalloc. Nearly all of it was built at opt-level 3, which trades size for speed even where speed does not matter.
+
+What changed (task/p1-binary-size), each measured on both integration branches merged:
+
+| Profile | Bytes | Saving |
+|---|---|---|
+| Before | 33,755,112 | |
+| Everything at `"s"` | 25,528,680 | 8,226,432 |
+| `"s"` by default, the reader's path at 3 (kept) | 27,490,792 | 6,264,320 |
+| As kept, plus the `khalid` crate at 3 | 35,331,752 | none, 1,576,640 more |
+| As kept, plus SQLite, sqlx, toml and five more Khalid crates at 3 | 28,693,480 | 5,061,632 |
+
+The kept profile builds everything at `"s"` except the crates on a reader's path and on the build's path, which stay at 3: tokio, hyper, axum, http, tower and the allocator; `khalid-core`, `khalid-content`, `khalid-render`, `khalid-static`, `khalid-lint` and `khalid-search`; and the parsers and compressors they run for every post (`comrak`, `minijinja`, `syntect`, the regex crates, `serde` and `serde_json`, the YAML front matter reader, and the brotli and gzip compressors). `opt-level` also reaches the C that a crate's build script compiles, so SQLite and libwebp are now built for size and mimalloc for speed.
+
+The `khalid` crate must stay at `"s"`. With fat LTO the whole program is optimised again at the binary crate's level, so opt-level 3 there inlines the size-built crates back into it, and the binary grew past where it started. Putting the start-up path's crates back at 3 (the last row) cost 1.2 MB and did not move the first byte.
+
+Speed and memory, `scripts/perf.sh` on both branches merged, two runs each, on this server with other builds running:
+
+| Measure | Before | After |
+|---|---|---|
+| Cold start to first byte, 1,000 posts | 72.94 ms, 75.06 ms | 77.52 ms, 77.44 ms |
+| Idle memory, 1,000 posts | 75.12 MB, 72.34 MB | 66.36 MB, 65.94 MB |
+| `khalid --help` | 1.78 ms, 1.85 ms | 1.81 ms, 2.29 ms |
+| Post page render p50 | 0.0282 ms, 0.0285 ms | 0.0277 ms, 0.0271 ms |
+| Full rebuild, 10,000 posts | 13.26 s, 11.92 s | 14.77 s, 12.22 s |
+| Incremental rebuild | 13.24 ms, 13.44 ms | 13.81 ms, 14.82 ms |
+
+Idle memory falls by about 8 MB because less code is mapped in: a settled server holds the binary's code in its resident memory (see above). The first byte is about 3.5 ms slower, well inside its 100 ms budget. Render and rebuild differences are within the noise between runs.
+
+Looked at and left alone:
+
+- **Duplicate crate versions.** html5ever 0.38 (through htmd) beside 0.40 (through ammonia and scraper), png 0.17 (through tiny-skia) beside 0.18, and argon2 0.5 (through webauthn-rs) beside 0.6. Each older copy comes from a crate whose newest release still needs it, so removing one means dropping a feature or downgrading a security crate such as ammonia, for at most about 200 KB.
+- **Dependency features.** The direct dependencies already turn off default features and name only what the code uses.
+- **A non-PIE binary** would drop 1.4 MB of relocations but give up address space layout randomisation for the binary. No.
+- **Unwind tables** (1.5 MB) can only be dropped with a `rustflags` setting for every build, and backtraces need them.
+- **The embedded admin** is only in a binary built after `npm run build`, which CI's size step does not run.
 
 ## Fast to build
 

@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use chrono::NaiveDate;
 use khalid_api::resources::{
     FeatureImage, NonBlank, PostSettings, PostStatus, ReviewState, ShareCard,
 };
@@ -44,6 +45,32 @@ fn co_authors_image_review_state_and_share_cards_read_back_the_same() {
     assert_eq!(read, after, "{written}");
     assert!(written.contains("co_authors: [lena-vogt]\n"), "{written}");
     assert!(written.contains("review_state: in_review\n"), "{written}");
+}
+
+#[test]
+fn a_recorded_review_leaves_the_dates_alone() {
+    // A review sets its day and nothing else: `date` and the updated
+    // marker keep exactly the values they had (F3).
+    let before = settings_of(&parse_post(Path::new("a.md"), FILE).unwrap().front);
+    let mut after = before.clone();
+    after.reviewed = Some(NaiveDate::from_ymd_opt(2026, 10, 29).unwrap());
+    let mut text = PostText::parse(FILE).unwrap();
+    write_settings(&mut text, &before, &after, PostStatus::Draft).unwrap();
+    let written = text.to_text();
+    // The review day is written...
+    assert!(written.contains("reviewed: 2026-10-29\n"), "{written}");
+    // ...and the dated line, present before, is unchanged.
+    let dated = parse_post(Path::new("a.md"), &written).unwrap().front;
+    assert_eq!(
+        dated.date,
+        parse_post(Path::new("a.md"), FILE).unwrap().front.date
+    );
+    assert_eq!(
+        dated.updated,
+        parse_post(Path::new("a.md"), FILE).unwrap().front.updated
+    );
+    // What is written reads back as the settings that were asked for.
+    assert_eq!(settings_of(&dated), after, "{written}");
 }
 
 #[test]

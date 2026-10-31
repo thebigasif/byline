@@ -1,0 +1,18 @@
+# Two headings that say near the same thing.
+extends = "clean"
+
+body_text = """
+Internal links help readers find the next useful post on your site.
+What an internal link is
+A link between two pages on the same site.
+What internal links are
+A link from one page of the site to another.
+"""
+
+[[headings]]
+level = "h2"
+text = "What an internal link is"
+
+[[headings]]
+level = "h2"
+text = "What internal links are"
