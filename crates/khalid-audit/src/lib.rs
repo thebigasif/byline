@@ -10,11 +10,44 @@
 //! crawler does.
 
 mod answer;
+mod audit;
+mod audit_error;
+mod body_checks;
+mod check;
+mod crawl;
+mod folder;
+mod head_link_checks;
+mod history;
+mod issue;
 mod link;
+mod link_checks;
+mod link_report;
+mod outgoing;
 mod page;
+mod page_checks;
+mod report;
 mod robots;
+mod server;
+mod sitemap;
+mod sitemap_checks;
+mod thresholds;
+mod visit;
 
-pub use answer::{Answer, Source, Unreached};
+pub use answer::{Answer, Headers, Source, Unreached};
+pub use audit::audit;
+pub use audit_error::AuditError;
+pub use check::{Category, Check, Severity};
+pub use crawl::{Crawl, Limit, crawl};
+pub use folder::Folder;
+pub use history::{Run, history};
+pub use issue::Issue;
 pub use link::{Alternate, Image, Link};
+pub use link_report::{LinkReport, PageLinks};
+pub use outgoing::check_outside;
 pub use page::Page;
+pub use report::Report;
 pub use robots::Robots;
+pub use server::Server;
+pub use sitemap::{SiteFiles, Sitemap};
+pub use thresholds::Thresholds;
+pub use visit::{Outcome, Visit};

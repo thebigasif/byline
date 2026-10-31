@@ -1,1 +1,2 @@
 warn heading-order: Links in the menu
+warn no-focus-keyword

@@ -17,7 +17,7 @@ use khalid_api::redirect_desk::RedirectDesk;
 use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
-use khalid_core::{Config, S3Keys, Slug, SystemClock, UserMessage};
+use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -55,6 +55,26 @@ struct ServeBody<'a> {
     address: &'a str,
 }
 
+/// The secrets `khalid serve` reads from the environment at start.
+#[derive(Debug)]
+pub(crate) struct Keys {
+    /// The media bucket's two keys, when the environment has them.
+    pub(crate) bucket: Option<S3Keys>,
+    /// The password, key or token the `[mail]` transport signs in with.
+    pub(crate) mail: Option<Secret<String>>,
+}
+
+impl Keys {
+    /// The keys `env` holds for the site with `config`.
+    pub(crate) fn read(env: &Environment, config: &Config) -> Self {
+        let mail = config.mail().map(|mail| &mail.transport);
+        Self {
+            bucket: env.s3_keys(),
+            mail: mail.and_then(|transport| env.mail_secret(transport)),
+        }
+    }
+}
+
 /// Serves the `site` folder, whose `config`, `routes` and content were
 /// checked, on `listen`. The database opens first and closes last, after
 /// every request, the watch, the scheduler and the announcing have stopped. Webhooks and
@@ -69,7 +89,7 @@ pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    (listen, outbound, bucket_keys): (&Listen, Result<Outbound, OutboundError>, Option<S3Keys>),
+    (listen, outbound, keys): (&Listen, Result<Outbound, OutboundError>, Keys),
     output: Output,
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
@@ -86,7 +106,7 @@ pub(crate) fn run(
     let served = serve_with(
         (site, config, routes),
         start,
-        (listen, &outbound, output, bucket_keys),
+        (listen, &outbound, output, keys),
         &runtime,
         (&database, id),
     );
@@ -103,7 +123,7 @@ pub(crate) fn run(
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, outbound, output, bucket_keys): (&Listen, &Outbound, Output, Option<S3Keys>),
+    (listen, outbound, output, keys): (&Listen, &Outbound, Output, Keys),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -120,7 +140,8 @@ fn serve_with(
     // Only the home pages are rendered before the server listens; the rest
     // follows behind the first answer (ADR "khalid serve answers before the
     // full render").
-    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed))
+    let clock = Arc::new(SystemClock);
+    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)
         .and_then(|source| {
             let first = source.render_first(&checked)?;
             let first = Pages::first(first).map_err(|_| serve_message::internal())?;
@@ -138,7 +159,7 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
-    let newsletters = newsletter::router(config).map_err(|message| (message, Exit::Internal))?;
+    let posted = posted_to(config, &search, (keys.mail, outbound))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
@@ -157,10 +178,9 @@ fn serve_with(
         let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
-            media_library::open(site, config, bucket_keys, outbound),
+            media_library::open(site, config, keys.bucket, outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
-        let forms = form_pages::router(config, (database, id), &source, &security);
         let scheduling = scheduler::start(Arc::clone(&door));
         let previews = preview::router(Arc::clone(&door), source.clone(), config, security.clone());
         let pages = (unlocked, live, config.mount());
@@ -171,7 +191,7 @@ fn serve_with(
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
-            (comments.merge(forms), newsletters, pages),
+            (comments, posted, pages),
         );
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
@@ -253,8 +273,25 @@ fn destination(
     }
 }
 
+/// The routes a reader posts to from a page, besides comments: the
+/// newsletter's, sending with the mail `secret`, and the form block's
+/// (G4). Both keep what they receive in the database of `site`, the pages,
+/// database and headers the search reads too.
+fn posted_to(
+    config: &Config,
+    site: &search_route::Search,
+    (secret, outbound): (Option<Secret<String>>, &Outbound),
+) -> Result<Router, (UserMessage, Exit)> {
+    let db = (&site.db, site.site);
+    let newsletters = newsletter::router(config, db, (secret, outbound))
+        .map_err(|message| (message, Exit::Internal))?;
+    let forms = form_pages::router(config, db, &site.pages, &site.security);
+    Ok(newsletters.merge(forms))
+}
+
 /// The one router the server answers: the APIs, the site's own routes, the
-/// drawn share cards, the admin, the comments and the newsletters.
+/// drawn share cards, the admin, the comments, the newsletters and the
+/// forms.
 fn assembled(
     (site, config, security): (&Path, &Config, &SecurityHeaders),
     (api, files, previews, searches): (Router, Router, Router, Router),

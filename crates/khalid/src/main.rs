@@ -9,6 +9,7 @@ mod agents;
 mod announce;
 mod assets;
 mod atomic;
+mod audit_message;
 mod build;
 mod build_files;
 mod build_gate;
@@ -69,6 +70,7 @@ mod post_lock;
 mod post_photos;
 mod post_text;
 mod preview;
+mod publish;
 mod redirect_route;
 mod redirects;
 mod repair;
@@ -89,6 +91,7 @@ mod serve_message;
 mod settings_text;
 mod share_images;
 mod site_addresses;
+mod site_audit;
 mod site_config;
 mod site_content;
 mod site_files;
@@ -156,10 +159,8 @@ fn run(cli: &Cli) -> Exit {
     let environment = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
-    let look = match (&cli.command, cli.site.as_deref()) {
-        (Some(Command::Serve(_)), Some(folder)) => Some(serving(folder)),
-        _ => None,
-    };
+    let serves = matches!(cli.command, Some(Command::Serve(_)));
+    let look = cli.site.as_deref().filter(|_| serves).map(serving);
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder, &environment) {
             Ok((config, routes, content, assets)) => {
@@ -175,8 +176,8 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve(args)), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let (checked, start) = ((&config, &routes), (content, assets, look));
-            let bucket_keys = environment.s3_keys();
-            return serve_https::serve(cli, folder, checked, start, (args, bucket_keys));
+            let keys = serve::Keys::read(&environment, &config);
+            return serve_https::serve(cli, folder, checked, start, (args, keys));
         }
         (_, site) => site,
     };
@@ -196,21 +197,19 @@ fn run(cli: &Cli) -> Exit {
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, routes, (content, _)))) => build::run(
-            folder,
-            (config, routes, content),
-            out.as_deref(),
-            &SystemClock,
-            cli.output,
-        ),
+        (
+            Some(asked @ (Command::Build { .. } | Command::Audit { .. })),
+            Some((folder, config, routes, (content, _))),
+        ) => on_content(folder, (config, routes, content), asked, cli),
         (
             Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
             Some((folder, config, ..)),
         ) => access(folder, config, command, cli.output),
         (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
-        (Some(Command::Theme { command }), Some((folder, config, ..))) => {
-            theme(folder, config, command, cli)
-        }
+        (
+            Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
+            Some((folder, config, ..)),
+        ) => on_settings(folder, config, command, cli),
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
             import::run(folder, (config, routes), args, cli)
         }
@@ -224,12 +223,49 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Staff { .. }
                 | Command::Mcp
                 | Command::Lint { .. }
+                | Command::Publish { .. }
                 | Command::New { .. }
-                | Command::Build { .. }),
+                | Command::Build { .. }
+                | Command::Audit { .. }),
             ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs the commands that need only a checked site's settings: `theme`
+/// and `publish`.
+fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
+    match command {
+        Command::Theme { command } => theme(folder, config, command, cli),
+        Command::Publish { slug, language } => {
+            publish::run(cli, (folder, config), (slug, language.as_ref()))
+        }
+        _ => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs the commands that read a checked site's content: `build`, and
+/// `audit` from a build or the server it names.
+fn on_content(
+    folder: &Path,
+    checked: (&Config, &Routes, &SiteContent),
+    asked: &Command,
+    cli: &Cli,
+) -> Exit {
+    match asked {
+        Command::Build { out } => {
+            build::run(folder, checked, out.as_deref(), &SystemClock, cli.output)
+        }
+        Command::Audit { server, network } => site_audit::run(
+            folder,
+            checked,
+            (server.as_ref(), *network),
+            &SystemClock,
+            cli,
+        ),
+        _ => report::failure(cli.output, &not_built(asked), Exit::Internal),
     }
 }
 

@@ -10,7 +10,7 @@ use std::{fmt, fs};
 use khalid_content::{
     ContentTree, Document, PostFront, SiteContent, check_bodies, parse_post, read_content,
 };
-use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
+use khalid_core::{Clock, Config, Locale, Slug, UserMessage};
 use khalid_render::{PageBody, RenderSearch, Renderer, SearchMode, SearchResult, Tokens};
 use khalid_routes::Routes;
 use khalid_server::{Moved, Page, Render, Rendered};
@@ -65,6 +65,8 @@ struct Site {
     forms: Option<LiveForms>,
     /// The password posts of the last full render, for the password form.
     gate: Gate,
+    /// Dates a feed with no posts yet, and a draft's preview.
+    clock: Arc<dyn Clock>,
 }
 
 /// What a saved post's page needs from the rest of the site, in a fraction
@@ -102,12 +104,13 @@ pub(crate) struct Served {
 impl SitePages {
     /// The pages of the site in `folder`, with its checked `config` and
     /// `routes`. With a `feed`, each render also hands the Content API what
-    /// it read.
+    /// it read. `clock` dates the feeds and a draft's preview.
     pub(crate) fn new(
         folder: &Path,
         config: Config,
         routes: Routes,
         feed: Option<ContentFeed>,
+        clock: Arc<dyn Clock>,
     ) -> Result<Self, UserMessage> {
         let theme = if config.mode().has_pages() {
             let renderer =
@@ -138,6 +141,7 @@ impl SitePages {
             gate: Gate::default(),
             comments,
             forms,
+            clock,
         })))
     }
 
@@ -274,7 +278,7 @@ impl SitePages {
         let unreadable = |error| content_message::of(folder, &error);
         let tree = ContentTree::walk(folder).map_err(unreadable)?;
         let mut content = read_content(&tree).map_err(unreadable)?;
-        let today = SystemClock.now().date_naive();
+        let today = self.0.clock.now().date_naive();
         let path = PathBuf::from(format!("content/{locale}/posts/{today}-{slug}.md"));
         let post = parse_post(&path, &text).map_err(unreadable)?;
         // A Document is made only by khalid-content, so the draft's entry
@@ -413,7 +417,7 @@ impl SitePages {
             moves: Vec::new(),
         };
         if which == Which::All {
-            served.pages = site_files::files(config, &seo_site, &seo_pages, SystemClock.now())?;
+            served.pages = site_files::files(config, &seo_site, &seo_pages, self.0.clock.now())?;
             served.pages.extend(beside);
             served.moves = site_files::moves(config, routes, content)?;
         }

@@ -164,6 +164,7 @@ pub(crate) fn lint_parts(
     post.path = path;
     post.collection = Some(parts.collection.to_owned());
     post.title.clone_from(&front.title);
+    post.seo_title.clone_from(&front.seo_title);
     post.description.clone_from(&front.description);
     post.date = front.date;
     post.updated = front.updated;
@@ -352,15 +353,22 @@ fn ends_line(tag: &str) -> bool {
 /// The words of rendered HTML with every tag and every entity, such as
 /// `&quot;`, replaced by a space, so neither is read as a word. The end of
 /// a block becomes a line break, so a heading never runs into the next
-/// sentence.
+/// sentence. A formula's `MathML` is left out, so its letters and signs are
+/// never read as words; a maths block's caption stays.
 fn plain_text(html: &str) -> String {
     let mut text = String::with_capacity(html.len());
     let mut tag = String::new();
     let mut skip_until = None;
+    let mut in_maths = false;
     for c in html.chars() {
         match (skip_until, c) {
             (Some(end), _) if c == end => {
                 skip_until = None;
+                if end == '>' && tag == "/math" {
+                    in_maths = false;
+                } else if end == '>' && tag.split(' ').next() == Some("math") {
+                    in_maths = true;
+                }
                 text.push(if end == '>' && ends_line(&tag) {
                     '\n'
                 } else {
@@ -372,6 +380,7 @@ fn plain_text(html: &str) -> String {
             (Some(_), _) => {}
             (None, '<') => skip_until = Some('>'),
             (None, '&') => skip_until = Some(';'),
+            (None, _) if in_maths => {}
             (None, _) => text.push(c),
         }
     }
@@ -399,6 +408,16 @@ mod tests {
             .filter(|line| !line.is_empty())
             .collect();
         assert_eq!(lines, ["Why links", "One link", "Two", "three"]);
+    }
+
+    #[test]
+    fn plain_text_leaves_out_formulas_and_keeps_their_captions() {
+        let html = "<p>Growth <math><mi>x</mi></math> compounds.</p>\n<figure class=\"maths\">\n<math display=\"block\"><mi>A</mi><mo>=</mo><mi>P</mi></math>\n<figcaption>Compound growth</figcaption>\n</figure>\n";
+        let words: Vec<String> = plain_text(html)
+            .split_whitespace()
+            .map(str::to_owned)
+            .collect();
+        assert_eq!(words, ["Growth", "compounds.", "Compound", "growth"]);
     }
 
     #[test]

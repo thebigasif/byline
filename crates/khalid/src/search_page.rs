@@ -132,8 +132,9 @@ pub(crate) fn shells(languages: &[LanguagePages]) -> Vec<SearchShell> {
 mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::Arc;
 
-    use khalid_core::Environment;
+    use khalid_core::{Environment, SystemClock};
     use khalid_routes::Routes;
 
     use super::*;
@@ -150,7 +151,7 @@ mod tests {
     fn served(folder: &Path, address: &str) -> String {
         let config = Config::load(folder, &Environment::empty()).unwrap();
         let routes = Routes::load(folder).unwrap();
-        let pages = SitePages::new(folder, config, routes, None).unwrap();
+        let pages = SitePages::new(folder, config, routes, None, Arc::new(SystemClock)).unwrap();
         let rendered = pages.render_all().unwrap().pages;
         let page = rendered.iter().find(|page| page.path().as_str() == address);
         String::from_utf8_lossy(&page.unwrap().body().unwrap()).into_owned()

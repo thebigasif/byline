@@ -86,14 +86,19 @@ pub(crate) enum Command {
         /// One post to check. Leave it out to check the whole site.
         path: Option<PathBuf>,
         /// Make the safe repairs in the files: heading order, image
-        /// descriptions from captions and cleaner addresses, then check again.
+        /// descriptions from captions, cleaner addresses and https for links
+        /// to this site, then check again.
         #[arg(long)]
         fix: bool,
     },
-    /// Lint a draft, then publish it. Refuses when a rule blocks it
+    /// Lint a draft, then publish it and tell the site's webhooks and
+    /// search engines. Refuses when a rule blocks it
     Publish {
         /// The slug of the draft to publish
         slug: Slug,
+        /// The language the draft is written in [default: the site's default language]
+        #[arg(long, value_name = "CODE")]
+        language: Option<Locale>,
     },
     /// Pull the main site's look again, or check a template override
     Theme {
@@ -124,8 +129,24 @@ pub(crate) enum Command {
     },
     /// Write one archive of the site folder
     Backup,
-    /// Crawl the site the way SEO tools do and score it
-    Audit,
+    /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
+    /// health out of 100. Keeps the issues, the internal linking report and
+    /// the score's trend in data/audit/, and exits with 1 on any error
+    Audit {
+        /// Ask this running server for the site's pages instead of
+        /// building them, such as `http://127.0.0.1:8080` for `khalid serve`
+        /// on this machine. Addresses stay the site's own
+        #[arg(long, value_name = "ADDRESS")]
+        server: Option<AbsoluteUrl>,
+        /// Leave links to other sites unchecked, so the audit fetches
+        /// nothing from the internet
+        #[arg(
+            long = "offline",
+            action = ArgAction::SetTrue,
+            value_parser = BoolValueParser::new().map(|offline| if offline { Network::Offline } else { Network::Fetch }),
+        )]
+        network: Network,
+    },
     /// Update the binary, or go back to the previous version
     Update {
         /// Go back to the version before the last update
@@ -496,7 +517,7 @@ impl Command {
             Self::Agents => "agents",
             Self::Doctor { .. } => "doctor",
             Self::Backup => "backup",
-            Self::Audit => "audit",
+            Self::Audit { .. } => "audit",
             Self::Update { .. } => "update",
             Self::Pull => "pull",
             Self::Keys {
