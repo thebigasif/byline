@@ -30,6 +30,7 @@
 mod crawled;
 mod crawler;
 mod crawler_ranges;
+mod first_crawl;
 mod referrer;
 mod store;
 mod tally;
@@ -38,6 +39,7 @@ mod visit;
 pub use crawled::CrawledPage;
 pub use crawler::{Crawler, CrawlerKind};
 pub use crawler_ranges::{CrawlerRanges, LONGEST_LIST, RangeList, RangeListError};
+pub use first_crawl::{FirstCrawl, FirstFetch, LivePage, first_crawls};
 pub use referrer::ReferrerGroup;
 pub use store::{
     AnalyticsError, AnalyticsStore, BoxFuture, CRAWL_DAYS_KEPT, MAX_CRAWL_ROWS_PER_DAY,
