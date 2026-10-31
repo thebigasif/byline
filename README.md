@@ -8,7 +8,7 @@ The one-line idea: get an Ahrefs- or Semrush-quality blog in one click.
 
 ## Install
 
-On Linux or a Mac with Apple silicon, once the first release is out:
+On Linux or a Mac, once the first release is out:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sh

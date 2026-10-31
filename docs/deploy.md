@@ -6,7 +6,7 @@ A site folder is the folder that holds `site.toml`, `content/` and `theme/`. Kha
 
 ## Install with one line
 
-On Linux or a Mac with Apple silicon:
+On Linux or a Mac:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sh
@@ -80,6 +80,8 @@ docker run -d -u "$(id -u):$(id -g)" -p 8080:8080 -v "$PWD/site:/site" khalid
 ```
 
 `-u` runs Khalid as you, so the files it writes in `site/` stay yours. The blog is then at `http://localhost:8080/`.
+
+Each release also publishes the image, for x86_64 and ARM, so you can skip the build. Use `ghcr.io/thebigasif/khalid:latest` in place of `khalid` in the commands above, or a version such as `ghcr.io/thebigasif/khalid:0.1.0` to stay on one release.
 
 ## Docker Compose
 
