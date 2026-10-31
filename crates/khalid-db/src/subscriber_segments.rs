@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 
 use chrono::{DateTime, Utc};
 use khalid_core::Slug;
-use khalid_newsletter::{EmailAddress, Labelled, Recipient, Segment, SubscriberId};
+use khalid_newsletter::{EmailAddress, Labelled, Member, Recipient, Segment, SubscriberId};
 
 use crate::subscriber_table::stamp;
 use crate::{DbError, SubscriberTable};
@@ -65,6 +65,37 @@ impl SubscriberTable {
         })
     }
 
+    pub(crate) async fn subscriber_now(
+        &self,
+        subscriber: SubscriberId,
+    ) -> Result<Option<Member>, DbError> {
+        let email: Option<String> = sqlx::query_scalar(
+            "SELECT email FROM subscribers \
+             WHERE site_id = ?1 AND id = ?2 AND status != 'unsubscribed'",
+        )
+        .bind(self.site.as_row())
+        .bind(subscriber.as_row())
+        .fetch_optional(&self.db.writer)
+        .await?;
+        let Some(email) = email else {
+            return Ok(None);
+        };
+        let lists: Vec<String> = sqlx::query_scalar(
+            "SELECT list FROM subscriber_lists WHERE site_id = ?1 AND subscriber_id = ?2 \
+             ORDER BY list",
+        )
+        .bind(self.site.as_row())
+        .bind(subscriber.as_row())
+        .fetch_all(&self.db.writer)
+        .await?;
+        let lists = lists.iter().filter_map(|list| Slug::try_new(list).ok());
+        let recipient = match EmailAddress::parse(&email) {
+            Ok(parsed) => Recipient::new(subscriber, parsed),
+            Err(_) => return Err(unreadable_email(email)),
+        };
+        Ok(Some(Member::new(recipient, lists.collect())))
+    }
+
     /// The confirmed members of the segment's newsletter, then, one label
     /// at a time, only those who carry it.
     pub(crate) async fn audience_now(&self, segment: &Segment) -> Result<Vec<Recipient>, DbError> {
@@ -93,11 +124,17 @@ impl SubscriberTable {
             .into_iter()
             .map(|(id, email)| match EmailAddress::parse(&email) {
                 Ok(email) => Ok(Recipient::new(SubscriberId::from_row(id), email)),
-                Err(_) => Err(DbError::Unreadable {
-                    column: "email",
-                    value: email,
-                }),
+                Err(_) => Err(unreadable_email(email)),
             })
             .collect()
+    }
+}
+
+/// An address in the table that is not one, which only another program
+/// writing the file can cause.
+fn unreadable_email(email: String) -> DbError {
+    DbError::Unreadable {
+        column: "email",
+        value: email,
     }
 }

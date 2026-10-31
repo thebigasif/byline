@@ -3,8 +3,8 @@
 use chrono::{DateTime, SecondsFormat, Utc};
 use khalid_core::Slug;
 use khalid_newsletter::{
-    BoxFuture, Confirmed, EmailAddress, Labelled, Recipient, Segment, SendId, SendTotals, SignUp,
-    SignedUp, StoreError, SubscriberId, SubscriberStore, TokenHash, Unsubscribed,
+    BoxFuture, Confirmed, EmailAddress, Labelled, Member, Recipient, Segment, SendId, SendTotals,
+    SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, TokenHash, Unsubscribed,
 };
 use sqlx::{Sqlite, Transaction};
 
@@ -316,6 +316,17 @@ impl SubscriberStore for SubscriberTable {
         Box::pin(async move {
             let finished = self.finish_send_now(send, totals, at).await;
             finished.map_err(StoreError::new)
+        })
+    }
+
+    fn subscriber(
+        &self,
+        subscriber: SubscriberId,
+    ) -> BoxFuture<'_, Result<Option<Member>, StoreError>> {
+        Box::pin(async move {
+            self.subscriber_now(subscriber)
+                .await
+                .map_err(StoreError::new)
         })
     }
 

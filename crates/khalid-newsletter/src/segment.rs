@@ -62,3 +62,20 @@ pub enum Labelled {
     /// No one subscribed has this address, so nothing changed.
     NotSubscribed,
 }
+
+/// A subscriber and the newsletters they get, in alphabetical order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Member {
+    /// Who they are and where their email goes.
+    pub recipient: Recipient,
+    /// The newsletters they get.
+    pub lists: Vec<Slug>,
+}
+
+impl Member {
+    /// `recipient`, who gets `lists`.
+    pub fn new(recipient: Recipient, lists: Vec<Slug>) -> Self {
+        Self { recipient, lists }
+    }
+}
