@@ -1,0 +1,1 @@
+warn brief-question-unanswered: How many internal links should a post have?

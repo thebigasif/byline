@@ -1,0 +1,6 @@
+# The brief lists two pages to link to. The post links to the first, written
+# here without its last slash, and not to the second.
+extends = "clean"
+
+[brief]
+links = ["/blog/choosing-link-text", "/blog/orphan-pages/"]

@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
-    Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
+    Rule, SiteRule, Thresholds, address, blocking, brief, collections, link_hygiene, link_targets,
     link_text, page_or_section, reading, site_content, site_links, site_sections, site_trust,
     snippet, structure, topics, words, writing,
 };
@@ -98,6 +98,9 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
             max: thresholds.focus_max_per_thousand_words,
         }),
         Box::new(SecondaryKeywordUnused),
+        Box::new(brief::QuestionUnanswered),
+        Box::new(brief::TermMissing),
+        Box::new(brief::LinkMissing),
         Box::new(collections::OverlappingCollections),
         Box::new(address::BrokenWikilink),
         Box::new(words::KeywordStuffing {

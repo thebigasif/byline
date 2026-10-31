@@ -519,6 +519,9 @@ Severities come from `lint.toml`. The defaults:
 | Glossary term not linked | The post uses a term the glossary defines without linking it. Shown with a one-click fix |
 | Form without a destination | A form block that delivers to no email address and no webhook |
 | Overlapping collections | Two collections in `routes.toml` could claim the same post |
+| Brief question unanswered | The post's brief lists a question no heading asks, in any word order |
+| Brief term missing | The post's brief lists a term the body and headings never use |
+| Brief link missing | The post's brief lists a page the post does not link to |
 
 `khalid lint --fix` repairs the safe ones: alt text from the caption, slug cleanup, heading order. Everything else is for the writer.
 
