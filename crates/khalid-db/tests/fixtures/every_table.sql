@@ -93,3 +93,6 @@ INSERT INTO analytics_counts (site_id, day, path, referrer_group, views) VALUES
 INSERT INTO crawl_log (site_id, day, path, crawler, kind, hits, last_seen, last_status) VALUES
     (1, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200),
     (2, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200);
+INSERT INTO audit_log (site_id, at, by_key, action, route, path) VALUES
+    (1, '2026-10-26T09:00:00Z', '0123456789abcdef', 'changed', '/api/admin/v1/posts/{id}/', '/api/admin/v1/posts/en.old-post/'),
+    (2, '2026-10-26T09:00:00Z', '0123456789abcdef', 'changed', '/api/admin/v1/posts/{id}/', '/api/admin/v1/posts/en.old-post/');

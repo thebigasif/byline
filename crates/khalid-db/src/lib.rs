@@ -18,10 +18,12 @@
 //! [`CommentTable`] that `khalid-comments` moderates through, and the staff
 //! accounts, as the [`AccountTable`], [`SessionTable`], [`LinkTable`] and
 //! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
-//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into.
+//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into, and the
+//! audit log, as the [`AuditTable`] the Admin API records each change in.
 
 mod account_table;
 mod analytics_table;
+mod audit_table;
 mod comment_table;
 mod content_index;
 mod database;
@@ -46,6 +48,7 @@ mod webhook_table;
 
 pub use account_table::AccountTable;
 pub use analytics_table::AnalyticsTable;
+pub use audit_table::AuditTable;
 pub use comment_table::CommentTable;
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;
