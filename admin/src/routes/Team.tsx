@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { failureMessage, isData, type Reply } from "../api/call";
 import {
@@ -74,6 +75,10 @@ export function Team() {
       {failed === null ? null : <Problem message={failed} />}
       <p role="status">{done}</p>
       {list}
+      <p>
+        <Link to="/team/owner">{words.list.handOver}</Link>{" "}
+        <span className="muted">{words.list.handOverHint}</span>
+      </p>
     </>
   );
 }

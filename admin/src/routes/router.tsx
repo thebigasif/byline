@@ -16,6 +16,7 @@ import { AuthorPage } from "./AuthorPage";
 import { Authors } from "./Authors";
 import { Comments } from "./Comments";
 import { Dashboard } from "./Dashboard";
+import { HandOver } from "./HandOver";
 import { Keys } from "./Keys";
 import { LinkSignIn } from "./LinkSignIn";
 import { NewPost } from "./NewPost";
@@ -120,6 +121,13 @@ const webhookActivity = createRoute({
 
 const team = createRoute({ getParentRoute: () => signedIn, path: "/team", component: Team });
 
+// Its own screen, so the consequence is read before anything is asked.
+const handOver = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/team/owner",
+  component: HandOver,
+});
+
 // The whole blog's settings; post settings live in the editor.
 const site = createRoute({ getParentRoute: () => signedIn, path: "/settings", component: Site });
 
@@ -139,6 +147,7 @@ const routeTree = root.addChildren([
     webhooks,
     webhookActivity,
     team,
+    handOver,
     site,
     account,
   ]),

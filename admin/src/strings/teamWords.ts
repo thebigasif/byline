@@ -45,5 +45,28 @@ export const teamWords = {
     remove: "Remove",
     removeLabel: (name: string) => `Remove ${name}`,
     removed: (name: string) => `${name} is off the team and signed out everywhere.`,
+    handOver: "Hand the site to someone else",
+    handOverHint: "Only the owner can.",
+  },
+  handover: {
+    back: "Back to your team",
+    title: "Hand the site to someone else",
+    lede: "The owner is the one person who holds every right on this blog, including the right to hand it on. Do this when someone else takes charge of the blog, for example when you leave the company.",
+    changes: "What changes",
+    consequences: [
+      "The person you pick becomes the owner, from their next request.",
+      "You become an admin. You keep every right except handing the site on.",
+      "You cannot undo this yourself. Only the new owner can hand the site back.",
+      "Nobody is signed out, and no posts, keys or settings change.",
+    ],
+    pick: "Pick the new owner",
+    loading: "Reading your team",
+    next: "New owner",
+    nextHint:
+      "Only people already on your team are listed. Invite someone first if they are not here.",
+    nobody: "Nobody else is on your team yet. Invite someone first, then come back here.",
+    understand: "I understand that I become an admin and cannot undo this myself.",
+    submit: (name: string) => `Make ${name} the owner`,
+    done: (name: string) => `${name} is the owner now. You are an admin.`,
   },
 } as const;

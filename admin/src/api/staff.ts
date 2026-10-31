@@ -29,6 +29,11 @@ export function changeRole(id: number, role: string): Promise<Reply<StaffAccount
   return call(`/staff/${id}/`, sending("PUT", body), staff);
 }
 
+/** Makes another account the owner; the owner until now becomes an admin. Owner only. */
+export function handOver(id: number): Promise<Reply<StaffAccount[]>> {
+  return call(`/staff/${id}/owner/`, { method: "POST" }, staff);
+}
+
 /** Removes an account, with its sessions and passkeys. */
 export function removeStaff(id: number): Promise<Reply<null>> {
   return call(`/staff/${id}/`, { method: "DELETE" }, nothing);
