@@ -15,7 +15,7 @@ use khalid_api::post_store::MemoryPostStore;
 use khalid_api::publish_door::{PublishDoor, Silent};
 use khalid_api::resources::AdminSnippet;
 use khalid_core::{FixedClock, Locale, Slug};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 /// Keys made up for these tests. They open nothing real.
@@ -103,6 +103,65 @@ async fn snippets_are_listed_with_posts_write() {
         json["snippets"][0]["markdown"], "Some links pay us.",
         "{json}"
     );
+}
+
+#[tokio::test]
+async fn one_snippet_is_read_by_its_identity() {
+    let router = with_disclosure();
+    let disclosure = "/api/admin/v1/snippets/en.affiliate-disclosure/";
+    let (status, json) = send(&router, "GET", disclosure, WRITER, None).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(
+        json["snippets"][0]["title"], "Affiliate disclosure",
+        "{json}"
+    );
+    let (status, json) = send(
+        &router,
+        "GET",
+        "/api/admin/v1/snippets/en.box/",
+        WRITER,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
+    assert!(
+        json["fix"]
+            .as_str()
+            .unwrap()
+            .contains("en.affiliate-disclosure"),
+        "{json}"
+    );
+}
+
+#[tokio::test]
+async fn a_new_snippet_is_made_once_in_the_default_language() {
+    let router = with_disclosure();
+    let new = json!({"snippets": [{"slug": "newsletter-box", "title": "Newsletter box", "markdown": "Get one email a week."}]});
+    let (status, json) = send(&router, "POST", SNIPPETS, EDITOR, Some(new.clone())).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["snippets"][0]["id"], "en.newsletter-box", "{json}");
+    assert_eq!(json["snippets"][0]["updated_at"], "2026-10-27T09:00:00Z");
+    let (status, json) = send(&router, "POST", SNIPPETS, EDITOR, Some(new)).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert_eq!(json["rule"], "slug", "{json}");
+}
+
+#[tokio::test]
+async fn a_snippet_that_cannot_be_kept_or_is_sent_without_rights_is_refused() {
+    let router = with_disclosure();
+    let blank = json!({"snippets": [{"slug": "box", "title": " ", "markdown": "M."}]});
+    let (status, json) = send(&router, "POST", SNIPPETS, EDITOR, Some(blank)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+    assert_eq!(json["rule"], "title", "{json}");
+    let two = json!({"snippets": []});
+    let (status, _) = send(&router, "POST", SNIPPETS, EDITOR, Some(two)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let new = json!({"snippets": [{"slug": "box", "title": "Box", "markdown": "M."}]});
+    let (status, json) = send(&router, "POST", SNIPPETS, WRITER, Some(new)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    assert_eq!(json["rule"], "posts:publish", "{json}");
+    let (_, json) = send(&router, "GET", SNIPPETS, WRITER, None).await;
+    assert_eq!(json["snippets"].as_array().map(Vec::len), Some(1), "{json}");
 }
 
 #[tokio::test]
