@@ -40,11 +40,52 @@ pub(crate) struct SiteTags {
     writing: Arc<Mutex<()>>,
 }
 
-/// A post file and the tags it holds.
-struct PostFile {
+/// A post file and its tags.
+pub(crate) struct PostFile {
     path: PathBuf,
     text: PostText,
     tagged: TaggedPost,
+}
+
+/// Every post file in `site`, published and draft.
+pub(crate) fn post_files(site: &Path) -> Result<Vec<PostFile>, EntryStoreError> {
+    let tree = ContentTree::walk(site).map_err(EntryStoreError::new)?;
+    let mut posts = Vec::new();
+    for language in tree.languages() {
+        for collection in language.collections() {
+            if NOT_POSTS.contains(&collection.name()) {
+                continue;
+            }
+            for entry in collection.entries() {
+                let mut path = site.to_path_buf();
+                path.push(entry.path());
+                posts.push(post_file(path, language.locale())?);
+            }
+        }
+    }
+    posts.extend(drafts(site)?);
+    Ok(posts)
+}
+
+/// The drafts in `drafts/<language>/`.
+fn drafts(site: &Path) -> Result<Vec<PostFile>, EntryStoreError> {
+    let mut drafts = Vec::new();
+    let mut folder = site.to_path_buf();
+    folder.push("drafts");
+    for language in listed(&folder)? {
+        let Some(locale) = language.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        let Ok(locale) = Locale::try_new(locale) else {
+            continue;
+        };
+        for path in listed(&language)? {
+            if path.extension().is_some_and(|extension| extension == "md") {
+                drafts.push(post_file(path, &locale)?);
+            }
+        }
+    }
+    Ok(drafts)
 }
 
 impl SiteTags {
@@ -60,43 +101,7 @@ impl SiteTags {
 
     /// Every post file, published and draft.
     fn posts(&self) -> Result<Vec<PostFile>, EntryStoreError> {
-        let tree = ContentTree::walk(&self.site).map_err(EntryStoreError::new)?;
-        let mut posts = Vec::new();
-        for language in tree.languages() {
-            for collection in language.collections() {
-                if NOT_POSTS.contains(&collection.name()) {
-                    continue;
-                }
-                for entry in collection.entries() {
-                    let mut path = self.site.clone();
-                    path.push(entry.path());
-                    posts.push(post_file(path, language.locale())?);
-                }
-            }
-        }
-        posts.extend(self.drafts()?);
-        Ok(posts)
-    }
-
-    /// The drafts in `drafts/<language>/`.
-    fn drafts(&self) -> Result<Vec<PostFile>, EntryStoreError> {
-        let mut drafts = Vec::new();
-        let mut folder = self.site.clone();
-        folder.push("drafts");
-        for language in listed(&folder)? {
-            let Some(locale) = language.file_name().and_then(|name| name.to_str()) else {
-                continue;
-            };
-            let Ok(locale) = Locale::try_new(locale) else {
-                continue;
-            };
-            for path in listed(&language)? {
-                if path.extension().is_some_and(|extension| extension == "md") {
-                    drafts.push(post_file(path, &locale)?);
-                }
-            }
-        }
-        Ok(drafts)
+        post_files(&self.site)
     }
 
     fn lock(&self) -> MutexGuard<'_, ()> {
