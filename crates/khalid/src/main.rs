@@ -64,6 +64,7 @@ mod new_message;
 mod newsletter;
 mod newsletter_cli;
 mod newsletter_files;
+mod newsletter_send;
 mod outbound;
 mod page_counts;
 mod post_files;
@@ -245,7 +246,7 @@ fn run(cli: &Cli) -> Exit {
 /// `publish` and `newsletter`.
 fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
     match command {
-        Command::Newsletter { command } => newsletter_cli::run(folder, command, cli.output),
+        Command::Newsletter { command } => newsletter_cli::run(cli, (folder, config), command),
         Command::Theme { command } => theme(folder, config, command, cli),
         Command::Publish { slug, language } => {
             publish::run(cli, (folder, config), (slug, language.as_ref()))

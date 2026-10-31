@@ -26,11 +26,7 @@ pub(crate) fn router(
     (database, id): (&Database, SiteId),
     (secret, outbound): (Option<Secret<String>>, &Outbound),
 ) -> Result<Router, UserMessage> {
-    let site = NewsletterSite {
-        name: config.name().to_owned(),
-        locale: config.default_language().clone(),
-        links: SiteLinks::new(config.address(), config.mount()),
-    };
+    let site = site(config);
     let pages = Pages::new(site.clone()).map_err(|_| serve_message::internal())?;
     let newsletter = match mailer(config, secret, outbound)? {
         Some(mailer) => {
@@ -44,10 +40,19 @@ pub(crate) fn router(
     Ok(khalid_newsletter::router(pages, newsletter))
 }
 
+/// The site the emails come from, in its default language.
+pub(crate) fn site(config: &Config) -> NewsletterSite {
+    NewsletterSite {
+        name: config.name().to_owned(),
+        locale: config.default_language().clone(),
+        links: SiteLinks::new(config.address(), config.mount()),
+    }
+}
+
 /// The way mail leaves, as `[mail]` names it, or `None` when the site
 /// sends none. The settings and the secret were checked at start, so a
 /// failure here is Khalid's own.
-fn mailer(
+pub(crate) fn mailer(
     config: &Config,
     secret: Option<Secret<String>>,
     outbound: &Outbound,

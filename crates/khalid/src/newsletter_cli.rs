@@ -6,14 +6,14 @@ use std::path::Path;
 
 use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Subcommand};
-use khalid_core::{Clock, Slug, SystemClock, UserMessage};
+use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, SubscriberTable};
 use khalid_newsletter::{EmailAddress, Labelled, Segment, SubscriberStore};
 use serde::Serialize;
 
-use crate::cli::Output;
+use crate::cli::{Cli, Output};
 use crate::exit::Exit;
-use crate::{db, db_message, report};
+use crate::{db, db_message, newsletter_send, report};
 
 /// The newsletter commands.
 #[derive(Debug, Clone, Subcommand)]
@@ -44,6 +44,21 @@ pub(crate) enum NewsletterCommand {
         #[arg(long = "label", value_name = "LABEL")]
         labels: Vec<Slug>,
     },
+    /// Email a published post to a newsletter's confirmed subscribers,
+    /// once. An edit never sends it again
+    Send {
+        /// The slug of the post
+        slug: Slug,
+        /// The language the post is written in [default: the site's default language]
+        #[arg(long, value_name = "CODE")]
+        language: Option<Locale>,
+        /// The newsletter, such as weekly
+        #[arg(long, value_name = "NAME", default_value = "main")]
+        list: Slug,
+        /// Send only to subscribers with this label; give it more than once for several
+        #[arg(long = "label", value_name = "LABEL")]
+        labels: Vec<Slug>,
+    },
 }
 
 /// Whether `label` adds a label or takes it away.
@@ -61,6 +76,7 @@ impl NewsletterCommand {
         match self {
             Self::Label { .. } => "newsletter label",
             Self::Segment { .. } => "newsletter segment",
+            Self::Send { .. } => "newsletter send",
         }
     }
 }
@@ -75,9 +91,28 @@ struct SegmentBody<'a> {
 
 type Done = Result<Exit, (UserMessage, Exit)>;
 
-/// Runs `command` on the site in `folder`.
-pub(crate) fn run(folder: &Path, command: &NewsletterCommand, output: Output) -> Exit {
+/// Runs `command` on the checked site in `folder` with `config`.
+pub(crate) fn run(
+    cli: &Cli,
+    (folder, config): (&Path, &Config),
+    command: &NewsletterCommand,
+) -> Exit {
+    let output = cli.output;
     let done = match command {
+        NewsletterCommand::Send {
+            slug,
+            language,
+            list,
+            labels,
+        } => {
+            let asked = newsletter_send::Asked {
+                slug,
+                language: language.as_ref(),
+                list,
+                labels,
+            };
+            return newsletter_send::run(cli, (folder, config), &asked);
+        }
         NewsletterCommand::Label {
             email,
             label,

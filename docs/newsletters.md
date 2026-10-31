@@ -31,3 +31,16 @@ khalid --site <folder> newsletter segment --list weekly --label paid
 ```
 
 `segment` prints how many subscribers are in the segment. It never lists who they are. Add `--json` to either command for a program to read.
+
+## Sending a post
+
+A post is emailed only when you ask, and only once:
+
+```sh
+khalid --site <folder> newsletter send what-a-sitemap-does
+khalid --site <folder> newsletter send what-a-sitemap-does --list weekly --label paid
+```
+
+The post must be published. Each confirmed subscriber in the newsletter, or in the segment the labels name, gets one copy: the title, a link to read it on the site, and its text. Forms, galleries and other blocks that only work on a page are left out. Every copy ends with that reader's own one-click unsubscribe link and the site's postal address.
+
+Khalid sends nothing until `postal_address` is set under `[mail]` in `site.toml`, because anti-spam laws ask every newsletter email to show one. A post that went out before is never sent again, even after an edit. A copy the mail server refuses is counted and not sent again.

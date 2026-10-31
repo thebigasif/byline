@@ -1,6 +1,8 @@
 //! `khalid newsletter label` and `segment`: labels given and taken away
 //! from the command line, and segments counted as totals, never as a list
-//! of people (G39).
+//! of people (G39). `send` emails a published post once through a stub
+//! SMTP relay, each copy with an unsubscribe link and the postal address,
+//! and sends nothing without a postal address (task 5.8).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,6 +10,7 @@ use std::process::{Command, Output};
 
 use khalid_core::{Clock, Slug, SystemClock};
 use khalid_db::{Database, SubscriberTable};
+use khalid_mail::StubSmtp;
 use khalid_newsletter::{EmailAddress, SignUp, SubscriberStore, SubscriberToken};
 use serde_json::Value;
 
@@ -114,4 +117,63 @@ async fn a_stranger_cannot_be_labelled() {
     subscribers(site.path(), &[]).await;
     let (code, _) = newsletter(site.path(), &["label", "nobody@example.com", "paid"]);
     assert_eq!(code, Some(1));
+}
+
+const POST: &str = "what-a-sitemap-does";
+
+const POSTAL: &str = "Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK";
+
+/// Appends `[mail]` sending through `stub` to the site's settings, with
+/// `postal_address` when one is given.
+#[cfg(test)]
+fn mail_through(site: &Path, stub: &StubSmtp, postal: Option<&str>) {
+    let mut settings = site.to_path_buf();
+    settings.push("site.toml");
+    let text = fs::read_to_string(&settings).unwrap();
+    let postal = postal.map_or_else(String::new, |p| format!("postal_address = \"{p}\"\n"));
+    let text = format!(
+        "{text}\n[mail]\nfrom = \"news@example.com\"\nname = \"Field Notes\"\n{postal}\n\
+         [mail.smtp]\nhost = \"127.0.0.1\"\nport = {}\nsecurity = \"none\"\nprivate_host = true\n",
+        stub.port()
+    );
+    fs::write(&settings, text).unwrap();
+}
+
+/// `message` with the lines the mail encoding broke joined back up.
+#[cfg(test)]
+fn joined(message: &str) -> String {
+    let message = message.replace("=\r\n", "").replace("=\n", "");
+    message.replace("=3D", "=")
+}
+
+#[tokio::test]
+async fn a_published_post_goes_out_once_with_a_link_out_and_the_postal_address() {
+    let stub = StubSmtp::start().unwrap();
+    let site = demo_copy();
+    mail_through(site.path(), &stub, Some(POSTAL));
+    subscribers(site.path(), &["grace@example.com", "ada@example.com"]).await;
+    let (code, out) = newsletter(site.path(), &["send", POST]);
+    assert_eq!(code, Some(0), "{out}");
+    assert_eq!(out, format!("Sent en/{POST} to 2 subscribers of main.\n"));
+    let received = stub.received();
+    assert_eq!(received.len(), 2, "{received:?}");
+    let message = joined(&received[0]);
+    assert!(message.contains("To: grace@example.com"), "{message}");
+    assert!(message.contains("A sitemap is a file"), "{message}");
+    assert!(message.contains("/blog/unsubscribe?token="), "{message}");
+    assert!(message.contains(POSTAL), "{message}");
+    let (code, _) = newsletter(site.path(), &["send", POST]);
+    assert_eq!(code, Some(1));
+    assert_eq!(stub.received().len(), 2, "the post went out twice");
+}
+
+#[tokio::test]
+async fn without_a_postal_address_nothing_goes_out() {
+    let stub = StubSmtp::start().unwrap();
+    let site = demo_copy();
+    mail_through(site.path(), &stub, None);
+    subscribers(site.path(), &["grace@example.com"]).await;
+    let (code, _) = newsletter(site.path(), &["send", POST]);
+    assert_eq!(code, Some(1));
+    assert_eq!(stub.received().len(), 0);
 }
