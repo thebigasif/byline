@@ -1995,6 +1995,7 @@ dependencies = [
 name = "khalid"
 version = "0.0.0"
 dependencies = [
+ "atom_syndication",
  "axum",
  "chrono",
  "clap",
@@ -2028,6 +2029,7 @@ dependencies = [
  "mimalloc",
  "percent-encoding",
  "rcgen",
+ "rss",
  "rustix",
  "scraper",
  "serde",
