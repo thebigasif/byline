@@ -43,5 +43,8 @@ fn a_blog_that_never_turned_them_on_offers_neither() {
         (&on["unsplash"], &on["gifs"]),
         (&false.into(), &false.into())
     );
-    assert!(server.answers("/blog/", 200), "readers see the blog as ever");
+    assert!(
+        server.answers("/blog/", 200),
+        "readers see the blog as ever"
+    );
 }

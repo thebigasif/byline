@@ -24,13 +24,20 @@ use tower::ServiceExt;
 
 const UPLOADER: &str =
     "ki_2222333344445555_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
+const WRITER: &str =
+    "ki_1111222233334444_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
 
 #[cfg(test)]
 async fn app(site: &Path) -> Router {
-    let token = UPLOADER.parse::<KeyToken>().unwrap();
     let hashing = KeyHashing::fast_for_tests();
-    let key = StoredKey::for_integration(&token, vec![Scope::MediaWrite], &hashing);
-    let keys = MemoryKeyStore::new(vec![key.unwrap()]);
+    let key = |text: &str, scope| {
+        let token = text.parse::<KeyToken>().unwrap();
+        StoredKey::for_integration(&token, vec![scope], &hashing).unwrap()
+    };
+    let keys = MemoryKeyStore::new(vec![
+        key(UPLOADER, Scope::MediaWrite),
+        key(WRITER, Scope::PostsWrite),
+    ]);
     let door = PublishDoor::new(Arc::new(MemoryPostStore::default()), Arc::new(Silent));
     let english = Locale::try_new("en").unwrap();
     let library = Library::open(site, Storage::local(site), &english, Arc::new(SystemClock));
@@ -83,6 +90,7 @@ async fn a_turned_and_cropped_copy_is_a_new_item() {
     let (status, body) = copy(&app, &id, UPLOADER, &edit).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     let made = &body["media"][0];
+    assert_ne!(made["id"], id.as_str());
     assert_eq!(
         (made["width"].as_u64(), made["height"].as_u64()),
         (Some(200), Some(200))
@@ -91,4 +99,39 @@ async fn a_turned_and_cropped_copy_is_a_new_item() {
     let (status, again) = copy(&app, &id, UPLOADER, &edit).await;
     assert_eq!(status, StatusCode::OK, "the same edit finds the first copy");
     assert_eq!(&again["media"][0], made);
+}
+
+#[tokio::test]
+async fn refuses_an_edit_that_cannot_be_made() {
+    let site = tempfile::tempdir().unwrap();
+    let app = app(site.path()).await;
+    let id = picture(&app).await;
+    for edit in [
+        json!({ "turn": 45 }),
+        json!({}),
+        json!({ "crop": { "left": 600, "top": 0, "width": 500, "height": 100 } }),
+    ] {
+        let (status, body) = copy(&app, &id, UPLOADER, &edit).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{edit}: {body}");
+    }
+    let turn = json!({ "turn": 180 });
+    let (status, _) = copy(&app, "not-a-key", UPLOADER, &turn).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = copy(&app, &id, WRITER, &turn).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn a_file_that_is_not_a_picture_is_refused() {
+    let site = tempfile::tempdir().unwrap();
+    let app = app(site.path()).await;
+    let pdf = b"%PDF-1.7\nA checklist\n%%EOF\n".to_vec();
+    let (_, body) = send(&app, "/api/admin/v1/media/?name=list", UPLOADER, pdf).await;
+    let id = body["media"][0]["id"].as_str().unwrap().to_owned();
+    let (status, body) = copy(&app, &id, UPLOADER, &json!({ "turn": 90 })).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["detail"],
+        "Only pictures can be turned or cropped. This item is a file, a video or a sound."
+    );
 }
