@@ -331,12 +331,19 @@ impl SiteMode {
 }
 
 /// The database commands. The database is `data/site.db` in the site folder.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub(crate) enum DbCommand {
     /// Make the database if it is missing and apply every new migration
     Migrate,
     /// Empty the index and fill it again from the content files, keeping visitor data
     Rebuild,
+    /// Write every table of the site as one CSV and one JSON file each, for
+    /// spreadsheets and Looker Studio. Sign-in material and secrets stay out
+    Export {
+        /// The folder to write the files to [default: data/export in the site folder]
+        #[arg(long, value_name = "FOLDER")]
+        out: Option<PathBuf>,
+    },
 }
 
 /// The key commands. Keys are stored as hashes in `data/site.db`.
@@ -535,6 +542,9 @@ impl Command {
             Self::Db {
                 command: DbCommand::Rebuild,
             } => "db rebuild",
+            Self::Db {
+                command: DbCommand::Export { .. },
+            } => "db export",
             Self::Redirects {
                 command: RedirectsCommand::Import { .. },
             } => "redirects import",

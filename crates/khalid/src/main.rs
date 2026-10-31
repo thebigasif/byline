@@ -29,6 +29,7 @@ mod config_message;
 mod content_feed;
 mod content_message;
 mod db;
+mod db_export;
 mod db_message;
 mod doctor;
 mod doctor_address;
@@ -183,7 +184,7 @@ fn run(cli: &Cli) -> Exit {
     match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some((folder, ..))) => {
-            db::run(folder, *command, cli.output)
+            db::run(folder, command.clone(), cli.output)
         }
         (Some(Command::Lint { path, fix }), Some((folder, ..))) => {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
