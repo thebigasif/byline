@@ -51,7 +51,7 @@ impl Served {
             // at once instead of waiting for an allocation that never
             // comes on an idle server. The measured server runs with the
             // setting production runs with.
-            .env("MIMALLOC_PURGE_DELAY", "100")
+            .env("MIMALLOC_PURGE_DELAY", "0")
             .arg("--site")
             .arg(site)
             .args(["--json", "serve", "--listen", "127.0.0.1:0"])
