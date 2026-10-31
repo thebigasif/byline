@@ -115,17 +115,33 @@ async fn the_first_to_check_in_holds_the_lock_until_someone_takes_over() {
 }
 
 #[tokio::test]
+async fn leaving_hands_the_lock_to_the_next_in_line() {
+    let router = router();
+    check_in(&router, MARIA, "join").await;
+    check_in(&router, LENA, "join").await;
+    let (status, _) = send(&router, ("DELETE", PRESENCE), MARIA, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let lena = check_in(&router, LENA, "join").await;
+    assert_eq!(lena["yours"], json!(true), "{lena}");
+    assert_eq!(lena["others"], json!([]));
+}
+
+#[tokio::test]
 async fn the_presence_route_refuses_a_missing_post_a_reader_and_an_unknown_claim() {
     let router = router();
     let missing = "/api/admin/v1/posts/en.nothing-here/presence/";
     let body = Some(json!({ "claim": "join" }));
-    let (status, json) = send(&router, ("POST", missing), MARIA, body.clone()).await;
-    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
-    assert!(
-        json.to_string().contains("No post has this identity."),
-        "{json}"
-    );
+    for method in ["POST", "DELETE"] {
+        let (status, json) = send(&router, (method, missing), MARIA, body.clone()).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{method} {json}");
+        assert!(
+            json.to_string().contains("No post has this identity."),
+            "{json}"
+        );
+    }
     let (status, json) = send(&router, ("POST", PRESENCE), READER, body).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    let (status, json) = send(&router, ("DELETE", PRESENCE), READER, None).await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
     let odd = Some(json!({ "claim": "steal" }));
     let (status, json) = send(&router, ("POST", PRESENCE), MARIA, odd).await;

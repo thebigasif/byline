@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{OriginalUri, Path, State};
+use axum::http::StatusCode;
 use axum::{Extension, Json};
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -58,4 +59,33 @@ pub(crate) async fn check_in(
         .ok_or_else(|| missing(uri.path()))?;
     let who = principal.id().as_str();
     Ok(Json(posts.check_in(&id, who, body.claim)))
+}
+
+/// Notes that the caller closed the post, so the next in line holds its
+/// lock. Leaving a post the caller did not have open does nothing. Needs
+/// `posts:write`.
+#[utoipa::path(
+    delete, path = "/posts/{id}/presence/", tag = "admin posts",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The post's identity")),
+    responses(
+        (status = 204, description = "The caller left the post"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No post has this identity", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+pub(crate) async fn leave(
+    State(posts): State<Arc<PublishDoor>>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<StatusCode, Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let found = posts.get(&id).await;
+    found
+        .map_err(|error| Problem::internal(&error))?
+        .ok_or_else(|| missing(uri.path()))?;
+    posts.leave(&id, principal.id().as_str());
+    Ok(StatusCode::NO_CONTENT)
 }

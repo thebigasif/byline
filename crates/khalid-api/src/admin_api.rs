@@ -52,7 +52,7 @@ pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
         ))
         .routes(routes!(make_preview_link))
         .routes(routes!(admin_versions::list_post_versions))
-        .routes(routes!(admin_presence::check_in))
+        .routes(routes!(admin_presence::check_in, admin_presence::leave))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(posts)
