@@ -169,6 +169,8 @@ jobs:
   demo:
     name: Demo check
     runs-on: ubuntu-latest
+    # It hung once for 90 minutes on a shared runner; a run never needs 30.
+    timeout-minutes: 30
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v5
