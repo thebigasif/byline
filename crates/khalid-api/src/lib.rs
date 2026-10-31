@@ -38,4 +38,5 @@ pub mod resources;
 pub mod schedule_store;
 pub mod session_check;
 pub mod unlock;
+pub mod version_store;
 pub mod webhook_store;

@@ -18,6 +18,7 @@ use crate::preview_link::PreviewSigner;
 use crate::query::ListQuery;
 use crate::resources::{AdminPost, PostEdit, PostRow, PostStatus};
 use crate::schedule_store::{Due, Schedule, ScheduleStore};
+use crate::version_store::{PostVersion, VersionStore, VersionStoreError};
 
 /// Tells the site's receivers what happened to a post: the webhooks that
 /// asked for the event and, where it is switched on, `IndexNow`.
@@ -106,6 +107,7 @@ pub struct PublishDoor {
     announce: Arc<dyn Announce>,
     schedules: Option<Arc<dyn ScheduleStore>>,
     previews: Option<PreviewSigner>,
+    versions: Option<Arc<dyn VersionStore>>,
     clock: Arc<dyn Clock>,
     /// Held through every edit, so two at once cannot both see the same
     /// draft go live and announce it twice.
@@ -128,6 +130,7 @@ impl PublishDoor {
             schedules: None,
             clock: Arc::new(SystemClock),
             previews: None,
+            versions: None,
             editing: Mutex::new(()),
         }
     }
@@ -152,6 +155,27 @@ impl PublishDoor {
     pub fn with_previews(self, signer: PreviewSigner) -> Self {
         let previews = Some(signer);
         Self { previews, ..self }
+    }
+
+    /// The same door, keeping in `versions` the title and text each edit
+    /// replaces.
+    #[must_use]
+    pub fn with_versions(self, versions: Arc<dyn VersionStore>) -> Self {
+        let versions = Some(versions);
+        Self { versions, ..self }
+    }
+
+    /// The earlier versions of post `id`, the newest first, or `None` when
+    /// this door keeps none.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VersionStoreError`] when the versions cannot be read.
+    pub async fn versions(&self, id: &str) -> Result<Option<Vec<PostVersion>>, VersionStoreError> {
+        match &self.versions {
+            Some(versions) => versions.list(id).await.map(Some),
+            None => Ok(None),
+        }
     }
 
     /// What makes and checks preview links, if this site has one.
@@ -230,6 +254,7 @@ impl PublishDoor {
         if let Some(schedules) = schedules {
             schedules.set(id, next).await.map_err(PostStoreError::new)?;
         }
+        self.keep_replaced(&before, &post).await;
         let post = post.with_schedule(&next);
         let was_live = before.status() == PostStatus::Published;
         if !was_live && post.status() == PostStatus::Published {
@@ -242,6 +267,25 @@ impl PublishDoor {
             self.announce.edited(&post);
         }
         Ok(post)
+    }
+
+    /// Keeps the title and text of `before` as an earlier version when the
+    /// edit that made `after` changed either. The edit is saved by now, so
+    /// a version that cannot be kept is logged rather than reported as a
+    /// failed save, which a retry would turn into a stale edit.
+    async fn keep_replaced(&self, before: &AdminPost, after: &AdminPost) {
+        let replaced = PostVersion::of(before);
+        let Some(versions) = self
+            .versions
+            .as_ref()
+            .filter(|_| replaced.differs_from(after))
+        else {
+            return;
+        };
+        if let Err(error) = versions.keep(before.id(), replaced).await {
+            let error: &(dyn std::error::Error + 'static) = &error;
+            tracing::error!(error, post = before.id(), "an earlier version was not kept");
+        }
     }
 
     /// Removes post `id` when it has not changed since `updated_at`, as
