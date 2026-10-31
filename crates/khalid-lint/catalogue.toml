@@ -19,7 +19,7 @@ guide = "post-authors"
 [no-internal-link]
 what = "This post links to none of your other posts."
 why = "Internal links are how readers and Google find the rest of your site."
-fix = "Add one link to a related post."
+fix = "Add one link to a related post, or to your home page while this is your only post."
 guide = "internal-links"
 
 [no-title]
@@ -291,6 +291,12 @@ what = "The site has no About or contact page."
 why = "A reader who cannot find who writes here trusts it less, and an engine citing the site has no author to credit."
 fix = "Add an About or a contact page, with the authors' names and how to reach them."
 guide = "author-proof"
+
+[author-without-profile]
+what = "This post names an author who has no profile on the site."
+why = "The byline links to the author's page, and without a profile that page does not exist."
+fix = "Add `content/<language>/authors/<author>.md` with `name:` and `slug:` in its header."
+guide = "post-authors"
 
 [plain-answer]
 what = "An answer paragraph uses hedge words, vague openers or a trailing which."

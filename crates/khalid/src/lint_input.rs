@@ -130,6 +130,13 @@ pub(crate) fn lint_site<'c>(
                 .push(GlossaryTerm::new(entry.locale.clone(), term, slug));
         }
     }
+    // An author's slug is the one `khalid build` gives their page.
+    let authors = content.authors.iter().filter_map(|author| {
+        let named = (author.front.slug.as_ref(), author.front.name.as_deref());
+        let slug = slug_of(named, &author.path, &author.locale, config)?;
+        Some(PageRef::new(author.locale.clone(), slug))
+    });
+    site.authors = Some(authors.collect());
     site.locales = config.languages().to_vec();
     site.facts.clone_from(&input.facts);
     site.slugs = Some(config.slugs());

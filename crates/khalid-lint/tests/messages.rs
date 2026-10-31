@@ -82,6 +82,25 @@ fn every_catalogue_message_is_three_plain_sentences() {
     }
 }
 
+/// A site's first post has no other post to link to, so the fix it reads
+/// must say what else counts.
+#[test]
+fn the_internal_link_fix_says_a_first_post_may_link_home() {
+    let catalogue = Catalogue::builtin().unwrap();
+    let fix = catalogue.get("no-internal-link").unwrap().fix();
+    assert!(fix.contains("home page"), "{fix}");
+}
+
+/// The fix for a missing profile says where the profile file goes and
+/// what it holds.
+#[test]
+fn the_profile_fix_names_the_file_to_write() {
+    let catalogue = Catalogue::builtin().unwrap();
+    let fix = catalogue.get("author-without-profile").unwrap().fix();
+    assert!(fix.contains("content/<language>/authors/"), "{fix}");
+    assert!(fix.contains("`name:`"), "{fix}");
+}
+
 #[test]
 #[should_panic(expected = "one sentence only")]
 fn the_check_refuses_two_sentences_in_one_part() {

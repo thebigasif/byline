@@ -1,0 +1,3 @@
+# The header names an author the site has no profile for.
+extends = "clean"
+author = "sam"

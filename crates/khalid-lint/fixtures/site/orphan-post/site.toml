@@ -1,5 +1,7 @@
 # Three posts link to each other. Nothing links to the fourth, even though
 # it links out. One post is found by its path, the others by their slug.
+# The one German post has no other German post to be linked from, so it is
+# not reported.
 [[posts]]
 locale = "en"
 slug = "choosing-link-text"
@@ -31,6 +33,13 @@ slug = "pruning-old-posts"
 links = [
   { kind = "internal", target = "/blog/choosing-link-text/", text = "choosing link text" },
   { kind = "internal", target = "/blog/pruning-old-posts/", text = "this post itself" },
+]
+
+[[posts]]
+locale = "de"
+slug = "interne-links"
+links = [
+  { kind = "internal", target = "/de/", text = "Startseite" },
 ]
 
 [[pages]]
