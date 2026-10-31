@@ -144,10 +144,21 @@ fn an_agent_drafts_and_publishes_a_post_behind_the_lint_gate() {
         "{started}"
     );
     let tools = session.ask("tools/list", &json!({}));
-    assert_eq!(tools["result"]["tools"].as_array().map(Vec::len), Some(6));
+    let names = tools["result"]["tools"].to_string();
+    for needed in [
+        "browse_posts",
+        "create_admin_post",
+        "lint_post",
+        "publish_post",
+    ] {
+        assert!(
+            names.contains(&format!("\"{needed}\"")),
+            "{needed}: {names}"
+        );
+    }
 
-    let weak = json!({ "title": "A weak post", "markdown": "No link and no author. See [[no-such-page]]." });
-    let (failed, weak) = session.call("create_draft", &weak);
+    let weak = json!({ "posts": [{ "title": "A weak post", "markdown": "No link and no author. See [[no-such-page]]." }] });
+    let (failed, weak) = session.call("create_admin_post", &json!({ "body": weak }));
     assert!(!failed, "{weak}");
     let (failed, report) = session.call("lint_post", &json!({ "id": "en.a-weak-post" }));
     assert!(!failed, "linting worked, whatever it found: {report}");
@@ -172,12 +183,12 @@ fn an_agent_drafts_and_publishes_a_post_behind_the_lint_gate() {
     let findings = problem["lint"]["findings"].to_string();
     assert!(findings.contains("no-author"), "{findings}");
 
-    let good = json!({
+    let good = json!({ "posts": [{
         "title": "Choosing anchor text",
         "author": "asif",
         "markdown": "Anchor text is the visible words of a link.\n\nRead [why internal links matter](/blog/why-internal-links-matter/) first."
-    });
-    let (_, made) = session.call("create_draft", &good);
+    }] });
+    let (_, made) = session.call("create_admin_post", &json!({ "body": good }));
     let publish =
         json!({ "id": "en.choosing-anchor-text", "updated_at": made["posts"][0]["updated_at"] });
     let (refused, live) = session.call("publish_post", &publish);
@@ -185,7 +196,7 @@ fn an_agent_drafts_and_publishes_a_post_behind_the_lint_gate() {
     assert_eq!(live["posts"][0]["status"], "published");
 
     let (_, listed) = session.call(
-        "list_posts",
+        "browse_posts",
         &json!({ "filter": "slug:choosing-anchor-text" }),
     );
     assert_eq!(
@@ -236,8 +247,18 @@ fn the_agents_guide_explains_every_tool_the_server_offers() {
         .unwrap();
     assert_eq!(guide.status.code(), Some(0), "{}", text(&guide.stderr));
     let guide = text(&guide.stdout);
+    assert!(
+        guide.contains("`operationId`"),
+        "the guide explains how operations become tools"
+    );
+    let mut document = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    document.push("../../sdk/typescript/openapi.json");
+    let document = fs::read_to_string(document).unwrap();
     for tool in tools["result"]["tools"].as_array().unwrap() {
         let name = tool["name"].as_str().unwrap();
+        if document.contains(&format!("\"operationId\": \"{name}\"")) {
+            continue;
+        }
         assert!(
             guide.contains(&format!("`{name}`")),
             "the guide never names {name}"

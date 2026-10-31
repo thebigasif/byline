@@ -38,10 +38,15 @@ The server checks the key when it starts. A missing, revoked or read-only key st
 
 ## The tools
 
-- `list_posts` lists published posts, newest first. It takes `filter` (such as `tag:news+featured:true`), `order` (such as `published_at desc`), `limit` and `page`. Drafts are not listed.
-- `read_post` reads one post in any status by `id`, with its markdown and its `updated_at`.
-- `create_draft` saves a new draft. Send `title` and `markdown`, or `html` instead of markdown, which is cleaned and turned into markdown. Add `author`, and `slug` if the one made from the title is not right.
-- `edit_post` changes the `title` or the whole `markdown` of a post. Send the `updated_at` you last read. It never publishes.
+Every operation of the Content API and the Admin API that a key may call is a tool. Its name is the operation's `operationId` in `/api/openapi.json`, its description is the operation's summary, and its arguments are the operation's parameters by name, with the request body as `body`. So a new route is a new tool the day it lands. Signing in, passkeys and passwords are for people in a browser, so they are not tools. The ones you will use most:
+
+- `browse_posts` lists published posts, newest first. It takes `filter` (such as `tag:news+featured:true`), `order` (such as `published_at desc`), `limit` and `page`. Drafts are not listed.
+- `read_admin_post` reads one post in any status by `id`, with its markdown and its `updated_at`.
+- `create_admin_post` saves a new draft. Send `body` as `{"posts": [{"title": ..., "author": ..., "markdown": ...}]}`. To send HTML instead, which is cleaned and turned into markdown, put it in `html` and add `"source": "html"`. An `Idempotency-Key` makes a retry safe.
+- `edit_admin_post` changes the fields of a post you send in `body` as `{"posts": [{...}]}`, with the `updated_at` you last read.
+
+Two tools are not operations of their own:
+
 - `lint_post` runs the checks `publish_post` runs, without publishing and without changing anything. A draft is checked as it would go live today.
 - `publish_post` publishes a draft, with its `id` and `updated_at`, once the linter lets it through.
 
@@ -49,14 +54,14 @@ Every answer is the API's own JSON. A tool that fails returns an error result ho
 
 ## Writing a post that publishes
 
-1. `create_draft` with a title, an author and the body.
+1. `create_admin_post` with a title, an author and the body.
 2. `lint_post`. Each finding has a `rule`, a `severity` and `what`, `why` and `fix`. A finding with severity `block` stops publishing; `warn` does not.
-3. Fix every blocking finding with `edit_post`, using the `updated_at` from the last answer, and lint again.
+3. Fix every blocking finding with `edit_admin_post`, using the `updated_at` from the last answer, and lint again.
 4. `publish_post`. If it is refused, the answer lists every finding, and the post stays a draft.
 
 Blocking rules include a post with no title, no author, no date, or no link to another post on the site. Link to other posts with site addresses, such as `/blog/why-internal-links-matter/`.
 
-When an edit is refused with status 409, someone changed the post after you read it. Read it again with `read_post`, make your change to the new copy, and send its new `updated_at`.
+When an edit is refused with status 409, someone changed the post after you read it. Read it again with `read_admin_post`, make your change to the new copy, and send its new `updated_at`.
 
 ## Rules for agents
 

@@ -21,10 +21,11 @@ use crate::site_posts::SitePosts;
 use crate::{keys_message, mcp_message, report, serve, serve_message};
 
 /// What an agent reads when it connects.
-const INSTRUCTIONS: &str = "This is a Khalid blog. List published posts with list_posts and read \
-    any post with read_post. Write new posts as drafts with create_draft, change them with \
-    edit_post, check them with lint_post, and publish with publish_post, which the linter may \
-    refuse with findings to fix. Run `khalid agents` for the full guide.";
+const INSTRUCTIONS: &str = "This is a Khalid blog. Each tool is one operation of its API, named \
+    by its operationId. List published posts with browse_posts and read any post with \
+    read_admin_post. Write new posts as drafts with create_admin_post, change them with \
+    edit_admin_post, check them with lint_post, and publish with publish_post, which the linter \
+    may refuse with findings to fix. Run `khalid agents` for the full guide.";
 
 /// Serves the protocol for the `site` folder, whose settings were checked,
 /// acting with the key in `environment`, until the agent closes stdin.
@@ -74,8 +75,11 @@ async fn session(
     let (keys, reader) = SessionKeys::new(keys).map_err(|_| keys_message::no_randomness())?;
     let content = FreshContent::new(site, config.clone());
     let posts = SitePosts::new(site, config.clone(), SystemClock);
-    let (router, _) = api::router(Arc::new(content), Arc::new(posts.clone()), Arc::new(keys));
-    let tools = SiteTools::new(ApiTools::new(router, key, reader), posts, principal);
+    let (router, document) =
+        api::router(Arc::new(content), Arc::new(posts.clone()), Arc::new(keys));
+    let document = serde_json::to_value(&document).map_err(|_| mcp_message::stopped())?;
+    let api = ApiTools::new(router, &document, key, reader);
+    let tools = SiteTools::new(api, posts, principal);
     let server = Server::new("khalid", env!("CARGO_PKG_VERSION"), INSTRUCTIONS, &tools);
     let input = BufReader::new(tokio::io::stdin());
     server
