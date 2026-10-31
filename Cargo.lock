@@ -2070,6 +2070,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-alerts"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "khalid-api"
 version = "0.0.0"
 dependencies = [
