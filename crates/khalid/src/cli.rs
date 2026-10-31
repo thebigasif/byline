@@ -10,6 +10,8 @@ use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
 use khalid_webhooks::Event;
 
+use crate::new::NewArgs;
+
 /// The command line.
 #[derive(Debug, Parser)]
 #[command(
@@ -74,13 +76,7 @@ pub(crate) enum Command {
     /// Run the blog and the admin, showing each saved edit at once
     Serve(ServeArgs),
     /// Create a post file with correct front matter
-    New {
-        /// The post's title
-        title: String,
-        /// The language the post is written in [default: the site's default language]
-        #[arg(long, value_name = "CODE")]
-        language: Option<Locale>,
-    },
+    New(NewArgs),
     /// Render every page of the site as HTML into a folder, or nothing if a dated post is blocked.
     /// A headless site gets its feeds, sitemaps and redirects and no HTML.
     /// A static site gets a note in place of each form, and a list of the
@@ -535,7 +531,7 @@ impl Command {
         match self {
             Self::Init(_) => "init",
             Self::Serve(_) => "serve",
-            Self::New { .. } => "new",
+            Self::New(_) => "new",
             Self::Build { .. } => "build",
             Self::Lint { .. } => "lint",
             Self::Publish { .. } => "publish",

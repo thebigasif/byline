@@ -176,3 +176,72 @@ fn new_says_which_post_already_exists() {
     let what = json["error"]["what"].as_str().unwrap();
     assert!(what.ends_with("-twice.md already exists."), "{what}");
 }
+
+/// The rules `khalid lint` finds on the one English post of the site.
+#[cfg(test)]
+fn rules_found(site: &Path, folder: &str) -> Vec<String> {
+    let (name, _) = only_post(site, "en");
+    let post = format!("content/en/posts/{name}");
+    let output = khalid(&["--site", folder, "lint", &post, "--json"]);
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    json["findings"]
+        .as_array()
+        .unwrap_or_else(|| panic!("not a report: {json}"))
+        .iter()
+        .map(|finding| finding["rule"].as_str().unwrap_or_default().to_owned())
+        .collect()
+}
+
+#[test]
+fn a_comparison_starter_has_its_table_and_asks_for_the_answer_first() {
+    let (temp, folder) = site();
+    let args = ["--site", &folder, "new", "Ahrefs vs Semrush"];
+    let output = khalid(&[&args[..], &["--language", "en", "--template", "comparison"]].concat());
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let (_, written) = only_post(temp.path(), "en");
+    assert!(written.contains("| | Ahrefs | Semrush |"), "{written}");
+
+    let rules = rules_found(temp.path(), &folder);
+    assert!(
+        rules.contains(&"comparison-answer-late".to_owned()),
+        "{rules:?}"
+    );
+    assert!(
+        !rules.contains(&"comparison-without-table".to_owned()),
+        "{rules:?}"
+    );
+}
+
+#[test]
+fn a_review_starter_asks_for_its_rating() {
+    let (temp, folder) = site();
+    let args = [
+        "--site",
+        &folder,
+        "new",
+        "Ahrefs review",
+        "--language",
+        "en",
+    ];
+    let output = khalid(&[&args[..], &["--template", "review"]].concat());
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let rules = rules_found(temp.path(), &folder);
+    assert!(
+        rules.contains(&"review-without-rating".to_owned()),
+        "{rules:?}"
+    );
+}
+
+#[test]
+fn new_refuses_a_template_the_title_does_not_read_as() {
+    let (temp, folder) = site();
+    let args = ["--site", &folder, "new", "Why links matter"];
+    let output = khalid(&[&args[..], &["--template", "best-of"]].concat());
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = text(&output.stderr);
+    assert_what_why_fix(&stderr);
+    assert!(stderr.contains("best-of"), "{stderr}");
+    let posts = at(temp.path(), "content/de/posts");
+    let written = fs::read_dir(posts).map_or(0, Iterator::count);
+    assert_eq!(written, 0);
+}

@@ -5,13 +5,30 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
+use clap::Args;
 use khalid_core::{Clock, Config, Locale, Slug};
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::init::quoted;
+use crate::new_template::{self, Template};
 use crate::{atomic, new_message, report};
+
+/// What `khalid new` takes on the command line.
+#[derive(Debug, Args)]
+pub(crate) struct NewArgs {
+    /// The post's title
+    pub(crate) title: String,
+    /// The language the post is written in [default: the site's default language]
+    #[arg(long, value_name = "CODE")]
+    pub(crate) language: Option<Locale>,
+    /// Start from the shape of a kind of post, with its sections and table
+    /// in place and guidance that never shows on the page. The title must
+    /// read as that kind, such as "Ahrefs vs Semrush" for a comparison
+    #[arg(long, value_name = "KIND")]
+    pub(crate) template: Option<Template>,
+}
 
 /// What `new` writes in.
 #[derive(Debug, Clone, Copy)]
@@ -20,6 +37,18 @@ pub(crate) struct NewPost<'a> {
     pub(crate) title: &'a str,
     /// The language from `--language`, or `None` for the site's default.
     pub(crate) language: Option<&'a Locale>,
+    /// The kind of post from `--template`, or `None` for an empty body.
+    pub(crate) template: Option<Template>,
+}
+
+impl<'a> From<&'a NewArgs> for NewPost<'a> {
+    fn from(args: &'a NewArgs) -> Self {
+        Self {
+            title: &args.title,
+            language: args.language.as_ref(),
+            template: args.template,
+        }
+    }
 }
 
 /// The JSON shape of `khalid new --json`. `path` is relative to the site.
@@ -51,10 +80,21 @@ pub(crate) fn run(
         return report::failure(output, &new_message::no_slug(title), Exit::Failure);
     };
     let date = clock.now().date_naive().to_string();
+    let tail = match post.template {
+        None => EMPTY_BODY.to_owned(),
+        Some(template) => {
+            let Some(starter) = new_template::body(template, title, locale) else {
+                let message = new_message::not_kind(title, template);
+                return report::failure(output, &message, Exit::Failure);
+            };
+            starter
+        }
+    };
+    let text = post_text(title, &slug, &date, &tail);
     let posts = format!("content/{locale}/posts");
     let name = format!("{date}-{slug}.md");
     let relative = format!("{posts}/{name}");
-    match write(site, &posts, &name, &post_text(title, &slug, &date)) {
+    match write(site, &posts, &name, &text) {
         Ok(()) => {
             let body = NewBody {
                 path: &relative,
@@ -76,10 +116,15 @@ pub(crate) fn run(
     }
 }
 
-/// The text of a new post: its front matter and an empty body.
-fn post_text(title: &str, slug: &Slug, date: &str) -> String {
+/// The front matter's closing line and an empty body.
+const EMPTY_BODY: &str = "---\n\n";
+
+/// The text of a new post: its front matter fields, then `tail`, which
+/// closes the front matter and holds the body: [`EMPTY_BODY`], or a
+/// starter whose guidance sits in comments above the closing line.
+fn post_text(title: &str, slug: &Slug, date: &str, tail: &str) -> String {
     format!(
-        "---\ntitle: {}\nslug: {}\ndate: {date}\n---\n\n",
+        "---\ntitle: {}\nslug: {}\ndate: {date}\n{tail}",
         quoted(title),
         quoted(slug.as_str())
     )
@@ -121,7 +166,7 @@ mod tests {
     fn the_post_text_reads_back_with_the_same_fields() {
         let title = "Links: \"why\" \\ how\u{7}";
         let slug = Slug::try_new("links-why-how").unwrap();
-        let text = post_text(title, &slug, "2026-10-26");
+        let text = post_text(title, &slug, "2026-10-26", EMPTY_BODY);
         let post = parse_post(Path::new("post.md"), &text).unwrap();
         assert_eq!(post.front.title.as_deref(), Some(title));
         assert_eq!(post.front.slug, Some(slug));

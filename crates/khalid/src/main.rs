@@ -66,6 +66,7 @@ mod memory;
 mod miss_log;
 mod new;
 mod new_message;
+mod new_template;
 mod newsletter;
 mod outbound;
 mod page_counts;
@@ -200,13 +201,13 @@ fn run(cli: &Cli) -> Exit {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
             lint::run(folder, path.as_deref(), mode, cli.output)
         }
-        (Some(Command::New { title, language }), Some((folder, config, ..))) => {
-            let post = NewPost {
-                title,
-                language: language.as_ref(),
-            };
-            new::run(folder, config, post, &SystemClock, cli.output)
-        }
+        (Some(Command::New(args)), Some((folder, config, ..))) => new::run(
+            folder,
+            config,
+            NewPost::from(args),
+            &SystemClock,
+            cli.output,
+        ),
         (
             Some(asked @ (Command::Build { .. } | Command::Export | Command::Audit { .. })),
             Some((folder, config, routes, (content, _))),
