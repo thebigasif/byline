@@ -24,6 +24,10 @@ const FOLDER: &str = "media/";
 /// keeps under 48rem, or the whole screen when that is narrower.
 const SIZES: &str = "(min-width: 48rem) 48rem, 100vw";
 
+/// The text column of [`SIZES`] in CSS pixels. A body image wider than
+/// this is drawn smaller than it is, so it links to its widest size.
+const COLUMN: u32 = 768;
+
 /// One size of an image, and where it goes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MediaFile {
@@ -78,6 +82,9 @@ pub(crate) fn attach(
     for language in languages.iter_mut().filter(|_| !pictures.is_empty()) {
         for page in &mut language.pages {
             post_files::rewrite(page, |html| drawn(html, &pictures));
+            if let PageBody::Post(post) = &mut page.body {
+                post.originals = originals(post.body.as_str(), &pictures);
+            }
             if let Some(image) = lead(config, page, &pictures) {
                 shown.add(page, image);
             }
@@ -194,6 +201,27 @@ fn drawn(html: &str, pictures: &BTreeMap<String, Picture>) -> String {
     out
 }
 
+/// For each picture drawn in `html` that is wider than the text column and
+/// not inside a link, the address its image shows, as `html` writes it,
+/// and the address of its widest size, which click to enlarge links to.
+fn originals(html: &str, pictures: &BTreeMap<String, Picture>) -> BTreeMap<String, String> {
+    let wide = pictures.values().filter(|picture| picture.width > COLUMN);
+    let widest = wide.filter_map(|picture| picture.fallback.widest());
+    widest
+        .map(|size| (attribute(&size.url), size.url.clone()))
+        .filter(|(shown, _)| {
+            let at = html.find(&format!("{IMAGE}{shown}\""));
+            at.is_some_and(|at| !inside_link(html.split_at(at).0))
+        })
+        .collect()
+}
+
+/// Whether `before` ends inside an `a` element.
+fn inside_link(before: &str) -> bool {
+    let opened = before.rfind("<a ").or_else(|| before.rfind("<a>"));
+    opened.is_some_and(|open| before.rfind("</a>").is_none_or(|close| close < open))
+}
+
 /// The `alt` of an `img` tag as written, already escaped.
 fn alt(tag: &str) -> &str {
     tag.split_once(" alt=\"")
@@ -280,6 +308,32 @@ mod tests {
     fn any_other_image_is_left_as_it_is() {
         let html = "<img src=\"/blog/slow/other.png\" alt=\"\" /><img src=\"https://cdn.example.com/a.png\" alt=\"\" />";
         assert_eq!(drawn(html, &pictures("/blog/")), html);
+    }
+
+    #[test]
+    fn a_picture_wider_than_the_column_links_to_its_widest_size() {
+        let pictures = pictures("/blog/");
+        let html = drawn(&format!("<img src=\"{CHART}\" alt=\"\" />"), &pictures);
+        let widest = "/blog/media/3f2a/800.png".to_owned();
+        assert_eq!(
+            originals(&html, &pictures),
+            BTreeMap::from([(widest.clone(), widest)])
+        );
+    }
+
+    #[test]
+    fn a_picture_inside_a_link_or_as_narrow_as_the_column_links_nowhere() {
+        let mut pictures = pictures("/blog/");
+        let image = format!("<img src=\"{CHART}\" alt=\"\" />");
+        let linked = drawn(&format!("<a href=\"/blog/\">{image}</a>"), &pictures);
+        assert_eq!(originals(&linked, &pictures), BTreeMap::new());
+        for picture in pictures.values_mut() {
+            picture.width = COLUMN;
+        }
+        assert_eq!(
+            originals(&drawn(&image, &pictures), &pictures),
+            BTreeMap::new()
+        );
     }
 
     #[test]

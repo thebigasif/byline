@@ -166,3 +166,36 @@ fn features_switched_off_in_site_toml_are_gone() {
     }
     assert!(post.contains("Technical SEO editor"), "the byline stays on");
 }
+
+/// The figure of the slow pages post, from `<figure>` to `</figure>`.
+#[cfg(test)]
+fn figure(out: &Path) -> String {
+    let post = page(out, "fixing-slow-pages/index.html");
+    let (_, body) = post.split_once("<figure>").expect("a figure in the body");
+    let (inside, _) = body.split_once("</figure>").expect("its end");
+    format!("<figure>{inside}</figure>")
+}
+
+#[test]
+fn a_body_image_wider_than_the_column_links_its_whole_picture_to_its_widest_size() {
+    let (_temp, out) = build("");
+    let figure = figure(&out);
+    let href = figure
+        .split("<a class=\"enlarge\" href=\"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("the picture links to its widest size");
+    assert!(
+        at(&out, href.trim_start_matches("/blog/")).is_file(),
+        "{href}"
+    );
+    insta::assert_snapshot!(figure);
+}
+
+#[test]
+fn click_to_enlarge_switched_off_leaves_the_picture_unlinked() {
+    let (_temp, out) = build("\n[reader]\nenlarge_images = false\n");
+    let figure = figure(&out);
+    assert!(figure.contains("<picture>"), "{figure}");
+    assert!(!figure.contains("enlarge"), "{figure}");
+}
