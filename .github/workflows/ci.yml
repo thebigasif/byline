@@ -44,10 +44,13 @@ jobs:
       # so one job's toolchain install cannot swap cargo out under another.
       - name: Per-runner Rust home
         if: runner.environment == 'self-hosted'
+        # A full path, so cargo-llvm-cov recognises the registry and leaves
+        # dependency sources out of the coverage floor.
         run: |
-          echo "CARGO_HOME=$RUNNER_WORKSPACE/../.cargo-home" >> "$GITHUB_ENV"
-          echo "RUSTUP_HOME=$RUNNER_WORKSPACE/../.rustup-home" >> "$GITHUB_ENV"
-          echo "$RUNNER_WORKSPACE/../.cargo-home/bin" >> "$GITHUB_PATH"
+          work=$(realpath "$RUNNER_WORKSPACE/..")
+          echo "CARGO_HOME=$work/.cargo-home" >> "$GITHUB_ENV"
+          echo "RUSTUP_HOME=$work/.rustup-home" >> "$GITHUB_ENV"
+          echo "$work/.cargo-home/bin" >> "$GITHUB_PATH"
       - name: Any crates yet?
         id: crates
         run: |
