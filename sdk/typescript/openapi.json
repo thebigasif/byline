@@ -20,14 +20,11 @@
         "parameters": [
           {
             "name": "days",
-            "in": "path",
+            "in": "query",
             "description": "From 1 to 366; 28 when left out.",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
+              "type": "integer",
               "format": "int32",
               "minimum": 0
             }
@@ -49,6 +46,162 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminAiVisitors"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The days are not from 1 to 366",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/analytics/uncited/": {
+      "get": {
+        "tags": [
+          "admin analytics"
+        ],
+        "summary": "Lists the pages AI bots read in the last `days` days that no AI\nassistant sent a reader to in the same days. Needs `settings:write`.",
+        "operationId": "uncited",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "From 1 to 90, the days the crawl log keeps; 30 when left out.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The pages read but never cited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUncited"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The days are not from 1 to 90",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/analytics/visitors/": {
+      "get": {
+        "tags": [
+          "admin analytics"
+        ],
+        "summary": "Counts the page views of the last `days` days, per day, source and\npage, against the days before. Needs `settings:write`.",
+        "operationId": "visitors",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "From 1 to 366; 28 when left out.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The page views",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminVisitors"
                 }
               }
             }
@@ -1935,6 +2088,229 @@
         ]
       }
     },
+    "/api/admin/v1/media/search/": {
+      "get": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Finds free photos on Unsplash or GIFs on GIPHY for a post, through the\nblog, so the keys never reach the browser. Each search is off until the\nowner turns it on in `site.toml`; without `words` the answer only says\nwhich are on. Needs `media:write`.",
+        "operationId": "search_pictures",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "description": "`unsplash` or `gifs`.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/StockSource"
+            }
+          },
+          {
+            "name": "words",
+            "in": "query",
+            "description": "The words to look for. Left out, the answer only says which\nsearches are on, without asking anyone.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The page of results, from 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Which searches are on, and the pictures found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PictureSearch"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The source or page could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The source asks to wait before the next search",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The search is off, has no key, or its source did not answer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/media/search/used/": {
+      "post": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Tells Unsplash a photo went into a post, as its API terms ask whenever\na photo is used. The editor sends it when the writer picks a photo.\nNeeds `media:write`.",
+        "operationId": "photo_used",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsedPhoto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Unsplash was told",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsedPhoto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unsplash has no photo with this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Unsplash asks to wait",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Photo search is off, has no key, or Unsplash did not answer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/media/{id}/": {
       "get": {
         "tags": [
@@ -2099,6 +2475,112 @@
           },
           "422": {
             "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/media/{id}/copies/": {
+      "post": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Makes a copy of a picture, turned and then cropped, as a new item in\nthe same folder with the same name, alt text and caption. The original\nstays, so posts that show it do not change. The same edit made again\nanswers 200 with the first copy. Needs `media:write`.",
+        "operationId": "copy_picture",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The picture's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PictureEditBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The copy this edit already made",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The new copy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaItems"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No item has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The edit could not be read, changes nothing, or the item is not a picture",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3566,6 +4048,169 @@
         ]
       }
     },
+    "/api/admin/v1/posts/{id}/presence/": {
+      "post": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Notes that the caller has the post open and answers who holds its lock.\nThe editor checks in every 20 seconds; someone who stops for a minute\nlets go. The lock tells the editor who may type: the Admin API still\ntakes any edit and refuses a stale one with 409. Needs `posts:write`.",
+        "operationId": "check_in",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Who holds the lock, and who else has the post open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostPresence"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Notes that the caller closed the post, so the next in line holds its\nlock. Leaving a post the caller did not have open does nothing. Needs\n`posts:write`.",
+        "operationId": "leave",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The caller left the post"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/{id}/preview-link/": {
       "post": {
         "tags": [
@@ -3636,6 +4281,82 @@
           },
           "422": {
             "description": "This site makes no preview links",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/posts/{id}/versions/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Lists the title and text each edit of the post replaced, the newest\nfirst, up to the 100 newest. An edit that changed neither keeps none.\nBringing one back is an ordinary edit with its title and text, which\nkeeps the text it replaces in turn. Needs `posts:write`.",
+        "operationId": "list_post_versions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The earlier versions, the newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostVersions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity, or this server keeps no versions",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4248,6 +4969,263 @@
         ]
       }
     },
+    "/api/admin/v1/search-console/follow-ups/": {
+      "get": {
+        "tags": [
+          "admin search console"
+        ],
+        "summary": "Lists the long searches, of 8 words or more, that showed each post in\nthe last 28 days whose numbers are final, with the heading of the post\nthat answers each. Google is asked on each request, so the answer can\ntake some seconds. Needs `settings:write`.",
+        "operationId": "follow_ups",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The long searches per post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowUps"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The site is not connected to Search Console",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google refused or could not be reached",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/serpdad/": {
+      "get": {
+        "tags": [
+          "admin serpdad"
+        ],
+        "summary": "Reads whether `SerpDad` is connected and the last 20 drafts it sent.\nNeeds `settings:write`.",
+        "operationId": "read_serpdad",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The connection and the drafts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SerpdadState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin serpdad"
+        ],
+        "summary": "Turns the connection on with a new key that may only write posts, and\nrevokes the key it replaces. The answer shows the key once; paste it\ninto `SerpDad` with the blog's address. Needs `settings:write`.",
+        "operationId": "connect_serpdad",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The connection, with its new key this once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SerpdadState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The site keeps no database",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin serpdad"
+        ],
+        "summary": "Turns the connection off: `SerpDad`'s key is revoked at once, and the\ndrafts it sent stay. Needs `settings:write`.",
+        "operationId": "disconnect_serpdad",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The connection is off"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SerpDad is not connected",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/session/": {
       "get": {
         "tags": [
@@ -4625,6 +5603,64 @@
       }
     },
     "/api/admin/v1/session/passkeys/": {
+      "get": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "The signed-in person's passkeys, oldest first. Needs the session\ncookie.",
+        "operationId": "list_passkeys",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The passkeys of the signed-in account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyEntry"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This site has no passkeys",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "staff"
@@ -4725,6 +5761,144 @@
           },
           "404": {
             "description": "This site has no passkeys",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/session/passkeys/{id}/": {
+      "delete": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Removes one of the signed-in person's passkeys, so it signs nobody in\nagain. Needs the session cookie.",
+        "operationId": "remove_passkey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The passkey's number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The account has no passkey with this number",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Gives one of the signed-in person's passkeys a new name. Needs the\nsession cookie.",
+        "operationId": "rename_passkey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The passkey's number",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRename"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Renamed"
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The account has no passkey with this number",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The name is blank or too long",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6600,6 +7774,83 @@
         "responses": {
           "204": {
             "description": "The webhook is off"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks webhooks:manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No webhook that is on has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/webhooks/{id}/deliveries/": {
+      "get": {
+        "tags": [
+          "admin webhooks"
+        ],
+        "summary": "Lists the 50 newest messages one webhook that is on sent, newest\nfirst, each with every try and where it stands. The bodies sent are\nleft out. Needs `webhooks:manage`.",
+        "operationId": "list_deliveries",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The webhook's identity",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The webhook's newest deliveries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDeliveries"
+                }
+              }
+            }
           },
           "401": {
             "description": "No valid integration key or staff token",
@@ -9331,6 +10582,36 @@
           }
         }
       },
+      "AdminAttempt": {
+        "type": "object",
+        "description": "One try at sending a delivery: the receiver's status, or why it could\nnot be reached. Exactly one of the two is there.",
+        "required": [
+          "at"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the receiver could not be reached."
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The HTTP status the receiver answered; 200 to 299 is a success.",
+            "minimum": 0
+          }
+        }
+      },
       "AdminAuthor": {
         "type": "object",
         "description": "An author in one language, in Admin API shape: everything their file\nholds, which bylines, author pages and the author's schema show.",
@@ -9638,6 +10919,81 @@
               "$ref": "#/components/schemas/AdminComment"
             },
             "description": "The comment or comments."
+          }
+        }
+      },
+      "AdminDayViews": {
+        "type": "object",
+        "description": "The views on one day.",
+        "required": [
+          "day",
+          "views"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "description": "The day, in UTC."
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views that day.",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminDeliveries": {
+        "type": "object",
+        "description": "The newest deliveries of one webhook.",
+        "required": [
+          "deliveries"
+        ],
+        "properties": {
+          "deliveries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDelivery"
+            },
+            "description": "At most 50, newest first."
+          }
+        }
+      },
+      "AdminDelivery": {
+        "type": "object",
+        "description": "One message a webhook sent, with every try.",
+        "required": [
+          "id",
+          "event",
+          "state",
+          "state_at",
+          "attempts"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminAttempt"
+            },
+            "description": "Every try so far, oldest first."
+          },
+          "event": {
+            "type": "string",
+            "description": "The event it announced, such as `post.published`."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Its place in the log: a later delivery has a larger number."
+          },
+          "state": {
+            "$ref": "#/components/schemas/StateName",
+            "description": "Where it stands."
+          },
+          "state_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the next try is due, or when it was delivered or given up."
           }
         }
       },
@@ -10296,6 +11652,34 @@
           }
         }
       },
+      "AdminSourceViews": {
+        "type": "object",
+        "description": "The views from one source.",
+        "required": [
+          "source",
+          "views",
+          "before"
+        ],
+        "properties": {
+          "before": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views in the period of the same length before.",
+            "minimum": 0
+          },
+          "source": {
+            "type": "string",
+            "description": "Where they came from: `direct`, `search`, `social`, `ai` (every AI\nassistant), `other` (any other site) or `internal` (the site's own\npages).",
+            "example": "search"
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views in the period.",
+            "minimum": 0
+          }
+        }
+      },
       "AdminTag": {
         "type": "object",
         "description": "A tag in one language, in Admin API shape. A tag lives in the `tags`\nof its posts, drafts included, so it exists while one post has it.",
@@ -10392,6 +11776,152 @@
             "type": "integer",
             "format": "int64",
             "description": "Views from its readers in the period.",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminUncited": {
+        "type": "object",
+        "description": "The pages AI bots read but no AI assistant cited. A bot reading a page\nis not a citation: only a reader arriving from an assistant is.",
+        "required": [
+          "first",
+          "last",
+          "days",
+          "pages"
+        ],
+        "properties": {
+          "days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many days were looked at.",
+            "minimum": 0
+          },
+          "first": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day looked at, in UTC."
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day looked at: today, in UTC."
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminUncitedPage"
+            },
+            "description": "The pages, most read first."
+          }
+        }
+      },
+      "AdminUncitedPage": {
+        "type": "object",
+        "description": "One page AI bots read with no reader sent by an AI assistant.",
+        "required": [
+          "path",
+          "reads",
+          "bots",
+          "last_read"
+        ],
+        "properties": {
+          "bots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The AI bots that read it, in alphabetical order, as their user\nagents claimed.",
+            "example": [
+              "ClaudeBot",
+              "GPTBot"
+            ]
+          },
+          "last_read": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The latest read."
+          },
+          "path": {
+            "type": "string",
+            "description": "The page's path.",
+            "example": "/blog/internal-links/"
+          },
+          "reads": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many times AI bots read it.",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminVisitors": {
+        "type": "object",
+        "description": "The page views `khalid serve` counted. A view is one page opened by a\nperson; bots never count.",
+        "required": [
+          "first",
+          "last",
+          "days",
+          "views",
+          "before",
+          "arrivals",
+          "sources",
+          "per_day",
+          "pages"
+        ],
+        "properties": {
+          "arrivals": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The views that came from outside the site.",
+            "minimum": 0
+          },
+          "before": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Every view in the period of the same length before.",
+            "minimum": 0
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many days were counted.",
+            "minimum": 0
+          },
+          "first": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day counted, in UTC."
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day counted: today, in UTC."
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPageViews"
+            },
+            "description": "The most viewed pages, most views first, at most twenty."
+          },
+          "per_day": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDayViews"
+            },
+            "description": "The views per day, first day first, every day listed."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSourceViews"
+            },
+            "description": "The views per source, every source listed, outside ones first."
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Every view in the period.",
             "minimum": 0
           }
         }
@@ -10880,6 +12410,25 @@
           }
         }
       },
+      "CheckIn": {
+        "type": "object",
+        "description": "A check-in: what the editor asks for while the post is open.",
+        "properties": {
+          "claim": {
+            "$ref": "#/components/schemas/Claim",
+            "description": "`join` takes the lock only when nobody holds it; `take_over` takes\nit from whoever does. `join` when left out."
+          }
+        },
+        "additionalProperties": false
+      },
+      "Claim": {
+        "type": "string",
+        "description": "What a check-in asks for.",
+        "enum": [
+          "join",
+          "take_over"
+        ]
+      },
       "Collections": {
         "type": "object",
         "required": [
@@ -11041,6 +12590,43 @@
             "description": "The new draft, alone."
           }
         }
+      },
+      "CropBoxBody": {
+        "type": "object",
+        "description": "A box in thousandths of a picture's width and height, from its top left\ncorner, the scale focal points use.",
+        "required": [
+          "left",
+          "top",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How high, so that `top` plus `height` is at most 1000.",
+            "minimum": 0
+          },
+          "left": {
+            "type": "integer",
+            "format": "int32",
+            "description": "From the left edge, 0 to 999.",
+            "minimum": 0
+          },
+          "top": {
+            "type": "integer",
+            "format": "int32",
+            "description": "From the top edge, 0 to 999.",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How wide, so that `left` plus `width` is at most 1000.",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
       },
       "CustomJsonLd": {
         "type": "string",
@@ -11292,6 +12878,113 @@
           }
         },
         "additionalProperties": false
+      },
+      "FollowUp": {
+        "type": "object",
+        "description": "One long search and how it did.",
+        "required": [
+          "query",
+          "clicks",
+          "impressions",
+          "position"
+        ],
+        "properties": {
+          "answered_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The heading of the post that answers it, or none yet."
+          },
+          "clicks": {
+            "type": "number",
+            "format": "double",
+            "description": "Clicks from it to the post."
+          },
+          "impressions": {
+            "type": "number",
+            "format": "double",
+            "description": "Times it showed the post."
+          },
+          "position": {
+            "type": "number",
+            "format": "double",
+            "description": "The post's average position in its results, 1 at the top."
+          },
+          "query": {
+            "type": "string",
+            "description": "The search as people typed it.",
+            "example": "do i need a sitemap if my blog has only ten posts"
+          }
+        }
+      },
+      "FollowUpPost": {
+        "type": "object",
+        "description": "One post and the long searches that showed it.",
+        "required": [
+          "title",
+          "url",
+          "searches"
+        ],
+        "properties": {
+          "searches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FollowUp"
+            },
+            "description": "Its long searches, the most shown first."
+          },
+          "title": {
+            "type": "string",
+            "description": "The post's title."
+          },
+          "url": {
+            "type": "string",
+            "description": "The post's full address.",
+            "example": "https://example.com/blog/what-a-sitemap-does/"
+          }
+        }
+      },
+      "FollowUps": {
+        "type": "object",
+        "description": "The long searches that showed the site's posts in a month.",
+        "required": [
+          "property",
+          "first",
+          "last",
+          "words",
+          "posts"
+        ],
+        "properties": {
+          "first": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day looked at."
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day looked at: the last day whose numbers are final."
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FollowUpPost"
+            },
+            "description": "The posts the searches showed, the one with the most shown search\nfirst."
+          },
+          "property": {
+            "type": "string",
+            "description": "The Search Console property the numbers come from.",
+            "example": "sc-domain:example.com"
+          },
+          "words": {
+            "type": "integer",
+            "description": "The fewest words a search had to have to count.",
+            "example": 8,
+            "minimum": 0
+          }
+        }
       },
       "Gate": {
         "type": "string",
@@ -12371,6 +14064,53 @@
           }
         }
       },
+      "PasskeyEntry": {
+        "type": "object",
+        "description": "One of the signed-in person's passkeys. The key itself never leaves\nthe server.",
+        "required": [
+          "id",
+          "name",
+          "added_at"
+        ],
+        "properties": {
+          "added_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was added."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The passkey's number, for renaming or removing it."
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it last signed someone in; `null` when it never has."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name the person gave it, such as \"Work laptop\"."
+          }
+        }
+      },
+      "PasskeyRename": {
+        "type": "object",
+        "description": "A new name for a passkey.",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The new name, 1 to 60 characters once trimmed."
+          }
+        },
+        "additionalProperties": false
+      },
       "PasskeySignIn": {
         "type": "object",
         "description": "A sign-in, as `navigator.credentials.get` returned it.",
@@ -12410,6 +14150,61 @@
           }
         },
         "additionalProperties": false
+      },
+      "PictureEditBody": {
+        "type": "object",
+        "description": "A turned or cropped copy of a picture to make. The original stays.",
+        "properties": {
+          "crop": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CropBoxBody",
+                "description": "The box to keep after turning, or left out for all of it."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turn": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How far to turn it clockwise first: 0, 90, 180 or 270 degrees; 0\nwhen left out.",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "PictureSearch": {
+        "type": "object",
+        "description": "Which searches are on, and the pictures found.",
+        "required": [
+          "unsplash",
+          "gifs",
+          "keys",
+          "pictures"
+        ],
+        "properties": {
+          "gifs": {
+            "type": "boolean",
+            "description": "Whether the owner turned GIF search on GIPHY on."
+          },
+          "keys": {
+            "$ref": "#/components/schemas/SearchKeys",
+            "description": "Which searches the server holds a key for."
+          },
+          "pictures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockPicture"
+            },
+            "description": "The pictures found, 24 a page; empty without words."
+          },
+          "unsplash": {
+            "type": "boolean",
+            "description": "Whether the owner turned photo search on Unsplash on."
+          }
+        }
       },
       "Post": {
         "allOf": [
@@ -12624,6 +14419,32 @@
           }
         },
         "additionalProperties": false
+      },
+      "PostPresence": {
+        "type": "object",
+        "description": "Who has a post open, as the one checking in sees it.",
+        "required": [
+          "holder",
+          "yours",
+          "others"
+        ],
+        "properties": {
+          "holder": {
+            "$ref": "#/components/schemas/PresentEditor",
+            "description": "Who holds the lock: the one person who may change the post now."
+          },
+          "others": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresentEditor"
+            },
+            "description": "Everyone else with the post open, the earliest first."
+          },
+          "yours": {
+            "type": "boolean",
+            "description": "Whether the one checking in holds it."
+          }
+        }
       },
       "PostRow": {
         "type": "object",
@@ -12910,6 +14731,53 @@
           "scheduled"
         ]
       },
+      "PostVersion": {
+        "type": "object",
+        "description": "A post's title and text as they were saved, before a later edit\nreplaced them.",
+        "required": [
+          "saved_at",
+          "title",
+          "markdown"
+        ],
+        "properties": {
+          "markdown": {
+            "type": "string",
+            "description": "The text, in markdown."
+          },
+          "saved_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this title and text were saved."
+          },
+          "saved_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Who saved them, as the post named them; `null` when not known, such\nas for a file written by hand."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title."
+          }
+        }
+      },
+      "PostVersions": {
+        "type": "object",
+        "description": "Earlier versions, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "versions"
+        ],
+        "properties": {
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostVersion"
+            },
+            "description": "The newest first."
+          }
+        }
+      },
       "Posts": {
         "type": "object",
         "required": [
@@ -12933,6 +14801,25 @@
               "$ref": "#/components/schemas/Post"
             },
             "description": "The entries on this page, or the one entry asked for."
+          }
+        }
+      },
+      "PresentEditor": {
+        "type": "object",
+        "description": "Someone with a post open.",
+        "required": [
+          "who",
+          "since"
+        ],
+        "properties": {
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Since when: when they opened the post, or took over its lock."
+          },
+          "who": {
+            "type": "string",
+            "description": "Who, as the post's `updated_by` names them."
           }
         }
       },
@@ -13209,10 +15096,119 @@
           }
         }
       },
+      "SearchKeys": {
+        "type": "object",
+        "description": "Which searches are on with their key, so they can ask. A search that is\non without one answers with the variable to set. The keys themselves\nnever leave the server.",
+        "required": [
+          "unsplash",
+          "gifs"
+        ],
+        "properties": {
+          "gifs": {
+            "type": "boolean",
+            "description": "GIF search on GIPHY."
+          },
+          "unsplash": {
+            "type": "boolean",
+            "description": "Photo search on Unsplash."
+          }
+        }
+      },
       "SearchTitle": {
         "type": "string",
         "description": "The title search results show for a post, in place of the site's title\ntemplate. It may use the template variables, such as `{site}`.",
         "example": "Anchor text that says where it goes {sep} {site}"
+      },
+      "SerpdadConnection": {
+        "type": "object",
+        "description": "The connection, or `null` while it is off.",
+        "required": [
+          "connected_at"
+        ],
+        "properties": {
+          "connected_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the key `SerpDad` sends drafts with was made."
+          },
+          "key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key itself, to paste into `SerpDad`. Only the answer that makes\nit carries it, once.",
+            "example": "ki_1111222233334444_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111"
+          }
+        }
+      },
+      "SerpdadDraft": {
+        "type": "object",
+        "description": "A draft `SerpDad` sent.",
+        "required": [
+          "id",
+          "title",
+          "received_at",
+          "admin_path"
+        ],
+        "properties": {
+          "admin_path": {
+            "type": "string",
+            "description": "Where it opens in the admin's editor.",
+            "example": "/admin/posts/en.choosing-anchor-text"
+          },
+          "id": {
+            "type": "string",
+            "description": "The post's identity.",
+            "example": "en.choosing-anchor-text"
+          },
+          "lint": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LintCounts",
+                "description": "What the linter found in it on arrival, or `null` when it could not\nrun."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it arrived."
+          },
+          "title": {
+            "type": "string",
+            "description": "Its title as it arrived."
+          }
+        }
+      },
+      "SerpdadState": {
+        "type": "object",
+        "description": "The `SerpDad` connection and the drafts it sent.",
+        "required": [
+          "drafts"
+        ],
+        "properties": {
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SerpdadConnection",
+                "description": "The connection, or `null` while it is off."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drafts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SerpdadDraft"
+            },
+            "description": "The last 20 drafts `SerpDad` sent, newest first, kept after the\nconnection is turned off."
+          }
+        }
       },
       "SessionAnswer": {
         "type": "object",
@@ -13761,6 +15757,85 @@
           }
         }
       },
+      "StateName": {
+        "type": "string",
+        "description": "Where a delivery stands: waiting for its next try, delivered, or given\nup after every try failed.",
+        "enum": [
+          "pending",
+          "delivered",
+          "gave_up"
+        ]
+      },
+      "StockPicture": {
+        "type": "object",
+        "description": "A photo or GIF found for a post. It stays where it came from: the post\nshows it from `address`, with `credit` linked to `credit_link` under it.",
+        "required": [
+          "source",
+          "id",
+          "description",
+          "preview",
+          "address",
+          "width",
+          "height",
+          "credit",
+          "credit_link",
+          "page"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The address to put in the post."
+          },
+          "credit": {
+            "type": "string",
+            "description": "Who made it, or `GIPHY`."
+          },
+          "credit_link": {
+            "type": "string",
+            "description": "The maker's page."
+          },
+          "description": {
+            "type": "string",
+            "description": "Words its source has for it, a start for alt text; may be empty."
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The height of the picture at `address`, in pixels.",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "Its identity at the source."
+          },
+          "page": {
+            "type": "string",
+            "description": "The picture's own page at its source."
+          },
+          "preview": {
+            "type": "string",
+            "description": "A small copy for the list of results."
+          },
+          "source": {
+            "$ref": "#/components/schemas/StockSource",
+            "description": "Where it comes from."
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The width of the picture at `address`, in pixels.",
+            "minimum": 0
+          }
+        }
+      },
+      "StockSource": {
+        "type": "string",
+        "description": "Where to look for a picture.",
+        "enum": [
+          "unsplash",
+          "gifs"
+        ]
+      },
       "TagEdit": {
         "type": "object",
         "description": "A new name for a tag, written into every post that has it.",
@@ -13936,6 +16011,20 @@
             "description": "When it was deleted."
           }
         }
+      },
+      "UsedPhoto": {
+        "type": "object",
+        "description": "A photo from Unsplash that went into a post.",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The photo's identity at Unsplash, as the search gave it."
+          }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

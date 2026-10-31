@@ -17,6 +17,16 @@ export type AdminAiVisitors = {
   tools: AdminToolVisitors[];
 };
 
+/** One try at sending a delivery: the receiver's status, or why it could not be reached. Exactly one of the two is there. */
+export type AdminAttempt = {
+  /** When it was made. */
+  at: string;
+  /** Why the receiver could not be reached. */
+  reason?: string | null;
+  /** The HTTP status the receiver answered; 200 to 299 is a success. */
+  status?: number | null;
+};
+
 /** An author in one language, in Admin API shape: everything their file holds, which bylines, author pages and the author's schema show. */
 export type AdminAuthor = {
   /** The bio, in markdown. */
@@ -123,6 +133,34 @@ export type AdminComment = {
 export type AdminComments = {
   /** The comment or comments. */
   comments: AdminComment[];
+};
+
+/** The views on one day. */
+export type AdminDayViews = {
+  /** The day, in UTC. */
+  day: string;
+  /** Views that day. */
+  views: number;
+};
+
+/** The newest deliveries of one webhook. */
+export type AdminDeliveries = {
+  /** At most 50, newest first. */
+  deliveries: AdminDelivery[];
+};
+
+/** One message a webhook sent, with every try. */
+export type AdminDelivery = {
+  /** Every try so far, oldest first. */
+  attempts: AdminAttempt[];
+  /** The event it announced, such as `post.published`. */
+  event: string;
+  /** Its place in the log: a later delivery has a larger number. */
+  id: number;
+  /** Where it stands. */
+  state: StateName;
+  /** When the next try is due, or when it was delivered or given up. */
+  state_at: string;
 };
 
 /** A key that works, in Admin API shape. The secret is shown once, when the key is made, and never again. */
@@ -349,6 +387,16 @@ export type AdminSnippets = {
   snippets: AdminSnippet[];
 };
 
+/** The views from one source. */
+export type AdminSourceViews = {
+  /** Views in the period of the same length before. */
+  before: number;
+  /** Where they came from: `direct`, `search`, `social`, `ai` (every AI assistant), `other` (any other site) or `internal` (the site's own pages). */
+  source: string;
+  /** Views in the period. */
+  views: number;
+};
+
 /** A tag in one language, in Admin API shape. A tag lives in the `tags` of its posts, drafts included, so it exists while one post has it. */
 export type AdminTag = {
   /** The language and the slug, such as `en.internal-links`. */
@@ -382,6 +430,52 @@ export type AdminToolVisitors = {
   /** The assistant, for programs: `chatgpt`, `perplexity`, `gemini`, `copilot`, `claude`, `deepseek`, `le-chat`, `meta-ai`, `grok`, `you`, `phind`, or `unnamed` for views counted before tools were named. */
   tool: string;
   /** Views from its readers in the period. */
+  views: number;
+};
+
+/** The pages AI bots read but no AI assistant cited. A bot reading a page is not a citation: only a reader arriving from an assistant is. */
+export type AdminUncited = {
+  /** How many days were looked at. */
+  days: number;
+  /** The first day looked at, in UTC. */
+  first: string;
+  /** The last day looked at: today, in UTC. */
+  last: string;
+  /** The pages, most read first. */
+  pages: AdminUncitedPage[];
+};
+
+/** One page AI bots read with no reader sent by an AI assistant. */
+export type AdminUncitedPage = {
+  /** The AI bots that read it, in alphabetical order, as their user agents claimed. */
+  bots: string[];
+  /** The latest read. */
+  last_read: string;
+  /** The page's path. */
+  path: string;
+  /** How many times AI bots read it. */
+  reads: number;
+};
+
+/** The page views `khalid serve` counted. A view is one page opened by a person; bots never count. */
+export type AdminVisitors = {
+  /** The views that came from outside the site. */
+  arrivals: number;
+  /** Every view in the period of the same length before. */
+  before: number;
+  /** How many days were counted. */
+  days: number;
+  /** The first day counted, in UTC. */
+  first: string;
+  /** The last day counted: today, in UTC. */
+  last: string;
+  /** The most viewed pages, most views first, at most twenty. */
+  pages: AdminPageViews[];
+  /** The views per day, first day first, every day listed. */
+  per_day: AdminDayViews[];
+  /** The views per source, every source listed, outside ones first. */
+  sources: AdminSourceViews[];
+  /** Every view in the period. */
   views: number;
 };
 
@@ -540,6 +634,15 @@ export type ChangelogEntries = {
   meta?: Meta | null;
 };
 
+/** A check-in: what the editor asks for while the post is open. */
+export type CheckIn = {
+  /** `join` takes the lock only when nobody holds it; `take_over` takes it from whoever does. `join` when left out. */
+  claim?: Claim;
+};
+
+/** What a check-in asks for. */
+export type Claim = "join" | "take_over";
+
 export type Collections = {
   /** The entries on this page, or the one entry asked for. */
   collections: ContentCollection[];
@@ -590,6 +693,18 @@ export type CreatedPosts = {
   lint?: DraftLint | null;
   /** The new draft, alone. */
   posts: AdminPost[];
+};
+
+/** A box in thousandths of a picture's width and height, from its top left corner, the scale focal points use. */
+export type CropBoxBody = {
+  /** How high, so that `top` plus `height` is at most 1000. */
+  height: number;
+  /** From the left edge, 0 to 999. */
+  left: number;
+  /** From the top edge, 0 to 999. */
+  top: number;
+  /** How wide, so that `left` plus `width` is at most 1000. */
+  width: number;
 };
 
 /** JSON-LD written by hand for a type Khalid does not write itself, kept as written. It is read as schema.org nodes before it is kept, so a page never carries JSON-LD a search engine would throw away. */
@@ -677,6 +792,44 @@ export type FocalPointBody = {
   x: number;
   /** Thousandths of the height from the top, 0 to 1000. */
   y: number;
+};
+
+/** One long search and how it did. */
+export type FollowUp = {
+  /** The heading of the post that answers it, or none yet. */
+  answered_by?: string | null;
+  /** Clicks from it to the post. */
+  clicks: number;
+  /** Times it showed the post. */
+  impressions: number;
+  /** The post's average position in its results, 1 at the top. */
+  position: number;
+  /** The search as people typed it. */
+  query: string;
+};
+
+/** One post and the long searches that showed it. */
+export type FollowUpPost = {
+  /** Its long searches, the most shown first. */
+  searches: FollowUp[];
+  /** The post's title. */
+  title: string;
+  /** The post's full address. */
+  url: string;
+};
+
+/** The long searches that showed the site's posts in a month. */
+export type FollowUps = {
+  /** The first day looked at. */
+  first: string;
+  /** The last day looked at: the last day whose numbers are final. */
+  last: string;
+  /** The posts the searches showed, the one with the most shown search first. */
+  posts: FollowUpPost[];
+  /** The Search Console property the numbers come from. */
+  property: string;
+  /** The fewest words a search had to have to count. */
+  words: number;
 };
 
 /** The lint publish gate's answer for a post as it stands. */
@@ -1034,6 +1187,24 @@ export type Pagination = {
   total: number;
 };
 
+/** One of the signed-in person's passkeys. The key itself never leaves the server. */
+export type PasskeyEntry = {
+  /** When it was added. */
+  added_at: string;
+  /** The passkey's number, for renaming or removing it. */
+  id: number;
+  /** When it last signed someone in; `null` when it never has. */
+  last_used_at?: string | null;
+  /** The name the person gave it, such as "Work laptop". */
+  name: string;
+};
+
+/** A new name for a passkey. */
+export type PasskeyRename = {
+  /** The new name, 1 to 60 characters once trimmed. */
+  name: string;
+};
+
 /** A sign-in, as `navigator.credentials.get` returned it. */
 export type PasskeySignIn = {
   /** The `challenge` of the options it answers, as they gave it. */
@@ -1048,6 +1219,25 @@ export type PasswordChange = {
   current?: string | null;
   /** The new password: at least 12 characters. */
   new: string;
+};
+
+/** A turned or cropped copy of a picture to make. The original stays. */
+export type PictureEditBody = {
+  crop?: CropBoxBody | null;
+  /** How far to turn it clockwise first: 0, 90, 180 or 270 degrees; 0 when left out. */
+  turn?: number;
+};
+
+/** Which searches are on, and the pictures found. */
+export type PictureSearch = {
+  /** Whether the owner turned GIF search on GIPHY on. */
+  gifs: boolean;
+  /** Which searches the server holds a key for. */
+  keys: SearchKeys;
+  /** The pictures found, 24 a page; empty without words. */
+  pictures: StockPicture[];
+  /** Whether the owner turned photo search on Unsplash on. */
+  unsplash: boolean;
 };
 
 /** A published post in API shape. Bodies are present only when asked for with `formats`. */
@@ -1111,6 +1301,16 @@ export type PostEdit = {
   updated_at: string;
 };
 
+/** Who has a post open, as the one checking in sees it. */
+export type PostPresence = {
+  /** Who holds the lock: the one person who may change the post now. */
+  holder: PresentEditor;
+  /** Everyone else with the post open, the earliest first. */
+  others: PresentEditor[];
+  /** Whether the one checking in holds it. */
+  yours: boolean;
+};
+
 /** One row of the admin's posts table. */
 export type PostRow = {
   /** The author's slug, if any. */
@@ -1127,8 +1327,12 @@ export type PostRow = {
   lint: LintCounts;
   /** When it went or goes live; empty for a draft. */
   published_at?: string | null;
+  /** Whether the post is due for review: more than six months since it was last reviewed or published, whichever came last. A list filters by this, such as `filter=review:due`. */
+  review_due: boolean;
   /** Draft, in review or ready. */
   review_state: ReviewState;
+  /** The day it last came up for review (F3), if it ever has. */
+  reviewed?: string | null;
   /** The last part of its address. */
   slug: string;
   /** Draft, published or scheduled. */
@@ -1173,6 +1377,8 @@ export type PostSettings = {
   password_protected: boolean;
   /** Where the post stands in review. */
   review_state: ReviewState;
+  /** The day the post last came up for review and was looked at (F3). A review that changes nothing sets this alone; it never moves `date`, and a real change is what sets `updated` in the front matter. */
+  reviewed?: string | null;
   /** The post's own robots directives, in place of the site's. */
   robots?: string | null;
   schema?: CustomJsonLd | null;
@@ -1186,10 +1392,36 @@ export type PostSettings = {
 /** Where a post stands. */
 export type PostStatus = "draft" | "published" | "scheduled";
 
+/** A post's title and text as they were saved, before a later edit replaced them. */
+export type PostVersion = {
+  /** The text, in markdown. */
+  markdown: string;
+  /** When this title and text were saved. */
+  saved_at: string;
+  /** Who saved them, as the post named them; `null` when not known, such as for a file written by hand. */
+  saved_by?: string | null;
+  /** The title. */
+  title: string;
+};
+
+/** Earlier versions, wrapped the way the Admin API wraps resources. */
+export type PostVersions = {
+  /** The newest first. */
+  versions: PostVersion[];
+};
+
 export type Posts = {
   meta?: Meta | null;
   /** The entries on this page, or the one entry asked for. */
   posts: Post[];
+};
+
+/** Someone with a post open. */
+export type PresentEditor = {
+  /** Since when: when they opened the post, or took over its lock. */
+  since: string;
+  /** Who, as the post's `updated_by` names them. */
+  who: string;
 };
 
 /** A link to a draft, and when it stops working. */
@@ -1289,8 +1521,44 @@ export type SchemaTemplates = {
   updated_at: string;
 };
 
+/** Which searches are on with their key, so they can ask. A search that is on without one answers with the variable to set. The keys themselves never leave the server. */
+export type SearchKeys = {
+  /** GIF search on GIPHY. */
+  gifs: boolean;
+  /** Photo search on Unsplash. */
+  unsplash: boolean;
+};
+
 /** The title search results show for a post, in place of the site's title template. It may use the template variables, such as `{site}`. */
 export type SearchTitle = string;
+
+/** The connection, or `null` while it is off. */
+export type SerpdadConnection = {
+  /** When the key `SerpDad` sends drafts with was made. */
+  connected_at: string;
+  /** The key itself, to paste into `SerpDad`. Only the answer that makes it carries it, once. */
+  key?: string | null;
+};
+
+/** A draft `SerpDad` sent. */
+export type SerpdadDraft = {
+  /** Where it opens in the admin's editor. */
+  admin_path: string;
+  /** The post's identity. */
+  id: string;
+  lint?: LintCounts | null;
+  /** When it arrived. */
+  received_at: string;
+  /** Its title as it arrived. */
+  title: string;
+};
+
+/** The `SerpDad` connection and the drafts it sent. */
+export type SerpdadState = {
+  connection?: SerpdadConnection | null;
+  /** The last 20 drafts `SerpDad` sent, newest first, kept after the connection is turned off. */
+  drafts: SerpdadDraft[];
+};
 
 /** A signed-in session: who it is, and the CSRF token every request with the cookie sends in `x-khalid-csrf`. */
 export type SessionAnswer = {
@@ -1358,6 +1626,8 @@ export type SettingsEdit = {
   /** A new password of 8 to 128 characters that readers must give, or `null` to remove it. It is kept only as a hash. */
   password?: string | null;
   review_state?: ReviewState | null;
+  /** The day the post was last looked over (F3), or `null` for never. Setting it records a review and nothing else: it never moves the post's date or its updated date. */
+  reviewed?: string | null;
   /** New robots directives, or `null` for the site's. */
   robots?: string | null;
   /** New hand-written JSON-LD, or `null` for none. */
@@ -1454,6 +1724,36 @@ export type StaffList = {
   staff: StaffAccount[];
 };
 
+/** Where a delivery stands: waiting for its next try, delivered, or given up after every try failed. */
+export type StateName = "pending" | "delivered" | "gave_up";
+
+/** A photo or GIF found for a post. It stays where it came from: the post shows it from `address`, with `credit` linked to `credit_link` under it. */
+export type StockPicture = {
+  /** The address to put in the post. */
+  address: string;
+  /** Who made it, or `GIPHY`. */
+  credit: string;
+  /** The maker's page. */
+  credit_link: string;
+  /** Words its source has for it, a start for alt text; may be empty. */
+  description: string;
+  /** The height of the picture at `address`, in pixels. */
+  height: number;
+  /** Its identity at the source. */
+  id: string;
+  /** The picture's own page at its source. */
+  page: string;
+  /** A small copy for the list of results. */
+  preview: string;
+  /** Where it comes from. */
+  source: StockSource;
+  /** The width of the picture at `address`, in pixels. */
+  width: number;
+};
+
+/** Where to look for a picture. */
+export type StockSource = "unsplash" | "gifs";
+
 /** A new name for a tag, written into every post that has it. */
 export type TagEdit = {
   /** The new name, such as `internal linking`. A name another tag in the language has merges the two. */
@@ -1517,14 +1817,20 @@ export type TrashedPost = {
   trashed_at: string;
 };
 
+/** A photo from Unsplash that went into a post. */
+export type UsedPhoto = {
+  /** The photo's identity at Unsplash, as the search gave it. */
+  id: string;
+};
+
 /** What each operation takes and what it answers on success. */
 export interface Operations {
   /** Lists how many readers each AI assistant sent in the last `days` days, against the days before, with the pages they landed on. Needs `settings:write`. */
   ai_visitors: {
     input: {
-      path: {
+      query?: {
         /** From 1 to 366; 28 when left out. */
-        days: number | null;
+        days?: number;
       };
       headers?: {
         /** The oldest API version the client accepts, such as v1.0. */
@@ -1532,6 +1838,34 @@ export interface Operations {
       };
     };
     output: AdminAiVisitors;
+  };
+  /** Lists the pages AI bots read in the last `days` days that no AI assistant sent a reader to in the same days. Needs `settings:write`. */
+  uncited: {
+    input: {
+      query?: {
+        /** From 1 to 90, the days the crawl log keeps; 30 when left out. */
+        days?: number;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: AdminUncited;
+  };
+  /** Counts the page views of the last `days` days, per day, source and page, against the days before. Needs `settings:write`. */
+  visitors: {
+    input: {
+      query?: {
+        /** From 1 to 366; 28 when left out. */
+        days?: number;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: AdminVisitors;
   };
   /** Lists who changed what through the Admin API and when, newest first: every write that succeeded, to content, settings or staff accounts. Needs `admin:all`. */
   list_changes: {
@@ -1838,6 +2172,35 @@ export interface Operations {
     };
     output: MediaItems;
   };
+  /** Finds free photos on Unsplash or GIFs on GIPHY for a post, through the blog, so the keys never reach the browser. Each search is off until the owner turns it on in `site.toml`; without `words` the answer only says which are on. Needs `media:write`. */
+  search_pictures: {
+    input: {
+      query?: {
+        /** `unsplash` or `gifs`. */
+        source?: StockSource;
+        /** The words to look for. Left out, the answer only says which searches are on, without asking anyone. */
+        words?: string;
+        /** The page of results, from 1. */
+        page?: number;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: PictureSearch;
+  };
+  /** Tells Unsplash a photo went into a post, as its API terms ask whenever a photo is used. The editor sends it when the writer picks a photo. Needs `media:write`. */
+  photo_used: {
+    input: {
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+      body: UsedPhoto;
+    };
+    output: UsedPhoto;
+  };
   /** Reads one item of the media library. Needs `media:write`. */
   read_media: {
     input: {
@@ -1864,6 +2227,21 @@ export interface Operations {
         "Accept-Version"?: string;
       };
       body: MediaEdits;
+    };
+    output: MediaItems;
+  };
+  /** Makes a copy of a picture, turned and then cropped, as a new item in the same folder with the same name, alt text and caption. The original stays, so posts that show it do not change. The same edit made again answers 200 with the first copy. Needs `media:write`. */
+  copy_picture: {
+    input: {
+      path: {
+        /** The picture's identity */
+        id: string;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+      body: PictureEditBody;
     };
     output: MediaItems;
   };
@@ -2104,6 +2482,35 @@ export interface Operations {
     };
     output: null;
   };
+  /** Notes that the caller has the post open and answers who holds its lock. The editor checks in every 20 seconds; someone who stops for a minute lets go. The lock tells the editor who may type: the Admin API still takes any edit and refuses a stale one with 409. Needs `posts:write`. */
+  check_in: {
+    input: {
+      path: {
+        /** The post's identity */
+        id: string;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+      body: CheckIn;
+    };
+    output: PostPresence;
+  };
+  /** Notes that the caller closed the post, so the next in line holds its lock. Leaving a post the caller did not have open does nothing. Needs `posts:write`. */
+  leave: {
+    input: {
+      path: {
+        /** The post's identity */
+        id: string;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: null;
+  };
   /** Makes a link that shows the post, draft or not, in the site's design to anyone who has it, until it expires: 7 days unless `site.toml` says otherwise. The page behind it tells search engines not to list it. Needs `posts:write`. */
   make_preview_link: {
     input: {
@@ -2117,6 +2524,20 @@ export interface Operations {
       };
     };
     output: PreviewLinks;
+  };
+  /** Lists the title and text each edit of the post replaced, the newest first, up to the 100 newest. An edit that changed neither keeps none. Bringing one back is an ordinary edit with its title and text, which keeps the text it replaces in turn. Needs `posts:write`. */
+  list_post_versions: {
+    input: {
+      path: {
+        /** The post's identity */
+        id: string;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: PostVersions;
   };
   /** Lists every stored redirect, oldest first. Aliases in front matter are not listed; they live in their posts. Needs `settings:write`. */
   list_redirects: {
@@ -2209,6 +2630,46 @@ export interface Operations {
     };
     output: SchemaTemplates;
   };
+  /** Lists the long searches, of 8 words or more, that showed each post in the last 28 days whose numbers are final, with the heading of the post that answers each. Google is asked on each request, so the answer can take some seconds. Needs `settings:write`. */
+  follow_ups: {
+    input: {
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: FollowUps;
+  };
+  /** Reads whether `SerpDad` is connected and the last 20 drafts it sent. Needs `settings:write`. */
+  read_serpdad: {
+    input: {
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: SerpdadState;
+  };
+  /** Turns the connection on with a new key that may only write posts, and revokes the key it replaces. The answer shows the key once; paste it into `SerpDad` with the blog's address. Needs `settings:write`. */
+  connect_serpdad: {
+    input: {
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: SerpdadState;
+  };
+  /** Turns the connection off: `SerpDad`'s key is revoked at once, and the drafts it sent stay. Needs `settings:write`. */
+  disconnect_serpdad: {
+    input: {
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: null;
+  };
   /** Who the session cookie signs in, with its CSRF token again, for an admin page that was reloaded. Needs the session cookie. */
   current_session: {
     input: {
@@ -2283,6 +2744,16 @@ export interface Operations {
     };
     output: GetOptions;
   };
+  /** The signed-in person's passkeys, oldest first. Needs the session cookie. */
+  list_passkeys: {
+    input: {
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: PasskeyEntry[];
+  };
   /** Adds the passkey the browser made to the signed-in account. Needs the session cookie. */
   add_passkey: {
     input: {
@@ -2303,6 +2774,35 @@ export interface Operations {
       };
     };
     output: CreateOptions;
+  };
+  /** Removes one of the signed-in person's passkeys, so it signs nobody in again. Needs the session cookie. */
+  remove_passkey: {
+    input: {
+      path: {
+        /** The passkey's number */
+        id: number;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: null;
+  };
+  /** Gives one of the signed-in person's passkeys a new name. Needs the session cookie. */
+  rename_passkey: {
+    input: {
+      path: {
+        /** The passkey's number */
+        id: number;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+      body: PasskeyRename;
+    };
+    output: null;
   };
   /** Changes the password of the signed-in account and ends its other sessions. An account with no password may set its first one only in the 15 minutes after signing in. */
   change_password: {
@@ -2614,6 +3114,20 @@ export interface Operations {
       };
     };
     output: null;
+  };
+  /** Lists the 50 newest messages one webhook that is on sent, newest first, each with every try and where it stands. The bodies sent are left out. Needs `webhooks:manage`. */
+  list_deliveries: {
+    input: {
+      path: {
+        /** The webhook's identity */
+        id: number;
+      };
+      headers?: {
+        /** The oldest API version the client accepts, such as v1.0. */
+        "Accept-Version"?: string;
+      };
+    };
+    output: AdminDeliveries;
   };
   browse_authors: {
     input: {
