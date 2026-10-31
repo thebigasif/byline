@@ -44,7 +44,7 @@ pub(crate) fn router(
 /// The way mail leaves, as `[mail]` names it, or `None` when the site
 /// sends none. The settings and the secret were checked at start, so a
 /// failure here is Khalid's own.
-fn mailer(
+pub(crate) fn mailer(
     config: &Config,
     secret: Option<Secret<String>>,
     outbound: &Outbound,

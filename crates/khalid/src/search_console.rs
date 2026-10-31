@@ -15,7 +15,10 @@ use serde::Serialize;
 use crate::bing::{Failed, block_on};
 use crate::cli::{Cli, Output, SearchConsoleCommand};
 use crate::exit::Exit;
-use crate::{outbound, report, search_console_post, search_console_report, serve_message};
+use crate::{
+    outbound, report, search_console_email, search_console_post, search_console_report,
+    serve_message,
+};
 
 /// Days Google takes to make a day's numbers final.
 const SETTLING_DAYS: u64 = 3;
@@ -54,6 +57,7 @@ pub(crate) fn run(
             SearchConsoleCommand::Index => {
                 search_console_post::index(site, (&console, &outbound), output)
             }
+            SearchConsoleCommand::Email => search_console_email::run(site, env, asked, output),
         }
     });
     done.unwrap_or_else(|(message, exit)| report::failure(output, &message, exit))

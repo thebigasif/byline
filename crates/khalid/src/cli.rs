@@ -244,6 +244,9 @@ pub(crate) enum SearchConsoleCommand {
     /// Ask Google whether each published post is in its index, up to 200
     /// posts a run, within Google's daily quota of 2,000
     Index,
+    /// Email the week in Google search to `report_to` under `[search_console]`,
+    /// through [mail]. Run it once a week from a timer
+    Email,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in

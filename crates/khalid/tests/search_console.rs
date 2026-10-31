@@ -16,6 +16,7 @@ use chrono::Days;
 use khalid_api::not_found_log::NotFoundLog as _;
 use khalid_core::{Clock, Slug, SystemClock};
 use khalid_db::{Database, NotFoundTable};
+use khalid_mail::StubSmtp;
 use serde_json::{Value, json};
 use tempfile::TempDir;
 use wiremock::matchers::{body_partial_json, method, path};
@@ -412,6 +413,65 @@ async fn index_asks_about_every_published_post() {
             "{} of {all} posts are in Google's index.",
             all - 1
         )),
+        "{said}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_weekly_email_reaches_report_to_with_what_to_do_next() {
+    let google = MockServer::start().await;
+    grant(&google).await;
+    let month = [("what-a-sitemap-does", 40.0)];
+    pages(&google, (28, 0), &month).await;
+    for (back, clicks) in [(28, 50.0), (56, 70.0), (84, 90.0)] {
+        pages(&google, (28, back), &[("what-a-sitemap-does", clicks)]).await;
+    }
+    pages(&google, (7, 0), &[("what-a-sitemap-does", 8.0)]).await;
+    pages(&google, (7, 7), &[("what-a-sitemap-does", 12.0)]).await;
+    let stub = StubSmtp::start().unwrap();
+    let port = stub.port();
+    let mail = format!(
+        "report_to = \"owner@example.com\"\n\n[mail]\nfrom = \"news@example.com\"\n\n[mail.smtp]\n\
+         host = \"127.0.0.1\"\nport = {port}\nsecurity = \"none\"\nprivate_host = true\n"
+    );
+    let site = demo_site(&format!("{OPT_IN}{mail}"));
+    let output = khalid(site.path(), &google, Some(()), &["email"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let said = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        said,
+        "The weekly Search Console email went to owner@example.com.\n"
+    );
+    let received = stub.received();
+    assert_eq!(received.len(), 1, "{received:?}");
+    let message = received[0]
+        .replace("=\r\n", "")
+        .replace("=\n", "")
+        .replace("=3D", "=");
+    assert!(message.contains("To: owner@example.com"), "{message}");
+    assert!(
+        message.contains("Subject: Field Notes on SEO: your week in Google search"),
+        "{message}"
+    );
+    assert!(
+        message.contains("Clicks from Google: 8 this week, against 12 the week before."),
+        "{message}"
+    );
+    assert!(message.contains("No site audit has run yet."), "{message}");
+    assert!(message.contains("Refresh \"What a sitemap does, and what it does not\": its clicks fell three months in a row."), "{message}");
+    assert!(
+        message.contains(
+            "Go deeper in SerpDad: https://app.serpdad.com/go-deeper?question=what-to-write-next"
+        ),
+        "{message}"
+    );
+
+    let site = demo_site(OPT_IN);
+    let output = khalid(site.path(), &google, Some(()), &["email"]);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let said = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        said.contains("No one is named to get the weekly Search Console email."),
         "{said}"
     );
 }

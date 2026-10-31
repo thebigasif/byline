@@ -36,26 +36,29 @@ pub(crate) struct LivePost {
     pub(crate) slug: Slug,
 }
 
-/// The JSON shape of a report.
+/// The JSON shape of a report, which the weekly email reads too.
 #[derive(Serialize)]
-struct ReportBody<'a> {
-    property: &'a str,
-    first: String,
-    last: String,
-    posts: Vec<PostBody<'a>>,
-    decaying: Vec<DecayBody>,
-    lost: Vec<LostBody>,
+pub(crate) struct ReportBody {
+    pub(crate) property: String,
+    pub(crate) first: String,
+    pub(crate) last: String,
+    pub(crate) posts: Vec<PostBody>,
+    pub(crate) decaying: Vec<DecayBody>,
+    pub(crate) lost: Vec<LostBody>,
+    /// Clicks on every page in the last 7 days, and in the 7 before.
+    pub(crate) week_clicks: f64,
+    pub(crate) last_week_clicks: f64,
     /// The last 7 days against the 7 before.
-    winners: Vec<MoverBody>,
-    losers: Vec<MoverBody>,
+    pub(crate) winners: Vec<MoverBody>,
+    pub(crate) losers: Vec<MoverBody>,
 }
 
 /// The JSON shape of one post's numbers. A post no search showed has no
 /// position.
 #[derive(Serialize)]
-struct PostBody<'a> {
-    title: &'a str,
-    url: &'a str,
+pub(crate) struct PostBody {
+    title: String,
+    url: String,
     clicks: f64,
     impressions: f64,
     ctr: f64,
@@ -64,34 +67,47 @@ struct PostBody<'a> {
 
 /// The JSON shape of one page's change in clicks.
 #[derive(Serialize)]
-struct MoverBody {
-    title: String,
+pub(crate) struct MoverBody {
+    pub(crate) title: String,
     url: String,
-    before: f64,
-    now: f64,
+    pub(crate) before: f64,
+    pub(crate) now: f64,
     /// Where to ask why it dropped, for a loser.
-    go_deeper: Option<String>,
+    pub(crate) go_deeper: Option<String>,
 }
 
 /// The JSON shape of a page whose clicks fell three months in a row.
 #[derive(Serialize)]
-struct DecayBody {
-    title: String,
+pub(crate) struct DecayBody {
+    pub(crate) title: String,
     url: String,
     /// Clicks in each 28-day month, oldest first.
     clicks: Vec<f64>,
     /// What to do about it.
     action: &'static str,
-    go_deeper: String,
+    pub(crate) go_deeper: String,
 }
 
 /// Reads the numbers of the checked site's posts from `console` up to
 /// `today` and prints them.
 pub(crate) fn run(
-    (folder, config, content): (&Path, &Config, &SiteContent),
-    (console, outbound, today): (&SearchConsole, &Outbound, NaiveDate),
+    site: (&Path, &Config, &SiteContent),
+    asked: (&SearchConsole, &Outbound, NaiveDate),
     output: Output,
 ) -> Result<Exit, Failed> {
+    let body = gather(site, asked)?;
+    Ok(match output {
+        Output::Json => report::json(&body, Exit::Success),
+        Output::Human => report::text(&sentences(&body), Exit::Success),
+    })
+}
+
+/// Reads the numbers of the checked site's posts from `console` up to
+/// `today`, with the site's 404 log.
+pub(crate) fn gather(
+    (folder, config, content): (&Path, &Config, &SiteContent),
+    (console, outbound, today): (&SearchConsole, &Outbound, NaiveDate),
+) -> Result<ReportBody, Failed> {
     let posts = live_posts(folder, config, content)?;
     let misses = search_console_lost::misses(folder)?;
     let month = last_month(today);
@@ -113,16 +129,19 @@ pub(crate) fn run(
         Ok((now, then, vec![h3, h2, h1, h0]))
     })?;
     let pages = history.last().map_or(&[][..], Vec::as_slice);
-    let mut rows: Vec<PostBody<'_>> = posts.iter().map(|post| numbers(post, pages)).collect();
-    rows.sort_by(|a, b| b.clicks.total_cmp(&a.clicks).then(a.title.cmp(b.title)));
+    let mut rows: Vec<PostBody> = posts.iter().map(|post| numbers(post, pages)).collect();
+    rows.sort_by(|a, b| b.clicks.total_cmp(&a.clicks).then(a.title.cmp(&b.title)));
     let week_movers = movers(&last_week, &this_week, MOVERS);
     let root = config.address().as_str().trim_end_matches('/');
-    let body = ReportBody {
+    let clicks = |rows: &[PageNumbers]| rows.iter().map(|row| row.clicks).sum();
+    Ok(ReportBody {
         lost: search_console_lost::lost(root, &posts, pages, &misses),
-        property: console.property(),
+        property: console.property().to_owned(),
         first: month.first.to_string(),
         last: month.last.to_string(),
         posts: rows,
+        week_clicks: clicks(&this_week),
+        last_week_clicks: clicks(&last_week),
         decaying: decaying(&history)
             .iter()
             .map(|decay| decay_body(&posts, decay))
@@ -137,10 +156,6 @@ pub(crate) fn run(
             .iter()
             .map(|c| mover(&posts, c, Some(Question::WhyItDropped)))
             .collect(),
-    };
-    Ok(match output {
-        Output::Json => report::json(&body, Exit::Success),
-        Output::Human => report::text(&sentences(&body), Exit::Success),
     })
 }
 
@@ -173,11 +188,11 @@ pub(crate) fn live_posts(
 }
 
 /// `post`'s numbers among `pages`, or none when no search showed it.
-fn numbers<'a>(post: &'a LivePost, pages: &[PageNumbers]) -> PostBody<'a> {
+fn numbers(post: &LivePost, pages: &[PageNumbers]) -> PostBody {
     let found = pages.iter().find(|page| page.key == post.address);
     PostBody {
-        title: &post.title,
-        url: &post.address,
+        title: post.title.clone(),
+        url: post.address.clone(),
         clicks: found.map_or(0.0, |page| page.clicks),
         impressions: found.map_or(0.0, |page| page.impressions),
         ctr: found.map_or(0.0, |page| page.ctr),
@@ -211,7 +226,7 @@ fn decay_body(posts: &[LivePost], decay: &Decay) -> DecayBody {
 }
 
 /// The report as sentences for a person.
-fn sentences(body: &ReportBody<'_>) -> String {
+fn sentences(body: &ReportBody) -> String {
     let mut text = format!(
         "Search Console numbers for {}, {} to {}:\n",
         body.property, body.first, body.last

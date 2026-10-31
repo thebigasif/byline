@@ -20,14 +20,14 @@ use crate::{db, db_message};
 /// The JSON shape of a page that still gets search traffic.
 #[derive(Debug, Serialize)]
 pub(crate) struct LostBody {
-    url: String,
+    pub(crate) url: String,
     clicks: f64,
     impressions: f64,
     /// `missing` for an address that answers 404, `noindex` for a post
     /// marked so.
-    why: &'static str,
+    pub(crate) why: &'static str,
     /// How many requests the 404 log counted, for a missing page.
-    not_found_hits: Option<u64>,
+    pub(crate) not_found_hits: Option<u64>,
 }
 
 /// Each address in the 404 log of the site in `folder`, with how many
