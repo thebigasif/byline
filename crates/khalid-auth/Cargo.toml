@@ -38,6 +38,8 @@ khalid-auth = { path = ".", version = "0.0.0", features = ["test-util"] }
 khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }
+webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softpasskey"] }
+webauthn-rs-proto = "0.6.1-dev"
 
 [lints]
 workspace = true
