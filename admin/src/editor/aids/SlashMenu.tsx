@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import { en } from "../../strings/en";
 import { AidMenu } from "./AidMenu";
 import { type Details, newDetails } from "./blockForm";
-import { matchingItems, type SlashItem } from "./slashItems";
+import { matchingItems, type SlashItem, TABLE_ITEM } from "./slashItems";
 import { closeMenu, type Trigger } from "./trigger";
 import { type KeyHandler, useMenu } from "./useMenu";
 
@@ -13,6 +13,8 @@ type Props = {
   keys: RefObject<KeyHandler>;
   /** Opens the details form of a block that needs some before it is added. */
   onDetails: (details: Details) => void;
+  /** Opens an empty table as a grid, to add where `/table` was once filled in. */
+  onTable: (at: number) => void;
 };
 
 /** Turns the line holding `/words` into the block `item`. */
@@ -22,15 +24,19 @@ export function addBlock(editor: Editor, trigger: Trigger, item: SlashItem) {
 }
 
 /** The blocks that match what the writer typed after `/`. */
-export function SlashMenu({ editor, trigger, keys, onDetails }: Props) {
+export function SlashMenu({ editor, trigger, keys, onDetails, onTable }: Props) {
   const items = matchingItems(trigger.query);
   const pick = (index: number) => {
     const item = items[index];
     const details = item?.spec ? newDetails(item.spec, trigger.from) : null;
+    // The form adds the block where `/words` was, once its details are in.
+    const clear = () => editor.chain().deleteRange({ from: trigger.from, to: trigger.to }).run();
     if (details !== null) {
-      // The form adds the block where `/words` was, once its details are in.
-      editor.chain().deleteRange({ from: trigger.from, to: trigger.to }).run();
+      clear();
       onDetails(details);
+    } else if (item?.id === TABLE_ITEM) {
+      clear();
+      onTable(trigger.from);
     } else if (item !== undefined) {
       addBlock(editor, trigger, item);
     }

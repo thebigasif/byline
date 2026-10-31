@@ -67,6 +67,10 @@
   .shortcut-help th,.shortcut-help td{text-align:left;padding:.4rem .5rem;border-bottom:1px solid var(--color-border)}
   .shortcut-help kbd{font-family:var(--font-mono);background:var(--color-bg);padding:.05rem .3rem;border-radius:.25rem}
   .link-search .aid-menu{position:static;box-shadow:none}
+  .table-grid{overflow-x:auto;margin:0 0 1rem}
+  .table-grid th,.table-grid td{padding:0;border:1px solid var(--color-border)}
+  .table-grid input{width:100%;min-width:8rem;min-height:44px;padding:.4rem .6rem;border:0;background:var(--color-bg);font:inherit}
+  .table-grid th input{font-weight:700;background:var(--color-surface)}
   .aid-title{font-size:.875rem;color:var(--color-muted);padding:.75rem 1rem .25rem;margin:0}
   .aid-menu ul{list-style:none;margin:0;padding:0 .25rem .25rem}
   .aid-menu button{display:block;width:100%;min-height:44px;text-align:left;padding:.55rem .75rem;border-radius:var(--radius-field);background:var(--color-bg);cursor:pointer}

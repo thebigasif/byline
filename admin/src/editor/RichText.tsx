@@ -10,6 +10,8 @@ import { SaveSnippet } from "./aids/SaveSnippet";
 import { ShortcutHelp } from "./aids/ShortcutHelp";
 import { SlashMenu } from "./aids/SlashMenu";
 import { placeSnippet, selectedMarkdown } from "./aids/snippetBlock";
+import { applyTable, newTable, selectedTable, type TableEdit, tableOf } from "./aids/tableEdit";
+import { TableGrid } from "./aids/TableGrid";
 import { openTrigger } from "./aids/trigger";
 import { isHelpKey, type KeyHandler, menuKey, noKeys } from "./aids/useMenu";
 import { extensions, fileText } from "./richText";
@@ -34,6 +36,14 @@ export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props
   const opened = (found: Details | null) => {
     if (found !== null) {
       setDetails(found);
+    }
+    return found !== null;
+  };
+  // A table being edited as a grid of cells.
+  const [table, setTable] = useState<TableEdit | null>(null);
+  const openedTable = (found: TableEdit | null) => {
+    if (found !== null) {
+      setTable(found);
     }
     return found !== null;
   };
@@ -63,14 +73,14 @@ export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props
           setHelp((shown) => !shown);
           return true;
         }
-        // Enter on a selected block card opens its details.
+        // Enter on a selected block card opens its details, or its grid for a table.
         if (menuKey(event) !== "pick" || !view.editable) {
           return false;
         }
-        return opened(selectedDetails(view.state));
+        return opened(selectedDetails(view.state)) || openedTable(selectedTable(view.state));
       },
       handleDoubleClickOn: (view, _pos, node, nodePos) =>
-        view.editable && opened(detailsOf(node, nodePos)),
+        view.editable && (opened(detailsOf(node, nodePos)) || openedTable(tableOf(node, nodePos))),
     },
     onUpdate: ({ editor: current }) => onChange(fileText(current.getMarkdown())),
     onBlur,
@@ -92,10 +102,23 @@ export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props
     setLinking(null);
     setHelp(false);
     setSnippet(null);
+    setTable(null);
     editor.commands.focus();
   };
   let aid: ReactNode = null;
-  if (snippet !== null) {
+  if (table !== null) {
+    aid = (
+      <TableGrid
+        key={table.at}
+        grid={table.grid}
+        onSave={(grid) => {
+          applyTable(editor, table, grid);
+          setTable(null);
+        }}
+        onCancel={closeForm}
+      />
+    );
+  } else if (snippet !== null) {
     aid = (
       <SaveSnippet
         markdown={snippet}
@@ -146,6 +169,7 @@ export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props
         trigger={trigger}
         keys={keys}
         onDetails={setDetails}
+        onTable={(at) => setTable(newTable(at))}
       />
     );
   }

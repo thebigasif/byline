@@ -1,7 +1,9 @@
 import type { ChainedCommands } from "@tiptap/core";
 import { en } from "../../strings/en";
+import { tables } from "../../strings/tables";
 import { nodeName } from "../blocks/directiveNode";
 import { BLOCK_SPECS, type BlockSpec } from "../blocks/specs";
+import { emptyGrid, writeTable } from "../blocks/table";
 
 /** One line of the slash menu: a block the writer can add. */
 export type SlashItem = {
@@ -20,6 +22,9 @@ const starter = (
   hint: string,
   add: (chain: ChainedCommands) => ChainedCommands,
 ): SlashItem => ({ id, name, hint, spec: null, add });
+
+/** The table item, which opens an empty grid rather than adding a block at once. */
+export const TABLE_ITEM = "table";
 
 const names: Record<string, string> = en.blocks;
 const hints: Record<string, string> = en.blockHints;
@@ -48,6 +53,9 @@ export const SLASH_ITEMS: readonly SlashItem[] = [
   starter("quote", en.aids.quote, en.aids.quoteHint, (chain) => chain.toggleBlockquote()),
   starter("code", en.aids.code, en.aids.codeHint, (chain) => chain.toggleCodeBlock()),
   starter("divider", en.aids.divider, en.aids.dividerHint, (chain) => chain.setHorizontalRule()),
+  starter(TABLE_ITEM, tables.title, tables.slashHint, (chain) =>
+    chain.insertContent({ type: "markdownTable", attrs: { source: writeTable(emptyGrid()) } }),
+  ),
   ...BLOCK_SPECS.map(directive),
 ];
 
