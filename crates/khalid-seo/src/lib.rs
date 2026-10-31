@@ -75,10 +75,12 @@ pub use robots_txt::{
     BotAccess, CrawlerPolicy, KNOWN_AI_CRAWLERS, RobotsPath, RobotsTxt, UserAgent,
 };
 pub use schema::{
-    AggregateRating, AuthorProfile, CustomSchema, Entity, EntityRole, FaqItem, HowTo, HowToStep,
-    IssueLevel, LocalBusiness, Money, OpeningHours, PostalAddress, Publisher, PublisherKind,
-    Rating, Recipe, Review, SchemaBlock, SchemaGraph, SchemaIssue, SchemaNode, SchemaTemplate,
-    SchemaType, SchemaValue, SiteSearch, TemplateScope, breadcrumb_list, check_graph, page_graph,
+    AggregateRating, AppKind, AuthorProfile, Availability, Book, ClaimReview, Course, CustomSchema,
+    Dataset, Entity, EntityRole, Event, EventLocation, EventStatus, FaqItem, HowTo, HowToStep,
+    IssueLevel, ItemList, ListEntry, LocalBusiness, Money, Offer, OpeningHours, PodcastEpisode,
+    PostalAddress, Product, ProductReview, Publisher, PublisherKind, Rating, Recipe, Review,
+    SchemaBlock, SchemaGraph, SchemaIssue, SchemaNode, SchemaTemplate, SchemaType, SchemaValue,
+    SiteSearch, SoftwareApplication, TemplateScope, breadcrumb_list, check_graph, page_graph,
     site_graph,
 };
 pub use seo_error::SeoError;
