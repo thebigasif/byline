@@ -22,6 +22,7 @@ An internal link points to [how to pick link text](/blog/choosing-link-text/).
 const UNDATED: &str = "---
 title: Choosing link text
 author: asif
+focus_keyword: link text
 ---
 
 Good link text names the page it opens, like [why links matter](/blog/why-internal-links-matter/).
@@ -219,6 +220,38 @@ fn lint_warns_about_a_link_to_the_own_site_over_http() {
     );
 }
 
+/// A good post whose search title holds its focus keyword and whose
+/// headline does not.
+const SPLIT_TITLE: &str = "---
+title: Why links between your posts matter
+seo_title: \"Internal links, a guide {sep} {site}\"
+focus_keyword: internal links
+date: 2026-09-14
+author: asif
+description: Internal links help readers and search engines find the rest of your site.
+---
+
+Internal links point to [how to pick link text](/blog/choosing-link-text/).
+";
+
+#[test]
+fn lint_warns_when_the_headline_lacks_the_focus_keyword_the_search_title_has() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", SPLIT_TITLE)]);
+    let output = khalid(site.path(), &["lint", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let rules: Vec<&Value> = findings.iter().map(|f| &f["rule"]).collect();
+    assert!(
+        !rules.contains(&&Value::from("focus-not-in-title")),
+        "{json}"
+    );
+    let found = findings.iter().find(|f| f["rule"] == "focus-not-in-h1");
+    let found = found.unwrap_or_else(|| panic!("no focus-not-in-h1 in {json}"));
+    assert_eq!(found["severity"], "warn");
+    assert_eq!(found["subject"], "internal links");
+}
+
 /// A good post written in three very long sentences of long words, under
 /// a heading with no full stop.
 const DENSE: &str = "---
@@ -410,6 +443,32 @@ fn lint_fix_describes_an_image_with_its_caption() {
     let findings = json["findings"].as_array().unwrap();
     assert!(
         findings.iter().all(|f| f["rule"] != "missing-alt"),
+        "{json}"
+    );
+}
+
+#[test]
+fn lint_fix_moves_a_link_to_the_own_site_onto_https() {
+    let site = site(&[("2026-09-14-why-internal-links-matter.md", INSECURE)]);
+    let output = khalid(site.path(), &["lint", "--fix", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
+    let file = within(
+        site.path(),
+        "content/en/posts/2026-09-14-why-internal-links-matter.md",
+    );
+    let secure = INSECURE.replace("(http://example.com/", "(https://example.com/");
+    assert_eq!(fs::read_to_string(file).unwrap(), secure);
+    let json: Value = serde_json::from_str(&text(&output.stdout)).unwrap();
+    assert_eq!(json["fixed"][0]["rule"], "insecure-internal-link");
+    assert_eq!(
+        json["fixed"][0]["subject"],
+        "http://example.com/blog/pruning-old-posts/"
+    );
+    let findings = json["findings"].as_array().unwrap();
+    assert!(
+        findings
+            .iter()
+            .all(|f| f["rule"] != "insecure-internal-link"),
         "{json}"
     );
 }

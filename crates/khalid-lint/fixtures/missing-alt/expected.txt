@@ -1,2 +1,3 @@
 warn missing-alt: link-graph.png
 warn missing-alt: menu-links.png
+warn no-focus-keyword

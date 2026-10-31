@@ -92,6 +92,55 @@ impl Rule for LongDescription {
     }
 }
 
+/// One hit when `field` has text and holds fewer than `min` characters. An
+/// empty field is left to the rule about a missing one.
+fn too_short(field: Option<&str>, min: usize) -> Vec<Hit> {
+    let short = filled(field).is_some_and(|text| text.chars().count() < min);
+    short.then(Hit::post).into_iter().collect()
+}
+
+/// A title too short to say what the post is about.
+#[derive(Debug)]
+pub(crate) struct ShortTitle {
+    /// The fewest characters, from `Thresholds::title_min_chars`.
+    pub(crate) min: usize,
+}
+
+impl Rule for ShortTitle {
+    fn id(&self) -> RuleId {
+        RuleId::new("short-title")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        too_short(post.title.as_deref(), self.min)
+    }
+}
+
+/// A description too short to sum up the post in search results.
+#[derive(Debug)]
+pub(crate) struct ShortDescription {
+    /// The fewest characters, from `Thresholds::description_min_chars`.
+    pub(crate) min: usize,
+}
+
+impl Rule for ShortDescription {
+    fn id(&self) -> RuleId {
+        RuleId::new("short-description")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
+        too_short(post.description.as_deref(), self.min)
+    }
+}
+
 /// Another post in the same language with the same title.
 #[derive(Debug)]
 pub(crate) struct DuplicateTitle;
@@ -125,5 +174,23 @@ impl Rule for DuplicateDescription {
 
     fn check(&self, post: &LintPost, site: &dyn SiteView) -> Vec<Hit> {
         duplicates(post, site, |p| p.description.as_deref())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_minimum_itself_is_long_enough_and_counts_characters() {
+        assert_eq!(too_short(Some("Über Links"), 10), []);
+        assert_eq!(too_short(Some("Über Link"), 10), [Hit::post()]);
+        assert_eq!(too_short(Some("  Über Links  "), 11), [Hit::post()]);
+    }
+
+    #[test]
+    fn an_empty_field_is_left_to_the_rule_about_a_missing_one() {
+        assert_eq!(too_short(None, 20), []);
+        assert_eq!(too_short(Some("   "), 20), []);
     }
 }

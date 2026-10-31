@@ -1,0 +1,4 @@
+# The headline holds the focus keyword, but search results show the
+# search title in its place, and that one does not hold it.
+extends = "focus-clean"
+seo_title = "How to link your own posts {sep} {site}"

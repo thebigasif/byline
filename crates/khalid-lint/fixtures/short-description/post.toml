@@ -1,0 +1,3 @@
+# 38 characters, under the default 50.
+extends = "clean"
+description = "Internal links help readers. Add them."

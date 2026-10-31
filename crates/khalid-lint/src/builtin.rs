@@ -35,6 +35,12 @@ fn blocking_and_structure_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
             max: thresholds.description_max_chars,
         }),
         Box::new(snippet::DuplicateDescription),
+        Box::new(snippet::ShortTitle {
+            min: thresholds.title_min_chars,
+        }),
+        Box::new(snippet::ShortDescription {
+            min: thresholds.description_min_chars,
+        }),
         Box::new(structure::HeadingOrder),
         Box::new(structure::MissingAlt),
         Box::new(structure::ThinPost {
@@ -77,7 +83,9 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
             openers: writing::VAGUE_OPENERS.to_vec(),
         }),
         Box::new(writing::SourcedStatistics),
+        Box::new(crate::focus::NoFocusKeyword),
         Box::new(FocusNotIn(Place::Title)),
+        Box::new(FocusNotIn(Place::Headline)),
         Box::new(FocusNotIn(Place::Description)),
         Box::new(FocusNotIn(Place::FirstParagraph)),
         Box::new(FocusNotIn(Place::Subheading)),

@@ -1,1 +1,2 @@
 warn empty-link-text: /blog/anchor-text-basics/
+warn no-focus-keyword
