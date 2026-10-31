@@ -13,8 +13,8 @@ use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::{
-    BlockKind, Document, Link, PostFront, SiteContent, TopicCluster, TopicRole, Wikilinks,
-    parse_blocks, render_linked,
+    BlockKind, Document, Link, PostFront, SiteContent, StructuredBlock, TopicCluster, TopicRole,
+    Wikilinks, parse_blocks, render_linked,
 };
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
@@ -207,6 +207,12 @@ pub(crate) fn lint_parts(
         .iter()
         .map(|image| Image::new(image.src.clone(), image.alt.clone()))
         .collect();
+    post.tables = rendered.html.matches("<table").count();
+    post.reviews = rendered
+        .structured
+        .iter()
+        .filter(|block| matches!(block, StructuredBlock::Review(_)))
+        .count();
     post.word_count = rendered.words;
     post.body_text = plain_text(&rendered.html);
     Some(post)

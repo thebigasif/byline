@@ -1,0 +1,5 @@
+# A review that never gives its score in a review block.
+extends = "clean"
+unset = ["focus_keyword"]
+title = "Ahrefs review: is it worth it for a small blog?"
+description = "What Ahrefs does well for a small blog, where it falls short, and who should pay for it."

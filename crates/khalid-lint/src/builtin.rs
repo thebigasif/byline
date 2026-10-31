@@ -5,8 +5,8 @@ use chrono::NaiveDate;
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
     Rule, SiteRule, Thresholds, address, blocking, collections, link_hygiene, link_targets,
-    link_text, page_or_section, reading, site_content, site_links, site_sections, site_trust,
-    snippet, structure, topics, words, writing,
+    link_text, page_or_section, page_shape, reading, site_content, site_links, site_sections,
+    site_trust, snippet, structure, topics, words, writing,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -119,6 +119,10 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(page_or_section::SectionWantsOwnPage {
             min_words: thresholds.thin_post_words,
         }),
+        Box::new(page_shape::ComparisonWithoutTable),
+        Box::new(page_shape::ComparisonAnswerLate),
+        Box::new(page_shape::FewerPicksThanTitle),
+        Box::new(page_shape::ReviewWithoutRating),
     ]
 }
 

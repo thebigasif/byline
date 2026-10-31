@@ -1,0 +1,2 @@
+warn no-focus-keyword
+warn comparison-without-table: the post weighs choices against each other in paragraphs only (suggest: add a table with one column per choice and one row per point you compare)

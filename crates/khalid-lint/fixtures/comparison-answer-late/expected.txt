@@ -1,0 +1,2 @@
+warn no-focus-keyword
+warn comparison-answer-late: the opening never names Semrush (suggest: open with a paragraph that names both choices and says which suits which reader)

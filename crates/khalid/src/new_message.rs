@@ -4,6 +4,8 @@ use std::io;
 
 use khalid_core::{Locale, UserMessage};
 
+use crate::new_template::Template;
+
 /// The message when `--language` names a language the site does not list.
 pub(crate) fn language(locale: &Locale, languages: &[Locale]) -> UserMessage {
     let listed: Vec<&str> = languages.iter().map(Locale::as_str).collect();
@@ -23,6 +25,22 @@ pub(crate) fn no_slug(title: &str) -> UserMessage {
         format!("Khalid cannot make an address from the title \"{title}\"."),
         "A post's address is made from the letters and digits in its title.",
         "Give a title with at least one letter or digit.",
+    )
+}
+
+/// The message when `--template` asks for a kind of post the title does
+/// not read as.
+pub(crate) fn not_kind(title: &str, template: Template) -> UserMessage {
+    let name = template.name();
+    UserMessage::new(
+        format!("The title \"{title}\" does not read as a {name} post."),
+        format!(
+            "The linter checks the shape of a {name} post only when its title says what it is."
+        ),
+        format!(
+            "Write a title like \"{}\", or leave out --template.",
+            template.example()
+        ),
     )
 }
 
