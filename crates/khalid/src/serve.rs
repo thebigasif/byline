@@ -118,6 +118,16 @@ pub(crate) fn run(
     }
 }
 
+/// Renders the home pages that answer first, with the stylesheet preloaded.
+fn first_pages(source: &SitePages, checked: &SiteContent) -> Result<Pages, UserMessage> {
+    let first = source.render_first(checked)?;
+    let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+    Ok(match source.stylesheet() {
+        Some(href) => first.with_preloads(vec![href]),
+        None => first,
+    })
+}
+
 /// Renders the site with its checked settings and routes, then answers on
 /// `listen` until told to stop.
 fn serve_with(
@@ -142,15 +152,7 @@ fn serve_with(
     // full render").
     let clock = Arc::new(SystemClock);
     let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)
-        .and_then(|source| {
-            let first = source.render_first(&checked)?;
-            let first = Pages::first(first).map_err(|_| serve_message::internal())?;
-            let first = match source.stylesheet() {
-                Some(href) => first.with_preloads(vec![href]),
-                None => first,
-            };
-            Ok((source, first))
-        })
+        .and_then(|source| first_pages(&source, &checked).map(|first| (source, first)))
         .map_err(|message| (message, Exit::Failure))?;
     let security = security_headers()?;
     let search = search_route::Search {
