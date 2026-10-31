@@ -6,7 +6,7 @@ A site folder is the folder that holds `site.toml`, `content/` and `theme/`. Kha
 
 ## Install with one line
 
-On Linux or a Mac with Apple silicon:
+On Linux or a Mac:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sh

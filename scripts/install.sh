@@ -54,7 +54,6 @@ case "$(uname -m)" in
   *) fail "There is no Khalid build for a $(uname -m) processor yet." "Build it from source with cargo, as CONTRIBUTING.md says." ;;
 esac
 platform="$os-$arch"
-[ "$platform" != "macos-x86_64" ] || fail "There is no Khalid build for Intel Macs yet." "Build it from source with cargo, as CONTRIBUTING.md says."
 
 command -v curl >/dev/null 2>&1 || fail "This script needs curl to download Khalid." "Install curl, then run it again."
 if command -v sha256sum >/dev/null 2>&1; then
