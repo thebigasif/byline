@@ -50,6 +50,11 @@ jobs:
         # dependency sources out of the coverage floor.
         run: |
           work=$(realpath "$RUNNER_WORKSPACE/..")
+          export CARGO_HOME="$work/.cargo-home" RUSTUP_HOME="$work/.rustup-home"
+          mkdir -p "$CARGO_HOME/bin"
+          if [ ! -x "$CARGO_HOME/bin/rustup" ]; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --default-toolchain none
+          fi
           echo "CARGO_HOME=$work/.cargo-home" >> "$GITHUB_ENV"
           echo "RUSTUP_HOME=$work/.rustup-home" >> "$GITHUB_ENV"
           echo "$work/.cargo-home/bin" >> "$GITHUB_PATH"
