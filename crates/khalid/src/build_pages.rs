@@ -22,7 +22,7 @@ use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 use crate::listed_post::{ListedPost, ListedTag};
 use crate::post_lock::Unlocked;
 pub(crate) use crate::site_page::Page;
-use crate::{build_home, build_message, build_reader, build_schema, build_seo};
+use crate::{build_ai_page, build_home, build_message, build_reader, build_schema, build_seo};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
@@ -78,7 +78,7 @@ fn language_pages(
     };
     let (mut pages, listed) = post_pages(config, routes, &links, &posts)?;
     pages.extend(plain_pages(config, &links, content, locale)?);
-    if let Some(ai) = ai_page(config, locale, today)? {
+    if let Some(ai) = build_ai_page::ai_page(config, locale, today)? {
         pages.push(ai);
     }
     pages.extend(glossary_pages(config, routes, &links, content, locale)?);
@@ -358,72 +358,6 @@ fn post_page(
 }
 
 /// The page of every plain page in `locale`, such as About, at `/<slug>/`.
-/// The AI info page of `locale`, at `ai/` (P3): who runs the site, what
-/// it covers, how to cite it and how to reach the team, in plain HTML
-/// that needs no scripts, with its own `AboutPage` schema. `None` when
-/// `[seo.ai_page] off = true`.
-fn ai_page(
-    config: &Config,
-    locale: &Locale,
-    today: NaiveDate,
-) -> Result<Option<Page>, UserMessage> {
-    let settings = config.ai_page();
-    if settings.off {
-        return Ok(None);
-    }
-    let rest = "ai/";
-    let title = "About this site for readers and AI".to_owned();
-    let publisher = config.seo().publisher.name.clone().unwrap_or_default();
-    let who = if publisher.is_empty() {
-        config.name().to_owned()
-    } else {
-        publisher
-    };
-    let tagline = &config.seo().titles.tagline;
-    let covers = settings.covers.clone().unwrap_or_else(|| {
-        if tagline.is_empty() {
-            format!("{who} publishes notes and guides.")
-        } else {
-            tagline.clone()
-        }
-    });
-    let contact = settings.contact.clone().unwrap_or_else(|| {
-        config
-            .seo()
-            .publisher
-            .email
-            .clone()
-            .unwrap_or_else(|| "the address in the site's contact page".to_owned())
-    });
-    let cite = settings
-        .cite
-        .clone()
-        .unwrap_or_else(|| format!("Name {who} and link the post you quote."));
-    let lines = [
-        format!("<p>{who} runs this site.</p>"),
-        format!("<p>{covers}</p>"),
-        format!("<p>{cite}</p>"),
-        format!("<p>To reach the team: {contact}.</p>"),
-    ];
-    let body = lines.join("\n");
-    let description =
-        format!("Who runs {who}, what it covers, how to cite it and how to reach the team.");
-    let path = path_of(config, locale, rest);
-    let mut seo = build_seo::page(SeoKind::AiPage, locale, rest, &title)?;
-    seo.excerpt.clone_from(&description);
-    let meta = meta(config, title.clone(), description, path, PageKind::Website)?;
-    let updated = today;
-    let body = RenderPage {
-        title,
-        updated: Some(updated),
-        body: BodyHtml::from_sanitised(body),
-    };
-    Ok(Some(
-        page(locale, config, rest, meta, PageBody::Page(body), seo)
-            .made_from(Path::new("site.toml")),
-    ))
-}
-
 fn plain_pages(
     config: &Config,
     links: &Wikilinks,
@@ -646,7 +580,7 @@ pub(crate) fn meta(
 }
 
 /// A page whose path ends in `rest`, written to `rest/index.html`.
-fn page(
+pub(crate) fn page(
     locale: &Locale,
     config: &Config,
     rest: &str,
@@ -690,7 +624,7 @@ fn nav(config: &Config, locale: &Locale) -> Nav {
     if !config.ai_page().off {
         nav.footer.push(NavLink {
             label: "AI info".to_owned(),
-            href: path_of(config, locale, "ai/"),
+            href: path_of(config, locale, build_ai_page::REST),
         });
     }
     nav

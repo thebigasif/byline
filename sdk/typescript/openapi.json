@@ -7597,7 +7597,7 @@
           },
           "review_due": {
             "type": "boolean",
-            "description": "Whether the post is due for review: longer than the site's limit\nsince it was last reviewed, published or updated, whichever came\nlast. A list filters by this, such as `filter=review:due`."
+            "description": "Whether the post is due for review: more than six months since it\nwas last reviewed or published, whichever came last. A list\nfilters by this, such as `filter=review:due`."
           },
           "review_state": {
             "$ref": "#/components/schemas/ReviewState",

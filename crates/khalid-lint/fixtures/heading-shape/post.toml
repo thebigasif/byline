@@ -1,5 +1,6 @@
 # A heading that promises types but is followed by prose, and a
-# comparison heading with no table.
+# comparison heading with no table. Neither heading's section holds a
+# list or a table, which is what the empty `holds` of each says.
 extends = "clean"
 unset = []
 

@@ -17,7 +17,7 @@ use khalid_content::{
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
     GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection, LintForm, LintLink,
-    LintPost, LintSite, PageRef, StructuredDataGap,
+    LintPost, LintSite, PageRef, SectionShape, StructuredDataGap,
 };
 use khalid_routes::{PostAddress, Routes};
 use khalid_seo::SeoSite;
@@ -187,10 +187,14 @@ pub(crate) fn lint_parts(
         .clone_from(&front.secondary_keywords);
     post.wikilinks = wikilinks(parts.body);
     post.forms = forms(parts.body);
+    let mut sections = section_shapes(&rendered.html).into_iter();
     post.headings = rendered
         .headings
         .iter()
-        .filter_map(|h| level(h.level).map(|level| Heading::new(level, h.text.clone())))
+        .filter_map(|h| {
+            let holds = sections.next().unwrap_or_default();
+            level(h.level).map(|level| Heading::new(level, h.text.clone()).holding(holds))
+        })
         .collect();
     post.links = rendered
         .links
@@ -387,9 +391,54 @@ fn plain_text(html: &str) -> String {
     text
 }
 
+/// The lists and tables under each heading of `html`, in heading order:
+/// what sits between one `<h1>` to `<h6>` and the next. The plain text
+/// the rules read has lost the bullets and pipes, so W6 reads these.
+fn section_shapes(html: &str) -> Vec<Vec<SectionShape>> {
+    let mut sections = Vec::new();
+    let mut rest = html.get(next_heading(html).unwrap_or(html.len())..);
+    while let Some(section) = rest.and_then(|from| from.get(1..)) {
+        let end = next_heading(section).unwrap_or(section.len());
+        let inside = section.get(..end).unwrap_or_default();
+        let mut holds = Vec::new();
+        if inside.contains("<ul") || inside.contains("<ol") {
+            holds.push(SectionShape::List);
+        }
+        if inside.contains("<table") {
+            holds.push(SectionShape::Table);
+        }
+        sections.push(holds);
+        rest = section.get(end..).filter(|left| !left.is_empty());
+    }
+    sections
+}
+
+/// Where the next heading tag of `html` starts.
+fn next_heading(html: &str) -> Option<usize> {
+    ["<h1", "<h2", "<h3", "<h4", "<h5", "<h6"]
+        .iter()
+        .filter_map(|tag| html.find(tag))
+        .min()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_heading_holds_the_lists_and_tables_before_the_next() {
+        let html = "<p>Intro</p><ul><li>not under a heading</li></ul>\
+                    <h2>Types</h2><ul><li>a</li></ul><h3>Versus</h3><p>none</p>\
+                    <h2>Both</h2><ol><li>a</li></ol><table><tr><td>b</td></tr></table>";
+        assert_eq!(
+            section_shapes(html),
+            [
+                vec![SectionShape::List],
+                vec![],
+                vec![SectionShape::List, SectionShape::Table],
+            ]
+        );
+    }
 
     #[test]
     fn plain_text_drops_tags_and_entities() {

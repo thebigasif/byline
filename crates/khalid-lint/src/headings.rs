@@ -14,7 +14,7 @@
 //! (which words promise a list or a table) are kept here as readable
 //! lists, so a site can read and change them.
 
-use crate::{Hit, LintPost, Rule, RuleId, Severity, SiteView};
+use crate::{Heading, Hit, LintPost, Rule, RuleId, SectionShape, Severity, SiteView};
 
 /// Heading words that promise a list of types or kinds.
 pub(crate) const LIST_WORDS: &[&str] = &[
@@ -28,8 +28,8 @@ pub(crate) const TABLE_WORDS: &[&str] = &["differences", "vs", "versus", "compar
 /// near-duplicates.**
 #[derive(Debug)]
 pub(crate) struct HeadingAgrees {
-    /// The largest share in percent two headings may share before they
-    /// read as the same heading.
+    /// The share in percent of the shorter heading's words that, when two
+    /// headings share it or more, makes them read as the same heading.
     pub(crate) max_duplicate_percent: usize,
 }
 
@@ -118,60 +118,82 @@ impl Rule for HeadingShape {
     }
 
     fn check(&self, post: &LintPost, _site: &dyn SiteView) -> Vec<Hit> {
-        let body = post.body_text.lines().map(str::trim).collect::<Vec<_>>();
         post.headings
             .iter()
-            .filter_map(|heading| {
-                let lower = heading.text.to_lowercase();
-                let wants_list = self
-                    .list_words
-                    .iter()
-                    .any(|word| lower.contains(word));
-                let wants_table = self
-                    .table_words
-                    .iter()
-                    .any(|word| lower.contains(word));
-                if !wants_list && !wants_table {
-                    return None;
-                }
-                // The lines from this heading to the next one.
-                let start = body
-                    .iter()
-                    .position(|line| *line == heading.text.trim())?;
-                let after: Vec<&&str> = body
-                    .iter()
-                    .skip(start + 1)
-                    .take_while(|line| {
-                        !post
-                            .headings
-                            .iter()
-                            .any(|h| h.text.trim() == **line)
-                    })
-                    .collect();
-                let has_list = after
-                    .iter()
-                    .any(|line| line.starts_with("- ") || line.starts_with("* "));
-                let has_table = after.iter().any(|line| line.contains(" | "));
-                match (wants_list, wants_table) {
-                    (true, false) if !has_list => Some(
-                        Hit::about(format!("the heading {:?} promises kinds, but no list follows", heading.text))
-                            .suggesting(vec!["turn what follows into a list, one kind to a bullet".to_owned()]),
-                    ),
-                    (false, true) if !has_table => Some(
-                        Hit::about(format!("the heading {:?} promises a comparison, but no table follows", heading.text))
-                            .suggesting(vec!["set what follows as a table, one row to a pair".to_owned()]),
-                    ),
-                    (true, true) if !has_list && !has_table => Some(
-                        Hit::about(format!("the heading {:?} promises kinds and a comparison, but neither a list nor a table follows", heading.text))
-                            .suggesting(vec!["give the kinds a list and the differences a table".to_owned()]),
-                    ),
-                    _ => None,
-                }
-            })
+            .filter_map(|heading| self.missing_shape(heading))
             .collect()
     }
 
     fn default_severity(&self) -> Severity {
         Severity::Warn
+    }
+}
+
+impl HeadingShape {
+    /// The finding for `heading` when its words promise a list or a table
+    /// and its section holds neither of what it promises. Whole words
+    /// count, so "always" promises no "ways".
+    fn missing_shape(&self, heading: &Heading) -> Option<Hit> {
+        let words = words_of(&heading.text);
+        let promises = |list: &[&str]| words.iter().any(|word| list.contains(&word.as_str()));
+        let wants_list = promises(&self.list_words);
+        let wants_table = promises(&self.table_words);
+        let has_list = heading.holds.contains(&SectionShape::List);
+        let has_table = heading.holds.contains(&SectionShape::Table);
+        let text = &heading.text;
+        let (about, fix) = match (wants_list, wants_table) {
+            (true, false) if !has_list => (
+                format!("the heading {text:?} promises kinds, but no list follows"),
+                "turn what follows into a list, one kind to a bullet",
+            ),
+            (false, true) if !has_table => (
+                format!("the heading {text:?} promises a comparison, but no table follows"),
+                "set what follows as a table, one row to a pair",
+            ),
+            (true, true) if !has_list && !has_table => (
+                format!(
+                    "the heading {text:?} promises kinds and a comparison, \
+                     but neither a list nor a table follows"
+                ),
+                "give the kinds a list and the differences a table",
+            ),
+            _ => return None,
+        };
+        Some(Hit::about(about).suggesting(vec![fix.to_owned()]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::HeadingLevel;
+
+    fn rule() -> HeadingShape {
+        HeadingShape {
+            list_words: LIST_WORDS.to_vec(),
+            table_words: TABLE_WORDS.to_vec(),
+        }
+    }
+
+    fn heading(text: &str, holds: Vec<SectionShape>) -> Heading {
+        Heading::new(HeadingLevel::H2, text).holding(holds)
+    }
+
+    #[test]
+    fn a_promised_list_that_follows_is_quiet() {
+        let types = heading("Types of links", vec![SectionShape::List]);
+        assert!(rule().missing_shape(&types).is_none());
+    }
+
+    #[test]
+    fn a_promised_table_that_is_missing_is_found() {
+        let versus = heading("Links vs buttons", vec![SectionShape::List]);
+        assert!(rule().missing_shape(&versus).is_some());
+    }
+
+    #[test]
+    fn only_whole_words_make_a_promise() {
+        let always = heading("Why it always matters", Vec::new());
+        assert!(rule().missing_shape(&always).is_none());
     }
 }

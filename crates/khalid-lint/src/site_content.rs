@@ -66,7 +66,7 @@ impl SiteRule for ReviewDue {
 
     fn check<'site>(&self, site: &'site dyn SiteView) -> Vec<(&'site LintPost, Hit)> {
         let due = |post: &&LintPost| {
-            let last = post.reviewed.or(post.updated).or(post.date);
+            let last = post.reviewed.max(post.updated).max(post.date);
             let next = last.and_then(|day| day.checked_add_months(Months::new(self.months)));
             next.is_some_and(|until| until < self.today)
         };

@@ -281,6 +281,33 @@ fn a_focus_keyword_missing_from_each_place_is_a_warning_per_place() {
     }
 }
 
+#[test]
+fn a_heading_about_kinds_or_differences_is_quiet_once_a_list_or_table_follows() {
+    // W6 reads what the page shows: the markdown's bullets and pipes are
+    // gone from the plain text, so the shapes come from the rendered page.
+    let shaped = "Internal links help readers.\n\n## Types of internal links\n\n\
+                  - In the menu\n- In the body\n\n\
+                  ## Differences between links and buttons\n\n\
+                  | Link | Button |\n|---|---|\n| moves you | acts |\n\n\
+                  ## Why it always matters\n\nA reader follows the next link.";
+    let prose = "Internal links help readers.\n\n## Types of internal links\n\n\
+                 There are several kinds.\n\n## Differences between links and buttons\n\n\
+                 Links move you and buttons act.";
+    let site = site(
+        None,
+        &[
+            ("posts/shaped.md", &post("Shaped", "", shaped)),
+            ("posts/prose.md", &post("Prose", "", prose)),
+        ],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "heading-shape", "shaped"),
+        Vec::<String>::new()
+    );
+    assert_eq!(found(&report, "heading-shape", "prose").len(), 2);
+}
+
 /// `count` sentences of filler, ten words each, the first `uses` of them
 /// holding "internal links".
 #[cfg(test)]

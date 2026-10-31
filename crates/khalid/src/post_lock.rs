@@ -173,7 +173,7 @@ fn form(config: &Config, path: &str, words: &Words<'_>) -> String {
 }
 
 /// `text` safe inside HTML text and double-quoted attributes.
-fn escaped(text: &str) -> String {
+pub(crate) fn escaped(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")

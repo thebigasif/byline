@@ -138,6 +138,39 @@ fn a_site_can_switch_the_ai_page_off() {
 }
 
 #[test]
+fn the_ai_page_shows_its_settings_as_text_not_markup() {
+    let out = tempfile::tempdir().unwrap();
+    let site = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    std::process::Command::new("cp")
+        .arg("-R")
+        .arg(format!("{}/.", path(&demo)))
+        .arg(site.path())
+        .status()
+        .unwrap();
+    let settings = SitePath::within(site.path(), "site.toml")
+        .unwrap()
+        .as_path()
+        .to_path_buf();
+    let mut file = fs::read_to_string(&settings).unwrap();
+    file.push_str("\n[seo.ai_page]\ncite = \"Quote Tom & Jerry, never <b>bold</b>.\"\n");
+    fs::write(&settings, file).unwrap();
+    let output = khalid(&[
+        "--site",
+        path(site.path()),
+        "build",
+        "--out",
+        path(out.path()),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let ai = page(out.path(), "ai/index.html");
+    assert!(
+        ai.contains("Quote Tom &amp; Jerry, never &lt;b&gt;bold&lt;/b&gt;."),
+        "{ai}"
+    );
+}
+
+#[test]
 fn build_writes_the_author_and_plain_pages_every_link_points_to() {
     let out = tempfile::tempdir().unwrap();
     let demo = demo_site();

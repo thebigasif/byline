@@ -146,9 +146,9 @@ pub struct PostRow {
     #[serde(serialize_with = "display_option")]
     #[schema(value_type = Option<String>, format = Date, example = "2026-05-02")]
     reviewed: Option<NaiveDate>,
-    /// Whether the post is due for review: longer than the site's limit
-    /// since it was last reviewed, published or updated, whichever came
-    /// last. A list filters by this, such as `filter=review:due`.
+    /// Whether the post is due for review: more than six months since it
+    /// was last reviewed or published, whichever came last. A list
+    /// filters by this, such as `filter=review:due`.
     review_due: bool,
     /// Whether the post is featured.
     featured: bool,
@@ -199,13 +199,14 @@ impl PostRow {
     }
 
     /// The same row marked due for review when `today` is more than six
-    /// months past its last review, update or publish day, whichever
-    /// came last (F3, decision D4).
+    /// months past its last review or its publish day, whichever came
+    /// last, or past its last change when it has neither (F3, decision D4).
     #[must_use]
     pub fn with_review_due(self, today: NaiveDate) -> Self {
+        let published = self.published_at.map(|at| at.date_naive());
         let last = self
             .reviewed
-            .or(self.published_at.map(|at| at.date_naive()))
+            .max(published)
             .unwrap_or(self.updated_at.date_naive());
         let due = last
             .checked_add_months(chrono::Months::new(6))

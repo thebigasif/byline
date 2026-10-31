@@ -60,6 +60,18 @@ fn a_row_comes_up_for_review_after_six_months_without_one() {
 }
 
 #[test]
+fn an_old_review_does_not_hide_a_later_publish_day() {
+    // Reviewed in 2025, published 2026-09-14: the six months run from the
+    // publish day, the last of the two, so on 2027-01-01 it is not due.
+    let mut settings = PostSettings::default();
+    settings.reviewed = Some(NaiveDate::from_ymd_opt(2025, 1, 10).unwrap());
+    let post = live("old-guide", settings);
+    let row = PostRow::new(&post, Gate::Passes)
+        .with_review_due(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap());
+    assert!(!row.review_due());
+}
+
+#[test]
 fn a_row_has_the_columns_and_no_body() {
     let mut settings = PostSettings::default();
     settings.review_state = ReviewState::InReview;

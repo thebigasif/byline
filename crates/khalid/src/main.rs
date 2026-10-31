@@ -10,6 +10,7 @@ mod announce;
 mod assets;
 mod atomic;
 mod build;
+mod build_ai_page;
 mod build_files;
 mod build_gate;
 mod build_home;
