@@ -1,9 +1,9 @@
-//! How pages are written in their files, for `SiteEntries`.
+//! How pages and snippets are written in their files, for `SiteEntries`.
 
 use chrono::{DateTime, Utc};
 use khalid_api::entry_store::EntryStoreError;
-use khalid_api::resources::{AdminPage, NewPage, PageEdit};
-use khalid_content::PageFront;
+use khalid_api::resources::{AdminPage, AdminSnippet, NewPage, NewSnippet, PageEdit, SnippetEdit};
+use khalid_content::{PageFront, SnippetFront};
 use khalid_core::{Locale, Slug};
 use serde::de::DeserializeOwned;
 
@@ -57,6 +57,41 @@ impl EntryFile for AdminPage {
             Some("") => put(text, "description", None),
             Some(description) => text.set("description", &quoted(description)),
             None => {}
+        }
+        if let Some(markdown) = edit.markdown() {
+            text.set_body(markdown);
+        }
+    }
+}
+
+impl EntryFile for AdminSnippet {
+    const FOLDER: &'static str = "snippets";
+
+    fn read(
+        key: (Locale, Slug),
+        text: &PostText,
+        changed: DateTime<Utc>,
+    ) -> Result<Self, EntryStoreError> {
+        let front: SnippetFront = front(text)?;
+        let title = front.title.unwrap_or_default();
+        Ok(Self::new(key, &title, text.markdown(), changed))
+    }
+
+    fn slug_in(text: &PostText) -> Result<Option<Slug>, EntryStoreError> {
+        Ok(front::<SnippetFront>(text)?.slug)
+    }
+
+    fn slug(new: &NewSnippet) -> &Slug {
+        new.slug()
+    }
+
+    fn text(new: &NewSnippet) -> PostText {
+        PostText::draft(new.title(), new.slug(), None, new.markdown())
+    }
+
+    fn edit(text: &mut PostText, edit: &SnippetEdit) {
+        if let Some(title) = edit.title() {
+            text.set("title", &quoted(title));
         }
         if let Some(markdown) = edit.markdown() {
             text.set_body(markdown);

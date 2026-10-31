@@ -14,7 +14,7 @@ use khalid_api::comment_moderation::CommentModeration;
 use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
 use khalid_api::redirect_desk::RedirectDesk;
-use khalid_api::resources::AdminPage;
+use khalid_api::resources::{AdminPage, AdminSnippet};
 use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
@@ -238,7 +238,7 @@ fn api_router(
             SystemClock,
         ))),
         pages: Some(Arc::new(SiteEntries::<AdminPage>::new(site, config))),
-        ..AdminDesks::none()
+        snippets: Some(Arc::new(SiteEntries::<AdminSnippet>::new(site, config))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
