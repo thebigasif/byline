@@ -75,6 +75,177 @@
             "admin_key": []
           }
         ]
+      },
+      "post": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Creates an author in the language it names or the site's default.\nNeeds `posts:publish`.",
+        "operationId": "create_author",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewAuthors"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new author",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuthors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another author in that language has the slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the name is empty, or the site has no such language",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/authors/{id}/": {
+      "get": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Reads one author. Needs `posts:write`.",
+        "operationId": "read_author",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.asif",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The author",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuthors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No author has this identity, or this server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/comments/": {
@@ -8212,6 +8383,86 @@
             "description": "The entries on this page, or the one entry asked for."
           }
         }
+      },
+      "NewAuthor": {
+        "type": "object",
+        "description": "A new author, as a create request sends them.",
+        "required": [
+          "slug",
+          "name"
+        ],
+        "properties": {
+          "bio": {
+            "type": "string",
+            "description": "The bio, in markdown."
+          },
+          "credentials": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why to trust the author."
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The language, such as `de`; the site's default when left out.",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name readers see."
+          },
+          "photo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The photo."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the author does."
+          },
+          "same_as": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Profiles elsewhere, each a full address.",
+            "example": [
+              "https://serpdad.com/"
+            ]
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts will name the author by, such as `asif`.",
+            "example": "asif"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewAuthors": {
+        "type": "object",
+        "description": "A new author, wrapped the way the Admin API wraps authors: exactly one.",
+        "required": [
+          "authors"
+        ],
+        "properties": {
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewAuthor"
+            },
+            "description": "The one new author."
+          }
+        },
+        "additionalProperties": false
       },
       "NewPage": {
         "type": "object",

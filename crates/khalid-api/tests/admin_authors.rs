@@ -118,3 +118,62 @@ async fn a_server_without_authors_answers_404_naming_why() {
         "{json}"
     );
 }
+
+const ASIF: &str = "/api/admin/v1/authors/en.asif/";
+
+#[tokio::test]
+async fn one_author_is_read_by_their_identity() {
+    let router = with_asif();
+    let (status, json) = send(&router, "GET", ASIF, WRITER, None).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["authors"][0]["role"], "Founder of SerpDad", "{json}");
+    let missing = "/api/admin/v1/authors/en.nobody/";
+    let (status, json) = send(&router, "GET", missing, WRITER, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
+    assert!(json["fix"].as_str().unwrap().contains("en.asif"), "{json}");
+}
+
+#[tokio::test]
+async fn a_new_author_is_made_once_in_their_language() {
+    let router = with_asif();
+    let new = json!({"authors": [{"language": "de", "slug": "lena-vogt", "name": "Lena Vogt", "role": "Technical SEO editor"}]});
+    let (status, json) = send(&router, "POST", AUTHORS, EDITOR, Some(new.clone())).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["authors"][0]["id"], "de.lena-vogt", "{json}");
+    assert_eq!(json["authors"][0]["same_as"], json!([]), "{json}");
+    let (status, json) = send(&router, "POST", AUTHORS, EDITOR, Some(new)).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+}
+
+#[tokio::test]
+async fn an_author_that_cannot_be_kept_or_is_sent_without_rights_is_refused() {
+    let router = with_asif();
+    let cases = [
+        (
+            json!({"authors": [{"slug": "lena", "name": "  "}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
+            json!({"authors": [{"slug": "lena", "name": "Lena", "same_as": ["lena.example"]}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
+            json!({"authors": [{"slug": "lena", "name": "Lena", "twitter": "@lena"}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+    ];
+    for (body, want) in cases {
+        let (status, json) = send(&router, "POST", AUTHORS, EDITOR, Some(body.clone())).await;
+        assert_eq!(status, want, "{body} gave {json}");
+    }
+    let new = json!({"authors": [{"slug": "lena", "name": "Lena"}]});
+    let (status, json) = send(&router, "POST", AUTHORS, WRITER, Some(new)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    assert_eq!(json["rule"], "posts:publish", "{json}");
+    let (_, json) = send(&router, "GET", AUTHORS, WRITER, None).await;
+    assert_eq!(
+        json["authors"].as_array().map(Vec::len),
+        Some(1),
+        "nothing was saved: {json}"
+    );
+}
