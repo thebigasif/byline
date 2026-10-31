@@ -5,12 +5,15 @@
 
 use std::ffi::OsString;
 use std::fs;
-use std::io;
+use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use khalid_core::UserMessage;
+use khalid_outbound::Limits;
 use semver::Version;
 use serde::Serialize;
+use tempfile::NamedTempFile;
 
 use crate::cli::{Cli, Output, UpdateTarget};
 use crate::exit::Exit;
@@ -23,6 +26,13 @@ const KEPT: &str = ".previous";
 /// What is added to the binary's name while two versions change places.
 const ASIDE: &str = ".swapping";
 
+/// The largest release file Khalid fetches, well above the 30 MB binary
+/// budget in docs/standards/performance.md.
+const LARGEST: usize = 200 * 1024 * 1024;
+
+/// How long fetching one release file may take, for a slow connection.
+const PATIENCE: Duration = Duration::from_secs(300);
+
 /// The JSON shape of `khalid update --rollback --json`.
 #[derive(Serialize)]
 struct RollbackBody {
@@ -30,13 +40,16 @@ struct RollbackBody {
     kept: String,
 }
 
-/// The JSON shape of `khalid update --json`.
+/// The JSON shape of `khalid update --json`. `kept` is there when the
+/// binary was replaced.
 #[derive(Serialize)]
 struct UpdateBody {
     from: String,
     to: String,
     updated: bool,
     binary: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    kept: Option<String>,
 }
 
 /// Runs `khalid update`, to the newest release or back to the kept version.
@@ -50,44 +63,69 @@ pub(crate) fn run(target: UpdateTarget, cli: &Cli) -> Exit {
     }
 }
 
-/// Finds the newest release for this system and says whether it is newer
-/// than the one running.
+/// Puts the newest release in place of the binary when it is newer than
+/// the one running, after checking it against `SHA256SUMS`, and keeps the
+/// old version beside it.
 fn latest(cli: &Cli) -> Result<Exit, UserMessage> {
     let binary = running().map_err(|error| update_message::no_binary(&error))?;
     let platform = update_release::platform().ok_or_else(update_message::no_system)?;
     let current =
         Version::parse(env!("CARGO_PKG_VERSION")).map_err(|_| update_message::internal())?;
+    let limits = Limits::default()
+        .with_max_body_bytes(LARGEST)
+        .with_timeout(PATIENCE);
     let (Ok(client), Ok(runtime)) = (
-        outbound::client(cli),
+        outbound::client_within(cli, limits),
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build(),
     ) else {
         return Err(update_message::internal());
     };
-    let release = runtime.block_on(update_release::newest(&client, releases(cli), platform))?;
-    Ok(updated(cli.output, (&current, &release), &binary))
+    let base = releases(cli);
+    let fetched = runtime.block_on(async {
+        let release = update_release::newest(&client, base, platform).await?;
+        if release.version <= current {
+            return Ok((release, None));
+        }
+        let bytes = update_release::download(&client, base, &release).await?;
+        Ok::<_, UserMessage>((release, Some(bytes)))
+    })?;
+    let kept = match fetched {
+        (_, Some(bytes)) => {
+            let kept =
+                install(&binary, &bytes).map_err(|error| update_message::swap(&binary, &error))?;
+            Some(kept.display().to_string())
+        }
+        (_, None) => None,
+    };
+    Ok(updated(cli.output, (&current, &fetched.0), &binary, kept))
 }
 
-/// Says which version runs, and which is the newest.
-fn updated(output: Output, (from, release): (&Version, &Release), binary: &Path) -> Exit {
+/// Says which version runs now, and where the old one is kept when the
+/// binary was replaced.
+fn updated(
+    output: Output,
+    (from, release): (&Version, &Release),
+    binary: &Path,
+    kept: Option<String>,
+) -> Exit {
     let (to, binary) = (release.version.to_string(), binary.display().to_string());
-    let said = if release.version > *from {
-        format!(
-            "Khalid {to} is out, and this is {from}.\nDownload it from {}.\n",
-            release.address(update_release::RELEASES)
-        )
-    } else {
-        format!("Khalid {from} is the newest release, so nothing changed.\n")
+    let said = match &kept {
+        Some(kept) => format!(
+            "Updated Khalid from {from} to {to} in {binary}.\nThe old version is kept in {kept}, and `khalid update --rollback` goes back to it.\n"
+        ),
+        None => format!("Khalid {from} is the newest release, so nothing changed.\n"),
     };
     match output {
         Output::Human => report::text(&said, Exit::Success),
         Output::Json => report::json(
             &UpdateBody {
                 from: from.to_string(),
-                updated: false,
+                updated: kept.is_some(),
                 to,
                 binary,
+                kept,
             },
             Exit::Success,
         ),
@@ -104,6 +142,32 @@ fn releases(cli: &Cli) -> &str {
     #[cfg(not(feature = "test-util"))]
     let _ = cli;
     update_release::RELEASES
+}
+
+/// Writes `bytes` beside `binary` with its permissions, moves `binary` to
+/// the kept name and the new file into its place, and returns the kept
+/// file. When the last move fails, the old version goes back.
+fn install(binary: &Path, bytes: &[u8]) -> io::Result<PathBuf> {
+    let folder = binary
+        .parent()
+        .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
+    let mut fresh = NamedTempFile::new_in(folder)?;
+    fresh.write_all(bytes)?;
+    fresh
+        .as_file()
+        .set_permissions(fs::metadata(binary)?.permissions())?;
+    fresh.as_file().sync_all()?;
+    let kept = suffixed(binary, KEPT);
+    if cfg!(windows) && kept.exists() {
+        // Windows will not move a file over another.
+        fs::remove_file(&kept)?;
+    }
+    fs::rename(binary, &kept)?;
+    if let Err(error) = fresh.persist(binary) {
+        drop(fs::rename(&kept, binary));
+        return Err(error.error);
+    }
+    Ok(kept)
 }
 
 /// Puts the binary back to the version kept before the last update, and

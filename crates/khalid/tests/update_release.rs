@@ -1,13 +1,16 @@
 //! `khalid update`: the newest release for this system, found through its
-//! `SHA256SUMS` (plan section 4.1, KH-OPS-2). A local stand-in serves the
-//! releases the way GitHub does, and each test runs a copy of the binary in
-//! its own folder.
+//! `SHA256SUMS` and checked against it, in place of the binary, with the
+//! old version kept for `--rollback` (plan section 4.1, KH-OPS-2). A local
+//! stand-in serves the releases the way GitHub does, and each test runs a
+//! copy of the binary in its own folder.
 
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -58,6 +61,39 @@ fn line(tag: &str, system: &str) -> String {
     format!("{}  khalid-{tag}-{system}\n", "0".repeat(64))
 }
 
+/// A stand-in whose newest release, v99.0.0, has a file for this system
+/// holding `bytes`, with `sum` for it in `SHA256SUMS`.
+#[cfg(test)]
+async fn serving(bytes: &[u8], sum: &str) -> MockServer {
+    let file = format!("khalid-v99.0.0-{}", platform());
+    let server = releases(format!("{sum}  {file}\n")).await;
+    Mock::given(method("GET"))
+        .and(path(format!("/download/v99.0.0/{file}")))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(bytes.to_vec()))
+        .mount(&server)
+        .await;
+    server
+}
+
+/// The SHA-256 of `bytes` in lowercase hex.
+#[cfg(test)]
+fn sha(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .fold(String::new(), |mut hex, byte| {
+            write!(hex, "{byte:02x}").unwrap();
+            hex
+        })
+}
+
+/// The file an update keeps the version before it in.
+#[cfg(test)]
+fn kept(binary: &Path) -> PathBuf {
+    let mut name = binary.as_os_str().to_owned();
+    name.push(".previous");
+    PathBuf::from(name)
+}
+
 /// Runs `binary update` against `server`, with `extra` arguments.
 #[cfg(test)]
 fn update(binary: &Path, server: &MockServer, extra: &[&str]) -> Output {
@@ -78,21 +114,44 @@ fn text(bytes: &[u8]) -> String {
 }
 
 #[tokio::test]
-async fn a_newer_release_is_named_with_where_to_download_it() {
-    let (dir, binary) = installed();
+async fn update_installs_the_newer_release_and_keeps_the_old_version() {
+    let (_dir, binary) = installed();
     let running = fs::read(&binary).unwrap();
-    let sums = [line("v99.0.0", "plan9-mips"), line("v99.0.0", platform())];
-    let server = releases(sums.concat()).await;
+    let server = serving(b"the new version", &sha(b"the new version")).await;
     let said = text(&update(&binary, &server, &[]).stdout);
-    let file = format!("download/v99.0.0/khalid-v99.0.0-{}", platform());
-    assert!(said.starts_with("Khalid 99.0.0 is out"), "{said}");
-    assert!(said.contains(&file), "{said}");
+    assert!(said.starts_with("Updated Khalid from"), "{said}");
+    assert!(said.contains("to 99.0.0"), "{said}");
+    assert_eq!(fs::read(&binary).unwrap(), b"the new version");
+    assert_eq!(fs::read(kept(&binary)).unwrap(), running);
+}
+
+#[tokio::test]
+async fn update_with_json_says_which_versions_and_where_the_old_one_is() {
+    let (_dir, binary) = installed();
+    let server = serving(b"the new version", &sha(b"the new version")).await;
     let output = update(&binary, &server, &["--json"]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(json["from"], env!("CARGO_PKG_VERSION"), "{json}");
     assert_eq!(json["to"], "99.0.0", "{json}");
-    assert_eq!(json["updated"], false, "{json}");
+    assert_eq!(json["updated"], true, "{json}");
+    let named = PathBuf::from(json["kept"].as_str().unwrap());
+    assert_eq!(
+        fs::canonicalize(named).unwrap(),
+        fs::canonicalize(kept(&binary)).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn a_download_that_does_not_match_its_sum_is_refused() {
+    let (dir, binary) = installed();
+    let running = fs::read(&binary).unwrap();
+    let server = serving(b"tampered", &sha(b"the new version")).await;
+    let output = update(&binary, &server, &[]);
+    assert_eq!(output.status.code(), Some(1));
+    let message = text(&output.stderr);
+    assert_eq!(message.lines().count(), 3, "{message}");
+    assert!(message.contains("SHA256SUMS"), "{message}");
     assert_eq!(fs::read(&binary).unwrap(), running);
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
 }

@@ -1,9 +1,13 @@
 //! The newest release for `khalid update`: found through the release's
-//! `SHA256SUMS`, which names every file and the version in its name.
+//! `SHA256SUMS`, which names every file and the version in its name, and
+//! fetched and checked against the sum given there.
+
+use std::fmt::Write as _;
 
 use khalid_core::{AbsoluteUrl, UserMessage};
 use khalid_outbound::Outbound;
 use semver::Version;
+use sha2::{Digest, Sha256};
 
 use crate::update_message;
 
@@ -20,6 +24,8 @@ pub(crate) struct Release {
     tag: String,
     /// The file's name, such as `khalid-v0.2.0-linux-x86_64`.
     file: String,
+    /// The file's SHA-256 in lowercase hex, as `SHA256SUMS` gives it.
+    sum: String,
 }
 
 /// What the release workflow calls this system's file, after the tag, or
@@ -54,6 +60,32 @@ pub(crate) async fn newest(
         .ok_or_else(|| update_message::no_file(platform, &url))
 }
 
+/// Fetches `release`'s file from `base` and checks it against its sum.
+///
+/// # Errors
+///
+/// A [`UserMessage`] when the file cannot be fetched, or its SHA-256 is not
+/// the one `SHA256SUMS` gives.
+pub(crate) async fn download(
+    client: &Outbound,
+    base: &str,
+    release: &Release,
+) -> Result<Vec<u8>, UserMessage> {
+    let url = address(&format!("{base}/download/{}/{}", release.tag, release.file))?;
+    let bytes = fetch(client, &url).await?;
+    let sum = Sha256::digest(&bytes)
+        .iter()
+        .fold(String::new(), |mut hex, byte| {
+            let _ = write!(hex, "{byte:02x}");
+            hex
+        });
+    if sum == release.sum {
+        Ok(bytes)
+    } else {
+        Err(update_message::mismatch(&release.file))
+    }
+}
+
 /// One line of `SHA256SUMS`, `<sum>  khalid-<tag>-<platform>`, as a
 /// release, or `None` when it is for another system or cannot be read.
 fn entry(line: &str, platform: &str) -> Option<Release> {
@@ -64,18 +96,13 @@ fn entry(line: &str, platform: &str) -> Option<Release> {
         .strip_suffix(platform)?
         .strip_suffix('-')?;
     let version = Version::parse(tag.strip_prefix('v').unwrap_or(tag)).ok()?;
+    let sum = sum.to_ascii_lowercase();
     (sum.len() == 64 && sum.bytes().all(|byte| byte.is_ascii_hexdigit())).then(|| Release {
         version,
         tag: tag.to_owned(),
         file: file.to_owned(),
+        sum,
     })
-}
-
-impl Release {
-    /// Where this release's file can be downloaded from `base`.
-    pub(crate) fn address(&self, base: &str) -> String {
-        format!("{base}/download/{}/{}", self.tag, self.file)
-    }
 }
 
 /// `text` as an address, which every caller builds from fixed parts.
@@ -102,15 +129,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_line_for_this_system_gives_the_version_and_the_file() {
+    fn a_line_for_this_system_gives_the_tag_version_and_sum() {
         let sum = "A".repeat(64);
         let line = format!("{sum}  khalid-v0.2.0-rc.1-linux-x86_64");
         let release = entry(&line, "linux-x86_64").unwrap();
+        assert_eq!(release.tag, "v0.2.0-rc.1");
         assert_eq!(release.version, Version::parse("0.2.0-rc.1").unwrap());
-        assert_eq!(
-            release.address("https://example.com/releases"),
-            "https://example.com/releases/download/v0.2.0-rc.1/khalid-v0.2.0-rc.1-linux-x86_64"
-        );
+        assert_eq!(release.file, "khalid-v0.2.0-rc.1-linux-x86_64");
+        assert_eq!(release.sum, "a".repeat(64));
     }
 
     #[test]
@@ -118,8 +144,10 @@ mod tests {
         let sum = "0".repeat(64);
         for line in [
             format!("{sum}  khalid-v0.2.0-linux-aarch64"),
+            format!("{sum}  khalid-v0.2.0-windows-x86_64.exe"),
             "abc  khalid-v0.2.0-linux-x86_64".to_owned(),
             format!("{sum}  khalid-latest-linux-x86_64"),
+            String::new(),
         ] {
             assert_eq!(entry(&line, "linux-x86_64"), None, "{line}");
         }

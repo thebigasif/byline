@@ -47,6 +47,15 @@ pub(crate) fn unreachable(url: &str, cause: &str) -> UserMessage {
     )
 }
 
+/// The message when the downloaded `file` does not match its sum.
+pub(crate) fn mismatch(file: &str) -> UserMessage {
+    UserMessage::new(
+        format!("The download of {file} does not match its sum in SHA256SUMS."),
+        "It was damaged or changed on the way, so Khalid did not install it, and nothing changed.",
+        "Run `khalid update` again, and report it at https://github.com/thebigasif/khalid/issues if it fails again.",
+    )
+}
+
 /// The message when the update cannot start for a reason inside Khalid or
 /// the computer.
 pub(crate) fn internal() -> UserMessage {
