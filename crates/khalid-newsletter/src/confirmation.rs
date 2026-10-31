@@ -27,6 +27,8 @@ const FILES: [(&str, &str); 2] = [
 struct Words {
     confirm_subject: String,
     confirm_text: String,
+    pass_subject: String,
+    pass_text: String,
     page: PageWords,
 }
 
@@ -73,6 +75,17 @@ impl NewsletterWords {
         };
         let (subject, text) = words.map_or_else(Default::default, |words| {
             (fill(&words.confirm_subject), fill(&words.confirm_text))
+        });
+        Mail::new(to, subject, text)
+    }
+
+    /// The email to `to`, a subscriber confirmed before, from the site
+    /// called `site`, with the pass `link` that lets them read gated
+    /// content on this device too.
+    pub fn pass(&self, locale: &Locale, site: &str, to: EmailAddress, link: &str) -> Mail {
+        let fill = |text: &str| text.replace("{pass}", link).replace("{site}", site);
+        let (subject, text) = self.of(locale).map_or_else(Default::default, |words| {
+            (fill(&words.pass_subject), fill(&words.pass_text))
         });
         Mail::new(to, subject, text)
     }

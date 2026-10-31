@@ -73,7 +73,8 @@ impl Newsletter {
 
     /// Signs `email` up for `list` from the gated content at `back`, as
     /// [`sign_up`](Self::sign_up) does, with `back` in the confirmation
-    /// link.
+    /// link. An address confirmed before gets a pass link to `back`
+    /// instead, so a subscriber on a new device can read too.
     ///
     /// # Errors
     ///
@@ -84,7 +85,13 @@ impl Newsletter {
         list: Slug,
         back: &BackPath,
     ) -> Result<SignedUp, NewsletterError> {
-        self.signed_up(email, list, Some(back)).await
+        let signed = self.signed_up(email.clone(), list, Some(back)).await?;
+        if let (SignedUp::AlreadyConfirmed, Some(pass)) = (&signed, &self.pass) {
+            let (site, words) = &*self.site;
+            let mail = words.pass(&site.locale, &site.name, email, &pass.link(back));
+            self.mailer.send(&mail).await?;
+        }
+        Ok(signed)
     }
 
     /// Signs `email` up for `list`. When a confirmation is due, sends it,

@@ -1,6 +1,7 @@
 //! Signing up from gated content with scripts off: the form names the page,
-//! and the confirmation brings the reader back to it with the reader
-//! cookie (G41, task 5.11). Against SQLite and the fake transport.
+//! the confirmation brings the reader back to it with the reader cookie,
+//! and a subscriber on a new device gets a pass link instead (G41, task
+//! 5.11). Against SQLite and the fake transport.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -96,6 +97,32 @@ async fn confirming_brings_the_reader_back_with_the_cookie() {
     let (status, headers) = ask(&app, Method::POST, "/blog/subscribe/confirm", &button).await;
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert!(lets_in(&headers), "{headers:?}");
+}
+
+#[tokio::test]
+async fn a_subscriber_on_a_new_device_gets_a_pass_link() {
+    let mailer = MemoryMailer::default();
+    let (_dir, app) = routes(&mailer).await;
+    ask(&app, Method::POST, "/blog/subscribe", FORM).await;
+    let token = link_in(&mailer, "subscribe/confirm");
+    let token = token.split("token=").nth(1).unwrap().get(..64).unwrap();
+    let button = format!("token={token}");
+    let (status, _) = ask(&app, Method::POST, "/blog/subscribe/confirm", &button).await;
+    assert_eq!(status, StatusCode::OK);
+    ask(&app, Method::POST, "/blog/subscribe", FORM).await;
+    assert_eq!(mailer.sent().len(), 2);
+    assert_eq!(
+        mailer.sent().last().unwrap().subject,
+        "Your link to read Field Notes"
+    );
+    let link = link_in(&mailer, "subscribe/pass");
+    let (status, headers) = ask(&app, Method::GET, &link, "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert!(lets_in(&headers), "{headers:?}");
+    let forged = link.replace("code=", "code=1");
+    let (status, headers) = ask(&app, Method::GET, &forged, "").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(!headers.contains_key(header::SET_COOKIE));
 }
 
 #[tokio::test]

@@ -73,6 +73,13 @@ struct Link {
     back: Option<String>,
 }
 
+/// A pass link's code and the page to come back to.
+#[derive(Debug, Deserialize)]
+struct PassLink {
+    code: Option<String>,
+    back: Option<String>,
+}
+
 /// The routes of the newsletter, with `pages` in the site's language.
 /// The sign-up form of the `::newsletter` block posts to `/subscribe`, so
 /// on a site under a mount path that address answers too.
@@ -85,6 +92,7 @@ pub fn router(pages: Pages, newsletter: Option<Newsletter>) -> Router {
             &format!("{mount}subscribe/confirm"),
             get(confirm_page).post(confirm),
         )
+        .route(&format!("{mount}subscribe/pass"), get(pass))
         .route(&format!("{mount}unsubscribe"), get(leave_page).post(leave));
     if mount != "/" {
         router = router.route("/subscribe", post(sign_up));
@@ -179,6 +187,21 @@ async fn confirm(
         Ok(_) => page(&shared, StatusCode::NOT_FOUND, Page::Unknown),
         Err(error) => failed(&shared, &error),
     }
+}
+
+/// A pass link from an email: a code this site signed, still in time,
+/// gets the reader cookie and goes back to the page it names. Opening it
+/// stores nothing, so a mail program that scans it does no harm.
+async fn pass(State(shared): State<Arc<Shared>>, Query(link): Query<PassLink>) -> Response<Body> {
+    let Some(newsletter) = &shared.newsletter else {
+        return page(&shared, StatusCode::SERVICE_UNAVAILABLE, Page::Closed);
+    };
+    let code = link.code.as_deref().unwrap_or_default();
+    if !newsletter.pass().is_some_and(|pass| pass.opens(code)) {
+        return page(&shared, StatusCode::NOT_FOUND, Page::Unknown);
+    }
+    let back = shared.back(link.back.as_deref());
+    let_in(&shared, newsletter, back.as_ref())
 }
 
 /// A confirmed reader: the reader cookie when gated content opens, then
