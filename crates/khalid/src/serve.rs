@@ -145,10 +145,7 @@ fn serve_with(
         .and_then(|source| {
             let first = source.render_first(&checked)?;
             let first = Pages::first(first).map_err(|_| serve_message::internal())?;
-            let first = match source.stylesheet() {
-                Some(href) => first.with_preloads(vec![href]),
-                None => first,
-            };
+            let first = with_hint(first, &source);
             Ok((source, first))
         })
         .map_err(|message| (message, Exit::Failure))?;
