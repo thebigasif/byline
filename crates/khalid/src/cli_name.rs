@@ -3,7 +3,7 @@
 
 use crate::cli::{
     AnalyticsCommand, BingCommand, Command, CrawlCommand, DbCommand, KeysCommand, RedirectsCommand,
-    SearchConsoleCommand, StaffCommand, ThemeCommand, WebhooksCommand,
+    SearchConsoleCommand, SitesCommand, StaffCommand, ThemeCommand, WebhooksCommand,
 };
 
 impl Command {
@@ -82,6 +82,11 @@ impl Command {
                 CrawlCommand::Errors => "crawl errors",
             },
             Self::Watch => "watch",
+            Self::Sites { command } => match command {
+                SitesCommand::List => "sites list",
+                SitesCommand::Add { .. } => "sites add",
+                SitesCommand::Admin { .. } => "sites admin",
+            },
             Self::Analytics {
                 command: AnalyticsCommand::Ai { .. },
             } => "analytics ai",

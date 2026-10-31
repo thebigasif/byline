@@ -2884,6 +2884,148 @@
         ]
       }
     },
+    "/api/admin/v1/sites/": {
+      "get": {
+        "tags": [
+          "sites"
+        ],
+        "summary": "Lists every site this process serves. Only a super admin, signed in on\nthe home site, may see it; a key never may.",
+        "operationId": "list_sites",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every site, the home site first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a super admin, or a key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "sites"
+        ],
+        "summary": "Adds a site on a new domain and starts serving it, with its own\nfolder, database and staff. Only a super admin may.",
+        "operationId": "add_site",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The site was made and is being served",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteAnswer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a super admin, or a key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A site already answers on this domain",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body or the domain could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/staff/": {
       "get": {
         "tags": [
@@ -7825,6 +7967,20 @@
           }
         }
       },
+      "NewSite": {
+        "type": "object",
+        "description": "A site to add.",
+        "required": [
+          "domain"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "The domain readers will reach it on, such as `news.example.com`."
+          }
+        },
+        "additionalProperties": false
+      },
       "NewWebhook": {
         "type": "object",
         "description": "One new webhook.",
@@ -9036,6 +9192,40 @@
           }
         },
         "additionalProperties": false
+      },
+      "SiteAnswer": {
+        "type": "object",
+        "description": "One site as the Admin API shows it.",
+        "required": [
+          "domain",
+          "home"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "The domain readers reach it on."
+          },
+          "home": {
+            "type": "boolean",
+            "description": "Whether it is the home site, where this panel lives."
+          }
+        }
+      },
+      "SiteList": {
+        "type": "object",
+        "description": "Every site the process serves.",
+        "required": [
+          "sites"
+        ],
+        "properties": {
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteAnswer"
+            },
+            "description": "The sites, the home site first."
+          }
+        }
       },
       "SiteSettings": {
         "type": "object",

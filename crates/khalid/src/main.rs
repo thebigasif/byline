@@ -130,6 +130,7 @@ mod seo_settings;
 mod serve;
 mod serve_https;
 mod serve_message;
+mod serve_sites;
 mod settings_events;
 mod settings_text;
 mod share_images;
@@ -143,7 +144,10 @@ mod site_content;
 mod site_entries;
 mod site_facts;
 mod site_files;
+mod site_folders;
+mod site_hosts;
 mod site_html;
+mod site_list;
 mod site_lists;
 mod site_outline;
 mod site_page;
@@ -153,6 +157,8 @@ mod site_schema_templates;
 mod site_settings;
 mod site_tags;
 mod site_watch;
+mod sites;
+mod sites_message;
 mod slug_moves;
 mod slug_repair;
 mod staff;
@@ -405,6 +411,15 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(init::run(folder, args, cli.output))
         }
         Some(Command::Agents) => Some(agents::run(cli.output)),
+        Some(Command::Sites { command }) => {
+            let root = cli.site.as_deref().unwrap_or(Path::new("."));
+            Some(sites::run(root, command, cli.output))
+        }
+        Some(Command::Serve(args)) => {
+            let root = cli.site.as_deref().unwrap_or(Path::new("."));
+            let many = site_list::file(root).is_file();
+            many.then(|| serve_sites::run(root, cli, args))
+        }
         Some(Command::Update { target }) => Some(update::run(*target, cli)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
