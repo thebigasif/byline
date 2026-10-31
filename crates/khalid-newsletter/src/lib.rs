@@ -18,6 +18,7 @@ mod mail;
 mod newsletter;
 mod pages;
 mod routes;
+mod segment;
 mod store;
 mod token;
 
@@ -30,6 +31,7 @@ pub use mail::{Mail, MailError, Mailer};
 pub use newsletter::{Newsletter, NewsletterError, NewsletterSite};
 pub use pages::{Page, Pages};
 pub use routes::router;
+pub use segment::{Labelled, Recipient, Segment};
 pub use store::{
     BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, Unsubscribed,
 };

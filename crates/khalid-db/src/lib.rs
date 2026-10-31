@@ -41,6 +41,7 @@ mod session_table;
 mod site_id;
 mod site_keys;
 mod site_lists;
+mod subscriber_segments;
 mod subscriber_table;
 mod webhook_table;
 

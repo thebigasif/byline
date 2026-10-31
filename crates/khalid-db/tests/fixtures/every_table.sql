@@ -82,6 +82,8 @@ INSERT INTO subscribers (id, site_id, email, status, created_at) VALUES
     (2, 2, 'reader@example.com', 'confirmed', '2026-10-26T09:00:00Z');
 INSERT INTO subscriber_lists (site_id, subscriber_id, list, joined_at) VALUES
     (1, 1, 'main', '2026-10-26T09:00:00Z'), (2, 2, 'main', '2026-10-26T09:00:00Z');
+INSERT INTO subscriber_labels (site_id, subscriber_id, label, added_at) VALUES
+    (1, 1, 'paid', '2026-10-26T09:00:00Z'), (2, 2, 'paid', '2026-10-26T09:00:00Z');
 INSERT INTO subscriber_tokens (site_id, subscriber_id, purpose, token_hash, created_at) VALUES
     (1, 1, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z'),
     (2, 2, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z');

@@ -9,7 +9,7 @@ use std::pin::Pin;
 use chrono::{DateTime, TimeDelta, Utc};
 use khalid_core::Slug;
 
-use crate::{EmailAddress, TokenHash};
+use crate::{EmailAddress, Labelled, Recipient, Segment, TokenHash};
 
 /// How long a confirmation link works. Two days covers a weekend away from
 /// the inbox, and a reader who misses it signs up again.
@@ -161,6 +161,40 @@ pub trait SubscriberStore: fmt::Debug + Send + Sync {
         token: &'a TokenHash,
         at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<Unsubscribed, StoreError>>;
+
+    /// Gives the subscriber at `email` the label `label`, `at` that time,
+    /// unless they unsubscribed. Adding it twice changes nothing.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read or written.
+    fn label<'a>(
+        &'a self,
+        email: &'a EmailAddress,
+        label: &'a Slug,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<Labelled, StoreError>>;
+
+    /// Takes the label `label` away from the subscriber at `email`.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read or written.
+    fn unlabel<'a>(
+        &'a self,
+        email: &'a EmailAddress,
+        label: &'a Slug,
+    ) -> BoxFuture<'a, Result<Labelled, StoreError>>;
+
+    /// Every confirmed subscriber in `segment`, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] when the store cannot be read.
+    fn audience<'a>(
+        &'a self,
+        segment: &'a Segment,
+    ) -> BoxFuture<'a, Result<Vec<Recipient>, StoreError>>;
 }
 
 /// The store could not be read or written. It keeps the store's own error

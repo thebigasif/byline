@@ -1,9 +1,10 @@
 //! Newsletter subscribers on SQLite, for `khalid-newsletter` (task 5.5).
 
 use chrono::{DateTime, SecondsFormat, Utc};
+use khalid_core::Slug;
 use khalid_newsletter::{
-    BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, TokenHash,
-    Unsubscribed,
+    BoxFuture, Confirmed, EmailAddress, Labelled, Recipient, Segment, SignUp, SignedUp, StoreError,
+    SubscriberId, SubscriberStore, TokenHash, Unsubscribed,
 };
 use sqlx::{Sqlite, Transaction};
 
@@ -13,8 +14,8 @@ use crate::{Database, DbError, SiteId};
 /// the file never holds a link that works (RULES.md BL-SEC-3).
 #[derive(Debug, Clone)]
 pub struct SubscriberTable {
-    db: Database,
-    site: SiteId,
+    pub(crate) db: Database,
+    pub(crate) site: SiteId,
 }
 
 impl SubscriberTable {
@@ -256,10 +257,41 @@ impl SubscriberStore for SubscriberTable {
                 .map_err(StoreError::new)
         })
     }
+
+    fn label<'a>(
+        &'a self,
+        email: &'a EmailAddress,
+        label: &'a Slug,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<Labelled, StoreError>> {
+        Box::pin(async move {
+            let done = self.label_now(email, label, at).await;
+            done.map_err(StoreError::new)
+        })
+    }
+
+    fn unlabel<'a>(
+        &'a self,
+        email: &'a EmailAddress,
+        label: &'a Slug,
+    ) -> BoxFuture<'a, Result<Labelled, StoreError>> {
+        Box::pin(async move {
+            self.unlabel_now(email, label)
+                .await
+                .map_err(StoreError::new)
+        })
+    }
+
+    fn audience<'a>(
+        &'a self,
+        segment: &'a Segment,
+    ) -> BoxFuture<'a, Result<Vec<Recipient>, StoreError>> {
+        Box::pin(async move { self.audience_now(segment).await.map_err(StoreError::new) })
+    }
 }
 
 /// `at` as the RFC 3339 text the schema stores.
-fn stamp(at: DateTime<Utc>) -> String {
+pub(crate) fn stamp(at: DateTime<Utc>) -> String {
     at.to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
