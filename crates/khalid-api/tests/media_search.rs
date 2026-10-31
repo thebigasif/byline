@@ -138,14 +138,81 @@ async fn finds_photos_for_a_post() {
 }
 
 #[tokio::test]
-async fn a_search_that_is_off_asks_no_one() {
+async fn says_how_to_turn_a_search_on_or_give_it_its_key() {
     let site = tempfile::tempdir().unwrap();
     let server = MockServer::start().await;
-    let app = app(site.path(), Some(search(&server, keyed(), Access::Off))).await;
+    let keyless = search(&server, Access::on_with(None), Access::Off);
+    let app = app(site.path(), Some(keyless)).await;
     let gifs = "/api/admin/v1/media/search/?source=gifs&words=dance";
     let (status, body) = get(&app, gifs, UPLOADER).await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    let detail = body["detail"].as_str().unwrap();
+    assert!(
+        detail.starts_with("GIF search on GIPHY is turned off"),
+        "{body}"
+    );
+    assert!(
+        body["fix"].as_str().unwrap().contains("gifs = true"),
+        "{body}"
+    );
+    let photos = "/api/admin/v1/media/search/?source=unsplash&words=lake";
+    let (status, body) = get(&app, photos, UPLOADER).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    let fix = body["fix"].as_str().unwrap();
+    assert!(fix.contains("KHALID_UNSPLASH_ACCESS_KEY"), "{body}");
     assert!(server.received_requests().await.unwrap().is_empty());
+}
+
+/// Posts `body` to the used route with `key`.
+#[cfg(test)]
+async fn used(app: &Router, key: &str, body: Value) -> (StatusCode, Value) {
+    let request = Request::post("/api/admin/v1/media/search/used/")
+        .header("authorization", format!("Khalid {key}"))
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap();
+    let response = app.clone().oneshot(request).await.unwrap();
+    let status = response.status();
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    )
+}
+
+#[tokio::test]
+async fn tells_unsplash_when_a_photo_goes_into_a_post() {
+    let site = tempfile::tempdir().unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/photos/Ab-12_c/download"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = app(site.path(), Some(search(&server, keyed(), Access::Off))).await;
+    let (status, body) = used(&app, UPLOADER, json!({ "id": "Ab-12_c" })).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body, json!({ "id": "Ab-12_c" }));
+    let (status, body) = used(&app, UPLOADER, json!({ "id": "../x" })).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    let (status, _) = used(&app, UPLOADER, json!({})).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let (status, _) = used(&app, WRITER, json!({ "id": "Ab-12_c" })).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn a_photo_used_on_a_blog_without_search_says_so() {
+    let site = tempfile::tempdir().unwrap();
+    let app = app(site.path(), None).await;
+    let (status, body) = used(&app, UPLOADER, json!({ "id": "Ab-12_c" })).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    let detail = body["detail"].as_str().unwrap();
+    assert!(
+        detail.starts_with("Photo search on Unsplash is turned off"),
+        "{body}"
+    );
 }
 
 #[tokio::test]

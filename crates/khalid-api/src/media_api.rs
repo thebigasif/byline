@@ -69,6 +69,7 @@ pub(crate) fn routes(media: Media, door: AdminDoor) -> OpenApiRouter {
         .routes(routes!(upload_media, list_media))
         .routes(routes!(read_media, edit_media))
         .routes(routes!(media_search::search_pictures))
+        .routes(routes!(media_search::photo_used))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(media)

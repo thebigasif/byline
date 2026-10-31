@@ -2,7 +2,7 @@
 //! (plan 4.6, KH-EDT-1, decisions E6 to E8 in
 //! `docs/decisions/2026-10-31-editor-emoji-photos-and-edits.md`).
 
-use axum::extract::rejection::QueryRejection;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Query, State};
 use axum::{Extension, Json};
 use khalid_core::UserMessage;
@@ -10,6 +10,7 @@ use khalid_media::{FoundPicture, PictureSource, StockError, StockSearch};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
+use crate::admin_api::invalid_body;
 use crate::admin_key::require;
 use crate::keys::{Principal, Scope};
 use crate::media_api::MediaLibrary;
@@ -159,18 +160,101 @@ pub(crate) async fn search_pictures(
     Ok(Json(answer))
 }
 
-/// The problem for `error` while searching `source`.
+/// A photo from Unsplash that went into a post.
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct UsedPhoto {
+    /// The photo's identity at Unsplash, as the search gave it.
+    id: String,
+}
+
+/// Tells Unsplash a photo went into a post, as its API terms ask whenever
+/// a photo is used. The editor sends it when the writer picks a photo.
+/// Needs `media:write`.
+#[utoipa::path(
+    post, path = "/media/search/used/", tag = "admin media",
+    security(("admin_key" = [])),
+    request_body = UsedPhoto,
+    responses(
+        (status = 200, description = "Unsplash was told", body = UsedPhoto),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks media:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Unsplash has no photo with this identity", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read", body = Problem, content_type = "application/problem+json"),
+        (status = 429, description = "Unsplash asks to wait", body = Problem, content_type = "application/problem+json"),
+        (status = 503, description = "Photo search is off, has no key, or Unsplash did not answer", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+pub(crate) async fn photo_used(
+    State(media): State<Option<MediaLibrary>>,
+    Extension(principal): Extension<Principal>,
+    body: Result<Json<UsedPhoto>, JsonRejection>,
+) -> Result<Json<UsedPhoto>, Problem> {
+    require(&principal, Scope::MediaWrite)?;
+    let Json(body) = body.map_err(|rejection| invalid_body(&rejection.body_text()))?;
+    let unsplash = StockSource::Unsplash;
+    let search = media.as_ref().and_then(MediaLibrary::search);
+    let search = search.ok_or_else(|| failed(unsplash, &StockError::Off))?;
+    search
+        .used(&body.id)
+        .await
+        .map_err(|error| failed(unsplash, &error))?;
+    Ok(Json(body))
+}
+
+/// The problem for `error`, in plain words naming `source`.
 fn failed(source: StockSource, error: &StockError) -> Problem {
-    let kind = match error {
-        StockError::Busy => ProblemType::TooManyRequests,
-        _ => ProblemType::Unavailable,
+    let name = source.name();
+    let (what, why, fix, kind) = match error {
+        StockError::Off => (
+            format!("{name} is turned off on this blog."),
+            "The owner decides whether writers can find pictures there.".to_owned(),
+            format!(
+                "Ask the owner to turn it on under [media] in site.toml. {}",
+                source_setting(source)
+            ),
+            ProblemType::Unavailable,
+        ),
+        StockError::NoKey { variable } => (
+            format!("{name} is on, but its key is not set."),
+            "The blog needs the key to ask for pictures.".to_owned(),
+            format!("Set {variable} in the server's environment and start khalid serve again."),
+            ProblemType::Unavailable,
+        ),
+        StockError::KeyRefused => (
+            format!("{name} refused the blog's key."),
+            "The key may be mistyped, or the app it belongs to was turned off.".to_owned(),
+            format!("Check the key in {}.", source.picture_source().variable()),
+            ProblemType::Unavailable,
+        ),
+        StockError::Busy => (
+            format!("{name} asks the blog to wait."),
+            "Each key may only ask a set number of times an hour.".to_owned(),
+            "Try again in a few minutes.".to_owned(),
+            ProblemType::TooManyRequests,
+        ),
+        StockError::NotFound => (
+            "The source has no picture with this identity.".to_owned(),
+            "It may have been removed.".to_owned(),
+            "Search again and pick another picture.".to_owned(),
+            ProblemType::NotFound,
+        ),
+        _ => (
+            format!("{name} did not answer as expected."),
+            "Its service may be down for a moment.".to_owned(),
+            "Try again in a minute.".to_owned(),
+            ProblemType::Unavailable,
+        ),
     };
-    let message = UserMessage::new(
-        format!("{} did not work: {error}.", source.name()),
-        "The blog asks for pictures for you, with the owner's key.",
-        "Try again in a minute, or ask the owner to check [media] in site.toml and the key.",
-    );
-    Problem::new(kind, &message).with_rule("media.search")
+    Problem::new(kind, &UserMessage::new(what, why, fix)).with_rule("media.search")
+}
+
+/// The line in `site.toml` that turns `source` on.
+fn source_setting(source: StockSource) -> &'static str {
+    match source {
+        StockSource::Unsplash => "The line is unsplash = true.",
+        StockSource::Gifs => "The line is gifs = true.",
+    }
 }
 
 fn bad_search() -> Problem {
