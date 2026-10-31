@@ -114,11 +114,21 @@ mod site_config;
 mod site_content;
 mod site_files;
 mod site_html;
+#[expect(
+    dead_code,
+    reason = "khalid sites and serve read the list later in this stack"
+)]
+mod site_list;
 mod site_lists;
 mod site_outline;
 mod site_page;
 mod site_pages;
 mod site_posts;
+#[expect(
+    dead_code,
+    reason = "khalid sites and serve say these later in this stack"
+)]
+mod sites_message;
 mod slug_moves;
 mod slug_repair;
 mod staff;
