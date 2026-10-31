@@ -7,9 +7,16 @@
 //! Readers sent by `chatgpt.com`, Perplexity, Gemini, Copilot and Claude
 //! are grouped as [`ReferrerGroup::Ai`].
 //!
+//! Requests from bots are not views. They go to the crawl log instead,
+//! named by [`Crawler::recognise`], so a person can see which bots fetched
+//! which page and when. A bot is known by the user agent it sends, which
+//! anyone can copy: the log shows what a bot claimed to be.
+//!
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
+mod crawler;
 mod referrer;
 
+pub use crawler::{Crawler, CrawlerKind};
 pub use referrer::ReferrerGroup;
