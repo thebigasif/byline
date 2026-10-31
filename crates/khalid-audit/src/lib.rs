@@ -34,6 +34,7 @@ mod sitemap;
 mod sitemap_checks;
 mod thresholds;
 mod visit;
+mod weight_report;
 mod writing_checks;
 
 pub use answer::{Answer, Headers, Source, Unreached};
@@ -55,3 +56,4 @@ pub use server::Server;
 pub use sitemap::{SiteFiles, Sitemap};
 pub use thresholds::Thresholds;
 pub use visit::{Outcome, Visit};
+pub use weight_report::{PageWeight, WeightReport};
