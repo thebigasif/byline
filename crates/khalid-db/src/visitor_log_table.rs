@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Datelike, NaiveDate, SecondsFormat, Utc};
 use khalid_analytics::{
-    AnalyticsError, BotCheck, BoxFuture, Crawler, MAX_VISITS_PER_DAY, ReferrerGroup, Visit,
-    Visitor, VisitorLogStore,
+    AnalyticsError, BotCheck, BoxFuture, CrawledPage, Crawler, MAX_VISITS_PER_DAY, ReferrerGroup,
+    Visit, Visitor, VisitorLogStore,
 };
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, Sqlite, Transaction};
@@ -44,8 +44,44 @@ impl VisitorLogTable {
                 self.insert(&mut tx, visit).await?;
             }
         }
+        for page in CrawledPage::from_visits(visits) {
+            self.crawled_one(&mut tx, &page).await?;
+        }
         tx.commit().await?;
         Ok(())
+    }
+
+    /// Keeps `page`, widening the first and last fetch of a page and bot
+    /// already kept.
+    async fn crawled_one(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        page: &CrawledPage,
+    ) -> Result<(), DbError> {
+        sqlx::query(
+            "INSERT INTO crawled_pages (site_id, path, crawler, first_at, last_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (site_id, path, crawler) DO UPDATE SET \
+             first_at = min(first_at, excluded.first_at), last_at = max(last_at, excluded.last_at)",
+        )
+        .bind(self.site.as_row())
+        .bind(&page.path)
+        .bind(page.crawler.name())
+        .bind(time_text(page.first_at))
+        .bind(time_text(page.last_at))
+        .execute(&mut **tx)
+        .await?;
+        Ok(())
+    }
+
+    async fn crawled_now(&self) -> Result<Vec<CrawledPage>, DbError> {
+        let rows = sqlx::query(
+            "SELECT path, crawler, first_at, last_at FROM crawled_pages \
+             WHERE site_id = ?1 ORDER BY path, crawler",
+        )
+        .bind(self.site.as_row())
+        .fetch_all(&self.db.readers)
+        .await?;
+        rows.iter().map(crawled_row).collect()
     }
 
     /// How many visits are stored for `day`.
@@ -123,6 +159,10 @@ impl VisitorLogStore for VisitorLogTable {
     ) -> BoxFuture<'_, Result<Vec<Visit>, AnalyticsError>> {
         Box::pin(async move { self.visits_now(first, last).await.map_err(failed) })
     }
+
+    fn crawled(&self) -> BoxFuture<'_, Result<Vec<CrawledPage>, AnalyticsError>> {
+        Box::pin(async move { self.crawled_now().await.map_err(failed) })
+    }
 }
 
 fn failed(error: DbError) -> AnalyticsError {
@@ -148,11 +188,32 @@ fn unreadable(column: &'static str, value: &impl ToString) -> DbError {
     }
 }
 
+/// The time in `column` of `row`, named `table` in an error.
+fn time_in(
+    row: &SqliteRow,
+    column: &'static str,
+    table: &'static str,
+) -> Result<DateTime<Utc>, DbError> {
+    let at: String = row.try_get(column)?;
+    DateTime::parse_from_rfc3339(&at)
+        .map(|at| at.with_timezone(&Utc))
+        .map_err(|_| unreadable(table, &at))
+}
+
+fn crawled_row(row: &SqliteRow) -> Result<CrawledPage, DbError> {
+    let crawler: String = row.try_get("crawler")?;
+    let crawler =
+        Crawler::named(&crawler).ok_or_else(|| unreadable("crawled_pages.crawler", &crawler))?;
+    Ok(CrawledPage {
+        path: row.try_get("path")?,
+        crawler,
+        first_at: time_in(row, "first_at", "crawled_pages.first_at")?,
+        last_at: time_in(row, "last_at", "crawled_pages.last_at")?,
+    })
+}
+
 fn visit_row(row: &SqliteRow) -> Result<Visit, DbError> {
-    let at: String = row.try_get("at")?;
-    let at = DateTime::parse_from_rfc3339(&at)
-        .map_err(|_| unreadable("visitor_log.at", &at))?
-        .with_timezone(&Utc);
+    let at = time_in(row, "at", "visitor_log.at")?;
     let status: i64 = row.try_get("status")?;
     let status = u16::try_from(status).map_err(|_| unreadable("visitor_log.status", &status))?;
     let address: String = row.try_get("address")?;

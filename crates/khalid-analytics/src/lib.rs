@@ -20,11 +20,14 @@
 //! [`ShortAddress`], a [`VisitorCode`] made with the day's
 //! [`VisitorKey`], and for a bot a [`BotCheck`] against the address
 //! lists its company publishes, read by [`CrawlerRanges`].
-//! `docs/design/visitor-log.md` is its privacy design.
+//! `docs/design/visitor-log.md` is its privacy design. Each
+//! [`CrawledPage`] a listed bot fetched is kept after its rows are erased,
+//! with its first and last fetch, so a post's first crawl stays known.
 //!
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
+mod crawled;
 mod crawler;
 mod crawler_ranges;
 mod referrer;
@@ -32,6 +35,7 @@ mod store;
 mod tally;
 mod visit;
 
+pub use crawled::CrawledPage;
 pub use crawler::{Crawler, CrawlerKind};
 pub use crawler_ranges::{CrawlerRanges, LONGEST_LIST, RangeList, RangeListError};
 pub use referrer::ReferrerGroup;

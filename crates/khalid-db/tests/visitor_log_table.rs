@@ -134,3 +134,24 @@ async fn a_day_stops_at_the_limit_and_the_next_day_starts_again() {
     let fourth = table.visits(at(4, 0), at(4, 23)).await.unwrap();
     assert_eq!(fourth, vec![gptbot(at(4, 0))]);
 }
+
+#[tokio::test]
+async fn a_listed_crawl_outlasts_its_visits_and_keeps_its_first_and_last_fetch() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_db, main) = table(&dir, "main").await;
+    let (_db, other) = table(&dir, "other").await;
+    main.save(&[gptbot(at(3, 9)), person(at(3, 10))], at(1, 0))
+        .await
+        .unwrap();
+    // A later save erases the visits, and widens the kept fetches.
+    main.save(&[gptbot(at(9, 9)), gptbot(at(2, 9))], at(8, 0))
+        .await
+        .unwrap();
+    let crawled = main.crawled().await.unwrap();
+    assert_eq!(crawled.len(), 1, "{crawled:?}");
+    assert_eq!(crawled[0].path, POST);
+    assert_eq!(crawled[0].crawler.name(), "GPTBot");
+    let kept = (crawled[0].first_at, crawled[0].last_at);
+    assert_eq!(kept, (at(2, 9), at(9, 9)));
+    assert_eq!(other.crawled().await.unwrap(), vec![]);
+}

@@ -48,6 +48,7 @@ A test reads the table below and checks it lists every table in the schema, once
 | `analytics_counts` | visitor | Page views per day, page and referrer group, counted without cookies |
 | `crawl_log` | visitor | Which bots asked for which address each day, as their user agent named them, with the latest time and status; 90 days kept |
 | `visitor_log` | visitor | One row per visit while `[visitor_log]` is on: time, address asked for, status, shortened network address, a visitor code that changes daily, and the bot's name and address check or the referrer group; 7 to 14 days kept |
+| `crawled_pages` | visitor | Each page a bot fetched from an address on its company's list, with the first and last fetch; written with the visitor log and kept when its rows are erased |
 | `alerts_raised` | visitor | The key of each alert finding sent to the owner, so it is sent once while the problem lasts |
 
 ## Changing a query
