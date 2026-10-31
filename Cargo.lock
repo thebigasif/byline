@@ -2182,6 +2182,7 @@ dependencies = [
  "khalid-auth",
  "khalid-comments",
  "khalid-core",
+ "khalid-forms",
  "khalid-newsletter",
  "khalid-search",
  "khalid-seo",
