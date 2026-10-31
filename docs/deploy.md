@@ -260,3 +260,15 @@ Then, all with `--json` when a program reads the answer:
 - `khalid --site <folder> search-console email` sends the weekly email. Run it once a week, for example from a systemd timer with `OnCalendar=Mon 08:00`, or a cron line such as `0 8 * * 1`.
 
 A refresh token stops working when you take Khalid's permission back in your Google account, or when Google lets it lapse. The commands then say so: make a new one with step 3.
+
+## Pages AI bots read but never cite
+
+`khalid serve` counts each page view by where the reader came from, and logs which bots read which page. `khalid --site <folder> analytics uncited` lists the pages AI bots read in the last 30 days while no reader arrived from an AI assistant, such as ChatGPT or Perplexity, in the same days. Those pages are known to the assistants but not pointed to. `--days 7` looks at a shorter period, up to the 90 days the crawl log keeps, and `--json` prints the list for other tools.
+
+A bot reading a page never counts as a citation: only a reader sent by an AI assistant does. Bots are named by the user agent they send, which anyone can copy, so a name in the list is what the bot claimed to be. A site built as static files has no counts, so the list stays empty.
+
+## Analytics in the admin
+
+The Analytics screen in the admin shows the same counts for the last 7, 28 or 90 days: the page views against the days before, each day, where readers came from, the most read pages, the readers each AI assistant sent, and the pages AI bots read but never cite. It needs an owner or admin sign-in, because views are visitor data.
+
+Programs read the same numbers from the Admin API with a key that has `settings:write`: `GET /api/admin/v1/analytics/visitors/?days=28`, `GET /api/admin/v1/analytics/ai-visitors/?days=28` and `GET /api/admin/v1/analytics/uncited/?days=30`. The OpenAPI document at `/api/openapi.json` describes each answer.

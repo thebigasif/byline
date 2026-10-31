@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+use khalid_analytics::CRAWL_DAYS_KEPT;
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
 use khalid_webhooks::Event;
@@ -230,6 +231,13 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: SearchConsoleCommand,
     },
+    /// Read what `khalid serve` counted, such as the readers AI assistants
+    /// sent and the pages AI bots read
+    Analytics {
+        /// What to read
+        #[command(subcommand)]
+        command: AnalyticsCommand,
+    },
 }
 
 /// The Search Console commands, for the property `[search_console]` names.
@@ -253,6 +261,25 @@ pub(crate) enum SearchConsoleCommand {
     /// Email the week in Google search to `report_to` under `[search_console]`,
     /// through `[mail]`. Run it once a week from a timer
     Email,
+}
+
+/// The analytics commands. They read `data/site.db`, so they work while
+/// `khalid serve` runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum AnalyticsCommand {
+    /// Show how many readers each AI assistant, such as `ChatGPT` or
+    /// Perplexity, sent in the last days, against the days before
+    Ai {
+        /// How many days to count back from today, from 1 to 366
+        #[arg(long, default_value_t = 28, value_parser = clap::value_parser!(u32).range(1..=366))]
+        days: u32,
+    },
+    /// List the pages AI bots read but no AI assistant sent a reader to
+    Uncited {
+        /// How many days back to look, today included, from 1 to 90
+        #[arg(long, default_value_t = 30, value_parser = clap::value_parser!(u32).range(1..=i64::from(CRAWL_DAYS_KEPT)))]
+        days: u32,
+    },
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in

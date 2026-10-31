@@ -53,6 +53,9 @@ export function Shell() {
             <li>
               <Link to="/schema-templates">{en.nav.templates}</Link>
             </li>
+            <li>
+              <Link to="/analytics">{en.nav.analytics}</Link>
+            </li>
           </ul>
         </nav>
         <main id="main" className="page">

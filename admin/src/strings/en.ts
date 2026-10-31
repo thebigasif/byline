@@ -17,6 +17,7 @@ export const en = {
     audit: "Audit log",
     redirects: "Redirects",
     templates: "Schema templates",
+    analytics: "Analytics",
   },
   templates: {
     title: "Schema templates",
@@ -122,6 +123,70 @@ export const en = {
         ? `${Math.max(1, Math.round(bytes / 1024))} KB`
         : `${(bytes / (1024 * 1024)).toFixed(1)} MB`,
     pixels: (width: number, height: number) => `${width} × ${height}`,
+  },
+  analytics: {
+    title: "Analytics",
+    lede: "How many people read your blog, where they came from, and what AI assistants do with it. Khalid counts on its own server, with no cookies, so readers who block scripts count too. It never keeps who a reader is.",
+    loading: "Counting the page views",
+    total: (days: number) => `Page views in the last ${days} days`,
+    rise: (percent: number, days: number, before: string) =>
+      `${percent}% more than the ${days} days before, which had ${before}.`,
+    fall: (percent: number, days: number, before: string) =>
+      `${percent}% fewer than the ${days} days before, which had ${before}.`,
+    level: (days: number) => `The same as the ${days} days before.`,
+    fresh: (days: number) => `The ${days} days before had none to compare with.`,
+    viewMeans:
+      "A page view is one page opened by a person. A reader who opens two pages counts twice. Bots never count.",
+    days: "Days to count",
+    period: (days: number) => `The last ${days} days`,
+    show: "Show these days",
+    chart: {
+      title: "Each day",
+      none: "No page views were counted in these days.",
+      summary: (least: string, most: string, busiest: string) =>
+        `From ${least} to ${most} page views a day. The busiest day was ${busiest}, with ${most}.`,
+      table: "Show each day as a table",
+      day: "Day",
+    },
+    views: "Page views",
+    before: (days: number) => `The ${days} days before`,
+    sources: {
+      title: "Where readers came from",
+      lede: (arrivals: string) =>
+        `${arrivals} of the page views came from outside the blog. The rest were readers moving from one of your pages to another.`,
+      from: "From",
+      names: {
+        direct: "Typed in or bookmarked",
+        search: "Search engines, such as Google",
+        social: "Social sites",
+        ai: "AI assistants, such as ChatGPT",
+        other: "Other websites",
+        internal: "Your own pages",
+      },
+    },
+    pages: {
+      title: "Most read pages",
+      page: "Page",
+      none: "No page was read in these days.",
+    },
+    tools: {
+      title: "Readers sent by AI assistants",
+      lede: "An AI assistant, such as ChatGPT or Perplexity, sent these readers when it named your page in an answer and the reader clicked through.",
+      tool: "Assistant",
+      top: "Page they opened most",
+      noPage: "None in these days",
+      none: "No AI assistant sent a reader in these days or the days before.",
+    },
+    uncited: {
+      title: "Read by AI, but never cited",
+      lede: "AI bots, the programs AI companies send to read the web, read these pages. Yet no AI assistant sent a single reader to them. The assistants know the page but do not point people to it. To be cited, start each section with a short, direct answer to the question its heading asks.",
+      reads: "Reads by AI bots",
+      bots: "Bots",
+      last: "Last read",
+      none: "No page fits here: every page AI bots read in these days also had a reader sent by an AI assistant, or AI bots read none.",
+      after:
+        "A bot is known by the name it sends, which anyone can copy. Khalid keeps what bots read for 90 days.",
+    },
   },
   redirects: {
     title: "Redirects",

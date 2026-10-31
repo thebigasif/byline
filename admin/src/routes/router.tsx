@@ -12,6 +12,7 @@ import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
 import { mediaSearch } from "../media/search";
 import { postSearch } from "../posts/filters";
+import { Analytics } from "./Analytics";
 import { AuditLog } from "./AuditLog";
 import { Dashboard } from "./Dashboard";
 import { Media } from "./Media";
@@ -93,6 +94,12 @@ const templates = createRoute({
   component: SchemaTemplates,
 });
 
+const analytics = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/analytics",
+  component: Analytics,
+});
+
 const routeTree = root.addChildren([
   signIn,
   signedIn.addChildren([
@@ -106,6 +113,7 @@ const routeTree = root.addChildren([
     audit,
     redirects,
     templates,
+    analytics,
   ]),
 ]);
 

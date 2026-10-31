@@ -20,6 +20,7 @@ chrono = { version = "0.4", default-features = false, features = ["alloc", "serd
 getrandom = "0.4"
 hmac = "0.13"
 htmd = "0.5"
+khalid-analytics = { path = "../khalid-analytics", version = "0.0.0" }
 khalid-core.workspace = true
 khalid-lint.workspace = true
 khalid-media = { path = "../khalid-media", version = "0.0.0" }
