@@ -95,6 +95,25 @@ export const en = {
     },
     asRole: (role: string) => `Everything a ${role} may do`,
     noRole: "staff member",
+    create: {
+      title: "Create a key",
+      name: "Name",
+      nameHint: "So you know later which program uses it, such as Main site.",
+      kind: "What kind of key?",
+      kindHints: {
+        content: "Reads posts that are already live, and nothing else. Safe to put in a web page.",
+        integration:
+          "Lets a tool such as SerpDad write posts, upload images or change settings. Keep it secret.",
+      },
+      scopes: "What may it do?",
+      once: "You see a new key only once. Khalid keeps a scrambled copy that nobody can turn back into the key, not even you. Copy it into the other program straight away.",
+      submit: "Create key",
+    },
+    shown: {
+      title: (name: string) => `Your new key for ${name}. Copy it now: it is not shown again.`,
+      label: "The key",
+      hint: "Select it and copy it into the program that will use it.",
+    },
     list: {
       title: "Keys in use",
       lede: "Switching a key off works at once. The program using it is refused from its next request, so make sure it has a new key first.",

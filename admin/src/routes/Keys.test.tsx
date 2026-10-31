@@ -56,6 +56,54 @@ describe("the API keys screen", () => {
     expect(await axeViolations()).toEqual([]);
   });
 
+  it("makes an integration key with the scopes ticked, and shows it once", async () => {
+    signedIn();
+    const asked: unknown[] = [];
+    // Made up here; a real key is never in a test.
+    const secret = "ki_4444_test_only";
+    const made = { ...KEPT[1], id: "4444", name: "Teammate's script", key: secret };
+    adminBlog({
+      "GET /keys/": () => json(200, { keys: KEPT }),
+      "POST /keys/": async (request) => {
+        asked.push(await request.json());
+        return json(201, { keys: [made] });
+      },
+    });
+    const { unmount } = renderAt("/keys");
+    const words = en.keys.create;
+    await userEvent.type(await screen.findByLabelText(words.name), "Teammate's script");
+    await userEvent.click(screen.getByLabelText(en.keys.kinds.integration, { exact: false }));
+    await userEvent.click(screen.getByLabelText(en.keys.scopes["media:write"]));
+    await userEvent.click(screen.getByRole("button", { name: words.submit }));
+    expect(await screen.findByLabelText(en.keys.shown.label)).toHaveValue(secret);
+    const ticked = ["posts:write", "media:write"];
+    expect(asked).toEqual([
+      { keys: [{ name: "Teammate's script", kind: "integration", scopes: ticked }] },
+    ]);
+    expect(await axeViolations()).toEqual([]);
+    unmount();
+    renderAt("/keys");
+    expect(await screen.findByRole("table", { name: en.keys.list.title })).toBeVisible();
+    expect(screen.queryByDisplayValue(secret)).toBeNull();
+  });
+
+  it("makes a content key with no scopes", async () => {
+    signedIn();
+    const asked: unknown[] = [];
+    adminBlog({
+      "GET /keys/": () => json(200, { keys: KEPT }),
+      "POST /keys/": async (request) => {
+        asked.push(await request.json());
+        return json(201, { keys: [{ ...KEPT[0], key: "kc_1111_test_only" }] });
+      },
+    });
+    renderAt("/keys");
+    await userEvent.type(await screen.findByLabelText(en.keys.create.name), "Web page");
+    await userEvent.click(screen.getByRole("button", { name: en.keys.create.submit }));
+    expect(await screen.findByLabelText(en.keys.shown.label)).toBeVisible();
+    expect(asked).toEqual([{ keys: [{ name: "Web page", kind: "content" }] }]);
+  });
+
   it("switches a key off, and it leaves the list", async () => {
     signedIn();
     const sent = blog();
