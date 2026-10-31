@@ -2051,6 +2051,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "khalid-analytics"
+version = "0.0.0"
+
+[[package]]
 name = "khalid-api"
 version = "0.0.0"
 dependencies = [
