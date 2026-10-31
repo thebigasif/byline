@@ -56,6 +56,8 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .terms dt{font-weight:600}.terms dd{margin:0 0 .5rem;color:var(--muted)}
 .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(12rem,100%),1fr));gap:1rem;align-items:end;background:var(--surface);border-radius:var(--radius);padding:1rem;margin:0 0 1rem}
 .filters .field{margin:0}
+.bulk{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(12rem,100%),1fr));gap:1rem;align-items:end;border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin:0 0 1rem}.bulk p,.bulk .field{margin:0}.bulk p{grid-column:1/-1}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 table{min-width:50rem}
 /* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
 @media (max-width:40em){table,tbody,tr,td,tbody th{display:block}table{min-width:0}thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}tr{border:1px solid var(--border);border-radius:var(--radius);margin:0 0 .75rem;padding:.4rem 0}td,tbody th{border:0;padding:.35rem .9rem}tbody th{font-size:1rem;color:var(--text)}td[data-label]::before{content:attr(data-label);display:block;font-size:.875rem;font-weight:600;color:var(--muted)}}
@@ -72,6 +74,8 @@ table{min-width:50rem}
   <ul>
     <li><a href="dashboard.html">Dashboard</a></li>
     <li><a href="posts.html" aria-current="page">Posts</a></li>
+    <li><a href="trash.html">Trash</a></li>
+    <li><a href="audit-log.html">Audit log</a></li>
     <li><a href="design.html">Design</a></li>
     <li><a href="redirects.html">Redirects</a></li>
     <li><a href="api-keys.html">API keys</a></li>
@@ -107,15 +111,24 @@ table{min-width:50rem}
 
   <p role="status"><strong>5 English posts have warnings.</strong> <span class="muted">None is blocked from publishing.</span></p>
 
+  <form class="bulk" aria-label="Change the posts you tick">
+    <p><strong>2 posts ticked.</strong> <span class="muted">Each change is checked post by post; a post someone else changed meanwhile is left as it is, and you are told which.</span></p>
+    <div class="field"><label for="bulk-action">Change</label>
+      <select id="bulk-action" name="action"><option>Set the author</option><option>Move to the trash</option></select></div>
+    <div class="field"><label for="bulk-author">New author</label>
+      <select id="bulk-author" name="author"><option>Asif</option><option selected>Lena Vogt</option></select></div>
+    <button class="btn" type="submit">Change 2 posts</button>
+  </form>
+
   <div class="scroll">
   <table>
-    <thead><tr><th scope="col">Title</th><th scope="col">Author</th><th scope="col">Checks</th><th scope="col">Review</th><th scope="col">In Google</th><th scope="col">Date</th></tr></thead>
+    <thead><tr><th scope="col"><span class="visually-hidden">Tick</span></th><th scope="col">Title</th><th scope="col">Author</th><th scope="col">Checks</th><th scope="col">Review</th><th scope="col">In Google</th><th scope="col">Date</th></tr></thead>
     <tbody>
-      <tr><td><a href="editor.html">Planning a topic cluster in an afternoon</a><br><span class="muted">Content strategy</span></td><td data-label="Author">Asif</td><td data-label="Checks"><span class="pill warn">3 warnings</span><br><span class="muted">No post links here. No source links. A filler word in the address.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill quiet">Found, not added yet</span></td><td data-label="Date"><time datetime="2026-10-12">12 Oct 2026</time></td></tr>
-      <tr><td><a href="editor.html">Fixing slow pages, starting with the biggest win</a><br><span class="muted">Technical SEO</span></td><td data-label="Author">Lena Vogt</td><td data-label="Checks"><span class="pill warn">2 warnings</span><br><span class="muted">No post links here. No source links.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill ok">In Google</span></td><td data-label="Date"><time datetime="2026-10-05">5 Oct 2026</time></td></tr>
-      <tr><td><a href="editor.html">What a sitemap does, and what it does not</a><br><span class="muted">Technical SEO</span></td><td data-label="Author">Lena Vogt</td><td data-label="Checks"><span class="pill warn">3 warnings</span><br><span class="muted">No post links here. No source links. Filler words in the address.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill ok">In Google</span></td><td data-label="Date"><time datetime="2026-09-28">28 Sep 2026</time></td></tr>
-      <tr><td><a href="editor.html">How to write a title tag</a><br><span class="muted">On-page SEO</span></td><td data-label="Author">Asif</td><td data-label="Checks"><span class="pill warn">3 warnings</span><br><span class="muted">Only one post links here. No source links. Filler words in the address.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill ok">In Google</span></td><td data-label="Date"><time datetime="2026-09-21">21 Sep 2026</time></td></tr>
-      <tr><td><a href="editor.html">Why internal links matter</a><br><span class="muted">On-page SEO</span></td><td data-label="Author">Asif</td><td data-label="Checks"><span class="pill warn">1 warning</span><br><span class="muted">No source links.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill ok">In Google</span></td><td data-label="Date"><time datetime="2026-09-14">14 Sep 2026</time></td></tr>
+      <tr><td><input type="checkbox" aria-label="Tick Planning a topic cluster in an afternoon" checked></td><td><a href="editor.html">Planning a topic cluster in an afternoon</a><br><span class="muted">Content strategy</span></td><td data-label="Author">Asif</td><td data-label="Checks"><span class="pill warn">3 warnings</span><br><span class="muted">No post links here. No source links. A filler word in the address.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill quiet">Found, not added yet</span></td><td data-label="Date"><time datetime="2026-10-12">12 Oct 2026</time></td></tr>
+      <tr><td><input type="checkbox" aria-label="Tick Fixing slow pages, starting with the biggest win" checked></td><td><a href="editor.html">Fixing slow pages, starting with the biggest win</a><br><span class="muted">Technical SEO</span></td><td data-label="Author">Lena Vogt</td><td data-label="Checks"><span class="pill warn">2 warnings</span><br><span class="muted">No post links here. No source links.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill ok">In Google</span></td><td data-label="Date"><time datetime="2026-10-05">5 Oct 2026</time></td></tr>
+      <tr><td><input type="checkbox" aria-label="Tick What a sitemap does, and what it does not"></td><td><a href="editor.html">What a sitemap does, and what it does not</a><br><span class="muted">Technical SEO</span></td><td data-label="Author">Lena Vogt</td><td data-label="Checks"><span class="pill warn">3 warnings</span><br><span class="muted">No post links here. No source links. Filler words in the address.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill ok">In Google</span></td><td data-label="Date"><time datetime="2026-09-28">28 Sep 2026</time></td></tr>
+      <tr><td><input type="checkbox" aria-label="Tick How to write a title tag"></td><td><a href="editor.html">How to write a title tag</a><br><span class="muted">On-page SEO</span></td><td data-label="Author">Asif</td><td data-label="Checks"><span class="pill warn">3 warnings</span><br><span class="muted">Only one post links here. No source links. Filler words in the address.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill ok">In Google</span></td><td data-label="Date"><time datetime="2026-09-21">21 Sep 2026</time></td></tr>
+      <tr><td><input type="checkbox" aria-label="Tick Why internal links matter"></td><td><a href="editor.html">Why internal links matter</a><br><span class="muted">On-page SEO</span></td><td data-label="Author">Asif</td><td data-label="Checks"><span class="pill warn">1 warning</span><br><span class="muted">No source links.</span></td><td data-label="Review"><span class="pill ok">Live</span></td><td data-label="In Google"><span class="pill ok">In Google</span></td><td data-label="Date"><time datetime="2026-09-14">14 Sep 2026</time></td></tr>
     </tbody>
   </table>
   </div>
