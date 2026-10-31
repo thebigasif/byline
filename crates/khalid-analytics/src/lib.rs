@@ -20,12 +20,14 @@
 //! headers and `khalid-db` keeps the counts.
 
 mod ai_tool;
+mod ai_visitors;
 mod crawler;
 mod referrer;
 mod store;
 mod tally;
 
 pub use ai_tool::AiTool;
+pub use ai_visitors::{AiVisitors, PageViews, Period, ToolVisitors};
 pub use crawler::{Crawler, CrawlerKind};
 pub use referrer::ReferrerGroup;
 pub use store::{
