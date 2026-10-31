@@ -210,6 +210,8 @@ impl PublishDoor {
     ) -> Result<AdminPost, UpdatePostError> {
         let _editing = self.editing.lock().await;
         let before = self.posts.get(id).await?.ok_or(UpdatePostError::NotFound)?;
+        edit.honest_for(&before)
+            .map_err(UpdatePostError::NotRealUpdate)?;
         let current = self.schedule(id).await?;
         let next = next_schedule(before.status(), current, &edit, self.clock.now())
             .map_err(UpdatePostError::Schedule)?;

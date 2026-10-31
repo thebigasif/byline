@@ -1,10 +1,11 @@
 //! A post as the Admin API sees it: drafts included, markdown always.
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use khalid_core::Slug;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::real_update::{NotRealUpdate, RealUpdate};
 use super::settings_edit::Change;
 use super::{PostSettings, SettingsEdit, display, display_option};
 use crate::post_password::HashPasswordError;
@@ -51,6 +52,12 @@ pub struct AdminPost {
     updated_at: DateTime<Utc>,
     /// Who made the last change: a staff name or a key's identity.
     updated_by: Option<String>,
+    /// The day of the last real update readers see, which only an edit
+    /// with `real_update` moves. Empty until the first one.
+    #[schema(value_type = Option<String>, example = "2026-10-31")]
+    updated: Option<NaiveDate>,
+    /// What changed in the last real update, shown beside its date.
+    updated_note: Option<String>,
     /// The settings beside the title and body, as the admin's settings
     /// panel shows them.
     settings: PostSettings,
@@ -76,8 +83,30 @@ impl AdminPost {
             unpublish_at: None,
             updated_at,
             updated_by: None,
+            updated: None,
+            updated_note: None,
             settings: PostSettings::default(),
         }
+    }
+
+    /// The same post, last really updated on `on`, with what changed.
+    #[must_use]
+    pub fn with_real_update(self, on: Option<NaiveDate>, note: Option<String>) -> Self {
+        Self {
+            updated: on,
+            updated_note: note,
+            ..self
+        }
+    }
+
+    /// The day of the last real update, if it has had one.
+    pub fn updated(&self) -> Option<NaiveDate> {
+        self.updated
+    }
+
+    /// What changed in the last real update, if it said.
+    pub fn updated_note(&self) -> Option<&str> {
+        self.updated_note.as_deref()
     }
 
     /// The same post with `schedule`: a post not yet live with a publish
@@ -206,6 +235,10 @@ impl AdminPost {
     #[must_use]
     pub fn edited(self, edit: PostEdit, at: DateTime<Utc>, by: &str) -> Self {
         let status = edit.status;
+        let (updated, updated_note) = match edit.real_update {
+            Some(update) => (Some(at.date_naive()), Some(update.note().to_owned())),
+            None => (self.updated, self.updated_note),
+        };
         let settings = match edit.settings {
             Some(change) => change.applied_to(self.settings),
             None => self.settings,
@@ -217,6 +250,8 @@ impl AdminPost {
             markdown: edit.markdown.unwrap_or(self.markdown),
             updated_at: at,
             updated_by: Some(by.to_owned()),
+            updated,
+            updated_note,
             settings,
             ..self
         };
@@ -266,6 +301,10 @@ pub struct PostEdit {
     /// When the post comes down again: a time to come, after
     /// `published_at` for a scheduled post.
     unpublish_at: Option<DateTime<Utc>>,
+    /// Marks the edit as a real update to a live post's text, with a note
+    /// saying what changed: the post's `updated` date becomes today. Left
+    /// out, the date stays as it is, whatever else changes.
+    real_update: Option<RealUpdate>,
     /// The `updated_at` of the copy the edit was made on.
     updated_at: DateTime<Utc>,
 }
@@ -283,7 +322,28 @@ impl PostEdit {
             status: Some(status),
             published_at: None,
             unpublish_at: None,
+            real_update: None,
             updated_at,
+        }
+    }
+
+    /// Whether the edit may claim to be a real update of `post`: a post
+    /// that is live, with text the edit changes. An edit without the
+    /// claim always may.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NotRealUpdate`] saying why the claim does not hold.
+    pub fn honest_for(&self, post: &AdminPost) -> Result<(), NotRealUpdate> {
+        if self.real_update.is_none() {
+            return Ok(());
+        }
+        if post.status() != PostStatus::Published {
+            return Err(NotRealUpdate::NotLive);
+        }
+        match &self.markdown {
+            Some(markdown) if markdown != post.markdown() => Ok(()),
+            _ => Err(NotRealUpdate::TextUnchanged),
         }
     }
 
