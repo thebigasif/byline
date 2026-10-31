@@ -10,7 +10,7 @@ use axum::response::Response;
 use khalid_comments::RateLimits;
 use khalid_core::{Config, SystemClock};
 use khalid_db::{Database, FormTable, SiteId};
-use khalid_forms::{FormId, FormRoute, SiteForms, form_router};
+use khalid_forms::{FormDelivery, FormId, FormRoute, SiteForms, form_router};
 use khalid_render::{BodyHtml, PageBody};
 use khalid_server::SecurityHeaders;
 
@@ -86,13 +86,14 @@ fn mounted(html: &str, mount: &str) -> Option<(String, Vec<FormId>)> {
 }
 
 /// The form route of a running site, keeping answers in site `site` of
-/// `db`, each answer carrying `security`. A site that takes no forms, or
-/// has no theme to style the answer pages, gets no route.
+/// `db` and sending each on to `delivery`, each answer page carrying
+/// `security`. A site that takes no forms, or has no theme to style the
+/// answer pages, gets no route.
 pub(crate) fn router(
     config: &Config,
     (db, site): (&Database, SiteId),
     source: &SitePages,
-    security: &SecurityHeaders,
+    (security, delivery): (&SecurityHeaders, Arc<dyn FormDelivery>),
 ) -> Router {
     let security = security.clone();
     let (Some(forms), Some(stylesheet)) = (source.forms(), source.stylesheet()) else {
@@ -100,6 +101,7 @@ pub(crate) fn router(
     };
     let route = FormRoute {
         store: Arc::new(FormTable::new(db.clone(), site)),
+        delivery,
         forms: Arc::new(forms),
         limits: RateLimits::new(SystemClock),
         clock: Box::new(SystemClock),

@@ -19,6 +19,7 @@ use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_forms::FormDelivery;
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
@@ -30,6 +31,7 @@ use crate::announce::SiteAnnounce;
 use crate::cli::Output;
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
+use crate::form_delivery::SiteDelivery;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::serve_https::{self, Listen};
@@ -159,7 +161,6 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
-    let posted = posted_to(config, &search, (keys.mail, outbound))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
@@ -172,6 +173,7 @@ fn serve_with(
         // Each part reads the database or the folder alone, so all open at once.
         let (telling, announcing) = announce::start(config, (database, id), outbound)
             .map_err(|message| (message, Exit::Failure))?;
+        let posted = posted_to(config, &search, (keys.mail, outbound), telling.clone())?;
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
         let shown_pages = router(live.clone(), security.clone());
@@ -274,18 +276,24 @@ fn destination(
 }
 
 /// The routes a reader posts to from a page, besides comments: the
-/// newsletter's, sending with the mail `secret`, and the form block's
-/// (G4). Both keep what they receive in the database of `site`, the pages,
-/// database and headers the search reads too.
+/// newsletter's, and the form block's (G4), whose answers are emailed and
+/// told to the webhooks through `telling` (G40). Both send mail with the
+/// mail `secret`, the APIs through `outbound`, and keep what they receive
+/// in the database of `site`, the pages, database and headers the search
+/// reads too.
 fn posted_to(
     config: &Config,
     site: &search_route::Search,
     (secret, outbound): (Option<Secret<String>>, &Outbound),
+    telling: SiteAnnounce,
 ) -> Result<Router, (UserMessage, Exit)> {
     let db = (&site.db, site.site);
-    let newsletters = newsletter::router(config, db, (secret, outbound))
-        .map_err(|message| (message, Exit::Internal))?;
-    let forms = form_pages::router(config, db, &site.pages, &site.security);
+    let internal = |message| (message, Exit::Internal);
+    let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
+    let newsletters = newsletter::router(config, db, mailer.clone()).map_err(internal)?;
+    let delivery: Arc<dyn FormDelivery> =
+        Arc::new(SiteDelivery::new(config, mailer, telling).map_err(internal)?);
+    let forms = form_pages::router(config, db, &site.pages, (&site.security, delivery));
     Ok(newsletters.merge(forms))
 }
 

@@ -15,7 +15,7 @@ use khalid_core::Clock;
 
 use crate::answer_page::{self, Answer};
 use crate::submission::{self, Problem, Reading};
-use crate::{FormId, FormStore, Submission};
+use crate::{FormDelivery, FormId, FormStore, Submission};
 
 /// The largest form body read. Thirty answers at their longest, written in
 /// four-byte letters and percent-encoded, would not fit, but no reader
@@ -34,6 +34,8 @@ pub trait SiteForms: fmt::Debug + Send + Sync {
 pub struct FormRoute<S> {
     /// Where answers are kept.
     pub store: Arc<S>,
+    /// Where each kept answer is sent on.
+    pub delivery: Arc<dyn FormDelivery>,
     /// The forms the site has.
     pub forms: Arc<dyn SiteForms>,
     /// The limits per network address.
@@ -103,8 +105,12 @@ async fn receive<S: FormStore + 'static>(
         }
     }
     let submission = Submission { form, page, fields };
-    match route.store.insert(&submission, route.clock.now()).await {
-        Ok(()) => see_sent(&route.mount, &submission.form),
+    let at = route.clock.now();
+    match route.store.insert(&submission, at).await {
+        Ok(()) => {
+            route.delivery.kept(&submission, at);
+            see_sent(&route.mount, &submission.form)
+        }
         Err(error) => {
             tracing::warn!(%error, form = %submission.form, "a form's answers could not be kept");
             let (status, why) = (StatusCode::SERVICE_UNAVAILABLE, Answer::Unavailable);
