@@ -11,12 +11,13 @@ use khalid_api::publish_door::PublishDoor;
 use khalid_api::resources::{AdminPost, PostEdit, PostStatus};
 use khalid_core::{Config, Locale, Slug, SystemClock, UserMessage};
 use khalid_db::ScheduleTable;
+use khalid_lint::Report;
 use serde::Serialize;
 
 use crate::cli::{Cli, Output};
 use crate::exit::Exit;
 use crate::site_posts::SitePosts;
-use crate::{announce, outbound, report, serve, serve_message};
+use crate::{announce, lint, outbound, report, serve, serve_message};
 
 /// Who the command's edits are made by, as `updated_by` shows.
 const BY: &str = "khalid publish";
@@ -27,12 +28,20 @@ struct PostsBody<'a> {
     posts: [&'a AdminPost; 1],
 }
 
+/// The JSON shape of a refused post: the message, then its findings,
+/// warnings included, as the `lint.blocked` webhook carries them.
+#[derive(Serialize)]
+struct RefusedBody<'a> {
+    error: &'a UserMessage,
+    lint: &'a Report,
+}
+
 /// What the door did with the post.
 enum Done {
     /// The post went live.
     Published(Box<AdminPost>),
     /// The linter refused the post, which stays a draft.
-    Refused,
+    Refused(Report),
 }
 
 /// Publishes the draft `slug` in `language`, or the site's default
@@ -51,7 +60,7 @@ pub(crate) fn run(
             Output::Json => report::json(&PostsBody { posts: [&*post] }, Exit::Success),
             Output::Human => report::text(&format!("Published {name}.\n"), Exit::Success),
         },
-        Ok(Done::Refused) => report::failure(output, &not_ready(&name), Exit::Failure),
+        Ok(Done::Refused(found)) => refuse(output, &name, &found),
         Err((message, exit)) => report::failure(output, &message, exit),
     }
 }
@@ -99,10 +108,36 @@ async fn publish(door: &PublishDoor, (id, name): (&str, &str)) -> Result<Done, F
     let edit = PostEdit::status_only(PostStatus::Published, before.updated_at());
     match door.edit(id, edit, BY).await {
         Ok(post) => Ok(Done::Published(Box::new(post))),
-        Err(UpdatePostError::Refused(_)) => Ok(Done::Refused),
+        Err(UpdatePostError::Refused(lint)) => Ok(Done::Refused(lint)),
         Err(UpdatePostError::NotFound) => Err(failed(no_post(name))),
         Err(UpdatePostError::Stale { .. }) => Err(failed(changed(name))),
         Err(_) => Err(failed(unreadable(name))),
+    }
+}
+
+/// Explains why post `name` stays a draft: every finding `found`, then
+/// what, why and fix, as a refused `khalid build` does. Ends with exit
+/// code 1.
+fn refuse(output: Output, name: &str, found: &Report) -> Exit {
+    let message = not_ready(name);
+    match output {
+        Output::Json => report::json(
+            &RefusedBody {
+                error: &message,
+                lint: found,
+            },
+            Exit::Failure,
+        ),
+        Output::Human => {
+            let mut text = String::new();
+            for finding in found.findings() {
+                lint::write_finding(&mut text, finding);
+            }
+            match report::text(&text, Exit::Failure) {
+                Exit::Failure => report::failure(output, &message, Exit::Failure),
+                unwritten => unwritten,
+            }
+        }
     }
 }
 

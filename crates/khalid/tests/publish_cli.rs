@@ -158,12 +158,39 @@ async fn a_weak_draft_is_refused_and_fires_lint_blocked() {
     let answer: Value = serde_json::from_slice(&output.stdout).unwrap();
     let what = answer["error"]["what"].as_str().unwrap_or_default();
     assert!(what.starts_with("Khalid did not publish"), "{answer}");
+    assert_eq!(answer["lint"]["blocks"], true, "{answer}");
     assert_eq!(fs::read_to_string(&file).unwrap(), WEAK, "the draft stays");
 
     let body = the_delivery(&receiver, Event::LintBlocked, &blocked).await;
     assert_eq!(body["post"]["id"], "en.a-weak-post", "{body}");
     assert_eq!(body["lint"]["blocks"], true, "{body}");
     assert!(received(&receiver, "/post.published").await.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_human_output_names_the_post_or_every_block() {
+    let receiver = receiver().await;
+    let (site, _) = demo_site(&receiver).await;
+    draft(site.path(), "choosing-anchor-text", GOOD);
+    draft(site.path(), "a-weak-post", WEAK);
+
+    let output = publish(site.path(), &["choosing-anchor-text"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let said = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(said, "Published en/choosing-anchor-text.\n");
+
+    let output = publish(site.path(), &["a-weak-post"]);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let findings = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        findings.contains("en/a-weak-post: blocks publishing"),
+        "{findings}"
+    );
+    let message = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        message.starts_with("Khalid did not publish en/a-weak-post"),
+        "{message}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
