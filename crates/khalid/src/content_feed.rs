@@ -5,15 +5,17 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-use khalid_core::{Clock, Config, SystemClock};
+use chrono::NaiveDate;
+use khalid_core::{AbsoluteUrl, Clock, Config, SystemClock};
 use khalid_db::{Database, PostChanges, SiteId};
 use khalid_seo::UrlPath;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::announce::SiteAnnounce;
 use crate::live_redirects::LiveRedirects;
 use crate::memory::HandBack;
 use crate::site_addresses::{self, LiveAddresses};
@@ -51,6 +53,59 @@ pub(crate) struct Destination {
     pub(crate) addresses: LiveAddresses,
     /// The stored redirects, which get a move for each page that moved.
     pub(crate) redirects: LiveRedirects,
+    /// Where the addresses of live posts with news go, for `IndexNow`.
+    pub(crate) pings: UpdatePings,
+}
+
+/// The announcer that sends `IndexNow` the addresses of live posts whose
+/// files show news, once `khalid serve` has started it. Until then, and in
+/// a run with no announcer, nothing is sent. Cloning shares it.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct UpdatePings(Arc<OnceLock<SiteAnnounce>>);
+
+impl UpdatePings {
+    /// Sends to `telling` from now on. Only the first call counts.
+    pub(crate) fn set(&self, telling: SiteAnnounce) {
+        if self.0.set(telling).is_err() {
+            tracing::debug!("the IndexNow announcer was already set");
+        }
+    }
+
+    /// Sends the full addresses of `paths` on the site with `config`.
+    fn send(&self, config: &Config, paths: &[&UrlPath]) {
+        let Some(telling) = self.0.get() else {
+            return;
+        };
+        let base = config.address().as_str().trim_end_matches('/');
+        let urls: Vec<AbsoluteUrl> = paths
+            .iter()
+            .filter_map(|path| AbsoluteUrl::parse(&format!("{base}{}", path.as_str())).ok())
+            .collect();
+        if !urls.is_empty() {
+            telling.updated(urls);
+        }
+    }
+}
+
+/// Each live post's address and `updated:` date, by the path of its file.
+#[derive(Debug, Default)]
+struct Live {
+    addresses: BTreeMap<String, UrlPath>,
+    updated: BTreeMap<String, NaiveDate>,
+}
+
+/// The addresses of the posts in `now` that went live since `before`, or
+/// whose `updated:` date is new or later. The date changes only on a real
+/// update (decision D4), so any other edit tells nothing.
+fn told<'a>(before: &Live, now: &'a Live) -> Vec<&'a UrlPath> {
+    now.addresses
+        .iter()
+        .filter(|(file, _)| {
+            !before.addresses.contains_key(*file)
+                || now.updated.get(*file) > before.updated.get(*file)
+        })
+        .map(|(_, path)| path)
+        .collect()
 }
 
 /// Starts the background task on `runtime`. Await the handle after the
@@ -73,6 +128,9 @@ struct Applied {
     written: Option<Arc<Hashes>>,
     /// Each page's address in the last catalog, by file.
     addresses: Option<BTreeMap<String, UrlPath>>,
+    /// The live posts of the last catalog; `None` before the first, which
+    /// has nothing to compare with and tells nothing.
+    live: Option<Live>,
 }
 
 /// Serves the addresses of `catalog`'s pages, and stores a permanent move
@@ -86,6 +144,14 @@ async fn moved(to: &Destination, catalog: &Catalog, applied: &mut Applied) {
     };
     slug_moves::store(&to.redirects, (&before, &after), SystemClock.now()).await;
     to.addresses.replace(&after);
+    let now = Live {
+        addresses: after.clone(),
+        updated: catalog.updated.clone(),
+    };
+    if let Some(before) = &applied.live {
+        to.pings.send(&to.config, &told(before, &now));
+    }
+    applied.live = Some(now);
     applied.addresses = Some(after);
 }
 
@@ -220,6 +286,7 @@ mod tests {
             hand_back: HandBack::default(),
             addresses: LiveAddresses::default(),
             redirects: LiveRedirects::new(Arc::new(khalid_db::RedirectRows::new(db.clone(), site))),
+            pings: UpdatePings::default(),
         };
         let (feed, task) = start(&Handle::current(), to);
 
@@ -253,6 +320,43 @@ mod tests {
             "the store shows the save"
         );
         db.close().await;
+    }
+
+    #[test]
+    fn a_new_updated_date_or_a_new_live_post_is_told_and_nothing_else() {
+        let live = |posts: &[(&str, Option<u32>)]| {
+            let mut live = Live::default();
+            for &(file, day) in posts {
+                let path = UrlPath::try_new(&format!("/blog/{file}/")).unwrap();
+                live.addresses.insert(format!("{file}.md"), path);
+                if let Some(day) = day.and_then(|day| NaiveDate::from_ymd_opt(2026, 10, day)) {
+                    live.updated.insert(format!("{file}.md"), day);
+                }
+            }
+            live
+        };
+        let before = live(&[
+            ("dated", None),
+            ("same", Some(1)),
+            ("later", Some(5)),
+            ("dropped", Some(5)),
+        ]);
+        let now = live(&[
+            ("dated", Some(9)),
+            ("same", Some(1)),
+            ("later", Some(7)),
+            ("dropped", None),
+            ("new", None),
+        ]);
+        let told: Vec<&str> = told(&before, &now)
+            .into_iter()
+            .map(UrlPath::as_str)
+            .collect();
+        assert_eq!(told, ["/blog/dated/", "/blog/later/", "/blog/new/"]);
+        assert!(
+            super::told(&now, &now).is_empty(),
+            "a save with no new date tells nothing"
+        );
     }
 
     #[test]

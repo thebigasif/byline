@@ -41,6 +41,11 @@ pub(crate) struct Cli {
     #[cfg(feature = "test-util")]
     #[arg(long, global = true, hide = true, value_name = "HOST=ADDRESS")]
     pub(crate) test_hosts: Option<String>,
+
+    /// Test builds only: send Bing Webmaster Tools calls to this endpoint.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "URL")]
+    pub(crate) test_bing: Option<AbsoluteUrl>,
 }
 
 /// How a command prints its results and messages.
@@ -189,6 +194,24 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: WebhooksCommand,
     },
+    /// Hand Bing Webmaster Tools the sitemap, or read how Bing crawls the
+    /// site. Uses the key in the `KHALID_BING_API_KEY` environment variable
+    Bing {
+        /// What to ask Bing
+        #[command(subcommand)]
+        command: BingCommand,
+    },
+}
+
+/// The Bing Webmaster Tools commands, for the site at the address in
+/// `site.toml`, as verified in Bing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum BingCommand {
+    /// Hand Bing the site's sitemap, so it reads every page from it
+    Sitemap,
+    /// Show Bing's last crawl day, the sitemaps it holds and the addresses
+    /// it had trouble with
+    Report,
 }
 
 /// The webhook commands. Webhooks live in `data/site.db`; a running
@@ -553,6 +576,12 @@ impl Command {
             Self::Webhooks {
                 command: WebhooksCommand::Remove { .. },
             } => "webhooks remove",
+            Self::Bing {
+                command: BingCommand::Sitemap,
+            } => "bing sitemap",
+            Self::Bing {
+                command: BingCommand::Report,
+            } => "bing report",
         }
     }
 }

@@ -10,6 +10,8 @@ mod announce;
 mod assets;
 mod atomic;
 mod audit_message;
+mod bing;
+mod bing_report;
 mod build;
 mod build_files;
 mod build_gate;
@@ -206,6 +208,9 @@ fn run(cli: &Cli) -> Exit {
             Some((folder, config, ..)),
         ) => access(folder, config, command, cli.output),
         (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
+        (Some(Command::Bing { command }), Some((_, config, ..))) => {
+            bing::run(config, &environment, *command, cli)
+        }
         (
             Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
             Some((folder, config, ..)),
@@ -226,7 +231,8 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Publish { .. }
                 | Command::New { .. }
                 | Command::Build { .. }
-                | Command::Audit { .. }),
+                | Command::Audit { .. }
+                | Command::Bing { .. }),
             ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),

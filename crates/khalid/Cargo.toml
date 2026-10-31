@@ -104,5 +104,13 @@ required-features = ["test-util"]
 name = "audit_outside"
 required-features = ["test-util"]
 
+[[test]]
+name = "bing_cli"
+required-features = ["test-util"]
+
+[[test]]
+name = "serve_indexnow"
+required-features = ["test-util"]
+
 [lints]
 workspace = true
