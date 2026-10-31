@@ -14,6 +14,7 @@ use serde::Serialize;
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::lint_input::{self, LintInput};
+use crate::site_briefs::Briefs;
 use crate::{lint, report};
 
 /// The JSON shape of a refused build: the message, then each refused post's
@@ -28,15 +29,17 @@ struct RefusedBody<'a> {
 /// order the posts were read. Empty when the site may be built. Each post
 /// first gets the quick yes or no, and only a refused post the full verdict
 /// with its warnings, so a 10,000-post build stays inside its budget. Posts
-/// are held to `facts`, the site's fact registry.
+/// are held to `facts`, the site's fact registry, and to their `briefs`.
 pub(crate) fn refused(
     gate: &dyn PublishGate,
     content: &SiteContent,
     config: &Config,
     routes: &Routes,
-    facts: Vec<LintFact>,
+    (facts, briefs): (Vec<LintFact>, Briefs),
 ) -> Vec<Report> {
-    let input = LintInput::new(content, config, routes.clone()).with_facts(facts);
+    let input = LintInput::new(content, config, routes.clone())
+        .with_facts(facts)
+        .with_briefs(briefs);
     let (site, _) = lint_input::lint_site(content, config, &input);
     site.posts
         .iter()

@@ -24,8 +24,8 @@ use crate::site_page::HeadNonce;
 use crate::{
     assets, build_files, build_gate, build_lists, build_message, build_pages, build_redirects,
     build_seo, build_sitemap, categories, content_message, lint, lint_message, post_files,
-    post_images, post_lock, report, search_page, search_static, share_images, site_facts,
-    static_mode,
+    post_images, post_lock, report, search_page, search_static, share_images, site_briefs,
+    site_facts, static_mode,
 };
 
 /// The output folder inside a site when `--out` is not given.
@@ -87,7 +87,9 @@ pub(crate) fn into_folder(
     };
     let facts = site_facts::load(site)
         .map_err(|message| report::failure(output, &message, Exit::Failure))?;
-    let refused = build_gate::refused(&linter, content, config, routes, facts);
+    let briefs = site_briefs::load(site)
+        .map_err(|message| report::failure(output, &message, Exit::Failure))?;
+    let refused = build_gate::refused(&linter, content, config, routes, (facts, briefs));
     if !refused.is_empty() {
         return Err(build_gate::refuse(output, &refused));
     }

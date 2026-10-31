@@ -14,6 +14,7 @@
 
 mod address;
 mod blocking;
+mod brief;
 mod builtin;
 mod catalogue;
 mod collections;
@@ -56,8 +57,8 @@ pub use gate::{PublishGate, Verdict};
 pub use lint_config::LintConfig;
 pub use lint_error::LintError;
 pub use lint_post::{
-    Cluster, ClusterRole, FormDestination, Heading, HeadingLevel, Image, LinkKind, LintForm,
-    LintLink, LintPost, StructuredDataGap,
+    Cluster, ClusterRole, FormDestination, Heading, HeadingLevel, Image, LinkKind, LintBrief,
+    LintForm, LintLink, LintPost, StructuredDataGap,
 };
 pub use lint_site::{GlossaryTerm, LintCollection, LintFact, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};

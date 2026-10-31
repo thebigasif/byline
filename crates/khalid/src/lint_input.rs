@@ -6,8 +6,8 @@
 //! rendered with its wikilinks linked, the wikilinks as written, its forms,
 //! focus keywords, collection and topic cluster, the `rel` words the link
 //! policy gives each link, the site's collections, and the links of each
-//! home page, which lists every dated post (audit 2, G5), and the site's
-//! fact registry (P7).
+//! home page, which lists every dated post (audit 2, G5), the site's fact
+//! registry (P7) and each post's brief (P6).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -26,18 +26,21 @@ use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{LinkPolicy, SeoPage, SeoSite};
 
 use crate::build_pages::{path_of, routed};
+use crate::site_briefs::Briefs;
 use crate::{build_schema, build_seo};
 
 /// What a post is linted against besides itself: the site's routes, the
-/// pages a wikilink reaches in each language, and the site as the SEO
-/// outputs read it, or `None` when `site.toml` cannot give one, in which
-/// case `khalid build` stops with its own message.
+/// pages a wikilink reaches in each language, the site as the SEO outputs
+/// read it, or `None` when `site.toml` cannot give one, in which case
+/// `khalid build` stops with its own message, the site's fact registry and
+/// the posts' briefs.
 pub(crate) struct LintInput {
     routes: Routes,
     links: BTreeMap<Locale, Wikilinks>,
     seo: Option<SeoSite>,
     policy: (LinkPolicy, SeoSite),
     facts: Vec<LintFact>,
+    briefs: Briefs,
 }
 
 impl LintInput {
@@ -60,12 +63,18 @@ impl LintInput {
             seo,
             policy,
             facts: Vec::new(),
+            briefs: Briefs::new(),
         }
     }
 
     /// This input with the site's fact registry, read from `facts.toml`.
     pub(crate) fn with_facts(self, facts: Vec<LintFact>) -> Self {
         Self { facts, ..self }
+    }
+
+    /// This input with each post's brief, read from `briefs/`.
+    pub(crate) fn with_briefs(self, briefs: Briefs) -> Self {
+        Self { briefs, ..self }
     }
 }
 
@@ -179,7 +188,9 @@ pub(crate) fn lint_parts(
     let path = input.routes.address(config, &address).ok();
     let rest = routed(config, &input.routes, parts.locale, &address, parts.path).ok();
     let gaps = rest.map(|rest| gaps(parts, input, &rest, &slug));
+    let brief = input.briefs.get(&(parts.locale.clone(), slug.clone()));
     let mut post = LintPost::new(parts.locale.clone(), slug);
+    post.brief = brief.cloned();
     post.structured_data_gaps = gaps.unwrap_or_default();
     post.path = path;
     post.collection = Some(parts.collection.to_owned());

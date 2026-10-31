@@ -1,0 +1,6 @@
+# The brief asks for two questions. The first is a heading in other words
+# order; the second is nowhere in the headings.
+extends = "clean"
+
+[brief]
+questions = ["What are internal links?", "How many internal links should a post have?"]

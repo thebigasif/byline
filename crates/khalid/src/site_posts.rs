@@ -25,7 +25,7 @@ use khalid_routes::Routes;
 use crate::lint_input::{LintInput, PostParts, lint_parts, lint_site};
 use crate::post_text::{PostText, quoted};
 use crate::settings_text::{put, settings_of, write_real_update, write_settings};
-use crate::{atomic, lint, site_facts};
+use crate::{atomic, lint, site_briefs, site_facts};
 
 /// The folder of drafts at the top of a site.
 const DRAFTS: &str = "drafts";
@@ -328,7 +328,9 @@ impl Site {
     fn judge(&self, content: &SiteContent) -> Result<Judge, PostStoreError> {
         let routes = Routes::load(&self.folder).map_err(PostStoreError::new)?;
         let facts = site_facts::load(&self.folder).map_err(|m| failure(&m.to_string()))?;
-        let input = LintInput::new(content, &self.config, routes).with_facts(facts);
+        let briefs = site_briefs::load(&self.folder).map_err(|m| failure(&m.to_string()))?;
+        let input = (LintInput::new(content, &self.config, routes).with_facts(facts))
+            .with_briefs(briefs);
         let (site, _) = lint_site(content, &self.config, &input);
         let settings = lint::lint_settings(&self.folder).map_err(|m| failure(&m.to_string()))?;
         let linter = Linter::new(&settings, self.clock.as_ref()).map_err(PostStoreError::new)?;

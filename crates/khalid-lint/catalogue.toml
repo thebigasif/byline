@@ -435,3 +435,21 @@ what = "This review has no review block with your rating."
 why = "Without the block, search results cannot show your score, and readers must hunt for your verdict."
 fix = "Add a review block with the item, your score and a short verdict."
 guide = "comparison-pages"
+
+[brief-question-unanswered]
+what = "The post's brief lists a question that no heading in the post asks."
+why = "A reader or an answer engine looking for that question cannot find where the post answers it."
+fix = "Add a heading that asks the question, with the answer right under it, or remove it from the brief."
+guide = "post-briefs"
+
+[brief-term-missing]
+what = "The post's brief lists a term that the post never uses."
+why = "The brief named the things a full answer covers, and this one is left out."
+fix = "Use the term where the post explains it, or remove it from the brief."
+guide = "post-briefs"
+
+[brief-link-missing]
+what = "The post's brief lists a page that the post does not link to."
+why = "The brief planned this link so readers and search engines reach the related page from here."
+fix = "Link to the page where the post mentions its subject, or remove it from the brief."
+guide = "post-briefs"

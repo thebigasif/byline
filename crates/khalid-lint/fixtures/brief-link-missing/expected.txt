@@ -1,0 +1,1 @@
+warn brief-link-missing: /blog/orphan-pages/
