@@ -181,9 +181,18 @@ mod tests {
 
     #[test]
     fn a_heading_names_a_subject_of_several_words_when_it_holds_them_all() {
-        assert!(names_whole(&words("Choosing link text"), &words("link text")));
-        assert!(names_whole(&words("Links and their text"), &words("link text")));
-        assert!(!names_whole(&words("Choosing anchors"), &words("link text")));
+        assert!(names_whole(
+            &words("Choosing link text"),
+            &words("link text")
+        ));
+        assert!(names_whole(
+            &words("Links and their text"),
+            &words("link text")
+        ));
+        assert!(!names_whole(
+            &words("Choosing anchors"),
+            &words("link text")
+        ));
     }
 
     #[test]
