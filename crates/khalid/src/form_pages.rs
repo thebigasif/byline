@@ -63,8 +63,12 @@ pub(crate) fn fill(config: &Config, forms: Option<&LiveForms>, languages: &mut [
 }
 
 /// `html` with each form block posting under `mount`, and the forms'
-/// ids, or `None` when it has no form block.
+/// ids, or `None` when it has no form block. Most bodies have none, so
+/// those are never copied.
 fn mounted(html: &str, mount: &str) -> Option<(String, Vec<FormId>)> {
+    if !html.contains(BLOCK_FORM) {
+        return None;
+    }
     let mut parts = html.split(BLOCK_FORM);
     let mut out = String::with_capacity(html.len() + 32);
     out.push_str(parts.next()?);
