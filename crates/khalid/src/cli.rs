@@ -214,6 +214,20 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: BingCommand,
     },
+    /// Read what the visitor log says about crawlers, while it is on
+    Crawl {
+        /// What to read
+        #[command(subcommand)]
+        command: CrawlCommand,
+    },
+}
+
+/// The crawl reports. They read the visitor log in `data/site.db` and
+/// count a crawler only from an address its company publishes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum CrawlCommand {
+    /// Show each search and AI crawler's visits and what it got
+    Health,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in
@@ -547,6 +561,9 @@ impl Command {
             Self::Bing {
                 command: BingCommand::Report,
             } => "bing report",
+            Self::Crawl { command } => match command {
+                CrawlCommand::Health => "crawl health",
+            },
         }
     }
 }
