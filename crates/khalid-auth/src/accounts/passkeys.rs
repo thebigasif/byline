@@ -6,10 +6,13 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, TimeDelta, Utc};
 
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+
 use super::{Accounts, SignInError, SignedIn};
 use crate::{
-    AccountId, Challenge, PasskeyStore, RelyingParty, SessionToken, verify_assertion,
-    verify_registration,
+    AccountId, Challenge, PasskeyStore, PublicKey, Registration, RelyingParty, SavedPasskey,
+    SessionToken, verify_assertion, verify_registration,
 };
 
 /// How long a passkey request may take to answer.
@@ -123,7 +126,7 @@ impl Accounts {
             user_id: account.id().as_row().to_be_bytes(),
             exclude: existing
                 .into_iter()
-                .map(|passkey| passkey.credential_id)
+                .map(|stored| stored.passkey.credential_id().to_vec())
                 .collect(),
         })
     }
@@ -156,7 +159,7 @@ impl Accounts {
                 .map_err(SignInError::Passkey)?;
         let added = passkeys
             .store
-            .add(account.id(), &registration, name, now)
+            .add(account.id(), &saved(&registration), name, now)
             .await?;
         added.then_some(()).ok_or(SignInError::Refused)
     }
@@ -197,17 +200,22 @@ impl Accounts {
         let challenge = challenge.ok_or(SignInError::Refused)?;
         let stored = passkeys.store.find(credential_id).await?;
         let stored = stored.ok_or(SignInError::Refused)?;
-        let held = (&stored.public_key, stored.sign_count);
+        let (public_key, held) = held(&stored.passkey).ok_or(SignInError::Refused)?;
         let count = verify_assertion(
             &passkeys.party,
             &challenge,
             client_data,
             authenticator_data,
             signature,
-            held,
+            (&public_key, held),
         )
         .map_err(|_| SignInError::Refused)?;
-        passkeys.store.used(credential_id, count, now).await?;
+        let registration = Registration {
+            credential_id: credential_id.to_vec(),
+            public_key,
+            sign_count: count,
+        };
+        passkeys.store.used(&saved(&registration), now).await?;
         let account = self.store.find(stored.account).await?;
         let account = account.ok_or(SignInError::Refused)?;
         let session = self.begin(&account).await?;
@@ -219,4 +227,20 @@ impl Accounts {
         };
         Ok((session, signed_in))
     }
+}
+
+/// The old checks' passkey in the store's form. The next part moves the
+/// ceremonies onto `PasskeySite`, whose passkeys are already in it.
+fn saved(registration: &Registration) -> SavedPasskey {
+    let key = URL_SAFE_NO_PAD.encode(registration.public_key.to_stored());
+    let json = serde_json::json!({ "key": key, "count": registration.sign_count });
+    SavedPasskey::from_store(registration.credential_id.clone(), json.to_string())
+}
+
+/// The key and counter [`saved`] wrote.
+fn held(passkey: &SavedPasskey) -> Option<(PublicKey, u32)> {
+    let json: serde_json::Value = serde_json::from_str(passkey.json()).ok()?;
+    let key = URL_SAFE_NO_PAD.decode(json.get("key")?.as_str()?).ok()?;
+    let count = u32::try_from(json.get("count")?.as_u64()?).ok()?;
+    Some((PublicKey::from_stored(&key).ok()?, count))
 }
