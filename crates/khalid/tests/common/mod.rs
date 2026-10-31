@@ -98,6 +98,12 @@ pub(crate) fn start(site: &Path, key: &str) -> Server {
 }
 
 impl Server {
+    /// The host and port the server answers on, such as `127.0.0.1:41234`.
+    #[cfg(test)]
+    pub(crate) fn host(&self) -> &str {
+        &self.host
+    }
+
     /// Sends `method` to `path` with the key and a JSON `body`, if any, and
     /// returns the status and the body as JSON, or `Null` when it is none.
     #[cfg(test)]
@@ -117,7 +123,7 @@ impl Server {
         headers: &[(&str, &str)],
         body: Option<&Value>,
     ) -> (u16, String) {
-        let host = &self.host;
+        let host = self.host();
         let mut stream = TcpStream::connect(host).unwrap();
         stream
             .set_read_timeout(Some(Duration::from_secs(30)))
