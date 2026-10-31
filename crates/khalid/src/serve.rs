@@ -37,8 +37,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    announce, comment_pages, db, db_message, media_library, newsletter, page_counts, preview,
+    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -187,6 +187,7 @@ fn serve_with(
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
+        let (counter, pages) = page_counts::start((database, id), pages, config.mount());
         let desks = (moderation, media, desk);
         let apis = api_router((content, door), desks, (database, id, config));
         let app = assembled(
@@ -199,7 +200,7 @@ fn serve_with(
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
         watching.stop().await;
         scheduling.stop().await;
-        announcing.stop().await;
+        tokio::join!(announcing.stop(), counter.stop());
         if let Some(message) = why.lock().unwrap_or_else(PoisonError::into_inner).take() {
             return Err((message, Exit::Failure));
         }

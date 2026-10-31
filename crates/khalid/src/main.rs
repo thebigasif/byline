@@ -63,6 +63,7 @@ mod new;
 mod new_message;
 mod newsletter;
 mod outbound;
+mod page_counts;
 mod post_files;
 mod post_images;
 mod post_lock;
