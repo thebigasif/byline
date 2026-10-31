@@ -10,8 +10,8 @@
 # to the first byte, the idle memory and the time from saving one post to
 # its page showing the edit. The same three on the 10,000-post site are
 # written under "observed": the budgets name 1,000 posts, so they are
-# reported, not gated. The lint measures wait for the linter's near-copy
-# rule to stop growing with the site (task 1.21).
+# reported, not gated. Lint one post is the median over 100 posts of the
+# 1,000-post site, each linted against the whole site.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +33,7 @@ mkdir -p "$work"
 "$perf" fixture 1000 "$work/site-1k"
 "$perf" fixture 10000 "$work/site-10k"
 "$perf" render "$work/site-1k" "$work/render.json"
+"$perf" lint "$work/site-1k" "$work/lint.json"
 "$perf" serve "$bin" 1000 "$work/site-1k" "$work/serve-1k.json"
 "$perf" serve "$bin" 10000 "$work/site-10k" "$work/serve-10k.json"
 
@@ -80,6 +81,7 @@ measures = {
     "post_render_p50_ms": render["post_render_p50_ms"],
     "post_render_p99_ms": render["post_render_p99_ms"],
     "full_rebuild_10k_s": round(statistics.median(build_runs), 2),
+    **read("lint.json"),
     **read("serve-1k.json"),
 }
 # The 10,000-post site's server measures, reported beside the gate.
