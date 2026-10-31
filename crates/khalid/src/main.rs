@@ -147,6 +147,7 @@ mod site_posts;
 mod site_schema_templates;
 mod site_settings;
 mod site_tags;
+mod site_watch;
 mod slug_moves;
 mod slug_repair;
 mod staff;
@@ -165,6 +166,7 @@ mod update;
 mod update_message;
 mod update_release;
 mod visitor_log;
+mod watch_report;
 mod webhooks;
 
 use std::ffi::OsString;
@@ -252,6 +254,9 @@ fn run(cli: &Cli) -> Exit {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some((folder, ..))) => {
             db::run(folder, command.clone(), cli.output)
+        }
+        (Some(Command::Watch), Some((folder, ..))) => {
+            watch_report::run(folder, &SystemClock, cli.output)
         }
         (Some(Command::Lint { path, fix }), Some((folder, ..))) => {
             let mode = if *fix { Mode::Fix } else { Mode::Check };

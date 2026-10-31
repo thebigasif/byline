@@ -21,26 +21,41 @@ use khalid_newsletter::Mailer;
 use serde_json::Value;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use tokio::time::{Instant, MissedTickBehavior};
+use tokio::time::{Instant, Interval, MissedTickBehavior};
 
 use crate::alerts::{self, Alerting};
 use crate::announce::SiteAnnounce;
 use crate::cli::ServeArgs;
 use crate::crawl_alerts;
 use crate::site_content::LiveContent;
+use crate::site_watch::{self, SiteWatch};
 
 /// How often the checks run.
 const EVERY: Duration = Duration::from_hours(1);
 
+/// How often the checks run, and the speed and uptime watch looks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Every {
+    /// The alert checks.
+    pub(crate) checks: Duration,
+    /// The watch, or `None` when it does not look.
+    pub(crate) watch: Option<Duration>,
+}
+
 /// How often the checks run for `args`: hourly, or as the hidden
-/// `--alert-every` asks in a test build.
-pub(crate) fn every(args: &ServeArgs) -> Duration {
+/// `--alert-every` asks in a test build. The watch looks as
+/// [`site_watch::every`] says for the site with `config`.
+pub(crate) fn every(args: &ServeArgs, config: &Config) -> Every {
+    let watch = site_watch::every(args, config);
     #[cfg(feature = "test-util")]
     if let Some(seconds) = args.alert_every {
-        return Duration::from_secs(seconds);
+        let checks = Duration::from_secs(seconds);
+        return Every { checks, watch };
     }
-    let _ = args;
-    EVERY
+    Every {
+        checks: EVERY,
+        watch,
+    }
 }
 
 /// What the checks read.
@@ -55,6 +70,8 @@ pub(crate) struct Sources {
     pub(crate) settings: AlertSettings,
     /// The visitor log, when `[visitor_log]` is on, for the crawl alerts.
     pub(crate) visitors: Option<Arc<dyn VisitorLogStore>>,
+    /// The speed and uptime watch and how often it looks, when it does.
+    pub(crate) watch: Option<(SiteWatch, Duration)>,
 }
 
 /// Alerts made ready before the server listens, started once the site's
@@ -99,23 +116,46 @@ impl Watching {
 }
 
 /// Reads the 404 log once now, so the first round can tell a burst, then
-/// runs the checks every `every` through `alerting`. Must be called inside
-/// the tokio runtime.
+/// runs the checks every `every` through `alerting`, and the speed and
+/// uptime watch as often as it looks. Must be called inside the tokio
+/// runtime.
 fn start(alerting: Arc<Alerting>, sources: Sources, every: Duration) -> Watching {
     let (stop, mut stopped) = oneshot::channel();
     let task = tokio::spawn(async move {
         let mut before = counts(&*sources.misses).await;
-        let mut ticks = tokio::time::interval_at(Instant::now() + every, every);
-        ticks.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        let mut ticks = ticking(every);
+        let mut looks = sources.watch.as_ref().map(|(_, every)| ticking(*every));
         loop {
             tokio::select! {
                 _ = &mut stopped => return,
-                _ = ticks.tick() => {}
+                _ = ticks.tick() => before = round(&alerting, &sources, before).await,
+                () = next(looks.as_mut()) => {
+                    if let Some((watch, _)) = &sources.watch {
+                        watch.round(&alerting).await;
+                    }
+                }
             }
-            before = round(&alerting, &sources, before).await;
         }
     });
     Watching { stop, task }
+}
+
+/// Ticks every `every`, the first after one wait; a late tick waits
+/// rather than bunching up.
+fn ticking(every: Duration) -> Interval {
+    let mut ticks = tokio::time::interval_at(Instant::now() + every, every);
+    ticks.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    ticks
+}
+
+/// The next tick of `ticks`, or never when there are none.
+async fn next(ticks: Option<&mut Interval>) {
+    match ticks {
+        Some(ticks) => {
+            ticks.tick().await;
+        }
+        None => std::future::pending().await,
+    }
 }
 
 /// One round of every check. Returns the 404 counts read, for the next.
@@ -244,6 +284,7 @@ mod tests {
             https: None,
             settings: config.alerts().clone(),
             visitors: None,
+            watch: None,
         };
         log.record("/blog/old/", at).await.unwrap();
         let before = counts(&*sources.misses).await;

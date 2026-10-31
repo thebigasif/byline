@@ -197,7 +197,21 @@ To get alerts by email too, set up `[mail]` as above and add the address:
 email = "owner@example.com"
 not_found_spike = 50     # new 404s in one hour that count as a burst
 stale_after_days = 365   # 0 switches the stale-post alert off
+watch_minutes = 5        # how often the speed and uptime watch looks; 0 switches it off
+slow_ms = 1000           # a slower middle answer time over an hour is an alert; 0 switches it off
 ```
+
+### Speed and uptime
+
+Once the server answers more than its own computer, with `--domain` or a `--listen` address such as `0.0.0.0:8080`, it looks at the blog's home page at its public address every 5 minutes, the way a reader's browser would: through DNS, the certificate and any proxy in front. Three failed looks in a row send a "site down" alert. An hour whose middle answer time is over 1 second sends a "slow site" alert. Both are sent once, and again only after the site has recovered.
+
+To see the record, run:
+
+```sh
+khalid --site /srv/blog watch
+```
+
+It shows, for the last day and the last 30 days, how many looks answered, how fast, and the longest gap between looks. A long gap means the server itself was off, since a stopped server cannot look. To be told about that too, have a second machine or an outside monitor watch the address.
 
 ## The visitor log
 

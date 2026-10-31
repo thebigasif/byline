@@ -109,3 +109,6 @@ INSERT INTO alerts_raised (site_id, key, raised_at) VALUES
 INSERT INTO audit_log (site_id, at, by_key, action, route, path) VALUES
     (1, '2026-10-26T09:00:00Z', '0123456789abcdef', 'changed', '/api/admin/v1/posts/{id}/', '/api/admin/v1/posts/en.old-post/'),
     (2, '2026-10-26T09:00:00Z', '0123456789abcdef', 'changed', '/api/admin/v1/posts/{id}/', '/api/admin/v1/posts/en.old-post/');
+INSERT INTO site_watch (site_id, page, looked_at, status, millis) VALUES
+    (1, 'https://www.example.com/blog/', '2026-10-26T09:00:00Z', 200, 120),
+    (2, 'https://www.example.com/blog/', '2026-10-26T09:00:00Z', NULL, 10000);

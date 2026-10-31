@@ -133,6 +133,10 @@ name = "serve_alerts"
 required-features = ["test-util"]
 
 [[test]]
+name = "serve_watch"
+required-features = ["test-util"]
+
+[[test]]
 name = "audit_alerts"
 required-features = ["test-util"]
 

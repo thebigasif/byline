@@ -53,6 +53,7 @@ A test reads the table below and checks it lists every table in the schema, once
 | `crawled_pages` | visitor | Each page a bot fetched from an address on its company's list, with the first and last fetch; written with the visitor log and kept when its rows are erased |
 | `alerts_raised` | visitor | The key of each alert finding sent to the owner, so it is sent once while the problem lasts |
 | `audit_log` | visitor | Each change made through the Admin API: who made it, whether it added, changed or removed something, the route and the address; the newest 100,000 kept |
+| `site_watch` | visitor | Each look the speed and uptime watch took at a page of the public address, with its status and time; 30 days kept |
 
 ## Changing a query
 

@@ -80,6 +80,7 @@ impl Command {
                 CrawlCommand::Health => "crawl health",
                 CrawlCommand::Errors => "crawl errors",
             },
+            Self::Watch => "watch",
         }
     }
 }

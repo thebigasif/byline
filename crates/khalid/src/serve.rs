@@ -33,6 +33,7 @@ use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
+use crate::alert_watch::Every;
 use crate::announce::{Announcing, SiteAnnounce};
 use crate::cli::Output;
 use crate::content_feed::{self, Destination};
@@ -50,6 +51,7 @@ use crate::site_posts::SitePosts;
 use crate::site_schema_templates::SiteSchemaTemplates;
 use crate::site_settings::SiteSettings;
 use crate::site_tags::SiteTags;
+use crate::site_watch::SiteWatch;
 use crate::tag_events::Tags;
 use crate::{
     alert_watch, announce, assets, comment_pages, consent_route, db, db_message, form_pages,
@@ -106,7 +108,7 @@ pub(crate) fn run(
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
     (listen, outbound, keys): (&Listen, Result<Outbound, OutboundError>, Keys),
-    (output, alert_every): (Output, Duration),
+    (output, alert_every): (Output, Every),
 ) -> Exit {
     let built = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -139,7 +141,7 @@ pub(crate) fn run(
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
-    (listen, outbound, (output, alert_every), keys): (&Listen, &Outbound, (Output, Duration), Keys),
+    (listen, outbound, (output, alert_every), keys): (&Listen, &Outbound, (Output, Every), Keys),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
 ) -> Result<(), (UserMessage, Exit)> {
@@ -231,10 +233,10 @@ fn serve_with(
 /// `[mail]` with its `secret` and `outbound`. The routes are the
 /// newsletter's and the form block's (G4), whose answers are emailed and
 /// told to `telling` (G40), as is each confirmed subscriber; both keep
-/// what they receive in the database `site` reads. The alert checks run
-/// `every` so often.
+/// what they receive in the database `site` reads. The alert checks and
+/// the speed and uptime watch run `every` so often.
 fn mail_and_alerts(
-    (folder, config, listen, every): (&Path, &Config, &Listen, Duration),
+    (folder, config, listen, every): (&Path, &Config, &Listen, Every),
     (site, runtime, telling): (&search_route::Search, &Runtime, &SiteAnnounce),
     content: &LiveContent,
     (secret, outbound): (Option<Secret<String>>, &Outbound),
@@ -263,11 +265,15 @@ fn mail_and_alerts(
                 Arc::new(VisitorLogTable::new(database.clone(), id));
             log
         }),
+        watch: every.watch.and_then(|looks| {
+            let watch = SiteWatch::new(config, outbound, (database, id))?;
+            Some((watch, looks))
+        }),
     };
     let ready = alert_watch::Ready {
         mailer,
         sources,
-        every,
+        every: every.checks,
     };
     Ok((newsletters.merge(forms), ready))
 }

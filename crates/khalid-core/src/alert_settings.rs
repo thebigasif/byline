@@ -15,6 +15,8 @@ use crate::mail_settings::is_address;
 /// email = "owner@example.com"
 /// not_found_spike = 50
 /// stale_after_days = 365
+/// watch_minutes = 5
+/// slow_ms = 1000
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,6 +33,15 @@ pub struct AlertSettings {
     /// stale, 365 unless set. 0 switches the check off.
     #[serde(default = "stale")]
     pub stale_after_days: u32,
+    /// How many minutes apart the speed and uptime watch looks at the
+    /// site's public address, 5 unless set, at most 60. 0 switches the
+    /// watch off.
+    #[serde(default = "watch")]
+    pub watch_minutes: u32,
+    /// The middle answer time over an hour, in milliseconds, above which
+    /// the site is called slow, 1000 unless set. 0 switches the check off.
+    #[serde(default = "slow")]
+    pub slow_ms: u32,
 }
 
 impl Default for AlertSettings {
@@ -39,8 +50,22 @@ impl Default for AlertSettings {
             email: None,
             not_found_spike: spike(),
             stale_after_days: stale(),
+            watch_minutes: watch(),
+            slow_ms: slow(),
         }
     }
+}
+
+/// The rarest the watch may look: three failed looks must fit in a few
+/// hours for a down site to be raised the same day.
+const RAREST_WATCH: u32 = 60;
+
+fn watch() -> u32 {
+    5
+}
+
+fn slow() -> u32 {
+    1000
 }
 
 fn spike() -> u32 {
@@ -75,6 +100,12 @@ impl AlertSettings {
             return Some((
                 "not_found_spike",
                 "a spike is at least one new 404 in an hour, so use 1 or more",
+            ));
+        }
+        if self.watch_minutes > RAREST_WATCH {
+            return Some((
+                "watch_minutes",
+                "the watch looks at least once an hour to tell when the site is down, so use 1 to 60, or 0 to switch it off",
             ));
         }
         None

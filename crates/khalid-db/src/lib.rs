@@ -19,8 +19,9 @@
 //! accounts, as the [`AccountTable`], [`SessionTable`], [`LinkTable`] and
 //! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
 //! analytics, as the [`AnalyticsTable`] `khalid serve` counts into, the
-//! visitor log, as the [`VisitorLogTable`] it writes while switched on, and
-//! the audit log, as the [`AuditTable`] the Admin API records each change in.
+//! visitor log, as the [`VisitorLogTable`] it writes while switched on, the
+//! speed and uptime watch's looks, as the [`WatchTable`], and the audit
+//! log, as the [`AuditTable`] the Admin API records each change in.
 
 mod account_table;
 mod alert_table;
@@ -51,6 +52,7 @@ mod site_lists;
 mod subscriber_segments;
 mod subscriber_table;
 mod visitor_log_table;
+mod watch_table;
 mod webhook_table;
 
 pub use account_table::AccountTable;
@@ -77,4 +79,5 @@ pub use site_export::{Cell, ExportTable, SiteExport, is_withheld_column};
 pub use site_id::SiteId;
 pub use subscriber_table::SubscriberTable;
 pub use visitor_log_table::VisitorLogTable;
+pub use watch_table::WatchTable;
 pub use webhook_table::WebhookTable;
