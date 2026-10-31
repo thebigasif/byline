@@ -2034,6 +2034,73 @@
         ]
       }
     },
+    "/api/admin/v1/schema-templates/": {
+      "get": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Lists the site's schema templates, the collections a template may name,\nand whether the running server needs a restart to use the templates.\nNeeds `settings:write`.",
+        "operationId": "read_templates",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The schema templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaTemplates"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no schema templates",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/session/": {
       "get": {
         "tags": [
@@ -6294,6 +6361,45 @@
           }
         }
       },
+      "AdminSchemaTemplate": {
+        "type": "object",
+        "description": "One schema template as the Admin API sends and takes it.",
+        "required": [
+          "applies_to",
+          "name",
+          "type"
+        ],
+        "properties": {
+          "applies_to": {
+            "$ref": "#/components/schemas/TemplateTarget",
+            "description": "Whether `name` is a collection or a category."
+          },
+          "name": {
+            "type": "string",
+            "description": "The collection or category whose posts get the node.",
+            "example": "guides"
+          },
+          "properties": {
+            "type": "object",
+            "description": "Each property's value, by property name. A value may use the title\ntemplate variables, such as `{title}` and `{site}`.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "provider": "{site}"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "The schema.org type, such as `Course`.",
+            "example": "Course"
+          }
+        },
+        "additionalProperties": false
+      },
       "AdminWebhook": {
         "type": "object",
         "description": "A webhook as the Admin API lists it. Its secret is never listed.",
@@ -8184,6 +8290,45 @@
         },
         "additionalProperties": false
       },
+      "SchemaTemplates": {
+        "type": "object",
+        "description": "The site's schema templates, in the order `site.toml` lists them.",
+        "required": [
+          "templates",
+          "collections",
+          "updated_at",
+          "restart_needed"
+        ],
+        "properties": {
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The site's collections, to pick a template's collection from.",
+            "example": [
+              "posts",
+              "guides"
+            ]
+          },
+          "restart_needed": {
+            "type": "boolean",
+            "description": "Whether the running server still uses older templates, so a restart\nis needed before previews and served pages show these."
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSchemaTemplate"
+            },
+            "description": "Every template. When two of one type cover a post, the first wins."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When `site.toml` last changed. A change sends it back."
+          }
+        }
+      },
       "SearchTitle": {
         "type": "string",
         "description": "The title search results show for a post, in place of the site's title\ntemplate. It may use the template variables, such as `{site}`.",
@@ -8605,6 +8750,14 @@
             "description": "The entries on this page, or the one entry asked for."
           }
         }
+      },
+      "TemplateTarget": {
+        "type": "string",
+        "description": "What a schema template's `name` names.",
+        "enum": [
+          "collection",
+          "category"
+        ]
       },
       "Term": {
         "type": "object",

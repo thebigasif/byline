@@ -22,11 +22,12 @@ use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
 use crate::resources::MediaItems;
+use crate::schema_template_store::SchemaTemplateStore;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
     admin_api, admin_check, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects,
-    admin_webhooks, api_version, content_api,
+    admin_schema_templates, admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -218,6 +219,9 @@ pub struct AdminDesks {
     /// The post checks behind the editor's SEO panel, or `None` when the
     /// check route answers that this server makes none.
     pub checks: Option<Arc<dyn PostChecks>>,
+    /// The site's schema templates, or `None` when their routes answer
+    /// that this server keeps none.
+    pub schema_templates: Option<Arc<dyn SchemaTemplateStore>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -230,8 +234,8 @@ impl std::fmt::Debug for AdminDesks {
 }
 
 impl AdminDesks {
-    /// No comments, no media library, no stored redirects, no webhooks
-    /// and no post checks.
+    /// No comments, no media library, no stored redirects, no webhooks,
+    /// no post checks and no schema templates.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -239,6 +243,7 @@ impl AdminDesks {
             redirects: RedirectDesk::none(),
             webhooks: None,
             checks: None,
+            schema_templates: None,
         }
     }
 }
@@ -304,7 +309,11 @@ fn assemble(
         .merge(admin_redirect_csv::routes(redirects.clone(), door.clone()))
         .merge(admin_redirects::routes(redirects, door.clone()))
         .merge(admin_webhooks::routes(desks.webhooks, door.clone()))
-        .merge(admin_check::routes(desks.checks, door.clone()));
+        .merge(admin_check::routes(desks.checks, door.clone()))
+        .merge(admin_schema_templates::routes(
+            desks.schema_templates,
+            door.clone(),
+        ));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in
