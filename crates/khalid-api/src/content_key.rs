@@ -10,26 +10,48 @@ use axum::response::{IntoResponse, Response};
 use khalid_core::UserMessage;
 use serde::Deserialize;
 
+use crate::api_limits::{self, Api, ApiLimits};
 use crate::keys::{KeyError, KeyKind, KeyStore, authenticate};
 use crate::problem::{Problem, ProblemType};
 
 /// The `Authorization` scheme for content keys.
 pub(crate) const SCHEME: &str = "Khalid-Content";
 
+/// What lets a request into the Content API: the stored keys and the
+/// request limits.
+#[derive(Clone)]
+pub(crate) struct ContentDoor {
+    pub(crate) keys: Arc<dyn KeyStore>,
+    pub(crate) limits: Arc<ApiLimits>,
+}
+
 /// Lets a request through only with a stored content key, sent as
-/// `Authorization: Khalid-Content <key>` or as `?key=<key>`.
+/// `Authorization: Khalid-Content <key>` or as `?key=<key>`. A busy key,
+/// or an address that sent too many wrong keys, gets a 429 (BL-SEC-5).
 pub(crate) async fn require_content_key(
-    State(keys): State<Arc<dyn KeyStore>>,
+    State(door): State<ContentDoor>,
     request: Request,
     next: Next,
 ) -> Response {
+    let address = api_limits::client(&request);
+    if let Some(wait) = address.and_then(|address| door.limits.paused(address)) {
+        return api_limits::paused(wait);
+    }
     let Some(text) = presented(&request) else {
         return refused();
     };
-    match authenticate(keys.as_ref(), &text, KeyKind::Content).await {
-        Ok(_) => next.run(request).await,
+    match authenticate(door.keys.as_ref(), &text, KeyKind::Content).await {
+        Ok(principal) => match door.limits.admit(principal.id(), Api::Content) {
+            Ok(()) => next.run(request).await,
+            Err(wait) => api_limits::busy(wait),
+        },
         Err(KeyError::Unavailable { source }) => Problem::internal(&source).into_response(),
-        Err(_) => refused(),
+        Err(_) => {
+            if let Some(address) = address {
+                door.limits.refused(address);
+            }
+            refused()
+        }
     }
 }
 

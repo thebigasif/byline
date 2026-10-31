@@ -10,6 +10,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use khalid_core::UserMessage;
 
+use crate::api_limits::{self, Api, ApiLimits};
 use crate::keys::{
     Access, KeyError, KeyKind, KeyStore, KeyStoreError, KeyToken, Principal, Scope, authenticate,
 };
@@ -19,34 +20,49 @@ use crate::session_check::{CSRF_HEADER, SessionCheck};
 /// The `Authorization` scheme for integration keys and staff tokens.
 const SCHEME: &str = "Khalid";
 
-/// What lets a request into the Admin API: the stored keys, and staff
-/// sessions when the site has accounts.
+/// What lets a request into the Admin API: the stored keys, staff
+/// sessions when the site has accounts, and the request limits.
 #[derive(Clone)]
 pub(crate) struct AdminDoor {
     pub(crate) keys: Arc<dyn KeyStore>,
     pub(crate) sessions: Option<Arc<dyn SessionCheck>>,
+    pub(crate) limits: Arc<ApiLimits>,
 }
 
 /// Lets a request through only with a stored integration key or staff
 /// token in `Authorization: Khalid <key>`, or, with no `Authorization`
 /// header, a staff session cookie with its CSRF token (RULES.md BL-SEC-9),
-/// and hands the routes the [`Principal`] it belongs to.
+/// and hands the routes the [`Principal`] it belongs to. A busy key, or an
+/// address that sent too many wrong keys, gets a 429 (BL-SEC-5).
 pub(crate) async fn require_admin_key(
     State(door): State<AdminDoor>,
     mut request: Request,
     next: Next,
 ) -> Response {
-    let principal = if request.headers().contains_key(AUTHORIZATION) {
+    let address = api_limits::client(&request);
+    if let Some(wait) = address.and_then(|address| door.limits.paused(address)) {
+        return api_limits::paused(wait);
+    }
+    let with_key = request.headers().contains_key(AUTHORIZATION);
+    let principal = if with_key {
         by_key(door.keys.as_ref(), request.headers()).await
     } else {
         by_session(door.sessions.as_deref(), request.headers()).await
     };
     match principal {
         Ok(Some(principal)) => {
+            if let Err(wait) = door.limits.admit(principal.id(), Api::Admin) {
+                return api_limits::busy(wait);
+            }
             request.extensions_mut().insert(principal);
             next.run(request).await
         }
-        Ok(None) => refused(),
+        Ok(None) => {
+            if let Some(address) = address.filter(|_| with_key) {
+                door.limits.refused(address);
+            }
+            refused()
+        }
         Err(source) => Problem::internal(&source).into_response(),
     }
 }
