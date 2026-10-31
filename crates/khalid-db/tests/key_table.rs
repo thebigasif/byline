@@ -129,3 +129,37 @@ async fn a_site_sees_only_its_own_keys() {
     assert!(!other.revoke(token.id()).await.unwrap());
     assert!(demo.find(token.id()).await.unwrap().is_some());
 }
+
+#[tokio::test]
+async fn the_working_keys_are_listed_with_names_and_never_a_hash() {
+    let (_dir, _path, demo, other) = opened().await;
+    let serpdad = token(KeyKind::Integration, 1);
+    let editor = token(KeyKind::Staff, 2);
+    let gone = token(KeyKind::Content, 3);
+    demo.create(stored(&serpdad), "SerpDad").await.unwrap();
+    demo.create(stored(&editor), "Lena").await.unwrap();
+    demo.create(stored(&gone), "Old site").await.unwrap();
+    demo.revoke(gone.id()).await.unwrap();
+    other
+        .create(stored(&token(KeyKind::Content, 4)), "Elsewhere")
+        .await
+        .unwrap();
+
+    let listed = demo.list().await.unwrap();
+    let names: Vec<_> = listed.iter().map(|key| key.name.as_str()).collect();
+    assert_eq!(
+        names,
+        ["SerpDad", "Lena"],
+        "revoked and other sites' keys are left out"
+    );
+    assert_eq!(listed[0].id, *serpdad.id());
+    assert_eq!(
+        listed[0].access,
+        Access::Integration(vec![Scope::ContentRead, Scope::PostsWrite])
+    );
+    assert_eq!(listed[1].access, Access::Staff(Role::Editor));
+    assert_eq!(
+        listed[0].created_at,
+        Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap()
+    );
+}

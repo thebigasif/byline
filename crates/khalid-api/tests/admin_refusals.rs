@@ -15,8 +15,8 @@ use chrono::{TimeZone, Utc};
 use khalid_api::api;
 use khalid_api::content_store::BoxFuture;
 use khalid_api::keys::{
-    CreateKeyError, KeyHashing, KeyId, KeyStore, KeyStoreError, KeyToken, MemoryKeyStore, Scope,
-    StoredKey,
+    CreateKeyError, KeyHashing, KeyId, KeyStore, KeyStoreError, KeyToken, ListedKey,
+    MemoryKeyStore, Scope, StoredKey,
 };
 use khalid_api::post_store::MemoryPostStore;
 use khalid_api::resources::AdminPost;
@@ -222,6 +222,10 @@ impl KeyStore for BrokenKeys {
     }
 
     fn revoke<'a>(&'a self, _id: &'a KeyId) -> BoxFuture<'a, Result<bool, KeyStoreError>> {
+        Box::pin(std::future::ready(Err(disk_gone())))
+    }
+
+    fn list(&self) -> BoxFuture<'_, Result<Vec<ListedKey>, KeyStoreError>> {
         Box::pin(std::future::ready(Err(disk_gone())))
     }
 }

@@ -7,12 +7,20 @@
 //! about content files, markdown, SQL or templates.
 
 mod admin_api;
+mod admin_api_keys;
+mod admin_authors;
+mod admin_categories;
 mod admin_comments;
 mod admin_delete;
+mod admin_entries;
 mod admin_key;
 mod admin_not_found;
+mod admin_pages;
 mod admin_redirect_csv;
 mod admin_redirects;
+mod admin_site_settings;
+mod admin_snippets;
+mod admin_tags;
 mod admin_webhooks;
 pub mod api;
 mod api_version;
@@ -20,6 +28,7 @@ pub mod comment_moderation;
 pub mod content_api;
 mod content_key;
 pub mod content_store;
+pub mod entry_store;
 mod etag;
 mod html_source;
 pub mod keys;
@@ -37,5 +46,7 @@ pub mod redirect_store;
 pub mod resources;
 pub mod schedule_store;
 pub mod session_check;
+pub mod settings_store;
+pub mod tag_store;
 pub mod unlock;
 pub mod webhook_store;
