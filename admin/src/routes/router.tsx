@@ -15,6 +15,7 @@ import { Dashboard } from "./Dashboard";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
+import { SearchConsole } from "./SearchConsole";
 import { SignIn } from "./SignIn";
 
 const root = createRootRoute({ errorComponent: RouteError });
@@ -63,9 +64,15 @@ const redirects = createRoute({
   component: Redirects,
 });
 
+const searchConsole = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/search-console",
+  component: SearchConsole,
+});
+
 const routeTree = root.addChildren([
   signIn,
-  signedIn.addChildren([dashboard, posts, newPost, editor, redirects]),
+  signedIn.addChildren([dashboard, posts, newPost, editor, redirects, searchConsole]),
 ]);
 
 /** Makes the admin's router; a test passes a memory history. */

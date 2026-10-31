@@ -9,7 +9,7 @@ The founder said yes in advance, on 2026-10-27, to every admin mockup in this ph
 - It reads one Admin API route, `GET /api/admin/v1/search-console/follow-ups/`, which needs `settings:write`, as the analytics routes do, because the numbers come from the owner's Google account (GEO M3).
 - One focus point: how many of the long searches have no heading that answers them, with what to do about it. There is no button: the period is the 28 days Google has final numbers for, as the `khalid search-console follow-ups` command uses.
 - Each post is a table of its searches. An open search says "No heading yet"; an answered one names the heading.
-- A site that is not connected sees the API's own what, why and fix instead, calmly, not as an alarm.
+- A site that is not connected sees the API's own what, why and fix instead, in the admin's usual problem box.
 - Every term is defined where it first appears: Search Console, long search, shown, average position.
 
 ## Left for later
