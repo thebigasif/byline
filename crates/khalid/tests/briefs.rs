@@ -1,5 +1,5 @@
-//! A brief per post, `briefs/<language>/<slug>.toml` (P6): `khalid lint`
-//! holds each post to its brief.
+//! A brief per post, `briefs/<language>/<slug>.toml` (P6): `khalid lint`,
+//! `khalid build` and the publish door hold each post to its brief.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -126,15 +126,17 @@ fn lint_names_the_fix_in_sentences() {
 }
 
 #[test]
-fn a_broken_brief_stops_lint_with_a_plain_message() {
+fn a_broken_brief_stops_lint_and_build_with_a_plain_message() {
     let site = site("terms = [\"anchor text\"]\nquestion = [\"Why?\"]\n");
-    let output = khalid(site.path(), &["lint"]);
-    assert_eq!(output.status.code(), Some(1));
-    let said = text(&output.stderr);
-    assert!(
-        said.contains("briefs/en/why-internal-links-matter.toml has a mistake on line 2"),
-        "{said}"
-    );
+    for args in [&["lint"][..], &["build"][..]] {
+        let output = khalid(site.path(), args);
+        assert_eq!(output.status.code(), Some(1), "{args:?}");
+        let said = text(&output.stderr);
+        assert!(
+            said.contains("briefs/en/why-internal-links-matter.toml has a mistake on line 2"),
+            "{said}"
+        );
+    }
 }
 
 #[test]
@@ -146,6 +148,56 @@ fn a_brief_outside_a_language_folder_is_refused() {
     let said = text(&output.stderr);
     assert!(
         said.contains("briefs/stray.toml is not in a language folder"),
+        "{said}"
+    );
+}
+
+#[test]
+fn build_refuses_an_unanswered_question_when_the_site_makes_it_block() {
+    let site = site(BRIEF);
+    let rules = "[rules]\nbrief-question-unanswered = \"block\"\n";
+    fs::write(within(site.path(), "lint.toml"), rules).unwrap();
+    let output = khalid(site.path(), &["build"]);
+    assert_eq!(output.status.code(), Some(1), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(said.contains("How many internal links"), "{said}");
+}
+
+#[test]
+fn the_publish_door_refuses_a_draft_that_misses_its_brief_when_it_blocks() {
+    let site = site(BRIEF);
+    let rules = "[rules]\nbrief-link-missing = \"block\"\n";
+    fs::write(within(site.path(), "lint.toml"), rules).unwrap();
+    let drafts = within(site.path(), "drafts/en");
+    fs::create_dir_all(&drafts).unwrap();
+    let draft = POST.replace("date: 2026-09-14\n", "slug: links-draft\n");
+    fs::write(within(&drafts, "links-draft.md"), &draft).unwrap();
+    let briefs = within(site.path(), "briefs/en");
+    fs::write(within(&briefs, "links-draft.toml"), BRIEF).unwrap();
+    let output = khalid(site.path(), &["publish", "links-draft", "--json"]);
+    let said = text(&output.stdout);
+    assert_eq!(output.status.code(), Some(1), "{said}");
+    let answer: Value = serde_json::from_str(&said).unwrap();
+    assert_eq!(
+        found(&answer["lint"], "brief-link-missing"),
+        ["/blog/orphan-pages/"]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_brief_linked_from_outside_the_site_folder_is_refused() {
+    let site = site(BRIEF);
+    let outside = tempfile::tempdir().unwrap();
+    let secret = within(outside.path(), "elsewhere.toml");
+    fs::write(&secret, BRIEF).unwrap();
+    let link = within(site.path(), "briefs/en/linked.toml");
+    std::os::unix::fs::symlink(&secret, link).unwrap();
+    let output = khalid(site.path(), &["lint"]);
+    assert_eq!(output.status.code(), Some(1));
+    let said = text(&output.stderr);
+    assert!(
+        said.contains("could not read briefs/en/linked.toml"),
         "{said}"
     );
 }
