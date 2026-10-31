@@ -94,6 +94,7 @@ One Rust binary. Run with no arguments it prints help. Its roles:
 | `khalid new "Title"` | Create a post file with correct front matter. |
 | `khalid lint [path]` | Check one post or the whole site. Exit code 1 on a block, 0 otherwise. `--json` for agents. |
 | `khalid publish <slug>` | Lint, then flip a draft to published. Refuses on a block. |
+| `khalid plan` | Suggest a day for each ready draft at a steady pace, each topic group's pillar first. Changes nothing. `--per-week` sets the pace. |
 | `khalid theme sync <url>` | Pull colours, fonts and logo again. Shows a diff. Manual edits win. |
 | `khalid import <source>` | Bring in a blog from WordPress, Ghost, Medium, Substack or a folder of markdown. |
 | `khalid export` | Static mode: write plain HTML to `public/`. |

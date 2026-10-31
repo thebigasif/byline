@@ -16,6 +16,7 @@ impl Command {
             Self::Build { .. } => "build",
             Self::Lint { .. } => "lint",
             Self::Publish { .. } => "publish",
+            Self::Plan { .. } => "plan",
             Self::Theme {
                 command: ThemeCommand::Sync { .. },
             } => "theme sync",

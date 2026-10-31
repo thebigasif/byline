@@ -95,6 +95,8 @@ mod newsletter_send;
 mod outbound;
 mod page_code;
 mod page_counts;
+mod plan;
+mod plan_message;
 mod post_files;
 mod post_gate;
 mod post_images;
@@ -282,6 +284,7 @@ fn run(cli: &Cli) -> Exit {
             Some(
                 command @ (Command::Theme { .. }
                 | Command::Publish { .. }
+                | Command::Plan { .. }
                 | Command::Newsletter { .. }
                 | Command::New(_)),
             ),
@@ -315,7 +318,7 @@ fn outside(
 }
 
 /// Runs the commands that need only a checked site's settings: `theme`,
-/// `publish`, `newsletter` and `new`.
+/// `publish`, `plan`, `newsletter` and `new`.
 fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
     match command {
         Command::New(args) => new::run(
@@ -330,6 +333,7 @@ fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> 
         Command::Publish { slug, language } => {
             publish::run(cli, (folder, config), (slug, language.as_ref()))
         }
+        Command::Plan { per_week } => plan::run(cli, (folder, config), *per_week),
         _ => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
 }
