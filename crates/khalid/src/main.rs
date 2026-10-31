@@ -39,6 +39,7 @@ mod doctor_files;
 mod doctor_folder;
 mod doctor_robots;
 mod exit;
+mod export;
 mod https_message;
 mod import;
 mod import_rest;
@@ -204,7 +205,7 @@ fn run(cli: &Cli) -> Exit {
             new::run(folder, config, post, &SystemClock, cli.output)
         }
         (
-            Some(asked @ (Command::Build { .. } | Command::Audit { .. })),
+            Some(asked @ (Command::Build { .. } | Command::Export | Command::Audit { .. })),
             Some((folder, config, routes, (content, _))),
         ) => on_content(folder, (config, routes, content), asked, cli),
         (
@@ -232,6 +233,7 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Publish { .. }
                 | Command::New { .. }
                 | Command::Build { .. }
+                | Command::Export
                 | Command::Audit { .. }),
             ),
             None,
@@ -252,8 +254,8 @@ fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> 
     }
 }
 
-/// Runs the commands that read a checked site's content: `build`, and
-/// `audit` from a build or the server it names.
+/// Runs the commands that read a checked site's content: `build`,
+/// `export`, and `audit` from a build or the server it names.
 fn on_content(
     folder: &Path,
     checked: (&Config, &Routes, &SiteContent),
@@ -264,6 +266,7 @@ fn on_content(
         Command::Build { out } => {
             build::run(folder, checked, out.as_deref(), &SystemClock, cli.output)
         }
+        Command::Export => export::run(folder, checked, &SystemClock, cli.output),
         Command::Audit { server, network } => site_audit::run(
             folder,
             checked,
