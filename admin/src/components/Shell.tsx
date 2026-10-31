@@ -54,6 +54,9 @@ export function Shell() {
             <li>
               <Link to="/keys">{en.nav.keys}</Link>
             </li>
+            <li>
+              <Link to="/settings">{en.nav.settings}</Link>
+            </li>
           </ul>
         </nav>
         <main id="main" className="page">

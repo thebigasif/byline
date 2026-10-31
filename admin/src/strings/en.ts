@@ -14,6 +14,7 @@ export const en = {
     authors: "Authors",
     redirects: "Redirects",
     keys: "API keys",
+    settings: "Settings",
   },
   authors: {
     title: "Authors",
@@ -127,6 +128,39 @@ export const en = {
       revokeLabel: (name: string) => `Switch off the key ${name}`,
       revoked: (name: string) => `Switched off. The key ${name} no longer works.`,
     },
+  },
+  site: {
+    title: "Settings",
+    lede: "These settings cover the whole blog. They are saved to site.toml in your site folder, the same file you can edit by hand.",
+    loading: "Reading your settings",
+    where: "Name and address",
+    languages: "Languages",
+    fields: {
+      name: {
+        label: "Blog name",
+        hint: "Shown in the browser tab, in feeds and in search results.",
+      },
+      address: {
+        label: "Main site address",
+        hint: "Your website's address, such as https://www.example.com.",
+      },
+      mount: { label: "Folder", hint: "Where the blog lives on that site, such as /blog/." },
+      languages: {
+        label: "Languages",
+        hint: "Language codes separated by commas, such as en, de. Each post can have a version in each.",
+      },
+      default_language: {
+        label: "Main language",
+        hint: "The language visitors see first.",
+      },
+    },
+    careful:
+      "Changing the address or the folder changes the link to every post, feed and sitemap. Add a redirect for the old addresses, or links from other sites will break.",
+    restart:
+      "Restart Khalid on the server to use these settings. The running blog read site.toml when it started, and the file has changed since.",
+    save: "Save settings",
+    saved: "Saved to site.toml.",
+    unchanged: "Nothing changed, so nothing was saved.",
   },
   account: {
     nav: "Your account",
