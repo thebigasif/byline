@@ -12,14 +12,26 @@ import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
 import { postSearch } from "../posts/filters";
 import { Dashboard } from "./Dashboard";
+import { LinkSignIn } from "./LinkSignIn";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
 import { SignIn } from "./SignIn";
+import { Sites } from "./Sites";
 
 const root = createRootRoute({ errorComponent: RouteError });
 
 const signIn = createRoute({ getParentRoute: () => root, path: "/sign-in", component: SignIn });
+
+// A person's own sign-in, by an emailed link, and the one page it opens:
+// the super-admin panel needs a session, never a key, so both sit outside the shell.
+const linkSignIn = createRoute({
+  getParentRoute: () => root,
+  path: "/sign-in/link",
+  component: LinkSignIn,
+});
+
+const sites = createRoute({ getParentRoute: () => root, path: "/sites", component: Sites });
 
 // Every screen but sign-in sits inside the shell and needs a key.
 const signedIn = createRoute({
@@ -65,6 +77,8 @@ const redirects = createRoute({
 
 const routeTree = root.addChildren([
   signIn,
+  linkSignIn,
+  sites,
   signedIn.addChildren([dashboard, posts, newPost, editor, redirects]),
 ]);
 
