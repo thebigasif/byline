@@ -24,6 +24,7 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 - `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it, and on a static site which features are off.
 - `khalid backup --out <file>.tar.gz` writes one archive of the site folder with a whole copy of the database, safe while `khalid serve` runs. It leaves out `public/` and `data/media/`, which Khalid makes again, and never writes over a file.
 - `khalid update` installs the newest release after checking it against the release's `SHA256SUMS`, and keeps the old version beside the binary. `khalid update --rollback` goes back to it.
+- `khalid pull`, in git mode, brings the site's repository forward to what was pushed and checks the site. It never merges: when the blog's copy has its own changes, it stops and changes nothing.
 
 **The MCP server.** `khalid --site <folder> mcp` speaks the Model Context Protocol on stdin and stdout. Each tool sends the request the HTTP API would get, so it obeys the same rules, keys and checks.
 

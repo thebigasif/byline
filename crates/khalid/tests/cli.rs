@@ -7,10 +7,7 @@ use serde_json::Value;
 
 /// Every command in docs/plan.md section 4.1 that is not built yet, with the
 /// arguments it needs.
-const COMMANDS: &[&[&str]] = &[
-    &["export"],
-    &["pull"],
-];
+const COMMANDS: &[&[&str]] = &[&["export"]];
 
 /// Runs the binary cargo built for this test.
 #[cfg(test)]
