@@ -10,6 +10,10 @@
 
 mod alert;
 mod checks;
+mod raised;
 
 pub use alert::{Alert, Finding, Kind};
 pub use checks::{LivePost, ServedCertificate, certificate, not_found_spike, stale_posts};
+#[cfg(any(test, feature = "test-util"))]
+pub use raised::MemoryRaised;
+pub use raised::{BoxFuture, Raised, RaisedError, fresh};

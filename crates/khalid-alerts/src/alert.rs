@@ -49,6 +49,17 @@ impl Kind {
         format!("{}:{subject}", self.as_str())
     }
 
+    /// Whether a check of this kind sees the whole picture, so a finding
+    /// it no longer makes has cleared: a renewed certificate, a fixed link,
+    /// an updated post. A spike or a refused schedule happens once and
+    /// never clears.
+    pub fn clears(self) -> bool {
+        match self {
+            Self::BrokenLinks | Self::Certificate | Self::StalePost => true,
+            Self::NotFoundSpike | Self::FailedSchedule => false,
+        }
+    }
+
     /// Whether `key` was made by [`Kind::key`] of this kind.
     pub fn owns(self, key: &str) -> bool {
         key.strip_prefix(self.as_str())
