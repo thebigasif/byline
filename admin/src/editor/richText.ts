@@ -1,6 +1,7 @@
 import { Editor } from "@tiptap/core";
 import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
+import { WritingAids } from "./aids/trigger";
 import { directiveNodes } from "./blocks/directiveNode";
 import { FootnoteMark, FootnoteText, MarkdownTable } from "./blocks/markdownBlocks";
 import { BLOCK_SPECS, INNER_BLOCKS } from "./blocks/specs";
@@ -9,6 +10,7 @@ import { BLOCK_SPECS, INNER_BLOCKS } from "./blocks/specs";
 export const extensions = [
   StarterKit,
   Markdown,
+  WritingAids,
   ...directiveNodes,
   MarkdownTable,
   FootnoteText,
