@@ -63,7 +63,7 @@ pub use related::{PostTopics, related};
 pub use render_error::RenderError;
 pub use renderer::Renderer;
 pub use script::{ScriptTag, reader_script};
-pub use site::{Nav, NavLink, RenderSite};
+pub use site::{AnnouncementBar, Nav, NavLink, RenderSite};
 pub use sitemap::{RenderSitemap, SitemapGroup, SitemapSection};
 pub use stylesheet::stylesheet;
 pub use token_values::{Color, FontStack, Length, ParseTokenError};

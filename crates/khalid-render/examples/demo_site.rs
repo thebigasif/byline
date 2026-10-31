@@ -223,6 +223,7 @@ impl Demo {
                 ],
                 footer: Vec::new(),
             },
+            announcement: None,
             main_site: Some(link("example.com", format!("{ADDRESS}/"))),
             share_image: None,
             features: Features::all(),

@@ -188,6 +188,7 @@ fn sample_site(source: Source<'_>) -> RenderSite {
             }],
             footer: Vec::new(),
         },
+        announcement: None,
         main_site: Some(NavLink {
             label: format!("Back to {host}"),
             href: source.url.to_string(),

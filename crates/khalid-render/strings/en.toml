@@ -4,6 +4,7 @@
 skip_link = "Skip to the content"
 nav_primary = "Main menu"
 nav_footer = "Footer menu"
+announcement = "Announcement"
 nav_languages = "Languages"
 not_found_title = "This page does not exist"
 not_found_text = "The address may be mistyped, or the page may have moved."

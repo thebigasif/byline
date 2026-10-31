@@ -29,7 +29,8 @@
 {% endif %}</head>
 <body>
 <a class="skip-link" href="#main">{{ t.skip_link }}</a>
-<header class="site-header">
+{% if site.announcement %}<aside class="announcement" aria-label="{{ t.announcement }}"><p>{% if site.announcement.href %}<a href="{{ site.announcement.href }}">{{ site.announcement.text }}</a>{% else %}{{ site.announcement.text }}{% endif %}</p></aside>
+{% endif %}<header class="site-header">
 <a class="site-name" href="{{ site.home }}">{{ site.name }}</a>
 {% if site.nav.primary %}<nav aria-label="{{ t.nav_primary }}">
 <ul>

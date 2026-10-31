@@ -1,0 +1,7 @@
+---
+source: crates/khalid/tests/site_chrome.rs
+expression: bar
+---
+<a class="skip-link" href="#main">Skip to the content</a>
+<aside class="announcement" aria-label="Announcement"><p><a href="/blog/course/">Our technical SEO course opens on 3 November.</a></p></aside>
+<header
