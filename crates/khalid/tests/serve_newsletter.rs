@@ -1,7 +1,9 @@
 //! The newsletter on a running `khalid serve`, with scripts off: the plain
 //! sign-up form gets a whole page back, at the mount path and where the
 //! `::newsletter` block posts, and while the site cannot send email that
-//! page says sign-ups are not open and nothing is stored (task 5.5).
+//! page says sign-ups are not open and nothing is stored (task 5.5). With
+//! `[mail]` set, the confirmation email leaves and its link confirms
+//! (task 5.6).
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -9,6 +11,7 @@ use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
+use khalid_mail::StubSmtp;
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -116,4 +119,49 @@ fn the_plain_form_gets_a_page_saying_sign_ups_are_not_open_yet() {
             "{name} holds the address"
         );
     }
+}
+
+/// The token in the confirmation link of `message`, with any line the
+/// mail encoding broke joined back up.
+#[cfg(test)]
+fn confirm_token(message: &str) -> String {
+    let body = message.replace("=\n", "").replace("=3D", "=");
+    let (_, rest) = body.split_once("subscribe/confirm?token=").unwrap();
+    rest.split(char::is_whitespace).next().unwrap().to_owned()
+}
+
+/// `[mail]` sending through `stub`, a relay on this machine.
+#[cfg(test)]
+fn mail_settings(stub: &StubSmtp) -> String {
+    let port = stub.port();
+    format!(
+        "\n[mail]\nfrom = \"news@example.com\"\nname = \"Field Notes\"\n\n[mail.smtp]\n\
+         host = \"127.0.0.1\"\nport = {port}\nsecurity = \"none\"\nprivate_host = true\n"
+    )
+}
+
+#[test]
+fn with_mail_set_the_confirmation_leaves_and_its_link_confirms() {
+    let stub = StubSmtp::start().unwrap();
+    let site = demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let mut text = fs::read_to_string(&settings).unwrap();
+    text.push_str(&mail_settings(&stub));
+    fs::write(&settings, text).unwrap();
+    let server = start(site.path());
+    let signing_up = "email=grace%40example.com&homepage=";
+    let (status, page) = post_form(&server, "/blog/subscribe", signing_up);
+    assert_eq!(status, 200, "{page}");
+    assert!(page.contains("<h1>Check your inbox</h1>"), "{page}");
+    let received = stub.received();
+    assert_eq!(received.len(), 1, "{received:?}");
+    let message = &received[0];
+    assert!(message.contains("To: grace@example.com"), "{message}");
+    let from = "From: \"Field Notes\" <news@example.com>";
+    assert!(message.contains(from), "{message}");
+    let confirming = format!("token={}", confirm_token(message));
+    let (status, page) = post_form(&server, "/blog/subscribe/confirm", &confirming);
+    assert_eq!(status, 200, "{page}");
+    assert!(page.contains("<h1>You are subscribed</h1>"), "{page}");
 }

@@ -56,21 +56,39 @@ pub(crate) fn run(
     if inside(&out, &within(site, "content")) {
         return report::failure(output, &build_message::into_content(&out), Exit::Failure);
     }
+    match into_folder(site, (config, routes, content), &out, clock, output) {
+        Ok(written) => success(output, &out, written, config),
+        Err(exit) => exit,
+    }
+}
+
+/// Builds the checked site into `out` once the lint gate lets every post
+/// through, as `khalid build` does, and says how many pages it wrote. A
+/// refusal or a failure is printed in `output` and comes back as its exit.
+pub(crate) fn into_folder(
+    site: &Path,
+    (config, routes, content): (&Config, &Routes, &SiteContent),
+    out: &Path,
+    clock: &dyn Clock,
+    output: Output,
+) -> Result<usize, Exit> {
     let linter = match lint::lint_settings(site).map(|settings| Linter::new(&settings, clock)) {
         Ok(Ok(linter)) => linter,
         Ok(Err(error)) => {
-            return report::failure(output, &lint_message::of(&error), Exit::Internal);
+            return Err(report::failure(
+                output,
+                &lint_message::of(&error),
+                Exit::Internal,
+            ));
         }
-        Err(message) => return report::failure(output, &message, Exit::Failure),
+        Err(message) => return Err(report::failure(output, &message, Exit::Failure)),
     };
     let refused = build_gate::refused(&linter, content, config, routes);
     if !refused.is_empty() {
-        return build_gate::refuse(output, &refused);
+        return Err(build_gate::refuse(output, &refused));
     }
-    match build(site, config, routes, content, &out, clock) {
-        Ok(written) => success(output, &out, written, config),
-        Err(message) => report::failure(output, &message, Exit::Failure),
-    }
+    build(site, config, routes, content, out, clock)
+        .map_err(|message| report::failure(output, &message, Exit::Failure))
 }
 
 /// Renders every page into `out`, then writes the stylesheet they link and
