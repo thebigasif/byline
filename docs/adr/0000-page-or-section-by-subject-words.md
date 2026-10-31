@@ -10,7 +10,10 @@ The idea comes from Koray Tugberk Gubur's macro and micro context: a page has on
 
 ## Decision
 
-- **Two directions, two rules.** `section-wants-own-page` (a post rule) warns about a `##` section that has left the post's subject. A site rule in the next part warns where a section and another post cover the same subject, and says which should give way.
+- **Two directions.** `section-wants-own-page` (a post rule) warns about a `##` section that has left the post's subject. Two site rules warn where a heading names the whole subject of another post in the same language, and say which should give way:
+  - `post-fits-section`, on the other post, when it is shorter than the thin-post length: it belongs as that section.
+  - `section-repeats-post`, on the post with the heading, when the other post is not known to be short and is not linked from it: the section should shrink to a summary and link there. A post that does not give its length is never called short.
+- **A post's whole subject** is its focus keyword, or its title when it has none. A heading names it when the heading holds every one of its words. A one-word subject must also be the heading's only subject word, so `links` does not claim every heading about links. These are site rules, not post rules, so the comparison runs once per site through an index of subjects by their first letters, not once per post against every post.
 - **A subject is its words.** A post's subject is the words of its title, search title, focus keyword and secondary keywords, without filler words and question words (`how`, `warum`). A section names the subject when its heading or any of its lines shares one of those words.
 - **Endings are allowed, not stems.** Two words are the same when they are equal, or when the shorter has at least four letters, the longer starts with it, and the longer adds at most three letters: `link` and `links`, `Bild` and `Bilder`. No stemmer dependency: the rule only needs to avoid false alarms, and a near-miss keeps it quiet.
 - **Long enough means the thin-post length.** A section is reported only when it has at least `thin-post-words` words (300 by default), so it would pass as a post of its own. No new threshold.

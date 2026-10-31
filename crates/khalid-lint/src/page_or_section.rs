@@ -17,7 +17,7 @@ use crate::{HeadingLevel, Hit, LintPost, Rule, RuleId, Severity, SiteView};
 /// The fewest letters a word needs before a longer word that starts with it
 /// counts as the same word, so "link" matches "links" but "on" never
 /// matches "online".
-const MIN_STEM_CHARS: usize = 4;
+pub(crate) const MIN_STEM_CHARS: usize = 4;
 
 /// The most letters an ending may add, such as "s", "en" or "ing".
 const MAX_ENDING_CHARS: usize = 3;
