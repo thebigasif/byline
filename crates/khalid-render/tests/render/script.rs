@@ -3,7 +3,7 @@
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use khalid_render::{ScriptTag, reader_script};
+use khalid_render::{ScriptTag, reader_script, reader_script_file};
 use sha2::{Digest, Sha256};
 
 use crate::common::demo_site;
@@ -32,6 +32,19 @@ fn without_the_script_the_page_has_none_and_still_reads() {
     let page = render("en", sitemap_post());
     assert!(!page.contains("<script"));
     assert!(page.contains("<p>A sitemap is a file that lists the addresses"));
+}
+
+#[test]
+fn the_script_file_without_compressed_copies_has_the_same_name_hash_and_bytes() {
+    let script = reader_script().unwrap();
+    let file = reader_script_file();
+    assert_eq!(file.name, script.name());
+    assert_eq!(file.integrity, script.integrity());
+    assert_eq!(file.body, script.body());
+    assert_eq!(
+        ScriptTag::of_file(&file, "/blog/assets/"),
+        ScriptTag::new(&script, "/blog/assets/")
+    );
 }
 
 #[test]
