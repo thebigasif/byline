@@ -17,6 +17,7 @@ use utoipa_axum::routes;
 
 use crate::admin_delete;
 use crate::admin_key::{AdminDoor, require, require_admin_key, require_publish};
+use crate::admin_presence;
 use crate::admin_versions;
 use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
@@ -51,6 +52,7 @@ pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
         ))
         .routes(routes!(make_preview_link))
         .routes(routes!(admin_versions::list_post_versions))
+        .routes(routes!(admin_presence::check_in))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(posts)
@@ -539,7 +541,7 @@ fn slug_taken(slug: &str, fix: &'static str) -> Problem {
     Problem::new(ProblemType::Conflict, &message).with_rule("slug")
 }
 
-fn invalid_body(reason: &str) -> Problem {
+pub(crate) fn invalid_body(reason: &str) -> Problem {
     let message = UserMessage::new(
         format!("The request body could not be read: {reason}."),
         "Nothing was changed.",

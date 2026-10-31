@@ -1438,6 +1438,102 @@
         ]
       }
     },
+    "/api/admin/v1/posts/{id}/presence/": {
+      "post": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Notes that the caller has the post open and answers who holds its lock.\nThe editor checks in every 20 seconds; someone who stops for a minute\nlets go. The lock tells the editor who may type: the Admin API still\ntakes any edit and refuses a stale one with 409. Needs `posts:write`.",
+        "operationId": "check_in",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Who holds the lock, and who else has the post open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostPresence"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/{id}/preview-link/": {
       "post": {
         "tags": [
@@ -6531,6 +6627,25 @@
           }
         }
       },
+      "CheckIn": {
+        "type": "object",
+        "description": "A check-in: what the editor asks for while the post is open.",
+        "properties": {
+          "claim": {
+            "$ref": "#/components/schemas/Claim",
+            "description": "`join` takes the lock only when nobody holds it; `take_over` takes\nit from whoever does. `join` when left out."
+          }
+        },
+        "additionalProperties": false
+      },
+      "Claim": {
+        "type": "string",
+        "description": "What a check-in asks for.",
+        "enum": [
+          "join",
+          "take_over"
+        ]
+      },
       "Collections": {
         "type": "object",
         "required": [
@@ -7644,6 +7759,32 @@
         },
         "additionalProperties": false
       },
+      "PostPresence": {
+        "type": "object",
+        "description": "Who has a post open, as the one checking in sees it.",
+        "required": [
+          "holder",
+          "yours",
+          "others"
+        ],
+        "properties": {
+          "holder": {
+            "$ref": "#/components/schemas/PresentEditor",
+            "description": "Who holds the lock: the one person who may change the post now."
+          },
+          "others": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresentEditor"
+            },
+            "description": "Everyone else with the post open, the earliest first."
+          },
+          "yours": {
+            "type": "boolean",
+            "description": "Whether the one checking in holds it."
+          }
+        }
+      },
       "PostRow": {
         "type": "object",
         "description": "One row of the admin's posts table.",
@@ -7946,6 +8087,25 @@
               "$ref": "#/components/schemas/Post"
             },
             "description": "The entries on this page, or the one entry asked for."
+          }
+        }
+      },
+      "PresentEditor": {
+        "type": "object",
+        "description": "Someone with a post open.",
+        "required": [
+          "who",
+          "since"
+        ],
+        "properties": {
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Since when: when they opened the post, or took over its lock."
+          },
+          "who": {
+            "type": "string",
+            "description": "Who, as the post's `updated_by` names them."
           }
         }
       },
