@@ -19,11 +19,16 @@ const PHONE: Passkey = {
   last_used_at: null,
 };
 
-/** A blog where the signed-in person has `held`, removing on request. */
+/** A blog where the signed-in person has `held`, renaming and removing on request. */
 function holding(held: Passkey[]) {
   let passkeys = [...held];
   return redirectsBlog({
     "GET /session/passkeys/": () => json(200, passkeys),
+    "PATCH /session/passkeys/2/": async (request) => {
+      const { name } = await request.clone().json();
+      passkeys = passkeys.map((passkey) => (passkey.id === 2 ? { ...passkey, name } : passkey));
+      return new Response(null, { status: 204 });
+    },
     "DELETE /session/passkeys/1/": () => {
       passkeys = passkeys.filter((passkey) => passkey.id !== 1);
       return new Response(null, { status: 204 });
@@ -45,6 +50,34 @@ describe("the passkeys screen", () => {
     expect(phone).toHaveTextContent(en.passkeys.never);
     expect(screen.getByText(en.passkeys.count(2))).toBeVisible();
     expect(await axeViolations()).toEqual([]);
+  });
+
+  it("renames a passkey in its own row", async () => {
+    signedIn();
+    const sent = holding([LAPTOP, PHONE]);
+    renderAt("/passkeys");
+    await userEvent.click(await screen.findByRole("button", { name: en.passkeys.rename("Phone") }));
+    const field = screen.getByLabelText(en.passkeys.newName("Phone"));
+    await userEvent.clear(field);
+    await userEvent.type(field, "  Pixel phone ");
+    await userEvent.click(screen.getByRole("button", { name: en.passkeys.saveName }));
+    expect(await screen.findByText(en.passkeys.renamed("Pixel phone"))).toBeVisible();
+    expect(await screen.findByRole("cell", { name: "Pixel phone" })).toBeVisible();
+    const patch = sent.find((request) => request.method === "PATCH");
+    expect(await patch?.json()).toEqual({ name: "Pixel phone" });
+  });
+
+  it("refuses a blank name without asking the blog", async () => {
+    signedIn();
+    const sent = holding([PHONE]);
+    renderAt("/passkeys");
+    await userEvent.click(await screen.findByRole("button", { name: en.passkeys.rename("Phone") }));
+    const field = screen.getByLabelText(en.passkeys.newName("Phone"));
+    await userEvent.clear(field);
+    await userEvent.type(field, "   ");
+    await userEvent.click(screen.getByRole("button", { name: en.passkeys.saveName }));
+    expect(await screen.findByText(en.passkeys.problems.blankName.what)).toBeVisible();
+    expect(sent.filter((request) => request.method === "PATCH")).toHaveLength(0);
   });
 
   it("asks once more before it removes a passkey", async () => {

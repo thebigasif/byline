@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { listPasskeys, type Passkey, removePasskey } from "../api/passkeys";
+import { listPasskeys, type Passkey, removePasskey, renamePasskey } from "../api/passkeys";
 import { problemMessage } from "../api/posts";
 import { isData, type Reply } from "../api/redirects";
 import { Problem } from "../components/Problem";
@@ -10,7 +10,7 @@ import { en, type UserMessage } from "../strings/en";
 /** The query key the screen refreshes after a passkey is added, renamed or removed. */
 export const PASSKEYS = ["passkeys"];
 
-/** The signed-in person's own passkeys, to see and remove. */
+/** The signed-in person's own passkeys, to see, name and remove. */
 export function Passkeys() {
   const words = en.passkeys;
   const queries = useQueryClient();
@@ -25,6 +25,14 @@ export function Passkeys() {
     setFailed(worked ? null : problemMessage(reply.problem, en.problems.unreachable));
     await queries.invalidateQueries({ queryKey: PASSKEYS });
     return worked;
+  };
+  const rename = async (passkey: Passkey, name: string) => {
+    if (name === "") {
+      setDone(null);
+      setFailed(words.problems.blankName);
+      return false;
+    }
+    return settle(await renamePasskey(passkey.id, name), words.renamed(name));
   };
   const remove = async (passkey: Passkey) => {
     await settle(await removePasskey(passkey.id), words.removed(passkey.name));
@@ -51,7 +59,7 @@ export function Passkeys() {
       <>
         <p role="status">{count === 0 ? words.none : words.count(count)}</p>
         {count === 0 ? null : (
-          <PasskeyTable passkeys={passkeys.data} onRemove={remove} />
+          <PasskeyTable passkeys={passkeys.data} onRename={rename} onRemove={remove} />
         )}
       </>
     );

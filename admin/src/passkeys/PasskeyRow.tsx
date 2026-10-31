@@ -1,23 +1,41 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import type { Passkey } from "../api/passkeys";
 import { day, moment } from "../strings/dates";
 import { en } from "../strings/en";
 
 type Props = {
   passkey: Passkey;
+  onRename: (passkey: Passkey, name: string) => Promise<boolean>;
   onRemove: (passkey: Passkey) => void;
 };
 
-/** What the row's last cell shows: the buttons, or one more question. */
-type Doing = "idle" | "asking";
+/** What the row's last cell shows: the two buttons, a new name, or one more question. */
+type Doing = "idle" | "renaming" | "asking";
 
-/** One passkey, removed after one more question in its own row. */
-export function PasskeyRow({ passkey, onRemove }: Props) {
+/** One passkey, renamed in its own row, and removed after one more question there. */
+export function PasskeyRow({ passkey, onRename, onRemove }: Props) {
   const words = en.passkeys;
   const [doing, setDoing] = useState<Doing>("idle");
+  const [name, setName] = useState(passkey.name);
+  const field = `passkey-name-${passkey.id}`;
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (await onRename(passkey, name.trim())) {
+      setDoing("idle");
+    }
+  };
 
   let action = (
     <div className="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        className="btn"
+        aria-label={words.rename(passkey.name)}
+        onClick={() => setDoing("renaming")}
+      >
+        {words.renameText}
+      </button>
       <button
         type="button"
         className="btn"
@@ -28,7 +46,28 @@ export function PasskeyRow({ passkey, onRemove }: Props) {
       </button>
     </div>
   );
-  if (doing === "asking") {
+  if (doing === "renaming") {
+    action = (
+      <form className="flex flex-wrap items-end gap-3" onSubmit={save}>
+        <div className="field">
+          <label htmlFor={field}>{words.newName(passkey.name)}</label>
+          <input
+            id={field}
+            value={name}
+            maxLength={60}
+            required
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+        <button type="submit" className="btn">
+          {words.saveName}
+        </button>
+        <button type="button" className="btn" onClick={() => setDoing("idle")}>
+          {words.keepName}
+        </button>
+      </form>
+    );
+  } else if (doing === "asking") {
     action = (
       <div className="flex flex-wrap items-center gap-3">
         <span>{words.asking(passkey.name)}</span>

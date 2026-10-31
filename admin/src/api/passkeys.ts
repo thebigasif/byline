@@ -29,6 +29,19 @@ export async function listPasskeys(): Promise<Reply<Passkey[]>> {
   }
 }
 
+/** Gives the passkey numbered `id` a new name. */
+export async function renamePasskey(id: number, name: string): Promise<Reply<null>> {
+  try {
+    const { error, response } = await api.PATCH("/api/admin/v1/session/passkeys/{id}/", {
+      params: { path: { id } },
+      body: { name },
+    });
+    return response.ok ? { data: null } : failed(error, response);
+  } catch {
+    return UNREACHABLE;
+  }
+}
+
 /** Removes the passkey numbered `id`, so it signs nobody in again. */
 export async function removePasskey(id: number): Promise<Reply<null>> {
   try {
