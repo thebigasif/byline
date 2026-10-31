@@ -177,3 +177,61 @@ async fn an_author_that_cannot_be_kept_or_is_sent_without_rights_is_refused() {
         "nothing was saved: {json}"
     );
 }
+
+/// When Asif last changed.
+const LAST_CHANGE: &str = "2026-10-20T09:00:00Z";
+
+#[tokio::test]
+async fn an_edit_on_the_latest_copy_changes_only_what_it_sends() {
+    let router = with_asif();
+    let edit = json!({"authors": [{"credentials": "Ten years in SEO", "role": "", "updated_at": LAST_CHANGE}]});
+    let (status, json) = send(&router, "PUT", ASIF, EDITOR, Some(edit.clone())).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    let asif = &json["authors"][0];
+    assert_eq!(asif["credentials"], "Ten years in SEO", "{json}");
+    assert_eq!(
+        asif["role"],
+        json!(null),
+        "an empty role removes it: {json}"
+    );
+    assert_eq!(asif["bio"], "Asif writes about search.", "{json}");
+    assert_eq!(asif["updated_at"], "2026-10-27T09:00:00Z", "{json}");
+    let (status, json) = send(&router, "PUT", ASIF, EDITOR, Some(edit)).await;
+    assert_eq!(
+        status,
+        StatusCode::CONFLICT,
+        "a replay of the old copy: {json}"
+    );
+    assert_eq!(json["rule"], "updated_at", "{json}");
+}
+
+#[tokio::test]
+async fn an_edit_that_cannot_be_kept_is_refused() {
+    let router = with_asif();
+    let cases = [
+        (
+            json!({"authors": [{"name": "", "updated_at": LAST_CHANGE}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
+            json!({"authors": [{"same_as": ["/about/"], "updated_at": LAST_CHANGE}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
+            json!({"authors": [{"name": "Asif K"}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+    ];
+    for (body, want) in cases {
+        let (status, json) = send(&router, "PUT", ASIF, EDITOR, Some(body.clone())).await;
+        assert_eq!(status, want, "{body} gave {json}");
+    }
+    let edit = json!({"authors": [{"name": "Asif K", "updated_at": LAST_CHANGE}]});
+    let (status, _) = send(&router, "PUT", ASIF, WRITER, Some(edit)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (_, json) = send(&router, "GET", ASIF, WRITER, None).await;
+    assert_eq!(
+        json["authors"][0]["name"], "Asif",
+        "nothing was saved: {json}"
+    );
+}

@@ -246,6 +246,110 @@
             "admin_key": []
           }
         ]
+      },
+      "put": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Edits one author: only the fields sent change, and every post that\nnames them shows the change. The edit carries the `updated_at` of the\ncopy it was made on; when the author changed since, the answer is a\n409 (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "edit_author",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.asif",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The author as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuthors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No author has this identity, or this server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The author changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the name is empty",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/comments/": {
@@ -7632,6 +7736,83 @@
             "example": "https://example.com/blog/authors/asif/"
           }
         }
+      },
+      "AuthorEdit": {
+        "type": "object",
+        "description": "A change to an author: only the fields sent change. An empty role,\ncredentials or photo removes it, and `same_as` replaces the whole list.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new bio, in markdown."
+          },
+          "credentials": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New credentials; empty ones remove them."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new name."
+          },
+          "photo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new photo; an empty one removes it."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new role; an empty one removes it."
+          },
+          "same_as": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "A new list of profiles."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthorEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps authors: exactly one.",
+        "required": [
+          "authors"
+        ],
+        "properties": {
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorEdit"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
       },
       "Authors": {
         "type": "object",

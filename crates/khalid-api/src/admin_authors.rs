@@ -18,7 +18,7 @@ use crate::api_version::negotiate_version;
 use crate::entry_store::Entry;
 use crate::keys::{Principal, Scope};
 use crate::problem::Problem;
-use crate::resources::{AdminAuthor, NewAuthor};
+use crate::resources::{AdminAuthor, AuthorEdit, NewAuthor};
 
 /// How messages name a author.
 const AUTHOR: Noun = Noun {
@@ -33,7 +33,7 @@ const AUTHOR: Noun = Noun {
 pub(crate) fn routes(authors: Kept<AdminAuthor>, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_authors, create_author))
-        .routes(routes!(read_author))
+        .routes(routes!(read_author, edit_author))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(authors)
@@ -131,6 +131,51 @@ async fn read_author(
     let found = AUTHOR.store(authors.as_deref())?.get(&id).await;
     let author = found.map_err(|error| Problem::internal(&error))?;
     let author = author.ok_or_else(|| AUTHOR.missing(uri.path()))?;
+    Ok(Json(AdminAuthors {
+        authors: vec![author],
+    }))
+}
+
+/// An edit, wrapped the way the Admin API wraps authors: exactly one.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct AuthorEdits {
+    /// The one edit.
+    authors: Vec<AuthorEdit>,
+}
+
+/// Edits one author: only the fields sent change, and every post that
+/// names them shows the change. The edit carries the `updated_at` of the
+/// copy it was made on; when the author changed since, the answer is a
+/// 409 (RULES.md BL-API-7). Needs `posts:publish`.
+#[utoipa::path(
+    put, path = "/authors/{id}/", tag = "admin authors",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The language and slug, such as en.asif")),
+    request_body = AuthorEdits,
+    responses(
+        (status = 200, description = "The author as saved", body = AdminAuthors),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:publish", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No author has this identity, or this server keeps no authors", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The author changed after the copy the edit was made on", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, or the name is empty", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn edit_author(
+    State(authors): State<Kept<AdminAuthor>>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    body: Result<Json<AuthorEdits>, JsonRejection>,
+) -> Result<Json<AdminAuthors>, Problem> {
+    require(&principal, Scope::PostsPublish)?;
+    let edit = AUTHOR.one(AUTHOR.body(body)?.authors)?;
+    edit.name()
+        .map(|name| AUTHOR.filled("name", name))
+        .transpose()?;
+    let saved = AUTHOR.store(authors.as_deref())?.update(&id, edit).await;
+    let author = saved.map_err(|error| AUTHOR.problem(error, uri.path()))?;
     Ok(Json(AdminAuthors {
         authors: vec![author],
     }))
