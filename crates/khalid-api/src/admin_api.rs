@@ -17,6 +17,7 @@ use utoipa_axum::routes;
 
 use crate::admin_delete;
 use crate::admin_key::{AdminDoor, require, require_admin_key, require_publish};
+use crate::admin_versions;
 use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
 use crate::html_source::markdown_from_html;
@@ -49,6 +50,7 @@ pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
             admin_delete::delete_admin_post
         ))
         .routes(routes!(make_preview_link))
+        .routes(routes!(admin_versions::list_post_versions))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(posts)

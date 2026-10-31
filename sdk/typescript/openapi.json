@@ -1524,6 +1524,82 @@
         ]
       }
     },
+    "/api/admin/v1/posts/{id}/versions/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Lists the title and text each edit of the post replaced, the newest\nfirst, up to the 100 newest. An edit that changed neither keeps none.\nBringing one back is an ordinary edit with its title and text, which\nkeeps the text it replaces in turn. Needs `posts:write`.",
+        "operationId": "list_post_versions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The earlier versions, the newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostVersions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity, or this server keeps no versions",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/redirects/": {
       "get": {
         "tags": [
@@ -7799,6 +7875,53 @@
           "published",
           "scheduled"
         ]
+      },
+      "PostVersion": {
+        "type": "object",
+        "description": "A post's title and text as they were saved, before a later edit\nreplaced them.",
+        "required": [
+          "saved_at",
+          "title",
+          "markdown"
+        ],
+        "properties": {
+          "markdown": {
+            "type": "string",
+            "description": "The text, in markdown."
+          },
+          "saved_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this title and text were saved."
+          },
+          "saved_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Who saved them, as the post named them; `null` when not known, such\nas for a file written by hand."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title."
+          }
+        }
+      },
+      "PostVersions": {
+        "type": "object",
+        "description": "Earlier versions, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "versions"
+        ],
+        "properties": {
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostVersion"
+            },
+            "description": "The newest first."
+          }
+        }
       },
       "Posts": {
         "type": "object",
