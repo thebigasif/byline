@@ -16,7 +16,8 @@ fn clean(links: &str) -> khalid_audit::Answer {
 <meta property="og:url" content="https://www.example.com/blog/">
 <meta name="twitter:card" content="summary">
 <script type="application/ld+json">{"@type":"BlogPosting"}</script>"#;
-    let body = format!("<h1>Links</h1><p>{}</p>{links}", "word ".repeat(300));
+    let paragraph = format!("<p>{}</p>", "word ".repeat(100));
+    let body = format!("<h1>Links</h1>{}{links}", paragraph.repeat(3));
     page(head, &body)
 }
 

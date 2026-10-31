@@ -99,6 +99,48 @@ fn the_demo_site_scores_100_with_no_errors_and_only_known_warnings() {
 }
 
 #[test]
+fn the_ai_search_checks_report_each_page_with_its_reason() {
+    let site = demo_copy();
+    let mut post = site.path().to_path_buf();
+    post.push("content/en/posts/2026-09-21-how-to-write-a-title-tag.md");
+    let text = fs::read_to_string(&post).unwrap();
+    let short = text.replacen(
+        " The headline on the page can be longer and warmer. The title tag is for the results page, where space is short and the reader is scanning.",
+        "",
+        1,
+    );
+    assert_ne!(
+        text, short,
+        "the answer to shorten is gone from the demo post"
+    );
+    fs::write(&post, short).unwrap();
+    let output = audit(site.path(), &["--json"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let body: Value = serde_json::from_str(&stdout).unwrap_or_else(|_| panic!("{stdout}"));
+    let capsule = body["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|issue| issue["check"] == "answer-capsule")
+        .unwrap_or_else(|| panic!("{stdout}"));
+    assert_eq!(
+        capsule["url"],
+        "https://www.example.com/blog/how-to-write-a-title-tag/"
+    );
+    assert_eq!(
+        capsule["detail"],
+        "22 words under \"Title tag or headline?\""
+    );
+    assert_eq!(capsule["category"], "AI search");
+    assert!(
+        capsule["why"]
+            .as_str()
+            .unwrap()
+            .contains("lift the paragraph")
+    );
+}
+
+#[test]
 fn each_run_adds_to_the_trend() {
     let site = demo_copy();
     assert_eq!(audit(site.path(), &[]).status.code(), Some(0));

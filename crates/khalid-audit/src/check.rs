@@ -379,9 +379,17 @@ checks! {
         "Some AI tools read llms.txt for a short map of the site.",
         "Keep the llms.txt Khalid writes beside the home page.";
     /// The blog's `llms.txt` does not start with a `#` title.
-    LlmsFormat => "llms-format", AiSearch, Warning, "llms.txt format is not valid",
+    LlmsFormat => "llms-format", AiSearch, Notice, "llms.txt format is not valid",
         "Tools that read llms.txt expect its first line to name the site.",
         "Start llms.txt with a line that begins with # and names the site.";
+    /// A question heading is not followed by a short, standalone answer.
+    AnswerCapsule => "answer-capsule", AiSearch, Warning, "Question heading without a short answer",
+        "AI search tools lift the paragraph right under a question, so a missing, thin or long answer is passed over.",
+        "Answer the question right under it, in 40 to 60 words, or the range lint.toml sets, that make sense on their own.";
+    /// A paragraph holds more words than the limit.
+    ParagraphTooLong => "paragraph-too-long", AiSearch, Warning, "Paragraph too long",
+        "A long paragraph buries its ideas, so readers skim past them and AI tools cannot lift one cleanly.",
+        "Split the paragraph so each one holds one idea, in about 75 to 225 words.";
     /// An HTTPS page comes without a `Strict-Transport-Security` header.
     HstsMissing => "hsts-missing", Https, Notice, "No HSTS support",
         "Without it, a browser may still open the first visit over plain HTTP.",

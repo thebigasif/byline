@@ -33,6 +33,7 @@ mod sitemap;
 mod sitemap_checks;
 mod thresholds;
 mod visit;
+mod writing_checks;
 
 pub use answer::{Answer, Headers, Source, Unreached};
 pub use audit::audit;
