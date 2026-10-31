@@ -18,7 +18,9 @@ use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_db::{
+    Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, VersionTable, WebhookTable,
+};
 use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -360,8 +362,8 @@ fn assembled(
 }
 
 /// The publish door the Admin API, the scheduler and preview links share.
-/// It keeps schedules in the database and tells `telling` about each post
-/// that goes live.
+/// It keeps schedules and the text each edit replaces in the database, and
+/// tells `telling` about each post that goes live.
 async fn publish_door(
     (site, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
@@ -370,9 +372,11 @@ async fn publish_door(
     let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
     let posts = SitePosts::new(site, config.clone(), SystemClock);
     let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+    let versions = Arc::new(VersionTable::new(database.clone(), id));
     let signer = preview::signer(config, (database, id, &file)).await;
     let door = PublishDoor::new(Arc::new(posts), Arc::new(telling))
         .with_schedules(schedules, SystemClock)
+        .with_versions(versions)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
     Ok(Arc::new(door))
 }
