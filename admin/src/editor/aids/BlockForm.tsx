@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { en } from "../../strings/en";
+import { pictures } from "../../strings/pictures";
 import { type Details, fieldsOf } from "./blockForm";
 import { DetailField } from "./DetailField";
+import { libraryKey } from "./pictureTurn";
+import { TurnOrCrop } from "./TurnOrCrop";
 
 const names: Record<string, string> = en.blocks;
 const hints: Record<string, string> = en.blockHints;
@@ -16,10 +19,23 @@ type Props = {
 export function BlockForm({ details, onSave, onCancel }: Props) {
   const { spec } = details;
   const [values, setValues] = useState(details.values);
+  const [turning, setTurning] = useState(false);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     form.current?.querySelector<HTMLElement>("input, select, textarea")?.focus();
   }, []);
+  // Only a picture the library keeps can be turned or cropped (decision E10).
+  const key = spec.name === "figure" ? libraryKey(values.src ?? "") : null;
+  if (turning && key !== null) {
+    return (
+      <TurnOrCrop
+        id={key}
+        src={values.src ?? ""}
+        onDone={(src) => onSave({ ...values, src })}
+        onCancel={() => setTurning(false)}
+      />
+    );
+  }
   return (
     <form
       ref={form}
@@ -44,6 +60,11 @@ export function BlockForm({ details, onSave, onCancel }: Props) {
         <button type="submit" className="btn primary">
           {details.editing ? en.details.save : en.details.add}
         </button>
+        {key === null ? null : (
+          <button type="button" className="btn" onClick={() => setTurning(true)}>
+            {pictures.turnOpen}
+          </button>
+        )}
         <button type="button" className="btn" onClick={onCancel}>
           {en.details.cancel}
         </button>

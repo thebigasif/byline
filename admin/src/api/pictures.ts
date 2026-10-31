@@ -56,6 +56,45 @@ export async function searchPictures(
   }
 }
 
+/** A file in the media library, as the Admin API sends it. */
+export type MediaItem = components["schemas"]["AdminMedia"];
+
+/** A turn and a crop box for a copy of a picture. */
+export type PictureEdit = components["schemas"]["PictureEditBody"];
+
+/** The library item `id`, or `null` when the blog cannot say. */
+export async function readPicture(id: string): Promise<MediaItem | null> {
+  try {
+    const { data } = await api.GET("/api/admin/v1/media/{id}/", { params: { path: { id } } });
+    return data?.media[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The library item `id`, once the blog has said. */
+export function usePicture(id: string): MediaItem | null | undefined {
+  return useQuery({ queryKey: ["media", id], queryFn: () => readPicture(id) }).data;
+}
+
+/** Makes a turned or cropped copy of picture `id`; gives back where the copy lives. */
+export async function copyPicture(
+  id: string,
+  edit: PictureEdit,
+  fallback: string,
+): Promise<{ url: string } | { failed: string }> {
+  try {
+    const { data, error } = await api.POST("/api/admin/v1/media/{id}/copies/", {
+      params: { path: { id } },
+      body: edit,
+    });
+    const copy = data?.media[0];
+    return copy === undefined ? { failed: failure(error, fallback) } : { url: copy.url };
+  } catch {
+    return { failed: fallback };
+  }
+}
+
 /** Tells Unsplash, through the blog, that photo `id` went into a post. */
 export async function photoUsed(id: string): Promise<void> {
   try {

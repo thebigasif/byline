@@ -17,4 +17,22 @@ export const pictures = {
     description === "" ? `By ${credit}` : `${description}, by ${credit}`,
   photoBy: (credit: string) => `Photo by ${credit}`,
   cancel: "Cancel",
+  turnOpen: "Turn or crop",
+  turnTitle: "Turn or crop the picture",
+  turnHint:
+    "Saving makes a new copy in the media library and puts it in this post. The original stays, so other posts that use it do not change.",
+  preview: "The picture as it will look",
+  left: "Turn left",
+  right: "Turn right",
+  shape: "Shape",
+  shapes: {
+    taken: "As taken",
+    square: "Square",
+    wide: "Wide, 16 by 9",
+    standing: "Standing, 3 by 4",
+  },
+  shapeHint: "The crop keeps the picture's focus point in view.",
+  saveCopy: "Save as a new copy",
+  saving: "Making the copy",
+  copyFailed: "The blog did not answer, so no copy was made. Check the connection, then try again.",
 };

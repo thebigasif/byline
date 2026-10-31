@@ -74,6 +74,11 @@
   .picture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(9rem,1fr));gap:.75rem;list-style:none;margin:1rem 0;padding:0}
   .picture-grid button{display:block;width:100%;min-height:44px;padding:0;border:1px solid var(--color-border);border-radius:var(--radius-field);background:var(--color-bg);text-align:left;cursor:pointer;overflow:hidden}
   .picture-grid img{display:block;width:100%;height:auto;background:var(--color-surface)}
+  .turn-preview{display:grid;place-items:center;min-height:12rem;margin:0 0 1rem;padding:1rem;border:1px solid var(--color-border);border-radius:var(--radius-field);background:var(--color-surface);overflow:hidden}
+  .turn-preview img{max-width:100%;max-height:16rem;transition:transform .2s}
+  .turn-preview .turn-90{transform:rotate(90deg)}
+  .turn-preview .turn-180{transform:rotate(180deg)}
+  .turn-preview .turn-270{transform:rotate(270deg)}
   .picture-grid span{display:block;padding:.25rem .5rem;color:var(--color-muted);font-size:.875rem}
   .aid-title{font-size:.875rem;color:var(--color-muted);padding:.75rem 1rem .25rem;margin:0}
   .aid-menu ul{list-style:none;margin:0;padding:0 .25rem .25rem}
