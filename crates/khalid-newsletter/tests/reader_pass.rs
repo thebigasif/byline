@@ -30,7 +30,10 @@ fn the_cookie_is_sent_to_the_whole_blog_and_hidden_from_scripts() {
     let cookie = pass(7, "https://example.com", FixedClock::new(at(0))).cookie();
     assert!(cookie.starts_with("khalid_reader="), "{cookie}");
     assert!(cookie.contains("; Path=/blog/"), "{cookie}");
-    assert!(cookie.contains("; HttpOnly; SameSite=Lax; Secure"), "{cookie}");
+    assert!(
+        cookie.contains("; HttpOnly; SameSite=Lax; Secure"),
+        "{cookie}"
+    );
     let max_age = format!("; Max-Age={}", TimeDelta::days(PASS_DAYS).num_seconds());
     assert!(cookie.contains(&max_age), "{cookie}");
     let plain = pass(7, "http://localhost:8080", FixedClock::new(at(0))).cookie();
