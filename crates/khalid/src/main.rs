@@ -86,6 +86,7 @@ mod report;
 mod routes_message;
 mod scheduler;
 mod search_console;
+mod search_console_lost;
 mod search_console_report;
 mod search_index;
 mod search_page;

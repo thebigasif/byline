@@ -13,7 +13,9 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 use chrono::Days;
-use khalid_core::{Clock, SystemClock};
+use khalid_api::not_found_log::NotFoundLog as _;
+use khalid_core::{Clock, Slug, SystemClock};
+use khalid_db::{Database, NotFoundTable};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 use wiremock::matchers::{body_partial_json, method, path};
@@ -152,6 +154,77 @@ async fn the_report_shows_each_posts_month_decay_and_the_weeks_movers() {
     assert!(said.contains("no search showed it"), "{said}");
     assert!(said.contains("- What a sitemap does, and what it does not: 90, 70, 50, 40 clicks a month, oldest first."), "{said}");
     assert!(said.contains("- Why internal links matter: 9 clicks, from 30.\n  Go deeper in SerpDad: https://app.serpdad.com/"), "{said}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn missing_and_noindex_pages_with_search_traffic_are_named_with_a_fix() {
+    let google = MockServer::start().await;
+    grant(&google).await;
+    let month = [
+        ("old-links", 12.0),
+        ("how-to-write-a-title-tag", 5.0),
+        ("what-a-sitemap-does", 9.0),
+    ];
+    pages(&google, (28, 0), &month).await;
+    Mock::given(method("POST"))
+        .and(path(ANALYTICS))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+        .with_priority(10)
+        .mount(&google)
+        .await;
+    let site = demo_site(OPT_IN);
+    let mut post = site.path().to_path_buf();
+    post.push("content/en/posts/2026-09-21-how-to-write-a-title-tag.md");
+    let text = fs::read_to_string(&post).unwrap();
+    fs::write(&post, text.replacen("---\n", "---\nrobots: noindex\n", 1)).unwrap();
+    let mut file = site.path().to_path_buf();
+    file.push("data");
+    fs::create_dir_all(&file).unwrap();
+    file.push("site.db");
+    let database = Database::open(&file).await.unwrap();
+    database.migrate().await.unwrap();
+    let id = database
+        .site(&Slug::try_new("main").unwrap())
+        .await
+        .unwrap();
+    let log = NotFoundTable::new(database.clone(), id);
+    for _ in 0..3 {
+        log.record("/blog/old-links/", SystemClock.now())
+            .await
+            .unwrap();
+    }
+    database.close().await;
+
+    let output = khalid(site.path(), &google, Some(()), &["report", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let lost = body["lost"].as_array().unwrap();
+    let why: Vec<(&str, &str)> = lost
+        .iter()
+        .map(|page| (page["url"].as_str().unwrap(), page["why"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        why,
+        [
+            ("https://www.example.com/blog/old-links/", "missing"),
+            (
+                "https://www.example.com/blog/how-to-write-a-title-tag/",
+                "noindex"
+            ),
+        ]
+    );
+    assert_eq!(lost[0]["not_found_hits"], 3);
+
+    let output = khalid(site.path(), &google, Some(()), &["report"]);
+    let said = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        said.contains("It answers 404, not found, to 3 requests so far. Add a redirect"),
+        "{said}"
+    );
+    assert!(
+        said.contains("It is marked noindex, so Google will drop it."),
+        "{said}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

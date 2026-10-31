@@ -2,12 +2,13 @@
 //! days Google has final numbers for, posts in decay, and the week's
 //! winners and losers, as sentences or JSON.
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::SiteContent;
-use khalid_core::Config;
+use khalid_core::{Config, Indexing};
 use khalid_outbound::Outbound;
 use khalid_search_console::{
     Change, Decay, PageNumbers, Question, SearchConsole, Window, decaying, go_deeper, movers,
@@ -18,6 +19,7 @@ use crate::bing::Failed;
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::search_console::{ask, last_month};
+use crate::search_console_lost::{self, LostBody};
 use crate::{build_pages, index, report};
 
 /// How many winners and how many losers a report lists.
@@ -29,6 +31,8 @@ pub(crate) struct LivePost {
     pub(crate) title: String,
     /// Its full address, such as `https://www.example.com/blog/a/`.
     pub(crate) address: String,
+    /// Whether its front matter keeps it out of search results.
+    pub(crate) noindex: bool,
 }
 
 /// The JSON shape of a report.
@@ -39,6 +43,7 @@ struct ReportBody<'a> {
     last: String,
     posts: Vec<PostBody<'a>>,
     decaying: Vec<DecayBody>,
+    lost: Vec<LostBody>,
     /// The last 7 days against the 7 before.
     winners: Vec<MoverBody>,
     losers: Vec<MoverBody>,
@@ -87,6 +92,7 @@ pub(crate) fn run(
     output: Output,
 ) -> Result<Exit, Failed> {
     let posts = live_posts(folder, config, content)?;
+    let misses = search_console_lost::misses(folder)?;
     let month = last_month(today);
     let week = Window::ending(month.last, 7).unwrap_or(month);
     let before = week.before().unwrap_or(week);
@@ -109,7 +115,9 @@ pub(crate) fn run(
     let mut rows: Vec<PostBody<'_>> = posts.iter().map(|post| numbers(post, pages)).collect();
     rows.sort_by(|a, b| b.clicks.total_cmp(&a.clicks).then(a.title.cmp(b.title)));
     let week_movers = movers(&last_week, &this_week, MOVERS);
+    let root = config.address().as_str().trim_end_matches('/');
     let body = ReportBody {
+        lost: search_console_lost::lost(root, &posts, pages, &misses),
         property: console.property(),
         first: month.first.to_string(),
         last: month.last.to_string(),
@@ -142,6 +150,12 @@ fn live_posts(
     content: &SiteContent,
 ) -> Result<Vec<LivePost>, Failed> {
     let rows = index::of_content(folder, content).map_err(|message| (message, Exit::Failure))?;
+    let hidden: BTreeSet<String> = content
+        .posts
+        .iter()
+        .filter(|doc| matches!(&doc.front.robots, Some(r) if r.indexing == Indexing::NoIndex))
+        .filter_map(|doc| index::slashed(&doc.path))
+        .collect();
     let root = config.address().as_str().trim_end_matches('/');
     let posts = rows.posts.iter().filter(|row| row.date.is_some());
     Ok(posts
@@ -151,6 +165,7 @@ fn live_posts(
                 "{root}{}",
                 build_pages::path_of(config, &row.locale, &format!("{}/", row.slug))
             ),
+            noindex: hidden.contains(&row.path),
         })
         .collect())
 }
@@ -230,6 +245,7 @@ fn sentences(body: &ReportBody<'_>) -> String {
             decay.go_deeper
         );
     }
+    search_console_lost::sentences(&body.lost, &mut text);
     for (heading, list) in [
         ("gained the most clicks", &body.winners),
         ("lost the most clicks", &body.losers),
