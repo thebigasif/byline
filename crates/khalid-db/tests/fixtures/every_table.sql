@@ -90,3 +90,6 @@ INSERT INTO comments (site_id, post_path, author_kind, author_name, author_email
     (2, 'content/en/posts/old-post.md', 'reader', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z');
 INSERT INTO analytics_counts (site_id, day, path, referrer_group, views) VALUES
     (1, '2026-10-26', '/blog/old-post/', 'search', 12), (2, '2026-10-26', '/blog/old-post/', 'search', 12);
+INSERT INTO crawl_log (site_id, day, path, crawler, kind, hits, last_seen, last_status) VALUES
+    (1, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200),
+    (2, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200);
