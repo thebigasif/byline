@@ -15,11 +15,17 @@ use khalid_db::{Database, WebhookTable};
 use khalid_webhooks::{Event, SIGNATURE_HEADER, SigningKey, Verifier};
 use serde_json::Value;
 use tempfile::TempDir;
+use tokio::time::Instant;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 /// The stand-in host for the webhook receiver, on loopback.
 const HOSTS: &str = "hooks.test=127.0.0.1";
+
+/// How long a delivery may take to arrive. CI shares a busy server, where a
+/// debug build renders the demo site slowly, so the wait is generous; a
+/// delivery that arrives ends it at once.
+const DEADLINE: Duration = Duration::from_secs(120);
 
 /// A running `khalid serve`, stopped when dropped.
 struct Server(Child);
@@ -88,20 +94,20 @@ fn start(site: &Path) -> Server {
     Server(child)
 }
 
-/// The one delivery of `event`, waited for up to 20 seconds and checked
+/// The one delivery of `event`, waited for until [`DEADLINE`] and checked
 /// against `secret`, as JSON.
 #[cfg(test)]
 async fn the_delivery(receiver: &MockServer, event: Event, secret: &Secret<String>) -> Value {
     let route = format!("/{event}");
-    let mut hooks = Vec::new();
-    for _ in 0..200 {
-        tokio::time::sleep(Duration::from_millis(100)).await;
+    let deadline = Instant::now() + DEADLINE;
+    let hooks = loop {
         let all = receiver.received_requests().await.unwrap();
-        hooks = all.into_iter().filter(|r| r.url.path() == route).collect();
-        if !hooks.is_empty() {
-            break;
+        let hooks: Vec<_> = all.into_iter().filter(|r| r.url.path() == route).collect();
+        if !hooks.is_empty() || Instant::now() >= deadline {
+            break hooks;
         }
-    }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    };
     assert_eq!(hooks.len(), 1, "{event} fires once");
     let hook = &hooks[0];
     assert_eq!(hook.headers["khalid-event"], event.as_str());
@@ -139,6 +145,12 @@ async fn add_change_remove(
     fs::remove_file(&file).unwrap();
     let body = the_delivery(&receiver, events[2], &secrets[2]).await;
     assert_eq!(body[key]["id"], id, "the entry as it was: {body}");
+
+    // Nothing fired twice, such as a second `.published` from a render of
+    // the content read before the save.
+    let all = receiver.received_requests().await.unwrap();
+    let paths: Vec<&str> = all.iter().map(|r| r.url.path()).collect();
+    assert_eq!(paths.len(), 3, "{paths:?}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

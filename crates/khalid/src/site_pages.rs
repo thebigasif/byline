@@ -4,6 +4,7 @@
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::{fmt, fs};
 
@@ -53,6 +54,14 @@ struct Site {
     /// a saved post's page finds them without listing the folder again.
     /// `None` before the first full render.
     assets: Mutex<Option<Assets>>,
+    /// How many times a full render has read the folder. Content passed to
+    /// [`SitePages::render_content`] was read at start, as read 0.
+    reads: AtomicU64,
+    /// The newest read whose render handed on its outline, assets and
+    /// catalog. A render of older content that finishes later, such as the
+    /// start render after a save, hands on nothing, so it cannot undo the
+    /// save or fire its entries' events again.
+    handed_on: Mutex<u64>,
     /// The search page of each language as the last full render made it,
     /// which a search's results are rendered into.
     searches: Mutex<Vec<SearchShell>>,
@@ -131,6 +140,8 @@ impl SitePages {
             feed,
             outline: Mutex::default(),
             assets: Mutex::default(),
+            reads: AtomicU64::default(),
+            handed_on: Mutex::default(),
             searches: Mutex::default(),
             gate: Gate::default(),
             comments,
@@ -204,11 +215,16 @@ impl SitePages {
             routes,
             ..
         } = &*self.0;
+        let read = self
+            .0
+            .reads
+            .fetch_add(1, Ordering::Relaxed)
+            .saturating_add(1);
         let (content, assets) = ContentTree::walk(folder)
             .and_then(|tree| Ok((read_content(&tree)?, Assets::of(&tree))))
             .and_then(|read| check_bodies(&read.0, config, routes).map(|()| read))
             .map_err(|error| content_message::of(folder, &error))?;
-        self.render_content(&content, assets)
+        self.render_read(&content, assets, read)
     }
 
     /// The first pages `khalid serve` answers with while the rest of the
@@ -312,11 +328,23 @@ impl SitePages {
     /// catalog when there is one. At start, `khalid serve` passes what it
     /// checked, so the folder is read once, not twice. `content` must have
     /// passed `check_bodies`. Only a full render hands the feed its
-    /// catalog, so the Content API never sees part of the site.
+    /// catalog, so the Content API never sees part of the site, and only
+    /// when no render of content read later has handed on its own.
     pub(crate) fn render_content(
         &self,
         content: &SiteContent,
         assets: Assets,
+    ) -> Result<Served, UserMessage> {
+        self.render_read(content, assets, 0)
+    }
+
+    /// Renders `content`, which the folder's `read` gave, as
+    /// [`SitePages::render_content`] says.
+    fn render_read(
+        &self,
+        content: &SiteContent,
+        assets: Assets,
+        read: u64,
     ) -> Result<Served, UserMessage> {
         let Site {
             folder,
@@ -324,6 +352,7 @@ impl SitePages {
             feed,
             outline,
             assets: kept,
+            handed_on,
             ..
         } = &*self.0;
         // The catalog holds no post body, so it is quick to make here, and
@@ -334,6 +363,12 @@ impl SitePages {
         };
         let mut shown = Shown::default();
         let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All, &mut shown)?;
+        let mut handed_on = handed_on.lock().unwrap_or_else(PoisonError::into_inner);
+        if read < *handed_on {
+            tracing::debug!(read, "a render of newer content already handed on its own");
+            return Ok(rendered);
+        }
+        *handed_on = read;
         *outline.lock().unwrap_or_else(PoisonError::into_inner) = Outline {
             content: site_outline::outline_of(content),
             listed,

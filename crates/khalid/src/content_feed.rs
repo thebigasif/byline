@@ -30,6 +30,13 @@ use crate::{db_message, search_index, slug_moves};
 pub(crate) struct ContentFeed(mpsc::UnboundedSender<Catalog>);
 
 impl ContentFeed {
+    /// A feed whose catalogs a test reads from the receiver.
+    #[cfg(test)]
+    pub(crate) fn for_tests() -> (Self, mpsc::UnboundedReceiver<Catalog>) {
+        let (feed, catalogs) = mpsc::unbounded_channel();
+        (Self(feed), catalogs)
+    }
+
     /// Queues `catalog` and returns at once. Of several catalogs queued
     /// while one is built, only the last is built next.
     pub(crate) fn send(&self, catalog: Catalog) {

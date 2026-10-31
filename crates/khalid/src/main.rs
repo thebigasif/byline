@@ -33,6 +33,7 @@ mod build_seo;
 mod build_sitemap;
 mod categories;
 mod cli;
+mod cli_access;
 mod comment_pages;
 mod config_message;
 mod consent_route;
