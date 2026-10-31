@@ -1,0 +1,26 @@
+{
+  "name": "@khalid/sdk",
+  "version": "0.0.0",
+  "description": "A typed client for the Content API and the Admin API of a Khalid blog.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "files": ["src"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "check": "biome ci . && tsc"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@types/node": "26.6.6",
+    "typescript": "5.9.3"
+  }
+}
