@@ -1,9 +1,10 @@
 name: Builder
 
 # One maintainer-started coding run on GitHub's own runners: Claude Code
-# takes one task brief, builds it on task/gh-<name>-* branches and opens
-# pull requests. Only people with write access can start it, and pull
-# requests from forks never see the secret.
+# takes one task brief and pushes it on task/gh-<name>-* branches. It opens
+# no pull requests: it leaves a title and body per branch in the run's
+# artifact, and the maintainer opens them, which also starts CI. Only people
+# with write access can start it, and forks never see the secret.
 on:
   workflow_dispatch:
     inputs:
@@ -16,8 +17,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
-  actions: write
 
 concurrency:
   group: builder-${{ inputs.name }}
@@ -73,7 +72,7 @@ jobs:
           prompt: |
             Read scripts/maintainer/builder-brief.md and follow it exactly, with these changes for this run:
             - Name every branch task/gh-${{ inputs.name }}-<slug>, created from origin/main or from your own previous part.
-            - Do not wait for CI: no checks start while you work. When every part is pushed and open as a pull request, print a short summary and stop.
+            - Do not open pull requests and do not wait for CI: no checks start while you work. For each branch, write its pull request as a file in $RUNNER_TEMP/prs/ named after the branch with slashes as double dashes, ending in .md: the first line is the Conventional Commits title, then a blank line, then the body the template asks for, then a line `Base: <base branch>`. When every part is pushed and has its file, print a short summary and stop.
             - The Performance budgets job is not yours to fix.
             - Run `just check` before each push.
 
@@ -82,16 +81,12 @@ jobs:
           claude_args: >-
             --model claude-opus-5-5
             --max-turns 500
-            --allowedTools "Bash(cargo *),Bash(just *),Bash(git *),Bash(gh pr create*),Bash(gh pr view*),Bash(gh pr list*),Bash(rustup *),Bash(ls *),Bash(cat *),Bash(grep *),Bash(rg *),Bash(find *),Bash(sed *),Bash(awk *),Bash(wc *),Bash(head *),Bash(tail *),Bash(diff *),Bash(mkdir *),Bash(cp *),Bash(mv *),Bash(typos*),Bash(taplo *),Bash(sqlite3 *),Bash(npm *),Bash(./scripts/*),Bash(scripts/*),Read,Edit,Write,Glob,Grep,WebFetch,WebSearch"
+            --allowedTools "Bash(cargo *),Bash(just *),Bash(git *),Bash(rustup *),Bash(ls *),Bash(cat *),Bash(grep *),Bash(rg *),Bash(find *),Bash(sed *),Bash(awk *),Bash(wc *),Bash(head *),Bash(tail *),Bash(diff *),Bash(mkdir *),Bash(cp *),Bash(mv *),Bash(typos*),Bash(taplo *),Bash(sqlite3 *),Bash(npm *),Bash(./scripts/*),Bash(scripts/*),Read,Edit,Write,Glob,Grep,WebFetch,WebSearch"
             --disallowedTools "Bash(gh pr merge*),Bash(git push --force*),Bash(git push -f*),Bash(sudo *)"
-      - name: Start CI on the pushed branches
+      - name: Keep the pull request texts
         if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_NAME: ${{ inputs.name }}
-        run: |
-          git fetch -q origin "+refs/heads/task/gh-${RUN_NAME}-*:refs/remotes/origin/task/gh-${RUN_NAME}-*" || true
-          for ref in $(git for-each-ref --format='%(refname:strip=3)' "refs/remotes/origin/task/gh-${RUN_NAME}-*"); do
-            gh workflow run ci.yml --ref "$ref"
-            echo "CI started on $ref"
-          done
+        uses: actions/upload-artifact@v4
+        with:
+          name: prs-${{ inputs.name }}
+          path: ${{ runner.temp }}/prs/
+          if-no-files-found: warn
