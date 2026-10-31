@@ -244,6 +244,12 @@ export const en = {
     at: "Date and time",
     atHint: "In your own time zone. This is also the date readers see on the post.",
   },
+  live: {
+    show: "Show the page",
+    title: "The page as readers see it",
+    hint: "Your site's own design, with the text as last saved. It updates each time the post saves.",
+    frame: "This post as readers will see it",
+  },
   preview: {
     title: "Show it before it goes live",
     hint: "A preview link lets someone read this draft without signing in. Search engines are told not to list it.",

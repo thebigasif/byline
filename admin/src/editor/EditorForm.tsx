@@ -5,6 +5,7 @@ import { Problem } from "../components/Problem";
 import { en } from "../strings/en";
 import { GoLive } from "./GoLive";
 import { LintPanel } from "./LintPanel";
+import { LivePage } from "./LivePage";
 import { PostSettings } from "./PostSettings";
 import { PreviewLink } from "./PreviewLink";
 import { PublishButton } from "./PublishButton";
@@ -31,6 +32,8 @@ export function EditorForm({ post }: Props) {
   const [rich, setRich] = useState(() => fitsRichText(post.markdown));
   const [held, setHeld] = useState(!rich);
   const [at, setAt] = useState(() => scheduledAt(post));
+  // The page as readers see it takes the side column while it is shown.
+  const [live, setLive] = useState(false);
   const toRich = () => {
     const fits = fitsRichText(draft.markdown);
     setRich(fits);
@@ -59,6 +62,14 @@ export function EditorForm({ post }: Props) {
             {en.editor.markdown}
           </button>
         </fieldset>
+        <button
+          type="button"
+          className="btn"
+          aria-pressed={live}
+          onClick={() => setLive((shown) => !shown)}
+        >
+          {en.live.show}
+        </button>
         <span className="hint" role="status">
           {statusText(state, dirty)}
         </span>
@@ -86,7 +97,7 @@ export function EditorForm({ post }: Props) {
       ) : null}
       {held ? <p className="hint">{en.editor.onlyMarkdown}</p> : null}
       {state.kind === "failed" ? <Problem message={state.message} /> : null}
-      <div className="layout">
+      <div className={live ? "layout live" : "layout"}>
         <div>
           <label className="sr-only" htmlFor="title">
             {en.editor.title}
@@ -112,13 +123,17 @@ export function EditorForm({ post }: Props) {
             />
           )}
         </div>
-        <div>
-          <LintPanel findings={publishing.findings} />
-          <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
-            {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}
-            <PreviewLink id={post.id} />
-          </PostSettings>
-        </div>
+        {live ? (
+          <LivePage id={post.id} version={updatedAt.current} />
+        ) : (
+          <div>
+            <LintPanel findings={publishing.findings} />
+            <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
+              {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}
+              <PreviewLink id={post.id} />
+            </PostSettings>
+          </div>
+        )}
       </div>
     </>
   );
