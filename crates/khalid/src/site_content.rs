@@ -73,7 +73,7 @@ impl Catalog {
             featured,
             updated,
             lists,
-            entries: Entries::of(content),
+            entries: Entries::of(content).with_drafts(folder),
             tags: Tags::of(config, content),
         })
     }
