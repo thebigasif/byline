@@ -5,21 +5,26 @@
 //! khalid-perf fixture 1000 target/perf/site-1k
 //! khalid-perf render target/perf/site-1k target/perf/render.json
 //! khalid-perf lint target/perf/site-1k target/perf/lint.json
+//! khalid-perf requests target/release/khalid 1000 target/perf/site-1k target/perf/requests.json
 //! khalid-perf serve target/release/khalid 1000 target/perf/site-1k target/perf/serve-1k.json
 //! ```
 
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
+use std::time::Duration;
 
 use khalid_core::SystemClock;
 use khalid_lint::{LintConfig, Linter};
-use khalid_perf::{Fixture, FixtureError, LintTimes, Prepared, RenderTimes, ServeTimes};
+use khalid_perf::{
+    Fixture, FixtureError, LintTimes, Prepared, RenderTimes, RequestRate, ServeTimes, Served,
+};
 use khalid_render::Renderer;
 
 const USAGE: &str = "Usage: khalid-perf fixture POSTS FOLDER\n       \
                      khalid-perf render SITE OUT.json\n       \
                      khalid-perf lint SITE OUT.json\n       \
+                     khalid-perf requests KHALID POSTS SITE OUT.json\n       \
                      khalid-perf serve KHALID POSTS SITE OUT.json";
 
 /// Rounds over every page: one to warm up, then enough samples that the
@@ -29,6 +34,12 @@ const ROUNDS: usize = 5;
 /// Posts linted for the lint measure, spread over the site: as many
 /// samples as the `divan` benchmark takes.
 const LINT_SAMPLES: usize = 100;
+
+/// Connections asking for the cached post page at once: `oha`'s default.
+const CONNECTIONS: usize = 50;
+
+/// How long the requests run, as the budget's `oha` run lasts.
+const REQUESTS_FOR: Duration = Duration::from_secs(30);
 
 /// Where Linux says when it gives a program transparent huge pages.
 const THP_MODE: &str = "/sys/kernel/mm/transparent_hugepage/enabled";
@@ -47,6 +58,9 @@ fn main() -> ExitCode {
         ["fixture", posts, folder] => fixture(posts, Path::new(folder)),
         ["render", site, out] => render(Path::new(site), Path::new(out)),
         ["lint", site, out] => lint(Path::new(site), Path::new(out)),
+        ["requests", khalid, posts, site, out] => {
+            requests(Path::new(khalid), posts, Path::new(site), Path::new(out))
+        }
         ["serve", khalid, posts, site, out] => {
             serve(Path::new(khalid), posts, Path::new(site), Path::new(out))
         }
@@ -108,6 +122,32 @@ fn lint(site: &Path, out: &Path) -> Result<(), String> {
         .map_err(|error| explain(format!("The linter could not start: {error}.")))?;
     let times = LintTimes::measure(&prepared, &linter, LINT_SAMPLES, &SystemClock);
     fs::write(out, times.to_json())
+        .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
+}
+
+fn requests(khalid: &Path, posts: &str, site: &Path, out: &Path) -> Result<(), String> {
+    let explain = |what: String| {
+        format!(
+            "{what}\nWithout it, the requests a second cannot be measured.\n\
+             Build khalid with `cargo build --release -p khalid`, write the site \
+             again with `khalid-perf fixture`, and run this once more."
+        )
+    };
+    let fixture = posts.parse().ok().and_then(Fixture::new).ok_or_else(|| {
+        format!("{USAGE}\nPOSTS is the number of posts the site was written with.")
+    })?;
+    let fail = |error| explain(format!("Serving {} failed: {error}.", site.display()));
+    let (served, _) = Served::start(khalid, site, &SystemClock).map_err(fail)?;
+    let address = fixture.post_address(0);
+    served.get(&address).map_err(fail)?; // the page is cached before the run
+    let rate = RequestRate::measure(
+        served.host(),
+        &address,
+        (CONNECTIONS, REQUESTS_FOR),
+        &SystemClock,
+    )
+    .map_err(fail)?;
+    fs::write(out, rate.to_json())
         .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
 }
 
