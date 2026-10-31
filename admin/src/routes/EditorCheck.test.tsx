@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { axeViolations, json, renderAt, serve, signedIn } from "../../test/render";
 import type { PostCheck } from "../api/check";
@@ -49,9 +49,22 @@ const CHECK: PostCheck = {
   schema: { "@context": "https://schema.org", "@graph": [{ "@type": "BlogPosting" }] },
 };
 
-/** A blog holding the demo post, which answers its check with `check`. */
+const EVENT = '{"@type": "Event", "name": "Internal links clinic"}';
+
+/** A blog holding the demo post, which answers its check with `check` and records edits. */
 function blog(check: () => Response) {
-  serve((request) => (request.url.endsWith("/check/") ? check() : json(200, { posts: [POST] })));
+  const edits: unknown[] = [];
+  serve(async (request) => {
+    if (request.url.endsWith("/check/")) {
+      return check();
+    }
+    if (request.method === "PUT") {
+      const body: { posts: unknown[] } = await request.json();
+      edits.push(body.posts[0]);
+    }
+    return json(200, { posts: [POST] });
+  });
+  return edits;
 }
 
 describe("the editor's score and search result", () => {
@@ -72,6 +85,34 @@ describe("the editor's score and search result", () => {
     blog(() => json(404, { title: "This server does not check posts." }));
     renderAt(`/posts/${POST.id}`);
     expect(await screen.findByText(en.editor.noChecks)).toBeVisible();
-    expect(screen.queryByText(en.search.title)).toBeNull();
+    expect(screen.getByLabelText(en.search.focus)).toBeVisible();
+    expect(screen.queryByRole("region", { name: en.search.result })).toBeNull();
+  });
+});
+
+describe("the editor's search fields and schema", () => {
+  it("lists the schema the page carries and saves the writer's own", async () => {
+    signedIn();
+    const edits = blog(() => json(200, { checks: [CHECK] }));
+    renderAt(`/posts/${POST.id}`);
+    // The schema panel starts folded, so its parts are found by their words.
+    expect(await screen.findByText("BlogPosting")).toBeInTheDocument();
+    const test = screen.getByText(en.schema.test).closest("a");
+    expect(test).toHaveAttribute("href", expect.stringContaining("why-internal-links-matter"));
+    const own = screen.getByLabelText(en.schema.own);
+    fireEvent.change(own, { target: { value: EVENT } });
+    const focus = screen.getByLabelText(en.search.focus);
+    fireEvent.change(focus, { target: { value: "internal links" } });
+    fireEvent.blur(focus);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(en.editor.saved));
+    expect(edits).toEqual([
+      {
+        updated_at: POST.updated_at,
+        title: POST.title,
+        markdown: POST.markdown,
+        settings: { focus_keyword: "internal links", schema: EVENT },
+      },
+    ]);
+    expect(await axeViolations()).toEqual([]);
   });
 });

@@ -13,6 +13,7 @@ import { PreviewLink } from "./PreviewLink";
 import { PublishButton } from "./PublishButton";
 import { RichText } from "./RichText";
 import { fitsRichText } from "./richText";
+import { SchemaPanel } from "./SchemaPanel";
 import { SearchPreview } from "./SearchPreview";
 import { scheduledAt } from "./schedule";
 import { type SettingsDraft, withSetting } from "./settings";
@@ -37,8 +38,9 @@ export function EditorForm({ post }: Props) {
     queryKey: ["check", post.id, updatedAt.current],
     queryFn: () => readCheck(post.id),
   });
+  const checked = check.data ?? null;
   const refused = publishing.findings;
-  const findings = refused.length > 0 ? refused : findingsOf(check.data?.lint);
+  const findings = refused.length > 0 ? refused : findingsOf(checked?.lint);
   const [rich, setRich] = useState(() => fitsRichText(post.markdown));
   const [held, setHeld] = useState(!rich);
   const [at, setAt] = useState(() => scheduledAt(post));
@@ -57,6 +59,7 @@ export function EditorForm({ post }: Props) {
   const setMarkdown = (markdown: string) => setDraft((current) => ({ ...current, markdown }));
   const setSetting = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) =>
     setDraft((current) => ({ ...current, settings: withSetting(current.settings, key, value) }));
+  const fields = { settings: draft.settings, onSetting: setSetting, onBlur };
 
   return (
     <>
@@ -124,8 +127,9 @@ export function EditorForm({ post }: Props) {
           )}
         </div>
         <div>
-          <LintPanel findings={findings} score={scoreOf(check.data?.lint)} />
-          {check.data ? <SearchPreview snippet={check.data.snippet} /> : null}
+          <LintPanel findings={findings} score={scoreOf(checked?.lint)} />
+          <SearchPreview snippet={checked?.snippet ?? null} {...fields} />
+          <SchemaPanel check={checked} live={publishing.status === "published"} {...fields} />
           <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
             {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}
             <PreviewLink id={post.id} />

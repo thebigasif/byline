@@ -337,6 +337,23 @@ export const en = {
     none: "No description yet. Google picks a line from the post instead.",
     lengths: (title: number, description: number) =>
       `Title ${title} of about 60 characters. Description ${description} of about 160.`,
+    seoTitle: "Title in search results",
+    seoTitleHint:
+      "Leave it empty to use the post's title and the blog's name. {title} and {site} put those in.",
+    description: "The line under the title is the Description in Post settings.",
+    focus: "Focus keyword",
+    focusHint:
+      "The search a reader types to find this post. The checks look for it in the title, the description and the first paragraph.",
+  },
+  schema: {
+    title: "Schema",
+    lede: "Schema is information for search engines, written in a format called JSON-LD. Khalid writes it for every post. This post's page tells them it holds:",
+    types: "Kinds of thing on this page",
+    show: "Show the JSON-LD",
+    test: "Test the published page in Google's Rich Results Test",
+    own: "Your own schema",
+    ownHint:
+      "For a type Khalid does not write, such as an Event. Paste JSON-LD here; Khalid checks it before it saves. Most posts need nothing here.",
   },
   signIn: {
     title: "Sign in to your blog's admin",

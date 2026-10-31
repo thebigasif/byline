@@ -36,6 +36,9 @@ export type SettingsDraft = {
   facebookTitle: string;
   facebookDescription: string;
   facebookImage: string;
+  seoTitle: string;
+  focusKeyword: string;
+  schema: string;
 };
 
 /** The settings whose field is free text. */
@@ -46,7 +49,8 @@ const CARDS = ["xTitle", "xDescription", "xImage"] as const;
 const FACEBOOK = ["facebookTitle", "facebookDescription", "facebookImage"] as const;
 const ONE_BY_ONE = ["slug", "author", "coAuthors", "date", "excerpt", "reviewState"] as const;
 const OTHERS = ["canonical", "robots", "aliases", "unpublishAt"] as const;
-const KEYS = [...ONE_BY_ONE, ...OTHERS, ...IMAGE, ...CARDS, ...FACEBOOK];
+const SEARCH = ["seoTitle", "focusKeyword", "schema"] as const;
+const KEYS = [...ONE_BY_ONE, ...OTHERS, ...IMAGE, ...CARDS, ...FACEBOOK, ...SEARCH];
 
 /** The panel's fields for `post`. */
 export function settingsDraft(post: AdminPost): SettingsDraft {
@@ -72,6 +76,9 @@ export function settingsDraft(post: AdminPost): SettingsDraft {
     facebookTitle: facebook?.title ?? "",
     facebookDescription: facebook?.description ?? "",
     facebookImage: facebook?.image ?? "",
+    seoTitle: settings.seo_title ?? "",
+    focusKeyword: settings.focus_keyword ?? "",
+    schema: settings.schema ?? "",
   };
 }
 
@@ -153,6 +160,15 @@ function settingsChanged(saved: SettingsDraft, now: SettingsDraft): SettingsEdit
   }
   if (changed("robots")) {
     settings.robots = orNull(now.robots);
+  }
+  if (changed("seoTitle")) {
+    settings.seo_title = orNull(now.seoTitle);
+  }
+  if (changed("focusKeyword")) {
+    settings.focus_keyword = orNull(now.focusKeyword);
+  }
+  if (changed("schema")) {
+    settings.schema = orNull(now.schema);
   }
   return settings;
 }
