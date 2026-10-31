@@ -1,0 +1,27 @@
+{
+  "name": "khalid-nextjs-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Next.js app that shows a Khalid blog from its Content API, with the theme's meta tags and schema.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

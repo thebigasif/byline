@@ -16,7 +16,10 @@ use serde_json::Value;
 use tempfile::TempDir;
 
 /// The kits, each with its copy of `khalid.js`, from the repository root.
-const KITS: [&str; 1] = ["starters/astro/src/lib/khalid.js"];
+const KITS: [&str; 2] = [
+    "starters/astro/src/lib/khalid.js",
+    "starters/nextjs/lib/khalid.js",
+];
 
 #[cfg(test)]
 fn at(base: &Path, rel: &str) -> PathBuf {
@@ -161,10 +164,14 @@ fn each_kit_writes_the_head_the_theme_writes_for_every_demo_post() {
 
 /// The kits' pages that import from `khalid.js`, which no test can build
 /// here without installing the frameworks.
-const PAGES: [&str; 3] = [
+const PAGES: [&str; 7] = [
     "starters/astro/src/layouts/Base.astro",
     "starters/astro/src/pages/index.astro",
     "starters/astro/src/pages/[...path].astro",
+    "starters/nextjs/app/khalid-head.tsx",
+    "starters/nextjs/app/layout.tsx",
+    "starters/nextjs/app/page.tsx",
+    "starters/nextjs/app/[...path]/page.tsx",
 ];
 
 #[test]
@@ -185,6 +192,12 @@ fn every_name_a_kit_page_imports_from_khalid_js_is_exported() {
             "{page} imports nothing from khalid.js"
         );
         for name in names {
+            // A type comes from a JSDoc typedef, which the type checker reads.
+            if let Some(typedef) = name.strip_prefix("type ") {
+                let declared = format!("}}}} {typedef}\n");
+                assert!(library.contains(&declared), "{page} imports type {typedef}");
+                continue;
+            }
             let exported = format!("export function {name}(");
             let async_exported = format!("export async function {name}(");
             assert!(
