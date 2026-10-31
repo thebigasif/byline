@@ -199,3 +199,58 @@ fn click_to_enlarge_switched_off_leaves_the_picture_unlinked() {
     assert!(figure.contains("<picture>"), "{figure}");
     assert!(!figure.contains("enlarge"), "{figure}");
 }
+
+/// The linked mentions of the post at `rel`, if it shows any.
+#[cfg(test)]
+fn mentions(out: &Path, rel: &str) -> Option<String> {
+    let post = page(out, rel);
+    let (_, list) = post.split_once("<section class=\"mentions\">")?;
+    let (list, _) = list.split_once("</section>")?;
+    Some(format!("<section class=\"mentions\">{list}</section>"))
+}
+
+#[test]
+fn a_post_lists_the_posts_that_link_to_it() {
+    let (_temp, out) = build("");
+    let list = mentions(&out, "why-internal-links-matter/index.html").expect("mentions");
+    assert!(!list.contains("why-internal-links-matter/"), "never itself");
+    insta::assert_snapshot!(list);
+}
+
+#[test]
+fn linked_mentions_switched_off_are_gone() {
+    let (_temp, out) = build("\n[reader]\nlinked_mentions = false\n");
+    assert_eq!(mentions(&out, "why-internal-links-matter/index.html"), None);
+}
+
+/// The start tag of the first link to `href` in the post at `rel`.
+#[cfg(test)]
+fn link_to(out: &Path, rel: &str, href: &str) -> String {
+    let post = page(out, rel);
+    let (_, tag) = post
+        .split_once(&format!("<a href=\"{href}\""))
+        .unwrap_or_else(|| panic!("no link to {href}"));
+    let (tag, _) = tag.split_once('>').unwrap();
+    format!("<a href=\"{href}\"{tag}>")
+}
+
+#[test]
+fn a_link_to_another_post_carries_its_summary_for_the_preview() {
+    let (_temp, out) = build("");
+    let link = link_to(
+        &out,
+        "what-a-sitemap-does/index.html",
+        "/blog/why-internal-links-matter/",
+    );
+    insta::assert_snapshot!(link);
+    let post = page(&out, "what-a-sitemap-does/index.html");
+    let script = post.split_once("<script src=\"").map(|(_, rest)| rest);
+    assert!(script.is_some(), "the reader script shows it");
+}
+
+#[test]
+fn link_previews_switched_off_leave_plain_links() {
+    let (_temp, out) = build("\n[reader]\nlink_previews = false\n");
+    let post = page(&out, "what-a-sitemap-does/index.html");
+    assert!(!post.contains("data-preview"), "{post}");
+}

@@ -1,0 +1,5 @@
+---
+source: crates/khalid/tests/build_reader.rs
+expression: link
+---
+<a href="/blog/why-internal-links-matter/" data-preview="Internal links help readers and search engines find the rest of your site. Here is how to add them without overthinking it.">

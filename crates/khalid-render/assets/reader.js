@@ -1,7 +1,7 @@
 // Polish on top of pages that read completely without it (RULES.md BL-WEB-2):
 // copy a heading's address, open an enlarged image in a dialog, open search
 // with / or Ctrl+K, show results while typing a search, and mark the
-// section being read in the contents.
+// section being read in the contents, and preview a linked post.
 // The words it shows come from the script tag's data attributes.
 (() => {
   "use strict";
@@ -159,4 +159,44 @@
       if (heading) seen.observe(heading);
     }
   }
+
+  // A link to another post shows that post's summary, from its
+  // data-preview, while pointed at or focused. Escape hides it, and the
+  // pointer may move onto it without it going away.
+  let preview = null;
+  let previewed = null;
+  const hidePreview = () => {
+    preview?.remove();
+    previewed?.removeAttribute("aria-describedby");
+    preview = null;
+    previewed = null;
+  };
+  const showPreview = (link) => {
+    if (link === previewed) return;
+    hidePreview();
+    preview = document.createElement("span");
+    preview.className = "link-preview";
+    preview.id = "link-preview";
+    preview.setAttribute("role", "tooltip");
+    preview.textContent = link.dataset.preview;
+    link.setAttribute("aria-describedby", preview.id);
+    link.after(preview);
+    previewed = link;
+  };
+  for (const kind of ["mouseover", "focusin"]) {
+    document.addEventListener(kind, (event) => {
+      const link = event.target.closest?.("a[data-preview]");
+      if (link) showPreview(link);
+    });
+  }
+  for (const kind of ["mouseout", "focusout"]) {
+    document.addEventListener(kind, (event) => {
+      const to = event.relatedTarget;
+      if (!preview || preview.contains(to) || previewed.contains(to)) return;
+      if (event.target.closest?.("a[data-preview], .link-preview")) hidePreview();
+    });
+  }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hidePreview();
+  });
 })();

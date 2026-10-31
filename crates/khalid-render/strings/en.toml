@@ -27,6 +27,7 @@ tags = "Tags"
 contents = "Contents"
 # The heading of the posts shown under a post.
 related_posts = "Related posts"
+mentions = "Posts that link here"
 # Names the # link beside each heading for screen readers.
 heading_link = "Link to this section"
 # Said and shown for a moment after a heading's address is copied.

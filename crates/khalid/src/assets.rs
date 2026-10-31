@@ -16,11 +16,12 @@ pub(crate) const FOLDER: &str = "assets/";
 
 /// The reader features the reader script improves. With all of them off,
 /// pages link no script at all.
-const SCRIPTED: [Feature; 4] = [
+const SCRIPTED: [Feature; 5] = [
     Feature::HeadingLinks,
     Feature::EnlargeImages,
     Feature::SearchShortcut,
     Feature::TableOfContents,
+    Feature::LinkPreviews,
 ];
 
 /// The reader script with its compressed copies, made once per process

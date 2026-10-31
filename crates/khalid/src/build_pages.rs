@@ -21,7 +21,9 @@ use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
 use crate::listed_post::{ListedPost, ListedTag};
 use crate::post_lock::Unlocked;
 pub(crate) use crate::site_page::Page;
-use crate::{build_home, build_message, build_reader, build_schema, build_seo, site_chrome};
+use crate::{
+    build_home, build_message, build_reader, build_schema, build_seo, link_graph, site_chrome,
+};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
@@ -225,14 +227,10 @@ fn post_pages(
             .into_iter()
             .filter_map(|index| among.get(index).map(|post| post.card.clone()))
             .collect();
-        pages.push(post_page(
-            config,
-            locale,
-            draft,
-            related,
-            people,
-            &content.authors,
-        )?);
+        let authors = &content.authors;
+        let mut page = post_page(config, locale, draft, related, people, authors)?;
+        link_graph::attach(&mut page, topic, &among, config.reader());
+        pages.push(page);
     }
     Ok((pages, listed))
 }
@@ -306,6 +304,7 @@ fn post_page(
         contents: build_reader::contents(&rendered.headings),
         originals: BTreeMap::new(),
         related,
+        mentions: Vec::new(),
         comments: None,
         body: html,
     };

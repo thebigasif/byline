@@ -46,6 +46,7 @@ mod init_message;
 mod init_prompt;
 mod keys;
 mod keys_message;
+mod link_graph;
 mod lint;
 mod lint_fix;
 mod lint_input;

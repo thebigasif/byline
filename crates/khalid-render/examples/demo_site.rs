@@ -550,6 +550,7 @@ impl Demo {
             contents: None,
             originals: BTreeMap::new(),
             related: Vec::new(),
+            mentions: Vec::new(),
             comments: None,
             body,
         };

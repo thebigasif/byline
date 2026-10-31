@@ -144,7 +144,7 @@ fn script_of(html: &str) -> Option<String> {
 fn with_every_feature_it_improves_off_no_page_links_a_script() {
     let (_site, out) = build(
         "\n[reader]\nheading_links = false\nenlarge_images = false\n\
-         search_shortcut = false\ntable_of_contents = false\n",
+         search_shortcut = false\ntable_of_contents = false\nlink_previews = false\n",
     );
     let post = fs::read_to_string(at(&out, "what-a-sitemap-does/index.html")).unwrap();
     assert_eq!(script(&post), None, "{post}");

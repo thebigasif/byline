@@ -246,7 +246,7 @@ fn draw(out: &mut String, picture: &Picture, alt: &str) {
 
 /// `text` safe inside a double-quoted attribute. Addresses here are made
 /// from the mount, a hex key and a width, and the mount may hold any text.
-fn attribute(text: &str) -> String {
+pub(crate) fn attribute(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('"', "&quot;")
         .replace('<', "&lt;")
