@@ -3,10 +3,11 @@
 
 use std::sync::Arc;
 
-use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
+use axum::extract::{OriginalUri, Path, State};
 use axum::http::StatusCode;
 use axum::{Extension, Json, middleware};
+use khalid_core::UserMessage;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
@@ -15,8 +16,10 @@ use utoipa_axum::routes;
 use crate::admin_entries::Noun;
 use crate::admin_key::{AdminDoor, require, require_admin_key};
 use crate::api_version::negotiate_version;
-use crate::keys::{Access, KeyHashing, KeyKind, KeyStore, KeyToken, Principal, Scope, StoredKey};
-use crate::problem::Problem;
+use crate::keys::{
+    Access, KeyHashing, KeyId, KeyKind, KeyStore, KeyToken, Principal, Scope, StoredKey,
+};
+use crate::problem::{Problem, ProblemType};
 use crate::resources::{AdminKey, NewKey, NewKeyKind};
 
 /// How messages name a key.
@@ -34,6 +37,7 @@ type Keys = Arc<dyn KeyStore>;
 pub(crate) fn routes(keys: Keys, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_keys, create_key))
+        .routes(routes!(revoke_key))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(keys)
@@ -153,4 +157,46 @@ fn made(access: Access) -> Result<(KeyToken, StoredKey), Problem> {
         None => StoredKey::for_token(&token),
     };
     Ok((token, stored))
+}
+
+/// Revokes a key, so it stops working at once and its identity is never
+/// used again. The key making the request is kept, so nobody locks
+/// themselves out. Needs `admin:all`.
+#[utoipa::path(
+    delete, path = "/keys/{id}/", tag = "admin keys",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The key's identity, such as 1111222233334444")),
+    responses(
+        (status = 204, description = "The key no longer works"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks admin:all", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No working key has this identity", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "This is the key making the request", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn revoke_key(
+    State(keys): State<Keys>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<StatusCode, Problem> {
+    require(&principal, Scope::AdminAll)?;
+    let id = KeyId::try_new(&id).map_err(|_| KEY.missing(uri.path()))?;
+    if &id == principal.id() {
+        let message = UserMessage::new(
+            "This is the key making the request, so it was kept.",
+            "Revoking it would lock you out of the Admin API at once.",
+            "Revoke it with another key that has admin:all, or with khalid keys revoke.",
+        );
+        return Err(Problem::new(ProblemType::Conflict, &message).with_rule("id"));
+    }
+    let revoked = keys
+        .revoke(&id)
+        .await
+        .map_err(|error| Problem::internal(&error))?;
+    if revoked {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(KEY.missing(uri.path()))
+    }
 }

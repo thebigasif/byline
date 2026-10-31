@@ -142,6 +142,34 @@ async fn a_key_that_does_not_fit_its_kind_is_not_made() {
 }
 
 #[tokio::test]
+async fn a_revoked_key_stops_working_at_once() {
+    let router = site();
+    let editor = "/api/admin/v1/keys/2222333344445555/";
+    let (status, _) = send(&router, "GET", "/api/admin/v1/posts/", EDITOR, None).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = send(&router, "DELETE", editor, EDITOR, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "an editor cannot revoke");
+    let (status, _) = send(&router, "DELETE", editor, OWNER, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = send(&router, "GET", "/api/admin/v1/posts/", EDITOR, None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, json) = send(&router, "DELETE", editor, OWNER, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "already revoked: {json}");
+    let (status, _) = send(&router, "DELETE", "/api/admin/v1/keys/nope/", OWNER, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn the_key_making_the_request_is_kept() {
+    let router = site();
+    let own = "/api/admin/v1/keys/1111222233334444/";
+    let (status, json) = send(&router, "DELETE", own, OWNER, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    let (status, _) = send(&router, "GET", KEYS, OWNER, None).await;
+    assert_eq!(status, StatusCode::OK, "the owner still gets in");
+}
+
+#[tokio::test]
 async fn listing_keys_needs_admin_all() {
     let (status, json) = send(&site(), "GET", KEYS, EDITOR, None).await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{json}");

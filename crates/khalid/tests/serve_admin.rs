@@ -279,3 +279,30 @@ fn the_settings_are_changed_in_site_toml_and_applied_after_a_restart() {
     assert_eq!(read["settings"]["name"], "Field Notes", "{read}");
     assert_eq!(read["settings"]["restart_needed"], false, "{read}");
 }
+
+#[test]
+fn a_key_made_through_the_admin_api_opens_the_api_until_it_is_revoked() {
+    let site = demo_copy();
+    let owner = ["--name", "Owner", "--scope", "admin:all"];
+    let server = start(site.path(), &new_key(site.path(), &owner));
+    let new =
+        json!({"keys": [{"name": "SerpDad", "kind": "integration", "scopes": ["posts:write"]}]});
+    let (status, made) = server.admin("POST", "/api/admin/v1/keys/", Some(&new));
+    assert_eq!(status, 201, "{made}");
+    let key = made["keys"][0]["key"].as_str().unwrap();
+    let id = made["keys"][0]["id"].as_str().unwrap();
+    let auth = format!("Khalid {key}");
+    let headers = [("Authorization", auth.as_str())];
+    let (status, _) = server.raw("GET", "/api/admin/v1/posts/", &headers, None);
+    assert_eq!(status, 200, "the new key opens the posts list");
+
+    let (status, listed) = server.admin("GET", "/api/admin/v1/keys/", None);
+    assert_eq!(status, 200, "{listed}");
+    assert_eq!(listed["keys"][1]["name"], "SerpDad", "{listed}");
+    assert!(!listed.to_string().contains(key), "the key is never listed");
+
+    let (status, body) = server.admin("DELETE", &format!("/api/admin/v1/keys/{id}/"), None);
+    assert_eq!(status, 204, "{body}");
+    let (status, _) = server.raw("GET", "/api/admin/v1/posts/", &headers, None);
+    assert_eq!(status, 401, "a revoked key stops at once");
+}
