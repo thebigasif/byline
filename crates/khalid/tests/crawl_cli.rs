@@ -1,5 +1,5 @@
-//! `khalid crawl health` on the demo site, with a
-//! visitor log written beforehand (GEO C3). With the log off,
+//! `khalid crawl health` and `errors` on the demo site, with a
+//! visitor log written beforehand (GEO C3, C5). With the log off,
 //! each says so.
 
 use std::fs::{self, OpenOptions};
@@ -20,7 +20,7 @@ use tempfile::TempDir;
 const POST: &str = "/blog/planning-a-topic-cluster/";
 
 /// Every `khalid crawl` report.
-const REPORTS: &[&str] = &["health"];
+const REPORTS: &[&str] = &["health", "errors"];
 
 #[cfg(test)]
 fn visit(at: DateTime<Utc>, path: &str, status: u16, (name, check): (&str, BotCheck)) -> Visit {
@@ -113,6 +113,23 @@ async fn health_counts_googlebot_and_sets_pretenders_apart() {
     let (_, text) = crawl(site.path(), &["health"]);
     assert!(
         text.contains("  1 visit from other addresses using its name, not counted"),
+        "{text}"
+    );
+}
+
+#[tokio::test]
+async fn errors_list_each_address_crawlers_could_not_get() {
+    let site = demo_site("[visitor_log]\non = true").await;
+    let (code, out) = crawl(site.path(), &["errors", "--json"]);
+    assert_eq!(code, 0, "{out}");
+    let json: Value = serde_json::from_str(&out).unwrap();
+    let errors = json["errors"].as_array().unwrap();
+    assert_eq!(errors.len(), 1, "the pretender's 404 is left out: {json}");
+    assert_eq!(errors[0]["path"], "/blog/gone/");
+    assert_eq!(errors[0]["hits"], 2);
+    let (_, text) = crawl(site.path(), &["errors"]);
+    assert!(
+        text.contains("/blog/gone/  404  2 times to GPTBot, Googlebot, last "),
         "{text}"
     );
 }

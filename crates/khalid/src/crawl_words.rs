@@ -3,10 +3,13 @@
 
 use std::fmt::Write as _;
 
-use khalid_analytics::{Answers, CrawlerHealth};
+use khalid_analytics::{Answers, BotError, CrawlerHealth};
 use khalid_core::UserMessage;
 
 use crate::crawl_report::shown;
+
+/// The most error lines a person is shown; `--json` has every one.
+const MOST_ERRORS: usize = 50;
 
 /// What a checked crawler is, said once under each report.
 pub(crate) const CHECKED: &str = "A crawler counts only when its address is on the list its company publishes. \
@@ -47,6 +50,45 @@ pub(crate) fn health(all: &[CrawlerHealth], days: u32) -> String {
     lines
 }
 
+/// The addresses that answered crawlers with an error over the kept `days`.
+pub(crate) fn errors(errors: &[BotError], days: u32) -> String {
+    if errors.is_empty() {
+        return format!(
+            "No search or AI crawler got an error in the last {days} days the visitor log keeps.\n"
+        );
+    }
+    let mut lines = format!(
+        "Addresses that answered search and AI crawlers with an error in the last {days} days, most first.\n\n"
+    );
+    for error in errors.iter().take(MOST_ERRORS) {
+        let names: Vec<&str> = error.crawlers.iter().map(|bot| bot.name()).collect();
+        let _ = writeln!(
+            lines,
+            "{}  {}  {} to {}, last {}",
+            error.path,
+            error.status,
+            times(error.hits),
+            names.join(", "),
+            shown(error.last_at)
+        );
+    }
+    if let Some(more) = errors
+        .len()
+        .checked_sub(MOST_ERRORS)
+        .filter(|more| *more > 0)
+    {
+        let _ = writeln!(
+            lines,
+            "... and {more} more. Run it with --json to see every one."
+        );
+    }
+    lines.push_str(
+        "\nA 404 on an address that should work needs a redirect: run khalid redirects. \
+         A 5xx is a server error: read the server log for it.\n",
+    );
+    lines
+}
+
 fn said(answers: Answers) -> String {
     format!(
         "{} with the page, {} moved, {} missing, {} failed",
@@ -58,6 +100,13 @@ fn visits(count: u64) -> String {
     match count {
         1 => "1 visit".to_owned(),
         many => format!("{many} visits"),
+    }
+}
+
+fn times(count: u64) -> String {
+    match count {
+        1 => "once".to_owned(),
+        many => format!("{many} times"),
     }
 }
 

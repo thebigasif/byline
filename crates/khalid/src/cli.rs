@@ -228,6 +228,8 @@ pub(crate) enum Command {
 pub(crate) enum CrawlCommand {
     /// Show each search and AI crawler's visits and what it got
     Health,
+    /// List the addresses that answered crawlers with an error
+    Errors,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in
@@ -563,6 +565,7 @@ impl Command {
             } => "bing report",
             Self::Crawl { command } => match command {
                 CrawlCommand::Health => "crawl health",
+                CrawlCommand::Errors => "crawl errors",
             },
         }
     }

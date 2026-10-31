@@ -1,11 +1,13 @@
-//! `khalid crawl health`: what the visitor log says about crawling
-//! (GEO C3). They read `data/site.db`, and answer that the
+//! `khalid crawl health` and `errors`: what the visitor log says about
+//! crawling (GEO C3, C5). They read `data/site.db`, and answer that the
 //! log is off when `[visitor_log]` does not switch it on.
 
 use std::path::Path;
 
 use chrono::{DateTime, Days, SecondsFormat, Utc};
-use khalid_analytics::{AnalyticsError, Answers, CrawlerHealth, VisitorLogStore, crawl_health};
+use khalid_analytics::{
+    AnalyticsError, Answers, BotError, CrawlerHealth, VisitorLogStore, bot_errors, crawl_health,
+};
 use khalid_core::{Clock, Environment, UserMessage};
 use khalid_db::VisitorLogTable;
 use serde::Serialize;
@@ -17,6 +19,7 @@ use crate::{crawl_words, db_message, report, serve, site_config};
 /// What one command read.
 enum Read {
     Health(Vec<CrawlerHealth>),
+    Errors(Vec<BotError>),
 }
 
 /// Runs a crawl `command` on the `site` folder, reading the visitor log's
@@ -65,6 +68,7 @@ fn read(
                     let visits = log.visits(since, now).await?;
                     Read::Health(crawl_health(&visits, &log.crawled().await?))
                 }
+                CrawlCommand::Errors => Read::Errors(bot_errors(&log.visits(since, now).await?)),
             })
         }
         .await;
@@ -76,8 +80,9 @@ fn read(
 /// The JSON shape of every command: one list under its name.
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
-enum Body {
+enum Body<'a> {
     Crawlers(Vec<CrawlerBody>),
+    Errors(Vec<ErrorBody<'a>>),
 }
 
 #[derive(Serialize)]
@@ -99,6 +104,15 @@ struct AnswersBody {
     failed: u64,
 }
 
+#[derive(Serialize)]
+struct ErrorBody<'a> {
+    path: &'a str,
+    status: u16,
+    crawlers: Vec<&'static str>,
+    hits: u64,
+    last_at: String,
+}
+
 /// `at` as JSON shows it: RFC 3339 in UTC, to the second.
 pub(crate) fn time(at: DateTime<Utc>) -> String {
     at.to_rfc3339_opts(SecondsFormat::Secs, true)
@@ -113,7 +127,7 @@ fn answers(of: Answers) -> AnswersBody {
     }
 }
 
-fn json(read: &Read) -> Body {
+fn json(read: &Read) -> Body<'_> {
     match read {
         Read::Health(all) => Body::Crawlers(
             all.iter()
@@ -128,12 +142,25 @@ fn json(read: &Read) -> Body {
                 })
                 .collect(),
         ),
+        Read::Errors(errors) => Body::Errors(
+            errors
+                .iter()
+                .map(|error| ErrorBody {
+                    path: &error.path,
+                    status: error.status,
+                    crawlers: error.crawlers.iter().map(|bot| bot.name()).collect(),
+                    hits: error.hits,
+                    last_at: time(error.last_at),
+                })
+                .collect(),
+        ),
     }
 }
 
 fn text(read: &Read, days: u32) -> String {
     match read {
         Read::Health(all) => crawl_words::health(all, days),
+        Read::Errors(errors) => crawl_words::errors(errors, days),
     }
 }
 

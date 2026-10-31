@@ -1,0 +1,1 @@
+- **`khalid crawl errors`.** While the visitor log is on, lists each address that answered search and AI crawlers with a 4xx or 5xx over the kept days, most hits first (GEO C5).
