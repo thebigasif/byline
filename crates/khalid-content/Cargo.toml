@@ -11,7 +11,7 @@ publish.workspace = true
 [dependencies]
 comrak = { version = "0.59", default-features = false, features = ["syntect-fancy"] }
 chrono = { version = "0.4", default-features = false, features = ["serde"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 serde.workspace = true
 serde-saphyr = "2"

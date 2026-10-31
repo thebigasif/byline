@@ -96,3 +96,41 @@ docker compose up -d
 Compose runs Khalid as user 1000, the first user on most Linux machines. If `id -u` prints another number, put `KHALID_UID=<that number>` and `KHALID_GID=<the number id -g prints>` in a file named `.env` next to `compose.yaml`. When the image cannot be downloaded yet, Compose builds it from the repository.
 
 `KHALID_ADDRESS` changes the site's address without editing `site.toml`, for example when a site moves to a new domain. Uncomment the `environment` lines in `compose.yaml` to set it.
+
+## Sending email
+
+Khalid sends email when a reader signs up for the newsletter: one message with a link that confirms the address. Until `site.toml` says how mail is sent, the sign-up form says sign-ups are not open yet and stores nothing.
+
+Add a `[mail]` table with the address mail comes from and exactly one way to send it.
+
+Through the mail server your host gives you, with SMTP (the protocol mail servers speak):
+
+```toml
+[mail]
+from = "news@example.com"
+name = "Field Notes"
+
+[mail.smtp]
+host = "smtp.example.com"
+username = "news@example.com"
+```
+
+Khalid connects on port 587 and turns encryption on before it sends anything. Add `port = 465` and `security = "tls"` for a server that is encrypted from the start. A relay on the same machine or your own network needs `private_host = true`; only then may it use `security = "none"`.
+
+Through Resend or Postmark, two services that send mail for websites, write an empty `[mail.resend]` or `[mail.postmark]` instead of `[mail.smtp]`. Postmark sends on its `outbound` stream unless you add `message_stream = "<name>"`.
+
+The password, API key or token never goes in `site.toml`. Set it in the server's environment, where only Khalid reads it:
+
+| Way of sending | Variable |
+|---|---|
+| SMTP with a `username` | `KHALID_SMTP_PASSWORD` |
+| Resend | `KHALID_RESEND_API_KEY` |
+| Postmark | `KHALID_POSTMARK_TOKEN` |
+
+With systemd, run `sudo systemctl edit khalid` and add `Environment=KHALID_SMTP_PASSWORD=...` under `[Service]`, or keep it in a file only root can read and name it with `EnvironmentFile=`. With Compose, put it in the `.env` file and pass it on under `environment:` in `compose.yaml`, as `KHALID_SMTP_PASSWORD: ${KHALID_SMTP_PASSWORD}`. Khalid refuses to start, and says which variable is missing, when the way you picked needs one that is not set.
+
+## Bing Webmaster Tools
+
+Bing Webmaster Tools is Bing's dashboard for site owners. Add the site there with the address in `site.toml`, put the code Bing gives you as `bing` under `[seo.verification]` in `site.toml`, and verify. Then make an API key, the password a program uses to reach Bing for you, under Settings, API Access, and set it as `KHALID_BING_API_KEY` in the environment, the same way as the mail secrets above. The key never goes in `site.toml`.
+
+`khalid --site <folder> bing sitemap` hands Bing the sitemap, and `khalid --site <folder> bing report` shows Bing's last crawl day, the sitemaps it holds and the addresses it had trouble with. Both take `--json`.

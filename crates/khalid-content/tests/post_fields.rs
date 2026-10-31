@@ -1,10 +1,10 @@
-//! Reading the post fields for the lead image, the search title, tags and
-//! the sitemap. Each field has a test for what it reads and one for the
-//! exact message when it is wrong.
+//! Reading the post fields for the lead image, the search title, tags, the
+//! sitemap and the topic cluster. Each field has a test for what it reads
+//! and one for the exact message when it is wrong.
 
 use std::path::Path;
 
-use khalid_content::{ReviewState, ShareCards, Sitemap, parse_post};
+use khalid_content::{ReviewState, ShareCards, Sitemap, TopicRole, parse_post};
 use khalid_core::Slug;
 
 #[cfg(test)]
@@ -146,4 +146,30 @@ fn a_post_is_in_the_sitemap_unless_it_says_sitemap_false() {
     assert_eq!(left.front.sitemap, Sitemap::Unlisted);
     let listed = parse_post(Path::new("posts/a.md"), "---\nsitemap: true\n---\n").unwrap();
     assert_eq!(listed.front.sitemap, Sitemap::Listed);
+}
+
+#[test]
+fn reads_a_topic_cluster_whose_role_is_member_unless_it_says_pillar() {
+    let member = "---\ntitle: A\ncluster:\n  name: internal-links\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), member).unwrap();
+    let cluster = post.front.cluster.unwrap();
+    assert_eq!(cluster.name.as_str(), "internal-links");
+    assert_eq!(cluster.role, TopicRole::Member);
+    let pillar = "---\ncluster:\n  name: internal-links\n  role: pillar\n---\n";
+    let post = parse_post(Path::new("posts/a.md"), pillar).unwrap();
+    assert_eq!(post.front.cluster.unwrap().role, TopicRole::Pillar);
+    let plain = parse_post(Path::new("posts/a.md"), "---\ntitle: A\n---\n").unwrap();
+    assert_eq!(plain.front.cluster, None);
+}
+
+#[test]
+fn refuses_a_cluster_without_a_name_or_with_an_unknown_role() {
+    assert_eq!(
+        message("---\ncluster:\n  role: pillar\n---\n"),
+        "posts/a.md, line 3, field \"cluster\": missing field `name`"
+    );
+    assert_eq!(
+        message("---\ncluster:\n  name: internal-links\n  role: leader\n---\n"),
+        "posts/a.md, line 4, field \"cluster\": unknown variant `leader`, expected one of pillar, member"
+    );
 }

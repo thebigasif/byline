@@ -10,7 +10,7 @@ publish.workspace = true
 
 [dependencies]
 flate2 = "1"
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 rustybuzz = "0.20"
 tiny-skia = "0.11"
 ttf-parser = "0.25"

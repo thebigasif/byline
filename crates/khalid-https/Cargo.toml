@@ -15,7 +15,7 @@ chrono = { version = "0.4", default-features = false, features = ["std"] }
 http = "1"
 http-body-util = "0.1"
 instant-acme = { version = "0.8", default-features = false, features = ["ring", "rcgen"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 rcgen = { version = "0.14", default-features = false, features = ["ring"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
@@ -29,7 +29,7 @@ x509-parser = { version = "0.18", default-features = false }
 
 [dev-dependencies]
 base64 = "0.22"
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
 khalid-server = { path = "../khalid-server", version = "0.0.0" }
 rcgen = { version = "0.14", default-features = false, features = ["ring", "pem", "x509-parser"] }

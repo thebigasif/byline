@@ -89,13 +89,95 @@ fn the_demo_site_scores_100_with_no_errors_and_only_known_warnings() {
     assert!(body["pages"].as_u64().unwrap() > 10, "{stdout}");
     assert_eq!(output.status.code(), Some(0));
     assert!(
-        file(site.path(), "issues.csv").starts_with("severity,category,check,url,detail,fix\n")
+        file(site.path(), "issues.csv").starts_with("severity,category,check,url,detail,why,fix\n")
     );
     let links = file(site.path(), "links.csv");
     assert!(
         links.contains("https://www.example.com/blog/why-internal-links-matter/,"),
         "{links}"
     );
+}
+
+#[test]
+fn the_ai_search_checks_report_each_page_with_its_reason() {
+    let site = demo_copy();
+    let mut post = site.path().to_path_buf();
+    post.push("content/en/posts/2026-09-21-how-to-write-a-title-tag.md");
+    let text = fs::read_to_string(&post).unwrap();
+    let short = text.replacen(
+        " The headline on the page can be longer and warmer. The title tag is for the results page, where space is short and the reader is scanning.",
+        "",
+        1,
+    );
+    assert_ne!(
+        text, short,
+        "the answer to shorten is gone from the demo post"
+    );
+    fs::write(&post, short).unwrap();
+    let output = audit(site.path(), &["--json"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let body: Value = serde_json::from_str(&stdout).unwrap_or_else(|_| panic!("{stdout}"));
+    let capsule = body["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|issue| issue["check"] == "answer-capsule")
+        .unwrap_or_else(|| panic!("{stdout}"));
+    assert_eq!(
+        capsule["url"],
+        "https://www.example.com/blog/how-to-write-a-title-tag/"
+    );
+    assert_eq!(
+        capsule["detail"],
+        "22 words under \"Title tag or headline?\""
+    );
+    assert_eq!(capsule["category"], "AI search");
+    // The demo's own speed advice gives a number with no source or year.
+    let number = body["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|issue| issue["check"] == "unsourced-number")
+        .unwrap_or_else(|| panic!("{stdout}"));
+    assert_eq!(
+        number["url"],
+        "https://www.example.com/blog/fixing-slow-pages/"
+    );
+    assert_eq!(number["severity"], "notice");
+    assert!(
+        capsule["why"]
+            .as_str()
+            .unwrap()
+            .contains("lift the paragraph")
+    );
+}
+
+#[test]
+fn the_audit_takes_its_limits_from_lint_toml_and_its_day_from_the_clock() {
+    let site = demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("lint.toml");
+    fs::write(&settings, "[thresholds]\nstale-months = 0\n").unwrap();
+    let output = audit(site.path(), &["--json"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let body: Value = serde_json::from_str(&stdout).unwrap_or_else(|_| panic!("{stdout}"));
+    let checked = |check: &str| -> Vec<&str> {
+        body["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|issue| issue["check"] == check)
+            .map(|issue| issue["url"].as_str().unwrap())
+            .collect()
+    };
+    // With no months of grace, every post is past its review window.
+    assert!(
+        checked("stale-page").contains(&"https://www.example.com/blog/how-to-write-a-title-tag/"),
+        "{stdout}"
+    );
+    // Every post shows its dates, and every answer is open.
+    assert_eq!(checked("date-not-shown"), Vec::<&str>::new(), "{stdout}");
+    assert_eq!(checked("hidden-answer"), Vec::<&str>::new(), "{stdout}");
 }
 
 #[test]
@@ -132,6 +214,7 @@ fn a_link_to_a_missing_page_fails_the_audit_and_says_how_to_fix_it() {
     let said = String::from_utf8_lossy(&output.stdout);
     assert_eq!(output.status.code(), Some(1), "{said}");
     assert!(said.contains("Page has links to broken page"), "{said}");
+    assert!(said.contains("A reader who follows the link lands on an error page"));
     assert!(said.contains("Change the link to a page that exists, or remove it."));
     let issues = file(site.path(), "issues.csv");
     assert!(

@@ -18,10 +18,14 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 
 - `khalid lint [post]` checks one post or the whole site. `--fix` makes the safe repairs.
 - `khalid build` writes the site as HTML, and writes nothing when a dated post is blocked. With `mode = "static"` in `site.toml`, every form that would send to the site becomes a short note, and the output lists the features a static site has off, under `off` with `--json`.
+- `khalid export`, on a site with `mode = "static"`, writes the whole site into `public/` and swaps it in only once every page is written, so pages of deleted posts are gone. Copy that folder to the host.
 - `khalid audit` builds the site, crawls it the way Ahrefs and Semrush do, and scores its health out of 100. It exits with 1 on any error, and keeps the issues, the internal linking report and the score's trend in `data/audit/`. `--server http://127.0.0.1:8080` audits a running `khalid serve` instead of a build, and `--offline` leaves links to other sites unchecked.
 - `khalid serve` runs the blog and the APIs.
 - `khalid import wordpress|ghost|medium|substack|markdown <export> --dry-run` says what an import would bring in and leave behind. Without `--dry-run` it writes the posts with their old slugs and stores a redirect for each old address that moves. For `wordpress`, the export may be the site's address, which brings in its published posts and pages.
 - `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it, and on a static site which features are off.
+- `khalid backup --out <file>.tar.gz` writes one archive of the site folder with a whole copy of the database, safe while `khalid serve` runs. It leaves out `public/` and `data/media/`, which Khalid makes again, and never writes over a file.
+- `khalid update` installs the newest release after checking it against the release's `SHA256SUMS`, and keeps the old version beside the binary. `khalid update --rollback` goes back to it.
+- `khalid pull`, in git mode, brings the site's repository forward to what was pushed, checks the site, and builds a static site again. It never merges: when the blog's copy has its own changes, it stops and changes nothing.
 
 **The MCP server.** `khalid --site <folder> mcp` speaks the Model Context Protocol on stdin and stdout. Each tool sends the request the HTTP API would get, so it obeys the same rules, keys and checks.
 

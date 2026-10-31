@@ -4,7 +4,9 @@
 //! its fix. It keeps each run's score in
 //! `data/audit/runs.jsonl` for the trend, and writes the issues and the
 //! internal linking report as CSV beside it. It exits with 1 when it finds
-//! an error.
+//! an error. The AI search checks read the answer length, the paragraph
+//! length and the stale window from the site's `lint.toml`, like the
+//! linter.
 
 use std::fs::{self, OpenOptions};
 use std::io::Write as _;
@@ -15,13 +17,13 @@ use khalid_audit::{
     history,
 };
 use khalid_content::SiteContent;
-use khalid_core::{AbsoluteUrl, Clock, Config};
+use khalid_core::{AbsoluteUrl, Clock, Config, UserMessage};
 use khalid_outbound::{Limits, Outbound, Resolver};
 use khalid_routes::Routes;
 
 use crate::cli::{Cli, Network, Output};
 use crate::exit::Exit;
-use crate::{audit_message, build, outbound, report};
+use crate::{audit_message, build, lint, outbound, report};
 
 /// The folder in `data/` the audit keeps its files in.
 const FOLDER: &str = "data/audit";
@@ -40,6 +42,10 @@ pub(crate) fn run(
     let output = cli.output;
     let folder = within(site, FOLDER);
     let config = checked.0;
+    let thresholds = match thresholds(site, clock) {
+        Ok(thresholds) => thresholds,
+        Err(message) => return report::failure(output, &message, Exit::Failure),
+    };
     let (Ok(home), Ok(runtime)) = (
         home(config),
         tokio::runtime::Builder::new_current_thread()
@@ -62,7 +68,7 @@ pub(crate) fn run(
         };
         runtime.block_on(crawl(&source, &home, Limit::default()))
     };
-    let mut audit = Report::of(&crawled, Thresholds::default());
+    let mut audit = Report::of(&crawled, thresholds);
     if network == Network::Fetch {
         let Ok(public) = outbound::client(cli) else {
             return report::failure(output, &audit_message::internal(), Exit::Internal);
@@ -110,6 +116,18 @@ fn built(
         .map_err(|error| report::failure(output, &audit_message::of(&error), Exit::Internal))
 }
 
+/// The audit's limits, measured on today's date from `clock`. The answer
+/// length, the paragraph length and the stale window come from the site's
+/// `lint.toml`, so the linter and the audit judge a post alike.
+fn thresholds(site: &Path, clock: &dyn Clock) -> Result<Thresholds, UserMessage> {
+    let lint = lint::lint_settings(site)?.thresholds();
+    Ok(Thresholds::default()
+        .with_answer_words(lint.answer_min_words, lint.answer_max_words)
+        .with_paragraph_words(lint.paragraph_max_words)
+        .with_stale_months(lint.stale_months)
+        .with_today(clock.now().date_naive()))
+}
+
 /// The blog's home page: the site's address with its mount.
 fn home(config: &Config) -> Result<AbsoluteUrl, ()> {
     let address = config.address().as_str().trim_end_matches('/');
@@ -123,7 +141,7 @@ fn keep(
     audit: &Report,
     links: &LinkReport,
     clock: &dyn Clock,
-) -> Result<Vec<Run>, khalid_core::UserMessage> {
+) -> Result<Vec<Run>, UserMessage> {
     fs::create_dir_all(folder).map_err(|error| audit_message::write(folder, &error))?;
     let write = |name: &str, text: &str| {
         let file = within(folder, name);

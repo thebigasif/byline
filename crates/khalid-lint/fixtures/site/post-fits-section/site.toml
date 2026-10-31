@@ -1,0 +1,33 @@
+# "Choosing link text" is a short post whose whole subject is already a
+# section of "Why internal links matter", so it fits there as a section.
+# "Anchor text basics" gives no length, so it is not judged short.
+[[posts]]
+locale = "en"
+slug = "why-internal-links-matter"
+title = "Why internal links matter"
+focus_keyword = "internal links"
+word_count = 640
+
+[[posts.headings]]
+level = "h2"
+text = "Choosing link text"
+
+[[posts.headings]]
+level = "h3"
+text = "Anchor text basics"
+
+[[posts]]
+locale = "en"
+slug = "choosing-link-text"
+title = "Choosing link text"
+focus_keyword = "link text"
+word_count = 120
+
+[[posts]]
+locale = "en"
+slug = "anchor-text-basics"
+title = "Anchor text basics"
+
+[[pages]]
+locale = "en"
+slug = "about"
