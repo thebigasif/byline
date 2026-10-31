@@ -79,11 +79,12 @@ impl KeyTable {
         })
     }
 
-    /// Every key that works, oldest first.
+    /// Every key that works, oldest first. Keys made in the same second
+    /// come in the order they were made, by their row.
     async fn list_now(&self) -> Result<Vec<ListedKey>, DbError> {
         let rows = sqlx::query(
             "SELECT id, key_id, kind, role, name, created_at FROM api_keys \
-             WHERE site_id = ?1 AND revoked_at IS NULL ORDER BY created_at, key_id",
+             WHERE site_id = ?1 AND revoked_at IS NULL ORDER BY created_at, id",
         )
         .bind(self.site.as_row())
         .fetch_all(&self.db.readers)

@@ -163,3 +163,22 @@ async fn the_working_keys_are_listed_with_names_and_never_a_hash() {
         Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap()
     );
 }
+
+#[tokio::test]
+async fn keys_made_in_the_same_second_are_listed_in_the_order_they_were_made() {
+    let (_dir, _path, demo, _) = opened().await;
+    let (owner, serpdad) = (
+        token(KeyKind::Staff, 0xf0),
+        token(KeyKind::Integration, 0x01),
+    );
+    assert!(
+        serpdad.id().as_str() < owner.id().as_str(),
+        "the later key sorts first by identity"
+    );
+    demo.create(stored(&owner), "Owner").await.unwrap();
+    demo.create(stored(&serpdad), "SerpDad").await.unwrap();
+
+    let listed = demo.list().await.unwrap();
+    let names: Vec<_> = listed.iter().map(|key| key.name.as_str()).collect();
+    assert_eq!(names, ["Owner", "SerpDad"]);
+}
