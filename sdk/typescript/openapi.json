@@ -684,6 +684,206 @@
             "admin_key": []
           }
         ]
+      },
+      "put": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Renames one category: the names sent replace all of its names, and\nevery post in it shows them. The edit carries the `updated_at` of the\ncopy it was made on; when the category changed since, the answer is a\n409 (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "edit_category",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The slug, such as on-page-seo",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The category as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No category has this identity, or this server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The categories changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a name is missing, empty or not in one of the site's languages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Deletes one category no post is in. The request names the `updated_at`\nof the copy it was made on; when the categories changed since, or posts\nare still in it, the answer is a 409. Needs `posts:publish`.",
+        "operationId": "delete_category",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The slug, such as on-page-seo",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "updated_at",
+            "in": "query",
+            "description": "The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The category is gone"
+          },
+          "400": {
+            "description": "updated_at is missing or is not a time",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No category has this identity, or this server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The categories changed after the copy the delete was made on, or posts are still in the category",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/comments/": {
@@ -8641,6 +8841,53 @@
             ]
           }
         }
+      },
+      "CategoryEdit": {
+        "type": "object",
+        "description": "A change to a category: the names it sends replace all of its names.\nIts slug stays, since posts name it.",
+        "required": [
+          "names",
+          "updated_at"
+        ],
+        "properties": {
+          "names": {
+            "type": "object",
+            "description": "The name in each language, by language code.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "en": "On-page SEO",
+              "de": "Onpage-SEO"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "CategoryEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps categories: exactly one.",
+        "required": [
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryEdit"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
       },
       "ChangelogEntries": {
         "type": "object",

@@ -28,6 +28,8 @@ const READER: &str =
 
 const CATEGORIES: &str = "/api/admin/v1/categories/";
 const ON_PAGE: &str = "/api/admin/v1/categories/on-page-seo/";
+const LINKS: &str = "/api/admin/v1/categories/link-building/";
+const LAST_CHANGE: &str = "2026-10-20T09:00:00Z";
 
 /// A site keeping `categories`, or none at all.
 #[cfg(test)]
@@ -170,4 +172,42 @@ async fn a_category_that_cannot_be_kept_is_refused() {
     let (status, json) = send(&router, "POST", CATEGORIES, WRITER, Some(new)).await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
     assert_eq!(json["rule"], "posts:publish", "{json}");
+}
+
+#[tokio::test]
+async fn an_edit_replaces_the_names_on_the_latest_copy() {
+    let router = with_two();
+    let edit = json!({"categories": [{"names": {"en": "On-page"}, "updated_at": LAST_CHANGE}]});
+    let (status, json) = send(&router, "PUT", ON_PAGE, EDITOR, Some(edit.clone())).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(
+        json["categories"][0]["names"],
+        json!({"en": "On-page"}),
+        "{json}"
+    );
+    let (status, json) = send(&router, "PUT", ON_PAGE, EDITOR, Some(edit)).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert_eq!(json["rule"], "updated_at", "{json}");
+    let empty = json!({"categories": [{"names": {}, "updated_at": LAST_CHANGE}]});
+    let (status, json) = send(&router, "PUT", LINKS, EDITOR, Some(empty)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{json}");
+    assert_eq!(json["rule"], "names", "{json}");
+}
+
+#[tokio::test]
+async fn a_category_with_posts_is_kept_and_an_empty_one_is_deleted() {
+    let router = with_two();
+    let on_page = format!("{ON_PAGE}?updated_at={LAST_CHANGE}");
+    let (status, json) = send(&router, "DELETE", &on_page, EDITOR, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert_eq!(json["rule"], "posts", "{json}");
+    let (status, _) = send(&router, "DELETE", LINKS, EDITOR, None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let links = format!("{LINKS}?updated_at={LAST_CHANGE}");
+    let (status, _) = send(&router, "DELETE", &links, WRITER, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, _) = send(&router, "DELETE", &links, EDITOR, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = send(&router, "GET", LINKS, EDITOR, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
