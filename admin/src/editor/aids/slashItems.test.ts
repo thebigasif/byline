@@ -47,4 +47,9 @@ describe("the slash menu's blocks", () => {
     expect(gifs).not.toContain("unsplash");
     expect(matchingItems("photo", { unsplash: true, gifs: true })[0]?.id).toBe("unsplash");
   });
+
+  it("always offers a picture from the media library", () => {
+    expect(ids("picture")[0]).toBe("library");
+    expect(ids("lib")).toEqual(["library"]);
+  });
 });

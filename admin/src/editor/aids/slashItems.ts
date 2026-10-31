@@ -1,6 +1,7 @@
 import type { ChainedCommands } from "@tiptap/core";
 import type { Sources, StockSource } from "../../api/pictures";
 import { en } from "../../strings/en";
+import { library } from "../../strings/library";
 import { pictures } from "../../strings/pictures";
 import { tables } from "../../strings/tables";
 import { nodeName } from "../blocks/directiveNode";
@@ -16,12 +17,15 @@ export type SlashItem = {
   spec: BlockSpec | null;
   /** Turns the writer's empty line into this block. */
   add: (chain: ChainedCommands) => ChainedCommands;
-  /** The search this item opens instead, offered only when the owner turned it on. */
-  source?: StockSource;
+  /** The picture box this item opens; a search shows only when the owner turned it on. */
+  source?: PictureSource;
 };
 
-/** An item that opens photo or GIF search; the picture is added once picked. */
-const search = (source: StockSource, name: string, hint: string): SlashItem => ({
+/** Where the writer looks for a picture: photo or GIF search, or the media library. */
+export type PictureSource = StockSource | "library";
+
+/** An item that opens a picture box; the picture is added once picked. */
+const search = (source: PictureSource, name: string, hint: string): SlashItem => ({
   id: source,
   name,
   hint,
@@ -73,6 +77,7 @@ export const SLASH_ITEMS: readonly SlashItem[] = [
   ...BLOCK_SPECS.map(directive),
   search("unsplash", pictures.unsplash, pictures.unsplashSlashHint),
   search("gifs", pictures.gifs, pictures.gifsSlashHint),
+  search("library", library.title, library.slashHint),
 ];
 
 /** How many lines the menu shows at once; typing narrows the rest. */
@@ -86,7 +91,9 @@ export const MENU_LENGTH = 8;
 export function matchingItems(query: string, sources?: Sources): SlashItem[] {
   const wanted = query.toLowerCase();
   const scored = SLASH_ITEMS.flatMap((item, index) => {
-    if (item.source !== undefined && sources?.[item.source] !== true) {
+    // Every blog has a media library; the two searches wait for the owner.
+    const asks = item.source === "unsplash" || item.source === "gifs" ? item.source : null;
+    if (asks !== null && sources?.[asks] !== true) {
       return [];
     }
     const name = item.name.toLowerCase();

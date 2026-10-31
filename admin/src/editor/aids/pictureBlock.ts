@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import type { StockPicture } from "../../api/pictures";
+import type { MediaItem, StockPicture } from "../../api/pictures";
 import { pictures as words } from "../../strings/pictures";
 import { nodeName } from "../blocks/directiveNode";
 import { BLOCK_SPECS } from "../blocks/specs";
@@ -26,12 +26,20 @@ export function figureFor(picture: StockPicture): FigureAttrs {
   return { src: picture.address, alt, body };
 }
 
-/** Adds `picture` as a figure at `at`, where the writer typed the slash item. */
-export function placePicture(editor: Editor, at: number, picture: StockPicture) {
+/**
+ * The figure for library item `picture`: its address, with the alt text and
+ * caption saved with it in the library (decision E12).
+ */
+export function libraryFigure(picture: MediaItem): FigureAttrs {
+  return { src: picture.url, alt: picture.alt.trim(), body: picture.caption.trim() };
+}
+
+/** Adds a figure with `attrs` at `at`, where the writer typed the slash item. */
+export function placeFigure(editor: Editor, at: number, attrs: FigureAttrs) {
   const figure = BLOCK_SPECS.find((spec) => spec.name === "figure");
   if (figure === undefined) {
     return;
   }
-  const block = { type: nodeName(figure), attrs: figureFor(picture) };
+  const block = { type: nodeName(figure), attrs };
   editor.chain().focus().insertContentAt(at, block).run();
 }

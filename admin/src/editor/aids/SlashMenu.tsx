@@ -1,10 +1,10 @@
 import type { Editor } from "@tiptap/core";
 import type { RefObject } from "react";
-import { type StockSource, usePictureSources } from "../../api/pictures";
+import { usePictureSources } from "../../api/pictures";
 import { en } from "../../strings/en";
 import { AidMenu } from "./AidMenu";
 import { type Details, newDetails } from "./blockForm";
-import { matchingItems, type SlashItem, TABLE_ITEM } from "./slashItems";
+import { matchingItems, type PictureSource, type SlashItem, TABLE_ITEM } from "./slashItems";
 import { closeMenu, type Trigger } from "./trigger";
 import { type KeyHandler, useMenu } from "./useMenu";
 
@@ -16,8 +16,8 @@ type Props = {
   onDetails: (details: Details) => void;
   /** Opens an empty table as a grid, to add where `/table` was once filled in. */
   onTable: (at: number) => void;
-  /** Opens photo or GIF search, to add the picked picture where `/words` was. */
-  onPictures: (source: StockSource, at: number) => void;
+  /** Opens photo or GIF search or the library, to add the picked picture where `/words` was. */
+  onPictures: (source: PictureSource, at: number) => void;
 };
 
 /** Turns the line holding `/words` into the block `item`. */
