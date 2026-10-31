@@ -53,6 +53,29 @@ export const en = {
         internal: "Your own pages",
       },
     },
+    pages: {
+      title: "Most read pages",
+      page: "Page",
+      none: "No page was read in these days.",
+    },
+    tools: {
+      title: "Readers sent by AI assistants",
+      lede: "An AI assistant, such as ChatGPT or Perplexity, sent these readers when it named your page in an answer and the reader clicked through.",
+      tool: "Assistant",
+      top: "Page they opened most",
+      noPage: "None in these days",
+      none: "No AI assistant sent a reader in these days or the days before.",
+    },
+    uncited: {
+      title: "Read by AI, but never cited",
+      lede: "AI bots, the programs AI companies send to read the web, read these pages. Yet no AI assistant sent a single reader to them. The assistants know the page but do not point people to it. To be cited, start each section with a short, direct answer to the question its heading asks.",
+      reads: "Reads by AI bots",
+      bots: "Bots",
+      last: "Last read",
+      none: "No page fits here: every page AI bots read in these days also had a reader sent by an AI assistant, or AI bots read none.",
+      after:
+        "A bot is known by the name it sends, which anyone can copy. Khalid keeps what bots read for 90 days.",
+    },
   },
   redirects: {
     title: "Redirects",
