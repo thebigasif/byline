@@ -326,8 +326,12 @@ impl Environment {
     /// have verified there.
     pub const BING_API_KEY: &str = "KHALID_BING_API_KEY";
 
+    /// The secret a git host signs push hooks with, in git mode. Set, it
+    /// opens `khalid serve`'s push hook; unset, the hook is not there.
+    pub const GIT_HOOK_SECRET: &str = "KHALID_GIT_HOOK_SECRET";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 8] = [
+    const ALL: [&str; 9] = [
         Self::ADDRESS,
         Self::KEY,
         Self::S3_ACCESS_KEY_ID,
@@ -336,16 +340,18 @@ impl Environment {
         Self::RESEND_API_KEY,
         Self::POSTMARK_TOKEN,
         Self::BING_API_KEY,
+        Self::GIT_HOOK_SECRET,
     ];
 
     /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 6] = [
+    const HIDDEN: [&str; 7] = [
         Self::KEY,
         Self::S3_SECRET_ACCESS_KEY,
         Self::SMTP_PASSWORD,
         Self::RESEND_API_KEY,
         Self::POSTMARK_TOKEN,
         Self::BING_API_KEY,
+        Self::GIT_HOOK_SECRET,
     ];
 
     /// Reads Khalid's variables from this process's environment.
@@ -423,6 +429,15 @@ impl Environment {
             .map(str::trim)
             .filter(|key| !key.is_empty())
             .map(|key| Secret::new(key.to_owned()))
+    }
+
+    /// The secret in [`Environment::GIT_HOOK_SECRET`], or `None` when it
+    /// is unset or blank.
+    pub fn git_hook_secret(&self) -> Option<Secret<String>> {
+        self.get(Self::GIT_HOOK_SECRET)
+            .map(str::trim)
+            .filter(|secret| !secret.is_empty())
+            .map(|secret| Secret::new(secret.to_owned()))
     }
 
     fn get(&self, name: &str) -> Option<&str> {

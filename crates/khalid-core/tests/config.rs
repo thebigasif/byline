@@ -194,6 +194,18 @@ fn the_environment_carries_the_bing_webmaster_key_as_a_secret() {
 }
 
 #[test]
+fn the_environment_carries_the_git_hook_secret_hidden() {
+    let made_for_this_test = "c4b5a69788796a5b4c3d2e1f00f1e2d3";
+    let env = Environment::from_pairs(&[(Environment::GIT_HOOK_SECRET, made_for_this_test)]);
+    let secret = env.git_hook_secret().unwrap();
+    assert_eq!(secret.expose(), made_for_this_test);
+    assert!(!format!("{env:?}").contains(made_for_this_test), "{env:?}");
+    assert!(Environment::empty().git_hook_secret().is_none());
+    let blank = Environment::from_pairs(&[(Environment::GIT_HOOK_SECRET, " ")]);
+    assert!(blank.git_hook_secret().is_none());
+}
+
+#[test]
 fn refuses_an_address_in_the_environment_that_is_not_a_url() {
     let env = Environment::from_pairs(&[("KHALID_ADDRESS", "blog.example.org")]);
     let error = Config::from_toml(Path::new("site.toml"), DEMO, &env).unwrap_err();
