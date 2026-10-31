@@ -14,6 +14,7 @@ use crate::admin_key::{AdminDoor, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_store::ContentStore;
+use crate::draft_comments::DraftComments;
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
 use crate::post_store::PostStore;
@@ -24,8 +25,8 @@ use crate::resources::MediaItems;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_calendar, admin_comments, admin_not_found, admin_redirect_csv,
-    admin_redirects, admin_webhooks, api_version, content_api,
+    admin_api, admin_calendar, admin_comments, admin_draft_comments, admin_not_found,
+    admin_redirect_csv, admin_redirects, admin_webhooks, api_version, content_api,
 };
 
 /// The document's title, the schemas every route shares and the ways a
@@ -214,6 +215,9 @@ pub struct AdminDesks {
     /// The site's webhooks, or `None` when the webhook routes list none
     /// and answer that the site keeps none.
     pub webhooks: Option<Arc<dyn WebhookStore>>,
+    /// Staff comments on drafts, or `None` when the routes list none and
+    /// answer that the site keeps none.
+    pub draft_comments: Option<DraftComments>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -226,15 +230,32 @@ impl std::fmt::Debug for AdminDesks {
 }
 
 impl AdminDesks {
-    /// No comments, no media library, no stored redirects and no webhooks.
+    /// No comments, no media library, no stored redirects, no webhooks
+    /// and no comments on drafts.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
             media: None,
             redirects: RedirectDesk::none(),
             webhooks: None,
+            draft_comments: None,
         }
     }
+}
+
+/// [`router_with_door`] with comments on drafts under
+/// `/api/admin/v1/posts/{id}/draft-comments/`, kept in `comments`.
+pub fn router_with_draft_comments(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    comments: DraftComments,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        draft_comments: Some(comments),
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
 }
 
 /// [`router_with_door`] with the webhook routes under
@@ -282,7 +303,12 @@ fn assemble(
     };
     let redirects = desks.redirects;
     let mut admin = admin_api::routes(Arc::clone(&posts), door.clone())
-        .merge(admin_calendar::routes(posts, door.clone()))
+        .merge(admin_calendar::routes(Arc::clone(&posts), door.clone()))
+        .merge(admin_draft_comments::routes(
+            posts,
+            desks.draft_comments,
+            door.clone(),
+        ))
         .merge(admin_comments::routes(desks.comments, door.clone()))
         .merge(media_api::routes(desks.media, door.clone()))
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))
