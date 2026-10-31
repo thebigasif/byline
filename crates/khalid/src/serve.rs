@@ -14,6 +14,7 @@ use khalid_api::comment_moderation::CommentModeration;
 use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
 use khalid_api::redirect_desk::RedirectDesk;
+use khalid_api::resources::{AdminAuthor, AdminPage, AdminSnippet};
 use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
@@ -39,10 +40,14 @@ use crate::form_delivery::SiteDelivery;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::serve_https::{self, Listen};
+use crate::site_categories::SiteCategories;
 use crate::site_content::LiveContent;
+use crate::site_entries::SiteEntries;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::site_schema_templates::SiteSchemaTemplates;
+use crate::site_settings::SiteSettings;
+use crate::site_tags::SiteTags;
 use crate::tag_events::Tags;
 use crate::{
     alert_watch, announce, assets, comment_pages, consent_route, db, db_message, form_pages,
@@ -291,8 +296,8 @@ fn first_pages(
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
 /// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`, and the post checks and schema templates of the
-/// site in `site`.
+/// accounts of site `id`, and the post checks, schema templates, pages,
+/// snippets, authors, tags, categories and settings of the site in `site`.
 fn api_router(
     (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
@@ -317,6 +322,12 @@ fn api_router(
         )),
         checks: Some(Arc::new(SitePosts::new(site, config.clone(), SystemClock))),
         schema_templates: Some(Arc::new(SiteSchemaTemplates::new(site, config))),
+        pages: Some(Arc::new(SiteEntries::<AdminPage>::new(site, config))),
+        snippets: Some(Arc::new(SiteEntries::<AdminSnippet>::new(site, config))),
+        authors: Some(Arc::new(SiteEntries::<AdminAuthor>::new(site, config))),
+        tags: Some(Arc::new(SiteTags::new(site, config))),
+        categories: Some(Arc::new(SiteCategories::new(site, config))),
+        settings: Some(Arc::new(SiteSettings::new(site, config))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

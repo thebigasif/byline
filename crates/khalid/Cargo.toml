@@ -45,6 +45,7 @@ clap = { version = "4", features = ["derive"] }
 mimalloc = { version = "0.1", features = ["no_thp"] }
 percent-encoding = "2"
 serde.workspace = true
+serde-saphyr = "2"
 serde_json.workspace = true
 tempfile = "3"
 tokio = { workspace = true, features = ["rt", "net", "sync", "io-std", "io-util"] }

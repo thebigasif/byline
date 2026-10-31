@@ -11,12 +11,17 @@ pub(crate) struct PostText {
 }
 
 impl PostText {
-    /// A new draft with a title, slug and author, and `markdown` as its body.
-    pub(crate) fn draft(title: &str, slug: &Slug, author: Option<&Slug>, markdown: &str) -> Self {
-        let mut text = Self {
+    /// A file with empty front matter and no body.
+    pub(crate) fn empty() -> Self {
+        Self {
             front: Vec::new(),
             body: String::new(),
-        };
+        }
+    }
+
+    /// A new draft with a title, slug and author, and `markdown` as its body.
+    pub(crate) fn draft(title: &str, slug: &Slug, author: Option<&Slug>, markdown: &str) -> Self {
+        let mut text = Self::empty();
         text.set("title", &quoted(title));
         text.set("slug", slug.as_str());
         if let Some(author) = author {
@@ -71,6 +76,11 @@ impl PostText {
     pub(crate) fn markdown(&self) -> &str {
         let body = self.body.strip_prefix('\n').unwrap_or(&self.body);
         body.trim_end_matches('\n')
+    }
+
+    /// The front matter between the fences, as YAML.
+    pub(crate) fn front_matter(&self) -> String {
+        self.front.join("\n")
     }
 
     /// The whole file.
