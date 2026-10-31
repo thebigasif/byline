@@ -12,7 +12,7 @@ use khalid_core::{Clock, UserMessage};
 use khalid_db::AnalyticsTable;
 use serde::Serialize;
 
-use crate::cli::{AnalyticsCommand, Output};
+use crate::cli::Output;
 use crate::exit::Exit;
 use crate::{db_message, report, serve};
 
@@ -43,15 +43,9 @@ impl<'a> From<&'a Uncited> for PageBody<'a> {
     }
 }
 
-/// Runs an analytics command on the `site` folder, for the days up to
-/// today by `clock`. Only its database is read, not its content.
-pub(crate) fn run(
-    site: &Path,
-    command: AnalyticsCommand,
-    clock: &dyn Clock,
-    output: Output,
-) -> Exit {
-    let AnalyticsCommand::Uncited { days } = command;
+/// Runs `khalid analytics uncited` on the `site` folder, for the `days` up
+/// to today by `clock`. Only its database is read, not its content.
+pub(crate) fn run(site: &Path, days: u32, clock: &dyn Clock, output: Output) -> Exit {
     let last = clock.now().date_naive();
     let first = last
         .checked_sub_days(Days::new(u64::from(days.saturating_sub(1))))

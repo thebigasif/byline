@@ -1,7 +1,7 @@
 //! The tally `khalid serve` keeps between writes.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use khalid_analytics::{Crawler, MAX_ROWS, ReferrerGroup, Tally};
+use khalid_analytics::{AiTool, Crawler, MAX_ROWS, ReferrerGroup, Tally};
 
 #[cfg(test)]
 fn at(day: u32, hour: u32) -> DateTime<Utc> {
@@ -22,9 +22,21 @@ fn bot(user_agent: &str) -> Crawler {
 fn views_are_counted_per_page_day_and_group() {
     let mut tally = Tally::default();
     assert!(tally.is_empty());
-    tally.view(at(3, 9), "/blog/internal-links/", ReferrerGroup::Ai);
-    tally.view(at(3, 23), "/blog/internal-links/", ReferrerGroup::Ai);
-    tally.view(at(4, 0), "/blog/internal-links/", ReferrerGroup::Ai);
+    tally.view(
+        at(3, 9),
+        "/blog/internal-links/",
+        ReferrerGroup::Ai(AiTool::ChatGpt),
+    );
+    tally.view(
+        at(3, 23),
+        "/blog/internal-links/",
+        ReferrerGroup::Ai(AiTool::ChatGpt),
+    );
+    tally.view(
+        at(4, 0),
+        "/blog/internal-links/",
+        ReferrerGroup::Ai(AiTool::ChatGpt),
+    );
     tally.view(at(3, 9), "/blog/internal-links/", ReferrerGroup::Search);
     let rows: Vec<_> = tally
         .views()
@@ -35,8 +47,8 @@ fn views_are_counted_per_page_day_and_group() {
         rows,
         [
             (date(3), ReferrerGroup::Search, 1),
-            (date(3), ReferrerGroup::Ai, 2),
-            (date(4), ReferrerGroup::Ai, 1),
+            (date(3), ReferrerGroup::Ai(AiTool::ChatGpt), 2),
+            (date(4), ReferrerGroup::Ai(AiTool::ChatGpt), 1),
         ]
     );
 }

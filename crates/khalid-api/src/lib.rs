@@ -6,6 +6,7 @@
 //! content only through traits other crates implement, so it must not know
 //! about content files, markdown, SQL or templates.
 
+mod admin_analytics;
 mod admin_api;
 mod admin_comments;
 mod admin_delete;
@@ -14,6 +15,7 @@ mod admin_not_found;
 mod admin_redirect_csv;
 mod admin_redirects;
 mod admin_webhooks;
+pub mod analytics_desk;
 pub mod api;
 mod api_version;
 pub mod comment_moderation;

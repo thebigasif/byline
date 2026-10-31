@@ -43,7 +43,7 @@ pub struct Uncited {
 pub fn uncited(crawls: &[Crawls], views: &[Views]) -> Vec<Uncited> {
     let cited: BTreeSet<&str> = views
         .iter()
-        .filter(|row| row.group == ReferrerGroup::Ai && row.views > 0)
+        .filter(|row| matches!(row.group, ReferrerGroup::Ai(_)) && row.views > 0)
         .map(|row| row.path.as_str())
         .collect();
     let mut pages: BTreeMap<&str, Reads<'_>> = BTreeMap::new();

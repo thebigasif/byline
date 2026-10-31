@@ -4,8 +4,9 @@
 //! count works with scripts blocked and sets nothing in the reader's
 //! browser. It keeps no address, no user agent and no identifier: only the
 //! day, the page and where the reader came from, as a [`ReferrerGroup`].
-//! Readers sent by `chatgpt.com`, Perplexity, Gemini, Copilot and Claude
-//! are grouped as [`ReferrerGroup::Ai`].
+//! Readers sent by `chatgpt.com`, Perplexity, Gemini, Copilot, Claude and
+//! other assistants are grouped as [`ReferrerGroup::Ai`], with the
+//! [`AiTool`] that sent them.
 //!
 //! Requests from bots are not views. They go to the crawl log instead,
 //! named by [`Crawler::recognise`], so a person can see which bots fetched
@@ -21,12 +22,16 @@
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
+mod ai_tool;
+mod ai_visitors;
 mod crawler;
 mod referrer;
 mod store;
 mod tally;
 mod uncited;
 
+pub use ai_tool::AiTool;
+pub use ai_visitors::{AiVisitors, PageViews, Period, ToolVisitors};
 pub use crawler::{Crawler, CrawlerKind};
 pub use referrer::ReferrerGroup;
 pub use store::{

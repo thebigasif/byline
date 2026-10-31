@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use khalid_analytics::{AnalyticsStore, Crawler, ReferrerGroup, Tally};
+use khalid_analytics::{AiTool, AnalyticsStore, Crawler, ReferrerGroup, Tally};
 use khalid_core::{Clock, Slug, SystemClock};
 use khalid_db::{AnalyticsTable, Database};
 use serde_json::Value;
@@ -50,7 +50,7 @@ async fn counted(site: &Path) {
     tally.crawl(now, QUIET, claudebot, 200);
     tally.crawl(now, CITED, gptbot, 200);
     tally.crawl(now, "/robots.txt", gptbot, 200);
-    tally.view(now, CITED, ReferrerGroup::Ai);
+    tally.view(now, CITED, ReferrerGroup::Ai(AiTool::Perplexity));
     tally.view(now, QUIET, ReferrerGroup::Search);
     AnalyticsTable::new(db.clone(), id)
         .save(&tally)

@@ -6,6 +6,7 @@
 //! which this binary calls the same way the API does.
 
 mod agents;
+mod ai_visitors;
 mod alert_watch;
 mod alerts;
 mod announce;
@@ -149,7 +150,7 @@ use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 use khalid_server::FolderLook;
 
-use crate::cli::{Cli, Command, Output, ThemeCommand};
+use crate::cli::{AnalyticsCommand, Cli, Command, Output, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
@@ -350,9 +351,9 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
         Some(
             asked @ (Command::Redirects { .. }
             | Command::Webhooks { .. }
+            | Command::Analytics { .. }
             | Command::Backup { .. }
-            | Command::Pull
-            | Command::Analytics { .. }),
+            | Command::Pull),
         ) => Some(match cli.site.as_deref() {
             Some(folder) => on_folder(folder, asked, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
@@ -362,18 +363,21 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
 }
 
 /// Runs the commands that need the site folder but not its checked content:
-/// `redirects`, `webhooks` and `analytics`, which read the settings and the
-/// database themselves, `backup`, which keeps a broken site as well as a whole one,
+/// `redirects`, `webhooks` and `analytics`, which read the settings and the database
+/// themselves, `backup`, which keeps a broken site as well as a whole one,
 /// and `pull`, which checks the site after it brings in the new files.
 fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
     match asked {
         Command::Redirects { command } => redirects::run(folder, command, output),
         Command::Webhooks { command } => webhooks::run(folder, command, output),
+        Command::Analytics {
+            command: AnalyticsCommand::Ai { days },
+        } => ai_visitors::run(folder, *days, output),
         Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),
+        Command::Analytics {
+            command: AnalyticsCommand::Uncited { days },
+        } => uncited_report::run(folder, *days, &SystemClock, output),
         Command::Pull => pull::run(folder, &SystemClock, output),
-        Command::Analytics { command } => {
-            uncited_report::run(folder, *command, &SystemClock, output)
-        }
         _ => report::failure(output, &not_built(asked), Exit::Internal),
     }
 }

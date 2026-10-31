@@ -1,7 +1,7 @@
 //! Pages AI bots read that no AI assistant ever sent a reader to.
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use khalid_analytics::{CrawlerKind, Crawls, ReferrerGroup, Views, uncited};
+use khalid_analytics::{AiTool, CrawlerKind, Crawls, ReferrerGroup, Views, uncited};
 
 #[cfg(test)]
 fn date(day: u32) -> NaiveDate {
@@ -59,7 +59,7 @@ fn one_reader_from_an_ai_assistant_counts_as_cited() {
         ai(3, "/blog/cited/", "PerplexityBot"),
         ai(3, "/blog/quiet/", "PerplexityBot"),
     ];
-    let views = [Views::new(date(9), "/blog/cited/", ReferrerGroup::Ai, 1)];
+    let views = [Views::new(date(9), "/blog/cited/", ReferrerGroup::Ai(AiTool::ChatGpt), 1)];
     let paths: Vec<_> = uncited(&crawls, &views)
         .into_iter()
         .map(|page| page.path)

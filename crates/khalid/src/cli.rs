@@ -215,7 +215,8 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: BingCommand,
     },
-    /// Read what `khalid serve` counted: views and the bots that read each page
+    /// Read what `khalid serve` counted, such as the readers AI assistants
+    /// sent and the pages AI bots read
     Analytics {
         /// What to read
         #[command(subcommand)]
@@ -223,9 +224,17 @@ pub(crate) enum Command {
     },
 }
 
-/// The analytics commands. They read the counts in `data/site.db`.
+/// The analytics commands. They read `data/site.db`, so they work while
+/// `khalid serve` runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
 pub(crate) enum AnalyticsCommand {
+    /// Show how many readers each AI assistant, such as `ChatGPT` or
+    /// Perplexity, sent in the last days, against the days before
+    Ai {
+        /// How many days to count back from today, from 1 to 366
+        #[arg(long, default_value_t = 28, value_parser = clap::value_parser!(u32).range(1..=366))]
+        days: u32,
+    },
     /// List the pages AI bots read but no AI assistant sent a reader to
     Uncited {
         /// How many days back to look, today included, from 1 to 90
@@ -565,6 +574,9 @@ impl Command {
             Self::Bing {
                 command: BingCommand::Report,
             } => "bing report",
+            Self::Analytics {
+                command: AnalyticsCommand::Ai { .. },
+            } => "analytics ai",
             Self::Analytics {
                 command: AnalyticsCommand::Uncited { .. },
             } => "analytics uncited",

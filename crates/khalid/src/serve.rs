@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use axum::Router;
+use khalid_api::analytics_desk::AnalyticsDesk;
 use khalid_api::api::{self, AdminDesks};
 use khalid_api::comment_moderation::CommentModeration;
 use khalid_api::media_api::MediaLibrary;
@@ -18,7 +19,9 @@ use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_db::{
+    AnalyticsTable, Database, KeyTable, NotFoundTable, ScheduleTable, SiteId, WebhookTable,
+};
 use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
@@ -290,6 +293,10 @@ fn api_router(
             id,
             SystemClock,
         ))),
+        analytics: AnalyticsDesk::new(
+            Arc::new(AnalyticsTable::new(database.clone(), id)),
+            Arc::new(SystemClock),
+        ),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
