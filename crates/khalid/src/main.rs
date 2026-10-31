@@ -11,6 +11,7 @@ mod assets;
 mod atomic;
 mod audit_message;
 mod bing;
+mod bing_report;
 mod build;
 mod build_files;
 mod build_gate;

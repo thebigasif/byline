@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::cli::{BingCommand, Cli, Output};
 use crate::exit::Exit;
-use crate::{build_message, build_seo, outbound, report, serve_message};
+use crate::{bing_report, build_message, build_seo, outbound, report, serve_message};
 
 /// A message and the exit code it ends with.
 pub(crate) type Failed = (UserMessage, Exit);
@@ -25,6 +25,7 @@ pub(crate) fn run(config: &Config, env: &Environment, command: BingCommand, cli:
     let output = cli.output;
     let done = connect(config, env, cli).and_then(|(bing, outbound)| match command {
         BingCommand::Sitemap => sitemap(config, &bing, &outbound, output),
+        BingCommand::Report => bing_report::run(config, &bing, &outbound, output),
     });
     done.unwrap_or_else(|(message, exit)| report::failure(output, &message, exit))
 }

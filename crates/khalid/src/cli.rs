@@ -209,6 +209,9 @@ pub(crate) enum Command {
 pub(crate) enum BingCommand {
     /// Hand Bing the site's sitemap, so it reads every page from it
     Sitemap,
+    /// Show Bing's last crawl day, the sitemaps it holds and the addresses
+    /// it had trouble with
+    Report,
 }
 
 /// The webhook commands. Webhooks live in `data/site.db`; a running
@@ -576,6 +579,9 @@ impl Command {
             Self::Bing {
                 command: BingCommand::Sitemap,
             } => "bing sitemap",
+            Self::Bing {
+                command: BingCommand::Report,
+            } => "bing report",
         }
     }
 }
