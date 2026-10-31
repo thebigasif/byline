@@ -4305,6 +4305,208 @@
         ]
       }
     },
+    "/api/admin/v1/tags/{id}/": {
+      "put": {
+        "tags": [
+          "admin tags"
+        ],
+        "summary": "Renames a tag in every post that has it, drafts included; a name\nanother tag has merges the two. The rename carries the tag's\n`updated_at`; when one of its posts changed since, the answer is a 409\nand no post changes (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "rename_tag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.internal-links",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The tag under its new name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTags"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this tag, or this server keeps no tags",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A post with the tag changed after the copy the rename was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the name is empty or has no letter or digit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin tags"
+        ],
+        "summary": "Removes a tag from every post that has it, drafts included. The\nrequest names the tag's `updated_at`; when one of its posts changed\nsince, the answer is a 409 and no post changes. Needs `posts:publish`.",
+        "operationId": "remove_tag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.internal-links",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "updated_at",
+            "in": "query",
+            "description": "The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No post has the tag any more"
+          },
+          "400": {
+            "description": "updated_at is missing or is not a time",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this tag, or this server keeps no tags",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A post with the tag changed after the copy the request was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/webhooks/": {
       "get": {
         "tags": [
@@ -10340,6 +10542,43 @@
             "description": "The accounts, by email."
           }
         }
+      },
+      "TagEdit": {
+        "type": "object",
+        "description": "A new name for a tag, written into every post that has it.",
+        "required": [
+          "name",
+          "updated_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The new name, such as `internal linking`. A name another tag in the\nlanguage has merges the two."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this rename was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "TagEdits": {
+        "type": "object",
+        "description": "A rename, wrapped the way the Admin API wraps tags: exactly one.",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagEdit"
+            },
+            "description": "The one rename."
+          }
+        },
+        "additionalProperties": false
       },
       "Tags": {
         "type": "object",

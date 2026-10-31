@@ -14,7 +14,7 @@ use khalid_api::post_store::MemoryPostStore;
 use khalid_api::publish_door::{PublishDoor, Silent};
 use khalid_api::tag_store::{MemoryTags, TagStore, TaggedPost};
 use khalid_core::{FixedClock, Locale};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 /// Keys made up for these tests. They open nothing real.
@@ -111,4 +111,75 @@ async fn reading_tags_needs_a_key_with_posts_write_and_a_server_with_tags() {
         json["detail"].as_str().unwrap().contains("no tags"),
         "{json}"
     );
+}
+
+const LINKS: &str = "/api/admin/v1/tags/en.internal-links/";
+const LAST_CHANGE: &str = "2026-10-20T09:00:00Z";
+
+#[tokio::test]
+async fn a_rename_on_the_latest_copy_moves_every_post_to_the_new_name() {
+    let router = tagged();
+    let rename = json!({"tags": [{"name": "internal linking", "updated_at": LAST_CHANGE}]});
+    let (status, json) = send(&router, "PUT", LINKS, EDITOR, Some(rename.clone())).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["tags"][0]["id"], "en.internal-linking", "{json}");
+    assert_eq!(json["tags"][0]["posts"], 2, "{json}");
+    let (status, json) = send(&router, "PUT", LINKS, EDITOR, Some(rename)).await;
+    assert_eq!(
+        status,
+        StatusCode::NOT_FOUND,
+        "the old name is gone: {json}"
+    );
+}
+
+#[tokio::test]
+async fn a_rename_that_cannot_be_kept_changes_no_post() {
+    let router = tagged();
+    let cases = [
+        (
+            json!({"tags": [{"name": "links", "updated_at": "2026-10-18T09:00:00Z"}]}),
+            StatusCode::CONFLICT,
+        ),
+        (
+            json!({"tags": [{"name": " ", "updated_at": LAST_CHANGE}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
+            json!({"tags": [{"name": "!!", "updated_at": LAST_CHANGE}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
+            json!({"tags": [{"name": "links"}]}),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+    ];
+    for (body, want) in cases {
+        let (status, json) = send(&router, "PUT", LINKS, EDITOR, Some(body.clone())).await;
+        assert_eq!(status, want, "{body} gave {json}");
+    }
+    let rename = json!({"tags": [{"name": "links", "updated_at": LAST_CHANGE}]});
+    let (status, json) = send(&router, "PUT", LINKS, WRITER, Some(rename)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    let (_, json) = send(&router, "GET", TAGS, WRITER, None).await;
+    assert_eq!(
+        json["tags"][1]["id"], "en.internal-links",
+        "nothing changed: {json}"
+    );
+}
+
+#[tokio::test]
+async fn a_tag_is_removed_from_every_post_only_on_its_latest_copy() {
+    let router = tagged();
+    let (status, _) = send(&router, "DELETE", LINKS, EDITOR, None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let stale = format!("{LINKS}?updated_at=2026-10-18T09:00:00Z");
+    let (status, json) = send(&router, "DELETE", &stale, EDITOR, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    let latest = format!("{LINKS}?updated_at={LAST_CHANGE}");
+    let (status, _) = send(&router, "DELETE", &latest, WRITER, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, _) = send(&router, "DELETE", &latest, EDITOR, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, json) = send(&router, "GET", TAGS, WRITER, None).await;
+    assert_eq!(json["tags"].as_array().map(Vec::len), Some(1), "{json}");
 }
