@@ -7,6 +7,7 @@ use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
+use khalid_seo::Pace;
 use khalid_webhooks::Event;
 
 pub(crate) use crate::cli_access::{KeyKindArg, KeysCommand, NewKeyArgs, OwnerArgs, StaffCommand};
@@ -110,6 +111,18 @@ pub(crate) enum Command {
         /// The language the draft is written in [default: the site's default language]
         #[arg(long, value_name = "CODE")]
         language: Option<Locale>,
+    },
+    /// Suggest a day for each ready draft at a steady pace, each topic
+    /// group's main post first, and say what to act on. Changes nothing
+    Plan {
+        /// Posts a week, from 1 to 14 [default: the site's pace over the
+        /// last twelve weeks, at least 1]
+        #[arg(
+            long,
+            value_name = "COUNT",
+            value_parser = |text: &str| text.parse().ok().and_then(Pace::per_week).ok_or("give a number of posts a week from 1 to 14"),
+        )]
+        per_week: Option<Pace>,
     },
     /// Pull the main site's look again, or check a template override
     Theme {
@@ -481,6 +494,15 @@ pub(crate) enum UpdateTarget {
 }
 
 impl Command {
+    /// Whether the command needs only a checked site's settings: `theme`,
+    /// `publish` and `plan`.
+    pub(crate) fn reads_settings_only(&self) -> bool {
+        matches!(
+            self,
+            Self::Theme { .. } | Self::Publish { .. } | Self::Plan { .. }
+        )
+    }
+
     /// The command as a person types it, such as `theme sync`.
     pub(crate) fn name(&self) -> &'static str {
         match self {
@@ -490,6 +512,7 @@ impl Command {
             Self::Build { .. } => "build",
             Self::Lint { .. } => "lint",
             Self::Publish { .. } => "publish",
+            Self::Plan { .. } => "plan",
             Self::Theme {
                 command: ThemeCommand::Sync { .. },
             } => "theme sync",

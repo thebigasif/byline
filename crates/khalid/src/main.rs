@@ -79,6 +79,8 @@ mod newsletter;
 mod outbound;
 mod page_code;
 mod page_counts;
+mod plan;
+mod plan_message;
 mod post_files;
 mod post_gate;
 mod post_images;
@@ -233,10 +235,9 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Bing { command }), Some((_, config, ..))) => {
             bing::run(config, &env, *command, cli)
         }
-        (
-            Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
-            Some((folder, config, ..)),
-        ) => on_settings(folder, config, command, cli),
+        (Some(command), Some((folder, config, ..))) if command.reads_settings_only() => {
+            on_settings(folder, config, command, cli)
+        }
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
             import::run(folder, (config, routes), args, cli)
         }
@@ -251,6 +252,7 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Mcp
                 | Command::Lint { .. }
                 | Command::Publish { .. }
+                | Command::Plan { .. }
                 | Command::New { .. }
                 | Command::Build { .. }
                 | Command::Export
@@ -263,14 +265,15 @@ fn run(cli: &Cli) -> Exit {
     }
 }
 
-/// Runs the commands that need only a checked site's settings: `theme`
-/// and `publish`.
+/// Runs the commands that need only a checked site's settings: `theme`,
+/// `publish` and `plan`.
 fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
     match command {
         Command::Theme { command } => theme(folder, config, command, cli),
         Command::Publish { slug, language } => {
             publish::run(cli, (folder, config), (slug, language.as_ref()))
         }
+        Command::Plan { per_week } => plan::run(cli, (folder, config), *per_week),
         _ => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
 }
