@@ -41,6 +41,11 @@ pub(crate) struct Cli {
     #[cfg(feature = "test-util")]
     #[arg(long, global = true, hide = true, value_name = "HOST=ADDRESS")]
     pub(crate) test_hosts: Option<String>,
+
+    /// Test builds only: where `khalid update` reads releases from.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "URL")]
+    pub(crate) test_releases: Option<String>,
 }
 
 /// How a command prints its results and messages.

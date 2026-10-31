@@ -114,6 +114,7 @@ mod theme_sync;
 mod unlock;
 mod update;
 mod update_message;
+mod update_release;
 mod webhooks;
 
 use std::ffi::OsString;
@@ -127,7 +128,7 @@ use khalid_core::{Config, Environment, SystemClock, UserMessage};
 use khalid_routes::Routes;
 use khalid_server::FolderLook;
 
-use crate::cli::{Cli, Command, Output, ThemeCommand, UpdateTarget};
+use crate::cli::{Cli, Command, Output, ThemeCommand};
 use crate::exit::Exit;
 use crate::lint::Mode;
 use crate::new::NewPost;
@@ -314,9 +315,7 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(init::run(folder, args, cli.output))
         }
         Some(Command::Agents) => Some(agents::run(cli.output)),
-        Some(Command::Update {
-            target: UpdateTarget::Previous,
-        }) => Some(update::rollback(cli.output)),
+        Some(Command::Update { target }) => Some(update::run(*target, cli)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),

@@ -9,7 +9,6 @@ use serde_json::Value;
 /// arguments it needs.
 const COMMANDS: &[&[&str]] = &[
     &["export"],
-    &["update"],
     &["pull"],
 ];
 
