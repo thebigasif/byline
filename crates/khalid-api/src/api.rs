@@ -2,9 +2,12 @@
 
 use std::sync::Arc;
 
+use axum::Router;
+use axum::body::Bytes;
+use axum::http::StatusCode;
+use axum::http::header::CONTENT_TYPE;
 use axum::middleware;
 use axum::routing::get;
-use axum::{Json, Router};
 use khalid_core::SystemClock;
 use utoipa::openapi::OpenApi as Document;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
@@ -45,6 +48,12 @@ use crate::{
 };
 
 pub use crate::audit_desk::AuditDesk;
+
+/// Where the `OpenAPI` document is served.
+const DOCUMENT: &str = "/api/openapi.json";
+
+/// The media type it is served as.
+const JSON: &str = "application/json";
 
 /// The document's title, the schemas every route shares and the ways a
 /// key may be sent.
@@ -523,10 +532,48 @@ fn assemble(
 
 /// Splits `api` into the router and its document, lists
 /// `Accept-Version` on every operation, and serves the document.
+///
+/// The document is served as the JSON it turns into, made once. Kept as a
+/// struct, a copy of the whole document went into each copy of the route
+/// the router makes as it is put together, and stayed there.
 pub(crate) fn finish(api: OpenApiRouter) -> (Router, Document) {
     let (router, mut document) = api.split_for_parts();
     api_version::document(&mut document);
-    let served = Json(document.clone());
-    let router = router.route("/api/openapi.json", get(move || async move { served }));
+    let router = match serde_json::to_vec(&document) {
+        Ok(json) => {
+            let json = Bytes::from(json);
+            router.route(
+                DOCUMENT,
+                get(move || async move { ([(CONTENT_TYPE, JSON)], json) }),
+            )
+        }
+        Err(error) => {
+            tracing::error!(%error, "the OpenAPI document could not be written as JSON");
+            router.route(
+                DOCUMENT,
+                get(|| async { StatusCode::INTERNAL_SERVER_ERROR }),
+            )
+        }
+    };
     (router, document)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::{Body, to_bytes};
+    use axum::http::Request;
+    use tower::ServiceExt as _;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn the_document_is_served_as_the_json_it_turns_into() {
+        let (router, document) = finish(OpenApiRouter::with_openapi(ApiDoc::openapi()));
+        let request = Request::get(DOCUMENT).body(Body::empty()).unwrap();
+        let answer = router.oneshot(request).await.unwrap();
+        assert_eq!(answer.status(), StatusCode::OK);
+        assert_eq!(answer.headers()[CONTENT_TYPE], JSON);
+        let body = to_bytes(answer.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(body, serde_json::to_vec(&document).unwrap());
+    }
 }
