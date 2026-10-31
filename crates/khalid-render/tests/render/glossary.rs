@@ -127,7 +127,7 @@ fn the_search_page_title_comes_from_the_strings_of_its_language() {
 }
 
 #[test]
-fn a_locked_search_page_shows_the_lock_card_and_no_form() {
+fn a_locked_search_page_shows_one_sentence_and_no_form() {
     let mut locked = search(None, Vec::new());
     if let PageBody::Search(page) = &mut locked {
         page.mode = SearchMode::Locked;
@@ -139,6 +139,26 @@ fn a_locked_search_page_shows_the_lock_card_and_no_form() {
         "a static site cannot answer the form"
     );
     insta::assert_snapshot!(main_of(&page));
+}
+
+#[test]
+fn a_locked_search_page_tells_a_german_reader_in_one_sentence() {
+    let mut locked = search(None, Vec::new());
+    if let PageBody::Search(page) = &mut locked {
+        page.mode = SearchMode::Locked;
+    }
+    let page = render(&locked, "de");
+    assert_valid_page(&page);
+    assert!(
+        page.contains(
+            r#"<p class="lock locked" data-feature="search">Die Suche steht auf dieser Website nicht zur Verfügung.</p>"#
+        ),
+        "{page}"
+    );
+    assert!(
+        !page.contains("khalid serve"),
+        "the owner's fix is not for readers"
+    );
 }
 
 #[test]

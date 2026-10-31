@@ -46,7 +46,7 @@ pub struct GlossaryTerm {
 pub struct RenderSearch {
     /// The heading, shown as the page's one `h1`.
     pub title: String,
-    /// Whether the site can answer a search, or shows the lock card.
+    /// Whether the site can answer a search, or says it cannot.
     pub mode: SearchMode,
     /// Where the form sends the query, such as `/blog/search/`.
     pub action: String,
@@ -63,8 +63,9 @@ pub enum SearchMode {
     /// A running server answers the form.
     Live,
     /// The site is plain files, which cannot look words up, so the page
-    /// shows the lock card with the command that turns search on (plan
-    /// section 7, KH-OPS-1).
+    /// shows readers one sentence where the form was, the note a static
+    /// build puts in place of any search form (KH-OPS-1). The owner reads
+    /// how to turn search on in `khalid build` and `khalid doctor`.
     Locked,
 }
 
