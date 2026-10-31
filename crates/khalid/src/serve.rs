@@ -27,11 +27,12 @@ use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
 use crate::announce::SiteAnnounce;
-use crate::cli::Output;
+use crate::cli::{Cli, Output};
 use crate::content_feed::{self, Destination};
 use crate::exit::Exit;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
+use crate::search_console_finder::SiteFollowUps;
 use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
@@ -62,15 +63,20 @@ pub(crate) struct Keys {
     pub(crate) bucket: Option<S3Keys>,
     /// The password, key or token the `[mail]` transport signs in with.
     pub(crate) mail: Option<Secret<String>>,
+    /// The Search Console follow-ups, signed in with the owner's Google
+    /// secrets when the site opts in.
+    pub(crate) follow_ups: SiteFollowUps,
 }
 
 impl Keys {
-    /// The keys `env` holds for the site with `config`.
-    pub(crate) fn read(env: &Environment, config: &Config) -> Self {
+    /// The keys `env` holds for the site in `folder` with `config`, as
+    /// `cli` reaches the outside.
+    pub(crate) fn read(env: &Environment, (folder, config): (&Path, &Config), cli: &Cli) -> Self {
         let mail = config.mail().map(|mail| &mail.transport);
         Self {
             bucket: env.s3_keys(),
             mail: mail.and_then(|transport| env.mail_secret(transport)),
+            follow_ups: SiteFollowUps::new(folder, config, env, cli),
         }
     }
 }
@@ -188,7 +194,7 @@ fn serve_with(
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
-        let desks = (moderation, media, desk);
+        let desks = (moderation, media, desk, keys.follow_ups);
         let apis = api_router((content, door), desks, (database, id, config));
         let app = assembled(
             (site, config, &security),
@@ -218,11 +224,16 @@ fn serve_with(
 }
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
-/// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`.
+/// comment moderation, media library, stored redirects, Search Console
+/// follow-ups, webhooks and staff accounts of site `id`.
 fn api_router(
     (content, door): (LiveContent, Arc<PublishDoor>),
-    (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
+    (comments, media, redirects, follow_ups): (
+        Arc<dyn CommentModeration>,
+        MediaLibrary,
+        RedirectDesk,
+        SiteFollowUps,
+    ),
     (database, id, config): (&Database, SiteId, &Config),
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
@@ -237,7 +248,7 @@ fn api_router(
             id,
             SystemClock,
         ))),
-        ..AdminDesks::none()
+        follow_ups: Arc::new(follow_ups),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

@@ -162,4 +162,6 @@ Then, all with `--json` when a program reads the answer:
 - `khalid --site <folder> search-console follow-ups` lists the long searches, 8 words or more, that showed each post in the last 28 days. People ask AI assistants in whole questions like these, and each is one a reader brings to the post. Next to each, it names the heading that answers it, or says no heading does yet. The fix is a heading that asks the question, with a 40 to 60 word answer under it. Google leaves out searches too rare to share, so a small site may see none.
 - `khalid --site <folder> search-console email` sends the weekly email. Run it once a week, for example from a systemd timer with `OnCalendar=Mon 08:00`, or a cron line such as `0 8 * * 1`.
 
+`khalid serve` reads the connection and the two secrets once, at start, so restart it after setting them. It then answers the same follow-ups at `GET /api/admin/v1/search-console/follow-ups/` for a key with `settings:write`, and the admin shows them under Search Console. The posts are read on each request, so a heading you just added counts.
+
 A refresh token stops working when you take Khalid's permission back in your Google account, or when Google lets it lapse. The commands then say so: make a new one with step 3.
