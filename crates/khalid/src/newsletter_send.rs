@@ -39,7 +39,7 @@ struct SentBody<'a> {
     failed: u32,
 }
 
-type Failed = (UserMessage, Exit);
+pub(crate) type Failed = (UserMessage, Exit);
 
 /// Sends the post `asked` names from the checked site in `folder`.
 pub(crate) fn run(cli: &Cli, (folder, config): (&Path, &Config), asked: &Asked<'_>) -> Exit {
@@ -76,7 +76,7 @@ pub(crate) fn run(cli: &Cli, (folder, config): (&Path, &Config), asked: &Asked<'
     }
 }
 
-/// Checks the settings and the post, then sends it.
+/// Checks the post, then sends it.
 fn send(
     cli: &Cli,
     (folder, config): (&Path, &Config),
@@ -85,13 +85,38 @@ fn send(
 ) -> Result<Sent, Failed> {
     let failed = |message| (message, Exit::Failure);
     let internal = || (serve_message::internal(), Exit::Internal);
+    let to = (asked.list, asked.labels);
+    let sent = deliver(cli, (folder, config), to, async |_| {
+        let posts = SitePosts::new(folder, config.clone(), SystemClock);
+        let post = posts.get(&format!("{language}.{}", asked.slug)).await;
+        let post = post.map_err(|_| internal())?;
+        let post = post.ok_or_else(|| failed(no_post(name)))?;
+        if post.status() != PostStatus::Published {
+            return Err(failed(not_published(name)));
+        }
+        Ok(Some(issue_of(config, &post, name)))
+    })?;
+    sent.ok_or_else(internal)
+}
+
+/// Checks the mail settings, the postal address and the newsletter `list`,
+/// opens the site's database, then sends the issue `make` writes to the
+/// confirmed subscribers of `list` who carry every one of `labels`.
+/// `None` when `make` has nothing to send.
+pub(crate) fn deliver(
+    cli: &Cli,
+    (folder, config): (&Path, &Config),
+    (list, labels): (&Slug, &[Slug]),
+    make: impl AsyncFnOnce(&SubscriberTable) -> Result<Option<Issue>, Failed>,
+) -> Result<Option<Sent>, Failed> {
+    let failed = |message| (message, Exit::Failure);
+    let internal = || (serve_message::internal(), Exit::Internal);
     let mail = config.mail().ok_or_else(|| failed(no_mail()))?;
     let postal = mail.postal_address.as_deref().and_then(PostalAddress::new);
     let postal = postal.ok_or_else(|| failed(no_postal()))?;
-    let lists = newsletter_files::lists(folder);
-    let list = lists.find(Some(asked.list.as_str()));
-    let list = list.ok_or_else(|| failed(no_list(asked.list)))?;
-    let segment = Segment::new(list, asked.labels.iter().cloned());
+    let found = newsletter_files::lists(folder).find(Some(list.as_str()));
+    let found = found.ok_or_else(|| failed(no_list(list)))?;
+    let segment = Segment::new(found, labels.iter().cloned());
     let secret = serve::Keys::read(&Environment::from_process(), config).mail;
     let outbound = outbound::client(cli).map_err(|_| internal())?;
     let mailer = newsletter::mailer(config, secret, &outbound).map_err(failed)?;
@@ -102,25 +127,15 @@ fn send(
         .map_err(|_| internal())?;
     let (database, site) = serve::open(folder, &runtime).map_err(failed)?;
     let done = runtime.block_on(async {
-        let posts = SitePosts::new(folder, config.clone(), SystemClock);
-        let post = posts.get(&format!("{language}.{}", asked.slug)).await;
-        let post = post.map_err(|_| internal())?;
-        let post = post.ok_or_else(|| failed(no_post(name)))?;
-        if post.status() != PostStatus::Published {
-            return Err(failed(not_published(name)));
-        }
-        let store = Arc::new(SubscriberTable::new(database.clone(), site));
-        let made = Newsletter::new(
-            store,
-            mailer,
-            Arc::new(SystemClock),
-            newsletter::site(config),
-        );
-        let flow = made.map_err(|_| internal())?;
-        let issue = issue_of(config, &post, name);
-        flow.send(&issue, &segment, &postal)
-            .await
-            .map_err(|_| failed(not_sent()))
+        let store = SubscriberTable::new(database.clone(), site);
+        let Some(issue) = make(&store).await? else {
+            return Ok(None);
+        };
+        let clock = Arc::new(SystemClock);
+        let flow = Newsletter::new(Arc::new(store), mailer, clock, newsletter::site(config));
+        let flow = flow.map_err(|_| internal())?;
+        let sent = flow.send(&issue, &segment, &postal).await;
+        sent.map(Some).map_err(|_| failed(not_sent()))
     });
     runtime.block_on(database.close());
     done

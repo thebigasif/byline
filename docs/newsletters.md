@@ -74,3 +74,11 @@ khalid --site <folder> newsletter numbers
 ```
 
 lists each email that went out, newest first, with three totals: copies sent, copies the mail server refused, and readers who unsubscribed with a link from that email. Numbers are totals per email, never per person. Khalid does not count opens: that needs a hidden image in every email, which tells you who read what, so it is off.
+
+## RSS to email
+
+```sh
+khalid --site <folder> newsletter digest --list weekly
+```
+
+sends one email that lists every post published since the last digest, each with its title and link. The first digest looks back seven days. With nothing new it sends nothing, so it is safe to run from a timer, such as a systemd timer or a cron job once a week. `--label` narrows it to a segment and `--language` picks the posts' language.

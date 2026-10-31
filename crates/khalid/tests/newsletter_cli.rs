@@ -202,3 +202,39 @@ fn embed_prints_a_form_that_posts_to_the_blog_for_a_newsletter_it_has() {
     let (code, _) = newsletter(site.path(), &["embed", "--list", "monthly"]);
     assert_eq!(code, Some(1));
 }
+
+#[tokio::test]
+async fn a_digest_lists_new_posts_once_and_then_sends_nothing() {
+    let stub = StubSmtp::start().unwrap();
+    let site = demo_copy();
+    mail_through(site.path(), &stub, Some(POSTAL));
+    subscribers(site.path(), &["grace@example.com"]).await;
+    let today = SystemClock.now().date_naive();
+    let mut post = site.path().to_path_buf();
+    post.extend(["content", "en", "posts", "fresh-news.md"]);
+    let front = format!(
+        "---\ntitle: Fresh news on crawling\nslug: fresh-news\ndate: {today}\n\
+         author: lena-vogt\n---\n\nSearch engines crawl new pages first.\n"
+    );
+    fs::write(&post, front).unwrap();
+    let (code, out) = newsletter(site.path(), &["digest"]);
+    assert_eq!(code, Some(0), "{out}");
+    assert_eq!(out, "Sent the new posts to 1 subscribers of main.\n");
+    let received = stub.received();
+    assert_eq!(received.len(), 1, "{received:?}");
+    let message = joined(&received[0]);
+    assert!(message.contains("Subject: New on "), "{message}");
+    assert!(message.contains("Fresh news on crawling"), "{message}");
+    assert!(message.contains("/blog/fresh-news/"), "{message}");
+    assert!(
+        !message.contains("What a sitemap does"),
+        "an old post: {message}"
+    );
+    let (code, out) = newsletter(site.path(), &["digest"]);
+    assert_eq!(code, Some(0), "{out}");
+    assert_eq!(
+        out,
+        "Nothing is new since the last digest, so nothing was sent.\n"
+    );
+    assert_eq!(stub.received().len(), 1);
+}

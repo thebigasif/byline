@@ -12,6 +12,10 @@ Not you? Ignore this email and nothing more is sent. To remove this address now,
 {remove}
 """
 
+# The email of new posts, sent with khalid newsletter digest.
+digest_subject = "New on {site}"
+digest_text = "Here is what is new on {site} since the last email."
+
 # The end of every newsletter email. {remove} is its one-click unsubscribe
 # link and {postal} the postal address from [mail].
 footer_text = """

@@ -11,6 +11,9 @@ Sie waren es nicht? Dann ignorieren Sie diese E-Mail, und es kommt nichts mehr. 
 {remove}
 """
 
+digest_subject = "Neu bei {site}"
+digest_text = "Das ist neu bei {site} seit der letzten E-Mail."
+
 footer_text = """
 
 --

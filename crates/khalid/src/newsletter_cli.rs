@@ -14,7 +14,10 @@ use serde::Serialize;
 
 use crate::cli::{Cli, Output};
 use crate::exit::Exit;
-use crate::{db, db_message, newsletter, newsletter_files, newsletter_send, report, serve_message};
+use crate::{
+    db, db_message, newsletter, newsletter_digest, newsletter_files, newsletter_send, report,
+    serve_message,
+};
 
 /// The newsletter commands.
 #[derive(Debug, Clone, Subcommand)]
@@ -44,6 +47,20 @@ pub(crate) enum NewsletterCommand {
         /// A label they must carry; give it more than once for several
         #[arg(long = "label", value_name = "LABEL")]
         labels: Vec<Slug>,
+    },
+    /// Email the posts published since the last digest, each with its title
+    /// and link: RSS to email. Run it from a timer; with nothing new it
+    /// sends nothing
+    Digest {
+        /// The newsletter, such as weekly
+        #[arg(long, value_name = "NAME", default_value = "main")]
+        list: Slug,
+        /// Send only to subscribers with this label; give it more than once for several
+        #[arg(long = "label", value_name = "LABEL")]
+        labels: Vec<Slug>,
+        /// The language of the posts to list [default: the site's default language]
+        #[arg(long, value_name = "CODE")]
+        language: Option<Locale>,
     },
     /// Show each email that went out, newest first, with its totals: copies
     /// sent, copies refused and readers who unsubscribed with its link
@@ -90,6 +107,7 @@ impl NewsletterCommand {
             Self::Send { .. } => "newsletter send",
             Self::Embed { .. } => "newsletter embed",
             Self::Numbers => "newsletter numbers",
+            Self::Digest { .. } => "newsletter digest",
         }
     }
 }
@@ -125,6 +143,18 @@ pub(crate) fn run(
                 labels,
             };
             return newsletter_send::run(cli, (folder, config), &asked);
+        }
+        NewsletterCommand::Digest {
+            list,
+            labels,
+            language,
+        } => {
+            let asked = newsletter_digest::Asked {
+                list,
+                labels,
+                language: language.as_ref(),
+            };
+            return newsletter_digest::run(cli, (folder, config), &asked);
         }
         NewsletterCommand::Embed { list } => Ok(embed((folder, config), list, output)),
         NewsletterCommand::Numbers => on_store(folder, async |store| numbers(store, output).await),

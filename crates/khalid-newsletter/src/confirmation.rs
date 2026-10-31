@@ -26,6 +26,8 @@ const FILES: [(&str, &str); 2] = [
 struct Words {
     confirm_subject: String,
     confirm_text: String,
+    digest_subject: String,
+    digest_text: String,
     footer_text: String,
     page: PageWords,
 }
@@ -75,6 +77,17 @@ impl NewsletterWords {
             (fill(&words.confirm_subject), fill(&words.confirm_text))
         });
         Mail::new(to, subject, text)
+    }
+
+    /// The subject and the first line of the email of new posts from the
+    /// site called `site`, in `locale`.
+    pub fn digest(&self, locale: &Locale, site: &str) -> (String, String) {
+        self.of(locale).map_or_else(Default::default, |words| {
+            (
+                words.digest_subject.replace("{site}", site),
+                words.digest_text.replace("{site}", site),
+            )
+        })
     }
 
     /// The end of every newsletter email from the site called `site`, in

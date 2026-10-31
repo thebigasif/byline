@@ -63,6 +63,7 @@ mod new;
 mod new_message;
 mod newsletter;
 mod newsletter_cli;
+mod newsletter_digest;
 mod newsletter_files;
 mod newsletter_send;
 mod outbound;
