@@ -72,6 +72,14 @@ pub(crate) fn not_saved(path: &Path) -> UserMessage {
     )
 }
 
+pub(crate) fn no_https_yet() -> UserMessage {
+    UserMessage::new(
+        "khalid serve --domain gets a certificate for one site, not for a sites folder.",
+        "Each site in the folder has its own domain, and HTTPS for many domains is not built in yet.",
+        "Serve with --listen behind a proxy that handles HTTPS, such as Caddy, for every domain.",
+    )
+}
+
 pub(crate) fn no_panel() -> UserMessage {
     UserMessage::new(
         "This site has no super-admin panel.",

@@ -526,7 +526,7 @@ pub(crate) fn announce(output: Output, config: &Config, address: &str) {
 }
 
 /// Completes on Ctrl+C or, on Unix, the stop signal a service manager sends.
-async fn stop() {
+pub(crate) async fn stop() {
     #[cfg(unix)]
     {
         use tokio::signal::unix::{SignalKind, signal};

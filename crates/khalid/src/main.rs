@@ -106,6 +106,7 @@ mod seo_settings;
 mod serve;
 mod serve_https;
 mod serve_message;
+mod serve_sites;
 mod settings_text;
 mod share_images;
 mod site_addresses;
@@ -113,24 +114,9 @@ mod site_audit;
 mod site_config;
 mod site_content;
 mod site_files;
-#[expect(
-    dead_code,
-    reason = "khalid sites and serve add sites through this later in this stack"
-)]
 mod site_folders;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "khalid serve on a sites folder fills the hosts in the next part"
-    )
-)]
 mod site_hosts;
 mod site_html;
-#[expect(
-    dead_code,
-    reason = "khalid sites and serve read the list later in this stack"
-)]
 mod site_list;
 mod site_lists;
 mod site_outline;
@@ -364,6 +350,11 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
         Some(Command::Sites { command }) => {
             let root = cli.site.as_deref().unwrap_or(Path::new("."));
             Some(sites::run(root, command, cli.output))
+        }
+        Some(Command::Serve(args)) => {
+            let root = cli.site.as_deref().unwrap_or(Path::new("."));
+            let many = site_list::file(root).is_file();
+            many.then(|| serve_sites::run(root, cli, args))
         }
         Some(Command::Update { target }) => Some(update::run(*target, cli)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
