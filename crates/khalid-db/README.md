@@ -7,6 +7,8 @@ The SQLite file at `data/site.db` in a site folder. Content files are the source
 
 Every table has a `site_id` that points at `sites`. Schema changes are new files in `migrations/`; an existing migration is never edited (RULES.md BL-DB-2). ADR 0010 explains the layout.
 
+`SiteExport` reads one site's rows out of every table for `khalid db export`. Sign-in tables (`sessions`, `magic_links`, `passkeys`, `subscriber_tokens`, `site_keys`) are left out, and so is any column named like a secret: `secret`, `token`, `password`, or ending in `_hash` other than `content_hash`. Name a new secret column that way.
+
 A test reads the table below and checks it lists every table in the schema, once each, as derived or visitor.
 
 | Table | Kind | What it holds |

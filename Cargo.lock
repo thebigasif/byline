@@ -2207,6 +2207,7 @@ name = "khalid-db"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "futures-util",
  "getrandom 0.4.3",
  "khalid-api",
  "khalid-auth",
