@@ -4,9 +4,9 @@
 
 use khalid_core::AbsoluteUrl;
 use webauthn_rs::prelude::{
-    CreationChallengeResponse, DiscoverableAuthentication, DiscoverableKey, Passkey,
-    PasskeyRegistration, PublicKeyCredential, RegisterPublicKeyCredential,
-    RequestChallengeResponse, Url, Uuid, Webauthn, WebauthnBuilder, WebauthnError,
+    CreationChallengeResponse, DiscoverableAuthentication, Passkey, PasskeyRegistration,
+    PublicKeyCredential, RegisterPublicKeyCredential, RequestChallengeResponse, Url, Uuid,
+    Webauthn, WebauthnBuilder, WebauthnError,
 };
 
 use crate::Account;
@@ -123,10 +123,9 @@ impl PasskeySite {
         saved: &SavedPasskey,
     ) -> Result<SavedPasskey, PasskeyCheckError> {
         let mut passkey = saved.passkey()?;
-        let key = DiscoverableKey::from(&passkey);
         let result = self
             .webauthn
-            .finish_discoverable_authentication(credential, signing_in.0, &[key])
+            .finish_discoverable_authentication_v2(credential, signing_in.0, &passkey)
             .map_err(refusal)?;
         passkey.update_credential(&result);
         SavedPasskey::of(&passkey)
