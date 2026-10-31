@@ -1,6 +1,7 @@
 //! `khalid build`: the whole site rendered as HTML into an output folder
 //! (RULES.md BL-CLI-1 to BL-CLI-3, BL-FS-2).
 
+use khalid_core::SitePath;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -50,7 +51,7 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     assert!(
-        text(&output.stdout).contains("36 pages"),
+        text(&output.stdout).contains("37 pages"),
         "{}",
         text(&output.stdout)
     );
@@ -74,6 +75,110 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     assert!(page(out.path(), "de/index.html").contains("/blog/de/"));
     assert!(page(out.path(), "404.html").contains("<h1"));
     assert!(page(out.path(), "de/404.html").contains("lang=\"de\""));
+
+    // The AI info page: plain HTML that names who runs the site and how to
+    // cite it, its own AboutPage schema, and a footer link from the home
+    // page (P3). It needs no scripts: every fact is in the HTML.
+    let ai = page(out.path(), "ai/index.html");
+    assert!(ai.contains("runs this site"), "{ai}");
+    assert!(ai.contains("Name Field Notes on SEO"), "{ai}");
+    assert!(ai.contains("\"AboutPage\""), "{ai}");
+    // Scripts off still shows every fact: the only script tag on the page
+    // is the JSON-LD block, which carries no behaviour.
+    assert!(
+        !ai.replace("<script type=\"application/ld+json\">", "")
+            .contains("<script"),
+        "{ai}"
+    );
+    let home_body = page(out.path(), "index.html");
+    assert!(home_body.contains("href=\"/blog/ai/\""), "{home_body}");
+    // Its text comes from site.toml in one language, so it is built once,
+    // in the main language, and the German footer links to that copy.
+    assert!(
+        SitePath::within(out.path(), "de/ai")
+            .unwrap()
+            .as_path()
+            .read_dir()
+            .is_err()
+    );
+    let german_home = page(out.path(), "de/index.html");
+    assert!(german_home.contains("href=\"/blog/ai/\""), "{german_home}");
+}
+
+#[test]
+fn a_site_can_switch_the_ai_page_off() {
+    let out = tempfile::tempdir().unwrap();
+    let site = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    std::process::Command::new("cp")
+        .arg("-R")
+        .arg(format!("{}/.", path(&demo)))
+        .arg(site.path())
+        .status()
+        .unwrap();
+    let settings = SitePath::within(site.path(), "site.toml")
+        .unwrap()
+        .as_path()
+        .to_path_buf();
+    let mut file = fs::read_to_string(&settings).unwrap();
+    file.push_str("\n[seo.ai_page]\noff = true\n");
+    fs::write(&settings, file).unwrap();
+    let output = khalid(&[
+        "--site",
+        path(site.path()),
+        "build",
+        "--out",
+        path(out.path()),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    // Without the page: 36 pages, no ai/ folder, no footer link.
+    assert!(
+        text(&output.stdout).contains("36 pages"),
+        "{}",
+        text(&output.stdout)
+    );
+    assert!(
+        SitePath::within(out.path(), "ai")
+            .unwrap()
+            .as_path()
+            .read_dir()
+            .is_err()
+    );
+    let home_body = page(out.path(), "index.html");
+    assert!(!home_body.contains("href=\"/blog/ai/\""), "{home_body}");
+}
+
+#[test]
+fn the_ai_page_shows_its_settings_as_text_not_markup() {
+    let out = tempfile::tempdir().unwrap();
+    let site = tempfile::tempdir().unwrap();
+    let demo = demo_site();
+    std::process::Command::new("cp")
+        .arg("-R")
+        .arg(format!("{}/.", path(&demo)))
+        .arg(site.path())
+        .status()
+        .unwrap();
+    let settings = SitePath::within(site.path(), "site.toml")
+        .unwrap()
+        .as_path()
+        .to_path_buf();
+    let mut file = fs::read_to_string(&settings).unwrap();
+    file.push_str("\n[seo.ai_page]\ncite = \"Quote Tom & Jerry, never <b>bold</b>.\"\n");
+    fs::write(&settings, file).unwrap();
+    let output = khalid(&[
+        "--site",
+        path(site.path()),
+        "build",
+        "--out",
+        path(out.path()),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let ai = page(out.path(), "ai/index.html");
+    assert!(
+        ai.contains("Quote Tom &amp; Jerry, never &lt;b&gt;bold&lt;/b&gt;."),
+        "{ai}"
+    );
 }
 
 #[test]
@@ -284,8 +389,9 @@ fn init_then_new_then_build_writes_the_post_to_public() {
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stdout));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(json["out"], path(&public));
-    // The post, home, search, 404, archive, authors and sitemap pages.
-    assert_eq!(json["pages"], 7);
+    // The post, home, search, 404, archive, authors, sitemap and AI info
+    // pages.
+    assert_eq!(json["pages"], 8);
     let post = page(&public, "why-links-matter/index.html");
     assert!(post.contains("Why links matter</h1>"), "{post}");
 }

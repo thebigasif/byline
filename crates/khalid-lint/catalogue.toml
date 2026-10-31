@@ -190,6 +190,12 @@ why = "Readers of that language cannot find this post, and Google cannot point t
 fix = "Write the translation and give both versions the same `translation:` key."
 guide = "translations"
 
+[review-due]
+what = "This post has not been reviewed in over six months."
+why = "A post nobody has looked at lately drifts out of date, and a reader trusts a claim less when it is stale."
+fix = "Update the reviewed date in the front matter after looking the post over; only a real change sets the updated date."
+guide = "review-queue"
+
 [stale-post]
 what = "This post has not been updated for a long time."
 why = "Readers and Google trust recent information more, and old facts may now be wrong."
@@ -273,6 +279,18 @@ what = "The site has no About or contact page."
 why = "A reader who cannot find who writes here trusts it less, and an engine citing the site has no author to credit."
 fix = "Add an About or a contact page, with the authors' names and how to reach them."
 guide = "author-proof"
+
+[heading-agrees]
+what = "Two headings in the post say near the same thing."
+why = "A repeated heading leaves a reader unable to tell the sections apart, and an engine unsure which to lift."
+fix = "Give each heading its own words, or merge the two sections."
+guide = "headings-promise"
+
+[heading-shape]
+what = "A heading promises kinds or a comparison, but no list or table follows it."
+why = "The heading sets a promise the body must keep; a list or a table is the shape a reader can scan."
+fix = "Turn what follows into a list for kinds, or a table for differences."
+guide = "headings-promise"
 
 [plain-answer]
 what = "An answer paragraph uses hedge words, vague openers or a trailing which."

@@ -11,6 +11,7 @@
 //! I/O is reading the system clock and resolving a [`SitePath`] on disk.
 
 mod absolute_url;
+mod ai_page_settings;
 mod alert_settings;
 mod clock;
 mod config;
@@ -35,6 +36,7 @@ pub mod toml_location;
 mod user_message;
 
 pub use absolute_url::{AbsoluteUrl, ParseUrlError};
+pub use ai_page_settings::AiPageSettings;
 pub use alert_settings::AlertSettings;
 #[cfg(any(test, feature = "test-util"))]
 pub use clock::FixedClock;

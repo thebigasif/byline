@@ -13,8 +13,8 @@ use khalid_content::{
 };
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Nav, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
-    RenderHome, RenderListing, RenderPost, RenderSite, Robots, related,
+    BodyHtml, Nav, NavLink, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics,
+    ReadingTime, RenderHome, RenderListing, RenderPost, RenderSite, Robots, related,
 };
 use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
@@ -23,7 +23,7 @@ use crate::build_named_pages::{author_pages, glossary_pages, plain_pages};
 use crate::listed_post::{ListedPost, ListedTag};
 use crate::post_lock::Unlocked;
 pub(crate) use crate::site_page::Page;
-use crate::{build_home, build_message, build_reader, build_schema, build_seo};
+use crate::{build_ai_page, build_home, build_message, build_reader, build_schema, build_seo};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
@@ -52,11 +52,12 @@ pub(crate) fn pages(
     routes: &Routes,
     (content, others): (&SiteContent, &[ListedPost]),
     stylesheet: &str,
+    today: NaiveDate,
 ) -> Result<Vec<LanguagePages>, UserMessage> {
     config
         .languages()
         .iter()
-        .map(|locale| language_pages(config, routes, (content, others), locale, stylesheet))
+        .map(|locale| language_pages(config, routes, (content, others), locale, stylesheet, today))
         .collect()
 }
 
@@ -66,6 +67,7 @@ fn language_pages(
     (content, others): (&SiteContent, &[ListedPost]),
     locale: &Locale,
     stylesheet: &str,
+    today: NaiveDate,
 ) -> Result<LanguagePages, UserMessage> {
     let links = Wikilinks::for_language(content, config, routes, locale);
     let people = build_reader::people(config, &links, content, locale)?;
@@ -77,6 +79,9 @@ fn language_pages(
     };
     let (mut pages, listed) = post_pages(config, routes, &links, &posts)?;
     pages.extend(plain_pages(config, &links, content, locale)?);
+    if let Some(ai) = build_ai_page::ai_page(config, locale, today)? {
+        pages.push(ai);
+    }
     pages.extend(glossary_pages(config, routes, &links, content, locale)?);
     pages.extend(author_pages(
         config, &links, content, locale, &listed, &people,
@@ -466,13 +471,28 @@ pub(crate) fn render_site(config: &Config, locale: &Locale, stylesheet: &str) ->
         locale: locale.clone(),
         home: path_of(config, locale, ""),
         stylesheet: stylesheet.to_owned(),
-        nav: Nav::default(),
+        nav: nav(config),
         main_site: None,
         share_image: None,
         features: build_reader::features(config.reader()),
         search: None,
         script: None,
     }
+}
+
+/// The site's menus. The AI info page, when it is on, is linked in the
+/// footer of every page (P3), so a reader or a model finds it from
+/// anywhere; the header stays as the site's author set it. The page is
+/// built in the main language alone, so every language links to that copy.
+fn nav(config: &Config) -> Nav {
+    let mut nav = Nav::default();
+    if !config.ai_page().off {
+        nav.footer.push(NavLink {
+            label: "AI info".to_owned(),
+            href: path_of(config, config.default_language(), build_ai_page::REST),
+        });
+    }
+    nav
 }
 
 /// The path of `rest` in `locale`: the mount, the language prefix for any

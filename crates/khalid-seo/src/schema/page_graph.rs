@@ -24,6 +24,7 @@ fn page_type(kind: PageKind) -> &'static str {
         | PageKind::Date
         | PageKind::GlossaryIndex => "CollectionPage",
         PageKind::Author => "ProfilePage",
+        PageKind::AiPage => "AboutPage",
         PageKind::Search => "SearchResultsPage",
         PageKind::Home
         | PageKind::Post

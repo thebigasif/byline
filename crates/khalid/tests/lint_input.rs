@@ -100,6 +100,72 @@ fn a_post_is_named_by_its_title_as_its_page_is_and_wikilinks_reach_it() {
 }
 
 #[test]
+fn a_topic_group_member_without_a_link_to_its_main_post_is_a_warning() {
+    // The member names its topic group in front matter; the main post
+    // says main_post: true. The member never links to the main post, so
+    // cluster-without-pillar fires (P8).
+    let site = site(
+        None,
+        &[
+            (
+                "posts/internal-linking-guide.md",
+                &post(
+                    "Internal linking guide",
+                    "topic_group: internal-links\nmain_post: true\n",
+                    "The guide to everything about linking your own site.",
+                ),
+            ),
+            (
+                "posts/choosing-anchor-text.md",
+                &post(
+                    "Choosing anchor text",
+                    "topic_group: internal-links\n",
+                    "Anchor text is the words a reader clicks.",
+                ),
+            ),
+        ],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "cluster-without-pillar", "choosing-anchor-text"),
+        vec!["internal-linking-guide".to_owned()]
+    );
+}
+
+#[test]
+fn a_topic_group_member_that_links_its_main_post_is_quiet() {
+    // The same group, but the member's body links the main post, so the
+    // rule does not fire.
+    let site = site(
+        None,
+        &[
+            (
+                "posts/internal-linking-guide.md",
+                &post(
+                    "Internal linking guide",
+                    "topic_group: internal-links\nmain_post: true\n",
+                    "The guide to everything about linking your own site.",
+                ),
+            ),
+            (
+                "posts/choosing-anchor-text.md",
+                &post(
+                    "Choosing anchor text",
+                    "topic_group: internal-links\n",
+                    "Start from the [[internal-linking-guide]] when you plan your links.",
+                ),
+            ),
+        ],
+    );
+    let report = lint(site.path());
+    let none = Vec::<String>::new();
+    assert_eq!(
+        found(&report, "cluster-without-pillar", "choosing-anchor-text"),
+        none
+    );
+}
+
+#[test]
 fn a_form_whose_answers_go_nowhere_is_a_warning() {
     let body = "Write to us.\n\n:::form{id=\"contact\" button=\"Send\"}\n\
                 - text name: Your name\n- email reply_to: Your email address\n:::";
@@ -214,6 +280,33 @@ fn a_focus_keyword_missing_from_each_place_is_a_warning_per_place() {
             "{rule}"
         );
     }
+}
+
+#[test]
+fn a_heading_about_kinds_or_differences_is_quiet_once_a_list_or_table_follows() {
+    // W6 reads what the page shows: the markdown's bullets and pipes are
+    // gone from the plain text, so the shapes come from the rendered page.
+    let shaped = "Internal links help readers.\n\n## Types of internal links\n\n\
+                  - In the menu\n- In the body\n\n\
+                  ## Differences between links and buttons\n\n\
+                  | Link | Button |\n|---|---|\n| moves you | acts |\n\n\
+                  ## Why it always matters\n\nA reader follows the next link.";
+    let prose = "Internal links help readers.\n\n## Types of internal links\n\n\
+                 There are several kinds.\n\n## Differences between links and buttons\n\n\
+                 Links move you and buttons act.";
+    let site = site(
+        None,
+        &[
+            ("posts/shaped.md", &post("Shaped", "", shaped)),
+            ("posts/prose.md", &post("Prose", "", prose)),
+        ],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "heading-shape", "shaped"),
+        Vec::<String>::new()
+    );
+    assert_eq!(found(&report, "heading-shape", "prose").len(), 2);
 }
 
 /// `count` sentences of filler, ten words each, the first `uses` of them

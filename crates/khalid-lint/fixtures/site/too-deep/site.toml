@@ -6,7 +6,9 @@ home_links = ["/blog/start-here/", "/about/"]
 [[posts]]
 locale = "en"
 slug = "start-here"
-links = [{ kind = "internal", target = "/blog/choosing-link-text/", text = "choosing link text" }]
+links = [
+  { kind = "internal", target = "/blog/choosing-link-text/", text = "choosing link text" },
+]
 
 [[posts]]
 locale = "en"
@@ -35,12 +37,16 @@ links = [
 [[posts]]
 locale = "en"
 slug = "fixing-broken-links"
-links = [{ kind = "internal", target = "/blog/link-audits/", text = "link audits" }]
+links = [
+  { kind = "internal", target = "/blog/link-audits/", text = "link audits" },
+]
 
 [[posts]]
 locale = "en"
 slug = "pruning-old-posts"
-links = [{ kind = "internal", target = "/blog/start-here/", text = "start here" }]
+links = [
+  { kind = "internal", target = "/blog/start-here/", text = "start here" },
+]
 
 [[pages]]
 locale = "en"

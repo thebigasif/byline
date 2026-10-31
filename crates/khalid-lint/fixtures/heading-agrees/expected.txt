@@ -1,0 +1,1 @@
+warn heading-agrees: two headings say near the same thing: "What an internal link is" and "What internal links are" (suggest: give each heading its own words, or merge the two sections)

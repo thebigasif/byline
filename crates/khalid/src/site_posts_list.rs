@@ -35,7 +35,8 @@ impl Site {
             } else {
                 Gate::Passes
             };
-            rows.push(PostRow::new(&post, gate));
+            let today = self.clock.now().date_naive();
+            rows.push(PostRow::new(&post, gate).with_review_due(today));
             files.insert(post.id().to_owned(), found);
         }
         let page = select(rows.iter(), query);

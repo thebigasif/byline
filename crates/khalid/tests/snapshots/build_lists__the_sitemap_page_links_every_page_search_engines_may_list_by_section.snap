@@ -1,5 +1,6 @@
 ---
 source: crates/khalid/tests/build_lists.rs
+assertion_line: 290
 expression: main_of(&sitemap)
 ---
  id="main" tabindex="-1">
@@ -16,6 +17,7 @@ expression: main_of(&sitemap)
 <h2>Pages</h2>
 <ul>
 <li><a href="/blog/about/">About</a></li>
+<li><a href="/blog/ai/">About this site for readers and AI</a></li>
 <li><a href="/blog/authors/">Authors</a></li>
 <li><a href="/blog/">Field Notes on SEO</a></li>
 </ul>

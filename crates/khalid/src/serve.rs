@@ -34,15 +34,16 @@ use crate::entry_events::Entries;
 use crate::exit::Exit;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
+use crate::serve_check::BodyCheck;
 use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::tag_events::Tags;
 use crate::{
-    alert_watch, announce, comment_pages, consent_route, db, db_message, media_library, newsletter,
-    page_counts, preview, redirect_route, report, scheduler, search_route, serve_message,
-    share_images, staff, unlock,
+    alert_watch, announce, comment_pages, consent_route, db, db_message, late_api, media_library,
+    newsletter, page_counts, preview, redirect_route, report, scheduler, search_route,
+    serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -80,22 +81,27 @@ impl Keys {
 }
 
 /// Serves the `site` folder, whose `config`, `routes` and content were
-/// checked, on `listen`. The database opens first and closes last, after
-/// every request, the watch, the scheduler and the announcing have stopped. Webhooks and
-/// `IndexNow` are sent through `outbound`, the one shared client.
+/// checked, all but the content's bodies, on `listen`. The database opens
+/// first and closes last, after every request, the watch, the scheduler and
+/// the announcing have stopped. Webhooks and `IndexNow` are sent through
+/// `outbound`, the one shared client.
 ///
-/// `start` holds the checked content, the files beside its folder posts,
-/// and a look at the folder taken before it was read. The first pages are
+/// `start` holds the content, the files beside its folder posts, and a
+/// look at the folder taken before it was read. Its bodies are checked
+/// beside the start, before the server listens. The first pages are
 /// rendered from that content, which is then dropped, so the folder is read
 /// once at start and a file saved from the look on is always seen as an
 /// edit.
 pub(crate) fn run(
     site: &Path,
     (config, routes): (&Config, &Routes),
-    start: (SiteContent, Assets, FolderLook),
+    (content, assets, look): (SiteContent, Assets, FolderLook),
     (listen, outbound, keys): (&Listen, Result<Outbound, OutboundError>, Keys),
     (output, alert_every): (Output, Duration),
 ) -> Exit {
+    let content = Arc::new(content);
+    let bodies = BodyCheck::start(site, &content, (config, routes));
+    let start = (content, assets, look, bodies);
     let built = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .thread_keep_alive(Duration::from_secs(1))
@@ -126,7 +132,7 @@ pub(crate) fn run(
 /// `listen` until told to stop.
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
-    (checked, assets, look): (SiteContent, Assets, FolderLook),
+    (checked, assets, look, bodies): (Arc<SiteContent>, Assets, FolderLook, BodyCheck),
     (listen, outbound, (output, alert_every), keys): (&Listen, &Outbound, (Output, Duration), Keys),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
@@ -141,6 +147,7 @@ fn serve_with(
     )?;
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     let (source, first) = first_pages((site, config, routes), feed, &checked)
+        .and_then(|first| bodies.finish().map(|()| first))
         .map_err(|message| (message, Exit::Failure))?;
     let security = security_headers()?;
     let search = search_route::Search {
@@ -161,9 +168,7 @@ fn serve_with(
         announce(output, config, &format!("{address}{}", config.mount()));
         let live = LivePages::new(first);
         hand_back.start(live.replacements());
-        let (failed, failure) = oneshot::channel();
         let rest = (source.clone(), live.clone());
-        tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
         let announcing = announcing.retrying(&telling);
         // Each part reads the database or the folder alone, so all open at once.
@@ -183,13 +188,17 @@ fn serve_with(
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
-        let desks = (moderation, media, desk);
-        let apis = api_router((content, door), desks, (database, id, config));
         let app = assembled(
             (site, config, &security),
-            (apis, files, previews, search_route::router(config, search)),
+            (files, previews, search_route::router(config, search)),
             (comments, newsletters, pages),
         );
+        let desks = (moderation, media, desk);
+        let app = with_apis(app, (content, door), desks, (database, id, config));
+        // The rest renders once the routes are ready, so it does not slow
+        // setting them up (ADR "the APIs are built beside the first answer").
+        let (failed, failure) = oneshot::channel();
+        tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
         let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
@@ -296,6 +305,22 @@ fn api_router(
     api
 }
 
+/// `app` with the router of [`api_router`] answering under `/api/`, built
+/// on a blocking thread beside the first answer (ADR "the APIs are built
+/// beside the first answer"). An address under `/api/` the APIs lack goes
+/// to `app`, as it did when the routers were merged before the first answer.
+fn with_apis(
+    app: Router,
+    apis: (LiveContent, Arc<PublishDoor>),
+    desks: (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
+    (database, id, config): (&Database, SiteId, &Config),
+) -> Router {
+    let (database, config, rest) = (database.clone(), config.clone(), app.clone());
+    late_api::router(app, move || {
+        api_router(apis, desks, (&database, id, &config)).fallback_service(rest)
+    })
+}
+
 /// The pages, with the stylesheet named as a preload on every HTML answer
 /// when the site has one (G20).
 fn with_hint(pages: Pages, source: &SitePages) -> Pages {
@@ -341,14 +366,14 @@ fn destination(
     Ok((to, telling, announcing))
 }
 
-/// The one router the server answers: the APIs, the site's own routes, the
-/// drawn share cards, the admin, the comments and the newsletters.
+/// The router the server answers outside the APIs: the site's own routes,
+/// the drawn share cards, the admin, the comments and the newsletters.
 fn assembled(
     (site, config, security): (&Path, &Config, &SecurityHeaders),
-    (api, files, previews, searches): (Router, Router, Router, Router),
+    (files, previews, searches): (Router, Router, Router),
     (comments, newsletters, pages): (Router, Router, Router),
 ) -> Router {
-    api.merge(files)
+    files
         .merge(previews)
         .merge(searches)
         .merge(share_images::router(site, config, security.clone()))
@@ -415,7 +440,7 @@ async fn unlocking(
 /// rendered every page before listening.
 async fn render_the_rest(
     (source, live): (SitePages, LivePages),
-    (checked, assets): (SiteContent, Assets),
+    (checked, assets): (Arc<SiteContent>, Assets),
     failed: oneshot::Sender<UserMessage>,
 ) {
     let first = live.current();

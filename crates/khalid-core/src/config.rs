@@ -12,8 +12,8 @@ use serde::Deserialize;
 use crate::mail_settings::MailTable;
 use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
-    AbsoluteUrl, AlertSettings, Locale, MailSettings, MailTransport, MediaSettings, ParseUrlError,
-    Reader, S3Keys, Secret, SeoSettings, SiteCode,
+    AbsoluteUrl, AiPageSettings, AlertSettings, Locale, MailSettings, MailTransport, MediaSettings,
+    ParseUrlError, Reader, S3Keys, Secret, SeoSettings, SiteCode,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -326,6 +326,11 @@ impl Config {
     /// The SEO settings, from `[seo]`.
     pub fn seo(&self) -> &SeoSettings {
         &self.seo
+    }
+
+    /// The AI info page's settings, from `[seo.ai_page]`.
+    pub fn ai_page(&self) -> &AiPageSettings {
+        &self.seo.ai_page
     }
 
     /// Which reader features the default templates show, from `[reader]`.
