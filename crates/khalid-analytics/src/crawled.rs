@@ -27,7 +27,7 @@ impl CrawledPage {
     /// bot whose address is not on a list, or that has no list, is left
     /// out: anyone can claim its name.
     pub fn from_visits(visits: &[Visit]) -> Vec<Self> {
-        let mut pages: BTreeMap<(&str, Crawler), (DateTime<Utc>, DateTime<Utc>)> = BTreeMap::new();
+        let mut pages: BTreeMap<(&str, Crawler), Span> = BTreeMap::new();
         for visit in visits {
             let Visitor::Bot(crawler, BotCheck::Listed) = visit.visitor else {
                 continue;
@@ -54,6 +54,9 @@ impl CrawledPage {
             .collect()
     }
 }
+
+/// The first and the last fetch.
+type Span = (DateTime<Utc>, DateTime<Utc>);
 
 /// Whether `status` handed the bot the page: a 2xx, or a 304 that says
 /// the copy it holds is current.
