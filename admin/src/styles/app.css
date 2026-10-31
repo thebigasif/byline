@@ -60,6 +60,7 @@
   .text .block-card.ProseMirror-selectednode{outline:2px solid var(--color-link);outline-offset:2px}
   .text .block-name{font-weight:600}
   .text .block-detail{color:var(--color-muted);overflow-wrap:anywhere}
+  .text .wikilink{color:var(--color-link);text-decoration:underline dotted;text-underline-offset:.2em}
   .writing{position:relative}
   .aid-menu{position:sticky;bottom:1rem;z-index:1;max-width:24rem;margin:.25rem 0 1rem;border:1px solid var(--color-border);border-radius:var(--radius-field);background:var(--color-bg);box-shadow:var(--shadow-menu)}
   .aid-title{font-size:.875rem;color:var(--color-muted);padding:.75rem 1rem .25rem;margin:0}

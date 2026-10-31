@@ -5,6 +5,7 @@ import { WritingAids } from "./aids/trigger";
 import { directiveNodes } from "./blocks/directiveNode";
 import { FootnoteMark, FootnoteText, MarkdownTable } from "./blocks/markdownBlocks";
 import { BLOCK_SPECS, INNER_BLOCKS } from "./blocks/specs";
+import { Wikilink } from "./blocks/wikilink";
 
 /** The blocks the rich-text view knows, each with its markdown form. */
 export const extensions = [
@@ -15,6 +16,7 @@ export const extensions = [
   MarkdownTable,
   FootnoteText,
   FootnoteMark,
+  Wikilink,
 ];
 
 /** The markdown the rich-text view writes for `markdown` after reading it. */
@@ -27,12 +29,11 @@ export function throughRichText(markdown: string): string {
 
 /**
  * Whether the rich-text view gives back exactly this markdown. A post with
- * a block it does not know yet, such as a wikilink or a directive with a
- * name Khalid does not have, opens as markdown instead, so nothing is ever
- * rewritten by surprise.
+ * a block it does not know, such as a directive with a name Khalid does not
+ * have, opens as markdown instead, so nothing is ever rewritten by surprise.
  */
 export function fitsRichText(markdown: string): boolean {
-  if (/\[\[/.test(markdown) || unknownDirective(markdown)) {
+  if (unknownDirective(markdown)) {
     return false;
   }
   return throughRichText(markdown).trimEnd() === markdown.trimEnd();
