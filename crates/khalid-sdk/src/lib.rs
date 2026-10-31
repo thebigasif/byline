@@ -7,6 +7,7 @@
 //! hand-written client in `src/index.js` reads both, so no API type in the
 //! SDK is written by hand.
 
+mod operations;
 mod types;
 
 use serde_json::Value;
@@ -78,12 +79,22 @@ pub fn generate(document: &str) -> Result<Vec<GeneratedFile>, SdkError> {
         .pointer("/components/schemas")
         .and_then(Value::as_object)
         .ok_or(SdkError::Missing("components.schemas"))?;
+    let found = operations::read(&document)?;
     let mut schema = String::from(HEADER);
     schema.push_str(&types::declarations(schemas)?);
-    Ok(vec![GeneratedFile {
-        path: "src/schema.d.ts",
-        contents: schema,
-    }])
+    schema.push_str(&operations::interface(&found)?);
+    let mut routes = String::from(HEADER);
+    routes.push_str(&operations::routes(&found));
+    Ok(vec![
+        GeneratedFile {
+            path: "src/schema.d.ts",
+            contents: schema,
+        },
+        GeneratedFile {
+            path: "src/operations.js",
+            contents: routes,
+        },
+    ])
 }
 
 #[cfg(test)]
@@ -107,7 +118,7 @@ mod tests {
         let first = generate(document).unwrap();
         assert_eq!(first, generate(document).unwrap());
         let paths: Vec<&str> = first.iter().map(|file| file.path).collect();
-        assert_eq!(paths, ["src/schema.d.ts"]);
+        assert_eq!(paths, ["src/schema.d.ts", "src/operations.js"]);
         assert!(
             first[0].contents.starts_with(HEADER),
             "{}",
