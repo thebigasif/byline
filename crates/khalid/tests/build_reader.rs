@@ -223,34 +223,30 @@ fn linked_mentions_switched_off_are_gone() {
     assert_eq!(mentions(&out, "why-internal-links-matter/index.html"), None);
 }
 
-/// The start tag of the first link to `href` in the post at `rel`.
+/// The reader script's tag in the post at `rel`.
 #[cfg(test)]
-fn link_to(out: &Path, rel: &str, href: &str) -> String {
+fn script_tag(out: &Path, rel: &str) -> String {
     let post = page(out, rel);
-    let (_, tag) = post
-        .split_once(&format!("<a href=\"{href}\""))
-        .unwrap_or_else(|| panic!("no link to {href}"));
+    let (_, tag) = post.split_once("<script src=").expect("the reader script");
     let (tag, _) = tag.split_once('>').unwrap();
-    format!("<a href=\"{href}\"{tag}>")
+    tag.to_owned()
 }
 
 #[test]
-fn a_link_to_another_post_carries_its_summary_for_the_preview() {
+fn the_script_is_told_to_preview_links_and_links_stay_plain() {
     let (_temp, out) = build("");
-    let link = link_to(
-        &out,
-        "what-a-sitemap-does/index.html",
-        "/blog/why-internal-links-matter/",
-    );
-    insta::assert_snapshot!(link);
+    let tag = script_tag(&out, "what-a-sitemap-does/index.html");
+    assert!(tag.ends_with(" data-previews"), "{tag}");
     let post = page(&out, "what-a-sitemap-does/index.html");
-    let script = post.split_once("<script src=\"").map(|(_, rest)| rest);
-    assert!(script.is_some(), "the reader script shows it");
+    assert!(
+        post.contains("<a href=\"/blog/why-internal-links-matter/\">"),
+        "the link itself is a plain link: {post}"
+    );
 }
 
 #[test]
-fn link_previews_switched_off_leave_plain_links() {
+fn link_previews_switched_off_are_not_asked_for() {
     let (_temp, out) = build("\n[reader]\nlink_previews = false\n");
-    let post = page(&out, "what-a-sitemap-does/index.html");
-    assert!(!post.contains("data-preview"), "{post}");
+    let tag = script_tag(&out, "what-a-sitemap-does/index.html");
+    assert!(!tag.contains("data-previews"), "{tag}");
 }
