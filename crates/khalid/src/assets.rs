@@ -6,7 +6,10 @@ use std::path::Path;
 use std::sync::LazyLock;
 
 use khalid_core::{Config, UserMessage};
-use khalid_render::{Asset, Feature, Features, ScriptTag, Tokens, reader_script, stylesheet};
+use khalid_render::{
+    Asset, Feature, Features, ScriptFile, ScriptTag, Tokens, reader_script, reader_script_file,
+    stylesheet,
+};
 use khalid_server::{MediaType, Page, PagePath};
 
 use crate::build_message;
@@ -23,15 +26,11 @@ const SCRIPTED: [Feature; 4] = [
     Feature::TableOfContents,
 ];
 
-/// The reader script with its compressed copies, made once per process
-/// because its bytes never change while the binary runs.
-static READER: LazyLock<Option<Asset>> = LazyLock::new(|| {
-    reader_script()
-        .inspect_err(|error| {
-            tracing::warn!(%error, "the reader script could not be compressed, so pages link none");
-        })
-        .ok()
-});
+/// The reader script's name, hash and bytes, made once per process because
+/// they never change while the binary runs. Only `khalid build` makes its
+/// compressed copies; `khalid serve` compresses after it starts answering,
+/// so the script never delays the first page.
+static READER: LazyLock<ScriptFile> = LazyLock::new(reader_script_file);
 
 /// The site's stylesheet: the values in `theme/tokens.toml`, when the site
 /// has that file, as CSS custom properties, then the shared rules.
@@ -40,21 +39,22 @@ pub(crate) fn site_stylesheet(site: &Path) -> Result<Asset, UserMessage> {
     stylesheet(&tokens).map_err(|error| build_message::render(&error))
 }
 
-/// The reader script, or `None` in the unlikely case it could not be made,
-/// when every page still reads completely.
-pub(crate) fn reader() -> Option<&'static Asset> {
-    READER.as_ref()
+/// The reader script's name, integrity value and bytes.
+pub(crate) fn reader() -> &'static ScriptFile {
+    &READER
+}
+
+/// The reader script with its compressed copies, for `khalid build`.
+pub(crate) fn reader_with_copies() -> Result<Asset, UserMessage> {
+    reader_script().map_err(|error| build_message::render(&error))
 }
 
 /// The tag pages with `features` carry for the reader script, or `None`
 /// when no feature on uses it.
 pub(crate) fn script_tag(config: &Config, features: &Features) -> Option<ScriptTag> {
     let used = SCRIPTED.iter().any(|&feature| features.contains(feature));
-    let script = reader().filter(|_| used)?;
-    Some(ScriptTag::new(
-        script,
-        &format!("{}{FOLDER}", config.mount()),
-    ))
+    let folder = format!("{}{FOLDER}", config.mount());
+    used.then(|| ScriptTag::of_file(reader(), &folder))
 }
 
 /// The address pages link `asset` at, such as `/blog/assets/site.3f2a9c1e.css`.
@@ -65,19 +65,18 @@ pub(crate) fn href(config: &Config, asset: &Asset) -> String {
 /// The stylesheet as `khalid serve` holds it, cached for a year because
 /// its name changes with its content.
 pub(crate) fn stylesheet_page(config: &Config, asset: &Asset) -> Result<Page, UserMessage> {
-    served(config, asset, MediaType::Css)
+    served(config, asset.name(), MediaType::Css, asset.body())
 }
 
 /// The reader script as `khalid serve` holds it, cached for a year like
-/// the stylesheet, or `None` without one.
-pub(crate) fn script_page(config: &Config) -> Result<Option<Page>, UserMessage> {
-    reader()
-        .map(|script| served(config, script, MediaType::JavaScript))
-        .transpose()
+/// the stylesheet.
+pub(crate) fn script_page(config: &Config) -> Result<Page, UserMessage> {
+    let script = reader();
+    served(config, &script.name, MediaType::JavaScript, script.body)
 }
 
-fn served(config: &Config, asset: &Asset, kind: MediaType) -> Result<Page, UserMessage> {
-    let href = href(config, asset);
+fn served(config: &Config, name: &str, kind: MediaType, body: &[u8]) -> Result<Page, UserMessage> {
+    let href = format!("{}{FOLDER}{name}", config.mount());
     let path = PagePath::try_new(&href).map_err(|_| build_message::address(&href))?;
-    Ok(Page::immutable(path, kind, asset.body().to_vec()))
+    Ok(Page::immutable(path, kind, body.to_vec()))
 }

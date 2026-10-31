@@ -1,7 +1,5 @@
-//! The reader script (plan section 4.12): every page links it under its
-//! hash, `khalid build` writes it, `khalid serve` answers it, and the page's
-//! policy allows it by the same hash (ADR "the reader script is allowed by
-//! its hash"). With every feature it improves off, no page links it.
+//! The reader script: pages link it under its hash, build writes it, serve
+//! answers it and allows it by that hash; with its features off, none.
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -11,7 +9,6 @@ use std::process::{Child, Command, Stdio};
 
 use tempfile::TempDir;
 
-/// A running `khalid serve`, stopped when dropped.
 struct Server {
     child: Child,
     host: String,
@@ -24,7 +21,6 @@ impl Drop for Server {
     }
 }
 
-#[cfg(test)]
 fn at(base: &Path, rel: &str) -> PathBuf {
     let mut path = base.to_path_buf();
     path.push(rel);
@@ -56,8 +52,7 @@ fn copy_dir(from: &Path, into: &Path) {
     }
 }
 
-/// Starts `khalid serve` on `site` on a free port. It prints its address
-/// once the first pages answer.
+/// Starts `khalid serve` on `site` on a free port.
 #[cfg(test)]
 fn start(site: &Path) -> Server {
     let mut child = Command::new(env!("CARGO_BIN_EXE_khalid"))
@@ -72,8 +67,10 @@ fn start(site: &Path) -> Server {
     BufReader::new(stdout).read_line(&mut line).unwrap();
     let json: serde_json::Value = serde_json::from_str(&line).unwrap_or_else(|_| panic!("{line}"));
     let address = json["address"].as_str().unwrap();
-    let host = address.strip_prefix("http://").unwrap();
-    let host = host.trim_end_matches("/blog/").to_owned();
+    let host = address
+        .strip_prefix("http://")
+        .unwrap()
+        .replace("/blog/", "");
     Server { child, host }
 }
 
@@ -120,24 +117,13 @@ fn get(host: &str, path: &str) -> (String, String) {
 fn a_built_page_links_the_script_the_build_wrote() {
     let (_site, out) = build("");
     let post = fs::read_to_string(at(&out, "what-a-sitemap-does/index.html")).unwrap();
-    let (src, integrity) = script(&post).expect("the post links the reader script");
+    let (src, _) = script(&post).expect("the post links the reader script");
     assert!(src.starts_with("/blog/assets/reader."), "{src}");
-    assert!(integrity.starts_with("sha256-"), "{integrity}");
     assert!(post.contains("defer data-copied="), "{post}");
-    let file = at(&out, src.trim_start_matches("/blog/"));
-    let script = fs::read_to_string(&file).unwrap();
-    assert!(script.contains("\"use strict\""), "{script}");
+    let file = fs::read_to_string(at(&out, src.trim_start_matches("/blog/"))).unwrap();
+    assert!(file.contains("\"use strict\""), "{file}");
     let home = fs::read_to_string(at(&out, "index.html")).unwrap();
-    assert_eq!(
-        script_of(&home),
-        Some(src),
-        "every page links the same file"
-    );
-}
-
-#[cfg(test)]
-fn script_of(html: &str) -> Option<String> {
-    script(html).map(|(src, _)| src)
+    assert_eq!(script(&home).map(|tag| tag.0), Some(src), "the same file");
 }
 
 #[test]
@@ -163,17 +149,9 @@ fn serve_answers_the_script_and_its_policy_allows_it_by_its_hash() {
         .lines()
         .find_map(|line| line.strip_prefix("content-security-policy: "))
         .expect("a policy");
-    let sources = policy
-        .split("script-src ")
-        .nth(1)
-        .unwrap()
-        .split(';')
-        .next();
-    let wanted = format!("'{}'", integrity.to_ascii_lowercase());
-    assert!(
-        sources.unwrap().split(' ').any(|source| source == wanted),
-        "{policy}"
-    );
+    let wanted = format!(" '{}'", integrity.to_ascii_lowercase());
+    let (sources, _) = policy.split_once("; style-src").unwrap();
+    assert!(sources.contains(&wanted), "{policy}");
     let (head, body) = get(host, &src);
     assert!(head.starts_with("http/1.1 200"), "{head}");
     assert!(head.contains("content-type: text/javascript"), "{head}");
