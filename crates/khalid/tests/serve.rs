@@ -11,6 +11,8 @@ use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
+use chrono::TimeDelta;
+use khalid_core::{Clock, SystemClock};
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -287,6 +289,43 @@ fn serve_answers_the_sitemaps_feeds_and_aliases_beside_the_pages() {
         ("/blog/feed.xml", "<rss"),
         ("/blog/de/atom.xml", "<feed"),
         ("/blog/robots.txt", "Sitemap:"),
+    ] {
+        let answer = get(&server, path);
+        assert_eq!(answer.status, 200, "{path}");
+        assert!(answer.body.contains(text), "{path}:\n{}", answer.body);
+    }
+}
+
+#[test]
+fn serve_answers_the_news_sitemap_and_the_images_of_each_post() {
+    let site = demo_copy();
+    put(
+        site.path(),
+        "routes.toml",
+        "[collections.news]\npermalink = \"/news/{slug}/\"\nnews = true\n",
+    );
+    let yesterday = (SystemClock.now() - TimeDelta::days(1)).format("%Y-%m-%d");
+    let old = "content/en/posts/2026-09-28-what-a-sitemap-does.md";
+    let mut file = site.path().to_path_buf();
+    file.push(old);
+    let post = fs::read_to_string(&file).unwrap();
+    fs::remove_file(&file).unwrap();
+    put(
+        site.path(),
+        &format!("content/en/news/{yesterday}-what-a-sitemap-does.md"),
+        &post.replace("date: 2026-09-28", &format!("date: {yesterday}")),
+    );
+    let server = start(site.path());
+    for (path, text) in [
+        (
+            "/blog/sitemaps/news.xml",
+            "<loc>https://www.example.com/blog/news/what-a-sitemap-does/</loc>",
+        ),
+        (
+            "/blog/sitemaps/posts-en-1.xml",
+            "<image:loc>https://www.example.com/blog/fixing-slow-pages/page-weight.png</image:loc>",
+        ),
+        ("/blog/sitemap.xml", "/blog/sitemaps/news.xml</loc>"),
     ] {
         let answer = get(&server, path);
         assert_eq!(answer.status, 200, "{path}");

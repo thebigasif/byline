@@ -1,11 +1,11 @@
 //! The reader features of plan section 4.12 as `khalid build` fills them in:
-//! which ones are on, the people a post names, its contents and the posts
-//! related to it.
+//! which ones are on, the people a post names and its author's profile,
+//! its contents and the posts related to it.
 
 use std::collections::BTreeMap;
 
 use chrono::NaiveDate;
-use khalid_content::{Heading, PostFront, Rendered, SiteContent, Wikilinks};
+use khalid_content::{AuthorFront, Document, Heading, PostFront, Rendered, SiteContent, Wikilinks};
 use khalid_core::{AbsoluteUrl, Config, Locale, Reader, Slug, UserMessage};
 use khalid_render::{
     Contents, ContentsHeading, Feature, Features, HeadingLevel, Link, Person, PostTopics,
@@ -164,4 +164,41 @@ pub(crate) fn topics(
             .cloned()
             .collect(),
     }
+}
+
+/// The profile the schema of a post with `front` matter in `locale` gives
+/// its author, shown as `name`: the proof P5 asks for, their page, their
+/// profiles elsewhere and their credentials, so an engine judging the post
+/// can see who stands behind it. `None` when the author has no file.
+///
+/// # Errors
+///
+/// A [`UserMessage`] when the author page's address is not a full address.
+pub(crate) fn author_profile(
+    config: &Config,
+    locale: &Locale,
+    (front, name): (&PostFront, &str),
+    authors: &[Document<AuthorFront>],
+) -> Result<Option<AuthorProfile>, UserMessage> {
+    let Some(slug) = &front.author else {
+        return Ok(None);
+    };
+    let named = |doc: &&Document<AuthorFront>| doc.front.slug.as_ref() == Some(slug);
+    let Some(doc) = authors
+        .iter()
+        .find(|doc| &doc.locale == locale && named(doc))
+        .or_else(|| authors.iter().find(named))
+    else {
+        return Ok(None);
+    };
+    let href = path_of(config, locale, &format!("authors/{slug}/"));
+    let origin = config.address().as_str().trim_end_matches('/');
+    let address = format!("{origin}{href}");
+    let mut profile = AuthorProfile::new(name);
+    profile.url = Some(AbsoluteUrl::parse(&address).map_err(|_| build_message::address(&address))?);
+    profile.job_title.clone_from(&doc.front.role);
+    profile.credentials.clone_from(&doc.front.credentials);
+    profile.same_as.clone_from(&doc.front.same_as);
+    profile.bio = doc.body.split_whitespace().collect::<Vec<_>>().join(" ");
+    Ok(Some(profile))
 }
