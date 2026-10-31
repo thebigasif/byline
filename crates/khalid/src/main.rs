@@ -135,6 +135,7 @@ mod unlock;
 mod update;
 mod update_message;
 mod update_release;
+mod visitor_log;
 mod webhooks;
 
 use std::ffi::OsString;

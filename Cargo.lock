@@ -2026,6 +2026,7 @@ dependencies = [
  "chrono",
  "clap",
  "flate2",
+ "getrandom 0.4.3",
  "image",
  "insta",
  "khalid-admin",

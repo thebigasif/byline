@@ -182,7 +182,7 @@ fn serve_with(
         let pages = (unlocked, live, config.mount());
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
-        let (counter, pages) = page_counts::start((database, id), pages, config.mount());
+        let (counter, pages) = page_counts::start((database, id), pages, (site, config, outbound));
         let desks = (moderation, media, desk);
         let apis = api_router((content, door), desks, (database, id, config));
         let app = assembled(
