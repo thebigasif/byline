@@ -237,6 +237,7 @@ fn api_router(
             id,
             SystemClock,
         ))),
+        trash: None,
         audit: Some(AuditDesk::new(
             Arc::new(AuditTable::new(database.clone(), id)),
             SystemClock,

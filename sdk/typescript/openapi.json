@@ -3012,6 +3012,63 @@
         ]
       }
     },
+    "/api/admin/v1/trash/": {
+      "get": {
+        "tags": [
+          "admin trash"
+        ],
+        "summary": "Lists the deleted posts, the most recently deleted first. Needs\n`posts:write`.",
+        "operationId": "list_trash",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrashList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/webhooks/": {
       "get": {
         "tags": [
@@ -8577,6 +8634,58 @@
             "type": "string",
             "description": "The slug posts name it by.",
             "example": "on-page-seo"
+          }
+        }
+      },
+      "TrashList": {
+        "type": "object",
+        "description": "The trash as the Admin API wraps it.",
+        "required": [
+          "trash"
+        ],
+        "properties": {
+          "trash": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrashedPost"
+            },
+            "description": "The deleted posts, the most recently deleted first."
+          }
+        }
+      },
+      "TrashedPost": {
+        "type": "object",
+        "description": "A deleted post, as the Admin API shows it.",
+        "required": [
+          "key",
+          "id",
+          "title",
+          "status",
+          "trashed_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The post's identity when it was deleted.",
+            "example": "en.internal-links"
+          },
+          "key": {
+            "type": "string",
+            "description": "Names this copy in the trash, for restoring or deleting it.",
+            "example": "20261031T093000Z-en.internal-links"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PostStatus",
+            "description": "Its status when it was deleted."
+          },
+          "title": {
+            "type": "string",
+            "description": "Its title."
+          },
+          "trashed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was deleted."
           }
         }
       }

@@ -17,6 +17,7 @@ use crate::content_store::ContentStore;
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
 use crate::post_store::PostStore;
+use crate::post_trash::PostTrash;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
@@ -25,7 +26,7 @@ use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
     admin_api, admin_audit, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects,
-    admin_webhooks, api_version, content_api,
+    admin_trash, admin_webhooks, api_version, content_api,
 };
 
 pub use crate::audit_desk::AuditDesk;
@@ -219,6 +220,8 @@ pub struct AdminDesks {
     /// The audit log every write that succeeds is kept in, or `None` when
     /// nothing is logged and the audit route lists nothing.
     pub audit: Option<AuditDesk>,
+    /// Where deleted posts wait, or `None` when the trash routes list none.
+    pub trash: Option<Arc<dyn PostTrash>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -231,8 +234,8 @@ impl std::fmt::Debug for AdminDesks {
 }
 
 impl AdminDesks {
-    /// No comments, no media library, no stored redirects, no webhooks and
-    /// no audit log.
+    /// No comments, no media library, no stored redirects, no webhooks, no
+    /// audit log and no trash.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -240,8 +243,24 @@ impl AdminDesks {
             redirects: RedirectDesk::none(),
             webhooks: None,
             audit: None,
+            trash: None,
         }
     }
+}
+
+/// [`router_with_door`] keeping each deleted post in `trash`, under
+/// `/api/admin/v1/trash/`. `trash` is usually the store behind `door`.
+pub fn router_with_trash(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    trash: Arc<dyn PostTrash>,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        trash: Some(trash),
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
 }
 
 /// [`router_with_door`] keeping every write that succeeds in `audit`'s
@@ -311,6 +330,7 @@ fn assemble(
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))
         .merge(admin_redirect_csv::routes(redirects.clone(), door.clone()))
         .merge(admin_redirects::routes(redirects, door.clone()))
+        .merge(admin_trash::routes(desks.trash, door.clone()))
         .merge(admin_webhooks::routes(desks.webhooks, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
