@@ -51,6 +51,16 @@ Other briefs own the rest of section 4.6: the editor (G50), Media (G51), the too
 - List staff, invite someone with a role, change a role and remove someone on `/api/admin/v1/staff/`. Handing the site to a new owner waits for its own screen.
 - Done when: a test invites someone, changes a role, removes someone, shows the API's 403 and 409 in plain words, and axe finds nothing.
 
+### 4.10 Webhook activity
+- Status: `todo`.
+- Show what one webhook sent, newest first, on a new `GET /api/admin/v1/webhooks/{id}/deliveries/`: delivered, trying again or given up, with each try. Decision: `docs/decisions/2026-10-31-admin-activity-owner.md`.
+- Done when: a request test lists a webhook's deliveries with their attempts from SQLite, a screen test shows each state in words, and axe finds nothing.
+
+### 4.11 Hand the site on
+- Status: `todo`.
+- Make another person on the team the owner with `POST /api/admin/v1/staff/{id}/owner/`, on its own screen that says what changes before it asks.
+- Done when: a test hands the site to someone and sees them as owner, shows the API's 403 in plain words, and axe finds nothing.
+
 ## Questions for the founder
 
 None. Choices taken without asking are in the decision above.
