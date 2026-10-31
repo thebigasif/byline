@@ -95,3 +95,6 @@ INSERT INTO crawl_log (site_id, day, path, crawler, kind, hits, last_seen, last_
     (2, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200);
 INSERT INTO alerts_raised (site_id, key, raised_at) VALUES
     (1, 'stale-post:en.old-post', '2026-10-26T09:00:00Z'), (2, 'stale-post:en.old-post', '2026-10-26T09:00:00Z');
+INSERT INTO site_watch (site_id, page, looked_at, status, millis) VALUES
+    (1, 'https://www.example.com/blog/', '2026-10-26T09:00:00Z', 200, 120),
+    (2, 'https://www.example.com/blog/', '2026-10-26T09:00:00Z', NULL, 10000);

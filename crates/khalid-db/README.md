@@ -48,6 +48,7 @@ A test reads the table below and checks it lists every table in the schema, once
 | `analytics_counts` | visitor | Page views per day, page and referrer group, counted without cookies |
 | `crawl_log` | visitor | Which bots asked for which address each day, as their user agent named them, with the latest time and status; 90 days kept |
 | `alerts_raised` | visitor | The key of each alert finding sent to the owner, so it is sent once while the problem lasts |
+| `site_watch` | visitor | Each look the speed and uptime watch took at a page of the public address, with its status and time; 30 days kept |
 
 ## Changing a query
 

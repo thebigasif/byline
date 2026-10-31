@@ -18,7 +18,8 @@
 //! [`CommentTable`] that `khalid-comments` moderates through, and the staff
 //! accounts, as the [`AccountTable`], [`SessionTable`], [`LinkTable`] and
 //! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
-//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into.
+//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into, and
+//! the speed and uptime watch's looks, as the [`WatchTable`].
 
 mod account_table;
 mod alert_table;
@@ -44,6 +45,7 @@ mod site_id;
 mod site_keys;
 mod site_lists;
 mod subscriber_table;
+mod watch_table;
 mod webhook_table;
 
 pub use account_table::AccountTable;
@@ -67,4 +69,5 @@ pub use session_table::SessionTable;
 pub use site_export::{Cell, ExportTable, SiteExport, is_withheld_column};
 pub use site_id::SiteId;
 pub use subscriber_table::SubscriberTable;
+pub use watch_table::WatchTable;
 pub use webhook_table::WebhookTable;
