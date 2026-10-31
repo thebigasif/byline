@@ -46,8 +46,12 @@ impl Environment {
     /// their Search Console numbers.
     pub const GOOGLE_REFRESH_TOKEN: &str = "KHALID_GOOGLE_REFRESH_TOKEN";
 
+    /// The secret a git host signs push hooks with, in git mode. Set, it
+    /// opens `khalid serve`'s push hook; unset, the hook is not there.
+    pub const GIT_HOOK_SECRET: &str = "KHALID_GIT_HOOK_SECRET";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 10] = [
+    const ALL: [&str; 11] = [
         Self::ADDRESS,
         Self::KEY,
         Self::S3_ACCESS_KEY_ID,
@@ -58,10 +62,11 @@ impl Environment {
         Self::BING_API_KEY,
         Self::GOOGLE_CLIENT_SECRET,
         Self::GOOGLE_REFRESH_TOKEN,
+        Self::GIT_HOOK_SECRET,
     ];
 
     /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 8] = [
+    const HIDDEN: [&str; 9] = [
         Self::KEY,
         Self::S3_SECRET_ACCESS_KEY,
         Self::SMTP_PASSWORD,
@@ -70,6 +75,7 @@ impl Environment {
         Self::BING_API_KEY,
         Self::GOOGLE_CLIENT_SECRET,
         Self::GOOGLE_REFRESH_TOKEN,
+        Self::GIT_HOOK_SECRET,
     ];
 
     /// Reads Khalid's variables from this process's environment.
@@ -151,6 +157,12 @@ impl Environment {
     /// it is unset or blank.
     pub fn google_refresh_token(&self) -> Option<Secret<String>> {
         self.secret(Self::GOOGLE_REFRESH_TOKEN)
+    }
+
+    /// The secret in [`Environment::GIT_HOOK_SECRET`], or `None` when it
+    /// is unset or blank.
+    pub fn git_hook_secret(&self) -> Option<Secret<String>> {
+        self.secret(Self::GIT_HOOK_SECRET)
     }
 
     /// The variable `name`, trimmed, as a secret, or `None` when it is

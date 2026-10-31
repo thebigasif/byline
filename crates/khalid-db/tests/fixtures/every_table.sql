@@ -112,3 +112,7 @@ INSERT INTO audit_log (site_id, at, by_key, action, route, path) VALUES
 INSERT INTO site_watch (site_id, page, looked_at, status, millis) VALUES
     (1, 'https://www.example.com/blog/', '2026-10-26T09:00:00Z', 200, 120),
     (2, 'https://www.example.com/blog/', '2026-10-26T09:00:00Z', NULL, 10000);
+INSERT INTO draft_comments (id, site_id, post_id, parent_id, block, author, body, resolved, created_at) VALUES
+    (1, 1, 'en.choosing-anchor-text', NULL, 2, '3333444455556666', 'Name the tool here?', 1, '2026-10-26T09:00:00Z'),
+    (2, 1, 'en.choosing-anchor-text', 1, 2, '2222333344445555', 'Done.', 0, '2026-10-26T09:05:00Z'),
+    (3, 2, 'en.choosing-anchor-text', NULL, NULL, '3333444455556666', 'Good start.', 0, '2026-10-26T09:00:00Z');

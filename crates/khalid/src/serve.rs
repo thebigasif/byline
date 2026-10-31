@@ -28,6 +28,7 @@ use khalid_db::{
 };
 use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
+use khalid_newsletter::Mailer;
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, watch};
@@ -58,9 +59,10 @@ use crate::site_tags::SiteTags;
 use crate::site_watch::SiteWatch;
 use crate::tag_events::Tags;
 use crate::{
-    alert_watch, announce, assets, comment_pages, consent_route, db, db_message, form_pages,
-    media_library, newsletter, page_counts, preview, redirect_route, report, scheduler,
-    search_route, serve_message, share_images, staff, staff_toolbar, unlock,
+    alert_watch, announce, assets, comment_pages, consent_route, db, db_message,
+    draft_comment_mail, form_pages, media_library, newsletter, page_counts, preview, push_hook,
+    redirect_route, report, scheduler, search_route, serve_message, share_images, staff,
+    staff_toolbar, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -84,6 +86,8 @@ pub(crate) struct Keys {
     pub(crate) bucket: Option<S3Keys>,
     /// The password, key or token the `[mail]` transport signs in with.
     pub(crate) mail: Option<Secret<String>>,
+    /// The secret git mode's push hook checks, which opens the hook.
+    pub(crate) git_hook: Option<Secret<String>>,
 }
 
 impl Keys {
@@ -93,6 +97,7 @@ impl Keys {
         Self {
             bucket: env.s3_keys(),
             mail: mail.and_then(|transport| env.mail_secret(transport)),
+            git_hook: env.git_hook_secret(),
         }
     }
 }
@@ -188,6 +193,7 @@ fn serve_with(
         &content,
         (keys.mail, outbound),
     )?;
+    let mailer = alerting.mailer.clone();
     let served = runtime.block_on(async {
         let front = Door::open((site, listen, among), (output, config)).await?;
         let live = LivePages::new(first);
@@ -217,7 +223,9 @@ fn serve_with(
         let editing = (content.clone(), posts.clone());
         let pages = staff_toolbar::start((database, id, config), editing, pages);
         let (desks, at) = ((moderation, media, desk), (database, id, (site, config)));
-        let apis = api_router((content, door, posts), desks, at, site_hosts::panel(among));
+        let helpers = (site_hosts::panel(among), mailer);
+        let apis = api_router((content, door, posts), desks, at, helpers)
+            .merge(push_hook::router(site, keys.git_hook));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -328,12 +336,13 @@ fn first_pages(
 /// comment moderation, media library, stored redirects, webhooks and staff
 /// accounts of site `id`, the post checks, schema templates, pages,
 /// snippets, authors, tags, categories and settings of the site in `site`,
-/// and the super-admin routes over `panel`.
+/// the super-admin routes over `panel`, and comments on drafts emailed
+/// through `mailer` when the site sends mail.
 fn api_router(
     (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
     (database, id, (site, config)): (&Database, SiteId, (&Path, &Config)),
-    panel: Arc<dyn SiteDirectory>,
+    (panel, mailer): (Arc<dyn SiteDirectory>, Option<Arc<dyn Mailer>>),
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
     let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
@@ -365,6 +374,7 @@ fn api_router(
             Arc::new(AnalyticsTable::new(database.clone(), id)),
             Arc::new(SystemClock),
         ),
+        draft_comments: Some(draft_comment_mail::desk((database, id, config), mailer)),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

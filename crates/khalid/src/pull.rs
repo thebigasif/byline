@@ -33,10 +33,10 @@ struct PullBody {
 
 /// Where the pull moved the repository: the commits before and after, and
 /// how many files changed between them.
-struct Moved {
+pub(crate) struct Moved {
     from: String,
     to: String,
-    files: usize,
+    pub(crate) files: usize,
 }
 
 /// Pulls the repository holding `site`, then checks the site and builds a
@@ -63,8 +63,8 @@ pub(crate) fn run(site: &Path, clock: &dyn Clock, output: Output) -> Exit {
 }
 
 /// Fast-forwards the repository holding `site` to its upstream branch, and
-/// says where it moved.
-fn pulled(site: &Path) -> Result<Moved, UserMessage> {
+/// says where it moved. The push hook of `khalid serve` calls it too.
+pub(crate) fn pulled(site: &Path) -> Result<Moved, UserMessage> {
     if !within(site, "site.toml").is_file() {
         return Err(pull_message::not_a_site(site));
     }

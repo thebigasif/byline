@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 
 use super::real_update::{NotRealUpdate, RealUpdate};
 use super::settings_edit::Change;
-use super::{PostSettings, SettingsEdit, display, display_option};
+use super::{PostSettings, ReviewState, SettingsEdit, display, display_option};
 use crate::post_password::HashPasswordError;
 use crate::schedule_store::Schedule;
 
@@ -392,6 +392,12 @@ impl PostEdit {
     /// other post has it.
     pub fn slug(&self) -> Option<&Slug> {
         self.slug.as_ref()
+    }
+
+    /// The review state `post` is in once this edit is saved.
+    pub fn review_state_for(&self, post: &AdminPost) -> ReviewState {
+        let asked = self.settings.as_ref().and_then(SettingsEdit::review_state);
+        asked.unwrap_or(post.settings.review_state)
     }
 
     /// Whether the edit sends head code at all, changed or not.

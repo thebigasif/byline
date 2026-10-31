@@ -18,6 +18,7 @@ use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_key::ContentDoor;
 use crate::content_store::ContentStore;
+use crate::draft_comments::DraftComments;
 use crate::entry_store::EntryStore;
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
@@ -34,10 +35,11 @@ use crate::settings_store::SettingsStore;
 use crate::tag_store::TagStore;
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_analytics, admin_api, admin_api_keys, admin_audit, admin_authors, admin_categories,
-    admin_check, admin_comments, admin_not_found, admin_pages, admin_redirect_csv,
-    admin_redirects, admin_schema_templates, admin_site_settings, admin_snippets, admin_tags,
-    admin_trash, admin_webhooks, api_version, content_api,
+    admin_analytics, admin_api, admin_api_keys, admin_audit, admin_authors, admin_calendar,
+    admin_categories, admin_check, admin_comments, admin_draft_comments, admin_draft_threads,
+    admin_not_found, admin_pages, admin_redirect_csv, admin_redirects, admin_schema_templates,
+    admin_site_settings, admin_snippets, admin_tags, admin_trash, admin_webhooks, api_version,
+    content_api,
 };
 
 pub use crate::audit_desk::AuditDesk;
@@ -261,6 +263,9 @@ pub struct AdminDesks {
     pub settings: Option<Arc<dyn SettingsStore>>,
     /// The views `khalid serve` counted, read under `/api/admin/v1/analytics/`.
     pub analytics: AnalyticsDesk,
+    /// Staff comments on drafts, or `None` when the routes list none and
+    /// answer that the site keeps none.
+    pub draft_comments: Option<DraftComments>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -275,8 +280,8 @@ impl std::fmt::Debug for AdminDesks {
 impl AdminDesks {
     /// No comments, no media library, no stored redirects, no webhooks, no
     /// audit log, no trash, no post checks, no schema templates, no pages, no
-    /// snippets, no authors, no tags, no categories, no settings and no
-    /// counted views.
+    /// snippets, no authors, no tags, no categories, no settings, no
+    /// counted views and no comments on drafts.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -294,6 +299,7 @@ impl AdminDesks {
             categories: None,
             settings: None,
             analytics: AnalyticsDesk::none(),
+            draft_comments: None,
         }
     }
 }
@@ -308,6 +314,21 @@ pub fn router_with_trash(
 ) -> (Router, Document) {
     let desks = AdminDesks {
         trash: Some(trash),
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
+}
+
+/// [`router_with_door`] with comments on drafts under
+/// `/api/admin/v1/posts/{id}/draft-comments/`, kept in `comments`.
+pub fn router_with_draft_comments(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    comments: DraftComments,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        draft_comments: Some(comments),
         ..AdminDesks::none()
     };
     assemble(content, door, keys, desks, None)
@@ -404,8 +425,19 @@ fn assemble(
         limits,
     };
     let redirects = desks.redirects;
-    let mut admin = admin_api::routes(posts, door.clone())
+    let mut admin = admin_api::routes(Arc::clone(&posts), door.clone())
         .merge(admin_audit::routes(desks.audit, door.clone()))
+        .merge(admin_calendar::routes(Arc::clone(&posts), door.clone()))
+        .merge(admin_draft_comments::routes(
+            Arc::clone(&posts),
+            desks.draft_comments.clone(),
+            door.clone(),
+        ))
+        .merge(admin_draft_threads::routes(
+            posts,
+            desks.draft_comments,
+            door.clone(),
+        ))
         .merge(admin_comments::routes(desks.comments, door.clone()))
         .merge(media_api::routes(desks.media, door.clone()))
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))

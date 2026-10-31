@@ -46,7 +46,7 @@ Every operation of the Content API and the Admin API that a key may call is a to
 - `browse_posts` lists published posts, newest first. It takes `filter` (such as `tag:news+featured:true`), `order` (such as `published_at desc`), `limit` and `page`. Drafts are not listed.
 - `read_admin_post` reads one post in any status by `id`, with its markdown and its `updated_at`.
 - `create_admin_post` saves a new draft. Send `body` as `{"posts": [{"title": ..., "author": ..., "markdown": ...}]}`. To send HTML instead, which is cleaned and turned into markdown, put it in `html` and add `"source": "html"`. An `Idempotency-Key` makes a retry safe.
-- `edit_admin_post` changes the fields of a post you send in `body` as `{"posts": [{...}]}`, with the `updated_at` you last read.
+- `edit_admin_post` changes the fields of a post you send in `body` as `{"posts": [{...}]}`, with the `updated_at` you last read. To move a draft between review states, send `"settings": {"review_state": ...}` with `draft`, `in_review` or `ready`. Send `in_review` when a draft is finished, so an editor reads it. Only an editor, an admin or the owner may mark it `ready`.
 
 Two tools are not operations of their own:
 
