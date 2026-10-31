@@ -2,10 +2,18 @@ import { Editor } from "@tiptap/core";
 import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { directiveNodes } from "./blocks/directiveNode";
+import { FootnoteMark, FootnoteText, MarkdownTable } from "./blocks/markdownBlocks";
 import { BLOCK_SPECS, INNER_BLOCKS } from "./blocks/specs";
 
 /** The blocks the rich-text view knows, each with its markdown form. */
-export const extensions = [StarterKit, Markdown, ...directiveNodes];
+export const extensions = [
+  StarterKit,
+  Markdown,
+  ...directiveNodes,
+  MarkdownTable,
+  FootnoteText,
+  FootnoteMark,
+];
 
 /** The markdown the rich-text view writes for `markdown` after reading it. */
 export function throughRichText(markdown: string): string {

@@ -40,6 +40,9 @@ const BLOCKS: Record<string, string> = {
   toggle: ':::toggle{summary="Why does this matter?"}\nSearch engines read it.\n:::',
   video:
     '::video{src="/media/site-tour.mp4" title="A tour of the site" poster="/media/site-tour.jpg" description="Where posts, pages and settings live." duration="2:05"}',
+  table: "| Block | Form |\n| --- | --- |\n| toc | leaf |",
+  footnote: "Links help readers.[^1]\n\n[^1]: And search engines.",
+  longFootnote: "One.[^long]\n\n[^long]: A note on\n    two lines.",
 };
 
 /** The editor's document for `markdown`, as Tiptap JSON. */
@@ -82,6 +85,13 @@ describe("the editor's blocks", () => {
   it("reads a block's attributes into the node", () => {
     const button = read(BLOCKS.button ?? "").content?.[0];
     expect(button?.attrs).toMatchObject({ href: "/pricing/", label: "See prices" });
+  });
+
+  it("reads a table and a footnote as their own nodes", () => {
+    expect(read(BLOCKS.table ?? "").content?.[0]?.type).toBe("markdownTable");
+    const [text, note] = read(BLOCKS.footnote ?? "").content ?? [];
+    expect(text?.content?.at(-1)).toMatchObject({ type: "footnoteMark", attrs: { label: "1" } });
+    expect(note?.type).toBe("footnoteText");
   });
 
   it("keeps every block in a post in its place", () => {

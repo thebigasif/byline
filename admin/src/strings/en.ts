@@ -316,6 +316,8 @@ export const en = {
     toc: "Table of contents",
     toggle: "Toggle",
     video: "Video",
+    table: "Table",
+    footnote: "Footnote",
   },
   editor: {
     heading: "Editing",
