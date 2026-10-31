@@ -30,8 +30,18 @@ export const pictures = {
     square: "Square",
     wide: "Wide, 16 by 9",
     standing: "Standing, 3 by 4",
+    own: "Your own box",
   },
   shapeHint: "The crop keeps the picture's focus point in view.",
+  ownHint:
+    "Drag the box to move it and the round handle to change its size. The four fields below do the same without dragging. Turning starts the box again.",
+  stage: "The picture, with the part to keep in a box",
+  sides: {
+    left: "From the left, %",
+    top: "From the top, %",
+    width: "Width, %",
+    height: "Height, %",
+  },
   saveCopy: "Save as a new copy",
   saving: "Making the copy",
   copyFailed: "The blog did not answer, so no copy was made. Check the connection, then try again.",

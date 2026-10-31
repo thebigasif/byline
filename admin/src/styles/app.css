@@ -79,6 +79,12 @@
   .turn-preview .turn-90{transform:rotate(90deg)}
   .turn-preview .turn-180{transform:rotate(180deg)}
   .turn-preview .turn-270{transform:rotate(270deg)}
+  .crop-stage{display:block;width:100%;max-width:28rem;height:auto;touch-action:none;user-select:none}
+  .crop-shade{fill:rgb(255 255 255 / .6);pointer-events:none}
+  .crop-box{fill:transparent;stroke:var(--color-link);stroke-width:.5%;cursor:move}
+  .crop-handle{fill:var(--color-link);stroke:var(--color-bg);stroke-width:.3%;cursor:nwse-resize}
+  .crop-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(8rem,1fr));gap:0 .75rem;margin:0 0 1rem}
+  .crop-fields input{width:100%;min-height:44px}
   .picture-grid span{display:block;padding:.25rem .5rem;color:var(--color-muted);font-size:.875rem}
   .aid-title{font-size:.875rem;color:var(--color-muted);padding:.75rem 1rem .25rem;margin:0}
   .aid-menu ul{list-style:none;margin:0;padding:0 .25rem .25rem}
