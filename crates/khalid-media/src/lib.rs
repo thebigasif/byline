@@ -30,6 +30,7 @@ mod original;
 mod s3_storage;
 mod sig_v4;
 mod stock;
+mod stock_unsplash;
 mod storage;
 mod variant;
 mod whole_file;

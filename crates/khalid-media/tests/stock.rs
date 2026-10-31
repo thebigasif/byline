@@ -4,7 +4,8 @@
 use khalid_core::Secret;
 use khalid_media::{Access, PictureSource, StockApis, StockError, StockSearch};
 use khalid_outbound::{Limits, Outbound, Reach, Resolver};
-use wiremock::matchers::{header, method, path};
+use serde_json::json;
+use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const UNSPLASH_KEY: &str = "made-for-this-test-unsplash";
@@ -35,6 +36,82 @@ fn both(server: &MockServer) -> StockSearch {
     search(server, keyed(UNSPLASH_KEY))
 }
 
+#[cfg(test)]
+fn lake() -> serde_json::Value {
+    json!({
+        "total": 1,
+        "results": [{
+            "id": "Ab-12_c",
+            "width": 4000,
+            "height": 3000,
+            "description": null,
+            "alt_description": "a boat on a still lake at dawn",
+            "urls": {
+                "regular": "https://images.unsplash.com/photo-1?w=1080",
+                "small": "https://images.unsplash.com/photo-1?w=400"
+            },
+            "links": { "html": "https://unsplash.com/photos/Ab-12_c" },
+            "user": {
+                "name": "Ana Silva",
+                "links": { "html": "https://unsplash.com/@anasilva" }
+            }
+        }]
+    })
+}
+
+#[tokio::test]
+async fn finds_photos_on_unsplash_with_the_key_in_a_header() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search/photos"))
+        .and(query_param("query", "mountain lake"))
+        .and(query_param("page", "2"))
+        .and(query_param("content_filter", "high"))
+        .and(header(
+            "authorization",
+            "Client-ID made-for-this-test-unsplash",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(lake()))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let found = both(&server)
+        .search(PictureSource::Unsplash, " mountain lake ", 2)
+        .await
+        .unwrap();
+    let [photo] = found.as_slice() else {
+        panic!("one photo, found {found:?}");
+    };
+    assert_eq!(photo.source, PictureSource::Unsplash);
+    assert_eq!(photo.id, "Ab-12_c");
+    assert_eq!(photo.description, "a boat on a still lake at dawn");
+    assert_eq!(photo.address, "https://images.unsplash.com/photo-1?w=1080");
+    assert_eq!(photo.preview, "https://images.unsplash.com/photo-1?w=400");
+    assert_eq!((photo.width, photo.height), (1080, 810));
+    assert_eq!(photo.credit, "Ana Silva");
+    assert_eq!(
+        photo.credit_link,
+        "https://unsplash.com/@anasilva?utm_source=khalid&utm_medium=referral"
+    );
+    assert_eq!(
+        photo.page,
+        "https://unsplash.com/photos/Ab-12_c?utm_source=khalid&utm_medium=referral"
+    );
+}
+
+#[tokio::test]
+async fn an_answer_that_is_not_json_is_unreadable() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("<html>"))
+        .mount(&server)
+        .await;
+    let answer = both(&server)
+        .search(PictureSource::Unsplash, "lake", 1)
+        .await;
+    assert!(matches!(answer, Err(StockError::Unreadable)), "{answer:?}");
+}
+
 #[tokio::test]
 async fn asks_nothing_when_off_or_without_a_key() {
     let server = MockServer::start().await;
@@ -42,6 +119,8 @@ async fn asks_nothing_when_off_or_without_a_key() {
     assert!(!off.is_on(PictureSource::Unsplash));
     let unused = off.used("Ab-12_c").await;
     assert!(matches!(unused, Err(StockError::Off)), "{unused:?}");
+    let unsearched = off.search(PictureSource::Unsplash, "lake", 1).await;
+    assert!(matches!(unsearched, Err(StockError::Off)), "{unsearched:?}");
     let keyless = search(&server, Access::on_with(None));
     assert!(keyless.is_on(PictureSource::Unsplash));
     let missing = keyless.used("Ab-12_c").await;

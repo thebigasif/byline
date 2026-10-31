@@ -7,8 +7,16 @@
 use khalid_core::{Environment, Secret};
 use khalid_outbound::Outbound;
 
+use crate::stock_unsplash;
+
 /// Unsplash's API, where photo search asks.
 const UNSPLASH_API: &str = "https://api.unsplash.com/";
+
+/// How many pictures one page of results holds.
+pub(crate) const PER_PAGE: u32 = 24;
+
+/// The longest search, in characters.
+const MAX_WORDS: usize = 100;
 
 /// Where a picture comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -150,16 +158,42 @@ impl StockSearch {
         !matches!(self.access(source), Access::Off)
     }
 
+    /// Page `page` of the pictures `source` has for `words`; the first page
+    /// is 1. Unsplash leaves out photos unsuited to all ages.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StockError::Off`] or [`StockError::NoKey`] before asking,
+    /// [`StockError::KeyRefused`] or [`StockError::Busy`] as the source
+    /// answers, [`StockError::Unreachable`] when it cannot be reached, and
+    /// [`StockError::Unreadable`] for an answer that is not its JSON.
+    pub async fn search(
+        &self,
+        source: PictureSource,
+        words: &str,
+        page: u32,
+    ) -> Result<Vec<FoundPicture>, StockError> {
+        let key = self.key(source)?;
+        let words: String = words.trim().chars().take(MAX_WORDS).collect();
+        let page = page.max(1);
+        let found = match source {
+            PictureSource::Unsplash => {
+                let query = encode(&stock_unsplash::query(&words, page));
+                let url = format!("{}search/photos?{query}", self.apis.unsplash);
+                stock_unsplash::read(&self.ask(&url, Some(key)).await?)
+            }
+        };
+        found.map_err(|_| StockError::Unreadable)
+    }
+
     /// Tells Unsplash the photo `id` was put in a post, as its API terms
     /// ask whenever a photo is used.
     ///
     /// # Errors
     ///
-    /// Returns [`StockError::Off`] or [`StockError::NoKey`] before asking,
-    /// [`StockError::NotFound`] for an identity Unsplash never makes or
-    /// does not know, [`StockError::KeyRefused`] or [`StockError::Busy`] as
-    /// Unsplash answers, and [`StockError::Unreachable`] when it cannot be
-    /// reached.
+    /// Returns [`StockError::NotFound`] for an identity Unsplash never
+    /// makes or does not know, and otherwise the errors of
+    /// [`StockSearch::search`].
     pub async fn used(&self, id: &str) -> Result<(), StockError> {
         let key = self.key(PictureSource::Unsplash)?;
         let fits = |c: char| c.is_ascii_alphanumeric() || c == '-' || c == '_';
@@ -215,4 +249,13 @@ impl StockSearch {
             }),
         }
     }
+}
+
+/// `pairs` written as a query string.
+fn encode(pairs: &[(&str, String)]) -> String {
+    let mut query = form_urlencoded::Serializer::new(String::new());
+    for (name, value) in pairs {
+        query.append_pair(name, value);
+    }
+    query.finish()
 }
