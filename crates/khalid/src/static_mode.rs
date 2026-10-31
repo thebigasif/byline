@@ -1,13 +1,17 @@
 //! Static mode in the binary (KH-OPS-1): the features a static site has
 //! off, as the owner reads them in `khalid build` and `khalid doctor`, and
-//! each built page with its forms locked (ADR "static mode locks forms
-//! after the page is rendered").
+//! each built page with its forms, comments and gated content locked (ADRs
+//! "static mode locks forms after the page is rendered" and "static lock
+//! cards").
 
 use std::fmt::Write as _;
 
-use khalid_core::{Locale, Mode, UserMessage};
+use khalid_core::{Config, Locale, Mode, UserMessage};
+use khalid_render::{PageBody, RenderComments};
 use khalid_static::{LockError, Locks, ServerFeature};
 use serde::Serialize;
+
+use crate::build_pages::LanguagePages;
 
 /// The fix for most locks: the one change that brings every feature back.
 const SWITCH: &str =
@@ -41,12 +45,12 @@ fn message(feature: ServerFeature) -> UserMessage {
     match feature {
         ServerFeature::Comments => UserMessage::new(
             "Comments are off.",
-            "A static host only sends files, so nothing can keep a reader's comment.",
+            "A static host only sends files, so nothing can keep a reader's comment, and each post shows a short note instead.",
             SWITCH,
         ),
         ServerFeature::Newsletter => UserMessage::new(
-            "Newsletter sign-up is off.",
-            "Nothing on a static host can keep a reader's email address, so each sign-up form shows a short note instead.",
+            "Newsletter sign-up and gated content are off.",
+            "Nothing on a static host can keep a reader's email address, so each sign-up form and gated part shows a short note instead.",
             SWITCH,
         ),
         ServerFeature::Forms => UserMessage::new(
@@ -62,12 +66,12 @@ fn message(feature: ServerFeature) -> UserMessage {
         ServerFeature::Admin => UserMessage::new(
             "The admin is not part of the built site.",
             "The admin needs a running server, and a static host runs none.",
-            "Edit the files in content on your own computer, then run `khalid build` again.",
+            "Edit the files in content on your own computer, then run `khalid export` again.",
         ),
         ServerFeature::ScheduledPublish => UserMessage::new(
             "Scheduled publish is off.",
-            "A static site changes only when you build it, so a post set for later waits for the next build.",
-            "Run `khalid build` on a schedule, or set mode = \"server\" in site.toml and run `khalid serve`.",
+            "A static site changes only when you export it, so a post set for later waits for the next export.",
+            "Run `khalid export` on a schedule, or set mode = \"server\" in site.toml and run `khalid serve`.",
         ),
         _ => UserMessage::new(
             format!("The {} feature is off.", feature.name()),
@@ -99,6 +103,28 @@ pub(crate) fn human(off: &[Off]) -> String {
         );
     }
     said
+}
+
+/// Gives each post page of a static site an empty comments section, which
+/// the page lock then swaps for the comments note, so readers learn that
+/// comments are closed rather than finding nothing. Call it before
+/// `post_lock::lock`, which takes the section off a locked post.
+pub(crate) fn comments(config: &Config, languages: &mut [LanguagePages]) {
+    if config.mode() != Mode::Static {
+        return;
+    }
+    let action = format!("{}comments/", config.mount());
+    for language in languages {
+        for page in &mut language.pages {
+            if let PageBody::Post(post) = &mut page.body {
+                post.comments = Some(RenderComments {
+                    threads: Vec::new(),
+                    action: action.clone(),
+                    page: page.meta.path.clone(),
+                });
+            }
+        }
+    }
 }
 
 /// The notes that stand in for forms, when `mode` is static.
@@ -145,7 +171,7 @@ fn lock_message(file: &str, error: &LockError) -> UserMessage {
     UserMessage::new(
         format!("Khalid could not make the static page {file}: {error}."),
         "A static page must not keep a form that sends to the site, and a form left open hides where the page goes on.",
-        "Close the form in the template or post that writes it, then build again.",
+        "Close the form or section in the template or post that writes it, then build again.",
     )
 }
 

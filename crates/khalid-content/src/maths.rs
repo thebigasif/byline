@@ -9,16 +9,27 @@ use math_core::{LatexToMathML, MathCoreConfig, MathDisplay};
 /// The `MathML` for a formula, as a block for `$$`, or why it cannot be
 /// drawn, in a phrase.
 pub(crate) fn mathml(math: &NodeMath) -> Result<String, String> {
-    let Some(converter) = converter() else {
-        return Err("the maths reader could not start".to_owned());
-    };
     let style = if math.display_math {
         MathDisplay::Block
     } else {
         MathDisplay::Inline
     };
+    convert(&math.literal, style)
+}
+
+/// The `MathML` for `formula` on its own, as a block, or why it cannot be
+/// drawn, in a phrase.
+pub(crate) fn display(formula: &str) -> Result<String, String> {
+    convert(formula, MathDisplay::Block)
+}
+
+/// Draws `formula` in `style`.
+fn convert(formula: &str, style: MathDisplay) -> Result<String, String> {
+    let Some(converter) = converter() else {
+        return Err("the maths reader could not start".to_owned());
+    };
     converter
-        .convert_with_local_state(math.literal.trim(), style)
+        .convert_with_local_state(formula.trim(), style)
         .map(|converted| converted.mathml)
         .map_err(|error| error.label().to_owned())
 }

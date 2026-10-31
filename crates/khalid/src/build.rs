@@ -17,6 +17,7 @@ use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
+use crate::page_code::PageCode;
 use crate::post_files::Assets;
 use crate::post_photos::Shown;
 use crate::site_page::HeadNonce;
@@ -56,21 +57,39 @@ pub(crate) fn run(
     if inside(&out, &within(site, "content")) {
         return report::failure(output, &build_message::into_content(&out), Exit::Failure);
     }
+    match into_folder(site, (config, routes, content), &out, clock, output) {
+        Ok(written) => success(output, &out, written, config),
+        Err(exit) => exit,
+    }
+}
+
+/// Builds the checked site into `out` once the lint gate lets every post
+/// through, as `khalid build` does, and says how many pages it wrote. A
+/// refusal or a failure is printed in `output` and comes back as its exit.
+pub(crate) fn into_folder(
+    site: &Path,
+    (config, routes, content): (&Config, &Routes, &SiteContent),
+    out: &Path,
+    clock: &dyn Clock,
+    output: Output,
+) -> Result<usize, Exit> {
     let linter = match lint::lint_settings(site).map(|settings| Linter::new(&settings, clock)) {
         Ok(Ok(linter)) => linter,
         Ok(Err(error)) => {
-            return report::failure(output, &lint_message::of(&error), Exit::Internal);
+            return Err(report::failure(
+                output,
+                &lint_message::of(&error),
+                Exit::Internal,
+            ));
         }
-        Err(message) => return report::failure(output, &message, Exit::Failure),
+        Err(message) => return Err(report::failure(output, &message, Exit::Failure)),
     };
     let refused = build_gate::refused(&linter, content, config, routes);
     if !refused.is_empty() {
-        return build_gate::refuse(output, &refused);
+        return Err(build_gate::refuse(output, &refused));
     }
-    match build(site, config, routes, content, &out, clock) {
-        Ok(written) => success(output, &out, written, config),
-        Err(message) => report::failure(output, &message, Exit::Failure),
-    }
+    build(site, config, routes, content, out, clock)
+        .map_err(|message| report::failure(output, &message, Exit::Failure))
 }
 
 /// Renders every page into `out`, then writes the stylesheet they link and
@@ -103,6 +122,7 @@ fn build(
     let today = clock.now().date_naive();
     let mut languages = build_pages::pages(config, routes, (content, &[]), &href, today)?;
     let renderer = theme.as_ref().map(|(renderer, _)| renderer);
+    static_mode::comments(config, &mut languages);
     post_lock::lock(config, content, renderer, &mut languages);
     if let Some((renderer, _)) = &theme {
         search_page::add(config, renderer, &mut languages)?;
@@ -134,12 +154,13 @@ fn build(
     build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
     let mut written = 0;
     let locks = static_mode::locks(config.mode())?;
+    let code = PageCode::new(config, HeadNonce::Static);
     if let Some((renderer, css)) = &theme {
         write_asset(out, css)?;
         write_fonts(site, out)?;
         for language in &languages {
             for page in &language.pages {
-                let html = page.rendered(renderer, &language.site, HeadNonce::Static)?;
+                let html = page.rendered(renderer, &language.site, &code)?;
                 let html =
                     static_mode::lock(locks.as_ref(), html, &language.site.locale, &page.file)?;
                 write(out, &page.file, &html)?;

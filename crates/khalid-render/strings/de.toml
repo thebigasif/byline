@@ -87,3 +87,10 @@ locked_password_label = "Passwort"
 locked_password_button = "Beitrag lesen"
 locked_password_wrong = "Das Passwort stimmt nicht. Prüfe es und versuche es noch einmal."
 locked_members_note = "Dieser Beitrag ist für Mitglieder. Die Anmeldung für Lesende ist noch nicht offen."
+
+# Der Hinweis zur Einwilligung, wenn eigener Code einer Seite auf ein Ja wartet (G45).
+consent_label = "Code anderer Firmen"
+consent_note = "Dieser Blog möchte Code anderer Firmen ausführen, der Besuche zählt und Cookies setzen kann. Er läuft nur, wenn du es erlaubst."
+consent_change = "Du kannst deine Wahl zu Code anderer Firmen, der Besuche zählt, hier ändern."
+consent_allow = "Erlauben"
+consent_refuse = "Nicht erlauben"

@@ -22,10 +22,12 @@ One Cargo workspace at the repository root, flat `crates/` folder, one purpose p
 | `khalid-db` | SQLite, migrations, typed queries | Rendering |
 | `khalid-search` | Site search: words and stems per language, ranking, highlighted snippets | SQL, HTTP, templates, files |
 | `khalid-comments` | Readers' comments: the form and its honeypot, rate limits, moderation, threads | SQL, templates, content files |
+| `khalid-analytics` | Server analytics with no cookies: referrer groups, AI search, naming bots for the crawl log, the tally between writes | HTTP, SQL, files |
 | `khalid-media` | Image processing, storage backends | HTTP routes |
 | `khalid-outbound` | The one HTTP client with the private-network guard (BL-RUN-8) | Everything else |
 | `khalid-webhooks` | The event catalogue, signed deliveries, retries, the delivery log model, the verifier for incoming webhooks | Content files, templates, SQL |
 | `khalid-newsletter` | Subscribers and newsletters: double opt-in, one-click unsubscribe, the tokens in their links, the store trait `khalid-db` implements | SQL, files, how mail leaves the machine |
+| `khalid-alerts` | Alerts for the owner: the kinds, their words, the checks that find them, the store trait for what was raised | SQL, HTTP, files, how mail leaves the machine |
 | `khalid-server` | Axum routes, the Content and Admin APIs, auth, the embedded admin | Markdown parsing |
 | `khalid-import` | One module per source: WordPress, Ghost, Medium, Substack, markdown folders | Rendering |
 | `khalid-api` | The Content and Admin API routes, the list query grammar, keys and scopes, problem details, the OpenAPI document. `khalid-server` mounts it | Content files, markdown, SQL, templates |

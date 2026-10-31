@@ -170,7 +170,7 @@ fn a_static_build_says_which_features_are_off_and_why() {
     );
     for what in [
         "Comments are off.",
-        "Newsletter sign-up is off.",
+        "Newsletter sign-up and gated content are off.",
         "Forms are off.",
         "Search is off.",
         "The admin is not part of the built site.",
@@ -180,7 +180,7 @@ fn a_static_build_says_which_features_are_off_and_why() {
     }
     assert!(
         said.contains(
-            "Scheduled publish is off.\n  A static site changes only when you build it, so a post set for later waits for the next build.\n  Run `khalid build` on a schedule, or set mode = \"server\" in site.toml and run `khalid serve`.\n"
+            "Scheduled publish is off.\n  A static site changes only when you export it, so a post set for later waits for the next export.\n  Run `khalid export` on a schedule, or set mode = \"server\" in site.toml and run `khalid serve`.\n"
         ),
         "{said}"
     );
@@ -224,16 +224,41 @@ fn a_static_build_of_the_demo_has_no_form_posting_to_a_missing_endpoint() {
     assert_eq!(forms_to_missing_endpoints(out.path()), []);
     let post = fs::read_to_string(at(out.path(), "what-a-sitemap-does/index.html")).unwrap();
     for note in [
-        "<p class=\"locked\" data-feature=\"newsletter\">Signing up by email is not open on this site.</p>",
-        "<p class=\"locked\" data-feature=\"forms\">This form cannot be sent from this site.</p>",
+        "<p class=\"lock locked\" data-feature=\"newsletter\">Signing up by email is not open on this site.</p>",
+        "<p class=\"lock locked\" data-feature=\"forms\">This form cannot be sent from this site.</p>",
+        "<p class=\"lock locked\" data-feature=\"newsletter\">The rest of this post is for subscribers, and signing up is not open here.</p>",
     ] {
         assert!(post.contains(note), "{note}");
     }
-    assert!(post.contains("Subscribers read the rest of this guide."));
+    assert!(!post.contains("Subscribers read the rest of this guide."));
     assert!(!post.contains("The full sitemap checklist."));
     let german =
         fs::read_to_string(at(out.path(), "de/was-eine-sitemap-leistet/index.html")).unwrap();
     assert!(german.contains("Anmeldungen per E-Mail sind auf dieser Website nicht möglich."));
+}
+
+#[test]
+fn a_static_post_shows_one_note_where_comments_would_be() {
+    let site = demo("static");
+    let out = tempfile::tempdir().unwrap();
+    build(site.path(), out.path(), &[]);
+
+    for (post, note) in [
+        (
+            "what-a-sitemap-does/index.html",
+            "<p class=\"lock locked\" data-feature=\"comments\">Comments are not open on this site.</p>",
+        ),
+        (
+            "de/was-eine-sitemap-leistet/index.html",
+            "<p class=\"lock locked\" data-feature=\"comments\">Kommentare sind auf dieser Website nicht möglich.</p>",
+        ),
+    ] {
+        let page = fs::read_to_string(at(out.path(), post)).unwrap();
+        assert_eq!(page.matches(note).count(), 1, "{post}");
+        assert!(!page.contains("class=\"comments\""), "{post}");
+    }
+    let home = fs::read_to_string(at(out.path(), "index.html")).unwrap();
+    assert!(!home.contains("data-feature=\"comments\""));
 }
 
 #[test]
@@ -247,5 +272,5 @@ fn a_server_build_keeps_its_forms_and_lists_nothing_off() {
     assert!(!said.contains("features that need a server"), "{said}");
     let post = fs::read_to_string(at(out.path(), "what-a-sitemap-does/index.html")).unwrap();
     assert!(post.contains("action=\"/subscribe\""));
-    assert!(!post.contains("class=\"locked\""));
+    assert!(!post.contains("class=\"lock locked\""));
 }

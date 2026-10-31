@@ -110,3 +110,36 @@ impl SiteRule for StalePost {
             .collect()
     }
 }
+
+/// A post whose `updated` day is before its publish date, or later than
+/// tomorrow. Tomorrow is allowed because today comes from UTC, and a site
+/// ahead of UTC may already be on the next day (F2).
+#[derive(Debug)]
+pub(crate) struct UpdatedDateWrong {
+    /// The date the linter started, read from the clock.
+    pub(crate) today: NaiveDate,
+}
+
+impl SiteRule for UpdatedDateWrong {
+    fn id(&self) -> RuleId {
+        RuleId::new("updated-date-wrong")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check<'site>(&self, site: &'site dyn SiteView) -> Vec<(&'site LintPost, Hit)> {
+        let latest = self.today.succ_opt().unwrap_or(self.today);
+        let wrong = |post: &&LintPost| {
+            post.updated.is_some_and(|updated| {
+                updated > latest || post.date.is_some_and(|date| updated < date)
+            })
+        };
+        site.posts()
+            .iter()
+            .filter(wrong)
+            .map(|post| (post, Hit::post()))
+            .collect()
+    }
+}

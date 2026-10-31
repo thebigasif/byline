@@ -9,10 +9,11 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-use crate::toml_location::{field_of, line_of, line_of_key};
+use crate::mail_settings::MailTable;
+use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
-    AbsoluteUrl, AiPageSettings, Locale, MediaSettings, ParseUrlError, Reader, S3Keys, Secret,
-    SeoSettings,
+    AbsoluteUrl, AiPageSettings, AlertSettings, Locale, MailSettings, MailTransport, MediaSettings,
+    ParseUrlError, Reader, S3Keys, Secret, SeoSettings, SiteCode,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -33,6 +34,9 @@ pub struct Config {
     seo: SeoSettings,
     reader: Reader,
     media: MediaSettings,
+    mail: Option<MailSettings>,
+    alerts: AlertSettings,
+    code: SiteCode,
     preview_link_lifetime: Duration,
 }
 
@@ -92,6 +96,11 @@ struct SiteFile {
     reader: Reader,
     #[serde(default)]
     media: MediaSettings,
+    mail: Option<MailTable>,
+    #[serde(default)]
+    alerts: AlertSettings,
+    #[serde(default)]
+    code: SiteCode,
     preview_link_days: Option<u64>,
     preview_link_hours: Option<u64>,
 }
@@ -127,6 +136,21 @@ fn preview_lifetime(file: &SiteFile) -> Result<Duration, (&'static str, &'static
         return Err((key, RANGE));
     }
     Ok(Duration::from_secs(hours.saturating_mul(HOUR)))
+}
+
+/// The refusal of `[code]` that waits for consent on a static site, at the
+/// consent line when it is written, else at the table's own line.
+fn static_consent(path: &Path, text: &str) -> ConfigError {
+    let table = text
+        .lines()
+        .position(|line| line.trim_start().starts_with("[code]"))
+        .map_or(1, |index| index.saturating_add(1));
+    ConfigError::Field {
+        path: path.to_path_buf(),
+        line: line_of_key_in(text, "[code", "consent").max(table),
+        field: "consent".to_owned(),
+        problem: "a static host cannot keep a reader's choice, so code that waits for consent would never run; set consent = \"not-needed\" in [code], or mode = \"server\"".to_owned(),
+    }
 }
 
 impl Config {
@@ -197,6 +221,20 @@ impl Config {
                 return Err(field("bucket", missing));
             }
         }
+        let in_table = |table: &str, key: &str, problem: &str| ConfigError::Field {
+            path: path.to_path_buf(),
+            line: line_of_key_in(text, table, key),
+            field: key.to_owned(),
+            problem: problem.to_owned(),
+        };
+        let mail = file.mail.map(|table| table.check(env)).transpose();
+        let mail = mail.map_err(|(key, problem)| in_table("[mail", key, problem))?;
+        if let Some((key, problem)) = file.alerts.mistake(mail.as_ref()) {
+            return Err(in_table("[alerts", key, problem));
+        }
+        if file.mode == Mode::Static && file.code.waits_for_consent() {
+            return Err(static_consent(path, text));
+        }
         let address = match env.get(Environment::ADDRESS) {
             Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
                 variable: Environment::ADDRESS.to_owned(),
@@ -215,8 +253,28 @@ impl Config {
             seo: file.seo,
             reader: file.reader,
             media: file.media,
+            mail,
+            alerts: file.alerts,
+            code: file.code,
             preview_link_lifetime,
         })
+    }
+
+    /// When alerts are raised and who gets them by email, from `[alerts]`.
+    pub fn alerts(&self) -> &AlertSettings {
+        &self.alerts
+    }
+
+    /// The site's own code for every page, from `[code]`; empty when the
+    /// site has none.
+    pub fn code(&self) -> &SiteCode {
+        &self.code
+    }
+
+    /// How the site sends email, from `[mail]`, or `None` when it sends
+    /// none.
+    pub fn mail(&self) -> Option<&MailSettings> {
+        self.mail.as_ref()
     }
 
     /// Where the media library keeps its files, from `[media]`.
@@ -300,16 +358,41 @@ impl Environment {
     /// The secret of the key that writes to the media bucket.
     pub const S3_SECRET_ACCESS_KEY: &str = "KHALID_S3_SECRET_ACCESS_KEY";
 
+    /// The password of the SMTP user in `[mail.smtp]`.
+    pub const SMTP_PASSWORD: &str = "KHALID_SMTP_PASSWORD";
+
+    /// The API key that sends mail through Resend.
+    pub const RESEND_API_KEY: &str = "KHALID_RESEND_API_KEY";
+
+    /// The server token that sends mail through Postmark.
+    pub const POSTMARK_TOKEN: &str = "KHALID_POSTMARK_TOKEN";
+
+    /// The Bing Webmaster Tools API key, made there under Settings, API
+    /// Access. It belongs to a person, not a site, and reads every site they
+    /// have verified there.
+    pub const BING_API_KEY: &str = "KHALID_BING_API_KEY";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 4] = [
+    const ALL: [&str; 8] = [
         Self::ADDRESS,
         Self::KEY,
         Self::S3_ACCESS_KEY_ID,
         Self::S3_SECRET_ACCESS_KEY,
+        Self::SMTP_PASSWORD,
+        Self::RESEND_API_KEY,
+        Self::POSTMARK_TOKEN,
+        Self::BING_API_KEY,
     ];
 
     /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 2] = [Self::KEY, Self::S3_SECRET_ACCESS_KEY];
+    const HIDDEN: [&str; 6] = [
+        Self::KEY,
+        Self::S3_SECRET_ACCESS_KEY,
+        Self::SMTP_PASSWORD,
+        Self::RESEND_API_KEY,
+        Self::POSTMARK_TOKEN,
+        Self::BING_API_KEY,
+    ];
 
     /// Reads Khalid's variables from this process's environment.
     pub fn from_process() -> Self {
@@ -363,6 +446,29 @@ impl Environment {
             access_key_id: read(Self::S3_ACCESS_KEY_ID)?,
             secret_access_key: read(Self::S3_SECRET_ACCESS_KEY)?,
         })
+    }
+
+    /// The password, key or token `transport` signs in with, or `None`
+    /// when it is unset or blank.
+    pub fn mail_secret(&self, transport: &MailTransport) -> Option<Secret<String>> {
+        let name = match transport {
+            MailTransport::Smtp(_) => Self::SMTP_PASSWORD,
+            MailTransport::Resend => Self::RESEND_API_KEY,
+            MailTransport::Postmark(_) => Self::POSTMARK_TOKEN,
+        };
+        self.get(name)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| Secret::new(value.to_owned()))
+    }
+
+    /// The key in [`Environment::BING_API_KEY`], or `None` when it is unset
+    /// or blank.
+    pub fn bing_api_key(&self) -> Option<Secret<String>> {
+        self.get(Self::BING_API_KEY)
+            .map(str::trim)
+            .filter(|key| !key.is_empty())
+            .map(|key| Secret::new(key.to_owned()))
     }
 
     fn get(&self, name: &str) -> Option<&str> {

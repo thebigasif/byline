@@ -2,14 +2,16 @@ name: CI
 
 on:
   pull_request:
+  # Task branches run once, through their pull request; a push run as well
+  # would double every run on GitHub's 20 shared runners.
   push:
-    branches: [main, 'task/**']
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -18,9 +20,12 @@ env:
   RUSTDOCFLAGS: -D warnings
 
 jobs:
+  # The project's own branches run on the maintainer's runners (label khalid);
+  # pull requests from forks stay on GitHub's runners and need approval first.
+  # Performance budgets stay on GitHub's runners, where their numbers were set.
   text:
     name: Text rules
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
       - name: No em dashes (RULES.md BL-TXT-1)
@@ -32,7 +37,7 @@ jobs:
 
   rust:
     name: Rust
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
       - name: Any crates yet?
@@ -68,7 +73,10 @@ jobs:
           # that block is lifted first. If the namespace cannot be made, the
           # step fails: a guard that cannot be set up must not be skipped.
           fail() { echo "BL-TST-3 could not be enforced: $1. Tests did not run."; exit 1; }
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 \
+          # The maintainer's runners allow unshare through its own AppArmor
+          # profile and have no sudo, so the block is lifted only when needed.
+          unshare -rn true 2>/dev/null \
+            || sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 \
             || fail "the AppArmor user-namespace restriction could not be lifted"
           unshare -rn true || fail "unshare could not create a network namespace"
           # Build first, with the network, so nothing needs it inside.
@@ -111,7 +119,7 @@ jobs:
 
   admin:
     name: Admin
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
       - name: Any admin yet?
@@ -139,6 +147,126 @@ jobs:
       - name: No admin yet
         if: steps.admin.outputs.present == 'false'
         run: echo "Admin checks start with Phase 4."
+
+  # The Dockerfile built from source, as `docker build -t khalid .` does it
+  # (docs/deploy.md). Slow, so only on pull requests to main, and not a
+  # required check. Its last step runs the binary in the empty image, which
+  # fails unless the binary is fully static.
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: khalid:check
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: The image answers
+        run: docker run --rm khalid:check --version
+
+  # The demo, end to end (task 1.22, gap audit 2 G8, GEO P2): every page of
+  # the demo site through the W3C validator, Lighthouse with 100 as the
+  # floor, and axe and the layout checks at six widths, with scripts on and
+  # then off. A page that breaks with scripts off fails here. Slow, so on
+  # pull requests only, and not a required check.
+  demo:
+    name: Demo check
+    runs-on: ubuntu-latest
+    # It hung once for 90 minutes on a shared runner; a run never needs 30.
+    timeout-minutes: 30
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Toolchain from rust-toolchain.toml
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: demo
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # The W3C HTML validator is a Java program.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Tools, at the versions scripts/demo-check/package.json pins
+        run: |
+          npm install --prefix scripts/demo-check --no-audit --no-fund
+          npx --prefix scripts/demo-check playwright install --with-deps chromium
+      - name: Demo check
+        run: ./scripts/demo-check.sh
+      - name: Keep the reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-check
+          path: |
+            target/demo-check/lighthouse
+            target/demo-check/serve.log
+          if-no-files-found: ignore
+
+  # Getting and renewing a certificate, against pebble, Let's Encrypt's own
+  # test server (task 5.13, gap audit 2 G35). The tests in
+  # crates/khalid-https/tests/pebble.rs are ignored elsewhere because they
+  # need pebble running; this job starts it as their first lines say.
+  # On pull requests only, and not a required check.
+  https:
+    name: HTTPS against pebble
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      PEBBLE_VERSION: v2.9.0
+    steps:
+      - uses: actions/checkout@v5
+      - name: Toolchain from rust-toolchain.toml
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: https
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: false
+      - name: Build the tests first, while pebble is not running
+        run: cargo test -p khalid-https --test pebble --no-run
+      - name: Start pebble
+        run: |
+          go install "github.com/letsencrypt/pebble/v2/cmd/pebble@$PEBBLE_VERSION"
+          go install "github.com/letsencrypt/pebble/v2/cmd/pebble-challtestsrv@$PEBBLE_VERSION"
+          src="$(go env GOMODCACHE)/github.com/letsencrypt/pebble/v2@$PEBBLE_VERSION"
+          mkdir -p target/pebble
+          cp "$src/test/certs/pebble.minica.pem" target/pebble/pebble.minica.pem
+          # The test DNS server answers every name with this machine. Its own
+          # challenge servers stay off, because the tests answer the checks
+          # on ports 5001 and 5002 themselves.
+          "$(go env GOPATH)/bin/pebble-challtestsrv" -defaultIPv4 127.0.0.1 -defaultIPv6 "" \
+            -http01 "" -https01 "" -tlsalpn01 "" -doh "" \
+            > target/pebble/challtestsrv.log 2>&1 &
+          (cd "$src" && PEBBLE_VA_NOSLEEP=1 PEBBLE_WFE_NONCEREJECT=0 \
+            "$(go env GOPATH)/bin/pebble" -config test/config/pebble-config.json -dnsserver 127.0.0.1:8053) \
+            > target/pebble/pebble.log 2>&1 &
+          for _ in $(seq 30); do
+            curl -fsS --cacert target/pebble/pebble.minica.pem -o /dev/null https://localhost:14000/dir && exit 0
+            sleep 1
+          done
+          echo "Pebble did not answer within 30 seconds, so the HTTPS tests cannot run. Its output is below."
+          cat target/pebble/pebble.log target/pebble/challtestsrv.log
+          exit 1
+      - name: The ignored HTTPS tests
+        run: cargo test -p khalid-https --test pebble -- --ignored
+      - name: Pebble's output
+        if: failure()
+        run: cat target/pebble/pebble.log target/pebble/challtestsrv.log || true
 
   perf:
     name: Performance budgets

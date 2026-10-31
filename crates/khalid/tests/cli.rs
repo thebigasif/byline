@@ -5,15 +5,12 @@ use std::process::{Command, Output};
 
 use serde_json::Value;
 
-/// Every command in docs/plan.md section 4.1 that is not built yet, with the
-/// arguments it needs.
+/// Commands from docs/plan.md section 4.1 that work on one site folder,
+/// with the arguments they need.
 const COMMANDS: &[&[&str]] = &[
     &["publish", "why-internal-links-matter"],
     &["export"],
     &["backup"],
-    &["audit"],
-    &["update"],
-    &["update", "--rollback"],
     &["pull"],
 ];
 
@@ -105,11 +102,11 @@ fn version_with_json_prints_json() {
 }
 
 #[test]
-fn every_command_says_it_is_not_built_yet_and_exits_3() {
+fn every_command_without_a_site_folder_says_so_and_exits_2() {
     for args in COMMANDS {
         let context = args.join(" ");
         let output = khalid(args);
-        assert_eq!(output.status.code(), Some(3), "khalid {context}");
+        assert_eq!(output.status.code(), Some(2), "khalid {context}");
         assert!(output.stdout.is_empty(), "khalid {context} wrote to stdout");
         let stderr = text(&output.stderr);
         let lines: Vec<&str> = stderr.lines().collect();
@@ -119,7 +116,7 @@ fn every_command_says_it_is_not_built_yet_and_exits_3() {
             "khalid {context}: want what, why, fix:\n{stderr}"
         );
         assert!(
-            lines[0].contains("is not built yet"),
+            lines[0].contains("needs a site folder"),
             "khalid {context}: {stderr}"
         );
         for line in lines {
@@ -135,7 +132,7 @@ fn every_command_accepts_json_and_prints_the_message_as_json() {
         let mut with_json = args.to_vec();
         with_json.push("--json");
         let output = khalid(&with_json);
-        assert_eq!(output.status.code(), Some(3), "khalid {context} --json");
+        assert_eq!(output.status.code(), Some(2), "khalid {context} --json");
         assert!(
             output.stderr.is_empty(),
             "khalid {context} --json wrote to stderr"
@@ -150,14 +147,14 @@ fn every_command_accepts_json_and_prints_the_message_as_json() {
 
 #[test]
 fn json_works_before_the_command_too() {
-    let output = khalid(&["--json", "audit"]);
-    assert_eq!(output.status.code(), Some(3));
+    let output = khalid(&["--json", "backup"]);
+    assert_eq!(output.status.code(), Some(2));
     let json: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(
         json["error"]["what"]
             .as_str()
             .unwrap()
-            .contains("khalid audit")
+            .contains("khalid backup")
     );
 }
 

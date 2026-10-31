@@ -1,2 +1,3 @@
+warn focus-not-in-first-paragraph: internal links
 warn glossary-term-not-linked: anchor text
 warn glossary-term-not-linked: text

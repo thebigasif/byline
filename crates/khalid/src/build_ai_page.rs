@@ -17,14 +17,16 @@ pub(crate) const REST: &str = "ai/";
 
 /// The AI info page of `locale`, at `ai/`, in plain HTML that needs no
 /// scripts, with its own `AboutPage` schema, updated `today`. `None` when
-/// `[seo.ai_page] off = true`.
+/// `[seo.ai_page] off = true`, and for every language but the site's main
+/// one: the page's text comes from `site.toml` in one language, so a copy
+/// per language would repeat the same title and description.
 pub(crate) fn ai_page(
     config: &Config,
     locale: &Locale,
     today: NaiveDate,
 ) -> Result<Option<Page>, UserMessage> {
     let settings = config.ai_page();
-    if settings.off {
+    if settings.off || locale != config.default_language() {
         return Ok(None);
     }
     let title = "About this site for readers and AI".to_owned();

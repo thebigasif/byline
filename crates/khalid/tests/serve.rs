@@ -439,12 +439,17 @@ fn serve_answers_the_admin_app_at_admin_with_its_own_policy() {
     let site = demo_copy();
     let server = start(site.path());
     let admin = get(&server, "/admin/");
-    // CI builds Khalid without running npm, so the binary may hold no admin
-    // and say how to add it; with admin/dist built, it is the app's page.
-    match admin.status {
-        200 => assert!(admin.body.contains("<div id=\"root\">"), "{}", admin.body),
-        503 => assert!(admin.body.contains("npm run build"), "{}", admin.body),
-        other => panic!("/admin/ answered {other}"),
+    // The pull request checks build Khalid without running npm, so the
+    // binary holds no admin and says how to add it. The release builds
+    // admin/dist first, and then only the app's page will do (G7).
+    let mut bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    bundle.push("../../admin/dist/index.html");
+    if bundle.is_file() {
+        assert_eq!(admin.status, 200, "admin/dist is built: {}", admin.body);
+        assert!(admin.body.contains("<div id=\"root\">"), "{}", admin.body);
+    } else {
+        assert_eq!(admin.status, 503, "admin/dist is not built: {}", admin.body);
+        assert!(admin.body.contains("npm run build"), "{}", admin.body);
     }
     assert!(
         admin.policy.contains("script-src 'self'"),

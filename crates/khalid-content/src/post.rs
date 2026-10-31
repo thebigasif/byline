@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
 use crate::front_matter::{Fence, split};
-use crate::post_fields::{self, LeadImage, ReviewState, ShareCards, Sitemap};
+use crate::post_fields::{self, LeadImage, ReviewState, ShareCards, Sitemap, TopicCluster};
 use crate::{ContentError, parse_blocks};
 
 /// What a post's front matter may say.
@@ -90,6 +90,9 @@ pub struct PostFront {
     /// such as "link text". At most [`MAX_SECONDARY_KEYWORDS`].
     #[serde(default, deserialize_with = "secondary_keywords")]
     pub secondary_keywords: Vec<String>,
+    /// The topic cluster the post belongs to and its role in it, which the
+    /// linter checks: a member links to its pillar.
+    pub cluster: Option<TopicCluster>,
     /// The image at the top of the post and on its cards.
     pub image: Option<LeadImage>,
     /// The title for search results and the browser tab, in place of the

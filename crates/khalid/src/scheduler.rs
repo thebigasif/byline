@@ -11,6 +11,8 @@ use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio::time::MissedTickBehavior;
 
+use crate::alerts::Alerting;
+
 /// How often the schedules are looked at, so a post goes live at most this
 /// long after its time.
 const EVERY: Duration = Duration::from_secs(5);
@@ -31,10 +33,11 @@ impl Scheduling {
     }
 }
 
-/// Starts the scheduler on `door`. Must be called inside the tokio
+/// Starts the scheduler on `door`, raising each post the linter refuses
+/// through `alerting`. Must be called inside the tokio
 /// runtime. The first round runs at once, so a time that passed while the
 /// server was stopped is acted on at start.
-pub(crate) fn start(door: Arc<PublishDoor>) -> Scheduling {
+pub(crate) fn start(door: Arc<PublishDoor>, alerting: Arc<Alerting>) -> Scheduling {
     let (stop, mut stopped) = oneshot::channel();
     let task = tokio::spawn(async move {
         let mut ticks = tokio::time::interval(EVERY);
@@ -45,7 +48,14 @@ pub(crate) fn start(door: Arc<PublishDoor>) -> Scheduling {
                 _ = ticks.tick() => {}
             }
             match door.run_due().await {
-                Ok(ran) => ran.iter().for_each(report),
+                Ok(ran) => {
+                    for one in &ran {
+                        report(one);
+                        if let Ran::Refused(id) = one {
+                            alerting.refused(id).await;
+                        }
+                    }
+                }
                 Err(error) => tracing::warn!(
                     ?error,
                     "the schedules could not be read, so they are looked at again next round"

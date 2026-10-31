@@ -3,7 +3,8 @@
 
 use khalid_api::post_store::UpdatePostError;
 use khalid_api::resources::{
-    Alias, FeatureImage, NonBlank, PostSettings, PostStatus, ReviewState, ShareCard, ShareCards,
+    AdminPost, Alias, FeatureImage, NonBlank, PostSettings, PostStatus, ReviewState, ShareCard,
+    ShareCards,
 };
 use khalid_content::{self as content, PostFront};
 use khalid_core::{PostAccess, Slug};
@@ -221,6 +222,19 @@ fn lines_quoted(text: &str) -> String {
         .replace('\n', "\\n")
         .replace('\t', "\\t");
     format!("\"{escaped}\"")
+}
+
+/// Writes `edited`'s updated date and note into `text` when a real update
+/// moved them from `current`'s (F2). Any other edit leaves both alone.
+pub(crate) fn write_real_update(text: &mut PostText, current: &AdminPost, edited: &AdminPost) {
+    if edited.updated() == current.updated() && edited.updated_note() == current.updated_note() {
+        return;
+    }
+    let updated = edited
+        .updated()
+        .map(|day| day.format("%Y-%m-%d").to_string());
+    put(text, "updated", updated);
+    put(text, "updated_note", edited.updated_note().map(quoted));
 }
 
 /// Sets the field `key` to `value`, or removes it when there is none.

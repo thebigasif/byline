@@ -15,6 +15,10 @@
 # Keep these the same as rust-toolchain.toml and the admin job in ci.yml.
 ARG RUST_VERSION=1.99.1
 ARG NODE_VERSION=22
+# Where the binary comes from. `build` compiles it here. The release
+# workflow passes `--build-arg BINARY=prebuilt` to use the musl files it
+# has already built and checked, one per processor, in dist/<arch>/khalid.
+ARG BINARY=build
 
 # The admin first, because the binary embeds what admin/dist holds.
 FROM node:${NODE_VERSION}-alpine AS admin
@@ -37,11 +41,20 @@ RUN cargo build --release --locked -p khalid \
     && mkdir -p /out/site /out/tmp \
     && cp target/release/khalid /out/khalid
 
+# The release's own binary, for the processor being built. Docker skips
+# this stage unless BINARY names it.
+FROM --platform=$BUILDPLATFORM alpine:3.22 AS prebuilt
+ARG TARGETARCH
+RUN apk add --no-cache ca-certificates && mkdir -p /out/site /out/tmp
+COPY --chmod=755 dist/${TARGETARCH}/khalid /out/khalid
+
+FROM ${BINARY} AS binary
+
 FROM scratch
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=build /out/khalid /khalid
-COPY --from=build --chmod=1777 /out/tmp /tmp
-COPY --from=build --chown=65532:65532 /out/site /site
+COPY --from=binary /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=binary /out/khalid /khalid
+COPY --from=binary --chmod=1777 /out/tmp /tmp
+COPY --from=binary --chown=65532:65532 /out/site /site
 # The image has no loader and no library, so this runs only when the
 # binary is fully static.
 RUN ["/khalid", "--version"]

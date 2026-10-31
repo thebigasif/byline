@@ -11,6 +11,17 @@ To say yes, open this link within two days:
 Not you? Ignore this email and nothing more is sent. To remove this address now, open this link:
 {remove}
 """
+# {pass} is the link that lets a subscriber read subscriber-only parts of
+# posts on the device they open it on.
+pass_subject = "Your link to read {site}"
+pass_text = """
+Someone asked to read the subscriber-only parts of {site} with this address. You are already subscribed, so nothing changes about your emails.
+
+To read on the device you asked from, open this link within two days:
+{pass}
+
+Not you? Ignore this email.
+"""
 
 # The pages a reader sees after the form and the links. Titles say what
 # happened; texts say why it matters or what to do, in one sentence.

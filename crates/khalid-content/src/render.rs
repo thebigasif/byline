@@ -18,6 +18,9 @@ use crate::{
 
 mod cards;
 mod forms;
+mod formula;
+
+pub use forms::Gated;
 mod media;
 mod recipe;
 mod steps;
@@ -39,6 +42,8 @@ pub struct Rendered {
     /// The blocks search engines read as schema, in order, for the schema
     /// builders.
     pub structured: Vec<StructuredBlock>,
+    /// Whether the body holds gated content, locked or open.
+    pub gated: bool,
 }
 
 /// One heading of a rendered body.
@@ -114,6 +119,24 @@ pub fn render_linked(
     slugs: SlugMode,
     wikilinks: &Wikilinks,
 ) -> Result<Rendered, BlockError> {
+    render_gated(body, locale, slugs, wikilinks, Gated::Locked { back: None })
+}
+
+/// Renders like [`render_linked`], writing each `:::gated` block as
+/// `gated` says: locked, as its note and a sign-up form, or open, as its
+/// body for a confirmed subscriber.
+///
+/// # Errors
+///
+/// Returns a [`BlockError`] when a directive block is wrong, as
+/// [`parse_blocks`](crate::parse_blocks) does.
+pub fn render_gated(
+    body: &str,
+    locale: &Locale,
+    slugs: SlugMode,
+    wikilinks: &Wikilinks,
+    gated: Gated<'_>,
+) -> Result<Rendered, BlockError> {
     let blocks = parse_blocks(body)?;
     let mut renderer = Renderer {
         ids: HeadingIds {
@@ -125,6 +148,7 @@ pub fn render_linked(
         facts: Facts::default(),
         html: String::new(),
         subscribe_forms: 0,
+        gated,
     };
     let mut run: Vec<&str> = Vec::new();
     for block in &blocks {
@@ -154,6 +178,7 @@ pub fn render_linked(
         images: renderer.facts.images,
         words: renderer.facts.words,
         structured: renderer.facts.structured,
+        gated: renderer.facts.gated,
     })
 }
 
@@ -183,6 +208,8 @@ struct Renderer<'links> {
     html: String,
     /// How many subscribe forms are written so far, for unique ids.
     subscribe_forms: usize,
+    /// How gated blocks are written.
+    gated: Gated<'links>,
 }
 
 impl Renderer<'_> {
@@ -241,6 +268,7 @@ impl Renderer<'_> {
             BlockKind::Audio { src, title } => self.audio(src, title),
             BlockKind::File { src, title } => self.file(src, title),
             BlockKind::Gallery { images } => self.gallery(images),
+            BlockKind::Maths { label, formula } => self.maths(label.as_deref(), formula),
             BlockKind::Faq { questions } => self.faq(questions),
             BlockKind::HowTo(how_to) => self.how_to(how_to),
             BlockKind::Review(review) => self.review(review),
@@ -249,12 +277,12 @@ impl Renderer<'_> {
             BlockKind::Business(card) => self.business(card),
             BlockKind::SafeHtml { show } => self.safe_html(block, *show),
             BlockKind::Form { id, button, fields } => self.form(id, button, fields),
-            BlockKind::Newsletter { label, button } => self.subscribe(label, button),
+            BlockKind::Newsletter { label, button } => self.subscribe(label, button, None),
             BlockKind::Gated {
                 note,
                 label,
                 button,
-            } => self.gated(note, label, button),
+            } => self.gated(block, note, label, button),
             BlockKind::Header { image, alt } => {
                 self.header(block, image.as_deref(), alt.as_deref());
             }
@@ -491,6 +519,7 @@ struct Facts {
     images: Vec<Image>,
     words: usize,
     structured: Vec<StructuredBlock>,
+    gated: bool,
 }
 
 impl Facts {

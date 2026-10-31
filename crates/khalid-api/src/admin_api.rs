@@ -27,7 +27,9 @@ use crate::preview_link::PreviewLink;
 use crate::problem::{Problem, ProblemType};
 use crate::publish_door::{PublishDoor, ScheduleError};
 use crate::query::{Limit, ListQuery, RawListQuery};
-use crate::resources::{AdminPost, Listable, NewPost, PostDraft, PostEdit, PostRow, PostStatus};
+use crate::resources::{
+    AdminPost, Listable, NewPost, NotRealUpdate, PostDraft, PostEdit, PostRow, PostStatus,
+};
 
 /// Where the Admin API lives.
 pub(crate) const BASE: &str = "/api/admin/v1";
@@ -244,6 +246,7 @@ async fn edit_admin_post(
         )),
         Err(UpdatePostError::Unsupported { setting, why }) => Err(unsupported(setting, why)),
         Err(UpdatePostError::Refused(report)) => Err(refused(report)),
+        Err(UpdatePostError::NotRealUpdate(why)) => Err(not_real_update(why)),
         Err(UpdatePostError::Schedule(error)) => Err(unschedulable(error)),
         Err(UpdatePostError::Store(error)) => Err(Problem::internal(&error)),
     }
@@ -512,6 +515,16 @@ fn unsupported(setting: &'static str, why: &'static str) -> Problem {
         format!("Send the edit again without {setting}; nothing was changed."),
     );
     Problem::new(ProblemType::InvalidBody, &message).with_rule(setting)
+}
+
+/// The 422 for an edit that claims a real update it is not (F2).
+fn not_real_update(why: NotRealUpdate) -> Problem {
+    let message = UserMessage::new(
+        "This edit cannot be marked as a real update.",
+        why.why(),
+        why.fix(),
+    );
+    Problem::new(ProblemType::InvalidBody, &message).with_rule("real_update")
 }
 
 /// The 409 for a slug another post has, with `fix` saying what to send.

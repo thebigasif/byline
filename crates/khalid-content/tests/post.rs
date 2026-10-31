@@ -80,7 +80,7 @@ fn allows_the_fields_the_linter_checks_to_be_missing() {
 fn refuses_an_unknown_field() {
     assert_eq!(
         message("---\ntitle: A\ncolour: blue\n---\n"),
-        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, updated, updated_note, reviewed, topic_group, main_post, author, category, description, translation, aliases, featured, robots, canonical, reviewed_by, related, focus_keyword, secondary_keywords, image, seo_title, tags, sitemap, access, template, password_hash, head_code, co_authors, review_state, share_cards, schema"
+        "posts/a.md, line 3, field \"colour\": unknown field `colour`, expected one of title, slug, date, updated, updated_note, reviewed, topic_group, main_post, author, category, description, translation, aliases, featured, robots, canonical, reviewed_by, related, focus_keyword, secondary_keywords, cluster, image, seo_title, tags, sitemap, access, template, password_hash, head_code, co_authors, review_state, share_cards, schema"
     );
 }
 

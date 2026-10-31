@@ -4,20 +4,18 @@
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::{fmt, fs};
 
 use khalid_content::{
     ContentTree, Document, PostFront, SiteContent, check_bodies, parse_post, read_content,
 };
-use khalid_core::{Clock, Config, Locale, Slug, SystemClock, UserMessage};
-use khalid_render::{
-    PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult, Tokens,
-};
+use khalid_core::{Clock, Config, Locale, Slug, UserMessage};
+use khalid_render::{PageBody, RenderSearch, Renderer, SearchMode, SearchResult, Tokens};
 use khalid_routes::Routes;
 use khalid_server::{Moved, Page, Render, Rendered};
 
-use crate::build_pages::LanguagePages;
 use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
 use crate::listed_post::ListedPost;
@@ -25,12 +23,12 @@ use crate::post_files::Assets;
 use crate::post_photos::Shown;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
-use crate::site_page::HeadNonce;
+use crate::site_html::{SearchShell, Which, html_pages, search_shells};
 use crate::unlock::Gate;
 use crate::{
     assets, build_home, build_lists, build_message, build_pages, build_seo, build_sitemap,
-    categories, content_message, post_files, post_lock, search_page, serve_message, share_images,
-    site_files, site_outline,
+    categories, content_message, post_files, post_gate, post_lock, search_page, serve_message,
+    share_images, site_files, site_outline,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -56,6 +54,14 @@ struct Site {
     /// a saved post's page finds them without listing the folder again.
     /// `None` before the first full render.
     assets: Mutex<Option<Assets>>,
+    /// How many times a full render has read the folder. Content passed to
+    /// [`SitePages::render_content`] was read at start, as read 0.
+    reads: AtomicU64,
+    /// The newest read whose render handed on its outline, assets and
+    /// catalog. A render of older content that finishes later, such as the
+    /// start render after a save, hands on nothing, so it cannot undo the
+    /// save or fire its entries' events again.
+    handed_on: Mutex<u64>,
     /// The search page of each language as the last full render made it,
     /// which a search's results are rendered into.
     searches: Mutex<Vec<SearchShell>>,
@@ -63,6 +69,8 @@ struct Site {
     comments: Option<ShownComments>,
     /// The password posts of the last full render, for the password form.
     gate: Gate,
+    /// Dates a feed with no posts yet, and a draft's preview.
+    clock: Arc<dyn Clock>,
 }
 
 /// What a saved post's page needs from the rest of the site, in a fraction
@@ -100,12 +108,13 @@ pub(crate) struct Served {
 impl SitePages {
     /// The pages of the site in `folder`, with its checked `config` and
     /// `routes`. With a `feed`, each render also hands the Content API what
-    /// it read.
+    /// it read. `clock` dates the feeds and a draft's preview.
     pub(crate) fn new(
         folder: &Path,
         config: Config,
         routes: Routes,
         feed: Option<ContentFeed>,
+        clock: Arc<dyn Clock>,
     ) -> Result<Self, UserMessage> {
         let theme = if config.mode().has_pages() {
             let renderer =
@@ -130,9 +139,12 @@ impl SitePages {
             feed,
             outline: Mutex::default(),
             assets: Mutex::default(),
+            reads: AtomicU64::default(),
+            handed_on: Mutex::default(),
             searches: Mutex::default(),
             gate: Gate::default(),
             comments,
+            clock,
         })))
     }
 
@@ -202,11 +214,16 @@ impl SitePages {
             routes,
             ..
         } = &*self.0;
+        let read = self
+            .0
+            .reads
+            .fetch_add(1, Ordering::Relaxed)
+            .saturating_add(1);
         let (content, assets) = ContentTree::walk(folder)
             .and_then(|tree| Ok((read_content(&tree)?, Assets::of(&tree))))
             .and_then(|read| check_bodies(&read.0, config, routes).map(|()| read))
             .map_err(|error| content_message::of(folder, &error))?;
-        self.render_content(&content, assets)
+        self.render_read(&content, assets, read)
     }
 
     /// The first pages `khalid serve` answers with while the rest of the
@@ -235,7 +252,7 @@ impl SitePages {
         share_images::draw_now(folder, cards)?;
         build_seo::heads(&seo_site, &mut languages)?;
         let mut pages = vec![theme.stylesheet.clone()];
-        html_pages(theme, config, &languages, Which::All, &mut pages)?;
+        html_pages(&theme.renderer, config, &languages, Which::All, &mut pages)?;
         Ok(pages)
     }
 
@@ -264,7 +281,7 @@ impl SitePages {
         let unreadable = |error| content_message::of(folder, &error);
         let tree = ContentTree::walk(folder).map_err(unreadable)?;
         let mut content = read_content(&tree).map_err(unreadable)?;
-        let today = SystemClock.now().date_naive();
+        let today = self.0.clock.now().date_naive();
         let path = PathBuf::from(format!("content/{locale}/posts/{today}-{slug}.md"));
         let post = parse_post(&path, &text).map_err(unreadable)?;
         // A Document is made only by khalid-content, so the draft's entry
@@ -310,11 +327,23 @@ impl SitePages {
     /// catalog when there is one. At start, `khalid serve` passes what it
     /// checked, so the folder is read once, not twice. `content` must have
     /// passed `check_bodies`. Only a full render hands the feed its
-    /// catalog, so the Content API never sees part of the site.
+    /// catalog, so the Content API never sees part of the site, and only
+    /// when no render of content read later has handed on its own.
     pub(crate) fn render_content(
         &self,
         content: &SiteContent,
         assets: Assets,
+    ) -> Result<Served, UserMessage> {
+        self.render_read(content, assets, 0)
+    }
+
+    /// Renders `content`, which the folder's `read` gave, as
+    /// [`SitePages::render_content`] says.
+    fn render_read(
+        &self,
+        content: &SiteContent,
+        assets: Assets,
+        read: u64,
     ) -> Result<Served, UserMessage> {
         let Site {
             folder,
@@ -322,6 +351,7 @@ impl SitePages {
             feed,
             outline,
             assets: kept,
+            handed_on,
             ..
         } = &*self.0;
         // The catalog holds no post body, so it is quick to make here, and
@@ -332,6 +362,12 @@ impl SitePages {
         };
         let mut shown = Shown::default();
         let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All, &mut shown)?;
+        let mut handed_on = handed_on.lock().unwrap_or_else(PoisonError::into_inner);
+        if read < *handed_on {
+            tracing::debug!(read, "a render of newer content already handed on its own");
+            return Ok(rendered);
+        }
+        *handed_on = read;
         *outline.lock().unwrap_or_else(PoisonError::into_inner) = Outline {
             content: site_outline::outline_of(content),
             listed,
@@ -370,7 +406,7 @@ impl SitePages {
         let href = theme
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
-        let today = SystemClock.now().date_naive();
+        let today = self.0.clock.now().date_naive();
         let mut languages = build_pages::pages(config, routes, (content, others), href, today)?;
         let renderer = theme.as_ref().map(|theme| &theme.renderer);
         post_lock::lock(config, content, renderer, &mut languages);
@@ -387,6 +423,7 @@ impl SitePages {
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
         let beside = post_files::served(folder, config, assets, &mut languages, shown)?;
+        post_gate::open(config, routes, content, &mut languages)?;
         let seo_site = build_seo::site(config)?;
         let default_tokens = Tokens::default();
         let tokens = theme.as_ref().map_or(&default_tokens, |t| &t.tokens);
@@ -403,7 +440,7 @@ impl SitePages {
             moves: Vec::new(),
         };
         if which == Which::All {
-            served.pages = site_files::files(config, &seo_site, &seo_pages, SystemClock.now())?;
+            served.pages = site_files::files(config, &seo_site, &seo_pages, self.0.clock.now())?;
             served.pages.extend(beside);
             served.moves = site_files::moves(config, routes, content)?;
         }
@@ -417,7 +454,13 @@ impl SitePages {
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner) = shells;
             }
-            served.not_found = html_pages(theme, config, &languages, which, &mut served.pages)?;
+            served.not_found = html_pages(
+                &theme.renderer,
+                config,
+                &languages,
+                which,
+                &mut served.pages,
+            )?;
         }
         // The cards draw behind the answers: their addresses are already
         // baked into the heads, so the pages are complete without the
@@ -492,75 +535,8 @@ impl SitePages {
     }
 }
 
-/// Which pages a render makes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Which {
-    /// Every page, the stylesheet and the not-found page.
-    All,
-    /// Only the page of each dated post.
-    Posts,
-}
-
 /// How a wikilink starts in markdown, such as `[[link-equity]]`.
 const WIKILINK: &str = "[[";
-
-/// A language's search page without results: the site as its pages show it
-/// and the page's head, with its title and its SEO tags.
-#[derive(Debug, Clone)]
-struct SearchShell {
-    site: RenderSite,
-    meta: PageMeta,
-}
-
-/// The search page of each of `languages`.
-fn search_shells(languages: &[LanguagePages]) -> Vec<SearchShell> {
-    let mut shells = Vec::new();
-    for language in languages {
-        let searches = language
-            .pages
-            .iter()
-            .filter(|page| matches!(page.body, PageBody::Search(_)));
-        shells.extend(searches.map(|page| SearchShell {
-            site: language.site.clone(),
-            meta: page.meta.clone(),
-        }));
-    }
-    shells
-}
-
-/// Renders the `which` pages of `languages` with `theme` into `pages`, and
-/// returns the not-found page of the default language, empty unless
-/// `which` is [`Which::All`].
-fn html_pages(
-    theme: &Theme,
-    config: &Config,
-    languages: &[LanguagePages],
-    which: Which,
-    pages: &mut Vec<Page>,
-) -> Result<String, UserMessage> {
-    let mut not_found = String::new();
-    for language in languages {
-        for page in &language.pages {
-            if which == Which::Posts && !matches!(page.body, PageBody::Post(_)) {
-                continue;
-            }
-            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
-            if matches!(page.body, PageBody::NotFound) {
-                if &language.site.locale == config.default_language() {
-                    not_found = html;
-                }
-                continue;
-            }
-            pages.push(page.served_at(&page.meta.path, html)?);
-        }
-        for unlocked in &language.unlocked {
-            let page = &unlocked.page;
-            let html = page.rendered(&theme.renderer, &language.site, HeadNonce::PerRequest)?;
-            pages.push(page.served_at(&post_lock::hidden(&page.meta.path), html)?);
-        }
-    }
-    Ok(not_found)
-}
 
 impl Render for SitePages {
     type Error = Unrendered;
@@ -584,10 +560,11 @@ impl Render for SitePages {
         let (Some(assets), Some((saved, others))) = (kept, self.saved_posts(files)) else {
             return Ok(None);
         };
-        // A post that is or was locked changes the password posts the
-        // form checks, which only the full render keeps.
+        // A post that is or was locked or gated changes the posts the
+        // gate checks, which only the full render keeps.
         let locked = |doc: &Document<PostFront>| {
-            post_lock::Lock::of(&doc.front).is_some() || self.0.gate.guards(&doc.path)
+            let gated = doc.body.contains(":::gated");
+            post_lock::Lock::of(&doc.front).is_some() || gated || self.0.gate.guards(&doc.path)
         };
         if saved.posts.iter().any(locked) {
             return Ok(None);

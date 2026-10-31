@@ -111,6 +111,10 @@ events! {
     AuditFinished => "audit.finished",
     /// Site settings changed.
     SiteChanged => "site.changed",
+    /// Something on the site needs the owner: broken links, a burst of
+    /// 404s, a certificate near its end, a scheduled post that did not go
+    /// live, or a post left unchanged for a long time.
+    AlertRaised => "alert.raised",
 }
 
 impl fmt::Display for Event {

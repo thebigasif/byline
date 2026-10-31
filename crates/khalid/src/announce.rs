@@ -4,16 +4,19 @@
 //! asked for it, and the post's address to `IndexNow` when
 //! `[seo.indexnow]` switches it on (CTO answers 2026-10-27, section 4).
 //! A post the linter refuses fires `lint.blocked`, and other events, such
-//! as `comment.added`, go to the webhooks alone.
+//! as `comment.added` or `page.published`, go to the webhooks alone.
 //! Failed deliveries are tried again on a timer, to the webhook list as it
 //! stands at each round.
 
+use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
+use chrono::{DateTime, TimeDelta, Utc};
 use khalid_api::publish_door::Announce;
 use khalid_api::resources::AdminPost;
-use khalid_core::{AbsoluteUrl, Config, SystemClock, UserMessage};
+use khalid_core::{AbsoluteUrl, Clock, Config, SystemClock, UserMessage};
 use khalid_db::{Database, DeliveryLog, SiteId, WebhookTable};
 use khalid_lint::Report;
 use khalid_outbound::Outbound;
@@ -32,6 +35,10 @@ const RETRY_EVERY: Duration = Duration::from_mins(1);
 /// server stops (RULES.md BL-RUN-10).
 const GRACE: Duration = Duration::from_secs(10);
 
+/// How long an address sent to `IndexNow` is not sent again, so a publish
+/// that both the door and the saved file report is sent once.
+const LATELY: TimeDelta = TimeDelta::minutes(10);
+
 /// Who to tell, shared by every announcement.
 struct Receivers {
     config: Config,
@@ -39,6 +46,36 @@ struct Receivers {
     dispatcher: Arc<Dispatcher<DeliveryLog>>,
     indexnow: Option<IndexNow>,
     outbound: Outbound,
+    /// When each address was last sent to `IndexNow`, within [`LATELY`].
+    sent: Mutex<BTreeMap<String, DateTime<Utc>>>,
+}
+
+impl Receivers {
+    /// `urls` without those sent in the last [`LATELY`], which are marked
+    /// sent now.
+    fn not_sent_lately(&self, urls: Vec<AbsoluteUrl>) -> Vec<AbsoluteUrl> {
+        let mut sent = self.sent.lock().unwrap_or_else(PoisonError::into_inner);
+        not_sent_since(&mut sent, urls, SystemClock.now())
+    }
+}
+
+/// `urls` without those `sent` records within [`LATELY`] of `now`; the rest
+/// are recorded as sent at `now`, and older records are dropped.
+fn not_sent_since(
+    sent: &mut BTreeMap<String, DateTime<Utc>>,
+    urls: Vec<AbsoluteUrl>,
+    now: DateTime<Utc>,
+) -> Vec<AbsoluteUrl> {
+    sent.retain(|_, at| now.signed_duration_since(*at) < LATELY);
+    urls.into_iter()
+        .filter(|url| match sent.entry(url.to_string()) {
+            Entry::Vacant(free) => {
+                free.insert(now);
+                true
+            }
+            Entry::Occupied(_) => false,
+        })
+        .collect()
 }
 
 /// The announcements in flight.
@@ -66,6 +103,19 @@ impl SiteAnnounce {
         self.send(async move {
             if let Err(error) = send_webhooks(&receivers, event, &resource).await {
                 tracing::warn!(%event, %error, "an event could not be logged or sent");
+            }
+        });
+    }
+
+    /// Sends `urls`, live posts whose files show a new `updated:` date or
+    /// that just went live, to `IndexNow` on a task of its own, when
+    /// `[seo.indexnow]` is on. No webhook fires: the door fires them for
+    /// its own changes.
+    pub(crate) fn updated(&self, urls: Vec<AbsoluteUrl>) {
+        let receivers = Arc::clone(&self.receivers);
+        self.send(async move {
+            if let Err(error) = tell_search(&receivers, urls).await {
+                tracing::warn!(%error, "updated addresses did not reach IndexNow");
             }
         });
     }
@@ -131,15 +181,34 @@ struct Blocked {
 #[derive(Debug)]
 pub(crate) struct Announcing {
     sending: Sending,
-    retrying: Background,
+    retrying: Option<Background>,
 }
 
 impl Announcing {
+    /// Tries the failed deliveries of `telling` again on a timer, as
+    /// `khalid serve` does, to the webhook list as it stands at each round.
+    /// Must be called inside the tokio runtime.
+    pub(crate) fn retrying(mut self, telling: &SiteAnnounce) -> Self {
+        let receivers = &telling.receivers;
+        let list = {
+            let webhooks = receivers.webhooks.clone();
+            move || {
+                let webhooks = webhooks.clone();
+                async move { webhooks.list().await }
+            }
+        };
+        let dispatcher = Arc::clone(&receivers.dispatcher);
+        self.retrying = Some(retry_deliveries(dispatcher, list, RETRY_EVERY));
+        self
+    }
+
     /// Stops retrying, and gives announcements in flight [`GRACE`] to
     /// finish. A webhook delivery cut off is in the log, and is tried
     /// again after the next start.
     pub(crate) async fn stop(self) {
-        self.retrying.stop().await;
+        if let Some(retrying) = self.retrying {
+            retrying.stop().await;
+        }
         let sending =
             std::mem::take(&mut *self.sending.lock().unwrap_or_else(PoisonError::into_inner));
         if tokio::time::timeout(GRACE, sending.join_all())
@@ -153,14 +222,15 @@ impl Announcing {
 
 /// Starts announcing for the site with `config` in `db`, sending through
 /// `outbound`. The webhook list is read for each event, so one that cannot
-/// be read is logged then and does not stop the site. Must be called
-/// inside the tokio runtime.
+/// be read is logged then and does not stop the site. Failed deliveries
+/// stay in the log, and are tried again only once [`Announcing::retrying`]
+/// says so, as `khalid serve` does.
 ///
 /// # Errors
 ///
 /// Returns a message when the `IndexNow` key file's address cannot be made
 /// from the site's address.
-pub(crate) fn start(
+pub(crate) fn once(
     config: &Config,
     (db, site): (&Database, SiteId),
     outbound: &Outbound,
@@ -181,26 +251,20 @@ pub(crate) fn start(
         ),
         None => None,
     };
-    let list = {
-        let webhooks = webhooks.clone();
-        move || {
-            let webhooks = webhooks.clone();
-            async move { webhooks.list().await }
-        }
-    };
-    let retrying = retry_deliveries(Arc::clone(&dispatcher), list, RETRY_EVERY);
     let receivers = Arc::new(Receivers {
         config: config.clone(),
         webhooks,
         dispatcher,
         indexnow,
         outbound: outbound.clone(),
+        sent: Mutex::default(),
     });
     let sending = Sending::default();
     let telling = SiteAnnounce {
         receivers,
         sending: Arc::clone(&sending),
     };
+    let retrying = None;
     Ok((telling, Announcing { sending, retrying }))
 }
 
@@ -212,18 +276,11 @@ async fn announce(receivers: Arc<Receivers>, event: Event, post: AdminPost) {
     let body = serde_json::json!({ "post": &post });
     let webhooks = send_webhooks(&receivers, event, &body);
     let search = async {
-        let Some(indexnow) = &receivers.indexnow else {
-            return Ok(());
-        };
         if event == Event::PostScheduled {
             return Ok(());
         }
         let url = post_url(&receivers.config, &post).ok_or("the post has no address")?;
-        let sent = indexnow
-            .send(&receivers.outbound, &Retries::default(), &[url])
-            .await;
-        sent.map(|_| ())
-            .map_err(|_| "IndexNow did not take the address")
+        tell_search(&receivers, vec![url]).await
     };
     let (webhooks, search) = tokio::join!(webhooks, search);
     if let Err(error) = webhooks {
@@ -232,6 +289,23 @@ async fn announce(receivers: Arc<Receivers>, event: Event, post: AdminPost) {
     if let Err(error) = search {
         tracing::warn!(id = post.id(), %error, "the post's address did not reach IndexNow");
     }
+}
+
+/// Sends `urls` to `IndexNow` when it is on, leaving out any sent in the
+/// last ten minutes.
+async fn tell_search(receivers: &Receivers, urls: Vec<AbsoluteUrl>) -> Result<(), &'static str> {
+    let Some(indexnow) = &receivers.indexnow else {
+        return Ok(());
+    };
+    let urls = receivers.not_sent_lately(urls);
+    if urls.is_empty() {
+        return Ok(());
+    }
+    let sent = indexnow
+        .send(&receivers.outbound, &Retries::default(), &urls)
+        .await;
+    sent.map(|_| ())
+        .map_err(|_| "IndexNow did not take the address")
 }
 
 /// Sends `event` with `resource` to the webhooks in the list as it stands.
@@ -252,4 +326,29 @@ fn post_url(config: &Config, post: &AdminPost) -> Option<AbsoluteUrl> {
     let path = build_pages::path_of(config, locale, &format!("{}/", post.slug()));
     let base = config.address().as_str().trim_end_matches('/');
     AbsoluteUrl::parse(&format!("{base}{path}")).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_address_sent_lately_is_not_sent_again() {
+        let url = |slug: &str| {
+            AbsoluteUrl::parse(&format!("https://www.example.com/blog/{slug}/")).unwrap()
+        };
+        let at = |minute: u32| {
+            chrono::NaiveDate::from_ymd_opt(2026, 10, 31)
+                .and_then(|day| day.and_hms_opt(9, minute, 0))
+                .unwrap()
+                .and_utc()
+        };
+        let mut sent = BTreeMap::new();
+        let first = not_sent_since(&mut sent, vec![url("a"), url("a"), url("b")], at(0));
+        assert_eq!(first, [url("a"), url("b")], "each address once");
+        let soon = not_sent_since(&mut sent, vec![url("a"), url("c")], at(9));
+        assert_eq!(soon, [url("c")], "a is within ten minutes");
+        let later = not_sent_since(&mut sent, vec![url("a"), url("c")], at(10));
+        assert_eq!(later, [url("a")], "a's ten minutes are over; c's are not");
+    }
 }

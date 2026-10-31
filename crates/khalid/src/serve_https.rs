@@ -7,7 +7,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 
 use khalid_content::SiteContent;
-use khalid_core::{Config, Mode, S3Keys, SystemClock, UserMessage};
+use khalid_core::{Config, Mode, SystemClock, UserMessage};
 use khalid_https::{AgreedToTerms, Directory, Domain, Https, HttpsFolder, Listening};
 use khalid_outbound::Outbound;
 use khalid_routes::Routes;
@@ -17,7 +17,8 @@ use tokio::net::TcpListener;
 use crate::cli::{Cli, ServeArgs};
 use crate::exit::Exit;
 use crate::post_files::Assets;
-use crate::{https_message, outbound, report, serve, serve_message};
+use crate::serve::Keys;
+use crate::{alert_watch, https_message, outbound, report, serve, serve_message};
 
 /// The folder in `data/` that keeps the account and the certificate.
 const FOLDER: &str = "https";
@@ -52,19 +53,19 @@ pub(crate) enum Terms {
 }
 
 /// `khalid serve` with `args`, on the `site` folder with its checked
-/// settings, routes and content, and the media bucket's keys if the
-/// environment has them.
+/// settings, routes and content, and the `keys` the environment holds.
 pub(crate) fn serve(
     cli: &Cli,
     site: &Path,
     (config, routes): (&Config, &Routes),
     start: (SiteContent, Assets, FolderLook),
-    (args, bucket_keys): (&ServeArgs, Option<S3Keys>),
+    (args, keys): (&ServeArgs, Keys),
 ) -> Exit {
     match listen(cli, config.mode(), args) {
         Ok(listen) => {
-            let to = (&listen, outbound::client(cli), bucket_keys);
-            serve::run(site, (config, routes), start, to, cli.output)
+            let to = (&listen, outbound::client(cli), keys);
+            let every = alert_watch::every(args);
+            serve::run(site, (config, routes), start, to, (cli.output, every))
         }
         Err(message) => report::failure(cli.output, &message, Exit::Failure),
     }
@@ -193,7 +194,7 @@ pub(crate) fn ask(
 }
 
 /// `data/https/` in the site folder.
-fn folder(site: &Path) -> PathBuf {
+pub(crate) fn folder(site: &Path) -> PathBuf {
     let mut folder = site.to_path_buf();
     folder.push("data");
     folder.push(FOLDER);

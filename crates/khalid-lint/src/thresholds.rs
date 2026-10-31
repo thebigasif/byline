@@ -23,6 +23,12 @@ pub struct Thresholds {
     /// The longest description, in characters, before search results cut it.
     /// Default 160, about what Google shows on a desktop result.
     pub description_max_chars: usize,
+    /// The shortest title, in characters, before it says too little to be
+    /// chosen in search results. Default 20, about three words.
+    pub title_min_chars: usize,
+    /// The shortest description, in characters, before search engines
+    /// prefer other words from the post. Default 50, one short sentence.
+    pub description_min_chars: usize,
     /// The share of a post's words, in percent, one repeated phrase may
     /// fill. Default 3, well above what natural writing reaches.
     pub keyword_density_percent: usize,
@@ -83,6 +89,8 @@ impl Default for Thresholds {
             same_link_text_max: 3,
             title_max_chars: 60,
             description_max_chars: 160,
+            title_min_chars: 20,
+            description_min_chars: 50,
             keyword_density_percent: 3,
             slug_max_chars: 60,
             max_clicks: 3,

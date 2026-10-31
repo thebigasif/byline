@@ -106,6 +106,18 @@ why = "Google cuts long descriptions short, so the end of yours may never be rea
 fix = "Shorten the description to one or two short sentences."
 guide = "descriptions"
 
+[short-title]
+what = "This post's title is shorter than this site sets."
+why = "A very short title says little about the post, so fewer people choose it in search results."
+fix = "Add the words that tell a reader what they will learn."
+guide = "post-titles"
+
+[short-description]
+what = "This post's description is shorter than this site sets."
+why = "A very short description leaves Google to pick other words from the post for search results."
+fix = "Write one or two sentences that say what the reader gets from the post."
+guide = "descriptions"
+
 [duplicate-title]
 what = "Another post on this site has the same title."
 why = "Google may show only one of the two, and readers cannot tell them apart."
@@ -188,6 +200,12 @@ guide = "review-queue"
 what = "This post has not been updated for a long time."
 why = "Readers and Google trust recent information more, and old facts may now be wrong."
 fix = "Refresh this post: check its facts, update what changed and set `updated:` to today."
+guide = "refreshing-posts"
+
+[updated-date-wrong]
+what = "This post's `updated:` date is before its publish date or still to come."
+why = "A date that cannot be true makes readers and search engines doubt the whole page."
+fix = "Change `updated:` to the day you last changed what the post says, or remove it."
 guide = "refreshing-posts"
 
 [near-duplicate]
@@ -292,10 +310,22 @@ why = "Readers who struggle leave early, and Google favours pages that answer pe
 fix = "Split long sentences, and use shorter everyday words where you can."
 guide = "readability"
 
+[no-focus-keyword]
+what = "This post has no focus keyword, the phrase you want it to be found for."
+why = "Without one, Khalid cannot check that the title, description and text are about one topic."
+fix = "Add `focus_keyword:` to the header with the words a reader would search for."
+guide = "focus-keyword"
+
 [focus-not-in-title]
-what = "The title does not hold your focus keyword."
+what = "The title search results show does not hold your focus keyword."
 why = "The title is the headline in search results, and Google reads it first to learn the topic."
-fix = "Rewrite the title so it holds the words of `focus_keyword:`, ideally near the start."
+fix = "Rewrite `seo_title:`, or `title:` when there is none, so it holds the words of `focus_keyword:`."
+guide = "focus-keyword"
+
+[focus-not-in-h1]
+what = "The main headline on the page does not hold your focus keyword."
+why = "A reader who arrives from search looks for the words they typed in the headline before reading on."
+fix = "Rewrite `title:` so it holds the words of `focus_keyword:`, as your search title does."
 guide = "focus-keyword"
 
 [focus-not-in-description]
@@ -357,3 +387,21 @@ what = "The search result details on this page miss a property Google needs."
 why = "Google ignores details it cannot read in full, so the post loses its richer search result."
 fix = "Add the property this message names to the block it belongs to."
 guide = "structured-data"
+
+[section-wants-own-page]
+what = "A long section never names the post's subject, so it reads as a second topic."
+why = "A page on one subject is easier to find and to quote, and the side topic gets no page of its own."
+fix = "Move the section to its own post and link to it, or tie it to the post's subject in its heading and text."
+guide = "page-or-section"
+
+[section-repeats-post]
+what = "A section covers the whole subject of another post on the site."
+why = "Two pages on one subject compete for the same searches, and neither does as well as one would."
+fix = "Shorten the section to a summary and link to the post this message names."
+guide = "page-or-section"
+
+[post-fits-section]
+what = "This short post covers what a section of another post already covers."
+why = "Two pages on one subject compete for the same searches, and the short one rarely wins."
+fix = "Move what is new here into that section, then redirect this post's address to that post."
+guide = "page-or-section"

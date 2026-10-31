@@ -1,6 +1,7 @@
 //! `khalid lint` reads each post as its page has it: its slug and routed
-//! address, its wikilinked body, forms, focus keywords and collection, and
-//! the home page's links, so the rules that need them fire (audit 2, G5).
+//! address, its wikilinked body, forms, focus keywords, collection and
+//! topic cluster, and the home page's links, so the rules that need them
+//! fire (audit 2, G5).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -376,5 +377,37 @@ fn a_secondary_keyword_the_body_never_uses_is_a_warning() {
     assert_eq!(
         found(&report, "secondary-keyword-unused", "internal-links"),
         ["site structure"]
+    );
+}
+
+#[test]
+fn a_cluster_member_that_never_links_to_its_pillar_is_a_warning() {
+    let pillar = "cluster:\n  name: internal-links\n  role: pillar\n";
+    let member = "cluster:\n  name: internal-links\n";
+    let site = site(
+        None,
+        &[
+            (
+                "posts/internal-links.md",
+                &post("Internal links", pillar, "See [[link-text]]."),
+            ),
+            (
+                "posts/link-text.md",
+                &post("Link text", member, "Start with [[internal-links]]."),
+            ),
+            (
+                "posts/anchor-words.md",
+                &post("Anchor words", member, "Read [[link-text]]."),
+            ),
+        ],
+    );
+    let report = lint(site.path());
+    assert_eq!(
+        found(&report, "cluster-without-pillar", "anchor-words"),
+        ["internal-links"]
+    );
+    assert_eq!(
+        found(&report, "cluster-without-pillar", "link-text"),
+        Vec::<String>::new()
     );
 }

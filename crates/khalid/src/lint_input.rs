@@ -4,23 +4,25 @@
 //! their rendered output to `LintPost` and `LintSite`, as the built page has
 //! them: the slug and address `khalid build` gives each post, its body
 //! rendered with its wikilinks linked, the wikilinks as written, its forms,
-//! focus keywords and collection, the site's collections, and the links of
-//! each home page, which lists every dated post (audit 2, G5).
+//! focus keywords, collection and topic cluster, the `rel` words the link
+//! policy gives each link, the site's collections, and the links of each
+//! home page, which lists every dated post (audit 2, G5).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::{
-    BlockKind, Document, PostFront, SiteContent, Wikilinks, parse_blocks, render_linked,
+    BlockKind, Document, Link, PostFront, SiteContent, TopicCluster, TopicRole, Wikilinks,
+    parse_blocks, render_linked,
 };
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
-    GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection, LintForm, LintLink,
-    LintPost, LintSite, PageRef, SectionShape, StructuredDataGap,
+    Cluster, ClusterRole, GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection,
+    LintForm, LintLink, LintPost, LintSite, PageRef, SectionShape, StructuredDataGap,
 };
 use khalid_routes::{PostAddress, Routes};
-use khalid_seo::SeoSite;
+use khalid_seo::{LinkPolicy, SeoSite};
 
 use crate::build_pages::routed;
 use crate::build_seo;
@@ -33,6 +35,7 @@ pub(crate) struct LintInput {
     routes: Routes,
     links: BTreeMap<Locale, Wikilinks>,
     seo: Option<SeoSite>,
+    policy: (LinkPolicy, SeoSite),
 }
 
 impl LintInput {
@@ -48,7 +51,13 @@ impl LintInput {
             })
             .collect();
         let seo = build_seo::site(config).ok();
-        Self { routes, links, seo }
+        let policy = build_seo::link_policy(config);
+        Self {
+            routes,
+            links,
+            seo,
+            policy,
+        }
     }
 }
 
@@ -108,6 +117,8 @@ pub(crate) fn lint_site<'c>(
     site.slugs = Some(config.slugs());
     let host = config.address().host();
     site.host = (!host.is_empty()).then(|| host.to_owned());
+    // A process serves the one site `--site` names, so it has no sister
+    // sites and `sibling_hosts` stays empty.
     (site, documents)
 }
 
@@ -164,18 +175,11 @@ pub(crate) fn lint_parts(
     post.path = path;
     post.collection = Some(parts.collection.to_owned());
     post.title.clone_from(&front.title);
+    post.seo_title.clone_from(&front.seo_title);
     post.description.clone_from(&front.description);
     post.date = front.date;
     post.updated = front.updated;
     post.reviewed = front.reviewed;
-    if let Some(group) = front.topic_group.as_deref() {
-        let role = if front.main_post {
-            khalid_lint::ClusterRole::Pillar
-        } else {
-            khalid_lint::ClusterRole::Member
-        };
-        post.cluster = Some(khalid_lint::Cluster::new(group, role));
-    }
     post.author = front
         .author
         .as_ref()
@@ -185,6 +189,11 @@ pub(crate) fn lint_parts(
     post.focus_keyword.clone_from(&front.focus_keyword);
     post.secondary_keywords
         .clone_from(&front.secondary_keywords);
+    post.cluster = front
+        .cluster
+        .as_ref()
+        .map(cluster)
+        .or_else(|| topic_group(front));
     post.wikilinks = wikilinks(parts.body);
     post.forms = forms(parts.body);
     let mut sections = section_shapes(&rendered.html).into_iter();
@@ -196,17 +205,11 @@ pub(crate) fn lint_parts(
             level(h.level).map(|level| Heading::new(level, h.text.clone()).holding(holds))
         })
         .collect();
+    let (policy, own) = &input.policy;
     post.links = rendered
         .links
         .iter()
-        .map(|link| {
-            let kind = if link.internal {
-                LinkKind::Internal
-            } else {
-                LinkKind::External
-            };
-            LintLink::new(kind, link.href.clone(), link.text.clone())
-        })
+        .map(|link| lint_link(link, policy, own))
         .collect();
     post.images = rendered
         .images
@@ -238,6 +241,45 @@ fn gaps(
     };
     page.author = front.author.as_ref().map(Slug::to_string);
     build_seo::structured_data_gaps(site, &page)
+}
+
+/// `link` in the lint model, with the `rel` words the link policy `policy`
+/// gives it on the site `own`, as the built page has them. A rendered body
+/// writes no `rel` of its own, so the policy's words are all of them.
+fn lint_link(link: &Link, policy: &LinkPolicy, own: &SeoSite) -> LintLink {
+    let kind = if link.internal {
+        LinkKind::Internal
+    } else {
+        LinkKind::External
+    };
+    let mut model = LintLink::new(kind, link.href.clone(), link.text.clone());
+    if let Some(rel) = policy.attributes_for(own, &link.href).rel() {
+        model.rel = rel.split_whitespace().map(str::to_owned).collect();
+    }
+    model
+}
+
+/// A post's topic cluster from its header, in the lint model.
+fn cluster(cluster: &TopicCluster) -> Cluster {
+    let role = match cluster.role {
+        TopicRole::Pillar => ClusterRole::Pillar,
+        _ => ClusterRole::Member,
+    };
+    Cluster::new(cluster.name.as_str(), role)
+}
+
+/// A post's topic cluster from `topic_group` and `main_post` (P8), for a
+/// post whose header names no `cluster`.
+fn topic_group(front: &PostFront) -> Option<Cluster> {
+    let role = if front.main_post {
+        ClusterRole::Pillar
+    } else {
+        ClusterRole::Member
+    };
+    front
+        .topic_group
+        .as_deref()
+        .map(|group| Cluster::new(group, role))
 }
 
 /// The slug a page is built at: from the header, or else from the title,
@@ -365,15 +407,22 @@ fn ends_line(tag: &str) -> bool {
 /// The words of rendered HTML with every tag and every entity, such as
 /// `&quot;`, replaced by a space, so neither is read as a word. The end of
 /// a block becomes a line break, so a heading never runs into the next
-/// sentence.
+/// sentence. A formula's `MathML` is left out, so its letters and signs are
+/// never read as words; a maths block's caption stays.
 fn plain_text(html: &str) -> String {
     let mut text = String::with_capacity(html.len());
     let mut tag = String::new();
     let mut skip_until = None;
+    let mut in_maths = false;
     for c in html.chars() {
         match (skip_until, c) {
             (Some(end), _) if c == end => {
                 skip_until = None;
+                if end == '>' && tag == "/math" {
+                    in_maths = false;
+                } else if end == '>' && tag.split(' ').next() == Some("math") {
+                    in_maths = true;
+                }
                 text.push(if end == '>' && ends_line(&tag) {
                     '\n'
                 } else {
@@ -385,6 +434,7 @@ fn plain_text(html: &str) -> String {
             (Some(_), _) => {}
             (None, '<') => skip_until = Some('>'),
             (None, '&') => skip_until = Some(';'),
+            (None, _) if in_maths => {}
             (None, _) => text.push(c),
         }
     }
@@ -423,6 +473,10 @@ fn next_heading(html: &str) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    use khalid_content::render;
+    use khalid_core::{AbsoluteUrl, SlugMode};
+    use khalid_seo::{LinkRel, LinkTarget};
+
     use super::*;
 
     #[test]
@@ -436,6 +490,33 @@ mod tests {
                 vec![SectionShape::List],
                 vec![],
                 vec![SectionShape::List, SectionShape::Table],
+            ]
+        );
+    }
+
+    #[test]
+    fn a_link_carries_the_rel_words_the_link_policy_gives_its_page() {
+        let mut policy = LinkPolicy::default();
+        policy.external_rel.insert(LinkRel::NoFollow);
+        policy.external_target = LinkTarget::NewTab;
+        let english: Locale = "en".parse().unwrap();
+        let address = AbsoluteUrl::parse("https://www.example.com/blog/").unwrap();
+        let own = SeoSite::new("Example", address, english.clone());
+        let body = "Read [the guide](/blog/link-text/), [the home page](https://example.com/) \
+                    and [a study](https://research.example.org/links).";
+        let rendered = render(body, &english, SlugMode::Ascii).unwrap();
+        let rels: Vec<Vec<String>> = rendered
+            .links
+            .iter()
+            .map(|link| lint_link(link, &policy, &own).rel)
+            .collect();
+        let none = Vec::<String>::new();
+        assert_eq!(
+            rels,
+            [
+                none.clone(),
+                none,
+                vec!["nofollow".to_owned(), "noopener".to_owned()]
             ]
         );
     }
@@ -457,6 +538,16 @@ mod tests {
             .filter(|line| !line.is_empty())
             .collect();
         assert_eq!(lines, ["Why links", "One link", "Two", "three"]);
+    }
+
+    #[test]
+    fn plain_text_leaves_out_formulas_and_keeps_their_captions() {
+        let html = "<p>Growth <math><mi>x</mi></math> compounds.</p>\n<figure class=\"maths\">\n<math display=\"block\"><mi>A</mi><mo>=</mo><mi>P</mi></math>\n<figcaption>Compound growth</figcaption>\n</figure>\n";
+        let words: Vec<String> = plain_text(html)
+            .split_whitespace()
+            .map(str::to_owned)
+            .collect();
+        assert_eq!(words, ["Growth", "compounds.", "Compound", "growth"]);
     }
 
     #[test]

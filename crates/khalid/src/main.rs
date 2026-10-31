@@ -6,9 +6,18 @@
 //! which this binary calls the same way the API does.
 
 mod agents;
+mod alert_watch;
+mod alerts;
 mod announce;
 mod assets;
 mod atomic;
+mod audit_alert;
+mod audit_events;
+mod audit_message;
+mod backup;
+mod backup_message;
+mod bing;
+mod bing_report;
 mod build;
 mod build_ai_page;
 mod build_files;
@@ -16,6 +25,7 @@ mod build_gate;
 mod build_home;
 mod build_lists;
 mod build_message;
+mod build_named_pages;
 mod build_pages;
 mod build_reader;
 mod build_redirects;
@@ -24,11 +34,14 @@ mod build_seo;
 mod build_sitemap;
 mod categories;
 mod cli;
+mod cli_access;
 mod comment_pages;
 mod config_message;
+mod consent_route;
 mod content_feed;
 mod content_message;
 mod db;
+mod db_export;
 mod db_message;
 mod doctor;
 mod doctor_address;
@@ -36,7 +49,9 @@ mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
 mod doctor_robots;
+mod entry_events;
 mod exit;
+mod export;
 mod https_message;
 mod import;
 mod import_rest;
@@ -64,12 +79,18 @@ mod new;
 mod new_message;
 mod newsletter;
 mod outbound;
+mod page_code;
+mod page_counts;
 mod post_files;
+mod post_gate;
 mod post_images;
 mod post_lock;
 mod post_photos;
 mod post_text;
 mod preview;
+mod publish;
+mod pull;
+mod pull_message;
 mod redirect_route;
 mod redirects;
 mod repair;
@@ -91,9 +112,11 @@ mod serve_message;
 mod settings_text;
 mod share_images;
 mod site_addresses;
+mod site_audit;
 mod site_config;
 mod site_content;
 mod site_files;
+mod site_html;
 mod site_lists;
 mod site_outline;
 mod site_page;
@@ -105,11 +128,16 @@ mod staff;
 mod staff_message;
 mod staff_owner;
 mod static_mode;
+mod subscriber_events;
+mod tag_events;
 mod theme_check;
 mod theme_message;
 mod theme_preview;
 mod theme_sync;
 mod unlock;
+mod update;
+mod update_message;
+mod update_release;
 mod webhooks;
 
 use std::ffi::OsString;
@@ -155,16 +183,13 @@ fn run(cli: &Cli) -> Exit {
     if let Some(exit) = run_unchecked(cli) {
         return exit;
     }
-    let environment = Environment::from_process();
+    let env = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
-    let look = match (&cli.command, cli.site.as_deref()) {
-        (Some(Command::Serve(_)), Some(folder)) => Some(serving(folder)),
-        _ => None,
-    };
-    let bodies = Bodies::of(cli.command.as_ref());
+    let serves = matches!(cli.command, Some(Command::Serve(_)));
+    let look = cli.site.as_deref().filter(|_| serves).map(serving);
     let site = match cli.site.as_deref() {
-        Some(folder) => match check(folder, &environment, bodies) {
+        Some(folder) => match check(folder, &env, Bodies::of(cli.command.as_ref())) {
             Ok((config, routes, content, assets)) => {
                 Some((folder, config, routes, (content, assets)))
             }
@@ -178,15 +203,15 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve(args)), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let (checked, start) = ((&config, &routes), (content, assets, look));
-            let bucket_keys = environment.s3_keys();
-            return serve_https::serve(cli, folder, checked, start, (args, bucket_keys));
+            let keys = serve::Keys::read(&env, &config);
+            return serve_https::serve(cli, folder, checked, start, (args, keys));
         }
         (_, site) => site,
     };
     match (&cli.command, &site) {
         (None, _) => report::text(&Cli::command().render_help().to_string(), Exit::Success),
         (Some(Command::Db { command }), Some((folder, ..))) => {
-            db::run(folder, *command, cli.output)
+            db::run(folder, command.clone(), cli.output)
         }
         (Some(Command::Lint { path, fix }), Some((folder, ..))) => {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
@@ -199,21 +224,22 @@ fn run(cli: &Cli) -> Exit {
             };
             new::run(folder, config, post, &SystemClock, cli.output)
         }
-        (Some(Command::Build { out }), Some((folder, config, routes, (content, _)))) => build::run(
-            folder,
-            (config, routes, content),
-            out.as_deref(),
-            &SystemClock,
-            cli.output,
-        ),
+        (
+            Some(asked @ (Command::Build { .. } | Command::Export | Command::Audit { .. })),
+            Some((folder, config, routes, (content, _))),
+        ) => on_content(folder, (config, routes, content), asked, (cli, &env)),
         (
             Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
             Some((folder, config, ..)),
         ) => access(folder, config, command, cli.output),
-        (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &environment),
-        (Some(Command::Theme { command }), Some((folder, config, ..))) => {
-            theme(folder, config, command, cli)
+        (Some(Command::Mcp), Some((folder, config, ..))) => mcp::run(folder, config, &env),
+        (Some(Command::Bing { command }), Some((_, config, ..))) => {
+            bing::run(config, &env, *command, cli)
         }
+        (
+            Some(command @ (Command::Theme { .. } | Command::Publish { .. })),
+            Some((folder, config, ..)),
+        ) => on_settings(folder, config, command, cli),
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
             import::run(folder, (config, routes), args, cli)
         }
@@ -227,12 +253,52 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Staff { .. }
                 | Command::Mcp
                 | Command::Lint { .. }
+                | Command::Publish { .. }
                 | Command::New { .. }
-                | Command::Build { .. }),
+                | Command::Build { .. }
+                | Command::Export
+                | Command::Audit { .. }
+                | Command::Bing { .. }),
             ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs the commands that need only a checked site's settings: `theme`
+/// and `publish`.
+fn on_settings(folder: &Path, config: &Config, command: &Command, cli: &Cli) -> Exit {
+    match command {
+        Command::Theme { command } => theme(folder, config, command, cli),
+        Command::Publish { slug, language } => {
+            publish::run(cli, (folder, config), (slug, language.as_ref()))
+        }
+        _ => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs the commands that read a checked site's content: `build`,
+/// `export`, and `audit` from a build or the server it names.
+fn on_content(
+    folder: &Path,
+    checked: (&Config, &Routes, &SiteContent),
+    asked: &Command,
+    (cli, environment): (&Cli, &Environment),
+) -> Exit {
+    match asked {
+        Command::Build { out } => {
+            build::run(folder, checked, out.as_deref(), &SystemClock, cli.output)
+        }
+        Command::Export => export::run(folder, checked, &SystemClock, cli.output),
+        Command::Audit { server, network } => site_audit::run(
+            folder,
+            checked,
+            (server.as_ref(), *network),
+            &SystemClock,
+            (cli, serve::Keys::read(environment, checked.0).mail),
+        ),
+        _ => report::failure(cli.output, &not_built(asked), Exit::Internal),
     }
 }
 
@@ -263,11 +329,10 @@ fn access(folder: &Path, config: &Config, command: &Command, output: Output) -> 
 }
 
 /// Runs the commands that do not start from a checked site: `init`, which
-/// makes the site, `agents`, which needs none, and `doctor`, which checks
-/// the settings, routes and content itself so it can list every problem
-/// instead of stopping at the first, `redirects`, which needs only the
-/// settings and the database, and `webhooks`, which needs only the
-/// database. Returns `None` for every other command.
+/// makes the site, `agents` and `update`, which need none, `doctor`, which
+/// checks the settings, routes and content itself so it can list every
+/// problem instead of stopping at the first, and the commands
+/// [`on_folder`] runs. Returns `None` for every other command.
 fn run_unchecked(cli: &Cli) -> Option<Exit> {
     match &cli.command {
         Some(Command::Init(args)) => {
@@ -279,19 +344,35 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             Some(init::run(folder, args, cli.output))
         }
         Some(Command::Agents) => Some(agents::run(cli.output)),
+        Some(Command::Update { target }) => Some(update::run(*target, cli)),
         Some(command @ Command::Doctor { network }) => Some(match cli.site.as_deref() {
             Some(folder) => doctor::run(folder, *network, cli),
             None => report::failure(cli.output, &needs_site(command), Exit::Usage),
         }),
-        Some(asked @ Command::Redirects { command }) => Some(match cli.site.as_deref() {
-            Some(folder) => redirects::run(folder, command, cli.output),
-            None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
-        }),
-        Some(asked @ Command::Webhooks { command }) => Some(match cli.site.as_deref() {
-            Some(folder) => webhooks::run(folder, command, cli.output),
+        Some(
+            asked @ (Command::Redirects { .. }
+            | Command::Webhooks { .. }
+            | Command::Backup { .. }
+            | Command::Pull),
+        ) => Some(match cli.site.as_deref() {
+            Some(folder) => on_folder(folder, asked, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
         }),
         _ => None,
+    }
+}
+
+/// Runs the commands that need the site folder but not its checked content:
+/// `redirects` and `webhooks`, which read the settings and the database
+/// themselves, `backup`, which keeps a broken site as well as a whole one,
+/// and `pull`, which checks the site after it brings in the new files.
+fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
+    match asked {
+        Command::Redirects { command } => redirects::run(folder, command, output),
+        Command::Webhooks { command } => webhooks::run(folder, command, output),
+        Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),
+        Command::Pull => pull::run(folder, &SystemClock, output),
+        _ => report::failure(output, &not_built(asked), Exit::Internal),
     }
 }
 

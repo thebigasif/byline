@@ -3,10 +3,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use khalid_core::{Config, Environment};
+use std::sync::Arc;
+
+use chrono::{TimeZone, Utc};
+use khalid_core::{Config, Environment, FixedClock, SystemClock};
 use khalid_routes::Routes;
 
-use super::{Assets, ContentTree, Render, SitePages, read_content};
+use super::{Assets, ContentFeed, ContentTree, Render, SitePages, read_content};
 
 fn fixture(name: &str) -> PathBuf {
     let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
@@ -17,7 +20,8 @@ fn fixture(name: &str) -> PathBuf {
 
 fn pages(site: &Path) -> SitePages {
     let config = Config::load(site, &Environment::empty()).unwrap();
-    SitePages::new(site, config, Routes::load(site).unwrap(), None).unwrap()
+    let routes = Routes::load(site).unwrap();
+    SitePages::new(site, config, routes, None, Arc::new(SystemClock)).unwrap()
 }
 
 #[test]
@@ -74,6 +78,36 @@ fn the_checked_content_renders_the_same_pages_as_the_folder() {
     assert_eq!(given.pages, read.pages);
     assert_eq!(given.not_found, read.not_found);
     assert_eq!(given.moves, read.moves);
+}
+
+#[test]
+fn the_start_render_finishing_after_a_saved_one_hands_on_nothing() {
+    let site = demo_copy();
+    let checked = read_content(&ContentTree::walk(site.path()).unwrap()).unwrap();
+    let config = Config::load(site.path(), &Environment::empty()).unwrap();
+    let routes = Routes::load(site.path()).unwrap();
+    let (feed, mut catalogs) = ContentFeed::for_tests();
+    let clock = Arc::new(SystemClock);
+    let source = SitePages::new(site.path(), config, routes, Some(feed), clock).unwrap();
+    // A post saved while the start render of the checked content runs.
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-10-30-a-saved-post.md");
+    let text = "---\ntitle: A saved post\nslug: a-saved-post\ndate: 2026-10-30\nauthor: lena-vogt\ncategory: technical-seo\n---\n\nSaved while serve started.\n";
+    fs::write(&file, text).unwrap();
+    source.render_all().unwrap();
+    let saved = catalogs
+        .try_recv()
+        .expect("the saved render hands on its catalog");
+    let posts = outlined(&source);
+    assert_eq!(saved.index.posts.len(), checked.posts.len() + 1);
+
+    // The start render, of content read before the save, finishes last.
+    source.render_content(&checked, Assets::default()).unwrap();
+    assert!(
+        catalogs.try_recv().is_err(),
+        "older content would undo the save"
+    );
+    assert_eq!(outlined(&source), posts);
 }
 
 fn copy_dir(from: &Path, into: &Path) {
@@ -173,4 +207,30 @@ fn a_saved_edit_that_changes_the_related_posts_renders_the_next_full_render_page
     let html = String::from_utf8_lossy(&body);
     assert!(html.contains("What a sitemap is for"), "the edit shows");
     assert!(all.contains(page), "the saved page is the full render's");
+}
+
+#[test]
+fn a_served_feed_with_no_posts_is_dated_by_the_given_clock() {
+    let site = demo_copy();
+    // The German glossary links German posts, so it goes with them.
+    for folder in ["content/de/posts", "content/de/glossary"] {
+        let mut path = site.path().to_path_buf();
+        path.push(folder);
+        fs::remove_dir_all(path).unwrap();
+    }
+    let config = Config::load(site.path(), &Environment::empty()).unwrap();
+    let routes = Routes::load(site.path()).unwrap();
+    let launch = Utc.with_ymd_and_hms(2026, 10, 26, 9, 0, 0).unwrap();
+    let clock = Arc::new(FixedClock::new(launch));
+    let source = SitePages::new(site.path(), config, routes, None, clock).unwrap();
+    let pages = source.render_all().unwrap().pages;
+    let feed = pages
+        .iter()
+        .find(|page| page.path().as_str() == "/blog/de/feed.xml")
+        .unwrap();
+    let rss = String::from_utf8_lossy(&feed.body().unwrap()).into_owned();
+    assert!(
+        rss.contains("<lastBuildDate>Mon, 26 Oct 2026 09:00:00 +0000</lastBuildDate>"),
+        "{rss}"
+    );
 }

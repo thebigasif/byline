@@ -6,7 +6,8 @@ use khalid_core::AbsoluteUrl;
 use scraper::{ElementRef, Html};
 use url::Url;
 
-use crate::{Alternate, Image, Link, Robots};
+use crate::outline::Outline;
+use crate::{Alternate, Block, Image, Link, Robots};
 
 /// One HTML page as the checks see it.
 #[derive(Debug, Clone, Default)]
@@ -25,6 +26,7 @@ pub struct Page {
     resources: Vec<AbsoluteUrl>,
     words: usize,
     text_bytes: usize,
+    outline: Outline,
 }
 
 impl Page {
@@ -35,12 +37,16 @@ impl Page {
         let Ok(base) = Url::parse(url.as_str()) else {
             return Self::default();
         };
-        let mut page = Self::default();
+        let mut page = Self {
+            outline: Outline::new(&document),
+            ..Self::default()
+        };
         // A stack rather than recursion, so no nesting depth can overflow.
         // Each element carries whether its text is text a reader sees.
         let mut stack = vec![(document.root_element(), false)];
         while let Some((element, seen)) = stack.pop() {
             page.element(element, &base);
+            page.outline.element(element);
             let name = element.value().name();
             let seen = (seen || name == "body")
                 && !matches!(name, "script" | "style" | "template" | "noscript");
@@ -196,6 +202,24 @@ impl Page {
     pub fn text_bytes(&self) -> usize {
         self.text_bytes
     }
+
+    /// The subheadings and paragraphs of the page's own text, in reading
+    /// order, without its header, menus, footer, forms or comments.
+    pub fn outline(&self) -> &[Block] {
+        &self.outline.blocks
+    }
+
+    /// The summary of each closed `<details>` in the page's own text that
+    /// folds paragraphs away, such as a question whose answer starts
+    /// hidden. A folded menu or form does not count.
+    pub fn folded(&self) -> &[String] {
+        &self.outline.folded
+    }
+
+    /// The `datetime` of every `<time>` on the page, in order.
+    pub fn dates(&self) -> &[String] {
+        &self.outline.dates
+    }
 }
 
 /// `href` against `base`, as a web address with no fragment, or `None`
@@ -215,7 +239,7 @@ fn within(element: ElementRef<'_>, name: &str) -> bool {
 }
 
 /// The text of `element`, with runs of white space made one space.
-fn text_of(element: ElementRef<'_>) -> String {
+pub(crate) fn text_of(element: ElementRef<'_>) -> String {
     let text: String = element.text().collect();
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }

@@ -1,9 +1,23 @@
 //! The HTML of the blocks that post to the server. Each is a real form that
 //! works with scripts off, with a spam trap people never see.
 
-use super::{Renderer, attribute};
-use crate::FormField;
+use super::{Renderer, attribute, inside};
 use crate::directive::TRAP;
+use crate::{Block, FormField};
+
+/// How a body's `:::gated` blocks are written (task 5.11).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Gated<'page> {
+    /// As a note and a sign-up form, never the body: the public page.
+    Locked {
+        /// The address of the page, sent with the form so the reader
+        /// comes back to it once they confirm. `None` leaves it out.
+        back: Option<&'page str>,
+    },
+    /// As the body: the page a confirmed subscriber reads.
+    Open,
+}
 
 impl Renderer<'_> {
     /// Writes a form that posts to `/forms/{id}`, one labelled field each.
@@ -53,12 +67,22 @@ impl Renderer<'_> {
     }
 
     /// Writes an email field that posts to `/subscribe`, numbered so two
-    /// on one page keep their own ids.
-    pub(super) fn subscribe(&mut self, label: &str, button: &str) {
+    /// on one page keep their own ids. With `back`, the form names the page
+    /// a confirmed reader returns to.
+    pub(super) fn subscribe(&mut self, label: &str, button: &str, back: Option<&str>) {
         self.subscribe_forms = self.subscribe_forms.saturating_add(1);
         let id = format!("subscribe-{}", self.subscribe_forms);
+        self.html
+            .push_str("<form class=\"subscribe\" method=\"post\" action=\"/subscribe\">\n");
+        if let Some(back) = back {
+            self.push(&[
+                "<input type=\"hidden\" name=\"back\" value=\"",
+                &attribute(back),
+                "\" />\n",
+            ]);
+        }
         self.push(&[
-            "<form class=\"subscribe\" method=\"post\" action=\"/subscribe\">\n<p><label for=\"",
+            "<p><label for=\"",
             &id,
             "-email\">",
             &attribute(label),
@@ -74,15 +98,26 @@ impl Renderer<'_> {
         ]);
     }
 
-    /// Writes gated content's lock card: its note and a subscribe form. The
-    /// body is never written, so the page cannot leak it.
-    pub(super) fn gated(&mut self, note: &str, label: &str, button: &str) {
+    /// Writes gated content as the renderer's [`Gated`] says. Locked, it is
+    /// a lock card, its note and a subscribe form, and the body is never
+    /// written, so the page cannot leak it. Open, it is the body.
+    pub(super) fn gated(&mut self, block: &Block, note: &str, label: &str, button: &str) {
+        self.facts.gated = true;
+        let back = match self.gated {
+            Gated::Open => {
+                self.html.push_str("<section class=\"gated gated-open\">\n");
+                self.markdown(&inside(&block.source));
+                self.html.push_str("</section>\n");
+                return;
+            }
+            Gated::Locked { back } => back,
+        };
         self.push(&[
             "<section class=\"gated\">\n<p class=\"gated-note\">",
             &attribute(note),
             "</p>\n",
         ]);
-        self.subscribe(label, button);
+        self.subscribe(label, button, back);
         self.html.push_str("</section>\n");
     }
 

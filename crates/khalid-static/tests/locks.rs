@@ -32,7 +32,7 @@ fn each_kind_of_form_becomes_its_note() {
     let page = locks.page(&html, &locale("en")).unwrap();
     assert_eq!(
         page.html,
-        "<main>\n<p class=\"locked\" data-feature=\"newsletter\">Signing up by email is not open on this site.</p>\n<p>Between.</p>\n<p class=\"locked\" data-feature=\"forms\">This form cannot be sent from this site.</p>\n<p class=\"locked\" data-feature=\"search\">Search is not available on this site.</p>\n</main>"
+        "<main>\n<p class=\"lock locked\" data-feature=\"newsletter\">Signing up by email is not open on this site.</p>\n<p>Between.</p>\n<p class=\"lock locked\" data-feature=\"forms\">This form cannot be sent from this site.</p>\n<p class=\"lock locked\" data-feature=\"search\">Search is not available on this site.</p>\n</main>"
     );
     assert_eq!(
         page.locked.into_iter().collect::<Vec<_>>(),
@@ -50,7 +50,7 @@ fn a_german_page_gets_german_notes_and_a_missing_language_english_ones() {
     let german = locks.page(SUBSCRIBE, &locale("de-AT")).unwrap();
     assert_eq!(
         german.html,
-        "<p class=\"locked\" data-feature=\"newsletter\">Anmeldungen per E-Mail sind auf dieser Website nicht möglich.</p>\n"
+        "<p class=\"lock locked\" data-feature=\"newsletter\">Anmeldungen per E-Mail sind auf dieser Website nicht möglich.</p>\n"
     );
     let french = locks.page(SUBSCRIBE, &locale("fr")).unwrap();
     assert!(
@@ -77,7 +77,7 @@ fn upper_case_tags_and_quoted_angle_brackets_are_read_as_one_form() {
     let page = locks.page(html, &locale("en")).unwrap();
     assert_eq!(
         page.html,
-        "<p>a</p><p class=\"locked\" data-feature=\"comments\">Comments are not open on this site.</p><p>b</p>"
+        "<p>a</p><p class=\"lock locked\" data-feature=\"comments\">Comments are not open on this site.</p><p>b</p>"
     );
 }
 

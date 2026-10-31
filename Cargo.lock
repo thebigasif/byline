@@ -159,7 +159,7 @@ dependencies = [
  "asn1-rs-derive",
  "asn1-rs-impl",
  "displaydoc",
- "nom",
+ "nom 7.1.3",
  "num-traits",
  "rusticata-macros",
  "thiserror",
@@ -912,7 +912,7 @@ checksum = "07da5016415d5a3c4dd39b11ed26f915f52fc4e0dc197d87908bc916e51bc1a6"
 dependencies = [
  "asn1-rs",
  "displaydoc",
- "nom",
+ "nom 7.1.3",
  "num-bigint",
  "num-traits",
  "rusticata-macros",
@@ -1089,6 +1089,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "email-encoding"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "420b9da095f052ea597503e39073b5b3c522f7db933fbac202d91d24492693fd"
+dependencies = [
+ "base64 0.23.1",
+ "memchr",
+]
+
+[[package]]
+name = "email_address"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e079f19b08ca6239f47f8ba8509c11cf3ea30095831f7fed61441475edd8c449"
+
+[[package]]
 name = "encode_unicode"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1212,6 +1228,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "filetime"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
+dependencies = [
+ "cfg-if",
+ "libc",
 ]
 
 [[package]]
@@ -1995,13 +2021,18 @@ dependencies = [
 name = "khalid"
 version = "0.0.0"
 dependencies = [
+ "atom_syndication",
  "axum",
  "chrono",
  "clap",
+ "flate2",
  "image",
  "insta",
  "khalid-admin",
+ "khalid-alerts",
+ "khalid-analytics",
  "khalid-api",
+ "khalid-audit",
  "khalid-auth",
  "khalid-comments",
  "khalid-content",
@@ -2010,6 +2041,7 @@ dependencies = [
  "khalid-https",
  "khalid-import",
  "khalid-lint",
+ "khalid-mail",
  "khalid-mcp",
  "khalid-media",
  "khalid-mount",
@@ -2027,10 +2059,14 @@ dependencies = [
  "mimalloc",
  "percent-encoding",
  "rcgen",
+ "rss",
  "rustix",
  "scraper",
+ "semver",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
+ "tar",
  "tempfile",
  "tokio",
  "toml",
@@ -2047,6 +2083,26 @@ dependencies = [
  "http-body-util",
  "tokio",
  "tower",
+]
+
+[[package]]
+name = "khalid-alerts"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "khalid-alerts",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "khalid-analytics"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "thiserror",
 ]
 
 [[package]]
@@ -2084,8 +2140,18 @@ dependencies = [
 name = "khalid-audit"
 version = "0.0.0"
 dependencies = [
+ "chrono",
+ "http",
  "khalid-core",
+ "khalid-outbound",
+ "percent-encoding",
+ "roxmltree",
  "scraper",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
  "url",
 ]
 
@@ -2158,7 +2224,7 @@ dependencies = [
 
 [[package]]
 name = "khalid-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "khalid-core",
@@ -2177,7 +2243,10 @@ name = "khalid-db"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "futures-util",
  "getrandom 0.4.3",
+ "khalid-alerts",
+ "khalid-analytics",
  "khalid-api",
  "khalid-auth",
  "khalid-comments",
@@ -2244,7 +2313,7 @@ dependencies = [
 
 [[package]]
 name = "khalid-lint"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "khalid-core",
@@ -2252,6 +2321,23 @@ dependencies = [
  "serde_json",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "khalid-mail"
+version = "0.0.0"
+dependencies = [
+ "khalid-core",
+ "khalid-mail",
+ "khalid-newsletter",
+ "khalid-outbound",
+ "lettre",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "toml",
+ "wiremock",
 ]
 
 [[package]]
@@ -2309,9 +2395,11 @@ dependencies = [
  "axum",
  "chrono",
  "getrandom 0.4.3",
+ "hmac",
  "khalid-core",
  "khalid-db",
  "khalid-newsletter",
+ "percent-encoding",
  "serde",
  "sha2 0.11.1",
  "tempfile",
@@ -2531,6 +2619,33 @@ name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
+
+[[package]]
+name = "lettre"
+version = "0.11.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2c646bd5cc763b1087b15493e29a64be6147ba8f19342004fa52048ee596eae"
+dependencies = [
+ "async-trait",
+ "base64 0.23.1",
+ "email-encoding",
+ "email_address",
+ "fastrand",
+ "futures-io",
+ "futures-util",
+ "httpdate",
+ "idna",
+ "mime",
+ "nom 8.0.0",
+ "percent-encoding",
+ "quoted_printable",
+ "rustls",
+ "rustls-platform-verifier",
+ "socket2",
+ "tokio",
+ "tokio-rustls",
+ "url",
+]
 
 [[package]]
 name = "libc"
@@ -2838,6 +2953,15 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
+]
+
+[[package]]
+name = "nom"
+version = "8.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df9761775871bdef83bee530e60050f7e54b1105350d6884eb0fb4f46c2f9405"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
@@ -3293,6 +3417,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "quoted_printable"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "478e0585659a122aa407eb7e3c0e1fa51b1d8a870038bd29f0cf4a8551eea972"
+
+[[package]]
 name = "r-efi"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3554,7 +3684,7 @@ version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf0c4a6ece9950b9abdb62b1cfcf2a68b3b67a10ba445b3bb85be2a293d0632"
 dependencies = [
- "nom",
+ "nom 7.1.3",
 ]
 
 [[package]]
@@ -3576,6 +3706,7 @@ version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
+ "log",
  "once_cell",
  "ring",
  "rustls-pki-types",
@@ -4350,6 +4481,16 @@ dependencies = [
  "thiserror",
  "walkdir",
  "yaml-rust",
+]
+
+[[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
 ]
 
 [[package]]
@@ -5195,7 +5336,7 @@ dependencies = [
  "data-encoding",
  "der-parser",
  "lazy_static",
- "nom",
+ "nom 7.1.3",
  "oid-registry",
  "ring",
  "rusticata-macros",

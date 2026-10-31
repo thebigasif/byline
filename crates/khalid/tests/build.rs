@@ -51,7 +51,7 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     let output = khalid(&["--site", path(&demo), "build", "--out", path(out.path())]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
     assert!(
-        text(&output.stdout).contains("38 pages"),
+        text(&output.stdout).contains("37 pages"),
         "{}",
         text(&output.stdout)
     );
@@ -92,6 +92,17 @@ fn build_renders_every_post_and_home_page_of_the_demo_site() {
     );
     let home_body = page(out.path(), "index.html");
     assert!(home_body.contains("href=\"/blog/ai/\""), "{home_body}");
+    // Its text comes from site.toml in one language, so it is built once,
+    // in the main language, and the German footer links to that copy.
+    assert!(
+        SitePath::within(out.path(), "de/ai")
+            .unwrap()
+            .as_path()
+            .read_dir()
+            .is_err()
+    );
+    let german_home = page(out.path(), "de/index.html");
+    assert!(german_home.contains("href=\"/blog/ai/\""), "{german_home}");
 }
 
 #[test]
@@ -233,7 +244,8 @@ fn build_draws_the_maths_of_a_post_as_mathml() {
     khalid(&["init", site, "--address", "https://www.example.com"]);
     let post = "---\ntitle: Compound growth\nslug: compound-growth\ndate: 2026-09-14\n\
                 author: asif\n---\n\n\
-                Traffic grows as $v(1+r)^n$ each month, as [the home page](/) says.\n";
+                Traffic grows as $v(1+r)^n$ each month, as [the home page](/) says.\n\n\
+                :::maths{label=\"Visits after n months\"}\nv_n = v_0 (1 + r)^n\n:::\n";
     fs::write(at(temp.path(), "content/en/posts/compound-growth.md"), post).unwrap();
 
     let output = khalid(&["--site", site, "build"]);
@@ -241,6 +253,15 @@ fn build_draws_the_maths_of_a_post_as_mathml() {
     let page = page(&at(temp.path(), "public"), "compound-growth/index.html");
     assert!(page.contains("<math"), "{page}");
     assert!(!page.contains("$v(1+r)^n$"), "{page}");
+    assert!(
+        page.contains("<figure class=\"maths\">\n<math display=\"block\""),
+        "{page}"
+    );
+    assert!(
+        page.contains("<figcaption>Visits after n months</figcaption>"),
+        "{page}"
+    );
+    assert!(!page.contains("v_n = v_0"), "{page}");
 }
 
 #[test]

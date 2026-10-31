@@ -17,9 +17,12 @@
 //! `khalid-newsletter` keeps them in, readers' comments, as the
 //! [`CommentTable`] that `khalid-comments` moderates through, and the staff
 //! accounts, as the [`AccountTable`], [`SessionTable`], [`LinkTable`] and
-//! [`PasskeyTable`] that `khalid-auth` signs people in with.
+//! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
+//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into.
 
 mod account_table;
+mod alert_table;
+mod analytics_table;
 mod comment_table;
 mod content_index;
 mod database;
@@ -36,6 +39,7 @@ mod schedule_table;
 mod search_find;
 mod search_index;
 mod session_table;
+mod site_export;
 mod site_id;
 mod site_keys;
 mod site_lists;
@@ -43,6 +47,8 @@ mod subscriber_table;
 mod webhook_table;
 
 pub use account_table::AccountTable;
+pub use alert_table::AlertTable;
+pub use analytics_table::AnalyticsTable;
 pub use comment_table::CommentTable;
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;
@@ -58,6 +64,7 @@ pub use schedule_table::ScheduleTable;
 pub use search_find::{SearchHit, SearchResults};
 pub use search_index::SearchPage;
 pub use session_table::SessionTable;
+pub use site_export::{Cell, ExportTable, SiteExport, is_withheld_column};
 pub use site_id::SiteId;
 pub use subscriber_table::SubscriberTable;
 pub use webhook_table::WebhookTable;

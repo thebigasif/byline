@@ -1,0 +1,5 @@
+# These posts do not link to each other, and their review dates have their
+# own fixture; this fixture is about the updated date only.
+[rules]
+orphan-post = "off"
+review-due = "off"

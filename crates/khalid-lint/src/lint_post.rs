@@ -25,6 +25,9 @@ pub struct LintPost {
     pub path: Option<String>,
     /// The title from the header, which becomes the page's main headline.
     pub title: Option<String>,
+    /// The title search results show in place of the headline, from
+    /// `seo_title` in the header, as written, `{site}` and `{sep}` included.
+    pub seo_title: Option<String>,
     /// The description from the header, which search results show under the
     /// title.
     pub description: Option<String>,
@@ -91,6 +94,7 @@ impl LintPost {
             slug,
             path: None,
             title: None,
+            seo_title: None,
             description: None,
             date: None,
             updated: None,

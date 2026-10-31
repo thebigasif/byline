@@ -1,0 +1,10 @@
+---
+source: crates/khalid-content/tests/blocks_maths.rs
+assertion_line: 57
+expression: html
+---
+<p>Money grows like this.</p>
+<figure class="maths">
+<math display="block"><mi>A</mi><mo>=</mo><mi>P</mi><msup><mrow><mo lspace="0.1667em">(</mo><mn>1</mn><mo>+</mo><mfrac><mi>r</mi><mi>n</mi></mfrac><mo>)</mo></mrow><mrow><mi>n</mi><mi>t</mi></mrow></msup></math>
+<figcaption>Compound growth</figcaption>
+</figure>

@@ -1,1 +1,2 @@
+warn focus-not-in-first-paragraph: internal links
 warn keyword-stuffing: running shoes
