@@ -1,12 +1,19 @@
 [package]
 name = "khalid-core"
-version = "0.0.0"
+# Published to crates.io with khalid-lint, always at the same version
+# (docs/adr/0000-the-lint-crates-are-published-under-agpl.md).
+version = "0.1.0"
 description = "Shared building blocks for every Khalid crate: messages, identifiers, time and settings."
+readme = "README.md"
+documentation = "https://docs.rs/khalid-core"
+homepage = "https://github.com/thebigasif/khalid"
+keywords = ["seo", "blog", "cms", "slug"]
+categories = ["web-programming", "text-processing"]
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-publish.workspace = true
+publish = true
 
 [features]
 # FixedClock and other test doubles, for this crate's tests and other crates' tests.
@@ -21,7 +28,8 @@ unicode-normalization = "0.1"
 url = "2"
 
 [dev-dependencies]
-khalid-core = { path = ".", version = "0.0.0", features = ["test-util"] }
+# Path only, so `cargo publish` drops it: crates.io refuses a crate that needs itself.
+khalid-core = { path = ".", features = ["test-util"] }
 proptest = "1"
 tempfile = "3"
 serde_json.workspace = true

@@ -14,7 +14,7 @@ fast_image_resize = { version = "6", default-features = false, features = ["std"
 hmac = "0.13"
 http = "1"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 rayon = "1"
 serde.workspace = true
@@ -26,7 +26,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 divan = "0.1"
-khalid-core = { path = "../khalid-core", version = "0.0.0", features = ["test-util"] }
+khalid-core = { workspace = true, features = ["test-util"] }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0", features = ["test-util"] }
 tempfile = "3"
 wiremock = "0.6"

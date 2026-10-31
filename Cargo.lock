@@ -2197,7 +2197,7 @@ dependencies = [
 
 [[package]]
 name = "khalid-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "khalid-core",
@@ -2284,7 +2284,7 @@ dependencies = [
 
 [[package]]
 name = "khalid-lint"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "khalid-core",

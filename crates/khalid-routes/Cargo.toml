@@ -10,7 +10,7 @@ publish.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", default-features = false }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 toml = "0.9"

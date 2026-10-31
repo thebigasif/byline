@@ -10,7 +10,7 @@ publish.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std"] }
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 regex = "1"
 serde.workspace = true

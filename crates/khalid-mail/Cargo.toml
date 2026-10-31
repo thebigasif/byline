@@ -13,7 +13,7 @@ publish.workspace = true
 test-util = []
 
 [dependencies]
-khalid-core = { path = "../khalid-core", version = "0.0.0" }
+khalid-core.workspace = true
 khalid-newsletter = { path = "../khalid-newsletter", version = "0.0.0" }
 khalid-outbound = { path = "../khalid-outbound", version = "0.0.0" }
 # SMTP (decision 8 of 2026-10-27), on rustls with ring and the system's
