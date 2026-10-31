@@ -3,7 +3,7 @@
 
 use chrono::{DateTime, TimeZone, Utc};
 use khalid_api::entry_store::Entry;
-use khalid_api::resources::{AdminPage, NewPage, PageEdit};
+use khalid_api::resources::{AdminPage, AdminSnippet, NewPage, NewSnippet, PageEdit, SnippetEdit};
 use khalid_core::{Locale, Slug};
 use serde_json::json;
 
@@ -68,4 +68,41 @@ fn a_new_page_with_a_slug_that_is_not_one_is_refused() {
         "slug": "About Us!", "title": "About", "markdown": "Text.",
     }));
     assert!(new.is_err(), "{new:?}");
+}
+
+#[test]
+fn a_snippet_is_sent_in_api_shape_and_edited_field_by_field() {
+    let key = (
+        Locale::try_new("en").unwrap(),
+        Slug::try_new("affiliate-disclosure").unwrap(),
+    );
+    let snippet = AdminSnippet::new(key, "Affiliate disclosure", "Some links pay us.", at(20));
+    let sent = serde_json::to_value(&snippet).unwrap();
+    assert_eq!(sent["id"], "en.affiliate-disclosure");
+    assert_eq!(sent["title"], "Affiliate disclosure");
+    assert_eq!(sent["updated_at"], "2026-10-20T09:00:00Z");
+    let edit: SnippetEdit = serde_json::from_value(json!({
+        "markdown": "Some links earn us a small fee.", "updated_at": "2026-10-20T09:00:00Z",
+    }))
+    .unwrap();
+    assert_eq!(AdminSnippet::seen(&edit), at(20));
+    let edited = serde_json::to_value(snippet.edited(edit, at(27))).unwrap();
+    assert_eq!(edited["title"], "Affiliate disclosure");
+    assert_eq!(edited["markdown"], "Some links earn us a small fee.");
+    assert_eq!(edited["updated_at"], "2026-10-27T09:00:00Z");
+}
+
+#[test]
+fn a_new_snippet_is_made_in_its_language_and_a_bad_slug_is_refused() {
+    let new: NewSnippet = serde_json::from_value(json!({
+        "language": "de", "slug": "werbung", "title": "Werbung", "markdown": "Bezahlte Links.",
+    }))
+    .unwrap();
+    let language = AdminSnippet::language(&new).cloned().unwrap();
+    let made = AdminSnippet::made(new, language, at(27));
+    assert_eq!(made.id(), "de.werbung");
+    let refused = serde_json::from_value::<NewSnippet>(json!({
+        "slug": "Not a slug", "title": "T", "markdown": "M.",
+    }));
+    assert!(refused.is_err(), "{refused:?}");
 }

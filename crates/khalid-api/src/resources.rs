@@ -3,6 +3,7 @@
 
 mod admin_page;
 mod admin_post;
+mod admin_snippet;
 mod author;
 mod collection;
 mod comment;
@@ -18,6 +19,7 @@ mod term;
 
 pub use admin_page::{AdminPage, NewPage, PageEdit};
 pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
+pub use admin_snippet::{AdminSnippet, NewSnippet, SnippetEdit};
 pub use author::Author;
 pub use collection::Collection;
 pub use comment::{AdminComment, CommentReply, CommentStatus, CommentWriter};
