@@ -48,6 +48,12 @@ pub(crate) struct Cli {
     #[arg(long, global = true, hide = true, value_name = "HOST=ADDRESS")]
     pub(crate) test_hosts: Option<String>,
 
+    /// Test builds only, with `--test-hosts`: trust this PEM certificate alone for outbound
+    /// HTTPS, such as pebble's, the test certificate authority.
+    #[cfg(feature = "test-util")]
+    #[arg(long, global = true, hide = true, value_name = "FILE", value_parser = crate::outbound::read_test_root)]
+    pub(crate) test_root: Option<crate::outbound::TestRoot>,
+
     /// Test builds only: send Bing Webmaster Tools calls to this endpoint.
     #[cfg(feature = "test-util")]
     #[arg(long, global = true, hide = true, value_name = "URL")]
