@@ -40,6 +40,7 @@ mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
 mod doctor_robots;
+mod draft_comment_mail;
 mod exit;
 mod export;
 mod https_message;

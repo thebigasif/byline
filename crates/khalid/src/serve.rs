@@ -11,7 +11,6 @@ use std::time::Duration;
 use axum::Router;
 use khalid_api::api::{self, AdminDesks};
 use khalid_api::comment_moderation::CommentModeration;
-use khalid_api::draft_comments::DraftComments;
 use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
 use khalid_api::redirect_desk::RedirectDesk;
@@ -19,7 +18,8 @@ use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, DraftCommentTable, KeyTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
+use khalid_newsletter::Mailer;
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
 use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
@@ -38,8 +38,9 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, page_counts, preview,
-    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    announce, comment_pages, db, db_message, draft_comment_mail, media_library, newsletter,
+    page_counts, preview, redirect_route, report, scheduler, search_route, serve_message,
+    share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -160,7 +161,9 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
-    let newsletters = newsletter::router(config, (database, id), (keys.mail, outbound))
+    let mailer = newsletter::mailer(config, keys.mail, outbound)
+        .map_err(|message| (message, Exit::Internal))?;
+    let newsletters = newsletter::router(config, (database, id), mailer.clone())
         .map_err(|message| (message, Exit::Internal))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
@@ -190,7 +193,7 @@ fn serve_with(
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
         let desks = (moderation, media, desk);
-        let apis = api_router((content, door), desks, (database, id, config));
+        let apis = api_router((content, door), desks, (database, id, config), mailer);
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -220,11 +223,13 @@ fn serve_with(
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
 /// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`.
+/// accounts of site `id`, and comments on drafts emailed through `mailer`
+/// when the site sends mail.
 fn api_router(
     (content, door): (LiveContent, Arc<PublishDoor>),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
     (database, id, config): (&Database, SiteId, &Config),
+    mailer: Option<Arc<dyn Mailer>>,
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
     let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
@@ -238,11 +243,7 @@ fn api_router(
             id,
             SystemClock,
         ))),
-        draft_comments: Some(DraftComments::new(Arc::new(DraftCommentTable::new(
-            database.clone(),
-            id,
-            SystemClock,
-        )))),
+        draft_comments: Some(draft_comment_mail::desk((database, id, config), mailer)),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

@@ -17,12 +17,11 @@ use crate::serve_message;
 
 /// The newsletter's routes for the site with `config`, in its default
 /// language, keeping subscribers in site `id` of `database` and sending
-/// with the mail `secret` from the environment, the APIs through
-/// `outbound`.
+/// through `mailer`, made by [`mailer`], when the site sends mail.
 pub(crate) fn router(
     config: &Config,
     (database, id): (&Database, SiteId),
-    (secret, outbound): (Option<Secret<String>>, &Outbound),
+    mailer: Option<Arc<dyn Mailer>>,
 ) -> Result<Router, UserMessage> {
     let site = NewsletterSite {
         name: config.name().to_owned(),
@@ -30,7 +29,7 @@ pub(crate) fn router(
         links: SiteLinks::new(config.address(), config.mount()),
     };
     let pages = Pages::new(site.clone()).map_err(|_| serve_message::internal())?;
-    let newsletter = match mailer(config, secret, outbound)? {
+    let newsletter = match mailer {
         Some(mailer) => {
             let store = Arc::new(SubscriberTable::new(database.clone(), id));
             let made = Newsletter::new(store, mailer, Arc::new(SystemClock), site);
@@ -41,10 +40,11 @@ pub(crate) fn router(
     Ok(khalid_newsletter::router(pages, newsletter))
 }
 
-/// The way mail leaves, as `[mail]` names it, or `None` when the site
-/// sends none. The settings and the secret were checked at start, so a
-/// failure here is Khalid's own.
-fn mailer(
+/// The way mail leaves, as `[mail]` names it, with the mail `secret` from
+/// the environment and the APIs reached through `outbound`, or `None` when
+/// the site sends none. The settings and the secret were checked at start,
+/// so a failure here is Khalid's own.
+pub(crate) fn mailer(
     config: &Config,
     secret: Option<Secret<String>>,
     outbound: &Outbound,

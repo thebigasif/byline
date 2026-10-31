@@ -4,6 +4,12 @@
 
 mod common;
 
+use std::fs;
+use std::process::Command;
+use std::thread;
+use std::time::Duration;
+
+use khalid_mail::StubSmtp;
 use serde_json::{Value, json};
 
 #[test]
@@ -70,4 +76,46 @@ fn a_comment_on_a_demo_post_is_kept_through_a_restart_and_resolved() {
     assert_eq!(status, 204, "{body}");
     let (_, body) = server.admin("GET", comments, None);
     assert_eq!(body["draft_comments"][0]["resolved"], true, "{body}");
+}
+
+#[test]
+fn a_new_comment_is_emailed_to_the_owner() {
+    let stub = StubSmtp::start().unwrap();
+    let site = common::demo_copy();
+    let mut settings = site.path().to_path_buf();
+    settings.push("site.toml");
+    let port = stub.port();
+    let mail = format!(
+        "\n[mail]\nfrom = \"desk@example.com\"\nname = \"Field Notes\"\n\n[mail.smtp]\n\
+         host = \"127.0.0.1\"\nport = {port}\nsecurity = \"none\"\nprivate_host = true\n"
+    );
+    let mut text = fs::read_to_string(&settings).unwrap();
+    text.push_str(&mail);
+    fs::write(&settings, text).unwrap();
+    let owner = Command::new(env!("CARGO_BIN_EXE_khalid"))
+        .args([
+            "--site",
+            site.path().to_str().unwrap(),
+            "--json",
+            "staff",
+            "owner",
+        ])
+        .args(["--email", "owner@example.com", "--name", "Asif"])
+        .output()
+        .unwrap();
+    assert_eq!(owner.status.code(), Some(0));
+    let key = common::new_key(site.path(), &["--name", "Desk", "--scope", "posts:write"]);
+    let server = common::start(site.path(), &key);
+    let comments = "/api/admin/v1/posts/en.what-a-sitemap-does/draft-comments/";
+    let first = json!({"draft_comments": [{"text": "Add the 50,000 limit.", "block": 3}]});
+    let (status, body) = server.admin("POST", comments, Some(&first));
+    assert_eq!(status, 201, "{body}");
+    let sent = (0..100).find_map(|_| {
+        thread::sleep(Duration::from_millis(100));
+        stub.received().into_iter().next()
+    });
+    let sent = sent.expect("the owner's email leaves within 10 seconds");
+    assert!(sent.contains("To: owner@example.com"), "{sent}");
+    assert!(sent.contains("Add the 50,000 limit."), "{sent}");
+    assert!(sent.contains("on block 3"), "{sent}");
 }
