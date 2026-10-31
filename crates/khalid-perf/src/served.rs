@@ -66,6 +66,11 @@ impl Served {
         Ok((served, elapsed_ms(clock, started)))
     }
 
+    /// Where the server answers, such as `127.0.0.1:41873`.
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
     /// The site's address under the host, such as `/blog/`.
     pub fn mount(&self) -> &str {
         &self.mount

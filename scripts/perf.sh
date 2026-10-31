@@ -10,8 +10,15 @@
 # to the first byte, the idle memory and the time from saving one post to
 # its page showing the edit. The same three on the 10,000-post site are
 # written under "observed": the budgets name 1,000 posts, so they are
-# reported, not gated. The lint measures wait for the linter's near-copy
-# rule to stop growing with the site (task 1.21).
+# reported, not gated. Lint one post is the median over 100 posts of the
+# 1,000-post site, each linted against the whole site. Requests per second
+# is one cached post page of the 1,000-post site, asked for over 50
+# keep-alive connections for 30 seconds, as `oha` would by default. The
+# public CSS is the Brotli copy of each stylesheet the built home page
+# links. The admin's initial JavaScript is each script admin/dist's
+# index.html loads at once, gzipped at level 9 as
+# admin/scripts/size-budget.mjs counts; it is measured only when
+# admin/dist holds a build, because this script does not run npm.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,10 +40,12 @@ mkdir -p "$work"
 "$perf" fixture 1000 "$work/site-1k"
 "$perf" fixture 10000 "$work/site-10k"
 "$perf" render "$work/site-1k" "$work/render.json"
+"$perf" lint "$work/site-1k" "$work/lint.json"
 "$perf" serve "$bin" 1000 "$work/site-1k" "$work/serve-1k.json"
 "$perf" serve "$bin" 10000 "$work/site-10k" "$work/serve-10k.json"
+"$perf" requests "$bin" 1000 "$work/site-1k" "$work/requests.json"
 
-python3 - "$bin" "$work" perf/current.json <<'PY'
+python3 - "$bin" "$perf" "$root" "$work" perf/current.json <<'PY'
 import json
 import os
 import shutil
@@ -45,7 +54,7 @@ import subprocess
 import sys
 import time
 
-binary, work, out = sys.argv[1:]
+binary, perf, root, work, out = sys.argv[1:]
 
 
 def timed(command):
@@ -68,6 +77,13 @@ for attempt in range(3):
     site = os.path.join(work, "site-10k")
     build_runs.append(timed([binary, "--site", site, "build", "--out", target]))
 
+# The stylesheet the last build wrote, and the admin when admin/dist holds
+# a build of it. Without one, the gate lists the admin as not measured.
+subprocess.run(
+    [perf, "sizes", target, os.path.join(root, "admin", "dist"), os.path.join(work, "sizes.json")],
+    check=True,
+)
+
 def read(name):
     with open(os.path.join(work, name)) as f:
         return json.load(f)
@@ -80,6 +96,9 @@ measures = {
     "post_render_p50_ms": render["post_render_p50_ms"],
     "post_render_p99_ms": render["post_render_p99_ms"],
     "full_rebuild_10k_s": round(statistics.median(build_runs), 2),
+    **read("lint.json"),
+    **read("requests.json"),
+    **read("sizes.json"),
     **read("serve-1k.json"),
 }
 # The 10,000-post site's server measures, reported beside the gate.
