@@ -1,0 +1,16 @@
+[package]
+name = "khalid-forms"
+version = "0.0.0"
+description = "The form block's answers on a running site: the route, its spam trap and limits, and where answers are kept."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+thiserror.workspace = true
+
+[lints]
+workspace = true
