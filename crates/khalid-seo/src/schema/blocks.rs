@@ -1,5 +1,7 @@
 //! [`SchemaBlock`]: the editor blocks that write their own schema (task 1.7).
 
+use crate::schema::book::book_node;
+use crate::schema::course::course_node;
 use crate::schema::dataset::dataset_node;
 use crate::schema::event::event_node;
 use crate::schema::faq::faq_node;
@@ -10,8 +12,8 @@ use crate::schema::recipe::recipe_node;
 use crate::schema::software::app_node;
 use crate::schema::video_review::{review_node, video_node};
 use crate::{
-    Dataset, Event, FaqItem, HowTo, ItemList, Product, Recipe, Review, SchemaNode, SeoError,
-    SeoPage, SeoSite, SoftwareApplication, Video,
+    Book, Course, Dataset, Event, FaqItem, HowTo, ItemList, Product, Recipe, Review, SchemaNode,
+    SeoError, SeoPage, SeoSite, SoftwareApplication, Video,
 };
 
 /// An editor block on a page that writes its own schema node.
@@ -38,6 +40,10 @@ pub enum SchemaBlock {
     Dataset(Dataset),
     /// A listicle: `ItemList`.
     List(ItemList),
+    /// A course block: `Course`.
+    Course(Course),
+    /// A book block: `Book`.
+    Book(Book),
 }
 
 /// The schema nodes of the page's blocks, in the order of the blocks. A
@@ -57,6 +63,8 @@ pub(crate) fn block_nodes(site: &SeoSite, page: &SeoPage) -> Result<Vec<SchemaNo
             SchemaBlock::Event(event) => nodes.push(event_node(event, site, &url, number)?),
             SchemaBlock::Dataset(data) => nodes.push(dataset_node(data, page, &url, number)?),
             SchemaBlock::List(list) => nodes.push(item_list_node(list, &url, number)?),
+            SchemaBlock::Course(course) => nodes.push(course_node(course, site, &url, number)?),
+            SchemaBlock::Book(book) => nodes.push(book_node(book, &url, number)?),
         }
     }
     Ok(nodes)

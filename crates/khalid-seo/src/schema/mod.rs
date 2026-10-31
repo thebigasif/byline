@@ -3,7 +3,9 @@
 mod article;
 mod author;
 mod blocks;
+mod book;
 mod breadcrumbs;
+mod course;
 mod custom;
 mod dataset;
 mod event;
@@ -31,7 +33,9 @@ mod video_review;
 
 pub use author::{AuthorProfile, Entity, EntityRole};
 pub use blocks::SchemaBlock;
+pub use book::Book;
 pub use breadcrumbs::breadcrumb_list;
+pub use course::Course;
 pub use custom::CustomSchema;
 pub use dataset::Dataset;
 pub use event::{Event, EventLocation, EventStatus};
