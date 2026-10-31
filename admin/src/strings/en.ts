@@ -1,3 +1,4 @@
+import { teamWords } from "./teamWords";
 import { webhookWords } from "./webhookWords";
 
 // Every word the admin shows, so a second language is one more file.
@@ -17,6 +18,7 @@ export const en = {
     redirects: "Redirects",
     keys: "API keys",
     webhooks: "Webhooks",
+    team: "Team",
     settings: "Settings",
   },
   authors: {
@@ -133,6 +135,7 @@ export const en = {
     },
   },
   webhooks: webhookWords,
+  team: teamWords,
   site: {
     title: "Settings",
     lede: "These settings cover the whole blog. They are saved to site.toml in your site folder, the same file you can edit by hand.",
