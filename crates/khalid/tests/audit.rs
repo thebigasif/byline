@@ -132,6 +132,18 @@ fn the_ai_search_checks_report_each_page_with_its_reason() {
         "22 words under \"Title tag or headline?\""
     );
     assert_eq!(capsule["category"], "AI search");
+    // The demo's own speed advice gives a number with no source or year.
+    let number = body["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|issue| issue["check"] == "unsourced-number")
+        .unwrap_or_else(|| panic!("{stdout}"));
+    assert_eq!(
+        number["url"],
+        "https://www.example.com/blog/fixing-slow-pages/"
+    );
+    assert_eq!(number["severity"], "notice");
     assert!(
         capsule["why"]
             .as_str()

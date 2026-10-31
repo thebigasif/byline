@@ -1,6 +1,6 @@
 //! The AI search checks on how a page's own text is written: the answer
-//! under a question heading and paragraph length (phase GEO, A1, built on
-//! W1 and W2).
+//! under a question heading, paragraph length, plain answers and sourced
+//! numbers (phase GEO, A1, built on W1 to W4).
 
 pub mod support;
 
@@ -8,7 +8,12 @@ use khalid_audit::{Check, Severity, Thresholds, audit};
 use support::{HOME, crawled, page};
 
 /// The checks this file is about.
-const CHECKS: [Check; 2] = [Check::AnswerCapsule, Check::ParagraphTooLong];
+const CHECKS: [Check; 4] = [
+    Check::AnswerCapsule,
+    Check::ParagraphTooLong,
+    Check::HedgedAnswer,
+    Check::UnsourcedNumber,
+];
 
 /// `count` plain words.
 #[cfg(test)]
@@ -63,9 +68,9 @@ async fn only_articles_and_pages_that_do_not_say_are_judged() {
     );
     assert_eq!(
         checks(r#"<meta property="og:type" content="article">"#).await,
-        1
+        2
     );
-    assert_eq!(checks("").await, 1);
+    assert_eq!(checks("").await, 2);
 }
 
 #[tokio::test]
@@ -123,4 +128,42 @@ async fn a_paragraph_past_225_words_is_named() {
         .map(|(check, _)| check)
         .collect();
     assert_eq!(checks, [Check::ParagraphTooLong]);
+}
+
+#[tokio::test]
+async fn hedges_and_vague_openers_in_an_answer_are_named() {
+    let answer = format!(
+        "There is perhaps a quiet way. It is, kind of, {}. Bread, which rises, which rests.",
+        words(40)
+    );
+    let body = format!(
+        "<h2>Is it hard?</h2><p>{answer}</p><p>It is basically fine.</p>\
+         <h2>Flour</h2><p>Perhaps not an answer.</p>"
+    );
+    assert_eq!(
+        found(&body, Thresholds::default()).await,
+        [
+            (Check::HedgedAnswer, "\"Is it hard?\": basically".to_owned()),
+            (
+                Check::HedgedAnswer,
+                "\"Is it hard?\": perhaps, kind of, there is, which ... which".to_owned()
+            ),
+        ],
+        "quiet holds no hedge, and text under a plain heading is not an answer"
+    );
+}
+
+#[tokio::test]
+async fn a_number_needs_a_link_or_a_year_beside_it() {
+    let body = "<p>Rye takes 3 hours to rise.</p>\
+        <p>In 2025, 40% of bakers used rye.</p>\
+        <p>Rye sold <a href=\"https://example.org/\">12 million</a> loaves.</p>\
+        <p>No number here.</p>";
+    assert_eq!(
+        found(body, Thresholds::default()).await,
+        [(
+            Check::UnsourcedNumber,
+            "Rye takes 3 hours to rise.".to_owned()
+        )]
+    );
 }

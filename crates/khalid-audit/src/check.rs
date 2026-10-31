@@ -390,6 +390,14 @@ checks! {
     ParagraphTooLong => "paragraph-too-long", AiSearch, Warning, "Paragraph too long",
         "A long paragraph buries its ideas, so readers skim past them and AI tools cannot lift one cleanly.",
         "Split the paragraph so each one holds one idea, in about 75 to 225 words.";
+    /// An answer uses hedge words, a vague opener or a chain of `which`.
+    HedgedAnswer => "hedged-answer", AiSearch, Notice, "Answer uses hedge words",
+        "Hedges and vague openers make an answer sound unsure, so readers and AI tools trust and quote it less.",
+        "Say the claim outright: drop words such as perhaps and basically, and start with the point.";
+    /// A number has no linked source and no year beside it.
+    UnsourcedNumber => "unsourced-number", AiSearch, Notice, "Number without a source or a year",
+        "A reader cannot check a bare number, and AI tools prefer facts they can trace.",
+        "Link the number to its source, or say the year it held.";
     /// An HTTPS page comes without a `Strict-Transport-Security` header.
     HstsMissing => "hsts-missing", Https, Notice, "No HSTS support",
         "Without it, a browser may still open the first visit over plain HTTP.",
