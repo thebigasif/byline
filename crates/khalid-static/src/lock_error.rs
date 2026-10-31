@@ -19,4 +19,11 @@ pub enum LockError {
         /// Where the form's opening tag starts in the page.
         offset: usize,
     },
+    /// Comments or gated content start but never end, so the page cannot
+    /// be locked safely.
+    #[error("the section at byte {offset} has no closing </section> tag")]
+    UnclosedSection {
+        /// Where the section's opening tag starts in the page.
+        offset: usize,
+    },
 }

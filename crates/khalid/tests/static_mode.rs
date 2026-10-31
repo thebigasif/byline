@@ -226,10 +226,11 @@ fn a_static_build_of_the_demo_has_no_form_posting_to_a_missing_endpoint() {
     for note in [
         "<p class=\"lock locked\" data-feature=\"newsletter\">Signing up by email is not open on this site.</p>",
         "<p class=\"lock locked\" data-feature=\"forms\">This form cannot be sent from this site.</p>",
+        "<p class=\"lock locked\" data-feature=\"newsletter\">The rest of this post is for subscribers, and signing up is not open here.</p>",
     ] {
         assert!(post.contains(note), "{note}");
     }
-    assert!(post.contains("Subscribers read the rest of this guide."));
+    assert!(!post.contains("Subscribers read the rest of this guide."));
     assert!(!post.contains("The full sitemap checklist."));
     let german =
         fs::read_to_string(at(out.path(), "de/was-eine-sitemap-leistet/index.html")).unwrap();

@@ -65,7 +65,7 @@ pub fn forms(html: &str) -> Result<Vec<PageForm>, LockError> {
 
 /// The next form at or after `from` in `lower`, a page in ASCII lower case.
 fn next(lower: &str, from: usize) -> Result<Option<PageForm>, LockError> {
-    let Some(start) = open_at(lower, from) else {
+    let Some(start) = open_at(lower, from, "<form") else {
         return Ok(None);
     };
     let unclosed = LockError::Unclosed { offset: start };
@@ -88,12 +88,13 @@ fn next(lower: &str, from: usize) -> Result<Option<PageForm>, LockError> {
     }))
 }
 
-/// Where the next `<form` tag starts, skipping longer names such as `<formula`.
-fn open_at(lower: &str, from: usize) -> Option<usize> {
+/// Where the next `open` tag, such as `<form`, starts at or after `from`,
+/// skipping longer names such as `<formula`.
+pub(crate) fn open_at(lower: &str, from: usize, open: &str) -> Option<usize> {
     let mut at = from;
     loop {
-        let found = at + lower.get(at..)?.find("<form")?;
-        let after = lower.as_bytes().get(found + "<form".len());
+        let found = at + lower.get(at..)?.find(open)?;
+        let after = lower.as_bytes().get(found + open.len());
         if matches!(
             after,
             Some(b' ' | b'\t' | b'\n' | b'\r' | b'\x0c' | b'>' | b'/')
@@ -106,7 +107,7 @@ fn open_at(lower: &str, from: usize) -> Option<usize> {
 
 /// Just past the `>` that ends the tag whose attributes start at `from`,
 /// with a `>` inside quotes left alone.
-fn tag_end(lower: &str, from: usize) -> Option<usize> {
+pub(crate) fn tag_end(lower: &str, from: usize) -> Option<usize> {
     let mut quote = None;
     for (at, byte) in lower.bytes().enumerate().skip(from) {
         match (quote, byte) {
@@ -120,7 +121,7 @@ fn tag_end(lower: &str, from: usize) -> Option<usize> {
 }
 
 /// The attributes of a tag, as names and values, in the order written.
-fn attributes(tag: &str) -> Vec<(&str, &str)> {
+pub(crate) fn attributes(tag: &str) -> Vec<(&str, &str)> {
     let mut found = Vec::new();
     let mut rest = tag;
     loop {
@@ -218,6 +219,6 @@ mod tests {
 
     #[test]
     fn a_longer_tag_name_is_not_a_form() {
-        assert_eq!(open_at("<formula>x</formula>", 0), None);
+        assert_eq!(open_at("<formula>x</formula>", 0, "<form"), None);
     }
 }

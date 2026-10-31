@@ -145,7 +145,7 @@ fn lock_message(file: &str, error: &LockError) -> UserMessage {
     UserMessage::new(
         format!("Khalid could not make the static page {file}: {error}."),
         "A static page must not keep a form that sends to the site, and a form left open hides where the page goes on.",
-        "Close the form in the template or post that writes it, then build again.",
+        "Close the form or section in the template or post that writes it, then build again.",
     )
 }
 
