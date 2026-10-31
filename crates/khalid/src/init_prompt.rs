@@ -9,7 +9,7 @@ use clap::ValueEnum;
 use khalid_core::{AbsoluteUrl, Locale};
 
 use crate::cli::{InitArgs, SiteMode};
-use crate::init::{Answers, mount_path};
+use crate::init::{self, Answers, mount_path};
 use khalid_mount::Stack;
 
 /// Asks for every answer `given` leaves out, reading from `input` and asking
@@ -111,7 +111,9 @@ fn stack_and_blog(
             input,
             out,
             "Which address should that stack send the blog to, such as https://blog.example.com?",
-            None,
+            stack
+                .filter(|s| init::on_one_machine(*s))
+                .map(|_| init::LOCAL_SERVE),
             |text| {
                 AbsoluteUrl::parse(text).map_err(|_| {
                     "That is not a full web address. Start it with https:// and the domain."
@@ -205,6 +207,15 @@ mod tests {
         for number in ["1 of 4", "2 of 4", "3 of 4", "4 of 4"] {
             assert!(asked.contains(number), "{asked}");
         }
+    }
+
+    #[test]
+    fn enter_sends_a_same_machine_stack_to_khalid_serve() {
+        let typed = "https://www.example.com\nblog\n\n\ncaddy\n\n";
+        let (answers, asked) = run(&args(&[]), typed);
+        let blog = answers.unwrap().blog.unwrap();
+        assert_eq!(blog.as_str(), "http://127.0.0.1:8080/");
+        assert!(asked.contains("[http://127.0.0.1:8080]"), "{asked}");
     }
 
     #[test]
