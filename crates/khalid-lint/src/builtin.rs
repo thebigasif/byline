@@ -35,6 +35,12 @@ fn blocking_and_structure_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
             max: thresholds.description_max_chars,
         }),
         Box::new(snippet::DuplicateDescription),
+        Box::new(snippet::ShortTitle {
+            min: thresholds.title_min_chars,
+        }),
+        Box::new(snippet::ShortDescription {
+            min: thresholds.description_min_chars,
+        }),
         Box::new(structure::HeadingOrder),
         Box::new(structure::MissingAlt),
         Box::new(structure::ThinPost {

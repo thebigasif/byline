@@ -106,6 +106,18 @@ why = "Google cuts long descriptions short, so the end of yours may never be rea
 fix = "Shorten the description to one or two short sentences."
 guide = "descriptions"
 
+[short-title]
+what = "This post's title is shorter than this site sets."
+why = "A very short title says little about the post, so fewer people choose it in search results."
+fix = "Add the words that tell a reader what they will learn."
+guide = "post-titles"
+
+[short-description]
+what = "This post's description is shorter than this site sets."
+why = "A very short description leaves Google to pick other words from the post for search results."
+fix = "Write one or two sentences that say what the reader gets from the post."
+guide = "descriptions"
+
 [duplicate-title]
 what = "Another post on this site has the same title."
 why = "Google may show only one of the two, and readers cannot tell them apart."
