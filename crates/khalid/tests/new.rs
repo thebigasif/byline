@@ -218,6 +218,55 @@ fn new_says_which_post_already_exists() {
     assert!(what.ends_with("-twice.md already exists."), "{what}");
 }
 
+#[test]
+fn new_with_author_writes_the_byline_and_makes_the_profile_once() {
+    let (temp, folder) = site();
+    let args = ["--site", &folder, "new", "Why links matter"];
+    let output = khalid(&[&args[..], &["--author", "Sam Lee"]].concat());
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(said.contains("content/de/authors/sam-lee.md"), "{said}");
+    let (name, written) = only_post(temp.path(), "de");
+    let post = parse_post(Path::new(&name), &written).unwrap();
+    assert_eq!(post.front.author.unwrap().as_str(), "sam-lee");
+    let profile = at(temp.path(), "content/de/authors/sam-lee.md");
+    let made = fs::read_to_string(&profile).unwrap();
+    assert!(made.contains("name: \"Sam Lee\"\n"), "{made}");
+    assert!(made.contains("slug: \"sam-lee\"\n"), "{made}");
+
+    // The writer's own words in the profile are never overwritten.
+    fs::write(&profile, format!("{made}Sam writes here.\n")).unwrap();
+    let args = [
+        "--site",
+        &folder,
+        "new",
+        "Second post",
+        "--author",
+        "Sam Lee",
+    ];
+    assert_eq!(khalid(&args).status.code(), Some(0));
+    let kept = fs::read_to_string(&profile).unwrap();
+    assert!(kept.ends_with("Sam writes here.\n"), "{kept}");
+}
+
+#[test]
+fn new_without_author_takes_the_only_profile_or_says_how_to_add_one() {
+    let (temp, folder) = site();
+    let output = khalid(&["--site", &folder, "new", "First post", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["author"], Value::Null, "{json}");
+    let said = text(&khalid(&["--site", &folder, "new", "Second post"]).stdout);
+    assert!(said.contains("--author \"Your name\""), "{said}");
+
+    let profile = at(temp.path(), "content/de/authors/asif.md");
+    fs::create_dir_all(profile.parent().unwrap()).unwrap();
+    fs::write(&profile, "---\nname: Asif\nslug: asif\n---\n").unwrap();
+    let output = khalid(&["--site", &folder, "new", "Third post", "--json"]);
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["author"], "asif", "{json}");
+}
+
 /// The rules `khalid lint` finds on the one English post of the site.
 #[cfg(test)]
 fn rules_found(site: &Path, folder: &str) -> Vec<String> {

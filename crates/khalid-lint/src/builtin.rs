@@ -64,6 +64,7 @@ fn blocking_and_structure_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         Box::new(link_targets::RedirectingLink),
         Box::new(link_targets::CrossSiteLink),
         Box::new(structure::FormWithoutDestination),
+        Box::new(site_trust::AuthorWithoutProfile),
         Box::new(reading::HardToRead {
             max: thresholds.hard_reading_index,
         }),

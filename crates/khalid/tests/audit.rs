@@ -57,14 +57,12 @@ fn file(site: &Path, name: &str) -> String {
 /// The warnings the demo site has today, each a gap in the default pages
 /// that another track's brief fixes. A fix leaves this test green; a new
 /// kind of warning fails it.
-const KNOWN_WARNINGS: [&str; 3] = [
-    // The home, list, author, glossary and HTML sitemap pages have no
-    // meta description.
+const KNOWN_WARNINGS: [&str; 2] = [
+    // The glossary term pages have no meta description: each should take
+    // its definition's first sentence.
     "description-missing",
     // The German home and author pages reuse the English titles.
     "title-duplicate",
-    // No page links to the HTML sitemap page.
-    "orphan",
 ];
 
 #[test]

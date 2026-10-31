@@ -17,6 +17,7 @@ expression: "format!(\"{header}\\n{footer}\")"
 <ul>
 <li><a href="/blog/privacy/">Privacy</a></li>
 <li><a href="/blog/ai/">AI info</a></li>
+<li><a href="/blog/sitemap/">Sitemap</a></li>
 </ul>
 </nav>
 </footer>

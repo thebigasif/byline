@@ -1,6 +1,39 @@
-//! The site rules that judge what a site says about itself.
+//! The rules that judge what a site says about who writes it.
 
-use crate::{Hit, LintPost, RuleId, Severity, SiteRule, SiteView};
+use crate::{Hit, LintPost, Rule, RuleId, Severity, SiteRule, SiteView};
+
+/// **A post whose author has no profile.**
+///
+/// The byline links to the author's page, which only a profile makes, so
+/// without one the link leads nowhere and readers learn nothing about the
+/// writer. The finding names the author. Skipped when the site's profiles
+/// are unknown.
+#[derive(Debug)]
+pub(crate) struct AuthorWithoutProfile;
+
+impl Rule for AuthorWithoutProfile {
+    fn id(&self) -> RuleId {
+        RuleId::new("author-without-profile")
+    }
+
+    fn default_severity(&self) -> Severity {
+        Severity::Warn
+    }
+
+    fn check(&self, post: &LintPost, site: &dyn SiteView) -> Vec<Hit> {
+        let (Some(author), Some(profiles)) = (post.author.as_deref(), site.authors()) else {
+            return Vec::new();
+        };
+        let author = author.trim();
+        let known = profiles
+            .iter()
+            .any(|profile| profile.locale == post.locale && profile.slug.as_str() == author);
+        if author.is_empty() || known {
+            return Vec::new();
+        }
+        vec![Hit::about(author)]
+    }
+}
 
 /// The slugs a site's About or contact page may carry. A reader who wants
 /// to know who writes here, and an engine judging the site's trust, looks

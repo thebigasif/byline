@@ -357,7 +357,7 @@ fn success(output: Output, folder: &Path, answers: &Answers, created: Vec<String
         Output::Human => report::text(
             &format!(
                 "Made a Khalid site in {shown} for {}.\n{}Next, write your first post with \
-                 `khalid --site {shown} new --draft \"Your title\"`. \
+                 `khalid --site {shown} new --draft \"Your title\" --author \"Your name\"`. \
                  It waits in drafts/ until `khalid --site {shown} publish <slug>` takes it live.\n",
                 answers.address,
                 proxy.as_ref().map_or(String::new(), proxy_text),

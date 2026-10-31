@@ -87,6 +87,17 @@ fn text_from_a_writer_is_escaped() {
 }
 
 #[test]
+fn a_home_page_with_no_tagline_is_described_by_its_excerpt() {
+    let mut site = demo_site();
+    site.tagline = String::new();
+    let mut home = SeoPage::new(PageKind::Home, locale("en"), UrlPath::root(), "");
+    home.excerpt = String::from("The newest posts on Field Notes on SEO.");
+    let html = head_tags(&site, &home).unwrap().to_html();
+    let tag = r#"<meta name="description" content="The newest posts on Field Notes on SEO.">"#;
+    assert!(html.contains(tag), "{html}");
+}
+
+#[test]
 fn an_empty_title_leaves_no_dangling_separator() {
     let mut post = internal_links_post();
     post.title = String::new();

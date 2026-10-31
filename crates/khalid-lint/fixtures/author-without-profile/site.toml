@@ -1,0 +1,9 @@
+# The site's one English profile is someone else's, and the German profile
+# with the same slug does not count for an English post.
+[[authors]]
+locale = "en"
+slug = "amira-haddad"
+
+[[authors]]
+locale = "de"
+slug = "sam"

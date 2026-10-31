@@ -37,6 +37,13 @@ fn site(posts: &[(&str, &str)]) -> tempfile::TempDir {
         "/../../fixtures/demo-site/site.toml"
     );
     fs::copy(settings, within(dir.path(), "site.toml")).unwrap();
+    let authors = within(dir.path(), "content/en/authors");
+    fs::create_dir_all(&authors).unwrap();
+    fs::write(
+        within(&authors, "asif.md"),
+        "---\nname: Asif\nslug: asif\n---\n",
+    )
+    .unwrap();
     let folder = within(dir.path(), "content/en/posts");
     fs::create_dir_all(&folder).unwrap();
     for (name, text) in posts {
