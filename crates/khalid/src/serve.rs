@@ -419,12 +419,9 @@ pub(crate) fn open(site: &Path, runtime: &Runtime) -> Result<(Database, SiteId),
 /// providers and the reader script by its hash.
 fn security_headers() -> Result<SecurityHeaders, (UserMessage, Exit)> {
     let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
-    let headers = SecurityHeaders::new(&origins);
-    let headers = match assets::reader() {
-        Some(script) => headers.and_then(|headers| headers.with_script(&script.integrity())),
-        None => headers,
-    };
-    headers.map_err(|_| (serve_message::internal(), Exit::Internal))
+    SecurityHeaders::new(&origins)
+        .and_then(|headers| headers.with_script(&assets::reader().integrity))
+        .map_err(|_| (serve_message::internal(), Exit::Internal))
 }
 
 /// Says where the site answers. In JSON, this one line is the whole output.
