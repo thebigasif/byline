@@ -17,6 +17,7 @@ use crate::api_version::negotiate_version;
 use crate::comment_moderation::{CommentModeration, NoComments};
 use crate::content_key::ContentDoor;
 use crate::content_store::ContentStore;
+use crate::entry_store::EntryStore;
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
 use crate::post_check::PostChecks;
@@ -25,13 +26,17 @@ use crate::post_trash::PostTrash;
 use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
-use crate::resources::MediaItems;
+use crate::resources::{AdminAuthor, AdminCategory, AdminPage, AdminSnippet, MediaItems};
 use crate::schema_template_store::SchemaTemplateStore;
 use crate::session_check::{SessionCheck, StaffRoutes};
+use crate::settings_store::SettingsStore;
+use crate::tag_store::TagStore;
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_audit, admin_check, admin_comments, admin_not_found, admin_redirect_csv,
-    admin_redirects, admin_schema_templates, admin_trash, admin_webhooks, api_version, content_api,
+    admin_api, admin_api_keys, admin_audit, admin_authors, admin_categories, admin_check,
+    admin_comments, admin_not_found, admin_pages, admin_redirect_csv, admin_redirects,
+    admin_schema_templates, admin_site_settings, admin_snippets, admin_tags, admin_trash,
+    admin_webhooks, api_version, content_api,
 };
 
 pub use crate::audit_desk::AuditDesk;
@@ -235,6 +240,24 @@ pub struct AdminDesks {
     /// The site's schema templates, or `None` when their routes answer
     /// that this server keeps none.
     pub schema_templates: Option<Arc<dyn SchemaTemplateStore>>,
+    /// The site's pages, or `None` when the page routes answer that this
+    /// server keeps none.
+    pub pages: Option<Arc<dyn EntryStore<AdminPage>>>,
+    /// The site's snippets, or `None` when the snippet routes answer that
+    /// this server keeps none.
+    pub snippets: Option<Arc<dyn EntryStore<AdminSnippet>>>,
+    /// The site's authors, or `None` when the author routes answer that
+    /// this server keeps none.
+    pub authors: Option<Arc<dyn EntryStore<AdminAuthor>>>,
+    /// The site's tags, or `None` when the tag routes answer that this
+    /// server keeps none.
+    pub tags: Option<Arc<dyn TagStore>>,
+    /// The site's categories, or `None` when the category routes answer
+    /// that this server keeps none.
+    pub categories: Option<Arc<dyn EntryStore<AdminCategory>>>,
+    /// The site's core settings, or `None` when the settings routes answer
+    /// that this server keeps none.
+    pub settings: Option<Arc<dyn SettingsStore>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -248,7 +271,8 @@ impl std::fmt::Debug for AdminDesks {
 
 impl AdminDesks {
     /// No comments, no media library, no stored redirects, no webhooks, no
-    /// audit log, no trash, no post checks and no schema templates.
+    /// audit log, no trash, no post checks, no schema templates, no pages,
+    /// no snippets, no authors, no tags, no categories and no settings.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -259,6 +283,12 @@ impl AdminDesks {
             trash: None,
             checks: None,
             schema_templates: None,
+            pages: None,
+            snippets: None,
+            authors: None,
+            tags: None,
+            categories: None,
+            settings: None,
         }
     }
 }
@@ -349,7 +379,10 @@ fn assemble(
         limits: Arc::clone(&limits),
         audit: desks.audit.clone(),
     };
-    let content_door = ContentDoor { keys, limits };
+    let content_door = ContentDoor {
+        keys: Arc::clone(&keys),
+        limits,
+    };
     let redirects = desks.redirects;
     let mut admin = admin_api::routes(posts, door.clone())
         .merge(admin_audit::routes(desks.audit, door.clone()))
@@ -364,7 +397,14 @@ fn assemble(
         .merge(admin_schema_templates::routes(
             desks.schema_templates,
             door.clone(),
-        ));
+        ))
+        .merge(admin_pages::routes(desks.pages, door.clone()))
+        .merge(admin_snippets::routes(desks.snippets, door.clone()))
+        .merge(admin_authors::routes(desks.authors, door.clone()))
+        .merge(admin_tags::routes(desks.tags, door.clone()))
+        .merge(admin_categories::routes(desks.categories, door.clone()))
+        .merge(admin_site_settings::routes(desks.settings, door.clone()))
+        .merge(admin_api_keys::routes(keys, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

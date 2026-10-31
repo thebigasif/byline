@@ -19,14 +19,15 @@ use crate::problem::{Problem, ProblemType};
 use crate::publish_door::PublishDoor;
 use crate::resources::PostStatus;
 
-/// What a delete names: the copy of the post it was made on.
+/// What a delete names: the copy of the post, page or other entry it was
+/// made on.
 #[derive(Debug, Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DeleteQuery {
-    /// The post's `updated_at` as last read, such as `2026-10-20T08:30:00Z`.
+    /// The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.
     #[param(value_type = String, required = true)]
-    updated_at: Option<DateTime<Utc>>,
+    pub(crate) updated_at: Option<DateTime<Utc>>,
 }
 
 /// Deletes one post in any status, with its file and its schedule. The
