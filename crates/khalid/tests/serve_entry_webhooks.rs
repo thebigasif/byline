@@ -1,9 +1,9 @@
 //! Saving the file of a page, glossary term, case study or changelog entry
 //! on a running `khalid serve` fires its `.published`, `.published.edited`
 //! and `.deleted` webhooks to a stand-in receiver on loopback, signed with
-//! each webhook's secret, moving one to `drafts/` fires `.unpublished`,
-//! and a post that names a tag new to the site fires
-//! `tag.added` (audit brief G25, KH-API-3).
+//! each webhook's secret, moving one to `drafts/` fires `.unpublished`, a
+//! saved `site.toml` fires `site.changed`, and a post that names a tag new
+//! to the site fires `tag.added` (audit brief G25, KH-API-3).
 
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -284,6 +284,25 @@ async fn a_changelog_entry_moved_to_drafts_fires_changelog_entry_unpublished() {
     ];
     let file = ("en/changelog/2026-11.md", CHANGELOG);
     publish_and_unpublish(events, file, ("changelog_entry", "en.2026-11")).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_saved_site_toml_fires_site_changed_naming_the_settings_only() {
+    let (receiver, site, _server, secrets) = serving(&[Event::SiteChanged]).await;
+    let mut file = site.path().to_path_buf();
+    file.push("site.toml");
+    let text = fs::read_to_string(&file).unwrap();
+    let old = "name = \"Field Notes on SEO\"\n";
+    assert!(text.contains(old), "{text}");
+    let renamed = text.replacen(old, "name = \"Field Notes Weekly\"\n", 1);
+    fs::write(&file, renamed).unwrap();
+
+    let body = the_delivery(&receiver, Event::SiteChanged, &secrets[0]).await;
+    let settings = &body["settings"];
+    assert_eq!(settings["file"], "site.toml", "{body}");
+    assert_eq!(settings["changed"], serde_json::json!(["name"]), "{body}");
+    assert_eq!(settings["restart_needed"], true, "{body}");
+    assert!(!body.to_string().contains("Weekly"), "no value: {body}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

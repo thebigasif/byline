@@ -35,6 +35,7 @@ use crate::exit::Exit;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::serve_https::{self, Listen};
+use crate::settings_events::Settings;
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
@@ -334,7 +335,11 @@ fn destination(
         addresses: addresses.clone(),
         redirects: redirects.clone(),
         announce: Some(telling.clone()),
-        started: (Entries::of(checked), Tags::of(config, checked)),
+        started: (
+            Entries::of(checked),
+            Tags::of(config, checked),
+            Settings::read(site),
+        ),
         pings: content_feed::UpdatePings::default(),
     };
     to.pings.set(telling.clone());

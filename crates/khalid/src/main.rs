@@ -106,6 +106,7 @@ mod seo_settings;
 mod serve;
 mod serve_https;
 mod serve_message;
+mod settings_events;
 mod settings_text;
 mod share_images;
 mod site_addresses;
