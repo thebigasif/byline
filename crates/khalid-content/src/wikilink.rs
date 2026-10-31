@@ -9,14 +9,17 @@ use khalid_routes::{PostAddress, Routes};
 
 use crate::SiteContent;
 
-/// The pages a wikilink can reach in one language, by slug.
+/// The pages a wikilink can reach in one language, by slug, and the
+/// snippets a `::snippet` block can place, by slug.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Wikilinks {
     targets: BTreeMap<String, WikiTarget>,
+    snippets: BTreeMap<String, String>,
 }
 
 impl Wikilinks {
-    /// No targets, so every wikilink shows as plain text.
+    /// No targets and no snippets, so every wikilink shows as plain text and
+    /// every snippet block shows nothing.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -28,7 +31,7 @@ impl Wikilinks {
     /// page over a glossary term. Pages sit at `/<slug>/` under the mount and
     /// language prefix, where `khalid build` writes them. An undated post in a
     /// collection whose addresses carry the date has no address yet, so no
-    /// wikilink reaches it.
+    /// wikilink reaches it. Every snippet written in `locale` is kept too.
     #[must_use]
     pub fn for_language(
         content: &SiteContent,
@@ -78,7 +81,27 @@ impl Wikilinks {
                 links.insert(&slug, WikiTarget::new(address, title));
             }
         }
+        for doc in content.snippets.iter().filter(|doc| &doc.locale == locale) {
+            let front = &doc.front;
+            if let Some((slug, _)) = named(front.slug.as_ref(), front.title.as_deref()) {
+                links.insert_snippet(&slug, doc.body.clone());
+            }
+        }
         links
+    }
+
+    /// Lets `::snippet{slug="..."}` place the blocks of `body`. A slug that
+    /// is already taken keeps its first snippet.
+    pub fn insert_snippet(&mut self, slug: &Slug, body: impl Into<String>) {
+        self.snippets
+            .entry(slug.as_str().to_owned())
+            .or_insert_with(|| body.into());
+    }
+
+    /// The markdown of the snippet with `slug`, if any.
+    #[must_use]
+    pub fn snippet(&self, slug: &str) -> Option<&str> {
+        self.snippets.get(slug).map(String::as_str)
     }
 
     /// Lets `[[slug]]` reach `target`. A slug that is already taken keeps

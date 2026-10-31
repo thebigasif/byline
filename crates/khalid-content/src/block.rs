@@ -72,6 +72,12 @@ pub enum BlockKind {
     },
     /// `::toc`: a list of the body's headings, linked.
     Toc,
+    /// `::snippet{slug="..."}`: the blocks of the snippet with that slug in
+    /// the post's language, so one change to it shows in every post.
+    Snippet {
+        /// The snippet's slug, the name it has in `snippets/`.
+        slug: String,
+    },
     /// `::button{href="..." label="..."}`: a link styled as a button.
     Button {
         /// Where it leads.
