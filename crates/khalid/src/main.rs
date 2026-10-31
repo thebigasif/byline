@@ -55,6 +55,7 @@ mod doctor_address;
 mod doctor_check;
 mod doctor_files;
 mod doctor_folder;
+mod doctor_pictures;
 mod doctor_robots;
 mod draft_comment_mail;
 mod entry_events;
@@ -121,6 +122,7 @@ mod routes_message;
 mod scheduler;
 mod search_console;
 mod search_console_email;
+mod search_console_finder;
 mod search_console_follow_ups;
 mod search_console_lost;
 mod search_console_post;
@@ -265,7 +267,7 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Serve(args)), Some((folder, config, routes, (content, assets)))) => {
             let look = look.unwrap_or_else(|| FolderLook::take(folder));
             let (checked, start) = ((&config, &routes), (content, assets, look));
-            let keys = serve::Keys::read(&env, &config);
+            let keys = serve::Keys::read(&env, (folder, &config), cli);
             return serve_https::serve(cli, folder, checked, start, (args, keys));
         }
         (_, site) => site,
@@ -371,7 +373,7 @@ fn on_content(
             checked,
             (server.as_ref(), *network),
             &SystemClock,
-            (cli, serve::Keys::read(environment, checked.0).mail),
+            (cli, serve::mail_secret(environment, checked.0)),
         ),
         _ => report::failure(cli.output, &not_built(asked), Exit::Internal),
     }
@@ -462,10 +464,10 @@ fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
             command: AnalyticsCommand::Ai { days },
         } => ai_visitors::run(folder, *days, output),
         Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),
-        Command::Pull => pull::run(folder, &SystemClock, output),
         Command::Analytics {
             command: AnalyticsCommand::Uncited { days },
         } => uncited_report::run(folder, *days, &SystemClock, output),
+        Command::Pull => pull::run(folder, &SystemClock, output),
         _ => report::failure(output, &not_built(asked), Exit::Internal),
     }
 }

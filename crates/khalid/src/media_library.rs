@@ -15,8 +15,10 @@ use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use khalid_api::media_api::MediaLibrary;
-use khalid_core::{Config, S3Keys, SystemClock, UserMessage};
-use khalid_media::{ContentKey, FileAddress, LIBRARY_ADDRESS, Library, Storage};
+use khalid_core::{Config, S3Keys, Secret, SystemClock, UserMessage};
+use khalid_media::{
+    Access, ContentKey, FileAddress, LIBRARY_ADDRESS, Library, StockSearch, Storage,
+};
 use khalid_outbound::Outbound;
 
 use crate::exit::Exit;
@@ -28,9 +30,19 @@ const CACHED: &str = "public, max-age=31536000, immutable";
 /// No file from the library may run anything, even when opened directly.
 const LOCKED: &str = "default-src 'none'; sandbox";
 
+/// The keys photo and GIF search ask with, from the environment.
+#[derive(Debug)]
+pub(crate) struct PictureKeys {
+    /// The Unsplash app's access key.
+    pub(crate) unsplash: Option<Secret<String>>,
+    /// The GIPHY app's API key.
+    pub(crate) giphy: Option<Secret<String>>,
+}
+
 /// Opens the library of the `site` folder, in the bucket `config` names,
-/// signed with `keys` and reached through `outbound`, or on disk. Returns
-/// it for the Admin API, and the router that serves its files.
+/// signed with the bucket's keys and reached through `outbound`, or on
+/// disk, with photo and GIF search as `[media]` and their keys allow.
+/// Returns it for the Admin API, and the router that serves its files.
 ///
 /// # Errors
 ///
@@ -39,13 +51,28 @@ const LOCKED: &str = "default-src 'none'; sandbox";
 pub(crate) async fn open(
     site: &Path,
     config: &Config,
-    keys: Option<S3Keys>,
+    (bucket, pictures): (Option<S3Keys>, PictureKeys),
     outbound: &Outbound,
 ) -> Result<(MediaLibrary, Router), (UserMessage, Exit)> {
-    let (library, api) = opened(site, config, keys, outbound)
+    let (library, api) = opened(site, config, bucket, outbound)
         .await
         .map_err(|message| (message, Exit::Failure))?;
+    let api = api.with_search(stock_search(config, pictures, outbound));
     Ok((api, router(library, config)))
+}
+
+/// Photo and GIF search, each on only when `[media]` turns it on.
+fn stock_search(config: &Config, keys: PictureKeys, outbound: &Outbound) -> StockSearch {
+    let access = |on: bool, key| {
+        if on {
+            Access::on_with(key)
+        } else {
+            Access::Off
+        }
+    };
+    let media = config.media();
+    StockSearch::new(outbound.clone(), access(media.unsplash, keys.unsplash))
+        .with_gifs(access(media.gifs, keys.giphy))
 }
 
 async fn opened(

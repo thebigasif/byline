@@ -50,8 +50,16 @@ impl Environment {
     /// opens `khalid serve`'s push hook; unset, the hook is not there.
     pub const GIT_HOOK_SECRET: &str = "KHALID_GIT_HOOK_SECRET";
 
+    /// The access key of an Unsplash app, made at unsplash.com/developers,
+    /// that photo search in the editor asks with.
+    pub const UNSPLASH_ACCESS_KEY: &str = "KHALID_UNSPLASH_ACCESS_KEY";
+
+    /// The API key of a GIPHY app, made at developers.giphy.com, that GIF
+    /// search in the editor asks with.
+    pub const GIPHY_API_KEY: &str = "KHALID_GIPHY_API_KEY";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 11] = [
+    const ALL: [&str; 13] = [
         Self::ADDRESS,
         Self::KEY,
         Self::S3_ACCESS_KEY_ID,
@@ -63,10 +71,12 @@ impl Environment {
         Self::GOOGLE_CLIENT_SECRET,
         Self::GOOGLE_REFRESH_TOKEN,
         Self::GIT_HOOK_SECRET,
+        Self::UNSPLASH_ACCESS_KEY,
+        Self::GIPHY_API_KEY,
     ];
 
     /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 9] = [
+    const HIDDEN: [&str; 11] = [
         Self::KEY,
         Self::S3_SECRET_ACCESS_KEY,
         Self::SMTP_PASSWORD,
@@ -76,6 +86,8 @@ impl Environment {
         Self::GOOGLE_CLIENT_SECRET,
         Self::GOOGLE_REFRESH_TOKEN,
         Self::GIT_HOOK_SECRET,
+        Self::UNSPLASH_ACCESS_KEY,
+        Self::GIPHY_API_KEY,
     ];
 
     /// Reads Khalid's variables from this process's environment.
@@ -163,6 +175,18 @@ impl Environment {
     /// is unset or blank.
     pub fn git_hook_secret(&self) -> Option<Secret<String>> {
         self.secret(Self::GIT_HOOK_SECRET)
+    }
+
+    /// The key in [`Environment::UNSPLASH_ACCESS_KEY`], or `None` when it is
+    /// unset or blank.
+    pub fn unsplash_key(&self) -> Option<Secret<String>> {
+        self.secret(Self::UNSPLASH_ACCESS_KEY)
+    }
+
+    /// The key in [`Environment::GIPHY_API_KEY`], or `None` when it is unset
+    /// or blank.
+    pub fn giphy_key(&self) -> Option<Secret<String>> {
+        self.secret(Self::GIPHY_API_KEY)
     }
 
     /// The variable `name`, trimmed, as a secret, or `None` when it is

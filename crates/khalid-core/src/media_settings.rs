@@ -20,12 +20,27 @@ use crate::{AbsoluteUrl, Secret};
 ///
 /// The bucket's two keys never go in the file. They come from the
 /// environment, see [`S3Keys`].
+///
+/// Photo and GIF search in the editor are off until turned on here. Their
+/// keys come from the environment too, `KHALID_UNSPLASH_ACCESS_KEY` and
+/// `KHALID_GIPHY_API_KEY`. A chosen picture loads from Unsplash or GIPHY,
+/// so readers' browsers fetch it from there:
+///
+/// ```toml
+/// [media]
+/// unsplash = true
+/// gifs = true
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 #[non_exhaustive]
 pub struct MediaSettings {
     /// The bucket, or `None` to keep files on disk.
     pub s3: Option<S3Settings>,
+    /// Whether writers can find free photos on Unsplash from the editor.
+    pub unsplash: bool,
+    /// Whether writers can find GIFs on GIPHY from the editor.
+    pub gifs: bool,
 }
 
 /// An S3-compatible bucket that holds the media library's files.

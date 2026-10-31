@@ -43,7 +43,7 @@ impl<'a> From<&'a Uncited> for PageBody<'a> {
     }
 }
 
-/// Runs `analytics uncited` on the `site` folder, for the last `days` up
+/// Runs `khalid analytics uncited` on the `site` folder, for the last `days` up
 /// to today by `clock`. Only its database is read, not its content.
 pub(crate) fn run(site: &Path, days: u32, clock: &dyn Clock, output: Output) -> Exit {
     let last = clock.now().date_naive();

@@ -197,6 +197,9 @@ pub enum SignInError {
     /// This site has no passkeys set up.
     #[error("this site has no passkey sign-in")]
     PasskeysOff,
+    /// The signed-in account has no passkey with this number.
+    #[error("the account has no such passkey")]
+    NoPasskey,
     /// A passkey answer was refused, for this reason.
     #[error("the passkey was refused: {0}")]
     Passkey(#[source] PasskeyCheckError),

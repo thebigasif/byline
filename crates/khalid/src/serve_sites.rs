@@ -34,6 +34,7 @@ struct ServingBody<'a> {
 /// What every site in the process shares.
 struct Shared<'a> {
     root: &'a Path,
+    cli: &'a Cli,
     runtime: &'a Runtime,
     env: &'a Environment,
     listen: Listen,
@@ -73,6 +74,7 @@ pub(crate) fn run(root: &Path, cli: &Cli, args: &ServeArgs) -> Exit {
     let (started, starts) = mpsc::unbounded_channel();
     let shared = Shared {
         root,
+        cli,
         runtime: &runtime,
         env: &Environment::from_process(),
         listen: Listen::Plain(args.listen),
@@ -152,7 +154,7 @@ fn one_site(shared: &Shared<'_>, domain: &DomainName, home: Home) {
             Home::No => Arc::new(NoPanel),
         },
     };
-    let keys = Keys::read(shared.env, &config);
+    let keys = Keys::read(shared.env, (&folder, &config), shared.cli);
     let to = (
         &shared.listen,
         &shared.outbound,

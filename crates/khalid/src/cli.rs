@@ -268,7 +268,7 @@ pub(crate) enum Command {
     /// address over the last day and the last 30 days
     Watch,
     /// Read what `khalid serve` counted: the readers AI assistants sent and
-    /// the bots that read each page
+    /// the pages AI bots read
     Analytics {
         /// What to read
         #[command(subcommand)]

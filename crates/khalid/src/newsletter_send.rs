@@ -117,7 +117,7 @@ pub(crate) fn deliver(
     let found = newsletter_files::lists(folder).find(Some(list.as_str()));
     let found = found.ok_or_else(|| failed(no_list(list)))?;
     let segment = Segment::new(found, labels.iter().cloned());
-    let secret = serve::Keys::read(&Environment::from_process(), config).mail;
+    let secret = serve::mail_secret(&Environment::from_process(), config);
     let outbound = outbound::client(cli).map_err(|_| internal())?;
     let mailer = newsletter::mailer(config, secret, &outbound).map_err(failed)?;
     let mailer = mailer.ok_or_else(|| failed(no_mail()))?;

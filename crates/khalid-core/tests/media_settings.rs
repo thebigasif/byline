@@ -100,6 +100,44 @@ fn refuses_a_bucket_with_no_public_address() {
 }
 
 #[test]
+fn photo_and_gif_search_are_off_until_turned_on() {
+    let config = load(SITE, &Environment::empty()).unwrap();
+    assert!(!config.media().unsplash);
+    assert!(!config.media().gifs);
+    let on = load(
+        &format!("{SITE}\n[media]\nunsplash = true\ngifs = true\n"),
+        &Environment::empty(),
+    )
+    .unwrap();
+    assert!(on.media().unsplash);
+    assert!(on.media().gifs);
+}
+
+#[test]
+fn the_search_keys_come_from_the_environment_and_never_print() {
+    let env = Environment::from_pairs(&[
+        (
+            Environment::UNSPLASH_ACCESS_KEY,
+            "made-for-this-test-unsplash",
+        ),
+        (Environment::GIPHY_API_KEY, "made-for-this-test-giphy"),
+    ]);
+    let shown = format!("{env:?}");
+    assert!(!shown.contains("made-for-this-test"), "{shown}");
+    assert!(shown.contains("KHALID_UNSPLASH_ACCESS_KEY"), "{shown}");
+    assert!(shown.contains("KHALID_GIPHY_API_KEY"), "{shown}");
+    let unsplash = env.unsplash_key().unwrap();
+    assert_eq!(unsplash.expose(), "made-for-this-test-unsplash");
+    assert_eq!(
+        env.giphy_key().unwrap().expose(),
+        "made-for-this-test-giphy"
+    );
+    let blank = Environment::from_pairs(&[(Environment::GIPHY_API_KEY, " ")]);
+    assert!(blank.giphy_key().is_none());
+    assert!(Environment::empty().unsplash_key().is_none());
+}
+
+#[test]
 fn the_keys_come_from_the_environment_and_never_print() {
     let env = keys();
     let shown = format!("{env:?}");

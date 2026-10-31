@@ -19,6 +19,8 @@ pub(crate) enum Check {
     Theme,
     /// Khalid may write to the folders it saves into.
     Permissions,
+    /// Each picture search `[media]` turns on has its key.
+    Pictures,
     /// The blog answers at its public address, so the proxy rule works.
     Address,
     /// The host's own `robots.txt` names the blog's sitemap.
@@ -35,6 +37,7 @@ impl Check {
             Self::Database => "Database",
             Self::Theme => "Theme",
             Self::Permissions => "Permissions",
+            Self::Pictures => "Picture search",
             Self::Address => "Public address",
             Self::Robots => "Host robots.txt",
         }

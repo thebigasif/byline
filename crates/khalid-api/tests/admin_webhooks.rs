@@ -1,5 +1,6 @@
-//! The webhook routes of the Admin API (task 1.19, KH-API-3): list and
-//! switch off. Every route needs `webhooks:manage`.
+//! The webhook routes of the Admin API (task 1.19, KH-API-3): list, add,
+//! switch off, and what one sent (task 4.10). Every route needs
+//! `webhooks:manage`.
 
 mod common;
 
@@ -7,14 +8,16 @@ use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
-use chrono::{TimeZone, Utc};
+use chrono::{TimeDelta, TimeZone, Utc};
 use khalid_api::api;
 use khalid_api::keys::{KeyHashing, KeyToken, MemoryKeyStore, Scope, StoredKey};
 use khalid_api::post_store::MemoryPostStore;
 use khalid_api::publish_door::{PublishDoor, Silent};
 use khalid_api::webhook_store::{MemoryWebhookStore, WebhookStore};
 use khalid_core::AbsoluteUrl;
-use khalid_webhooks::Event;
+use khalid_webhooks::{
+    Attempt, Delivery, DeliveryId, Event, NewDelivery, Outcome, RetrySchedule, WebhookId,
+};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -45,7 +48,7 @@ fn router(webhooks: Arc<dyn WebhookStore>) -> axum::Router {
 
 /// A store holding one `comment.added` webhook, added at nine o'clock.
 #[cfg(test)]
-async fn store() -> Arc<dyn WebhookStore> {
+async fn store() -> Arc<MemoryWebhookStore> {
     let at = Utc.with_ymd_and_hms(2026, 10, 27, 9, 0, 0).unwrap();
     let store = MemoryWebhookStore::new(at);
     let url = AbsoluteUrl::parse("https://hooks.example.com/khalid").unwrap();
@@ -112,7 +115,12 @@ async fn a_webhook_switched_off_is_gone_and_a_second_try_is_a_404() {
 #[tokio::test]
 async fn a_key_without_webhooks_manage_is_refused() {
     let router = router(store().await);
-    for (method, path) in [("GET", "/webhooks/"), ("DELETE", "/webhooks/1/")] {
+    let paths = [
+        ("GET", "/webhooks/"),
+        ("DELETE", "/webhooks/1/"),
+        ("GET", "/webhooks/1/deliveries/"),
+    ];
+    for (method, path) in paths {
         let (status, json) = send(&router, POSTS_ONLY, (method, path)).await;
         assert_eq!(status, StatusCode::FORBIDDEN, "{method} {path}: {json}");
     }
@@ -130,6 +138,61 @@ async fn the_document_lists_the_webhook_routes() {
     assert!(paths["/api/admin/v1/webhooks/"]["get"].is_object());
     assert!(paths["/api/admin/v1/webhooks/"]["post"].is_object());
     assert!(paths["/api/admin/v1/webhooks/{id}/"]["delete"].is_object());
+    assert!(paths["/api/admin/v1/webhooks/{id}/deliveries/"]["get"].is_object());
+}
+
+/// A delivery `id` of webhook 1, first tried `minutes` after nine, with
+/// one attempt a minute apart for each of `outcomes`.
+#[cfg(test)]
+fn delivery(id: i64, minutes: i64, outcomes: Vec<Outcome>) -> Delivery {
+    let first = Utc.with_ymd_and_hms(2026, 10, 27, 9, 0, 0).unwrap() + TimeDelta::minutes(minutes);
+    let url = AbsoluteUrl::parse("https://hooks.example.com/khalid").unwrap();
+    let new = NewDelivery::new(
+        WebhookId::new(1),
+        Event::CommentAdded,
+        url,
+        Vec::new(),
+        first,
+    );
+    let mut delivery = new.into_delivery(DeliveryId::new(id));
+    for (minute, outcome) in (0..).zip(outcomes) {
+        let attempt = Attempt::new(first + TimeDelta::minutes(minute), outcome);
+        delivery.record(attempt, &RetrySchedule::default());
+    }
+    delivery
+}
+
+#[tokio::test]
+async fn the_log_lists_what_a_webhook_sent_newest_first_with_every_try() {
+    let store = store().await;
+    let timed_out = Outcome::Unreachable {
+        reason: "the connection timed out".to_owned(),
+    };
+    store.record(delivery(1, 0, vec![Outcome::Answered { status: 200 }]));
+    store.record(delivery(
+        2,
+        30,
+        vec![Outcome::Answered { status: 503 }, timed_out],
+    ));
+    let router = router(store);
+    let (status, json) = send(&router, MANAGER, ("GET", "/webhooks/1/deliveries/")).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(
+        json,
+        json!({"deliveries": [
+            {"id": 2, "event": "comment.added", "state": "pending",
+             "state_at": "2026-10-27T09:36:00Z", "attempts": [
+                {"at": "2026-10-27T09:30:00Z", "status": 503},
+                {"at": "2026-10-27T09:31:00Z", "reason": "the connection timed out"}]},
+            {"id": 1, "event": "comment.added", "state": "delivered",
+             "state_at": "2026-10-27T09:00:00Z", "attempts": [
+                {"at": "2026-10-27T09:00:00Z", "status": 200}]}
+        ]})
+    );
+    for path in ["/webhooks/7/deliveries/", "/webhooks/first/deliveries/"] {
+        let (status, json) = send(&router, MANAGER, ("GET", path)).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}: {json}");
+    }
 }
 
 /// Adds the webhooks in `body` with `key`; answers the status and the

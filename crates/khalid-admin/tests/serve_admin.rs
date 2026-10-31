@@ -85,6 +85,17 @@ async fn every_answer_limits_scripts_to_the_blog_itself() {
 }
 
 #[tokio::test]
+async fn pictures_may_come_from_unsplash_and_giphy_and_nowhere_else() {
+    let (_, headers, _) = get(BUILT, "/admin/").await;
+    let policy = headers[header::CONTENT_SECURITY_POLICY].to_str().unwrap();
+    assert!(
+        policy.contains("img-src 'self' data: https://images.unsplash.com https://*.giphy.com;"),
+        "{policy}"
+    );
+    assert!(policy.contains("connect-src 'self';"), "{policy}");
+}
+
+#[tokio::test]
 async fn a_binary_built_without_the_admin_says_how_to_build_it() {
     let (status, headers, body) = get(&[], "/admin/").await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);

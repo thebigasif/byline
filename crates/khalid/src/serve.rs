@@ -14,7 +14,7 @@ use khalid_api::publish_door::PublishDoor;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{Database, NotFoundTable, ScheduleTable, SiteId, VisitorLogTable};
+use khalid_db::{Database, NotFoundTable, ScheduleTable, SiteId, VersionTable, VisitorLogTable};
 use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
@@ -26,13 +26,15 @@ use tokio::sync::oneshot;
 
 use crate::alert_watch::Every;
 use crate::announce::{Announcing, SiteAnnounce};
-use crate::cli::Output;
+use crate::cli::{Cli, Output};
 use crate::content_feed::{self, Destination};
 use crate::entry_events::Entries;
 use crate::exit::Exit;
 use crate::form_delivery::SiteDelivery;
+use crate::media_library::PictureKeys;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
+use crate::search_console_finder::SiteFollowUps;
 use crate::serve_check::BodyCheck;
 use crate::serve_https::{self, Listen};
 use crate::settings_events::Settings;
@@ -71,18 +73,35 @@ pub(crate) struct Keys {
     pub(crate) mail: Option<Secret<String>>,
     /// The secret git mode's push hook checks, which opens the hook.
     pub(crate) git_hook: Option<Secret<String>>,
+    /// The Search Console follow-ups, signed in with the owner's Google
+    /// secrets when the site opts in.
+    pub(crate) follow_ups: SiteFollowUps,
+    /// The keys photo and GIF search ask Unsplash and GIPHY with.
+    pub(crate) pictures: PictureKeys,
 }
 
 impl Keys {
-    /// The keys `env` holds for the site with `config`.
-    pub(crate) fn read(env: &Environment, config: &Config) -> Self {
-        let mail = config.mail().map(|mail| &mail.transport);
+    /// The keys `env` holds for the site in `folder` with `config`, as
+    /// `cli` reaches the outside.
+    pub(crate) fn read(env: &Environment, (folder, config): (&Path, &Config), cli: &Cli) -> Self {
         Self {
             bucket: env.s3_keys(),
-            mail: mail.and_then(|transport| env.mail_secret(transport)),
+            mail: mail_secret(env, config),
             git_hook: env.git_hook_secret(),
+            follow_ups: SiteFollowUps::new(folder, config, env, cli),
+            pictures: PictureKeys {
+                unsplash: env.unsplash_key(),
+                giphy: env.giphy_key(),
+            },
         }
     }
+}
+
+/// The password, key or token `env` holds for the `[mail]` transport of
+/// the site with `config`, for the commands that send mail without serving.
+pub(crate) fn mail_secret(env: &Environment, config: &Config) -> Option<Secret<String>> {
+    let mail = config.mail().map(|mail| &mail.transport);
+    mail.and_then(|transport| env.mail_secret(transport))
 }
 
 /// Serves the `site` folder, whose `config`, `routes` and content were
@@ -198,7 +217,7 @@ fn serve_with(
         let ((comments, moderation), (door, posts), (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),
-            media_library::open(site, config, keys.bucket, outbound),
+            media_library::open(site, config, (keys.bucket, keys.pictures), outbound),
             unlocking((site, config), (database, id), &source, shown_pages),
         )?;
         let scheduling = scheduler::start(Arc::clone(&door), alerting);
@@ -214,7 +233,8 @@ fn serve_with(
             (files, previews, search_route::router(config, search)),
             (comments, posted, pages),
         );
-        let (desks, at) = ((moderation, media, desk), (database, id, (site, config)));
+        let desks = (moderation, media, desk, keys.follow_ups);
+        let at = (database, id, (site, config));
         let helpers = (site_hosts::panel(among), mailer);
         let hook = push_hook::router(site, keys.git_hook);
         let apis = ((content, door, posts), desks, at, helpers);
@@ -393,8 +413,8 @@ fn assembled(
 }
 
 /// The publish door the Admin API, the scheduler and preview links share.
-/// It keeps schedules in the database and tells `telling` about each post
-/// that goes live.
+/// It keeps schedules and the text each edit replaces in the database, and
+/// tells `telling` about each post that goes live.
 async fn publish_door(
     (site, config): (&Path, &Config),
     (database, id): (&Database, SiteId),
@@ -403,9 +423,11 @@ async fn publish_door(
     let file = db::data_file(site).map_err(|message| (message, Exit::Failure))?;
     let posts = SitePosts::new(site, config.clone(), SystemClock);
     let schedules = Arc::new(ScheduleTable::new(database.clone(), id));
+    let versions = Arc::new(VersionTable::new(database.clone(), id));
     let signer = preview::signer(config, (database, id, &file)).await;
     let door = PublishDoor::new(Arc::new(posts.clone()), Arc::new(telling))
         .with_schedules(schedules, SystemClock)
+        .with_versions(versions)
         .with_previews(signer.map_err(|message| (message, Exit::Failure))?);
     Ok((Arc::new(door), posts))
 }

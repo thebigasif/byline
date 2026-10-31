@@ -11,7 +11,9 @@ use common::{Server, demo_copy, new_key, start};
 use serde_json::json;
 
 /// Whether `path` on `server` answers with `text` in its body within 20
-/// seconds, looking every 100 ms.
+/// seconds, looking every 100 ms. Kept here, not in `common`, since only
+/// these tests use it and every helper there must be used by each test that
+/// shares it.
 #[cfg(test)]
 fn shows(server: &Server, path: &str, text: &str) -> bool {
     (0..200).any(|_| {

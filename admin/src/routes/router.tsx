@@ -7,32 +7,58 @@ import {
   type RouterHistory,
   redirect,
 } from "@tanstack/react-router";
-import { readKey } from "../auth/session";
+import { isSignedIn } from "../auth/session";
 import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
 import { mediaSearch } from "../media/search";
 import { postSearch } from "../posts/filters";
+import { Account } from "./Account";
+import { Analytics } from "./Analytics";
 import { AuditLog } from "./AuditLog";
+import { AuthorPage } from "./AuthorPage";
+import { Authors } from "./Authors";
+import { Comments } from "./Comments";
 import { Dashboard } from "./Dashboard";
+import { HandOver } from "./HandOver";
+import { Keys } from "./Keys";
+import { LinkSignIn } from "./LinkSignIn";
 import { Media } from "./Media";
 import { MediaDetails } from "./MediaDetails";
 import { NewPost } from "./NewPost";
+import { Passkeys } from "./Passkeys";
 import { Posts } from "./Posts";
 import { Redirects } from "./Redirects";
 import { SchemaTemplates } from "./SchemaTemplates";
+import { SearchConsole } from "./SearchConsole";
+import { Serpdad } from "./Serpdad";
 import { SignIn } from "./SignIn";
+import { Site } from "./Site";
+import { Sites } from "./Sites";
+import { Team } from "./Team";
 import { Trash } from "./Trash";
+import { WebhookActivity } from "./WebhookActivity";
+import { Webhooks } from "./Webhooks";
 
 const root = createRootRoute({ errorComponent: RouteError });
 
 const signIn = createRoute({ getParentRoute: () => root, path: "/sign-in", component: SignIn });
 
-// Every screen but sign-in sits inside the shell and needs a key.
+// Where the link from `khalid staff`, `khalid sites admin` or an invitation lands.
+const linkSignIn = createRoute({
+  getParentRoute: () => root,
+  path: "/sign-in/link",
+  component: LinkSignIn,
+});
+
+// The super-admin panel needs a session, never a key, so it sits outside the shell.
+const sites = createRoute({ getParentRoute: () => root, path: "/sites", component: Sites });
+
+// Every screen but sign-in sits inside the shell and needs a key or an email sign-in.
 const signedIn = createRoute({
   getParentRoute: () => root,
   id: "signed-in",
   beforeLoad: () => {
-    if (readKey() === null) {
+    if (!isSignedIn()) {
       throw redirect({ to: "/sign-in" });
     }
   },
@@ -93,8 +119,84 @@ const templates = createRoute({
   component: SchemaTemplates,
 });
 
+const passkeys = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/passkeys",
+  component: Passkeys,
+});
+
+const analytics = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/analytics",
+  component: Analytics,
+});
+
+const searchConsole = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/search-console",
+  component: SearchConsole,
+});
+
+const comments = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/comments",
+  component: Comments,
+});
+
+const account = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/account",
+  component: Account,
+});
+
+const authors = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/authors",
+  component: Authors,
+});
+
+const authorPage = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/authors/$id",
+  component: AuthorPage,
+});
+
+const keys = createRoute({ getParentRoute: () => signedIn, path: "/keys", component: Keys });
+
+const webhooks = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/webhooks",
+  component: Webhooks,
+});
+
+const webhookActivity = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/webhooks/$id",
+  component: WebhookActivity,
+});
+
+const team = createRoute({ getParentRoute: () => signedIn, path: "/team", component: Team });
+
+// Its own screen, so the consequence is read before anything is asked.
+const handOver = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/team/owner",
+  component: HandOver,
+});
+
+// The whole blog's settings; post settings live in the editor.
+const site = createRoute({ getParentRoute: () => signedIn, path: "/settings", component: Site });
+
+const serpdad = createRoute({
+  getParentRoute: () => signedIn,
+  path: "/serpdad",
+  component: Serpdad,
+});
+
 const routeTree = root.addChildren([
   signIn,
+  linkSignIn,
+  sites,
   signedIn.addChildren([
     dashboard,
     posts,
@@ -102,10 +204,24 @@ const routeTree = root.addChildren([
     editor,
     media,
     mediaItem,
+    comments,
+    authors,
+    authorPage,
     trash,
     audit,
     redirects,
     templates,
+    passkeys,
+    analytics,
+    searchConsole,
+    keys,
+    webhooks,
+    webhookActivity,
+    team,
+    handOver,
+    site,
+    account,
+    serpdad,
   ]),
 ]);
 

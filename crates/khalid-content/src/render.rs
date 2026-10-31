@@ -23,6 +23,7 @@ mod formula;
 pub use forms::Gated;
 mod media;
 mod recipe;
+mod snippet;
 mod steps;
 
 /// A body rendered to HTML.
@@ -149,18 +150,9 @@ pub fn render_gated(
         html: String::new(),
         subscribe_forms: 0,
         gated,
+        in_snippet: false,
     };
-    let mut run: Vec<&str> = Vec::new();
-    for block in &blocks {
-        if is_markdown(&block.kind) {
-            run.push(&block.source);
-        } else {
-            renderer.markdown(&run.join("\n\n"));
-            run.clear();
-            renderer.directive(block);
-        }
-    }
-    renderer.markdown(&run.join("\n\n"));
+    renderer.blocks(&blocks);
     let state = renderer
         .ids
         .state
@@ -210,6 +202,8 @@ struct Renderer<'links> {
     subscribe_forms: usize,
     /// How gated blocks are written.
     gated: Gated<'links>,
+    /// Whether a snippet's blocks are being written, so it places no other.
+    in_snippet: bool,
 }
 
 impl Renderer<'_> {
@@ -251,6 +245,7 @@ impl Renderer<'_> {
                 self.html.push_str("</details>\n");
             }
             BlockKind::Toc => self.html.push_str(TOC_MARK),
+            BlockKind::Snippet { slug } => self.snippet(slug),
             BlockKind::Button { href, label } => self.button(href, label),
             BlockKind::Bookmark {
                 href,

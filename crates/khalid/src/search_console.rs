@@ -103,7 +103,7 @@ pub(crate) fn last_month(today: NaiveDate) -> Window {
 
 /// The connection `[search_console]` names, with the secrets from `env`,
 /// and the one outbound client.
-fn connect(
+pub(crate) fn connect(
     config: &Config,
     env: &Environment,
     cli: &Cli,
@@ -141,9 +141,14 @@ pub(crate) fn ask<T>(
     block_on(work)?.map_err(|error| failed(console.property(), &error))
 }
 
-/// What, why and fix for `error`, about `property`.
+/// [`message`] for `error`, as a command's failure.
 fn failed(property: &str, error: &SearchConsoleError) -> Failed {
-    let message = match error {
+    (message(property, error), Exit::Failure)
+}
+
+/// What, why and fix for `error`, about `property`.
+pub(crate) fn message(property: &str, error: &SearchConsoleError) -> UserMessage {
+    match error {
         SearchConsoleError::TokenRefused => UserMessage::new(
             "Google no longer accepts the refresh token in KHALID_GOOGLE_REFRESH_TOKEN.",
             "The token stops working when the Google account takes back Khalid's permission, or after six months unused.",
@@ -162,25 +167,24 @@ fn failed(property: &str, error: &SearchConsoleError) -> Failed {
         SearchConsoleError::Quota => UserMessage::new(
             "Google's quota for these requests is spent for now.",
             "Google allows a set number of requests a minute and a day for each property.",
-            "Wait a minute, or until tomorrow for the daily quota, then run the command again.",
+            "Wait a minute, or until tomorrow for the daily quota, then try again.",
         ),
         SearchConsoleError::Refused { status } => UserMessage::new(
             format!("Google turned the request down ({status})."),
             "Google does this when it is busy, among other reasons.",
-            "Wait a few minutes, then run the command again.",
+            "Wait a few minutes, then try again.",
         ),
         SearchConsoleError::Request { .. } => UserMessage::new(
             "The request to Google did not complete.",
             "Khalid could not reach Google from this computer.",
-            "Check that this computer can reach googleapis.com, then run the command again.",
+            "Check that this computer can reach googleapis.com, then try again.",
         ),
         _ => UserMessage::new(
             "Google answered with something Khalid cannot read.",
             "Google may have changed its API, or something on the way answered for it.",
-            "Run the command again later, and report it to the Khalid project if it keeps happening.",
+            "Try again later, and report it to the Khalid project if it keeps happening.",
         ),
-    };
-    (message, Exit::Failure)
+    }
 }
 
 /// The message when `site.toml` has no `[search_console]`.

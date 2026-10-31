@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Authors · Khalid admin mockup</title>
+<style>
+/* Shared admin styles. Each mockup carries its own copy so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--block:#b42318;--block-bg:#fef3f2;--warn:#8a4b00;--warn-bg:#fff8eb;--ok:#1a7f37;--ok-bg:#eefbf1;--radius:.375rem}
+html{background:var(--bg);color:var(--text);font:400 1rem/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;overflow-wrap:break-word}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.skip{position:absolute;left:-100vw}.skip:focus{left:1rem;top:.5rem;background:var(--bg);padding:.5rem 1rem}
+.top{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.brand{font-weight:700}.brand span{color:var(--muted);font-weight:400}
+.shell{display:grid;grid-template-columns:minmax(0,1fr)}
+@media (min-width:60em){.shell{grid-template-columns:13rem minmax(0,1fr)}.side{border-right:1px solid var(--border);min-height:calc(100vh - 3.6rem)}.side ul{flex-direction:column}}
+.side ul{list-style:none;margin:0;padding:.75rem;display:flex;flex-wrap:wrap;gap:.25rem}
+.side a{display:flex;align-items:center;min-height:44px;padding:.5rem .75rem;border-radius:var(--radius);color:var(--text);text-decoration:none}
+.side a:hover{background:var(--surface)}
+.side a[aria-current]{background:var(--tint);color:var(--link);font-weight:600}
+main{padding:1.5rem 1.25rem 3rem;max-width:72rem}
+h1{font-size:clamp(1.5rem,1.2rem + 1.2vw,2rem);line-height:1.2;margin:0 0 .5rem}
+h2{font-size:1.25rem;line-height:1.3;margin:2rem 0 .5rem}
+p{margin:0 0 1rem}
+.lede{color:var(--muted);max-width:68ch;font-size:1.0625rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);color:var(--text);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.focus{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.5rem;max-width:56rem}
+.focus>h2:first-child{margin-top:0}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:.7rem .75rem;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:.875rem;color:var(--muted);font-weight:600}
+label{display:block;font-weight:600;margin:0 0 .25rem}
+.hint{display:block;color:var(--muted);font-weight:400;font-size:.9375rem;margin:0 0 .4rem}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--field);border-radius:var(--radius);padding:.5rem .7rem;min-height:44px;width:100%}
+.field{margin:0 0 1.25rem;max-width:36rem}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(16rem,100%),1fr));gap:0 1.5rem}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.muted{color:var(--muted)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface);padding:.05rem .3rem;border-radius:.25rem}
+.note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
+/* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
+@media (max-width:40em){table,tbody,tr,td{display:block}thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}tr{border:1px solid var(--border);border-radius:var(--radius);margin:0 0 .75rem;padding:.4rem 0}td{border:0;padding:.35rem .9rem}td[data-label]::before{content:attr(data-label);display:block;font-size:.875rem;font-weight:600;color:var(--muted)}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the main content</a>
+<header class="top">
+  <div class="brand">Khalid <span>· Field Notes on SEO</span></div>
+  <div class="row"><a href="https://www.example.com/blog/">View the blog</a><a href="account.html">Your account</a></div>
+</header>
+<div class="shell">
+<nav class="side" aria-label="Admin">
+  <ul>
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="posts.html">Posts</a></li>
+    <li><a href="comments.html">Comments</a></li>
+    <li><a href="authors.html" aria-current="page">Authors</a></li>
+    <li><a href="design.html">Design</a></li>
+    <li><a href="redirects.html">Redirects</a></li>
+    <li><a href="api-keys.html">API keys</a></li>
+    <li><a href="settings.html">Settings</a></li>
+  </ul>
+</nav>
+<main id="main">
+  <h1>Authors</h1>
+  <p class="lede">An author is a person named on a post. Their name, role and profiles show beside every post they write, and tell search engines who stands behind it. Each author is a file in your site folder, so git keeps their history.</p>
+
+  <section class="focus" aria-labelledby="new-title">
+    <h2 id="new-title">Add an author</h2>
+    <form action="authors.html" method="post">
+      <div class="pair">
+        <div class="field"><label for="name">Name</label><span class="hint" id="name-hint">As readers see it under a post's title.</span><input id="name" aria-describedby="name-hint" value="Mira Hoffmann"></div>
+        <div class="field"><label for="slug">Short name</label><span class="hint" id="slug-hint">Posts name the author by it. Lowercase words joined by hyphens.</span><input id="slug" aria-describedby="slug-hint" value="mira-hoffmann"></div>
+      </div>
+      <div class="pair">
+        <div class="field"><label for="role">Role</label><span class="hint" id="role-hint">What they do, such as Technical SEO editor.</span><input id="role" aria-describedby="role-hint"></div>
+        <div class="field"><label for="lang">Language</label><span class="hint" id="lang-hint">The author page's language. Add them again for each language.</span><select id="lang" aria-describedby="lang-hint"><option>English</option><option>German</option></select></div>
+      </div>
+      <button class="btn primary" type="submit">Add author</button>
+    </form>
+  </section>
+
+  <h2>Your authors</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th scope="col">Name</th><th scope="col">Short name</th><th scope="col">Language</th><th scope="col">Role</th><th scope="col"><span class="muted">Action</span></th></tr></thead>
+    <tbody>
+      <tr><td>Asif</td><td data-label="Short name"><code>asif</code></td><td data-label="Language">English</td><td data-label="Role">Founder of SerpDad</td><td><a class="btn" href="authors.html" aria-label="Edit Asif, English">Edit</a></td></tr>
+      <tr><td>Lena Vogt</td><td data-label="Short name"><code>lena-vogt</code></td><td data-label="Language">English</td><td data-label="Role">Technical SEO editor</td><td><a class="btn" href="authors.html" aria-label="Edit Lena Vogt, English">Edit</a></td></tr>
+      <tr><td>Asif</td><td data-label="Short name"><code>asif</code></td><td data-label="Language">German</td><td data-label="Role">Founder of SerpDad</td><td><a class="btn" href="authors.html" aria-label="Edit Asif, German">Edit</a></td></tr>
+      <tr><td>Lena Vogt</td><td data-label="Short name"><code>lena-vogt</code></td><td data-label="Language">German</td><td data-label="Role">Technical SEO editor</td><td><a class="btn" href="authors.html" aria-label="Edit Lena Vogt, German">Edit</a></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="muted">Edit opens the author's own page: name, role, why to trust them, photo, bio and profiles elsewhere. Deleting an author there takes their name off every post that still names them.</p>
+
+  <p class="note">Mockup for the founder's review. Nothing on this page saves. Asif and Lena are the demo site's real authors; Mira is an example. <a href="index.html">All mockups</a></p>
+</main>
+</div>
+</body>
+</html>

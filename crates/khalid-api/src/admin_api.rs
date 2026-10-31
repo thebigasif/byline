@@ -17,6 +17,9 @@ use utoipa_axum::routes;
 
 use crate::admin_delete;
 use crate::admin_key::{AdminDoor, require, require_admin_key, require_publish};
+use crate::admin_presence;
+use crate::admin_serpdad::Serpdad;
+use crate::admin_versions;
 use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
 use crate::draft_lint::CreatedPosts;
@@ -41,8 +44,9 @@ type Posts = Arc<PublishDoor>;
 
 /// The Admin API routes, each declared with `utoipa::path` and registered
 /// through `routes!` (RULES.md BL-API-4). Every route needs an
-/// integration key or staff token, and checks its own scope.
-pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
+/// integration key or staff token, and checks its own scope. A draft
+/// made with `SerpDad`'s key is recorded in `serpdad`.
+pub(crate) fn routes(posts: Posts, serpdad: Serpdad, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(browse_admin_posts, create_admin_post))
         .routes(routes!(
@@ -51,9 +55,12 @@ pub(crate) fn routes(posts: Posts, door: AdminDoor) -> OpenApiRouter {
             admin_delete::delete_admin_post
         ))
         .routes(routes!(make_preview_link))
+        .routes(routes!(admin_versions::list_post_versions))
+        .routes(routes!(admin_presence::check_in, admin_presence::leave))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(posts)
+        .layer(Extension(serpdad))
 }
 
 /// Posts as the Admin API wraps them.
@@ -416,7 +423,7 @@ pub(crate) struct CreateOptions {
 )]
 async fn create_admin_post(
     State(posts): State<Posts>,
-    Extension(principal): Extension<Principal>,
+    (Extension(principal), Extension(serpdad)): (Extension<Principal>, Extension<Serpdad>),
     options: Result<Query<CreateOptions>, QueryRejection>,
     headers: HeaderMap,
     body: Result<Json<NewPosts>, JsonRejection>,
@@ -444,6 +451,7 @@ async fn create_admin_post(
     })?;
     let location = format!("{BASE}/posts/{}/", post.id());
     let created = CreatedPosts::linted(post, posts.posts()).await;
+    serpdad.arrived(&principal, created.arrived()).await;
     Ok((StatusCode::CREATED, [(LOCATION, location)], Json(created)))
 }
 
@@ -543,7 +551,7 @@ fn slug_taken(slug: &str, fix: &'static str) -> Problem {
     Problem::new(ProblemType::Conflict, &message).with_rule("slug")
 }
 
-fn invalid_body(reason: &str) -> Problem {
+pub(crate) fn invalid_body(reason: &str) -> Problem {
     let message = UserMessage::new(
         format!("The request body could not be read: {reason}."),
         "Nothing was changed.",

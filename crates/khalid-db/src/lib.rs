@@ -20,8 +20,10 @@
 //! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
 //! analytics, as the [`AnalyticsTable`] `khalid serve` counts into, the
 //! visitor log, as the [`VisitorLogTable`] it writes while switched on, the
-//! speed and uptime watch's looks, as the [`WatchTable`], and the audit
-//! log, as the [`AuditTable`] the Admin API records each change in.
+//! speed and uptime watch's looks, as the [`WatchTable`], the audit log, as
+//! the [`AuditTable`] the Admin API records each change in, the `SerpDad`
+//! connection, as the [`SerpdadTable`] the Admin API keeps, and the earlier
+//! versions of posts, as the [`VersionTable`] the publish door keeps.
 
 mod account_table;
 mod alert_table;
@@ -45,6 +47,7 @@ mod redirect_rows;
 mod schedule_table;
 mod search_find;
 mod search_index;
+mod serpdad_table;
 mod session_table;
 mod site_export;
 mod site_id;
@@ -52,6 +55,7 @@ mod site_keys;
 mod site_lists;
 mod subscriber_segments;
 mod subscriber_table;
+mod version_table;
 mod visitor_log_table;
 mod watch_table;
 mod webhook_table;
@@ -76,10 +80,12 @@ pub use redirect_rows::RedirectRows;
 pub use schedule_table::ScheduleTable;
 pub use search_find::{SearchHit, SearchResults};
 pub use search_index::SearchPage;
+pub use serpdad_table::SerpdadTable;
 pub use session_table::SessionTable;
 pub use site_export::{Cell, ExportTable, SiteExport, is_withheld_column};
 pub use site_id::SiteId;
 pub use subscriber_table::SubscriberTable;
+pub use version_table::VersionTable;
 pub use visitor_log_table::VisitorLogTable;
 pub use watch_table::WatchTable;
 pub use webhook_table::WebhookTable;

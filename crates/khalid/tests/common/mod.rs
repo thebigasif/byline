@@ -123,27 +123,43 @@ impl Server {
         headers: &[(&str, &str)],
         body: Option<&Value>,
     ) -> (u16, String) {
+        let body = body.map(Value::to_string).unwrap_or_default();
+        let json = (!body.is_empty()).then_some("application/json");
+        self.send(method, path, headers, (body.as_bytes(), json))
+    }
+
+    /// Sends `method` to `path` with `headers` and `bytes` as they are,
+    /// typed as `media_type` when there is one, and returns the status and
+    /// the body.
+    #[cfg(test)]
+    pub(crate) fn send(
+        &self,
+        method: &str,
+        path: &str,
+        headers: &[(&str, &str)],
+        (bytes, media_type): (&[u8], Option<&str>),
+    ) -> (u16, String) {
         let host = self.host();
         let mut stream = TcpStream::connect(host).unwrap();
         stream
             .set_read_timeout(Some(Duration::from_secs(30)))
             .unwrap();
-        let body = body.map(Value::to_string).unwrap_or_default();
         let mut head = format!(
             "{method} {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nContent-Length: {}\r\n",
-            body.len()
+            bytes.len()
         );
-        if !body.is_empty() {
-            head.push_str("Content-Type: application/json\r\n");
+        if let Some(media_type) = media_type {
+            head = format!("{head}Content-Type: {media_type}\r\n");
         }
         for (name, value) in headers {
             head = format!("{head}{name}: {value}\r\n");
         }
-        stream
-            .write_all(format!("{head}\r\n{body}").as_bytes())
-            .unwrap();
-        let mut raw = String::new();
-        stream.read_to_string(&mut raw).unwrap();
+        stream.write_all(format!("{head}\r\n").as_bytes()).unwrap();
+        stream.write_all(bytes).unwrap();
+        // A picture's bytes are not text; only the head and JSON need to be.
+        let mut answer = Vec::new();
+        stream.read_to_end(&mut answer).unwrap();
+        let raw = String::from_utf8_lossy(&answer);
         let (head, body) = raw.split_once("\r\n\r\n").unwrap();
         let status = head.split(' ').nth(1).unwrap().parse().unwrap();
         (status, body.to_owned())

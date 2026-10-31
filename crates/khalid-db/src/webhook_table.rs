@@ -7,10 +7,10 @@ use chrono::{DateTime, SecondsFormat};
 use khalid_api::content_store::BoxFuture;
 use khalid_api::webhook_store::{StoredWebhook, WebhookStore, WebhookStoreError};
 use khalid_core::{AbsoluteUrl, Clock, Secret};
-use khalid_webhooks::{Event, SigningKey, Webhook, WebhookId};
+use khalid_webhooks::{Delivery, Event, SigningKey, Webhook, WebhookId};
 use sqlx::Row;
 
-use crate::{Database, DbError, SiteId};
+use crate::{Database, DbError, DeliveryLog, SiteId};
 
 /// The length of a webhook's secret in bytes: 256 random bits, as RULES.md
 /// BL-SEC-3 asks of tokens. The `webhooks` table checks it too.
@@ -181,6 +181,19 @@ impl WebhookStore for WebhookTable {
     fn remove(&self, id: i64) -> BoxFuture<'_, Result<bool, WebhookStoreError>> {
         Box::pin(async move {
             self.switch_off(id)
+                .await
+                .map_err(WebhookStoreError::storage)
+        })
+    }
+
+    fn deliveries(
+        &self,
+        id: i64,
+        limit: u32,
+    ) -> BoxFuture<'_, Result<Vec<Delivery>, WebhookStoreError>> {
+        let log = DeliveryLog::new(self.db.clone(), self.site);
+        Box::pin(async move {
+            log.newest(WebhookId::new(id), limit)
                 .await
                 .map_err(WebhookStoreError::storage)
         })

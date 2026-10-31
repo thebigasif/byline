@@ -15,6 +15,7 @@ use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
+use crate::admin_deliveries;
 use crate::admin_key::{AdminDoor, require, require_admin_key};
 use crate::api_version::negotiate_version;
 use crate::keys::{Principal, Scope};
@@ -30,6 +31,7 @@ pub(crate) fn routes(webhooks: Webhooks, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_webhooks, add_webhook))
         .routes(routes!(remove_webhook))
+        .routes(routes!(admin_deliveries::list_deliveries))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(webhooks)
@@ -187,14 +189,19 @@ async fn remove_webhook(
         _ => false,
     };
     if !removed {
-        let message = UserMessage::new(
-            "No webhook that is on has this identity.",
-            "It may have been switched off already.",
-            "List the webhooks to find the one you want.",
-        );
-        return Err(Problem::new(ProblemType::NotFound, &message));
+        return Err(not_on());
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// The 404 for an identity that names no webhook that is on.
+pub(crate) fn not_on() -> Problem {
+    let message = UserMessage::new(
+        "No webhook that is on has this identity.",
+        "It may have been switched off already.",
+        "List the webhooks to find the one you want.",
+    );
+    Problem::new(ProblemType::NotFound, &message)
 }
 
 /// The 422 for a body that does not hold exactly one webhook.

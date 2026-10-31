@@ -57,7 +57,7 @@ impl Period {
         earlier.map_or(self, |(last, first)| Self { first, last })
     }
 
-    fn holds(self, day: NaiveDate) -> bool {
+    pub(crate) fn holds(self, day: NaiveDate) -> bool {
         (self.first..=self.last).contains(&day)
     }
 }

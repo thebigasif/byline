@@ -71,6 +71,9 @@ INSERT INTO webhook_attempts (site_id, delivery_id, number, at, status, reason) 
 INSERT INTO post_schedules (site_id, post_id, publish_at, unpublish_at) VALUES
     (1, 'en.choosing-anchor-text', '2026-11-03T08:00:00Z', NULL),
     (2, 'en.choosing-anchor-text', NULL, '2026-12-01T00:00:00Z');
+INSERT INTO post_versions (site_id, post_id, kept, saved_at, saved_by, title, markdown) VALUES
+    (1, 'en.choosing-anchor-text', 1, '2026-10-20T08:30:00Z', 'asif', 'Choosing anchor text', 'Old text.'),
+    (2, 'en.choosing-anchor-text', 1, '2026-10-20T08:30:00Z', NULL, 'Choosing anchor text', 'Old text.');
 INSERT INTO site_keys (site_id, purpose, secret, created_at) VALUES
     (1, 'preview', randomblob(32), '2026-10-27T09:00:00Z'),
     (2, 'preview', randomblob(32), '2026-10-27T09:00:00Z');
@@ -116,3 +119,7 @@ INSERT INTO draft_comments (id, site_id, post_id, parent_id, block, author, body
     (1, 1, 'en.choosing-anchor-text', NULL, 2, '3333444455556666', 'Name the tool here?', 1, '2026-10-26T09:00:00Z'),
     (2, 1, 'en.choosing-anchor-text', 1, 2, '2222333344445555', 'Done.', 0, '2026-10-26T09:05:00Z'),
     (3, 2, 'en.choosing-anchor-text', NULL, NULL, '3333444455556666', 'Good start.', 0, '2026-10-26T09:00:00Z');
+INSERT INTO serpdad_links (site_id, key_id, connected_at) VALUES
+    (1, '0123456789abcdef', '2026-10-26T09:00:00Z'), (2, 'fedcba9876543210', '2026-10-26T09:00:00Z');
+INSERT INTO serpdad_drafts (site_id, post_id, title, blocks, warnings, received_at) VALUES
+    (1, 'en.old-post', 'Old post', 0, 2, '2026-10-26T09:00:00Z'), (2, 'en.old-post', 'Old post', NULL, NULL, '2026-10-26T09:00:00Z');

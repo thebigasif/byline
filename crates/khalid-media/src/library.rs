@@ -12,7 +12,7 @@ use crate::storage::LIBRARY_FOLDER;
 use crate::whole_file::write_whole;
 use crate::{
     ContentKey, EditMediaError, FileAddress, FileName, FocalPoint, Folder, Kind, MediaEdit,
-    MediaError, MediaItem, MediaType, Original, Pixels, Refusal, Storage,
+    MediaError, MediaItem, MediaType, Original, PictureEdit, Pixels, Refusal, Storage,
 };
 
 /// The file beside each item that holds its details.
@@ -68,6 +68,21 @@ pub enum Uploaded {
     /// The library already has these bytes, as this item, which is
     /// unchanged.
     Duplicate(MediaItem),
+}
+
+/// Why a picture was not turned or cropped.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum EditPictureError {
+    /// The library has no such item, or its file is gone.
+    #[error("the library has no such item")]
+    NotFound,
+    /// The item is a file, a video or a sound, not a picture.
+    #[error("the item is not a picture")]
+    NotAPicture,
+    /// The picture could not be read, changed or stored.
+    #[error(transparent)]
+    Media(#[from] MediaError),
 }
 
 /// Why an upload was not added.
@@ -204,6 +219,63 @@ impl Library {
         let edited = edit.applied(&item, by, now)?;
         self.save(&edited).await?;
         Ok(edited)
+    }
+
+    /// Makes a copy of the picture `id`, turned and cropped as `edit` says,
+    /// as `by`. The copy is a new item in the same folder, with the same
+    /// name, alt text and caption, and the focal point where it lands. The
+    /// original stays as it is, so posts that show it do not change. The
+    /// same edit made twice finds the first copy.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EditPictureError::NotFound`] for an unknown item or a
+    /// missing file, [`EditPictureError::NotAPicture`] for a file that is
+    /// not an image, and [`EditPictureError::Media`] when the picture
+    /// cannot be read, changed or stored.
+    pub async fn edit_picture(
+        &self,
+        id: &ContentKey,
+        edit: PictureEdit,
+        by: &str,
+    ) -> Result<Uploaded, EditPictureError> {
+        let item = self.get(id).ok_or(EditPictureError::NotFound)?;
+        if item.media_type.kind() != Kind::Image {
+            return Err(EditPictureError::NotAPicture);
+        }
+        let bytes = self.storage.get(&item.id, &item.name).await?;
+        let bytes = bytes.ok_or(EditPictureError::NotFound)?;
+        let work = tokio::task::spawn_blocking(move || {
+            let edited = Original::decode(&bytes)?.edited(edit)?;
+            let pixels = Pixels {
+                width: edited.width(),
+                height: edited.height(),
+            };
+            Ok::<_, MediaError>((edited.reencode()?, pixels))
+        });
+        let worked = work.await.map_err(|source| MediaError::Worker { source })?;
+        let (stored, pixels) = worked?;
+        let copy_id = ContentKey::of(&stored);
+        if let Some(existing) = self.get(&copy_id) {
+            return Ok(Uploaded::Duplicate(existing));
+        }
+        let now = self.clock.now();
+        let copy = MediaItem {
+            id: copy_id,
+            bytes: u64::try_from(stored.len()).unwrap_or(u64::MAX),
+            pixels: Some(pixels),
+            focal_point: edit.focal_point(item.focal_point),
+            uploaded_at: now,
+            uploaded_by: by.to_owned(),
+            updated_at: now,
+            updated_by: by.to_owned(),
+            ..item
+        };
+        self.storage
+            .put(&copy.id, &copy.name, copy.media_type, stored)
+            .await?;
+        self.save(&copy).await?;
+        Ok(Uploaded::New(copy))
     }
 
     /// The item `id` and the bytes of its file, when the library has it and

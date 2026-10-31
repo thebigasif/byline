@@ -20,6 +20,7 @@ use crate::content_key::ContentDoor;
 use crate::content_store::ContentStore;
 use crate::draft_comments::DraftComments;
 use crate::entry_store::EntryStore;
+use crate::follow_ups::{FollowUpFinder, NoSearchConsole};
 use crate::keys::KeyStore;
 use crate::media_api::{self, MediaLibrary};
 use crate::post_check::PostChecks;
@@ -30,6 +31,7 @@ use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
 use crate::resources::{AdminAuthor, AdminCategory, AdminPage, AdminSnippet, MediaItems};
 use crate::schema_template_store::SchemaTemplateStore;
+use crate::serpdad_store::SerpdadStore;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::settings_store::SettingsStore;
 use crate::tag_store::TagStore;
@@ -37,9 +39,9 @@ use crate::webhook_store::WebhookStore;
 use crate::{
     admin_analytics, admin_api, admin_api_keys, admin_audit, admin_authors, admin_calendar,
     admin_categories, admin_check, admin_comments, admin_draft_comments, admin_draft_threads,
-    admin_not_found, admin_pages, admin_redirect_csv, admin_redirects, admin_schema_templates,
-    admin_site_settings, admin_snippets, admin_tags, admin_trash, admin_webhooks, api_version,
-    content_api,
+    admin_follow_ups, admin_not_found, admin_pages, admin_redirect_csv, admin_redirects,
+    admin_schema_templates, admin_serpdad, admin_site_settings, admin_snippets, admin_tags,
+    admin_trash, admin_webhooks, api_version, content_api,
 };
 
 pub use crate::audit_desk::AuditDesk;
@@ -266,6 +268,12 @@ pub struct AdminDesks {
     /// Staff comments on drafts, or `None` when the routes list none and
     /// answer that the site keeps none.
     pub draft_comments: Option<DraftComments>,
+    /// The Search Console follow-ups, under
+    /// `/api/admin/v1/search-console/follow-ups/`.
+    pub follow_ups: Arc<dyn FollowUpFinder>,
+    /// The `SerpDad` connection, or `None` when the `SerpDad` route answers
+    /// that the site keeps no database.
+    pub serpdad: Option<Arc<dyn SerpdadStore>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -279,9 +287,10 @@ impl std::fmt::Debug for AdminDesks {
 
 impl AdminDesks {
     /// No comments, no media library, no stored redirects, no webhooks, no
-    /// audit log, no trash, no post checks, no schema templates, no pages, no
-    /// snippets, no authors, no tags, no categories, no settings, no
-    /// counted views and no comments on drafts.
+    /// audit log, no trash, no post checks, no schema templates, no pages,
+    /// no snippets, no authors, no tags, no categories, no settings, no
+    /// counted views, no comments on drafts, no Search Console connection
+    /// and no `SerpDad` connection.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
@@ -300,6 +309,8 @@ impl AdminDesks {
             settings: None,
             analytics: AnalyticsDesk::none(),
             draft_comments: None,
+            follow_ups: Arc::new(NoSearchConsole),
+            serpdad: None,
         }
     }
 }
@@ -329,6 +340,21 @@ pub fn router_with_draft_comments(
 ) -> (Router, Document) {
     let desks = AdminDesks {
         draft_comments: Some(comments),
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
+}
+
+/// [`router_with_door`] with the Search Console follow-ups found by
+/// `finder`.
+pub fn router_with_follow_ups(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    finder: Arc<dyn FollowUpFinder>,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        follow_ups: finder,
         ..AdminDesks::none()
     };
     assemble(content, door, keys, desks, None)
@@ -389,6 +415,21 @@ pub fn router_with_webhooks(
     assemble(content, door, keys, desks, None)
 }
 
+/// [`router_with_door`] with the `SerpDad` route under
+/// `/api/admin/v1/serpdad/` keeping its connection in `serpdad`.
+pub fn router_with_serpdad(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    serpdad: Option<Arc<dyn SerpdadStore>>,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        serpdad,
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
+}
+
 /// The whole router as `khalid serve` runs it: every store in `desks`,
 /// and `staff`, the staff routes and the session check that
 /// [`router_with_staff`] describes.
@@ -425,7 +466,8 @@ fn assemble(
         limits,
     };
     let redirects = desks.redirects;
-    let mut admin = admin_api::routes(Arc::clone(&posts), door.clone())
+    let serpdad = admin_serpdad::Serpdad::new(desks.serpdad, Arc::clone(&keys));
+    let mut admin = admin_api::routes(Arc::clone(&posts), serpdad.clone(), door.clone())
         .merge(admin_audit::routes(desks.audit, door.clone()))
         .merge(admin_calendar::routes(Arc::clone(&posts), door.clone()))
         .merge(admin_draft_comments::routes(
@@ -457,7 +499,9 @@ fn assemble(
         .merge(admin_categories::routes(desks.categories, door.clone()))
         .merge(admin_site_settings::routes(desks.settings, door.clone()))
         .merge(admin_api_keys::routes(keys, door.clone()))
-        .merge(admin_analytics::routes(desks.analytics, door.clone()));
+        .merge(admin_analytics::routes(desks.analytics, door.clone()))
+        .merge(admin_follow_ups::routes(desks.follow_ups, door.clone()))
+        .merge(admin_serpdad::routes(serpdad, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in

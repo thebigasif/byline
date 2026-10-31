@@ -1,6 +1,7 @@
 //! The Content API and the Admin API as `khalid serve` wires them to one
-//! site: every Admin API desk backed by the site's files and database. Kept
-//! apart from `serve.rs` so that file stays under 600 lines (BL-SIZE-1).
+//! site: every Admin API desk backed by the site's files and database, built
+//! beside the first answer. Kept apart from `serve.rs` so that file stays
+//! under 600 lines (BL-SIZE-1).
 
 use std::path::Path;
 use std::sync::Arc;
@@ -16,9 +17,12 @@ use khalid_api::resources::{AdminAuthor, AdminPage, AdminSnippet};
 use khalid_api::session_check::SessionCheck;
 use khalid_auth::SiteDirectory;
 use khalid_core::{Config, SystemClock};
-use khalid_db::{AnalyticsTable, AuditTable, Database, KeyTable, SiteId, WebhookTable};
+use khalid_db::{
+    AnalyticsTable, AuditTable, Database, KeyTable, SerpdadTable, SiteId, WebhookTable,
+};
 use khalid_newsletter::Mailer;
 
+use crate::search_console_finder::SiteFollowUps;
 use crate::site_categories::SiteCategories;
 use crate::site_content::LiveContent;
 use crate::site_entries::SiteEntries;
@@ -28,15 +32,34 @@ use crate::site_settings::SiteSettings;
 use crate::site_tags::SiteTags;
 use crate::{draft_comment_mail, late_api, staff};
 
+/// The desks `khalid serve` keeps in memory for the Admin API: comment
+/// moderation, the media library, stored redirects and the Search Console
+/// follow-ups.
+pub(crate) type Desks = (
+    Arc<dyn CommentModeration>,
+    MediaLibrary,
+    RedirectDesk,
+    SiteFollowUps,
+);
+
+/// What [`api_router`] is built from: its four argument groups.
+pub(crate) type ApiParts<'a> = (
+    (LiveContent, Arc<PublishDoor>, SitePosts),
+    Desks,
+    (&'a Database, SiteId, (&'a Path, &'a Config)),
+    (Arc<dyn SiteDirectory>, Option<Arc<dyn Mailer>>),
+);
+
 /// The Content API and the Admin API as `khalid serve` runs them, with the
-/// comment moderation, media library, stored redirects, webhooks and staff
-/// accounts of site `id`, the post checks, schema templates, pages,
-/// snippets, authors, tags, categories and settings of the site in `site`,
-/// the super-admin routes over `panel`, and comments on drafts emailed
-/// through `mailer` when the site sends mail.
+/// comment moderation, media library, stored redirects, Search Console
+/// follow-ups, webhooks, `SerpDad` connection and staff accounts of site
+/// `id`, the post checks, schema templates, pages, snippets, authors, tags,
+/// categories and settings of the site in `site`, the super-admin routes
+/// over `panel`, and comments on drafts emailed through `mailer` when the
+/// site sends mail.
 pub(crate) fn api_router(
     (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
-    (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
+    (comments, media, redirects, follow_ups): Desks,
     (database, id, (site, config)): (&Database, SiteId, (&Path, &Config)),
     (panel, mailer): (Arc<dyn SiteDirectory>, Option<Arc<dyn Mailer>>),
 ) -> Router {
@@ -71,19 +94,17 @@ pub(crate) fn api_router(
             Arc::new(SystemClock),
         ),
         draft_comments: Some(draft_comment_mail::desk((database, id, config), mailer)),
+        follow_ups: Arc::new(follow_ups),
+        serpdad: Some(Arc::new(SerpdadTable::new(
+            database.clone(),
+            id,
+            SystemClock,
+        ))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
     api
 }
-
-/// What [`api_router`] is built from: its four argument groups.
-pub(crate) type ApiParts<'a> = (
-    (LiveContent, Arc<PublishDoor>, SitePosts),
-    (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
-    (&'a Database, SiteId, (&'a Path, &'a Config)),
-    (Arc<dyn SiteDirectory>, Option<Arc<dyn Mailer>>),
-);
 
 /// `app` with the router of [`api_router`] and git mode's push `hook`
 /// answering under `/api/`, built on a blocking thread beside the first

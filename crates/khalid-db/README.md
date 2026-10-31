@@ -39,6 +39,7 @@ A test reads the table below and checks it lists every table in the schema, once
 | `webhook_deliveries` | visitor | Each delivery of an event: the bytes sent, where it stands and when it is due again |
 | `webhook_attempts` | visitor | Every attempt at a delivery, with the status that came back or why there was none |
 | `post_schedules` | visitor | When each post goes live and when it comes down, named by its identity so a rebuild keeps it |
+| `post_versions` | visitor | The title and text each post edit replaced, the 100 newest per post, so a writer can bring an old text back |
 | `site_keys` | visitor | Keys the site makes for itself, such as the one that signs preview links; 256 random bits each, never shown |
 | `form_submissions` | visitor | What people sent through forms on the site |
 | `subscribers` | visitor | Newsletter subscribers, whether they confirmed, and when they left |
@@ -55,6 +56,8 @@ A test reads the table below and checks it lists every table in the schema, once
 | `alerts_raised` | visitor | The key of each alert finding sent to the owner, so it is sent once while the problem lasts |
 | `audit_log` | visitor | Each change made through the Admin API: who made it, whether it added, changed or removed something, the route and the address; the newest 100,000 kept |
 | `site_watch` | visitor | Each look the speed and uptime watch took at a page of the public address, with its status and time; 30 days kept |
+| `serpdad_links` | visitor | The identity of the one integration key SerpDad sends drafts with, never the key, and when it was made; no row means the connection is off |
+| `serpdad_drafts` | visitor | The last 20 drafts SerpDad sent: each post's identity, title, blocks and warnings, and when it arrived |
 
 ## Changing a query
 
