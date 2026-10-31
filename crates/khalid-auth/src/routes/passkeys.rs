@@ -16,10 +16,11 @@ use khalid_core::UserMessage;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::passkey_list::bad_name;
 use super::{SessionAnswer, cookie_token, problem, refused, set_cookie};
 use crate::{
-    Accounts, CreationChallengeResponse, PublicKeyCredential, RegisterPublicKeyCredential,
-    RequestChallengeResponse, SignInError,
+    Accounts, CreationChallengeResponse, PasskeyName, PublicKeyCredential,
+    RegisterPublicKeyCredential, RequestChallengeResponse, SignInError,
 };
 
 /// What the admin passes to `navigator.credentials.create`, as
@@ -120,9 +121,11 @@ pub(super) async fn add_passkey(
     let Some(challenge) = decode(&body.challenge) else {
         return unreadable();
     };
-    let name = body.name.trim();
+    let Ok(name) = PasskeyName::new(&body.name) else {
+        return bad_name();
+    };
     match accounts
-        .finish_registration(&token, &challenge, &body.credential, name)
+        .finish_registration(&token, &challenge, &body.credential, name.as_str())
         .await
     {
         Ok(()) => StatusCode::CREATED.into_response(),
@@ -177,6 +180,14 @@ pub(super) async fn passkey_sign_in(
 
 pub(super) fn passkey_problem(error: &SignInError) -> Response {
     match error {
+        SignInError::NoPasskey => {
+            let message = UserMessage::new(
+                "You have no passkey with this number.",
+                "It may have been removed already, or it belongs to someone else.",
+                "Reload your passkeys and pick it again.",
+            );
+            Problem::new(ProblemType::NotFound, &message).into_response()
+        }
         SignInError::PasskeysOff => {
             let message = UserMessage::new(
                 "This site has no passkeys set up.",

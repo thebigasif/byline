@@ -36,6 +36,42 @@ impl PasskeyId {
     }
 }
 
+/// The most characters a passkey's name may have.
+pub const MAX_NAME_CHARS: usize = 60;
+
+/// A passkey's name, such as "Work laptop": trimmed, one to
+/// [`MAX_NAME_CHARS`] characters.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PasskeyName(String);
+
+impl PasskeyName {
+    /// `text` without the spaces around it, as a passkey's name.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PasskeyNameError`] when nothing is left, or more than
+    /// [`MAX_NAME_CHARS`] characters are.
+    pub fn new(text: &str) -> Result<Self, PasskeyNameError> {
+        let name = text.trim();
+        let chars = name.chars().count();
+        if chars == 0 || chars > MAX_NAME_CHARS || name.chars().any(char::is_control) {
+            return Err(PasskeyNameError);
+        }
+        Ok(Self(name.to_owned()))
+    }
+
+    /// The name.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// A passkey's name was blank, too long, or held a control character.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("a passkey's name has 1 to {MAX_NAME_CHARS} characters")]
+pub struct PasskeyNameError;
+
 /// A passkey as its owner sees it in the admin: never its key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ListedPasskey {

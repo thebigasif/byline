@@ -44,6 +44,10 @@ pub fn staff_routes(accounts: Accounts) -> StaffRoutes {
             .routes(routes!(passkeys::passkey_options))
             .routes(routes!(passkeys::add_passkey, passkey_list::list_passkeys))
             .routes(routes!(
+                passkey_list::rename_passkey,
+                passkey_list::remove_passkey
+            ))
+            .routes(routes!(
                 staff_changes::change_role,
                 staff_changes::remove_staff
             ))

@@ -8,9 +8,9 @@ use chrono::{DateTime, TimeDelta, Utc};
 
 use super::{Accounts, SignInError, SignedIn};
 use crate::{
-    AccountId, CreationChallengeResponse, ListedPasskey, PasskeySite, PasskeyStore,
-    PublicKeyCredential, RegisterPublicKeyCredential, Registering, RequestChallengeResponse,
-    SessionToken, SigningIn,
+    AccountId, CreationChallengeResponse, ListedPasskey, PasskeyId, PasskeyName, PasskeySite,
+    PasskeyStore, PublicKeyCredential, RegisterPublicKeyCredential, Registering,
+    RequestChallengeResponse, SessionToken, SigningIn,
 };
 
 /// How long a passkey request may take to answer.
@@ -168,6 +168,43 @@ impl Accounts {
         let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
         let account = self.session(token).await?.account;
         Ok(passkeys.store.listed(account.id()).await?)
+    }
+
+    /// Names the passkey `id` of the account `token` signs in `name`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SignInError::NoPasskey`] when the account has no passkey
+    /// `id`, and the errors of [`Accounts::passkeys_of`].
+    pub async fn rename_passkey(
+        &self,
+        token: &SessionToken,
+        id: PasskeyId,
+        name: &PasskeyName,
+    ) -> Result<(), SignInError> {
+        let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
+        let account = self.session(token).await?.account;
+        let store = &passkeys.store;
+        let renamed = store.rename(account.id(), id, name.as_str()).await?;
+        renamed.then_some(()).ok_or(SignInError::NoPasskey)
+    }
+
+    /// Removes the passkey `id` of the account `token` signs in, so it
+    /// signs nobody in again. The account keeps its password and links.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SignInError::NoPasskey`] when the account has no passkey
+    /// `id`, and the errors of [`Accounts::passkeys_of`].
+    pub async fn remove_passkey(
+        &self,
+        token: &SessionToken,
+        id: PasskeyId,
+    ) -> Result<(), SignInError> {
+        let passkeys = self.passkeys.as_ref().ok_or(SignInError::PasskeysOff)?;
+        let account = self.session(token).await?.account;
+        let removed = passkeys.store.remove(account.id(), id).await?;
+        removed.then_some(()).ok_or(SignInError::NoPasskey)
     }
 
     /// Starts a passkey sign-in: the options for

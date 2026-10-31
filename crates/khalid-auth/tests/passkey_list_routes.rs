@@ -125,3 +125,57 @@ async fn a_site_without_passkeys_says_so() {
     assert_eq!(status, 404, "{json}");
     assert_eq!(json["title"], "Nothing is at this address");
 }
+
+#[tokio::test]
+async fn a_person_renames_and_removes_their_own_passkey() {
+    let (router, asif, _) = site(BLOG).await;
+    let (_, list) = send(&router, "GET", "", Some(&asif), None).await;
+    let phone = format!("{}/", list[1]["id"]);
+    let rename = json!({ "name": "  Work phone " });
+    let (status, json) = send(&router, "PATCH", &phone, Some(&asif), Some(rename)).await;
+    assert_eq!(status, 204, "{json}");
+    let (_, list) = send(&router, "GET", "", Some(&asif), None).await;
+    let trimmed = names(&list);
+    assert_eq!(trimmed, ["Laptop", "Work phone"], "the name is trimmed");
+    let (status, json) = send(&router, "DELETE", &phone, Some(&asif), None).await;
+    assert_eq!(status, 204, "{json}");
+    let (_, list) = send(&router, "GET", "", Some(&asif), None).await;
+    assert_eq!(names(&list), ["Laptop"]);
+    let (status, _) = send(&router, "DELETE", &phone, Some(&asif), None).await;
+    assert_eq!(status, 404, "already removed");
+}
+
+#[tokio::test]
+async fn nobody_changes_another_persons_passkey_or_any_without_a_session() {
+    let (router, asif, ben_key) = site(BLOG).await;
+    let theirs = format!("{ben_key}/");
+    let rename = json!({ "name": "Mine now" });
+    for (method, path, body) in [
+        ("PATCH", theirs.as_str(), Some(rename.clone())),
+        ("DELETE", theirs.as_str(), None),
+        ("DELETE", "laptop/", None),
+    ] {
+        let (status, json) = send(&router, method, path, Some(&asif), body).await;
+        assert_eq!(status, 404, "{method} {path}: {json}");
+        assert_eq!(json["type"], "https://khalid.dev/problems/not-found");
+    }
+    for (method, body) in [("PATCH", Some(rename)), ("DELETE", None)] {
+        let (status, _) = send(&router, method, &theirs, None, body).await;
+        assert_eq!(status, 401, "{method} needs the session");
+    }
+}
+
+#[tokio::test]
+async fn a_blank_or_long_name_is_refused() {
+    let (router, asif, _) = site(BLOG).await;
+    let (_, list) = send(&router, "GET", "", Some(&asif), None).await;
+    let laptop = format!("{}/", list[0]["id"]);
+    for name in ["   ".to_owned(), "x".repeat(61)] {
+        let body = Some(json!({ "name": name }));
+        let (status, json) = send(&router, "PATCH", &laptop, Some(&asif), body).await;
+        assert_eq!(status, 422, "{name:?}: {json}");
+        assert!(json["detail"].as_str().unwrap().contains("60"), "{json}");
+    }
+    let (_, list) = send(&router, "GET", "", Some(&asif), None).await;
+    assert_eq!(names(&list), ["Laptop", "Phone"], "nothing changed");
+}
