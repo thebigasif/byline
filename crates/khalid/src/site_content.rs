@@ -21,6 +21,7 @@ use tokio::sync::watch;
 
 use crate::entry_events::Entries;
 use crate::post_lock::Lock;
+use crate::tag_events::Tags;
 use crate::{build_message, build_pages, index, site_lists};
 
 /// What one render of the pages read for the Content API, without a single
@@ -34,6 +35,8 @@ pub(crate) struct Catalog {
     lists: SiteResources,
     /// The pages, glossary terms, case studies and changelog entries.
     pub(crate) entries: Entries,
+    /// The tags the posts name.
+    pub(crate) tags: Tags,
 }
 
 impl Catalog {
@@ -61,6 +64,7 @@ impl Catalog {
             featured,
             lists,
             entries: Entries::of(content),
+            tags: Tags::of(config, content),
         })
     }
 }

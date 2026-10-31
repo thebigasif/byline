@@ -1,7 +1,8 @@
 //! Saving the file of a page, glossary term, case study or changelog entry
 //! on a running `khalid serve` fires its `.published`, `.published.edited`
 //! and `.deleted` webhooks to a stand-in receiver on loopback, signed with
-//! each webhook's secret (audit brief G25, KH-API-3).
+//! each webhook's secret, and a post that names a tag new to the site fires
+//! `tag.added` (audit brief G25, KH-API-3).
 
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -34,7 +35,7 @@ impl Drop for Server {
 /// a receiver at `/<event>`, and the running server. Gives back the
 /// receiver, the site, the server and each webhook's secret.
 #[cfg(test)]
-async fn serving(events: [Event; 3]) -> (MockServer, TempDir, Server, Vec<Secret<String>>) {
+async fn serving(events: &[Event]) -> (MockServer, TempDir, Server, Vec<Secret<String>>) {
     let receiver = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(204))
@@ -57,7 +58,7 @@ async fn serving(events: [Event; 3]) -> (MockServer, TempDir, Server, Vec<Secret
     let id = db.site(&Slug::try_new("main").unwrap()).await.unwrap();
     let table = WebhookTable::new(db.clone(), id, SystemClock);
     let mut secrets = Vec::new();
-    for event in events {
+    for &event in events {
         let port = receiver.address().port();
         let url = AbsoluteUrl::parse(&format!("http://hooks.test:{port}/{event}")).unwrap();
         secrets.push(table.create(&url, event).await.unwrap().1);
@@ -123,7 +124,7 @@ async fn add_change_remove(
     (name, text): (&str, &str),
     (key, id): (&str, &str),
 ) {
-    let (receiver, site, _server, secrets) = serving(events).await;
+    let (receiver, site, _server, secrets) = serving(&events).await;
     let mut file = site.path().to_path_buf();
     file.push(name);
     fs::write(&file, text).unwrap();
@@ -187,4 +188,19 @@ async fn a_saved_changelog_entry_fires_its_three_events() {
     let text = "---\ntitle: What changed in November\ndate: 2026-11-02\nversion: 2026.11\n---\n\n- Added a contact page.\n";
     let file = ("content/en/changelog/2026-11.md", text);
     add_change_remove(events, file, ("changelog_entry", "en.2026-11")).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_post_that_names_a_new_tag_fires_tag_added() {
+    let (receiver, site, _server, secrets) = serving(&[Event::TagAdded]).await;
+    let mut file = site.path().to_path_buf();
+    file.push("content/en/posts/2026-09-14-why-internal-links-matter.md");
+    let text = fs::read_to_string(&file).unwrap();
+    let tagged = "category: on-page-seo\ntags: [crawl budget]\n";
+    fs::write(&file, text.replacen("category: on-page-seo\n", tagged, 1)).unwrap();
+
+    let body = the_delivery(&receiver, Event::TagAdded, &secrets[0]).await;
+    assert_eq!(body["tag"]["id"], "en.crawl-budget", "{body}");
+    assert_eq!(body["tag"]["name"], "crawl budget", "{body}");
+    assert_eq!(body["tag"]["language"], "en", "{body}");
 }

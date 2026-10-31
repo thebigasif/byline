@@ -20,6 +20,7 @@ use crate::live_redirects::LiveRedirects;
 use crate::memory::HandBack;
 use crate::site_addresses::{self, LiveAddresses};
 use crate::site_content::{Catalog, LiveContent, Published};
+use crate::tag_events::Tags;
 use crate::{db_message, search_index, slug_moves};
 
 /// Hands the catalog of each render to the background task. When every
@@ -57,9 +58,9 @@ pub(crate) struct Destination {
     /// is new, changed or gone since the last catalog, when the site has
     /// webhooks to tell.
     pub(crate) announce: Option<SiteAnnounce>,
-    /// The entries the run started with, which the first catalog is
-    /// compared with.
-    pub(crate) entries: Entries,
+    /// The entries and tags the run started with, which the first catalog
+    /// is compared with.
+    pub(crate) started: (Entries, Tags),
 }
 
 /// Starts the background task on `runtime`. Await the handle after the
@@ -102,16 +103,18 @@ async fn moved(to: &Destination, catalog: &Catalog, applied: &mut Applied) {
 /// served and written, so no catalog stays in memory.
 async fn take_catalogs(mut catalogs: mpsc::UnboundedReceiver<Catalog>, to: Arc<Destination>) {
     let mut applied = Applied::default();
-    let mut entries = to.entries.clone();
+    let (mut entries, mut tags) = to.started.clone();
     while let Some(mut catalog) = catalogs.recv().await {
         while let Ok(later) = catalogs.try_recv() {
             catalog = later;
         }
         let now = std::mem::take(&mut catalog.entries);
+        let tagged = std::mem::take(&mut catalog.tags);
         if let Some(announce) = &to.announce {
             now.fire_since(&entries, announce);
+            tagged.fire_since(&tags, announce);
         }
-        entries = now;
+        (entries, tags) = (now, tagged);
         apply(&to, Arc::new(catalog), &mut applied).await;
         to.hand_back.after_work();
     }
@@ -236,7 +239,7 @@ mod tests {
             addresses: LiveAddresses::default(),
             redirects: LiveRedirects::new(Arc::new(khalid_db::RedirectRows::new(db.clone(), site))),
             announce: None,
-            entries: Entries::default(),
+            started: (Entries::default(), Tags::default()),
         };
         let (feed, task) = start(&Handle::current(), to);
 

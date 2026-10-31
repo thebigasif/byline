@@ -37,6 +37,7 @@ use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
+use crate::tag_events::Tags;
 use crate::{
     announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
     report, scheduler, search_route, serve_message, share_images, staff, unlock,
@@ -279,7 +280,7 @@ fn destination(
         addresses: addresses.clone(),
         redirects: redirects.clone(),
         announce: Some(telling.clone()),
-        entries: Entries::of(checked),
+        started: (Entries::of(checked), Tags::of(config, checked)),
     };
     Ok((to, telling, announcing))
 }
