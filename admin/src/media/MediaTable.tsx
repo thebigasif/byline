@@ -61,9 +61,7 @@ export function MediaTable({ media }: Props) {
         <tbody>
           {media.map((item) => (
             <tr key={item.id}>
-              <td>
-                {preview(item)}
-              </td>
+              <td>{preview(item)}</td>
               <td data-label={words.name}>
                 <code>{item.name}</code>
               </td>
@@ -75,9 +73,7 @@ export function MediaTable({ media }: Props) {
                 )}
               </td>
               <td data-label={words.kind}>{fileSummary(item)}</td>
-              <td data-label={words.alt}>
-                {altText(item)}
-              </td>
+              <td data-label={words.alt}>{altText(item)}</td>
               <td>
                 <Link
                   to="/media/$id"

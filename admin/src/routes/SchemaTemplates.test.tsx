@@ -23,7 +23,7 @@ const REFUSED = {
   title: "The request could not be read",
   status: 422,
   detail:
-    "The schema templates could not be read: template 2: \"recipe\" is not a schema.org type name such as Course.",
+    'The schema templates could not be read: template 2: "recipe" is not a schema.org type name such as Course.',
   fix: "Correct the template the message names, then save again.",
 };
 
