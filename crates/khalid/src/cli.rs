@@ -214,6 +214,9 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: BingCommand,
     },
+    /// Show how fast and how reliably the blog answered at its public
+    /// address over the last day and the last 30 days
+    Watch,
 }
 
 /// The Bing Webmaster Tools commands, for the site at the address in
@@ -552,6 +555,7 @@ impl Command {
             Self::Bing {
                 command: BingCommand::Report,
             } => "bing report",
+            Self::Watch => "watch",
         }
     }
 }

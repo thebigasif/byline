@@ -136,6 +136,7 @@ mod unlock;
 mod update;
 mod update_message;
 mod update_release;
+mod watch_report;
 mod webhooks;
 
 use std::ffi::OsString;
@@ -211,6 +212,9 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Db { command }), Some((folder, ..))) => {
             db::run(folder, command.clone(), cli.output)
         }
+        (Some(Command::Watch), Some((folder, ..))) => {
+            watch_report::run(folder, &SystemClock, cli.output)
+        }
         (Some(Command::Lint { path, fix }), Some((folder, ..))) => {
             let mode = if *fix { Mode::Fix } else { Mode::Check };
             lint::run(folder, path.as_deref(), mode, cli.output)
@@ -241,27 +245,33 @@ fn run(cli: &Cli) -> Exit {
         (Some(Command::Import(args)), Some((folder, config, routes, _))) => {
             import::run(folder, (config, routes), args, cli)
         }
-        (
-            Some(
-                command @ (Command::Db { .. }
-                | Command::Import(_)
-                | Command::Theme { .. }
-                | Command::Serve(_)
-                | Command::Keys { .. }
-                | Command::Staff { .. }
-                | Command::Mcp
-                | Command::Lint { .. }
-                | Command::Publish { .. }
-                | Command::New { .. }
-                | Command::Build { .. }
-                | Command::Export
-                | Command::Audit { .. }
-                | Command::Bing { .. }),
-            ),
-            None,
-        ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
+        (Some(command), None) if wants_site(command) => {
+            report::failure(cli.output, &needs_site(command), Exit::Usage)
+        }
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
     }
+}
+
+/// Whether `command` works on a site folder, so it needs `--site`.
+fn wants_site(command: &Command) -> bool {
+    matches!(
+        command,
+        Command::Db { .. }
+            | Command::Import(_)
+            | Command::Theme { .. }
+            | Command::Serve(_)
+            | Command::Keys { .. }
+            | Command::Staff { .. }
+            | Command::Mcp
+            | Command::Lint { .. }
+            | Command::Publish { .. }
+            | Command::New { .. }
+            | Command::Build { .. }
+            | Command::Export
+            | Command::Audit { .. }
+            | Command::Bing { .. }
+            | Command::Watch
+    )
 }
 
 /// Runs the commands that need only a checked site's settings: `theme`
