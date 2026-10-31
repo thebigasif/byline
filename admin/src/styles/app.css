@@ -100,6 +100,10 @@
   .choice{display:flex;align-items:flex-start;font-weight:400;margin:0 0 .6rem}
   .choice input{width:1.25rem;min-height:1.25rem;margin:.15rem .6rem 0 0;accent-color:var(--color-link);flex:none}
   .paging{display:flex;flex-wrap:wrap;gap:.75rem 1rem;align-items:center;margin:1.25rem 0 0}
+  .switch.spaced{flex-wrap:wrap;margin:0 0 1.25rem}
+  .queue{list-style:none;margin:0 0 1rem;padding:0;max-width:56rem}
+  .queue>li{margin:0 0 1rem}
+  .said{white-space:pre-line;max-width:68ch}
   /* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
   @media (max-width:40em){
     table,tbody,tr,td{display:block}

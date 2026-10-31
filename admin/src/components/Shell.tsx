@@ -37,6 +37,9 @@ export function Shell() {
               </Link>
             </li>
             <li>
+              <Link to="/comments">{en.nav.comments}</Link>
+            </li>
+            <li>
               <Link to="/redirects">{en.nav.redirects}</Link>
             </li>
           </ul>
