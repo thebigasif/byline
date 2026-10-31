@@ -2102,6 +2102,7 @@ name = "khalid-analytics"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "sha2 0.11.1",
  "thiserror",
 ]
 
