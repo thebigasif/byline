@@ -66,10 +66,10 @@ ExecStart=/usr/local/bin/khalid --site /var/lib/khalid serve --listen 0.0.0.0:80
 
 The empty `ExecStart=` line clears the old command first. The unit already lets Khalid answer on ports 80 and 443 without root, for when it gets its own certificate with `serve --domain`.
 
-The unit also sets `Environment=MIMALLOC_PURGE_DELAY=100`, the allocator setting `docs/standards/performance.md` records: it makes mimalloc return freed pages to the OS a hundred milliseconds after their free, which keeps the server's idle memory inside its budget without the churn a zero delay adds to a cold start. If you run the release binary by hand instead of through the unit, the image or `compose.yaml`, set the same variable in the shell first:
+The unit also sets `Environment=MIMALLOC_PURGE_DELAY=0`, the allocator setting `docs/standards/performance.md` records: it makes mimalloc return freed pages to the OS at once, which keeps the server's idle memory inside its budget. If you run the release binary by hand instead of through the unit, the image or `compose.yaml`, set the same variable in the shell first:
 
 ```sh
-MIMALLOC_PURGE_DELAY=100 khalid --site /var/lib/khalid serve --listen 127.0.0.1:8080
+MIMALLOC_PURGE_DELAY=0 khalid --site /var/lib/khalid serve --listen 127.0.0.1:8080
 ```
 
 ## Docker
