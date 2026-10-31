@@ -7791,7 +7791,7 @@
           },
           "lint": {
             "type": "object",
-            "description": "Every finding, blocks first or not, as `khalid lint --json` prints\nthem for one post, with `blocks` and the post's `score` out of 100\nand the rules that cost it points."
+            "description": "Every finding, as `khalid lint --json` prints them for one post,\nwith `blocks` and the post's `score` out of 100 and the rules that\ncost it points."
           },
           "schema": {
             "type": "object",

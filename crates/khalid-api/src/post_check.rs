@@ -45,9 +45,9 @@ pub struct Snippet {
 pub struct PostCheck {
     /// The post's identity.
     id: String,
-    /// Every finding, blocks first or not, as `khalid lint --json` prints
-    /// them for one post, with `blocks` and the post's `score` out of 100
-    /// and the rules that cost it points.
+    /// Every finding, as `khalid lint --json` prints them for one post,
+    /// with `blocks` and the post's `score` out of 100 and the rules that
+    /// cost it points.
     #[schema(value_type = Object)]
     lint: Report,
     /// The search result the page would make.
