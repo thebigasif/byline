@@ -18,7 +18,7 @@ The 0.6 line of `webauthn-rs` (0.6.1-dev on crates.io, the newest release) moved
 - **Khalid keeps its own edges.** `khalid-auth` builds the `Webauthn` value from the site address, keeps each waiting ceremony in memory for five minutes, and stores each passkey as the JSON `webauthn-rs` serialises, so nothing in Khalid reads CBOR, raw public keys or authenticator data any more.
 - **Sign-in looks the passkey up by its credential identity**, then lets `webauthn-rs` check it. A counter that goes back is refused, so a copied passkey signs nobody in.
 - **The user handle** is a UUID made from the account number, so it is stable for an account and says nothing else about it.
-- **Stored passkeys start again.** Migration 0017 rebuilds `passkeys` with a `credential` column for the JSON. The old rows held our own short key form, which `webauthn-rs` cannot read. Khalid has no release yet, so no real site holds a passkey; staff on a test site add theirs again.
+- **Stored passkeys start again.** Migration 0018 rebuilds `passkeys` with a `credential` column for the JSON. The old rows held our own short key form, which `webauthn-rs` cannot read. Khalid has no release yet, so no real site holds a passkey; staff on a test site add theirs again.
 - **Tests** register and sign in with `webauthn-authenticator-rs`'s software passkey, a test-only dependency, so the passkey on the other side is not our code either.
 - **Passwords stay on Argon2. Sessions stay as they are.** `tower-sessions` is optional in S1 and is not taken: the sessions code has its own tests and a CSRF design that `tower-sessions` does not give.
 

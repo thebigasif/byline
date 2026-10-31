@@ -16,7 +16,6 @@ mod limiter;
 mod magic_link;
 #[cfg(any(test, feature = "test-util"))]
 mod memory;
-mod passkey;
 mod passkey_site;
 mod passkey_store;
 mod password;
@@ -36,10 +35,6 @@ pub use magic_link::{
 };
 #[cfg(any(test, feature = "test-util"))]
 pub use memory::{MemoryAccounts, MemoryLinks, MemoryMailbox, MemoryPasskeys, MemorySessions};
-pub use passkey::{
-    AuthenticatorData, Challenge, PasskeyError, PublicKey, Registration, RelyingParty,
-    verify_assertion, verify_registration,
-};
 pub use passkey_site::{PasskeyCheckError, PasskeySite, Registering, SavedPasskey, SigningIn};
 pub use passkey_store::{PasskeyStore, PasskeyStoreError, StoredPasskey};
 pub use password::{
