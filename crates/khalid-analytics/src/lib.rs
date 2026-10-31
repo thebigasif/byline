@@ -27,6 +27,7 @@
 //! This crate knows nothing about HTTP, SQL or files. The binary reads the
 //! headers and `khalid-db` keeps the counts.
 
+mod crawl_report;
 mod crawled;
 mod crawler;
 mod crawler_ranges;
@@ -36,6 +37,7 @@ mod store;
 mod tally;
 mod visit;
 
+pub use crawl_report::{Answers, BotError, CrawlerHealth, bot_errors, crawl_health};
 pub use crawled::CrawledPage;
 pub use crawler::{Crawler, CrawlerKind};
 pub use crawler_ranges::{CrawlerRanges, LONGEST_LIST, RangeList, RangeListError};

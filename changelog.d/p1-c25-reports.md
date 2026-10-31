@@ -1,0 +1,1 @@
+- **Crawl reports.** The analytics crate turns the visitor log into a health line per search and AI crawler and the errors crawlers got, never counting a bot whose address is not on its list (GEO C3, C5).
