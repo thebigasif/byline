@@ -1,0 +1,10 @@
+# A comparison whose opening names both sides and gives the verdict, but
+# sets the two tools side by side in paragraphs only.
+extends = "clean"
+unset = ["focus_keyword"]
+title = "Ahrefs vs Semrush: which suits a small blog?"
+description = "Ahrefs or Semrush for a small blog: which one suits which writer, and why."
+body_text = """
+Pick Ahrefs if you care most about links, and Semrush if you also run ads.
+What internal links are
+"""

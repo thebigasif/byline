@@ -32,6 +32,7 @@ mod lint_site;
 mod linter;
 mod page_kind;
 mod page_or_section;
+mod page_shape;
 mod reading;
 mod rule;
 mod score;

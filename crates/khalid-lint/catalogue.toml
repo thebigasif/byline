@@ -387,3 +387,27 @@ what = "This short post covers what a section of another post already covers."
 why = "Two pages on one subject compete for the same searches, and the short one rarely wins."
 fix = "Move what is new here into that section, then redirect this post's address to that post."
 guide = "page-or-section"
+
+[comparison-without-table]
+what = "This post weighs choices against each other but has no table that sets them side by side."
+why = "Readers scan a table faster than paragraphs, and AI search tools quote its rows as they stand."
+fix = "Add a table with one column per choice and one row for each point you compare."
+guide = "comparison-pages"
+
+[comparison-answer-late]
+what = "The opening paragraph does not name both things the title compares."
+why = "Readers and AI search tools look for the verdict first, and a page that hides it loses them."
+fix = "Write an opening paragraph that names both choices and says which one suits which reader."
+guide = "comparison-pages"
+
+[fewer-picks-than-title]
+what = "The title promises more picks than the post gives a heading of their own."
+why = "Readers who count fewer picks than the title promised stop trusting the page."
+fix = "Add a heading for each missing pick, or change the number in the title."
+guide = "comparison-pages"
+
+[review-without-rating]
+what = "This review has no review block with your rating."
+why = "Without the block, search results cannot show your score, and readers must hunt for your verdict."
+fix = "Add a review block with the item, your score and a short verdict."
+guide = "comparison-pages"
