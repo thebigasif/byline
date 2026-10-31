@@ -134,7 +134,7 @@ pub struct FontFileEntry {
     /// The face's metric overrides for its tuned local fallback. Left out
     /// when the file was not measured.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metrics: Option<crate::fonts::FontMetrics>,
+    pub metrics: Option<crate::font_files::FontMetrics>,
 }
 
 /// Corners and line length.
