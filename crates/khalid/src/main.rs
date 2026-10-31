@@ -40,6 +40,7 @@ mod consent_route;
 mod content_feed;
 mod content_message;
 mod crawl_alerts;
+mod crawl_first;
 mod crawl_report;
 mod crawl_words;
 mod crawler_lists;

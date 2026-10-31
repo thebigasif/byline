@@ -160,6 +160,14 @@ on = true
 keep_days = 14   # 7 to 14
 ```
 
+While it is on, three commands read it. A crawler counts only when its address is on the list its company publishes, so a script that borrows Googlebot's name is never counted as Googlebot.
+
+- `khalid crawl first`: for each post that went live after the log saw its first crawl, how long each crawler took to fetch it.
+- `khalid crawl health`: each search and AI crawler's visits over the kept days, by what the site answered: the page, moved, missing or failed.
+- `khalid crawl errors`: each address that answered crawlers with a 4xx or 5xx, most hits first.
+
+Add `--json` to any of them for the same as one JSON object. The hourly alerts also raise `crawl-stopped` when Googlebot or Bingbot has not fetched a page for a week, and `crawler-errors` when crawlers got a server error in the last hour. Both go out like every other alert.
+
 ## Taking your data out
 
 `khalid db export` writes every table of the site's database as a CSV file and a JSON file (two plain formats spreadsheets and reporting tools read), one pair per table, into `data/export/`. Add `--out <folder>` to write them somewhere else. Google Sheets, Excel and Looker Studio open the CSV files as they are.

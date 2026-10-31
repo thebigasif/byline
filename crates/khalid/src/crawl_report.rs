@@ -1,23 +1,26 @@
-//! `khalid crawl health` and `errors`: what the visitor log says about
-//! crawling (GEO C3, C5). They read `data/site.db`, and answer that the
+//! `khalid crawl first`, `health` and `errors`: what the visitor log says
+//! about crawling (GEO C2, C3, C5). They read `data/site.db`, and answer that the
 //! log is off when `[visitor_log]` does not switch it on.
 
 use std::path::Path;
 
 use chrono::{DateTime, Days, SecondsFormat, Utc};
 use khalid_analytics::{
-    AnalyticsError, Answers, BotError, CrawlerHealth, VisitorLogStore, bot_errors, crawl_health,
+    AnalyticsError, Answers, BotError, CrawlerHealth, FirstCrawl, VisitorLogStore, bot_errors,
+    crawl_health, first_crawls,
 };
-use khalid_core::{Clock, Environment, UserMessage};
+use khalid_core::{Clock, Config, Environment, UserMessage};
 use khalid_db::VisitorLogTable;
 use serde::Serialize;
 
 use crate::cli::{CrawlCommand, Output};
+use crate::crawl_first::{self, PostBody};
 use crate::exit::Exit;
 use crate::{crawl_words, db_message, report, serve, site_config};
 
 /// What one command read.
 enum Read {
+    First(Vec<FirstCrawl>),
     Health(Vec<CrawlerHealth>),
     Errors(Vec<BotError>),
 }
@@ -37,7 +40,7 @@ pub(crate) fn run(site: &Path, command: CrawlCommand, clock: &dyn Clock, output:
     let since = now
         .checked_sub_days(Days::new(u64::from(settings.keep_days)))
         .unwrap_or(DateTime::<Utc>::MIN_UTC);
-    match read(site, command, (since, now)) {
+    match read((site, &config), command, (since, now)) {
         Ok(read) => match output {
             Output::Json => report::json(&json(&read), Exit::Success),
             Output::Human => {
@@ -51,7 +54,7 @@ pub(crate) fn run(site: &Path, command: CrawlCommand, clock: &dyn Clock, output:
 
 /// Reads what `command` needs from the site's visitor log.
 fn read(
-    site: &Path,
+    (site, config): (&Path, &Config),
     command: CrawlCommand,
     (since, now): (DateTime<Utc>, DateTime<Utc>),
 ) -> Result<Read, UserMessage> {
@@ -59,11 +62,16 @@ fn read(
         .enable_all()
         .build()
         .map_err(|_| db_message::internal())?;
+    let live = match command {
+        CrawlCommand::First => runtime.block_on(crawl_first::live_pages(site, config))?,
+        CrawlCommand::Health | CrawlCommand::Errors => Vec::new(),
+    };
     let (database, id) = serve::open(site, &runtime)?;
     runtime.block_on(async {
         let log = VisitorLogTable::new(database.clone(), id);
         let read = async {
             Ok::<_, AnalyticsError>(match command {
+                CrawlCommand::First => Read::First(first_crawls(&live, &log.crawled().await?)),
                 CrawlCommand::Health => {
                     let visits = log.visits(since, now).await?;
                     Read::Health(crawl_health(&visits, &log.crawled().await?))
@@ -81,6 +89,7 @@ fn read(
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Body<'a> {
+    Posts(Vec<PostBody<'a>>),
     Crawlers(Vec<CrawlerBody>),
     Errors(Vec<ErrorBody<'a>>),
 }
@@ -129,6 +138,7 @@ fn answers(of: Answers) -> AnswersBody {
 
 fn json(read: &Read) -> Body<'_> {
     match read {
+        Read::First(posts) => Body::Posts(crawl_first::bodies(posts)),
         Read::Health(all) => Body::Crawlers(
             all.iter()
                 .map(|one| CrawlerBody {
@@ -159,6 +169,7 @@ fn json(read: &Read) -> Body<'_> {
 
 fn text(read: &Read, days: u32) -> String {
     match read {
+        Read::First(posts) => crawl_first::words(posts),
         Read::Health(all) => crawl_words::health(all, days),
         Read::Errors(errors) => crawl_words::errors(errors, days),
     }

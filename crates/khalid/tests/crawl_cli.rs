@@ -1,5 +1,5 @@
-//! `khalid crawl health` and `errors` on the demo site, with a
-//! visitor log written beforehand (GEO C3, C5). With the log off,
+//! `khalid crawl first`, `health` and `errors` on the demo site, with a
+//! visitor log written beforehand (GEO C2, C3, C5). With the log off,
 //! each says so.
 
 use std::fs::{self, OpenOptions};
@@ -19,8 +19,11 @@ use tempfile::TempDir;
 
 const POST: &str = "/blog/planning-a-topic-cluster/";
 
+/// The demo's German translation of `POST`, live the same day.
+const TRANSLATION: &str = "/blog/de/ein-themencluster-planen/";
+
 /// Every `khalid crawl` report.
-const REPORTS: &[&str] = &["health", "errors"];
+const REPORTS: &[&str] = &["first", "health", "errors"];
 
 #[cfg(test)]
 fn visit(at: DateTime<Utc>, path: &str, status: u16, (name, check): (&str, BotCheck)) -> Visit {
@@ -132,6 +135,25 @@ async fn errors_list_each_address_crawlers_could_not_get() {
         text.contains("/blog/gone/  404  2 times to GPTBot, Googlebot, last "),
         "{text}"
     );
+}
+
+#[tokio::test]
+async fn first_shows_how_long_each_new_post_waited() {
+    let site = demo_site("[visitor_log]\non = true").await;
+    let (code, out) = crawl(site.path(), &["first", "--json"]);
+    assert_eq!(code, 0, "{out}");
+    let json: Value = serde_json::from_str(&out).unwrap();
+    let posts = json["posts"].as_array().unwrap();
+    // Only the posts that went live after the log's first crawl: the
+    // English one and its German translation, which no crawler fetched.
+    let paths: Vec<&str> = posts.iter().map(|p| p["path"].as_str().unwrap()).collect();
+    assert_eq!(paths, [TRANSLATION, POST], "{json}");
+    assert_eq!(posts[0]["first_crawls"], Value::Array(Vec::new()));
+    let first = &posts[1]["first_crawls"][0];
+    assert_eq!(first["crawler"], "Googlebot");
+    assert_eq!(first["after_seconds"], 6 * 3600);
+    let (_, text) = crawl(site.path(), &["first"]);
+    assert!(text.contains("  Googlebot after 6 hours\n"), "{text}");
 }
 
 #[tokio::test]

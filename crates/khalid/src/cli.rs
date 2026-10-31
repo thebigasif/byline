@@ -226,6 +226,8 @@ pub(crate) enum Command {
 /// count a crawler only from an address its company publishes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
 pub(crate) enum CrawlCommand {
+    /// Show how long each new post waited for its first crawl
+    First,
     /// Show each search and AI crawler's visits and what it got
     Health,
     /// List the addresses that answered crawlers with an error
@@ -564,6 +566,7 @@ impl Command {
                 command: BingCommand::Report,
             } => "bing report",
             Self::Crawl { command } => match command {
+                CrawlCommand::First => "crawl first",
                 CrawlCommand::Health => "crawl health",
                 CrawlCommand::Errors => "crawl errors",
             },

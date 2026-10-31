@@ -59,3 +59,7 @@ Anthropic, Apple and most other bots publish no list this version knows of, so t
 ## Where it lives
 
 In `data/site.db`, the site's own database file, on the site owner's server. It is never sent anywhere by Khalid. The table is `visitor_log`.
+
+## Crawled pages
+
+While the log is on, a second table, `crawled_pages`, keeps one row per page and crawler for each page a crawler fetched from an address on its company's list: the page, the crawler's name, and the first and last time. It holds no address, no visitor code and nothing about any person, only what a company's crawler did, so it is kept after the visit rows are deleted. That is how Khalid can say when a post published a month ago was first crawled.
