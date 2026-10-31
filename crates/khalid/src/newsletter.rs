@@ -13,15 +13,17 @@ use khalid_mail::{ApiMailer, Sender, Service, SmtpMailer};
 use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, SiteLinks};
 use khalid_outbound::{Outbound, Resolver};
 
+use crate::announce::SiteAnnounce;
 use crate::serve_message;
+use crate::subscriber_events::AnnouncedSubscribers;
 
 /// The newsletter's routes for the site with `config`, in its default
-/// language, keeping subscribers in site `id` of `database` and sending
-/// with the mail `secret` from the environment, the APIs through
-/// `outbound`.
+/// language, keeping subscribers in site `id` of `database`, telling
+/// `announce` of each one confirmed, and sending with the mail `secret`
+/// from the environment, the APIs through `outbound`.
 pub(crate) fn router(
     config: &Config,
-    (database, id): (&Database, SiteId),
+    (database, id, announce): (&Database, SiteId, &SiteAnnounce),
     (secret, outbound): (Option<Secret<String>>, &Outbound),
 ) -> Result<Router, UserMessage> {
     let site = NewsletterSite {
@@ -32,7 +34,8 @@ pub(crate) fn router(
     let pages = Pages::new(site.clone()).map_err(|_| serve_message::internal())?;
     let newsletter = match mailer(config, secret, outbound)? {
         Some(mailer) => {
-            let store = Arc::new(SubscriberTable::new(database.clone(), id));
+            let table = Arc::new(SubscriberTable::new(database.clone(), id));
+            let store = Arc::new(AnnouncedSubscribers::new(table, announce.clone()));
             let made = Newsletter::new(store, mailer, Arc::new(SystemClock), site);
             Some(made.map_err(|_| serve_message::internal())?)
         }

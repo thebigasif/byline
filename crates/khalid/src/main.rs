@@ -106,6 +106,7 @@ mod staff;
 mod staff_message;
 mod staff_owner;
 mod static_mode;
+mod subscriber_events;
 mod tag_events;
 mod theme_check;
 mod theme_message;

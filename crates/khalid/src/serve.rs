@@ -160,7 +160,7 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
-    let newsletters = newsletter::router(config, (database, id), (keys.mail, outbound))
+    let newsletters = newsletter::router(config, (database, id, &telling), (keys.mail, outbound))
         .map_err(|message| (message, Exit::Internal))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
