@@ -46,7 +46,8 @@ pub(crate) fn run(site: &Path, clock: &dyn Clock, output: Output) -> Exit {
         Ok(moved) => moved,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };
-    let (config, routes, content, _) = match crate::check(site, &Environment::from_process()) {
+    let env = Environment::from_process();
+    let (config, routes, content, _) = match crate::check(site, &env, crate::Bodies::Now) {
         Ok(checked) => checked,
         Err(message) => return report::failure(output, &message, Exit::Failure),
     };

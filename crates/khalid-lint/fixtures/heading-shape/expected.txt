@@ -1,0 +1,2 @@
+warn heading-shape: the heading "Types of internal links" promises kinds, but no list follows (suggest: turn what follows into a list, one kind to a bullet)
+warn heading-shape: the heading "Differences between links and buttons" promises a comparison, but no table follows (suggest: set what follows as a table, one row to a pair)

@@ -5,7 +5,7 @@ use khalid_core::{Config, Locale, MenuLink};
 use khalid_render::{AnnouncementBar, Nav, NavLink, RenderSite};
 
 use crate::build_pages::path_of;
-use crate::{assets, build_reader};
+use crate::{assets, build_ai_page, build_reader};
 
 /// The site as pages in `locale` show it, linking the stylesheet at
 /// `stylesheet` and the reader script when a feature on uses it.
@@ -19,7 +19,7 @@ pub(crate) fn render_site(config: &Config, locale: &Locale, stylesheet: &str) ->
         stylesheet: stylesheet.to_owned(),
         nav: Nav {
             primary: menu(&nav.primary, locale),
-            footer: menu(&nav.footer, locale),
+            footer: footer(config, &nav.footer, locale),
         },
         announcement: announcement(config, locale),
         main_site: None,
@@ -39,6 +39,21 @@ fn menu(links: &[MenuLink], locale: &Locale) -> Vec<NavLink> {
         href: link.href.to_string(),
     };
     links.iter().filter(shown).map(link).collect()
+}
+
+/// The footer links of `links` that pages in `locale` show, then the AI
+/// info page when it is on, so a reader or a model finds it from anywhere
+/// (P3). The page is built in the main language alone, so every language
+/// links to that copy.
+fn footer(config: &Config, links: &[MenuLink], locale: &Locale) -> Vec<NavLink> {
+    let mut footer = menu(links, locale);
+    if !config.ai_page().off {
+        footer.push(NavLink {
+            label: "AI info".to_owned(),
+            href: path_of(config, config.default_language(), build_ai_page::REST),
+        });
+    }
+    footer
 }
 
 /// The announcement pages in `locale` show, if `site.toml` has one for

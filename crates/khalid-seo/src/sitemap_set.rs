@@ -31,7 +31,9 @@ impl SitemapSection {
     pub(crate) fn of(kind: PageKind) -> Self {
         match kind {
             PageKind::Post => Self::Posts,
-            PageKind::Home | PageKind::Page | PageKind::GlossaryTerm => Self::Pages,
+            PageKind::Home | PageKind::Page | PageKind::AiPage | PageKind::GlossaryTerm => {
+                Self::Pages
+            }
             PageKind::Author
             | PageKind::Tag
             | PageKind::Category

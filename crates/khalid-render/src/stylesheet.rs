@@ -13,9 +13,18 @@ const SITE_CSS: &str = include_str!("../assets/site.css");
 ///
 /// Returns [`RenderError::Compress`] if a compressor fails.
 pub fn stylesheet(tokens: &Tokens) -> Result<Asset, RenderError> {
+    let css = stylesheet_text(tokens);
+    Asset::build("site", "css", "text/css; charset=utf-8", css.into_bytes())
+}
+
+/// The text of the stylesheet [`stylesheet`] builds, without its hashed
+/// name or compressed copies. Its name is
+/// `Asset::hashed_name("site", "css", text)`. `khalid serve` starts from
+/// this, so it answers before it spends time compressing.
+pub fn stylesheet_text(tokens: &Tokens) -> String {
     let mut css = tokens.to_css();
     css.push_str(&minify(SITE_CSS));
-    Asset::build("site", "css", "text/css; charset=utf-8", css.into_bytes())
+    css
 }
 
 /// Removes comments, indentation and blank lines. The rules themselves are

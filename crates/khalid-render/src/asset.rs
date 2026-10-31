@@ -66,6 +66,12 @@ impl Asset {
         })
     }
 
+    /// The name [`Asset::build`] gives `body`, such as `site.3f2a9c1e.css`,
+    /// without making the compressed copies.
+    pub fn hashed_name(stem: &str, extension: &str, body: &[u8]) -> String {
+        hashed_name(stem, extension, body)
+    }
+
     /// The hashed file name, such as `site.3f2a9c1e.css`.
     pub fn name(&self) -> &str {
         &self.name

@@ -4,9 +4,9 @@ use chrono::NaiveDate;
 
 use crate::focus::{FocusNotIn, FocusTooOften, FocusTooRare, Place, SecondaryKeywordUnused};
 use crate::{
-    Rule, SiteRule, Thresholds, address, blocking, brief, collections, facts, link_hygiene,
-    link_targets, link_text, page_or_section, page_shape, reading, site_content, site_links,
-    site_sections, site_trust, snippet, structure, topics, words, writing,
+    Rule, SiteRule, Thresholds, address, blocking, brief, collections, facts, headings,
+    link_hygiene, link_targets, link_text, page_or_section, page_shape, reading, site_content,
+    site_links, site_sections, site_trust, snippet, structure, topics, words, writing,
 };
 
 /// Every built-in rule, measured against `thresholds`, in the order their
@@ -86,6 +86,13 @@ fn writing_and_reading_rules(thresholds: Thresholds) -> Vec<Box<dyn Rule>> {
         }),
         Box::new(writing::SourcedStatistics),
         Box::new(facts::FactOldValue),
+        Box::new(headings::HeadingAgrees {
+            max_duplicate_percent: thresholds.heading_duplicate_percent,
+        }),
+        Box::new(headings::HeadingShape {
+            list_words: headings::LIST_WORDS.to_vec(),
+            table_words: headings::TABLE_WORDS.to_vec(),
+        }),
         Box::new(crate::focus::NoFocusKeyword),
         Box::new(FocusNotIn(Place::Title)),
         Box::new(FocusNotIn(Place::Headline)),
@@ -147,6 +154,10 @@ pub(crate) fn site_rules(thresholds: Thresholds, today: NaiveDate) -> Vec<Box<dy
         }),
         Box::new(facts::FactNotChecked {
             months: thresholds.fact_check_months,
+            today,
+        }),
+        Box::new(site_content::ReviewDue {
+            months: thresholds.review_months,
             today,
         }),
         Box::new(site_sections::SectionRepeatsPost {

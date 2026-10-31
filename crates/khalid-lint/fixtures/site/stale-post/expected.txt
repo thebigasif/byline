@@ -1,1 +1,3 @@
 en/pruning-old-posts: warn stale-post
+en/pruning-old-posts: warn review-due
+en/anchor-text-basics: warn review-due

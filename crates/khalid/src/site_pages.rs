@@ -122,9 +122,8 @@ impl SitePages {
         let theme = if config.mode().has_pages() {
             let renderer =
                 Renderer::with_theme(folder).map_err(|error| build_message::render(&error))?;
-            let css = assets::site_stylesheet(folder)?;
-            let stylesheet = assets::stylesheet_page(&config, &css)?;
             let tokens = Tokens::load(folder).map_err(|error| build_message::tokens(&error))?;
+            let stylesheet = assets::stylesheet_page(&config, &tokens)?;
             Some(Theme {
                 renderer,
                 stylesheet,
@@ -418,7 +417,8 @@ impl SitePages {
         let href = theme
             .as_ref()
             .map_or("", |theme| theme.stylesheet.path().as_str());
-        let mut languages = build_pages::pages(config, routes, (content, others), href)?;
+        let today = self.0.clock.now().date_naive();
+        let mut languages = build_pages::pages(config, routes, (content, others), href, today)?;
         let renderer = theme.as_ref().map(|theme| &theme.renderer);
         post_lock::lock(config, content, renderer, &mut languages);
         if let Some(theme) = theme {

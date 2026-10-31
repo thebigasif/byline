@@ -11,8 +11,9 @@ use crate::mail_settings::MailTable;
 use crate::search_console_settings::SearchConsoleTable;
 use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
-    AbsoluteUrl, AlertSettings, Announcement, Environment, Locale, MailSettings, MediaSettings,
-    NavSettings, ParseUrlError, Reader, SearchConsoleSettings, SeoSettings, SiteCode,
+    AbsoluteUrl, AiPageSettings, AlertSettings, Announcement, Environment, Locale, MailSettings,
+    MediaSettings, NavSettings, ParseUrlError, Reader, SearchConsoleSettings, SeoSettings,
+    SiteCode,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -375,6 +376,11 @@ impl Config {
     /// The SEO settings, from `[seo]`.
     pub fn seo(&self) -> &SeoSettings {
         &self.seo
+    }
+
+    /// The AI info page's settings, from `[seo.ai_page]`.
+    pub fn ai_page(&self) -> &AiPageSettings {
+        &self.seo.ai_page
     }
 
     /// Which reader features the default templates show, from `[reader]`.

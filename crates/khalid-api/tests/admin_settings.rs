@@ -83,6 +83,7 @@ async fn edits(all: Vec<Value>) -> Vec<(StatusCode, Value)> {
 fn every_setting() -> Value {
     json!({
         "date": "2026-11-02",
+        "reviewed": "2026-10-29",
         "co_authors": ["mira", "jonas"],
         "excerpt": "Pick words that say where the link goes.",
         "feature_image": {

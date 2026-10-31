@@ -66,6 +66,12 @@ ExecStart=/usr/local/bin/khalid --site /var/lib/khalid serve --listen 0.0.0.0:80
 
 The empty `ExecStart=` line clears the old command first. The unit already lets Khalid answer on ports 80 and 443 without root, for when it gets its own certificate with `serve --domain`.
 
+The unit also sets `Environment=MIMALLOC_PURGE_DELAY=0`, the allocator setting `docs/standards/performance.md` records: it makes mimalloc return freed pages to the OS at once, which keeps the server's idle memory inside its budget. If you run the release binary by hand instead of through the unit, the image or `compose.yaml`, set the same variable in the shell first:
+
+```sh
+MIMALLOC_PURGE_DELAY=0 khalid --site /var/lib/khalid serve --listen 127.0.0.1:8080
+```
+
 ## Docker
 
 Docker runs programs in containers, each with its own files. The `Dockerfile` at the top of the repository builds an image from scratch, which means the image starts empty. It holds the Khalid binary, built fully static so it needs no other library, and the certificates Khalid needs to make HTTPS requests. There is no shell and no package manager in it, so there is nothing else to patch.

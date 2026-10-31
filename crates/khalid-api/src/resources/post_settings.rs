@@ -168,6 +168,12 @@ pub struct PostSettings {
     pub featured: bool,
     /// Where the post stands in review.
     pub review_state: ReviewState,
+    /// The day the post last came up for review and was looked at (F3).
+    /// A review that changes nothing sets this alone; it never moves
+    /// `date`, and a real change is what sets `updated` in the front
+    /// matter.
+    #[schema(value_type = Option<String>, format = Date, example = "2026-05-02")]
+    pub reviewed: Option<NaiveDate>,
     /// The address search engines should credit instead of this post.
     #[serde(serialize_with = "display_option")]
     #[schema(value_type = Option<String>, example = "https://example.com/original/")]

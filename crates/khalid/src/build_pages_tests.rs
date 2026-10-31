@@ -23,7 +23,14 @@ fn the_english_feed_carries_each_wikilink_as_a_full_address() {
     let routes = Routes::load(&site).unwrap();
     let content = read_content(&ContentTree::walk(&site).unwrap()).unwrap();
     let stylesheet = "/blog/assets/site.css";
-    let mut languages = super::pages(&config, &routes, (&content, &[]), stylesheet).unwrap();
+    let mut languages = super::pages(
+        &config,
+        &routes,
+        (&content, &[]),
+        stylesheet,
+        NaiveDate::default(),
+    )
+    .unwrap();
     let seo_site = build_seo::site(&config).unwrap();
     let seo_pages = build_seo::heads(&seo_site, &mut languages).unwrap();
     let english = FeedScope::language(config.default_language().clone());

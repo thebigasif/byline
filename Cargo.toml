@@ -90,35 +90,89 @@ lto = true
 codegen-units = 1
 strip = "symbols"
 panic = "abort"
-
-# The share image stack trades speed for size: cards are drawn once and
-# kept by content hash, so a slower draw never reaches a reader.
-[profile.release.package.khalid-share-image]
-opt-level = "s"
-[profile.release.package.tiny-skia]
-opt-level = "s"
-[profile.release.package.rustybuzz]
-opt-level = "s"
-[profile.release.package.ttf-parser]
+# Sized for size by default: most of the binary is commands, the admin, the
+# APIs, mail, imports and image uploads, which never sit on a reader's path.
+# The khalid crate must stay at "s": with fat LTO the whole program is
+# optimised at the binary crate's level, and opt-level 3 there made the
+# binary bigger than before (docs/standards/performance.md, "Binary size").
 opt-level = "s"
 
-# The downloaded-font reader is asked for a handful of table fields per
-# face, once per sync, so its size matters more than its speed here.
-[profile.release.package.read-fonts]
-opt-level = "s"
-[profile.release.package.font-types]
-opt-level = "s"
-[profile.release.package.zerocopy]
-opt-level = "s"
-
-# The import command's HTML reader runs once per migration, never on a
-# reader's path, so it is sized like the share image stack above.
-[profile.release.package.scraper]
-opt-level = "s"
-[profile.release.package.html5ever]
-opt-level = "s"
-[profile.release.package.ego-tree]
-opt-level = "s"
+# The reader's path at full speed: the server, the allocator, and the
+# render, build and lint code with the parsers it runs for every post.
+[profile.release.package.tokio]
+opt-level = 3
+[profile.release.package.hyper]
+opt-level = 3
+[profile.release.package.hyper-util]
+opt-level = 3
+[profile.release.package.axum]
+opt-level = 3
+[profile.release.package.axum-core]
+opt-level = 3
+[profile.release.package.http]
+opt-level = 3
+[profile.release.package.http-body]
+opt-level = 3
+[profile.release.package.bytes]
+opt-level = 3
+[profile.release.package.tower]
+opt-level = 3
+[profile.release.package.tower-http]
+opt-level = 3
+[profile.release.package.matchit]
+opt-level = 3
+[profile.release.package.httparse]
+opt-level = 3
+[profile.release.package.mimalloc]
+opt-level = 3
+[profile.release.package.libmimalloc-sys]
+opt-level = 3
+[profile.release.package.khalid-core]
+opt-level = 3
+[profile.release.package.khalid-content]
+opt-level = 3
+[profile.release.package.khalid-render]
+opt-level = 3
+[profile.release.package.khalid-static]
+opt-level = 3
+[profile.release.package.khalid-lint]
+opt-level = 3
+[profile.release.package.khalid-search]
+opt-level = 3
+[profile.release.package.comrak]
+opt-level = 3
+[profile.release.package.minijinja]
+opt-level = 3
+[profile.release.package.syntect]
+opt-level = 3
+[profile.release.package.fancy-regex]
+opt-level = 3
+[profile.release.package.regex]
+opt-level = 3
+[profile.release.package.regex-automata]
+opt-level = 3
+[profile.release.package.aho-corasick]
+opt-level = 3
+[profile.release.package.memchr]
+opt-level = 3
+[profile.release.package.serde]
+opt-level = 3
+[profile.release.package.serde_json]
+opt-level = 3
+[profile.release.package.serde-saphyr]
+opt-level = 3
+[profile.release.package.granit-parser]
+opt-level = 3
+[profile.release.package.brotli]
+opt-level = 3
+[profile.release.package.flate2]
+opt-level = 3
+[profile.release.package.miniz_oxide]
+opt-level = 3
+[profile.release.package.hashbrown]
+opt-level = 3
+[profile.release.package.indexmap]
+opt-level = 3
 
 [profile.dev]
 debug = "line-tables-only"
