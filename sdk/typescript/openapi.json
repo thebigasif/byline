@@ -1132,7 +1132,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Creates a draft post from markdown, or from HTML with `source=html`. A\nretry with the same `Idempotency-Key` returns the post the first\nrequest made, so it never makes two (RULES.md BL-API-7). Needs\n`posts:write`.",
+        "summary": "Creates a draft post from markdown, or from HTML with `source=html`,\nand answers with what the linter finds in it as it would go live and\nwhere it opens in the admin (KH-API-6). A retry with the same\n`Idempotency-Key` returns the post the first request made, so it never\nmakes two (RULES.md BL-API-7). Needs `posts:write`.",
         "operationId": "create_admin_post",
         "parameters": [
           {
@@ -1183,11 +1183,11 @@
         },
         "responses": {
           "201": {
-            "description": "The new draft",
+            "description": "The new draft, its lint findings and its admin path",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminPosts"
+                  "$ref": "#/components/schemas/CreatedPosts"
                 }
               }
             }
@@ -7391,6 +7391,59 @@
         "description": "JSON-LD written by hand for a type Khalid does not write itself, kept\nas written. It is read as schema.org nodes before it is kept, so a page\nnever carries JSON-LD a search engine would throw away.",
         "example": "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}"
       },
+      "CreatedPosts": {
+        "type": "object",
+        "description": "A new draft, as the create route answers it.",
+        "required": [
+          "posts",
+          "admin_path"
+        ],
+        "properties": {
+          "admin_path": {
+            "type": "string",
+            "description": "Where the draft opens in the admin's editor, as a path from the\nserver's root like the `Location` header, such as\n`/admin/posts/en.choosing-anchor-text`."
+          },
+          "lint": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DraftLint",
+                "description": "What the linter finds in the draft as it would go live today, or\n`null` when this server runs no linter or could not run it now. The\ndraft is saved either way."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPost"
+            },
+            "description": "The new draft, alone."
+          }
+        }
+      },
+      "DraftLint": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LintCounts",
+            "description": "How many findings would stop the draft going live, and how many\nare warnings."
+          },
+          {
+            "type": "object",
+            "required": [
+              "report"
+            ],
+            "properties": {
+              "report": {
+                "type": "object",
+                "description": "Every finding, as `khalid lint --json` prints them for one post,\nand the post's `score` out of 100: the shape a refused publish\ncarries under `lint`."
+              }
+            }
+          }
+        ],
+        "description": "The linter's verdict on a new draft."
+      },
       "EditPosts": {
         "type": "object",
         "description": "An edit, wrapped the way the Admin API wraps posts: exactly one.",
@@ -7979,6 +8032,13 @@
               "null"
             ],
             "description": "The author's slug, such as `asif`. The linter refuses to publish a\npost without one."
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The excerpt: the short summary cards, feeds and search results\nshow, kept as the post's `description`. Not blank when given."
           },
           "html": {
             "type": [

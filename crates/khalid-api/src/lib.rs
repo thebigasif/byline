@@ -41,6 +41,7 @@ pub mod content_api;
 mod content_key;
 pub mod content_store;
 pub mod draft_comments;
+mod draft_lint;
 pub mod entry_store;
 mod etag;
 mod html_source;
