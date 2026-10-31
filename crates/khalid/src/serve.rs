@@ -37,8 +37,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, preview, redirect_route,
-    report, scheduler, search_route, serve_message, share_images, staff, unlock,
+    announce, comment_pages, consent_route, db, db_message, media_library, newsletter, preview,
+    redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -137,20 +137,7 @@ fn serve_with(
         (&redirects, &addresses),
     );
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
-    // Only the home pages are rendered before the server listens; the rest
-    // follows behind the first answer (ADR "khalid serve answers before the
-    // full render").
-    let clock = Arc::new(SystemClock);
-    let (source, first) = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)
-        .and_then(|source| {
-            let first = source.render_first(&checked)?;
-            let first = Pages::first(first).map_err(|_| serve_message::internal())?;
-            let first = match source.stylesheet() {
-                Some(href) => first.with_preloads(vec![href]),
-                None => first,
-            };
-            Ok((source, first))
-        })
+    let (source, first) = first_pages((site, config, routes), feed, &checked)
         .map_err(|message| (message, Exit::Failure))?;
     let security = security_headers()?;
     let search = search_route::Search {
@@ -214,6 +201,26 @@ fn serve_with(
         tracing::warn!(?error, "the Content API's task stopped early");
     }
     served
+}
+
+/// The site's pages, fed by `feed`, and the first of them to serve: only
+/// the home pages are rendered before the server listens, and the rest
+/// follows behind the first answer (ADR "khalid serve answers before the
+/// full render").
+fn first_pages(
+    (site, config, routes): (&Path, &Config, &Routes),
+    feed: content_feed::ContentFeed,
+    checked: &SiteContent,
+) -> Result<(SitePages, Pages), UserMessage> {
+    let clock = Arc::new(SystemClock);
+    let source = SitePages::new(site, config.clone(), routes.clone(), Some(feed), clock)?;
+    let first = source.render_first(checked)?;
+    let first = Pages::first(first).map_err(|_| serve_message::internal())?;
+    let first = match source.stylesheet() {
+        Some(href) => first.with_preloads(vec![href]),
+        None => first,
+    };
+    Ok((source, first))
 }
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
@@ -288,6 +295,7 @@ fn assembled(
         .merge(khalid_admin::router(khalid_admin::built()))
         .merge(comments)
         .merge(newsletters)
+        .merge(consent_route::router(config, security.clone()))
         .merge(pages)
 }
 

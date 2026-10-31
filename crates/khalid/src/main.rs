@@ -26,6 +26,7 @@ mod categories;
 mod cli;
 mod comment_pages;
 mod config_message;
+mod consent_route;
 mod content_feed;
 mod content_message;
 mod db;
