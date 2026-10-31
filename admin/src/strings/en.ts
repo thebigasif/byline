@@ -359,6 +359,19 @@ export const en = {
     hint: "Make one on the server with khalid keys create --kind staff --role editor --name followed by your name. It is shown once.",
     submit: "Sign in",
     checking: "Checking the token",
+    email: {
+      title: "Or sign in with your email",
+      lede: "For an account the owner made for you. It lets you add a passkey under Your account.",
+      address: "Email",
+      password: "Password",
+      submit: "Sign in with email",
+      checking: "Checking your email and password",
+    },
+    link: {
+      title: "Signing you in",
+      checking: "Checking your sign-in link",
+      back: "Go to the sign-in page",
+    },
   },
   problems: {
     rejected: {
@@ -395,6 +408,11 @@ export const en = {
       what: "No CSV file is picked yet.",
       why: "Khalid adds the redirects from a file, so there is nothing to add.",
       fix: "Pick a CSV file under Add redirects from a CSV file, then press Add these redirects.",
+    },
+    badLink: {
+      what: "This sign-in link no longer works.",
+      why: "Each link works once, for a short time, so nobody else can use it later.",
+      fix: "Ask the blog's owner for a new link, or sign in with your email and password.",
     },
     badAlias: {
       what: "The old address is not a path on this blog.",

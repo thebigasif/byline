@@ -1,6 +1,6 @@
 // One Admin API request with the signed-in key, for the screens whose
 // answers need no more than "the data, or the problem".
-import { readKey } from "../auth/session";
+import { signingHeaders } from "../auth/session";
 import { isProblem, type Problem } from "./posts";
 
 /** A call that failed: the problem the API sent, if any, and the status; 0 when unreachable. */
@@ -23,9 +23,8 @@ export async function call<T>(
   read: (response: Response) => Promise<T>,
 ): Promise<Reply<T>> {
   const request = new Request(`${globalThis.location.origin}${ADMIN}${path}`, init);
-  const key = readKey();
-  if (key !== null) {
-    request.headers.set("Authorization", `Khalid ${key}`);
+  for (const [name, value] of Object.entries(signingHeaders())) {
+    request.headers.set(name, value);
   }
   try {
     const response = await globalThis.fetch(request);

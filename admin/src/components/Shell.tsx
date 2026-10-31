@@ -1,13 +1,18 @@
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { forgetKey } from "../auth/session";
+import { endSession } from "../api/account";
+import { forgetKey, readCsrf } from "../auth/session";
 import { en } from "../strings/en";
 
 /** The header and side navigation around every signed-in screen. */
 export function Shell() {
   const navigate = useNavigate();
-  const signOut = () => {
+  const signOut = async () => {
+    // An email sign-in also ends on the server, so its cookie stops working.
+    if (readCsrf() !== null) {
+      await endSession();
+    }
     forgetKey();
-    void navigate({ to: "/sign-in" });
+    await navigate({ to: "/sign-in" });
   };
   return (
     <>
