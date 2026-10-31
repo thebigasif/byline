@@ -37,7 +37,9 @@ use crate::{
 #[openapi(
     info(
         title = "Khalid API",
-        description = "The Content API and the Admin API of a Khalid blog."
+        description = "The Content API and the Admin API of a Khalid blog. Each key, and each \
+                       address that sends wrong keys, has a limit a minute; past it the answer \
+                       is 429 with Retry-After."
     ),
     components(schemas(Problem, MediaItems)),
     modifiers(&KeySchemes)

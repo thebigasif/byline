@@ -27,6 +27,10 @@ The API is the only door (CLAUDE.md). This file fixes the shape so every endpoin
 
 Integration keys are created in the admin or with `khalid keys create`. Each key has scopes: `content:read`, `posts:write`, `posts:publish`, `media:write`, `settings:write`, `webhooks:manage`, `subscribers:write`, `admin:all`. Keys are stored hashed and shown once. Staff tokens carry the user's role. For example, `khalid --site <folder> keys create --name SerpDad --scope posts:write` makes an integration key that writes drafts, `--scope posts:write --scope posts:publish` one that also publishes them, `--kind content` a content key and `--kind staff --role editor` a staff token, and `khalid keys revoke <id>` stops one at once.
 
+## Rate limits
+
+Each key may make 600 Admin API requests a minute, and a content key 6,000 Content API requests a minute; a staff session counts as its staff member's key. Each address may send 10 wrong keys a minute, counted by network (an IPv4 address or an IPv6 /64), and once it has none left it is refused before its key is checked. A request with no key is not counted. Past a limit the API answers 429 with a `too-many-requests` problem and `Retry-After` in seconds (BL-SEC-5). The limits are kept in memory and start empty when the server starts. ADR "Number: next free", `0000-the-api-limits-each-key-and-each-wrong-key.md`, says why.
+
 ## Webhooks
 
 Events are `resource.verb`: `post.published`, `post.published.edited`, `post.unpublished`, `post.scheduled`, `post.deleted`, the same for `page` and each collection, `tag.added`, `form.submitted`, `subscriber.added`, `comment.added`, `lint.blocked`, `audit.finished`, `site.changed`. The body is the resource in API shape plus `event`, `occurred_at` and `site`. Deliveries are signed: `Khalid-Signature: t=<unix>,v1=<hmac-sha256(secret, t + "." + body)>`. Retries back off over 24 hours. The admin shows a delivery log.

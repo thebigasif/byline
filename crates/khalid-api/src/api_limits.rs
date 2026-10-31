@@ -304,4 +304,44 @@ mod tests {
         clock.wait(TimeDelta::seconds(6));
         assert_eq!(limits.paused(address), None);
     }
+
+    #[test]
+    fn an_ipv6_network_counts_as_one_address() {
+        assert_eq!(network(ip("2001:db8::1")), network(ip("2001:db8::ffff")));
+        assert_ne!(network(ip("2001:db8::1")), network(ip("2001:db8:0:1::1")));
+        assert_eq!(network(ip("::ffff:192.0.2.1")), network(ip("192.0.2.1")));
+    }
+
+    #[test]
+    fn a_full_memory_forgets_the_buckets_that_filled_up_again() {
+        let clock = Hand::start();
+        let limits = ApiLimits::new(clock.clone());
+        let full = (0..MAX_BUCKETS).map(|n| {
+            let id = KeyId::try_new(&format!("{n:016x}")).unwrap();
+            (Bucket::Key(id), clock.now() + TimeDelta::seconds(1))
+        });
+        limits.full_at.lock().unwrap().extend(full);
+        limits.refused(ip("192.0.2.1"));
+        assert_eq!(limits.full_at.lock().unwrap().len(), MAX_BUCKETS);
+        assert_eq!(limits.paused(ip("192.0.2.1")), None, "no room: not counted");
+        clock.wait(TimeDelta::seconds(1));
+        limits.refused(ip("192.0.2.1"));
+        assert_eq!(limits.full_at.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn only_a_local_proxy_may_name_the_client() {
+        let mut headers = HeaderMap::new();
+        let forwarded = HeaderValue::from_static("198.51.100.1, 203.0.113.7");
+        headers.insert("x-forwarded-for", forwarded);
+        assert_eq!(behind_proxy(ip("127.0.0.1"), &headers), ip("203.0.113.7"));
+        assert_eq!(behind_proxy(ip("192.0.2.9"), &headers), ip("192.0.2.9"));
+    }
+
+    #[test]
+    fn retry_after_rounds_up_to_whole_seconds() {
+        assert_eq!(whole_seconds(Duration::from_millis(10)), 1);
+        assert_eq!(whole_seconds(Duration::from_millis(6001)), 7);
+        assert_eq!(whole_seconds(Duration::from_secs(6)), 6);
+    }
 }
