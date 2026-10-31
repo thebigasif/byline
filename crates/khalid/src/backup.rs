@@ -1,6 +1,7 @@
 //! `khalid backup`: one `.tar.gz` archive of the site folder (plan section
-//! 4.1). What Khalid makes again, the built site in `public/` and the image
-//! sizes in `data/media/`, stays out.
+//! 4.1). The database goes in as a whole copy made while the server may
+//! still run, and what Khalid makes again, the built site in `public/` and
+//! the image sizes in `data/media/`, stays out.
 
 use std::fs::{self, File};
 use std::io;
@@ -9,16 +10,17 @@ use std::path::{Path, PathBuf};
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use khalid_core::{Clock, UserMessage};
+use khalid_db::Database;
 use serde::Serialize;
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, TempDir};
 
 use crate::cli::Output;
 use crate::exit::Exit;
-use crate::{backup_message, report};
+use crate::{backup_message, db, report};
 
 /// The paths inside a site, from its root, that a backup leaves out: the
-/// built site, image sizes, and the live database files, which a plain copy
-/// can catch half written.
+/// built site, image sizes, and the live database files, whose whole copy
+/// goes in instead.
 const LEFT_OUT: [&str; 6] = [
     "public",
     "data/media",
@@ -34,11 +36,13 @@ struct BackupBody {
     archive: String,
     files: usize,
     bytes: u64,
+    database: bool,
 }
 
 /// What went into an archive.
 struct Written {
     files: usize,
+    database: bool,
 }
 
 /// Writes one archive of the `site` folder to `out`, or to a file named by
@@ -80,10 +84,15 @@ fn write(site: &Path, folder: &str, archive: &Path) -> Result<Written, UserMessa
     // The archive may be written inside the site; it must not hold itself.
     let skip = fs::canonicalize(temporary.path()).map_err(failed)?;
     let files = site_files(site, &skip).map_err(failed)?;
+    let copy = database_copy(site)?;
     let gzip = GzEncoder::new(temporary.as_file(), Compression::default());
     let mut tar = tar::Builder::new(gzip);
     for (path, inside) in &files {
         tar.append_path_with_name(path, format!("{folder}/{inside}"))
+            .map_err(failed)?;
+    }
+    if let Some((_held, file)) = &copy {
+        tar.append_path_with_name(file, format!("{folder}/data/site.db"))
             .map_err(failed)?;
     }
     tar.into_inner()
@@ -93,7 +102,10 @@ fn write(site: &Path, folder: &str, archive: &Path) -> Result<Written, UserMessa
     temporary
         .persist_noclobber(archive)
         .map_err(|error| failed(error.error))?;
-    Ok(Written { files: files.len() })
+    Ok(Written {
+        files: files.len() + usize::from(copy.is_some()),
+        database: copy.is_some(),
+    })
 }
 
 /// Every file in `site` a backup keeps, with its path from the site's root,
@@ -125,14 +137,44 @@ fn site_files(site: &Path, skip: &Path) -> io::Result<Vec<(PathBuf, String)>> {
     Ok(files)
 }
 
+/// A whole copy of the site's database in a temporary folder, held by the
+/// returned [`TempDir`], or `None` when the site has no database yet.
+fn database_copy(site: &Path) -> Result<Option<(TempDir, PathBuf)>, UserMessage> {
+    let mut live = within(site, db::DATA);
+    live.push(db::FILE);
+    if !live.is_file() {
+        return Ok(None);
+    }
+    let held = tempfile::tempdir().map_err(|error| backup_message::write(&live, &error))?;
+    let copy = within(held.path(), db::FILE);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| backup_message::internal())?;
+    runtime
+        .block_on(async {
+            let database = Database::open(&live).await?;
+            let copied = database.copy_to(&copy).await;
+            database.close().await;
+            copied
+        })
+        .map_err(|error| backup_message::database(&live, &error))?;
+    Ok(Some((held, copy)))
+}
+
 /// Says where the archive is, how many files it holds and how big it is.
 fn success(output: Output, archive: &Path, written: &Written) -> Exit {
     let shown = archive.display().to_string();
     let bytes = fs::metadata(archive).map_or(0, |meta| meta.len());
     match output {
         Output::Human => {
+            let database = if written.database {
+                "It holds a whole copy of the database."
+            } else {
+                "The site has no database yet, so there was none to copy."
+            };
             let said = format!(
-                "Backed up {} files to {shown}, {bytes} bytes.\nTo restore, unpack it with `tar -xzf {shown}`.\n",
+                "Backed up {} files to {shown}, {bytes} bytes. {database}\nTo restore, unpack it with `tar -xzf {shown}`.\n",
                 written.files
             );
             report::text(&said, Exit::Success)
@@ -142,6 +184,7 @@ fn success(output: Output, archive: &Path, written: &Written) -> Exit {
                 archive: shown,
                 files: written.files,
                 bytes,
+                database: written.database,
             },
             Exit::Success,
         ),

@@ -5,6 +5,7 @@ use std::io;
 use std::path::Path;
 
 use khalid_core::UserMessage;
+use khalid_db::DbError;
 
 /// The message when the folder holds no `site.toml`.
 pub(crate) fn not_a_site(site: &Path) -> UserMessage {
@@ -43,5 +44,29 @@ pub(crate) fn write(archive: &Path, error: &io::Error) -> UserMessage {
         format!("Khalid could not write the backup {}.", archive.display()),
         why,
         "Fix that, then run `khalid backup` again.",
+    )
+}
+
+/// The message when the database cannot be copied.
+pub(crate) fn database(file: &Path, error: &DbError) -> UserMessage {
+    let file = file.display();
+    let why = match error {
+        DbError::Open { .. } => "The file is not a database Khalid can open.",
+        _ => "The disk may be full, or the database is locked by something other than Khalid.",
+    };
+    UserMessage::new(
+        format!("Khalid could not copy the database {file} for the backup."),
+        why,
+        "Fix that, then run `khalid backup` again, so the backup keeps comments and subscribers.",
+    )
+}
+
+/// The message when the database work cannot start for a reason inside
+/// Khalid or the computer.
+pub(crate) fn internal() -> UserMessage {
+    UserMessage::new(
+        "Khalid could not start copying the database.",
+        "The cause is inside Khalid or the computer, not in your site.",
+        "Run the command again, and report it with the output of `khalid --version` if it fails again.",
     )
 }

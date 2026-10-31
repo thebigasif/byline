@@ -22,7 +22,7 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 - `khalid serve` runs the blog and the APIs.
 - `khalid import wordpress|ghost|medium|substack|markdown <export> --dry-run` says what an import would bring in and leave behind. Without `--dry-run` it writes the posts with their old slugs and stores a redirect for each old address that moves. For `wordpress`, the export may be the site's address, which brings in its published posts and pages.
 - `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it, and on a static site which features are off.
-- `khalid backup --out <file>.tar.gz` writes one archive of the site folder. It leaves out `public/` and `data/media/`, which Khalid makes again, and never writes over a file.
+- `khalid backup --out <file>.tar.gz` writes one archive of the site folder with a whole copy of the database, safe while `khalid serve` runs. It leaves out `public/` and `data/media/`, which Khalid makes again, and never writes over a file.
 
 **The MCP server.** `khalid --site <folder> mcp` speaks the Model Context Protocol on stdin and stdout. Each tool sends the request the HTTP API would get, so it obeys the same rules, keys and checks.
 

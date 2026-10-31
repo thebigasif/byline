@@ -127,8 +127,8 @@ pub(crate) enum Command {
         )]
         network: Network,
     },
-    /// Write one archive of the site folder, leaving out public/, data/media/
-    /// and the live database files
+    /// Write one archive of the site folder, with a safe copy of its
+    /// database, leaving out public/ and data/media/, which Khalid makes again
     Backup {
         /// The archive to write, a new .tar.gz file. Without it, Khalid writes
         /// `<folder>-backup-<date>-<time>.tar.gz` in the current folder
