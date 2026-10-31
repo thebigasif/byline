@@ -22,6 +22,7 @@ mod schema_graph;
 mod schema_node;
 mod schema_value;
 mod site_graph;
+mod software;
 mod template;
 mod video_review;
 
@@ -44,5 +45,6 @@ pub use schema_node::SchemaNode;
 pub use schema_value::SchemaValue;
 pub use site_graph::{SiteSearch, site_graph};
 pub(crate) use site_graph::{image_node, node_id, publisher_id, site_home};
+pub use software::{AppKind, SoftwareApplication};
 pub use template::{SchemaTemplate, SchemaType, TemplateScope};
 pub use video_review::{AggregateRating, Rating, Review};

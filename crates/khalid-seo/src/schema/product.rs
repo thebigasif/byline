@@ -80,14 +80,7 @@ pub(crate) fn product_node(
         node.set("offers", SchemaValue::Node(Box::new(offer.node())));
     }
     if let Some(review) = &product.review {
-        let author = SchemaNode::new("Person").with("name", SchemaValue::text(&review.author));
-        let review = SchemaNode::new("Review")
-            .with(
-                "reviewRating",
-                SchemaValue::Node(Box::new(review.rating.node("Rating"))),
-            )
-            .with("author", SchemaValue::Node(Box::new(author)));
-        node.set("review", SchemaValue::Node(Box::new(review)));
+        node.set("review", review_node(review));
     }
     if let Some(aggregate) = product.aggregate {
         node.set(
@@ -96,4 +89,16 @@ pub(crate) fn product_node(
         );
     }
     Ok(node)
+}
+
+/// The writer's score as a `Review` written inside the thing it scores.
+pub(crate) fn review_node(review: &ProductReview) -> SchemaValue {
+    let author = SchemaNode::new("Person").with("name", SchemaValue::text(&review.author));
+    let node = SchemaNode::new("Review")
+        .with(
+            "reviewRating",
+            SchemaValue::Node(Box::new(review.rating.node("Rating"))),
+        )
+        .with("author", SchemaValue::Node(Box::new(author)));
+    SchemaValue::Node(Box::new(node))
 }

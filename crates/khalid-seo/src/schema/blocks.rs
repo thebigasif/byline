@@ -4,9 +4,11 @@ use crate::schema::faq::faq_node;
 use crate::schema::howto::how_to_node;
 use crate::schema::product::product_node;
 use crate::schema::recipe::recipe_node;
+use crate::schema::software::app_node;
 use crate::schema::video_review::{review_node, video_node};
 use crate::{
-    FaqItem, HowTo, Product, Recipe, Review, SchemaNode, SeoError, SeoPage, SeoSite, Video,
+    FaqItem, HowTo, Product, Recipe, Review, SchemaNode, SeoError, SeoPage, SeoSite,
+    SoftwareApplication, Video,
 };
 
 /// An editor block on a page that writes its own schema node.
@@ -25,6 +27,8 @@ pub enum SchemaBlock {
     Recipe(Recipe),
     /// A product card: `Product`, with its price and ratings.
     Product(Product),
+    /// A software block: `SoftwareApplication`, or a mobile or web app.
+    Software(SoftwareApplication),
 }
 
 /// The schema nodes of the page's blocks, in the order of the blocks. A
@@ -40,6 +44,7 @@ pub(crate) fn block_nodes(site: &SeoSite, page: &SeoPage) -> Result<Vec<SchemaNo
             SchemaBlock::Review(review) => nodes.push(review_node(review, &url, number)?),
             SchemaBlock::Recipe(recipe) => nodes.push(recipe_node(recipe, page, &url, number)?),
             SchemaBlock::Product(product) => nodes.push(product_node(product, &url, number)?),
+            SchemaBlock::Software(app) => nodes.push(app_node(app, &url, number)?),
         }
     }
     Ok(nodes)
