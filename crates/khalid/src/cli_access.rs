@@ -25,6 +25,26 @@ pub(crate) enum StaffCommand {
     Owner(OwnerArgs),
 }
 
+/// The commands for many sites in one process. They work on the sites
+/// folder: the one `--site` names, or the current folder.
+#[derive(Debug, Clone, Subcommand)]
+pub(crate) enum SitesCommand {
+    /// Show the sites in this folder, the home site first
+    List,
+    /// Add a site on a domain, in its own folder under sites/
+    Add {
+        /// The domain readers reach it on, such as news.example.com
+        #[arg(value_name = "DOMAIN", value_parser = |text: &str| khalid_auth::site_domain(text))]
+        domain: khalid_core::DomainName,
+    },
+    /// Let a person add sites: they sign in on the home site with this email
+    Admin {
+        /// The email they sign in with on the home site
+        #[arg(value_name = "EMAIL")]
+        email: khalid_auth::Email,
+    },
+}
+
 /// What `khalid staff owner` takes.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct OwnerArgs {

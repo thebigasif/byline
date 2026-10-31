@@ -1,9 +1,9 @@
 import { records } from "./records";
+import { sitesWords } from "./sites";
 import { teamWords } from "./teamWords";
 import { webhookWords } from "./webhookWords";
 
 // Every word the admin shows, so a second language is one more file.
-
 export const en = {
   brand: "Khalid",
   skip: "Skip to the main content",
@@ -800,6 +800,7 @@ export const en = {
       back: "Go to the sign-in page",
     },
   },
+  sites: sitesWords,
   problems: {
     rejected: {
       what: "The blog did not accept this token.",

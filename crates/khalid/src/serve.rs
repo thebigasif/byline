@@ -18,6 +18,7 @@ use khalid_api::redirect_desk::RedirectDesk;
 use khalid_api::resources::{AdminAuthor, AdminPage, AdminSnippet};
 use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
+use khalid_auth::SiteDirectory;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
 use khalid_db::{
@@ -46,6 +47,7 @@ use crate::serve_https::{self, Listen};
 use crate::site_categories::SiteCategories;
 use crate::site_content::LiveContent;
 use crate::site_entries::SiteEntries;
+use crate::site_hosts::{self, Among, Door};
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::site_schema_templates::SiteSchemaTemplates;
@@ -64,7 +66,7 @@ const WATCH_EVERY: Duration = Duration::from_millis(500);
 
 /// How long requests in flight may take to finish after a stop signal
 /// before their connections are closed (RULES.md BL-RUN-10).
-const GRACE: Duration = Duration::from_secs(10);
+pub(crate) const GRACE: Duration = Duration::from_secs(10);
 
 /// The JSON shape of the line `khalid serve --json` prints once it listens.
 #[derive(Serialize)]
@@ -127,33 +129,47 @@ pub(crate) fn run(
     let (Ok(runtime), Ok(outbound)) = (built, outbound) else {
         return report::failure(output, &serve_message::internal(), Exit::Internal);
     };
-    let (database, id) = match open(site, &runtime) {
-        Ok(opened) => opened,
-        Err(message) => return report::failure(output, &message, Exit::Failure),
-    };
-    let served = serve_with(
-        (site, config, routes),
-        start,
-        (listen, &outbound, (output, alert_every), keys),
-        &runtime,
-        (&database, id),
-    );
-    runtime.block_on(database.close());
-    match served {
+    let to = (listen, &outbound, (output, alert_every), keys);
+    match serve_site(&runtime, (site, config, routes), start, to, None) {
         Ok(()) if output == Output::Human => report::text("Stopped.\n", Exit::Success),
         Ok(()) => Exit::Success,
         Err((message, exit)) => report::failure(output, &message, exit),
     }
 }
 
+/// Serves one site on `runtime` as [`run`] does, or, `among` many, in its
+/// place behind the sites folder's listener. Its database opens first and
+/// closes last, after every request, the watch, the scheduler and the
+/// announcing have stopped.
+pub(crate) fn serve_site(
+    runtime: &Runtime,
+    (site, config, routes): (&Path, &Config, &Routes),
+    start: (SiteContent, Assets, FolderLook),
+    to: (&Listen, &Outbound, (Output, Duration), Keys),
+    among: Option<&Among>,
+) -> Result<(), (UserMessage, Exit)> {
+    let (database, id) = open(site, runtime).map_err(|message| (message, Exit::Failure))?;
+    let served = serve_with(
+        (site, config, routes),
+        start,
+        to,
+        runtime,
+        (&database, id),
+        among,
+    );
+    runtime.block_on(database.close());
+    served
+}
+
 /// Renders the site with its checked settings and routes, then answers on
-/// `listen` until told to stop.
+/// `listen`, or in its place `among` many, until told to stop.
 fn serve_with(
     (site, config, routes): (&Path, &Config, &Routes),
     (checked, assets, look): (SiteContent, Assets, FolderLook),
     (listen, outbound, (output, alert_every), keys): (&Listen, &Outbound, (Output, Duration), Keys),
     runtime: &Runtime,
     (database, id): (&Database, SiteId),
+    among: Option<&Among>,
 ) -> Result<(), (UserMessage, Exit)> {
     let (content, hand_back) = (LiveContent::default(), HandBack::default());
     let (redirects, addresses) = redirect_route::stores((database, id));
@@ -181,8 +197,7 @@ fn serve_with(
         (keys.mail, outbound),
     )?;
     let served = runtime.block_on(async {
-        let (listener, address) = serve_https::open(site, listen).await?;
-        announce(output, config, &format!("{address}{}", config.mount()));
+        let front = Door::open((site, listen, among), (output, config)).await?;
         let live = LivePages::new(first);
         hand_back.start(live.replacements());
         let (failed, failure) = oneshot::channel();
@@ -211,7 +226,7 @@ fn serve_with(
         let pages = staff_toolbar::start((database, id, config), editing, pages);
         let desks = (moderation, media, desk, keys.follow_ups);
         let at = (database, id, (site, config));
-        let apis = api_router((content, door, posts), desks, at);
+        let apis = api_router((content, door, posts), desks, at, site_hosts::panel(among));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -219,7 +234,7 @@ fn serve_with(
         );
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
-        let stopped = khalid_server::serve(listener, app, stopping, GRACE).await;
+        let stopped = front.answer(app, stopping).await;
         watching.stop().await;
         tokio::join!(scheduling.stop(), alert_watching.stop());
         tokio::join!(announcing.stop(), counter.stop());
@@ -311,8 +326,9 @@ fn first_pages(
 
 /// The Content API and the Admin API as `khalid serve` runs them, with the
 /// comment moderation, media library, stored redirects, Search Console
-/// follow-ups, webhooks and staff accounts of site `id`, and the post
-/// checks and schema templates of the site in `site`.
+/// follow-ups, webhooks and staff accounts of site `id`, the post checks
+/// and schema templates of the site in `site`, and the super-admin routes
+/// over `panel`.
 fn api_router(
     (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
     (comments, media, redirects, follow_ups): (
@@ -322,10 +338,12 @@ fn api_router(
         SiteFollowUps,
     ),
     (database, id, (site, config)): (&Database, SiteId, (&Path, &Config)),
+    panel: Arc<dyn SiteDirectory>,
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
     let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
-    let staff = (khalid_auth::staff_routes(accounts), sessions);
+    let routes = khalid_auth::staff_routes(accounts.clone());
+    let staff = (khalid_auth::with_sites(routes, accounts, panel), sessions);
     let desks = AdminDesks {
         comments,
         media: Some(media),
@@ -560,7 +578,7 @@ fn security_headers() -> Result<SecurityHeaders, (UserMessage, Exit)> {
 }
 
 /// Says where the site answers. In JSON, this one line is the whole output.
-fn announce(output: Output, config: &Config, address: &str) {
+pub(crate) fn announce(output: Output, config: &Config, address: &str) {
     match output {
         Output::Human => report::text(
             &format!(
@@ -574,7 +592,7 @@ fn announce(output: Output, config: &Config, address: &str) {
 }
 
 /// Completes on Ctrl+C or, on Unix, the stop signal a service manager sends.
-async fn stop() {
+pub(crate) async fn stop() {
     #[cfg(unix)]
     {
         use tokio::signal::unix::{SignalKind, signal};

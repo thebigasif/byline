@@ -3,7 +3,7 @@
 
 use crate::cli::{
     AnalyticsCommand, BingCommand, Command, DbCommand, KeysCommand, RedirectsCommand, SearchConsoleCommand,
-    StaffCommand, ThemeCommand, WebhooksCommand,
+    SitesCommand, StaffCommand, ThemeCommand, WebhooksCommand,
 };
 
 impl Command {
@@ -40,6 +40,11 @@ impl Command {
             Self::Staff {
                 command: StaffCommand::Owner(_),
             } => "staff owner",
+            Self::Sites { command } => match command {
+                SitesCommand::List => "sites list",
+                SitesCommand::Add { .. } => "sites add",
+                SitesCommand::Admin { .. } => "sites admin",
+            },
             Self::Db {
                 command: DbCommand::Migrate,
             } => "db migrate",

@@ -31,6 +31,7 @@ import { SchemaTemplates } from "./SchemaTemplates";
 import { SearchConsole } from "./SearchConsole";
 import { SignIn } from "./SignIn";
 import { Site } from "./Site";
+import { Sites } from "./Sites";
 import { Team } from "./Team";
 import { Trash } from "./Trash";
 import { WebhookActivity } from "./WebhookActivity";
@@ -40,12 +41,15 @@ const root = createRootRoute({ errorComponent: RouteError });
 
 const signIn = createRoute({ getParentRoute: () => root, path: "/sign-in", component: SignIn });
 
-// Where the link from `khalid staff` or an invitation lands.
+// Where the link from `khalid staff`, `khalid sites admin` or an invitation lands.
 const linkSignIn = createRoute({
   getParentRoute: () => root,
   path: "/sign-in/link",
   component: LinkSignIn,
 });
+
+// The super-admin panel needs a session, never a key, so it sits outside the shell.
+const sites = createRoute({ getParentRoute: () => root, path: "/sites", component: Sites });
 
 // Every screen but sign-in sits inside the shell and needs a key or an email sign-in.
 const signedIn = createRoute({
@@ -178,6 +182,7 @@ const site = createRoute({ getParentRoute: () => signedIn, path: "/settings", co
 const routeTree = root.addChildren([
   signIn,
   linkSignIn,
+  sites,
   signedIn.addChildren([
     dashboard,
     posts,
