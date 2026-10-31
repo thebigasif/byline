@@ -32,7 +32,7 @@ pub(crate) fn raise(
         return;
     };
     runtime.block_on(async {
-        let Ok((telling, announcing)) = announce::start(config, (&database, id), &outbound) else {
+        let Ok((telling, announcing)) = announce::once(config, (&database, id), &outbound) else {
             return;
         };
         let mailer = newsletter::mailer(config, mail, &outbound).ok().flatten();

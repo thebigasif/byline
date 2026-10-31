@@ -27,9 +27,10 @@ use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
-use crate::announce::SiteAnnounce;
+use crate::announce::{Announcing, SiteAnnounce};
 use crate::cli::Output;
 use crate::content_feed::{self, Destination};
+use crate::entry_events::Entries;
 use crate::exit::Exit;
 use crate::memory::HandBack;
 use crate::post_files::Assets;
@@ -37,6 +38,7 @@ use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
+use crate::tag_events::Tags;
 use crate::{
     alert_watch, announce, comment_pages, consent_route, db, db_message, media_library, newsletter,
     page_counts, preview, redirect_route, report, scheduler, search_route, serve_message,
@@ -131,13 +133,12 @@ fn serve_with(
 ) -> Result<(), (UserMessage, Exit)> {
     let (content, hand_back) = (LiveContent::default(), HandBack::default());
     let (redirects, addresses) = redirect_route::stores((database, id));
-    let to = destination(
-        site,
-        config,
-        (database, id),
+    let (to, telling, announcing) = destination(
+        (site, config, &checked),
+        (database, id, outbound),
         (&content, &hand_back),
         (&redirects, &addresses),
-    );
+    )?;
     let (feed, feeding) = content_feed::start(runtime.handle(), to);
     let (source, first) = first_pages((site, config, routes), feed, &checked)
         .map_err(|message| (message, Exit::Failure))?;
@@ -149,8 +150,12 @@ fn serve_with(
         security: security.clone(),
     };
     let to = (site, config, listen, alert_every);
-    let (newsletters, alerting) =
-        mail_and_alerts(to, (database, id, runtime), &content, (keys.mail, outbound))?;
+    let (newsletters, alerting) = mail_and_alerts(
+        to,
+        (database, id, runtime, &telling),
+        &content,
+        (keys.mail, outbound),
+    )?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
@@ -160,9 +165,8 @@ fn serve_with(
         let rest = (source.clone(), live.clone());
         tokio::spawn(render_the_rest(rest, (checked, assets), failed));
         let watching = watch(site, &source, &live, look, WATCH_EVERY);
+        let announcing = announcing.retrying(&telling);
         // Each part reads the database or the folder alone, so all open at once.
-        let (telling, announcing) = announce::start(config, (database, id), outbound)
-            .map_err(|message| (message, Exit::Failure))?;
         let (alerting, alert_watching) = alerting.start((config, database, id, telling.clone()));
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
@@ -210,17 +214,18 @@ fn serve_with(
 
 /// The newsletter's routes and the alerts ready to start, sharing the one
 /// way mail leaves, made from `[mail]` with its `secret` and `outbound`.
-/// The alert checks run `every` so often.
+/// The alert checks run `every` so often, and each confirmed subscriber is
+/// told to `telling`.
 fn mail_and_alerts(
     (site, config, listen, every): (&Path, &Config, &Listen, Duration),
-    (database, id, runtime): (&Database, SiteId, &Runtime),
+    (database, id, runtime, telling): (&Database, SiteId, &Runtime, &SiteAnnounce),
     content: &LiveContent,
     (secret, outbound): (Option<Secret<String>>, &Outbound),
 ) -> Result<(Router, alert_watch::Ready), (UserMessage, Exit)> {
     let internal = |message| (message, Exit::Internal);
     let mailer = newsletter::mailer(config, secret, outbound).map_err(internal)?;
-    let newsletters =
-        newsletter::router(config, (database, id, runtime), mailer.clone()).map_err(internal)?;
+    let newsletters = newsletter::router(config, (database, id), (runtime, telling), mailer.clone())
+        .map_err(internal)?;
     let sources = alert_watch::Sources {
         misses: Arc::new(NotFoundTable::new(database.clone(), id)),
         content: content.clone(),
@@ -299,18 +304,26 @@ fn with_hint(pages: Pages, source: &SitePages) -> Pages {
     }
 }
 
-/// Where the Content API's feed writes, as `khalid serve` sets it up.
+/// Where the Content API's feed writes, as `khalid serve` sets it up, and
+/// the site's announcements, sent through `outbound`. The feed tells them
+/// of each entry saved since the run began with the `checked` content.
+///
+/// # Errors
+///
+/// Returns a message when the `IndexNow` key file's address cannot be made
+/// from the site's address.
 fn destination(
-    site: &Path,
-    config: &Config,
-    (database, id): (&Database, SiteId),
+    (site, config, checked): (&Path, &Config, &SiteContent),
+    (database, id, outbound): (&Database, SiteId, &Outbound),
     (live, hand_back): (&LiveContent, &HandBack),
     (redirects, addresses): (
         &crate::live_redirects::LiveRedirects,
         &crate::site_addresses::LiveAddresses,
     ),
-) -> Destination {
-    Destination {
+) -> Result<(Destination, SiteAnnounce, Announcing), (UserMessage, Exit)> {
+    let (telling, announcing) = announce::once(config, (database, id), outbound)
+        .map_err(|message| (message, Exit::Failure))?;
+    let to = Destination {
         folder: site.to_path_buf(),
         config: config.clone(),
         db: database.clone(),
@@ -319,7 +332,10 @@ fn destination(
         hand_back: hand_back.clone(),
         addresses: addresses.clone(),
         redirects: redirects.clone(),
-    }
+        announce: Some(telling.clone()),
+        started: (Entries::of(checked), Tags::of(config, checked)),
+    };
+    Ok((to, telling, announcing))
 }
 
 /// The one router the server answers: the APIs, the site's own routes, the

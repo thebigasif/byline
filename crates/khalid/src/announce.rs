@@ -4,7 +4,7 @@
 //! asked for it, and the post's address to `IndexNow` when
 //! `[seo.indexnow]` switches it on (CTO answers 2026-10-27, section 4).
 //! A post the linter refuses fires `lint.blocked`, and other events, such
-//! as `comment.added`, go to the webhooks alone.
+//! as `comment.added` or `page.published`, go to the webhooks alone.
 //! Failed deliveries are tried again on a timer, to the webhook list as it
 //! stands at each round.
 
@@ -135,6 +135,23 @@ pub(crate) struct Announcing {
 }
 
 impl Announcing {
+    /// Tries the failed deliveries of `telling` again on a timer, as
+    /// `khalid serve` does, to the webhook list as it stands at each round.
+    /// Must be called inside the tokio runtime.
+    pub(crate) fn retrying(mut self, telling: &SiteAnnounce) -> Self {
+        let receivers = &telling.receivers;
+        let list = {
+            let webhooks = receivers.webhooks.clone();
+            move || {
+                let webhooks = webhooks.clone();
+                async move { webhooks.list().await }
+            }
+        };
+        let dispatcher = Arc::clone(&receivers.dispatcher);
+        self.retrying = Some(retry_deliveries(dispatcher, list, RETRY_EVERY));
+        self
+    }
+
     /// Stops retrying, and gives announcements in flight [`GRACE`] to
     /// finish. A webhook delivery cut off is in the log, and is tried
     /// again after the next start.
@@ -155,35 +172,9 @@ impl Announcing {
 
 /// Starts announcing for the site with `config` in `db`, sending through
 /// `outbound`. The webhook list is read for each event, so one that cannot
-/// be read is logged then and does not stop the site. Must be called
-/// inside the tokio runtime.
-///
-/// # Errors
-///
-/// Returns a message when the `IndexNow` key file's address cannot be made
-/// from the site's address.
-pub(crate) fn start(
-    config: &Config,
-    (db, site): (&Database, SiteId),
-    outbound: &Outbound,
-) -> Result<(SiteAnnounce, Announcing), UserMessage> {
-    let (telling, mut announcing) = once(config, (db, site), outbound)?;
-    let receivers = &telling.receivers;
-    let list = {
-        let webhooks = receivers.webhooks.clone();
-        move || {
-            let webhooks = webhooks.clone();
-            async move { webhooks.list().await }
-        }
-    };
-    let retrying = retry_deliveries(Arc::clone(&receivers.dispatcher), list, RETRY_EVERY);
-    announcing.retrying = Some(retrying);
-    Ok((telling, announcing))
-}
-
-/// Starts announcing as [`start`] does, for a command that ends once its
-/// work is done, such as `khalid publish`: failed deliveries stay in the
-/// log for `khalid serve` to try again, and are not retried here.
+/// be read is logged then and does not stop the site. Failed deliveries
+/// stay in the log, and are tried again only once [`Announcing::retrying`]
+/// says so, as `khalid serve` does.
 ///
 /// # Errors
 ///

@@ -14,16 +14,19 @@ use khalid_newsletter::{Mailer, Newsletter, NewsletterSite, Pages, ReaderPass, S
 use khalid_outbound::{Outbound, Resolver};
 use tokio::runtime::Runtime;
 
+use crate::announce::SiteAnnounce;
 use crate::serve_message;
+use crate::subscriber_events::AnnouncedSubscribers;
 
 /// The newsletter's routes for the site with `config`, in its default
-/// language, keeping subscribers in site `id` of `database` and sending
-/// through `mailer`, the way [`mailer`] made from `[mail]`. A reader who
-/// confirms gets the reader cookie, signed with the site's preview key read
-/// on `runtime`.
+/// language, keeping subscribers in site `id` of `database`, telling
+/// `announce` of each one confirmed, and sending through `mailer`, the way
+/// [`mailer`] made from `[mail]`. A reader who confirms gets the reader
+/// cookie, signed with the site's preview key read on `runtime`.
 pub(crate) fn router(
     config: &Config,
-    (database, id, runtime): (&Database, SiteId, &Runtime),
+    (database, id): (&Database, SiteId),
+    (runtime, announce): (&Runtime, &SiteAnnounce),
     mailer: Option<Arc<dyn Mailer>>,
 ) -> Result<Router, UserMessage> {
     let site = NewsletterSite {
@@ -34,7 +37,8 @@ pub(crate) fn router(
     let pages = Pages::new(site.clone()).map_err(|_| serve_message::internal())?;
     let newsletter = match mailer {
         Some(mailer) => {
-            let store = Arc::new(SubscriberTable::new(database.clone(), id));
+            let table = Arc::new(SubscriberTable::new(database.clone(), id));
+            let store = Arc::new(AnnouncedSubscribers::new(table, announce.clone()));
             let key = runtime.block_on(database.preview_key(id, &SystemClock));
             let key = key.map_err(|_| serve_message::internal())?;
             let made = Newsletter::new(store, mailer, Arc::new(SystemClock), site);
