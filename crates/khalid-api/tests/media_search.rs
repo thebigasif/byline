@@ -1,4 +1,5 @@
-//! Photo and GIF search through the Admin API. Every key here is made up.
+//! Photo and GIF search through the Admin API, with Unsplash stood in for
+//! by `wiremock` (RULES.md BL-TST-3). Every key here is made up.
 
 mod common;
 
@@ -15,10 +16,12 @@ use khalid_api::media_api::MediaLibrary;
 use khalid_api::post_store::MemoryPostStore;
 use khalid_api::publish_door::{PublishDoor, Silent};
 use khalid_core::{Locale, Secret, SystemClock};
-use khalid_media::{Access, Library, StockSearch, Storage};
-use khalid_outbound::{Limits, Outbound};
+use khalid_media::{Access, Library, StockApis, StockSearch, Storage};
+use khalid_outbound::{Limits, Outbound, Reach, Resolver};
 use serde_json::{Value, json};
 use tower::ServiceExt;
+use wiremock::matchers::{method, path, query_param};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const UPLOADER: &str =
     "ki_2222333344445555_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
@@ -48,6 +51,21 @@ async fn app(site: &Path, search: Option<StockSearch>) -> Router {
     api::router_with_media(content, door, keys, Arc::new(NoComments), media).0
 }
 
+/// Photo search asking `server`, with GIFs as `gifs` allows.
+#[cfg(test)]
+fn search(server: &MockServer, unsplash: Access, gifs: Access) -> StockSearch {
+    let resolver = Resolver::for_tests(Vec::new(), Reach::PublicAndLoopback);
+    let outbound = Outbound::with_resolver(Limits::default(), resolver).unwrap();
+    let base = format!("{}/", server.uri());
+    let apis = StockApis {
+        unsplash: base.clone(),
+        giphy: base,
+    };
+    StockSearch::new(outbound, unsplash)
+        .with_gifs(gifs)
+        .at(apis)
+}
+
 #[cfg(test)]
 fn keyed() -> Access {
     Access::on_with(Some(Secret::new("made-for-this-test".to_owned())))
@@ -71,21 +89,73 @@ async fn get(app: &Router, uri: &str, key: &str) -> (StatusCode, Value) {
 #[tokio::test]
 async fn says_which_searches_are_on_without_asking_anyone() {
     let site = tempfile::tempdir().unwrap();
-    let outbound = Outbound::new(Limits::default()).unwrap();
-    let on = StockSearch::new(outbound, keyed());
+    let server = MockServer::start().await;
+    let on = search(&server, keyed(), Access::Off);
     let searching = app(site.path(), Some(on)).await;
     let (status, body) = get(&searching, "/api/admin/v1/media/search/", UPLOADER).await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body, json!({ "unsplash": true, "gifs": false }));
+    assert_eq!(
+        body,
+        json!({ "unsplash": true, "gifs": false, "pictures": [] })
+    );
     let bare = app(site.path(), None).await;
     let (_, body) = get(&bare, "/api/admin/v1/media/search/", UPLOADER).await;
-    assert_eq!(body, json!({ "unsplash": false, "gifs": false }));
+    assert_eq!(body["unsplash"], false);
+    assert!(server.received_requests().await.unwrap().is_empty());
 }
 
 #[tokio::test]
-async fn refuses_a_key_without_media_write() {
+async fn finds_photos_for_a_post() {
+    let site = tempfile::tempdir().unwrap();
+    let server = MockServer::start().await;
+    let answer = json!({ "results": [{
+        "id": "Ab-12_c", "width": 1080, "height": 720,
+        "description": "A lake", "alt_description": null,
+        "urls": { "regular": "https://images.unsplash.com/1", "small": "https://images.unsplash.com/1s" },
+        "links": { "html": "https://unsplash.com/photos/Ab-12_c" },
+        "user": { "name": "Ana Silva", "links": { "html": "https://unsplash.com/@ana" } }
+    }]});
+    Mock::given(method("GET"))
+        .and(path("/search/photos"))
+        .and(query_param("query", "mountain lake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(answer))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = app(site.path(), Some(search(&server, keyed(), Access::Off))).await;
+    let uri = "/api/admin/v1/media/search/?source=unsplash&words=mountain%20lake";
+    let (status, body) = get(&app, uri, UPLOADER).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let photo = &body["pictures"][0];
+    assert_eq!(photo["source"], "unsplash");
+    assert_eq!(photo["address"], "https://images.unsplash.com/1");
+    assert_eq!(photo["description"], "A lake");
+    assert_eq!(photo["credit"], "Ana Silva");
+    assert_eq!(
+        (photo["width"].as_u64(), photo["height"].as_u64()),
+        (Some(1080), Some(720))
+    );
+}
+
+#[tokio::test]
+async fn a_search_that_is_off_asks_no_one() {
+    let site = tempfile::tempdir().unwrap();
+    let server = MockServer::start().await;
+    let app = app(site.path(), Some(search(&server, keyed(), Access::Off))).await;
+    let gifs = "/api/admin/v1/media/search/?source=gifs&words=dance";
+    let (status, body) = get(&app, gifs, UPLOADER).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert!(server.received_requests().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn refuses_words_without_a_source_and_a_key_without_media_write() {
     let site = tempfile::tempdir().unwrap();
     let app = app(site.path(), None).await;
+    let (status, _) = get(&app, "/api/admin/v1/media/search/?words=lake", UPLOADER).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, _) = get(&app, "/api/admin/v1/media/search/?source=flickr", UPLOADER).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, _) = get(&app, "/api/admin/v1/media/search/", WRITER).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
 }

@@ -595,9 +595,38 @@
         "tags": [
           "admin media"
         ],
-        "summary": "Says which of photo search on Unsplash and GIF search on GIPHY the\nowner turned on in `site.toml`, so the editor offers only those. Asks\nneither. Needs `media:write`.",
+        "summary": "Finds free photos on Unsplash or GIFs on GIPHY for a post, through the\nblog, so the keys never reach the browser. Each search is off until the\nowner turns it on in `site.toml`; without `words` the answer only says\nwhich are on. Needs `media:write`.",
         "operationId": "search_pictures",
         "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "description": "`unsplash` or `gifs`.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/StockSource"
+            }
+          },
+          {
+            "name": "words",
+            "in": "query",
+            "description": "The words to look for. Left out, the answer only says which\nsearches are on, without asking anyone.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The page of results, from 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
           {
             "name": "Accept-Version",
             "in": "header",
@@ -610,11 +639,21 @@
         ],
         "responses": {
           "200": {
-            "description": "Which searches are on",
+            "description": "Which searches are on, and the pictures found",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PictureSearch"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The source or page could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -631,6 +670,26 @@
           },
           "403": {
             "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The source asks to wait before the next search",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The search is off, has no key, or its source did not answer",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7710,15 +7769,23 @@
       },
       "PictureSearch": {
         "type": "object",
-        "description": "Which searches are on.",
+        "description": "Which searches are on, and the pictures found.",
         "required": [
           "unsplash",
-          "gifs"
+          "gifs",
+          "pictures"
         ],
         "properties": {
           "gifs": {
             "type": "boolean",
             "description": "Whether the owner turned GIF search on GIPHY on."
+          },
+          "pictures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockPicture"
+            },
+            "description": "The pictures found, 24 a page; empty without words."
           },
           "unsplash": {
             "type": "boolean",
@@ -8794,6 +8861,76 @@
             "description": "The accounts, by email."
           }
         }
+      },
+      "StockPicture": {
+        "type": "object",
+        "description": "A photo or GIF found for a post. It stays where it came from: the post\nshows it from `address`, with `credit` linked to `credit_link` under it.",
+        "required": [
+          "source",
+          "id",
+          "description",
+          "preview",
+          "address",
+          "width",
+          "height",
+          "credit",
+          "credit_link",
+          "page"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The address to put in the post."
+          },
+          "credit": {
+            "type": "string",
+            "description": "Who made it, or `GIPHY`."
+          },
+          "credit_link": {
+            "type": "string",
+            "description": "The maker's page."
+          },
+          "description": {
+            "type": "string",
+            "description": "Words its source has for it, a start for alt text; may be empty."
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The height of the picture at `address`, in pixels.",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "Its identity at the source."
+          },
+          "page": {
+            "type": "string",
+            "description": "The picture's own page at its source."
+          },
+          "preview": {
+            "type": "string",
+            "description": "A small copy for the list of results."
+          },
+          "source": {
+            "$ref": "#/components/schemas/StockSource",
+            "description": "Where it comes from."
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The width of the picture at `address`, in pixels.",
+            "minimum": 0
+          }
+        }
+      },
+      "StockSource": {
+        "type": "string",
+        "description": "Where to look for a picture.",
+        "enum": [
+          "unsplash",
+          "gifs"
+        ]
       },
       "Tags": {
         "type": "object",

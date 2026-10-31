@@ -2135,6 +2135,7 @@ dependencies = [
  "tracing",
  "utoipa",
  "utoipa-axum",
+ "wiremock",
 ]
 
 [[package]]

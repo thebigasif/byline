@@ -39,6 +39,9 @@ pub enum ProblemType {
     VersionNotSupported,
     /// Too many attempts in a short time; the answer says when to retry.
     TooManyRequests,
+    /// A feature is turned off or lacks a key, or a service it relies on
+    /// did not answer.
+    Unavailable,
 }
 
 impl ProblemType {
@@ -55,6 +58,7 @@ impl ProblemType {
             Self::InvalidVersion => "invalid-version",
             Self::VersionNotSupported => "version-not-supported",
             Self::TooManyRequests => "too-many-requests",
+            Self::Unavailable => "unavailable",
         }
     }
 
@@ -69,6 +73,7 @@ impl ProblemType {
             Self::Conflict => StatusCode::CONFLICT,
             Self::VersionNotSupported => StatusCode::NOT_ACCEPTABLE,
             Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
+            Self::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 
@@ -85,6 +90,7 @@ impl ProblemType {
             Self::InvalidVersion => "The version could not be read",
             Self::VersionNotSupported => "This version is not served here",
             Self::TooManyRequests => "Too many attempts",
+            Self::Unavailable => "This is not available now",
         }
     }
 }
