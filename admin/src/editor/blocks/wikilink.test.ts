@@ -1,7 +1,7 @@
 import { Editor, type JSONContent } from "@tiptap/core";
 import { describe, expect, it } from "vitest";
 import { extensions } from "../richText";
-import { wikilinkMarkdown } from "./wikilink";
+import { wikilinkMarkdown, wikilinkWords } from "./wikilink";
 
 /** The inline nodes of the first paragraph of `markdown`. */
 function inline(markdown: string): JSONContent[] {
@@ -39,6 +39,12 @@ describe("a wikilink", () => {
   it("leaves brackets that are not a wikilink as text", () => {
     const types = inline("Arrays look like [[1, 2], [3]] in JSON.").map((node) => node.type);
     expect(types).not.toContain("wikilink");
+  });
+
+  it("drops words that would end the wikilink early", () => {
+    expect(wikilinkWords("SEO in [2026]")).toBeNull();
+    expect(wikilinkWords("")).toBeNull();
+    expect(wikilinkWords("the guide")).toBe("the guide");
   });
 
   it("writes the words only when there are some", () => {

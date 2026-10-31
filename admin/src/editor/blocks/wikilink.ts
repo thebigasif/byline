@@ -10,6 +10,15 @@ export function wikilinkMarkdown(slug: string, text: string | null): string {
   return text === null ? `[[${slug}]]` : `[[${slug}|${text}]]`;
 }
 
+/**
+ * `words` as a wikilink's words, or `null` when they hold a bracket or a line
+ * break that would end the wikilink early. A bare `[[slug]]` shows the page's
+ * title at build, so nothing is lost.
+ */
+export function wikilinkWords(words: string): string | null {
+  return words === "" || /[[\]\n]/.test(words) ? null : words;
+}
+
 function written(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }

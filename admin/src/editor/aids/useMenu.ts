@@ -29,6 +29,11 @@ export function menuKey(event: KeyboardEvent): MenuKey {
   }
 }
 
+/** Whether `event` is Ctrl+/, or Cmd+/ on a Mac, the key that lists the shortcuts. */
+export function isHelpKey(event: KeyboardEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && !event.altKey && event.key === "/";
+}
+
 /**
  * Moves through `count` lines of an open menu with the keyboard, while the
  * cursor stays in the text. Gives back the line that is lit.

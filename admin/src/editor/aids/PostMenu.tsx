@@ -3,6 +3,7 @@ import type { RefObject } from "react";
 import { usePostSearch } from "../../api/postSearch";
 import { isFailure, isPage, type PostRow, type Rows } from "../../api/rows";
 import { en } from "../../strings/en";
+import { wikilinkWords } from "../blocks/wikilink";
 import { AidMenu } from "./AidMenu";
 import { closeMenu, type Trigger } from "./trigger";
 import { type KeyHandler, useMenu } from "./useMenu";
@@ -19,7 +20,7 @@ type Props = {
  * build shows as the title too.
  */
 export function linkPost(editor: Editor, trigger: Trigger, post: PostRow) {
-  const text = trigger.kind === "mention" ? post.title : null;
+  const text = trigger.kind === "mention" ? wikilinkWords(post.title) : null;
   const range = { from: trigger.from, to: trigger.to };
   const nodes = [
     { type: "wikilink", attrs: { slug: post.slug, text } },

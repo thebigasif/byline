@@ -1,6 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
 import type { PostRow } from "../../api/rows";
+import { wikilinkWords } from "../blocks/wikilink";
 
 /** The words a link search was opened on, and where they sit; empty at a bare cursor. */
 export type Chosen = { from: number; to: number; words: string };
@@ -27,7 +28,7 @@ export function isAddress(words: string): boolean {
 
 /** Links the chosen words to `post` with a wikilink, or puts `[[slug]]` at the cursor. */
 export function linkToPost(editor: Editor, chosen: Chosen, post: PostRow) {
-  const text = chosen.words === "" ? null : chosen.words;
+  const text = wikilinkWords(chosen.words);
   const range = { from: chosen.from, to: chosen.to };
   const node = { type: "wikilink", attrs: { slug: post.slug, text } };
   editor.chain().focus().insertContentAt(range, node).run();

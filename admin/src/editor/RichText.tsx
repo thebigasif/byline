@@ -6,9 +6,10 @@ import { applyDetails, type Details, detailsOf, selectedDetails } from "./aids/b
 import { LinkSearch } from "./aids/LinkSearch";
 import { type Chosen, chosenIn, isLinkKey, linkToAddress, linkToPost } from "./aids/linkTo";
 import { PostMenu } from "./aids/PostMenu";
+import { ShortcutHelp } from "./aids/ShortcutHelp";
 import { SlashMenu } from "./aids/SlashMenu";
 import { openTrigger } from "./aids/trigger";
-import { type KeyHandler, menuKey, noKeys } from "./aids/useMenu";
+import { isHelpKey, type KeyHandler, menuKey, noKeys } from "./aids/useMenu";
 import { extensions, fileText } from "./richText";
 
 type Props = {
@@ -23,6 +24,7 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
   const keys = useRef<KeyHandler>(noKeys);
   const [details, setDetails] = useState<Details | null>(null);
   const [linking, setLinking] = useState<Chosen | null>(null);
+  const [help, setHelp] = useState(false);
   const opened = (found: Details | null) => {
     if (found !== null) {
       setDetails(found);
@@ -50,6 +52,10 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
           setLinking(chosenIn(view.state));
           return true;
         }
+        if (isHelpKey(event)) {
+          setHelp((shown) => !shown);
+          return true;
+        }
         // Enter on a selected block card opens its details.
         const selected = menuKey(event) === "pick" ? selectedDetails(view.state) : null;
         return opened(selected);
@@ -66,6 +72,7 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
   const closeForm = () => {
     setDetails(null);
     setLinking(null);
+    setHelp(false);
     editor.commands.focus();
   };
   let aid: ReactNode = null;
@@ -96,6 +103,8 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
         onCancel={closeForm}
       />
     );
+  } else if (help) {
+    aid = <ShortcutHelp onClose={closeForm} />;
   } else if (trigger !== null && trigger.kind !== "slash") {
     const key = `${trigger.kind}:${trigger.from}`;
     aid = <PostMenu key={key} editor={editor} trigger={trigger} keys={keys} />;
