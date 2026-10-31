@@ -21,7 +21,7 @@ use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMe
 use khalid_db::{Database, KeyTable, ScheduleTable, SiteId, WebhookTable};
 use khalid_outbound::{Outbound, OutboundError};
 use khalid_routes::Routes;
-use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, router, watch};
+use khalid_server::{FolderLook, LivePages, Pages, SecurityHeaders, watch};
 use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
@@ -162,7 +162,7 @@ fn serve_with(
             .map_err(|message| (message, Exit::Failure))?;
         let replies = (security.clone(), telling.clone());
         let commenting = comment_pages::start(config, (database, id), (&source, &live), replies);
-        let shown_pages = router(live.clone(), security.clone());
+        let shown_pages = consent_route::pages(config, live.clone(), security.clone());
         let ((comments, moderation), door, (media, files), unlocked) = tokio::try_join!(
             async { Ok(commenting.await) },
             publish_door((site, config), (database, id), telling),

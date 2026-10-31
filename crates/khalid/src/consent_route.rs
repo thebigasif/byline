@@ -9,7 +9,9 @@ use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::Response;
 use axum::routing::post;
 use khalid_core::Config;
-use khalid_server::{CONSENT_COOKIE, SecurityHeaders};
+use khalid_server::{
+    CONSENT_COOKIE, HeldCode, LivePages, NONCE_SLOT, SecurityHeaders, router_with_consent,
+};
 use serde::Deserialize;
 
 use crate::page_code::CONSENT_FOLDER;
@@ -28,6 +30,30 @@ struct Answering {
     mount: String,
     secure: bool,
     security: SecurityHeaders,
+}
+
+/// The site's page router over `live`: as each reader's consent choice
+/// says when the site's code waits for it, else as before.
+pub(crate) fn pages(config: &Config, live: LivePages, security: SecurityHeaders) -> Router {
+    match held(config) {
+        Some(held) => router_with_consent(live, security, held),
+        None => khalid_server::router(live, security),
+    }
+}
+
+/// The site's code that waits for consent, as the page router puts it in
+/// for a reader who agreed, or `None` when the site's code does not wait.
+fn held(config: &Config) -> Option<HeldCode> {
+    let code = config.code();
+    if !code.waits_for_consent() {
+        return None;
+    }
+    let head = code.head.as_ref().map(|head| head.to_html(NONCE_SLOT));
+    let body = code.body.as_ref().map(|body| body.to_html(NONCE_SLOT));
+    Some(HeldCode::new(
+        head.unwrap_or_default(),
+        body.unwrap_or_default(),
+    ))
 }
 
 /// The route the consent form posts to, `<mount>_consent/`.

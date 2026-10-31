@@ -206,7 +206,7 @@ fn respond(pages: &Pages, request: &Request<Body>, consent: Consent<'_>) -> Resp
         Resolved::Page(page) => page_response(page, request.headers(), send_body, consent),
         Resolved::Redirect(location) => redirect(StatusCode::PERMANENT_REDIRECT, &location),
         Resolved::Moved(location) => redirect(StatusCode::MOVED_PERMANENTLY, &location),
-        Resolved::NotFound if answered(consent) => personal(
+        Resolved::NotFound if answered(consent) || holds_slot(pages.not_found()) => personal(
             StatusCode::NOT_FOUND,
             (MediaType::Html, pages.not_found()),
             send_body,
@@ -226,6 +226,13 @@ fn respond(pages: &Pages, request: &Request<Body>, consent: Consent<'_>) -> Resp
 enum SendBody {
     Yes,
     No,
+}
+
+/// Whether `page` holds a nonce slot to fill, as the not-found page does
+/// on a site whose code runs for every reader.
+fn holds_slot(page: &Bytes) -> bool {
+    page.windows(NONCE_SLOT.len())
+        .any(|window| window == NONCE_SLOT.as_bytes())
 }
 
 /// Whether the reader has answered the banner of a site that asks, so its

@@ -1,6 +1,8 @@
 //! `khalid serve` with the site's own code in `[code]` (G45, KH-SEO-12):
-//! the banner is a plain form that works with scripts off, and the
-//! reader's choice comes back as a cookie that no other site can set.
+//! the banner is a plain form that works with scripts off, the reader's
+//! choice comes back as a cookie that no other site can set, the code runs
+//! only for a reader who pressed Allow, under the nonce of the page's
+//! policy, and every page type keeps its policy whatever the reader chose.
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -22,6 +24,9 @@ body = "<script>chat()</script>"
 
 /// What only the banner says.
 const ASK: &str = "It runs only if you allow it.";
+
+/// What only the form to change a choice says.
+const CHANGE: &str = "You can change your choice";
 
 /// A running `khalid serve`, stopped when dropped.
 struct Server {
@@ -53,6 +58,14 @@ impl Answer {
             .lines()
             .find_map(|line| line.strip_prefix(&prefix));
         found.unwrap_or_default()
+    }
+
+    /// The nonce the page's policy allows scripts with.
+    #[cfg(test)]
+    fn nonce(&self) -> &str {
+        let policy = self.header("content-security-policy");
+        let (_, rest) = policy.split_once("'nonce-").unwrap();
+        rest.split_once('\'').unwrap().0
     }
 }
 
@@ -181,4 +194,67 @@ fn no_other_site_can_choose_for_a_reader_or_send_them_away() {
     let answer = send(&server, ("POST", "/blog/_consent/"), &[], away);
     assert_eq!(answer.status, 303);
     assert_eq!(answer.header("location"), "/blog/");
+}
+
+/// Every page type, with the status it answers.
+const PAGES: [(&str, u16); 8] = [
+    ("/blog/", 200),
+    ("/blog/what-a-sitemap-does/", 200),
+    ("/blog/about/", 200),
+    ("/blog/authors/lena-vogt/", 200),
+    ("/blog/glossary/topical-authority/", 200),
+    ("/blog/de/warum-interne-links-wichtig-sind/", 200),
+    ("/blog/no-such-post/", 404),
+    ("/blog/about", 308),
+];
+
+#[test]
+fn every_page_type_runs_the_code_after_allow_under_its_policy_s_nonce() {
+    let site = site_with(CODE);
+    let server = start(site.path());
+    let unasked = get(&server, "/blog/what-a-sitemap-does/", &[]);
+    let policy = unasked.header("content-security-policy");
+    assert!(policy.contains("connect-src 'self';"), "{policy}");
+    for (path, status) in PAGES {
+        let answer = get(&server, path, &["Cookie: khalid-consent=yes"]);
+        assert_eq!(answer.status, status, "{path}");
+        let nonce = answer.nonce().to_owned();
+        assert_eq!(nonce.len(), 32, "{path}: a fresh nonce");
+        if status == 308 {
+            continue;
+        }
+        let body = &answer.body;
+        let tag = format!(
+            "<script async src=\"https://www.googletagmanager.com/gtag/js?id=G-1\" nonce=\"{nonce}\">"
+        );
+        assert!(body.contains(&tag), "{path}: {body}");
+        assert!(body.contains(&format!("<script nonce=\"{nonce}\">chat()</script>")));
+        // The banner is cut and the form to change the choice shows, in
+        // the page's own language.
+        assert!(!body.contains("<!--khalid-ask-->"), "{path}");
+        assert!(!body.contains("<!--khalid-chosen-->"), "{path}");
+        assert!(body.contains("class=\"consent consent-chosen\""), "{path}");
+        let caching = answer.header("cache-control");
+        assert_eq!(caching, "private, no-store", "{path}");
+    }
+    let declined = get(
+        &server,
+        "/blog/what-a-sitemap-does/",
+        &["Cookie: khalid-consent=no"],
+    );
+    assert!(!declined.body.contains("googletagmanager"));
+    assert!(!declined.body.contains(ASK) && declined.body.contains(CHANGE));
+}
+
+#[test]
+fn code_that_needs_no_consent_runs_on_every_page_with_no_banner() {
+    let site = site_with(&format!("{CODE}consent = \"not-needed\"\n"));
+    let server = start(site.path());
+    for path in ["/blog/what-a-sitemap-does/", "/blog/no-such-post/"] {
+        let answer = get(&server, path, &[]);
+        let nonce = answer.nonce();
+        let script = format!("<script nonce=\"{nonce}\">chat()</script>");
+        assert!(answer.body.contains(&script), "{path}: {}", answer.body);
+        assert!(!answer.body.contains(ASK), "{path}");
+    }
 }
