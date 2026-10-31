@@ -43,7 +43,7 @@ pub use derive::{DerivedFile, DerivedImage, derive, derive_in_background};
 pub use file_name::{FileName, ParseFileNameError};
 pub use focal_point::{FocalPoint, ParseFocalPointError};
 pub use folder::{Folder, ParseFolderError};
-pub use library::{Library, Upload, UploadMediaError, Uploaded};
+pub use library::{EditPictureError, Library, Upload, UploadMediaError, Uploaded};
 pub use media_cache::MediaCache;
 pub use media_edit::{EditMediaError, MediaEdit};
 pub use media_error::MediaError;
