@@ -27,6 +27,7 @@ label{display:block;font-weight:600;margin:0 0 .25rem}
 input{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--field);border-radius:var(--radius);padding:.5rem .7rem;min-height:44px;width:100%}
 .field{margin:0 0 1.25rem;max-width:36rem}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface);padding:.05rem .3rem;border-radius:.25rem}
+.email{margin-top:2rem;max-width:40rem}
 hr{border:0;border-top:1px solid var(--border);margin:3rem 0}
 .note{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9375rem}
 </style>
@@ -48,6 +49,16 @@ hr{border:0;border-top:1px solid var(--border);margin:3rem 0}
     </div>
     <button class="btn primary" type="button">Sign in</button>
   </form>
+
+  <section class="email" aria-labelledby="email-title">
+    <h2 id="email-title">Or sign in with your email</h2>
+    <p class="hint">For an account the owner made for you. It lets you add a passkey under Your account.</p>
+    <form>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email"></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password"></div>
+      <button class="btn" type="button">Sign in with email</button>
+    </form>
+  </section>
 
   <hr>
 

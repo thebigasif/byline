@@ -6,6 +6,8 @@ use khalid_webhooks::{
     Attempt, Delivery, DeliveryId, DeliveryState, DeliveryStore, DeliveryStoreError, Event,
     NewDelivery, Outcome, RetrySchedule, WebhookId,
 };
+use sqlx::Row as _;
+use sqlx::sqlite::SqliteRow;
 
 use crate::{Database, DbError, SiteId};
 
@@ -148,6 +150,33 @@ impl DeliveryLog {
         self.deliveries(rows)
     }
 
+    /// The newest `limit` deliveries of `webhook`, newest first, each with
+    /// every attempt: the admin's log of one webhook.
+    ///
+    /// # Errors
+    ///
+    /// [`DbError`] when the log cannot be read or holds a row this
+    /// version cannot read.
+    pub async fn newest(&self, webhook: WebhookId, limit: u32) -> Result<Vec<Delivery>, DbError> {
+        let rows = sqlx::query(
+            "SELECT d.id, d.webhook_id, d.event, d.url, d.body, d.first_at, \
+                    a.number, a.at, a.status, a.reason \
+             FROM webhook_deliveries d \
+             LEFT JOIN webhook_attempts a ON a.delivery_id = d.id \
+             WHERE d.id IN (SELECT id FROM webhook_deliveries \
+                            WHERE site_id = ?1 AND webhook_id = ?2 \
+                            ORDER BY id DESC LIMIT ?3) \
+             ORDER BY d.id DESC, a.number",
+        )
+        .bind(self.site.as_row())
+        .bind(webhook.get())
+        .bind(i64::from(limit))
+        .fetch_all(&self.db.readers)
+        .await?;
+        let rows = rows.iter().map(row).collect::<Result<_, _>>()?;
+        self.deliveries(rows)
+    }
+
     /// Groups joined rows into deliveries, in row order, replaying each
     /// delivery's attempts in order.
     fn deliveries(&self, rows: Vec<Row>) -> Result<Vec<Delivery>, DbError> {
@@ -166,6 +195,22 @@ impl DeliveryLog {
         }
         Ok(deliveries)
     }
+}
+
+/// A joined row read without the checked query macros.
+fn row(found: &SqliteRow) -> Result<Row, sqlx::Error> {
+    Ok(Row {
+        id: found.try_get("id")?,
+        webhook_id: found.try_get("webhook_id")?,
+        event: found.try_get("event")?,
+        url: found.try_get("url")?,
+        body: found.try_get("body")?,
+        first_at: found.try_get("first_at")?,
+        number: found.try_get("number")?,
+        at: found.try_get("at")?,
+        status: found.try_get("status")?,
+        reason: found.try_get("reason")?,
+    })
 }
 
 /// The delivery a row describes, before its attempts.

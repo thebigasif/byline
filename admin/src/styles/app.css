@@ -135,6 +135,11 @@
   .period .field{margin:0;min-width:14rem}
   .chart{display:block;width:100%;max-width:48rem;height:8rem;margin:1rem 0 .25rem}
   .chart rect{fill:var(--color-link)}
+  .switch.spaced{flex-wrap:wrap;margin:0 0 1.25rem}
+  .queue{list-style:none;margin:0 0 1rem;padding:0;max-width:56rem}
+  .queue>li{margin:0 0 1rem}
+  .said{white-space:pre-line;max-width:68ch}
+  .careful{border-left:4px solid var(--color-warn);background:var(--color-warn-bg);border-radius:var(--radius-field);padding:.75rem 1rem;max-width:40rem}
   /* At phone width each row becomes a card with its own labels, so nothing scrolls sideways. */
   @media (max-width:40em){
     table,tbody,tr,td{display:block}

@@ -32,4 +32,4 @@ The admin is the one place JavaScript is allowed, because the editor needs it. E
 
 ## Mockups first
 
-An admin screen starts as a static HTML mockup under `docs/mockups/`, built with the same tokens, reviewed by the founder. Only after the yes does the React screen exist. The mockup is the acceptance test's picture.
+An admin screen starts as a static HTML mockup under `docs/design/admin-mockups/`, built with the same tokens, reviewed by the founder. Only after the yes does the React screen exist. The mockup is the acceptance test's picture.

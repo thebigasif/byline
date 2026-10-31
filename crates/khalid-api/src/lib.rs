@@ -15,6 +15,7 @@ mod admin_categories;
 mod admin_check;
 mod admin_comments;
 mod admin_delete;
+mod admin_deliveries;
 mod admin_entries;
 mod admin_follow_ups;
 mod admin_key;

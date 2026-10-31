@@ -1,5 +1,8 @@
-// Every word the admin shows, so a second language is one more file.
 import { records } from "./records";
+import { teamWords } from "./teamWords";
+import { webhookWords } from "./webhookWords";
+
+// Every word the admin shows, so a second language is one more file.
 
 export const en = {
   brand: "Khalid",
@@ -13,11 +16,17 @@ export const en = {
     dashboard: "Dashboard",
     posts: "Posts",
     media: "Media",
+    comments: "Comments",
+    authors: "Authors",
     trash: "Trash",
     audit: "Audit log",
     redirects: "Redirects",
     templates: "Schema templates",
     analytics: "Analytics",
+    keys: "API keys",
+    webhooks: "Webhooks",
+    team: "Team",
+    settings: "Settings",
   },
   templates: {
     title: "Schema templates",
@@ -187,6 +196,217 @@ export const en = {
       after:
         "A bot is known by the name it sends, which anyone can copy. Khalid keeps what bots read for 90 days.",
     },
+  },
+  authors: {
+    title: "Authors",
+    lede: "An author is a person named on a post. Their name, role and profiles show beside every post they write, and tell search engines who stands behind it. Each author is a file in your site folder, so git keeps their history.",
+    add: {
+      title: "Add an author",
+      fields: {
+        name: { label: "Name", hint: "As readers see it under a post's title." },
+        slug: {
+          label: "Short name",
+          hint: "Posts name the author by it. Lowercase words joined by hyphens, such as lena-vogt.",
+        },
+        role: { label: "Role", hint: "What they do, such as Technical SEO editor. Optional." },
+        language: {
+          label: "Language",
+          hint: "The author page's language, such as de. Leave it empty for the blog's main one.",
+        },
+      },
+      submit: "Add author",
+      added: (name: string) => `Added. Posts can now name ${name} as their author.`,
+    },
+    list: {
+      title: "Your authors",
+      loading: "Reading your authors",
+      none: "No authors yet. Add the first one above.",
+      name: "Name",
+      slug: "Short name",
+      language: "Language",
+      role: "Role",
+      noRole: "No role yet",
+      action: "Action",
+      edit: "Edit",
+      editLabel: (name: string, language: string) => `Edit ${name}, ${language}`,
+    },
+    edit: {
+      title: "Author",
+      back: "All authors",
+      loading: "Reading the author",
+      lede: (slug: string, language: string) =>
+        `Posts name this author ${slug}. This is their ${language} page; each language has its own.`,
+      fields: {
+        name: { label: "Name", hint: "As readers see it under a post's title." },
+        role: { label: "Role", hint: "What they do. Leave it empty for none." },
+        credentials: {
+          label: "Why to trust them",
+          hint: "Such as ten years running SEO for small teams. Search engines read it.",
+        },
+        photo: { label: "Photo", hint: "A media path or a full address. Leave it empty for none." },
+        bio: { label: "Bio", hint: "A few sentences about them, in markdown." },
+        sameAs: {
+          label: "Profiles elsewhere",
+          hint: "Full addresses, one per line, such as their LinkedIn page. Search engines use them to tell people apart.",
+        },
+      },
+      save: "Save author",
+      saved: "Saved. Every post that names this author shows the change.",
+      unchanged: "Nothing changed, so nothing was saved.",
+      remove: {
+        title: "Delete this author",
+        lede: (name: string) =>
+          `Deleting removes ${name}'s file. A post that still names them loses its byline, so give those posts another author first.`,
+        submit: (name: string) => `Delete ${name}`,
+      },
+    },
+  },
+  keys: {
+    title: "API keys",
+    lede: "An API key lets another program use your blog: your website's code, SerpDad, or a script a teammate runs. Each key can do only what you allow, and you can switch it off at any time.",
+    kinds: { content: "Content key", integration: "Integration key", staff: "Staff token" },
+    scopes: {
+      "content:read": "Read live posts",
+      "posts:write": "Write drafts",
+      "posts:publish": "Publish posts",
+      "media:write": "Upload images and files",
+      "settings:write": "Change settings",
+      "webhooks:manage": "Manage webhooks",
+      "subscribers:write": "Change subscribers",
+      "admin:all": "Everything",
+    },
+    asRole: (role: string) => `Everything a ${role} may do`,
+    noRole: "staff member",
+    create: {
+      title: "Create a key",
+      name: "Name",
+      nameHint: "So you know later which program uses it, such as Main site.",
+      kind: "What kind of key?",
+      kindHints: {
+        content: "Reads posts that are already live, and nothing else. Safe to put in a web page.",
+        integration:
+          "Lets a tool such as SerpDad write posts, upload images or change settings. Keep it secret.",
+      },
+      scopes: "What may it do?",
+      once: "You see a new key only once. Khalid keeps a scrambled copy that nobody can turn back into the key, not even you. Copy it into the other program straight away.",
+      submit: "Create key",
+    },
+    shown: {
+      title: (name: string) => `Your new key for ${name}. Copy it now: it is not shown again.`,
+      label: "The key",
+      hint: "Select it and copy it into the program that will use it.",
+    },
+    list: {
+      title: "Keys in use",
+      lede: "Switching a key off works at once. The program using it is refused from its next request, so make sure it has a new key first.",
+      loading: "Reading your keys",
+      name: "Name",
+      kind: "Kind",
+      may: "May do",
+      made: "Made",
+      action: "Action",
+      revoke: "Switch off",
+      revokeLabel: (name: string) => `Switch off the key ${name}`,
+      revoked: (name: string) => `Switched off. The key ${name} no longer works.`,
+    },
+  },
+  webhooks: webhookWords,
+  team: teamWords,
+  site: {
+    title: "Settings",
+    lede: "These settings cover the whole blog. They are saved to site.toml in your site folder, the same file you can edit by hand.",
+    loading: "Reading your settings",
+    where: "Name and address",
+    languages: "Languages",
+    fields: {
+      name: {
+        label: "Blog name",
+        hint: "Shown in the browser tab, in feeds and in search results.",
+      },
+      address: {
+        label: "Main site address",
+        hint: "Your website's address, such as https://www.example.com.",
+      },
+      mount: { label: "Folder", hint: "Where the blog lives on that site, such as /blog/." },
+      languages: {
+        label: "Languages",
+        hint: "Language codes separated by commas, such as en, de. Each post can have a version in each.",
+      },
+      default_language: {
+        label: "Main language",
+        hint: "The language visitors see first.",
+      },
+    },
+    careful:
+      "Changing the address or the folder changes the link to every post, feed and sitemap. Add a redirect for the old addresses, or links from other sites will break.",
+    restart:
+      "Restart Khalid on the server to use these settings. The running blog read site.toml when it started, and the file has changed since.",
+    save: "Save settings",
+    saved: "Saved to site.toml.",
+    unchanged: "Nothing changed, so nothing was saved.",
+  },
+  account: {
+    nav: "Your account",
+    title: "Your account",
+    loading: "Reading your account",
+    lede: (name: string, email: string) =>
+      `Signed in as ${name}, ${email}. Here you choose how you sign in, and lock everyone else out if a laptop goes missing.`,
+    passkey: {
+      title: "Add a passkey",
+      lede: "A passkey lets you sign in with your fingerprint, your face or your device's PIN instead of a password. It cannot be guessed or stolen by a fake sign-in page. Your device asks you to confirm, then keeps the passkey.",
+      name: "Name for this passkey",
+      nameHint: "So you can tell your passkeys apart, such as Work laptop.",
+      submit: "Add a passkey",
+      adding: "Waiting for your device",
+      added: (name: string) => `Added. You can now sign in with the passkey ${name}.`,
+      remove: "To stop a passkey working, delete it from the device that keeps it.",
+    },
+    password: {
+      title: "Change your password",
+      lede: "Changing it signs you out on every other device.",
+      current: "Current password",
+      currentHint:
+        "Leave it empty only when you have no password yet. A first one can be set in the 15 minutes after you sign in.",
+      next: "New password",
+      nextHint: "At least 12 characters. A short sentence is easy to remember.",
+      submit: "Change password",
+      changed: "Changed. Every other device is signed out.",
+    },
+    everywhere: {
+      title: "Sign out everywhere",
+      lede: "For a lost laptop or a phone someone else picked up. Every device signed in as you is signed out, this one too, and you sign in again.",
+      submit: "Sign out everywhere",
+    },
+  },
+  comments: {
+    title: "Comments",
+    lede: "Readers' comments wait here until you approve them, so nothing appears under a post without your yes. Approve the good ones, answer questions, and delete spam.",
+    which: "Which comments",
+    statuses: { pending: "Waiting", approved: "Shown", spam: "Spam", trash: "Bin" },
+    loading: "Reading the comments",
+    none: {
+      pending: "No comment is waiting for you.",
+      approved: "No comment shows on the blog yet.",
+      spam: "No comment is marked as spam.",
+      trash: "The bin is empty.",
+    },
+    on: (post: string, when: string) => `on ${post}, ${when}`,
+    staff: "Staff",
+    approve: "Approve",
+    approveLabel: (name: string) => `Approve the comment from ${name}`,
+    remove: "Delete",
+    removeLabel: (name: string) => `Delete the comment from ${name}`,
+    reply: "Reply as staff",
+    replyHint: "Your reply shows at once, and approves the comment it answers.",
+    name: "Your name",
+    nameHint: "Shown with your reply, such as your first name.",
+    text: "Your reply",
+    send: "Send reply",
+    approved: (name: string) => `Approved. The comment from ${name} now shows under its post.`,
+    removed: (name: string) => `Deleted the comment from ${name} and every reply to it.`,
+    replied: (name: string) => `Sent. Your reply to ${name} shows under the post.`,
+    after:
+      "Delete removes a comment and every reply to it, for good. A reader's email address is never shown on the blog.",
   },
   redirects: {
     title: "Redirects",
@@ -566,6 +786,19 @@ export const en = {
     hint: "Make one on the server with khalid keys create --kind staff --role editor --name followed by your name. It is shown once.",
     submit: "Sign in",
     checking: "Checking the token",
+    email: {
+      title: "Or sign in with your email",
+      lede: "For an account the owner made for you. It lets you add a passkey under Your account.",
+      address: "Email",
+      password: "Password",
+      submit: "Sign in with email",
+      checking: "Checking your email and password",
+    },
+    link: {
+      title: "Signing you in",
+      checking: "Checking your sign-in link",
+      back: "Go to the sign-in page",
+    },
   },
   problems: {
     rejected: {
@@ -612,6 +845,26 @@ export const en = {
       what: "No file is picked yet.",
       why: "Khalid adds the file you pick, so there is nothing to upload.",
       fix: "Pick a file under File, then press Upload.",
+    },
+    notYet: {
+      what: "This blog's server cannot do this yet.",
+      why: "It runs a version of Khalid from before this screen was added.",
+      fix: "Update Khalid on the server with khalid update, then reload this page.",
+    },
+    noSession: {
+      what: "Your account settings need you signed in with your email.",
+      why: "This tab signed in with a staff token, and a token belongs to no account.",
+      fix: "Sign out, then sign in with your email or with a sign-in link.",
+    },
+    noPasskey: {
+      what: "Your device did not make a passkey.",
+      why: "The request was cancelled, timed out, or this browser cannot make passkeys.",
+      fix: "Press Add a passkey again and confirm on your device, or try another browser.",
+    },
+    badLink: {
+      what: "This sign-in link no longer works.",
+      why: "Each link works once, for a short time, so nobody else can use it later.",
+      fix: "Ask the blog's owner for a new link, or sign in with your email and password.",
     },
     badAlias: {
       what: "The old address is not a path on this blog.",

@@ -19,7 +19,7 @@ The skills in `.claude/skills/` load on their own. `rust-best-practices` and `ru
 - **Plain language in every message a user sees.** What happened, why it matters, what to do. One short sentence each. Define a term the first time it appears.
 - **No em dashes anywhere.** Not in code comments, docs, UI text, commit messages or pull requests. Use a full stop, a comma or a colon.
 - **Don't make me think.** One focus point per screen. No visible placeholders. Every decision screen explains its context and the consequence before it asks.
-- **Admin screens need a mockup and the founder's yes before they are built.** Ship the mockup as a static HTML file under `docs/mockups/` and stop.
+- **Admin screens need a mockup and the founder's yes before they are built.** Ship the mockup as a static HTML file under `docs/design/admin-mockups/` and stop.
 - **Never handle secrets.** Never print, log, paste or commit a key, token or password. Tests use generated values. The founder enters real secrets through hidden input.
 - **Prove it before you say it works.** A flow is done when an end-to-end test exercises it, not when the code compiles.
 

@@ -1,5 +1,5 @@
 import createClient, { type Client } from "openapi-fetch";
-import { readKey } from "../auth/session";
+import { readCsrf, readKey } from "../auth/session";
 import type { paths } from "./schema";
 
 /** A client for the Admin and Content APIs, typed from the OpenAPI document. */
@@ -21,8 +21,11 @@ export function createApi({ key = readKey, fetch }: Options = {}): Api {
   api.use({
     onRequest({ request }) {
       const current = key();
+      const csrf = readCsrf();
       if (current !== null) {
         request.headers.set("Authorization", `Khalid ${current}`);
+      } else if (csrf !== null) {
+        request.headers.set("x-khalid-csrf", csrf);
       }
       return request;
     },
