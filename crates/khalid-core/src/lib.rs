@@ -22,6 +22,7 @@ mod media_settings;
 mod post_access;
 mod reader;
 mod robots;
+mod search_console_settings;
 mod secret;
 mod seo_head_settings;
 mod seo_publisher_settings;
@@ -53,6 +54,7 @@ pub use robots::{
     Following, ImagePreview, Indexing, ParseRobotsError, PreviewLimit, Restriction,
     RobotsDirectives,
 };
+pub use search_console_settings::{SearchConsoleProperty, SearchConsoleSettings};
 pub use secret::Secret;
 pub use seo_head_settings::{
     CrawlerSettings, FeedContentSetting, FeedSettings, ImageSettings, SocialSettings,
