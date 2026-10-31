@@ -7,6 +7,7 @@
 //! about content files, markdown, SQL or templates.
 
 mod admin_api;
+mod admin_check;
 mod admin_comments;
 mod admin_delete;
 mod admin_key;
@@ -26,6 +27,7 @@ pub mod keys;
 pub mod media_api;
 pub mod not_found_log;
 pub mod pagination;
+pub mod post_check;
 pub mod post_password;
 pub mod post_store;
 pub mod preview_link;

@@ -1438,6 +1438,82 @@
         ]
       }
     },
+    "/api/admin/v1/posts/{id}/check/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Checks one post as it would go live now, saving nothing: every lint\nfinding with the score out of 100, the search result its page would\nmake, and the JSON-LD the page would carry. A draft is checked as if\npublished today. Needs `posts:write`.",
+        "operationId": "check_post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The post's check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChecks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity, or this server checks no posts",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/{id}/preview-link/": {
       "post": {
         "tags": [
@@ -5769,6 +5845,22 @@
   },
   "components": {
     "schemas": {
+      "AdminChecks": {
+        "type": "object",
+        "description": "Checks as the Admin API wraps them.",
+        "required": [
+          "checks"
+        ],
+        "properties": {
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostCheck"
+            },
+            "description": "The one post's check."
+          }
+        }
+      },
       "AdminComment": {
         "type": "object",
         "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",
@@ -7482,6 +7574,34 @@
         ],
         "description": "A published post in API shape. Bodies are present only when asked for\nwith `formats`."
       },
+      "PostCheck": {
+        "type": "object",
+        "description": "One post's check: findings and score, snippet and schema.",
+        "required": [
+          "id",
+          "lint",
+          "snippet",
+          "schema"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The post's identity."
+          },
+          "lint": {
+            "type": "object",
+            "description": "Every finding, blocks first or not, as `khalid lint --json` prints\nthem for one post, with `blocks` and the post's `score` out of 100\nand the rules that cost it points."
+          },
+          "schema": {
+            "type": "object",
+            "description": "The JSON-LD the page would carry: `@context` and `@graph`."
+          },
+          "snippet": {
+            "$ref": "#/components/schemas/Snippet",
+            "description": "The search result the page would make."
+          }
+        }
+      },
       "PostEdit": {
         "type": "object",
         "description": "An edit to a post: the fields to change, and the `updated_at` of the\ncopy it was made on. Fields left out keep their value, and `null`\nclears one that may be empty. A `status` of `published` publishes a\ndraft, once the linter lets it through; `scheduled` with a future\n`published_at` publishes it then, and `draft` takes a scheduled post\noff its schedule and a live post down.",
@@ -8386,6 +8506,32 @@
               "$ref": "#/components/schemas/Settings"
             },
             "description": "The settings."
+          }
+        }
+      },
+      "Snippet": {
+        "type": "object",
+        "description": "The lines of a search result: the title, the address and the\ndescription, as the page's head gives them.",
+        "required": [
+          "title",
+          "url",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "The meta description, or empty when the page has none.",
+            "example": "Pick words that say where the link goes."
+          },
+          "title": {
+            "type": "string",
+            "description": "The `<title>`, after the site's title template.",
+            "example": "Choosing anchor text | Field Notes on SEO"
+          },
+          "url": {
+            "type": "string",
+            "description": "The canonical address.",
+            "example": "https://www.example.com/blog/choosing-anchor-text/"
           }
         }
       },
