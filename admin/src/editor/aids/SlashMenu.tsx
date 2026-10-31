@@ -4,7 +4,7 @@ import { en } from "../../strings/en";
 import { AidMenu } from "./AidMenu";
 import { type Details, newDetails } from "./blockForm";
 import { matchingItems, type SlashItem } from "./slashItems";
-import { aidsKey, CLOSE, type Trigger } from "./trigger";
+import { closeMenu, type Trigger } from "./trigger";
 import { type KeyHandler, useMenu } from "./useMenu";
 
 type Props = {
@@ -14,11 +14,6 @@ type Props = {
   /** Opens the details form of a block that needs some before it is added. */
   onDetails: (details: Details) => void;
 };
-
-/** Closes the open menu and leaves what the writer typed in the text. */
-export function closeMenu(editor: Editor) {
-  editor.view.dispatch(editor.state.tr.setMeta(aidsKey, CLOSE));
-}
 
 /** Turns the line holding `/words` into the block `item`. */
 export function addBlock(editor: Editor, trigger: Trigger, item: SlashItem) {

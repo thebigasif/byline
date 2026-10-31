@@ -1,4 +1,4 @@
-import { Extension } from "@tiptap/core";
+import { type Editor, Extension } from "@tiptap/core";
 import { type EditorState, Plugin, PluginKey } from "@tiptap/pm/state";
 
 /** What the writer typed to open a menu: `/` for blocks, `@` or `[[` for a post. */
@@ -67,6 +67,11 @@ export function openTrigger(state: EditorState): Trigger | null {
 
 /** A transaction meta that closes the open menu until a new trigger is typed. */
 export const CLOSE = "close";
+
+/** Closes the open menu and leaves what the writer typed in the text. */
+export function closeMenu(editor: Editor) {
+  editor.view.dispatch(editor.state.tr.setMeta(aidsKey, CLOSE));
+}
 
 /** Watches the text for `/`, `@` and `[[`, so the editor can open the right menu. */
 export const WritingAids = Extension.create({

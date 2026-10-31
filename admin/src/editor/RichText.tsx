@@ -3,6 +3,7 @@ import { type ReactNode, useRef, useState } from "react";
 import { en } from "../strings/en";
 import { BlockForm } from "./aids/BlockForm";
 import { applyDetails, type Details, detailsOf, selectedDetails } from "./aids/blockForm";
+import { PostMenu } from "./aids/PostMenu";
 import { SlashMenu } from "./aids/SlashMenu";
 import { openTrigger } from "./aids/trigger";
 import { type KeyHandler, menuKey, noKeys } from "./aids/useMenu";
@@ -72,6 +73,9 @@ export function RichText({ markdown, onChange, onBlur }: Props) {
         onCancel={closeForm}
       />
     );
+  } else if (trigger !== null && trigger.kind !== "slash") {
+    const key = `${trigger.kind}:${trigger.from}`;
+    aid = <PostMenu key={key} editor={editor} trigger={trigger} keys={keys} />;
   } else if (trigger?.kind === "slash") {
     aid = (
       <SlashMenu

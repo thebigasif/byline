@@ -402,6 +402,12 @@ export const en = {
     slash: "Add a block",
     help: "Type to narrow the list. ↑ ↓ to move, Enter to add, Esc to close.",
     noBlock: "No block has that name. Keep typing, or press Esc to close.",
+    mention: "Mention a post",
+    wikilink: "Link a post",
+    searching: "Looking for posts",
+    noPost: "No post has those words in its title. Keep typing, or press Esc to close.",
+    searchFailed:
+      "The blog did not answer, so no posts can be found. Check the connection, then type again.",
     heading: "Heading",
     headingHint: "A section title. In markdown, start the line with ##",
     subheading: "Smaller heading",

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Editor } from "@tiptap/core";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
@@ -6,7 +7,12 @@ import { RichText } from "../src/editor/RichText";
 /** The rich-text view with `markdown`, the editor behind it and what it saved. */
 export function writing(markdown = "") {
   const onChange = vi.fn();
-  render(<RichText markdown={markdown} onChange={onChange} onBlur={vi.fn()} />);
+  const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queries}>
+      <RichText markdown={markdown} onChange={onChange} onBlur={vi.fn()} />
+    </QueryClientProvider>,
+  );
   const text: unknown = screen.getByRole("textbox");
   if (!(text instanceof HTMLElement && "editor" in text && text.editor instanceof Editor)) {
     throw new Error("Tiptap keeps its editor on the text box");
