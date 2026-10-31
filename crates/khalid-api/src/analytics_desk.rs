@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 use chrono::NaiveDate;
 use khalid_analytics::{
-    AiVisitors, AnalyticsError, AnalyticsStore, BoxFuture, Crawls, Period, Tally, Views, Visitors,
+    AiVisitors, AnalyticsError, AnalyticsStore, BoxFuture, Crawls, Period, Tally, Uncited, Views,
+    Visitors, uncited,
 };
 use khalid_core::{Clock, SystemClock};
 
@@ -49,6 +50,19 @@ impl AnalyticsDesk {
     pub async fn visitors(&self, period: Period) -> Result<Visitors, AnalyticsError> {
         Visitors::read(self.store.as_ref(), period).await
     }
+
+    /// The pages AI bots read in `period` that no AI assistant sent a
+    /// reader to in it, the most read first (GEO M2).
+    ///
+    /// # Errors
+    ///
+    /// [`AnalyticsError`] when the bot reads or the views cannot be read.
+    pub async fn uncited(&self, period: Period) -> Result<Vec<Uncited>, AnalyticsError> {
+        let (first, last) = (period.first(), period.last());
+        let crawls = self.store.crawls(first, last).await?;
+        let views = self.store.views(first, last).await?;
+        Ok(uncited(&crawls, &views))
+    }
 }
 
 impl std::fmt::Debug for AnalyticsDesk {
@@ -57,15 +71,27 @@ impl std::fmt::Debug for AnalyticsDesk {
     }
 }
 
-/// Views held in memory and read back as given. Saving keeps nothing, so
-/// it suits a site that counts nothing, and tests.
+/// Views and bot reads held in memory and read back as given. Saving keeps
+/// nothing, so it suits a site that counts nothing, and tests.
 #[derive(Debug, Clone, Default)]
-pub struct ViewsInMemory(Vec<Views>);
+pub struct ViewsInMemory {
+    views: Vec<Views>,
+    crawls: Vec<Crawls>,
+}
 
 impl ViewsInMemory {
-    /// A store holding `views`.
+    /// A store holding `views` and no bot reads.
     pub fn new(views: Vec<Views>) -> Self {
-        Self(views)
+        Self {
+            views,
+            crawls: Vec::new(),
+        }
+    }
+
+    /// The same store, holding `crawls` as its bot reads.
+    #[must_use]
+    pub fn with_crawls(self, crawls: Vec<Crawls>) -> Self {
+        Self { crawls, ..self }
     }
 }
 
@@ -80,7 +106,7 @@ impl AnalyticsStore for ViewsInMemory {
         last: NaiveDate,
     ) -> BoxFuture<'_, Result<Vec<Views>, AnalyticsError>> {
         let held = self
-            .0
+            .views
             .iter()
             .filter(|row| (first..=last).contains(&row.day));
         let views = held.cloned().collect();
@@ -89,9 +115,14 @@ impl AnalyticsStore for ViewsInMemory {
 
     fn crawls(
         &self,
-        _: NaiveDate,
-        _: NaiveDate,
+        first: NaiveDate,
+        last: NaiveDate,
     ) -> BoxFuture<'_, Result<Vec<Crawls>, AnalyticsError>> {
-        Box::pin(async { Ok(Vec::new()) })
+        let held = self
+            .crawls
+            .iter()
+            .filter(|row| (first..=last).contains(&row.day));
+        let crawls = held.cloned().collect();
+        Box::pin(async move { Ok(crawls) })
     }
 }

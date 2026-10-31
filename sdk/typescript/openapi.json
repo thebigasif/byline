@@ -88,6 +88,84 @@
         ]
       }
     },
+    "/api/admin/v1/analytics/uncited/": {
+      "get": {
+        "tags": [
+          "admin analytics"
+        ],
+        "summary": "Lists the pages AI bots read in the last `days` days that no AI\nassistant sent a reader to in the same days. Needs `settings:write`.",
+        "operationId": "uncited",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "From 1 to 90, the days the crawl log keeps; 30 when left out.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The pages read but never cited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUncited"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The days are not from 1 to 90",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/analytics/visitors/": {
       "get": {
         "tags": [
@@ -6515,6 +6593,80 @@
             "type": "integer",
             "format": "int64",
             "description": "Views from its readers in the period.",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminUncited": {
+        "type": "object",
+        "description": "The pages AI bots read but no AI assistant cited. A bot reading a page\nis not a citation: only a reader arriving from an assistant is.",
+        "required": [
+          "first",
+          "last",
+          "days",
+          "pages"
+        ],
+        "properties": {
+          "days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many days were looked at.",
+            "minimum": 0
+          },
+          "first": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day looked at, in UTC."
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day looked at: today, in UTC."
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminUncitedPage"
+            },
+            "description": "The pages, most read first."
+          }
+        }
+      },
+      "AdminUncitedPage": {
+        "type": "object",
+        "description": "One page AI bots read with no reader sent by an AI assistant.",
+        "required": [
+          "path",
+          "reads",
+          "bots",
+          "last_read"
+        ],
+        "properties": {
+          "bots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The AI bots that read it, in alphabetical order, as their user\nagents claimed.",
+            "example": [
+              "ClaudeBot",
+              "GPTBot"
+            ]
+          },
+          "last_read": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The latest read."
+          },
+          "path": {
+            "type": "string",
+            "description": "The page's path.",
+            "example": "/blog/internal-links/"
+          },
+          "reads": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many times AI bots read it.",
             "minimum": 0
           }
         }

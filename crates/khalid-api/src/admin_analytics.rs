@@ -1,13 +1,14 @@
-//! Analytics through the Admin API: the page views per day, source and
-//! page (KH-GRO-4), and AI visitors per tool (GEO M1): how many readers
-//! each AI assistant sent, against the period before. The routes need
-//! `settings:write`.
+//! Analytics through the Admin API. Three routes: the page views per day,
+//! source and page (KH-GRO-4); the readers each AI assistant sent, against
+//! the period before (GEO M1); and the pages AI bots read but no assistant
+//! cited (GEO M2). Each needs `settings:write`, because views are visitor
+//! data.
 
 use axum::extract::rejection::QueryRejection;
 use axum::extract::{Query, State};
 use axum::{Extension, Json, middleware};
-use chrono::NaiveDate;
-use khalid_analytics::{Period, ToolVisitors};
+use chrono::{DateTime, NaiveDate, Utc};
+use khalid_analytics::{CRAWL_DAYS_KEPT, Period, ToolVisitors};
 use khalid_core::UserMessage;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -23,11 +24,16 @@ use crate::problem::{Problem, ProblemType};
 /// How many days a report covers when none are asked for.
 const DEFAULT_DAYS: u32 = 28;
 
+/// How many days the read-but-never-cited list covers when none are asked
+/// for.
+const DEFAULT_UNCITED_DAYS: u32 = 30;
+
 /// The analytics routes, behind an integration key or staff token.
 pub(crate) fn routes(desk: AnalyticsDesk, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(ai_visitors))
         .routes(routes!(visitors))
+        .routes(routes!(uncited))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(desk)
@@ -234,6 +240,98 @@ async fn visitors(
         per_day: per_day.collect(),
         pages: pages.collect(),
     }))
+}
+
+/// How many days to look back, ending today.
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct UncitedQuery {
+    /// From 1 to 90, the days the crawl log keeps; 30 when left out.
+    days: Option<u32>,
+}
+
+/// One page AI bots read with no reader sent by an AI assistant.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct AdminUncitedPage {
+    /// The page's path.
+    #[schema(example = "/blog/internal-links/")]
+    path: String,
+    /// How many times AI bots read it.
+    reads: u64,
+    /// The AI bots that read it, in alphabetical order, as their user
+    /// agents claimed.
+    #[schema(example = json!(["ClaudeBot", "GPTBot"]))]
+    bots: Vec<String>,
+    /// The latest read.
+    last_read: DateTime<Utc>,
+}
+
+/// The pages AI bots read but no AI assistant cited. A bot reading a page
+/// is not a citation: only a reader arriving from an assistant is.
+#[derive(Debug, Serialize, ToSchema)]
+pub(crate) struct AdminUncited {
+    /// The first day looked at, in UTC.
+    first: NaiveDate,
+    /// The last day looked at: today, in UTC.
+    last: NaiveDate,
+    /// How many days were looked at.
+    days: u32,
+    /// The pages, most read first.
+    pages: Vec<AdminUncitedPage>,
+}
+
+/// Lists the pages AI bots read in the last `days` days that no AI
+/// assistant sent a reader to in the same days. Needs `settings:write`.
+#[utoipa::path(
+    get, path = "/analytics/uncited/", tag = "admin analytics",
+    security(("admin_key" = [])),
+    params(UncitedQuery),
+    responses(
+        (status = 200, description = "The pages read but never cited", body = AdminUncited),
+        (status = 400, description = "The days are not from 1 to 90", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks settings:write", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn uncited(
+    State(desk): State<AnalyticsDesk>,
+    Extension(principal): Extension<Principal>,
+    query: Result<Query<UncitedQuery>, QueryRejection>,
+) -> Result<Json<AdminUncited>, Problem> {
+    require(&principal, Scope::SettingsWrite)?;
+    let days = query
+        .ok()
+        .map(|Query(q)| q.days.unwrap_or(DEFAULT_UNCITED_DAYS))
+        .filter(|days| *days <= CRAWL_DAYS_KEPT);
+    let period = days
+        .and_then(|days| Period::ending(desk.today(), days))
+        .ok_or_else(bad_uncited_days)?;
+    let pages = desk
+        .uncited(period)
+        .await
+        .map_err(|e| Problem::internal(&e))?;
+    let pages = pages.into_iter().map(|page| AdminUncitedPage {
+        path: page.path,
+        reads: page.reads,
+        bots: page.bots,
+        last_read: page.last_read,
+    });
+    Ok(Json(AdminUncited {
+        first: period.first(),
+        last: period.last(),
+        days: period.days(),
+        pages: pages.collect(),
+    }))
+}
+
+/// The 400 for days the crawl log does not keep.
+fn bad_uncited_days() -> Problem {
+    let message = UserMessage::new(
+        "The days are not a number from 1 to 90.",
+        "Khalid keeps what bots read for 90 days.",
+        "Ask for days=30, or leave it out.",
+    );
+    Problem::new(ProblemType::InvalidQuery, &message).with_rule("days")
 }
 
 /// The period the query asks for, ending today.
