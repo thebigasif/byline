@@ -27,7 +27,7 @@ jobs:
     name: Text rules
     runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: No em dashes (RULES.md BL-TXT-1)
         run: |
           if git grep -nI -- $'\xe2\x80\x94' -- ':!*.lock' ':!.claude/skills/rust-best-practices/references/*'; then
@@ -39,7 +39,7 @@ jobs:
     name: Rust
     runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Any crates yet?
         id: crates
         run: |
@@ -121,7 +121,7 @@ jobs:
     name: Admin
     runs-on: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'khalid' || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Any admin yet?
         id: admin
         run: |
@@ -153,6 +153,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Budgets (docs/standards/performance.md)
         run: ./scripts/perf.sh
