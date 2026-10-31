@@ -19,6 +19,7 @@ use khalid_core::{AbsoluteUrl, Config, Locale, SitePath, SlugMode, UserMessage};
 use khalid_db::{ContentIndex, IndexedPost, PostChanges};
 use tokio::sync::watch;
 
+use crate::entry_events::Entries;
 use crate::post_lock::Lock;
 use crate::{build_message, build_pages, index, site_lists};
 
@@ -31,6 +32,8 @@ pub(crate) struct Catalog {
     /// The paths of the posts marked `featured`.
     featured: BTreeSet<String>,
     lists: SiteResources,
+    /// The pages, glossary terms, case studies and changelog entries.
+    pub(crate) entries: Entries,
 }
 
 impl Catalog {
@@ -57,6 +60,7 @@ impl Catalog {
             index,
             featured,
             lists,
+            entries: Entries::of(content),
         })
     }
 }

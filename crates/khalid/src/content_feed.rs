@@ -14,6 +14,8 @@ use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::announce::SiteAnnounce;
+use crate::entry_events::Entries;
 use crate::live_redirects::LiveRedirects;
 use crate::memory::HandBack;
 use crate::site_addresses::{self, LiveAddresses};
@@ -51,6 +53,13 @@ pub(crate) struct Destination {
     pub(crate) addresses: LiveAddresses,
     /// The stored redirects, which get a move for each page that moved.
     pub(crate) redirects: LiveRedirects,
+    /// Told of each page, glossary term, case study or changelog entry that
+    /// is new, changed or gone since the last catalog, when the site has
+    /// webhooks to tell.
+    pub(crate) announce: Option<SiteAnnounce>,
+    /// The entries the run started with, which the first catalog is
+    /// compared with.
+    pub(crate) entries: Entries,
 }
 
 /// Starts the background task on `runtime`. Await the handle after the
@@ -93,10 +102,16 @@ async fn moved(to: &Destination, catalog: &Catalog, applied: &mut Applied) {
 /// served and written, so no catalog stays in memory.
 async fn take_catalogs(mut catalogs: mpsc::UnboundedReceiver<Catalog>, to: Arc<Destination>) {
     let mut applied = Applied::default();
+    let mut entries = to.entries.clone();
     while let Some(mut catalog) = catalogs.recv().await {
         while let Ok(later) = catalogs.try_recv() {
             catalog = later;
         }
+        let now = std::mem::take(&mut catalog.entries);
+        if let Some(announce) = &to.announce {
+            now.fire_since(&entries, announce);
+        }
+        entries = now;
         apply(&to, Arc::new(catalog), &mut applied).await;
         to.hand_back.after_work();
     }
@@ -220,6 +235,8 @@ mod tests {
             hand_back: HandBack::default(),
             addresses: LiveAddresses::default(),
             redirects: LiveRedirects::new(Arc::new(khalid_db::RedirectRows::new(db.clone(), site))),
+            announce: None,
+            entries: Entries::default(),
         };
         let (feed, task) = start(&Handle::current(), to);
 
