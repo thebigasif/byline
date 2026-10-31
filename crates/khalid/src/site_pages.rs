@@ -11,18 +11,18 @@ use khalid_content::{
     ContentTree, Document, PostFront, SiteContent, check_bodies, parse_post, read_content,
 };
 use khalid_core::{Clock, Config, Locale, Slug, UserMessage};
-use khalid_render::{
-    PageBody, PageMeta, RenderSearch, RenderSite, Renderer, SearchMode, SearchResult, Tokens,
-};
+use khalid_render::{PageBody, RenderSearch, Renderer, SearchMode, SearchResult, Tokens};
 use khalid_routes::Routes;
 use khalid_server::{Moved, Page, Render, Rendered};
 
 use crate::build_pages::LanguagePages;
 use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
+use crate::form_pages::{self, LiveForms};
 use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
 use crate::post_photos::Shown;
+use crate::search_page::SearchShell;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::site_page::HeadNonce;
@@ -61,6 +61,8 @@ struct Site {
     searches: Mutex<Vec<SearchShell>>,
     /// The comments post pages show, or `None` when the site takes none.
     comments: Option<ShownComments>,
+    /// The page of each form, or `None` when the site takes none.
+    forms: Option<LiveForms>,
     /// The password posts of the last full render, for the password form.
     gate: Gate,
     /// Dates a feed with no posts yet, and a draft's preview.
@@ -126,6 +128,7 @@ impl SitePages {
         };
         let comments =
             (theme.is_some() && comment_pages::taken(config.mode())).then(ShownComments::default);
+        let forms = comments.is_some().then(LiveForms::default);
         Ok(Self(Arc::new(Site {
             folder: folder.to_path_buf(),
             config,
@@ -137,6 +140,7 @@ impl SitePages {
             searches: Mutex::default(),
             gate: Gate::default(),
             comments,
+            forms,
             clock,
         })))
     }
@@ -186,6 +190,11 @@ impl SitePages {
     /// The comments the post pages show, or `None` when the site takes none.
     pub(crate) fn comments(&self) -> Option<ShownComments> {
         self.0.comments.clone()
+    }
+
+    /// The page of each form, or `None` when the site takes none.
+    pub(crate) fn forms(&self) -> Option<LiveForms> {
+        self.0.forms.clone()
     }
 
     /// The address of the stylesheet every page links; `None` when headless.
@@ -390,6 +399,7 @@ impl SitePages {
             }
         }
         comment_pages::fill(config, self.0.comments.as_ref(), &mut languages);
+        form_pages::fill(config, self.0.forms.as_ref(), &mut languages);
         let beside = post_files::served(folder, config, assets, &mut languages, shown)?;
         let seo_site = build_seo::site(config)?;
         let default_tokens = Tokens::default();
@@ -414,7 +424,7 @@ impl SitePages {
         if let Some(theme) = theme {
             if which == Which::All {
                 served.pages.push(theme.stylesheet.clone());
-                let shells = search_shells(&languages);
+                let shells = search_page::shells(&languages);
                 *self
                     .0
                     .searches
@@ -507,30 +517,6 @@ enum Which {
 
 /// How a wikilink starts in markdown, such as `[[link-equity]]`.
 const WIKILINK: &str = "[[";
-
-/// A language's search page without results: the site as its pages show it
-/// and the page's head, with its title and its SEO tags.
-#[derive(Debug, Clone)]
-struct SearchShell {
-    site: RenderSite,
-    meta: PageMeta,
-}
-
-/// The search page of each of `languages`.
-fn search_shells(languages: &[LanguagePages]) -> Vec<SearchShell> {
-    let mut shells = Vec::new();
-    for language in languages {
-        let searches = language
-            .pages
-            .iter()
-            .filter(|page| matches!(page.body, PageBody::Search(_)));
-        shells.extend(searches.map(|page| SearchShell {
-            site: language.site.clone(),
-            meta: page.meta.clone(),
-        }));
-    }
-    shells
-}
 
 /// Renders the `which` pages of `languages` with `theme` into `pages`, and
 /// returns the not-found page of the default language, empty unless

@@ -16,6 +16,7 @@ khalid-api = { path = "../khalid-api", version = "0.0.0" }
 khalid-auth = { path = "../khalid-auth", version = "0.0.0" }
 khalid-comments = { path = "../khalid-comments", version = "0.0.0" }
 khalid-core.workspace = true
+khalid-forms = { path = "../khalid-forms", version = "0.0.0" }
 khalid-newsletter = { path = "../khalid-newsletter", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-search = { path = "../khalid-search", version = "0.0.0" }

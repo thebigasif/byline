@@ -2037,6 +2037,7 @@ dependencies = [
  "khalid-content",
  "khalid-core",
  "khalid-db",
+ "khalid-forms",
  "khalid-https",
  "khalid-import",
  "khalid-lint",
@@ -2236,6 +2237,7 @@ dependencies = [
  "khalid-auth",
  "khalid-comments",
  "khalid-core",
+ "khalid-forms",
  "khalid-newsletter",
  "khalid-search",
  "khalid-seo",
@@ -2244,6 +2246,20 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "khalid-forms"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "khalid-comments",
+ "khalid-core",
+ "thiserror",
+ "tokio",
+ "tower",
+ "tracing",
 ]
 
 [[package]]

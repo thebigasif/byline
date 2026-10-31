@@ -37,7 +37,8 @@ use crate::site_content::LiveContent;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
-    announce, comment_pages, db, db_message, media_library, newsletter, page_counts, preview,
+    announce, comment_pages, db, db_message, form_pages, media_library, newsletter, page_counts,
+    preview,
     redirect_route, report, scheduler, search_route, serve_message, share_images, staff, unlock,
 };
 
@@ -159,8 +160,7 @@ fn serve_with(
         site: id,
         security: security.clone(),
     };
-    let newsletters = newsletter::router(config, (database, id), (keys.mail, outbound))
-        .map_err(|message| (message, Exit::Internal))?;
+    let posted = posted_to(config, &search, (keys.mail, outbound))?;
     let served = runtime.block_on(async {
         let (listener, address) = serve_https::open(site, listen).await?;
         announce(output, config, &format!("{address}{}", config.mount()));
@@ -193,7 +193,7 @@ fn serve_with(
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
-            (comments, newsletters, pages),
+            (comments, posted, pages),
         );
         let why = Arc::new(Mutex::new(None));
         let stopping = stop_or_fail(failure, Arc::clone(&why));
@@ -276,8 +276,25 @@ fn destination(
     }
 }
 
+/// The routes a reader posts to from a page, besides comments: the
+/// newsletter's, sending with the mail `secret`, and the form block's
+/// (G4). Both keep what they receive in the database of `site`, the pages,
+/// database and headers the search reads too.
+fn posted_to(
+    config: &Config,
+    site: &search_route::Search,
+    (secret, outbound): (Option<Secret<String>>, &Outbound),
+) -> Result<Router, (UserMessage, Exit)> {
+    let db = (&site.db, site.site);
+    let newsletters = newsletter::router(config, db, (secret, outbound))
+        .map_err(|message| (message, Exit::Internal))?;
+    let forms = form_pages::router(config, db, &site.pages, &site.security);
+    Ok(newsletters.merge(forms))
+}
+
 /// The one router the server answers: the APIs, the site's own routes, the
-/// drawn share cards, the admin, the comments and the newsletters.
+/// drawn share cards, the admin, the comments, the newsletters and the
+/// forms.
 fn assembled(
     (site, config, security): (&Path, &Config, &SecurityHeaders),
     (api, files, previews, searches): (Router, Router, Router, Router),
