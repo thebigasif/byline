@@ -285,7 +285,12 @@ mod tests {
         let title = "Links: \"why\" \\ how\u{7}";
         let slug = Slug::try_new("links-why-how").unwrap();
         let author = Slug::try_new("sam-lee").unwrap();
-        let text = post_text(title, (&slug, Some(&author)), Some("2026-10-26"), EMPTY_BODY);
+        let text = post_text(
+            title,
+            (&slug, Some(&author)),
+            Some("2026-10-26"),
+            EMPTY_BODY,
+        );
         let post = parse_post(Path::new("post.md"), &text).unwrap();
         assert_eq!(post.front.title.as_deref(), Some(title));
         assert_eq!(post.front.slug, Some(slug.clone()));

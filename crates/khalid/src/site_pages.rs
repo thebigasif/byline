@@ -28,9 +28,8 @@ use crate::site_html::{SearchShell, Unrendered, Which, html_pages, search_shells
 use crate::unlock::Gate;
 use crate::{
     assets, build_gate, build_home, build_lists, build_message, build_pages, build_seo,
-    build_sitemap, categories, content_message, own_descriptions, post_files, post_gate,
-    post_lock, search_page,
-    serve_message, share_images, site_files, site_outline,
+    build_sitemap, categories, content_message, own_descriptions, post_files, post_gate, post_lock,
+    search_page, serve_message, share_images, site_files, site_outline,
 };
 
 /// Renders every page of one site from its files. Cloning shares it.
@@ -516,7 +515,7 @@ impl SitePages {
         let mut saved = SiteContent::default();
         for file in files {
             let mut doc = posts.iter().find(|doc| &doc.path == file)?.clone();
-            self.read_again(&mut doc)?;
+            site_outline::read_again(&self.0.folder, &mut doc)?;
             saved.posts.push(doc);
         }
         // A page's head links its other language versions, so they are
@@ -532,7 +531,7 @@ impl SitePages {
         });
         let mut versions: Vec<_> = versions.cloned().collect();
         for doc in &mut versions {
-            self.read_again(doc)?;
+            site_outline::read_again(&self.0.folder, doc)?;
         }
         saved.posts.extend(versions);
         saved.authors.clone_from(&outline.content.authors);
@@ -542,18 +541,6 @@ impl SitePages {
             return None;
         }
         Some((saved, outline.listed.clone()))
-    }
-
-    /// `doc`, a post of the outline, with its front matter and body read
-    /// from its file now. `None` when the file cannot be read or parsed.
-    fn read_again(&self, doc: &mut Document<PostFront>) -> Option<()> {
-        let mut path = self.0.folder.clone();
-        path.push(&doc.path);
-        let text = fs::read_to_string(&path).ok()?;
-        let post = parse_post(&doc.path, &text).ok()?;
-        doc.front = post.front;
-        doc.body = post.body;
-        Some(())
     }
 }
 

@@ -36,6 +36,7 @@ mod build_sitemap;
 mod categories;
 mod cli;
 mod cli_access;
+mod cli_import;
 mod cli_name;
 mod comment_pages;
 mod config_message;
