@@ -105,13 +105,17 @@ async fn publish(door: &PublishDoor, (id, name): (&str, &str)) -> Result<Done, F
     let before = door.get(id).await;
     let before = before.map_err(|_| failed(unreadable(name)))?;
     let before = before.ok_or_else(|| failed(no_post(name)))?;
+    if before.status() == PostStatus::Published {
+        return Err(failed(already_live(name)));
+    }
     let edit = PostEdit::status_only(PostStatus::Published, before.updated_at());
     match door.edit(id, edit, BY).await {
-        Ok(post) => Ok(Done::Published(Box::new(post))),
+        Ok(post) if post.status() == PostStatus::Published => Ok(Done::Published(Box::new(post))),
         Err(UpdatePostError::Refused(lint)) => Ok(Done::Refused(lint)),
         Err(UpdatePostError::NotFound) => Err(failed(no_post(name))),
         Err(UpdatePostError::Stale { .. }) => Err(failed(changed(name))),
-        Err(_) => Err(failed(unreadable(name))),
+        // A door that answers with a post still not live published nothing.
+        Ok(_) | Err(_) => Err(failed(unreadable(name))),
     }
 }
 
@@ -149,10 +153,19 @@ fn not_ready(name: &str) -> UserMessage {
     )
 }
 
+/// `name` is `<language>/<slug>`, so its draft file is `drafts/<name>.md`.
+fn already_live(name: &str) -> UserMessage {
+    UserMessage::new(
+        format!("Khalid did not publish {name}, because it is already live."),
+        "Its file in content/ has a date, so readers can see it now.",
+        format!("Nothing changed. To take it down, move its file to drafts/{name}.md."),
+    )
+}
+
 fn no_post(name: &str) -> UserMessage {
     UserMessage::new(
         format!("Khalid found no post {name}."),
-        "A draft is a file in drafts/, named by its slug, in the folder of its language.",
+        "A draft is a file in drafts/<language>/ named by its slug, or a post in content/ with no date.",
         "Check the slug, give --language for a post in another language, or make one with `khalid new`.",
     )
 }

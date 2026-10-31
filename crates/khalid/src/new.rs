@@ -32,6 +32,10 @@ pub(crate) struct NewArgs {
     /// it, so merging the branch publishes the post
     #[arg(long)]
     pub(crate) branch: bool,
+    /// Write an undated draft in `drafts/<language>/<slug>.md`, which
+    /// readers never see until `khalid publish` takes it live
+    #[arg(long)]
+    pub(crate) draft: bool,
 }
 
 /// What `new` writes in.
@@ -45,6 +49,8 @@ pub(crate) struct NewPost<'a> {
     pub(crate) template: Option<Template>,
     /// Whether `--branch` asks for the post on its own git branch.
     pub(crate) branch: bool,
+    /// Whether to write an undated draft in `drafts/` from `--draft`.
+    pub(crate) draft: bool,
 }
 
 impl<'a> From<&'a NewArgs> for NewPost<'a> {
@@ -54,25 +60,27 @@ impl<'a> From<&'a NewArgs> for NewPost<'a> {
             language: args.language.as_ref(),
             template: args.template,
             branch: args.branch,
+            draft: args.draft,
         }
     }
 }
 
 /// The JSON shape of `khalid new --json`. `path` is relative to the site;
-/// `branch` is there with `--branch`.
+/// `branch` is there with `--branch`. `date` is `null` for a draft.
 #[derive(Serialize)]
 struct NewBody<'a> {
     path: &'a str,
     title: &'a str,
     slug: &'a str,
     language: &'a str,
-    date: String,
+    date: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     branch: Option<&'a str>,
 }
 
 /// Writes a new post in the `site` folder, dated today by `clock`, into
-/// `content/<language>/posts/<date>-<slug>.md`.
+/// `content/<language>/posts/<date>-<slug>.md`, or with `--draft`, undated
+/// into `drafts/<language>/<slug>.md` (ADR 0030).
 pub(crate) fn run(
     site: &Path,
     config: &Config,
@@ -89,7 +97,7 @@ pub(crate) fn run(
     let Ok(slug) = Slug::from_title(title, locale, config.slugs()) else {
         return report::failure(output, &new_message::no_slug(title), Exit::Failure);
     };
-    let date = clock.now().date_naive().to_string();
+    let date = (!post.draft).then(|| clock.now().date_naive().to_string());
     let tail = match post.template {
         None => EMPTY_BODY.to_owned(),
         Some(template) => {
@@ -100,9 +108,14 @@ pub(crate) fn run(
             starter
         }
     };
-    let text = post_text(title, &slug, &date, &tail);
-    let posts = format!("content/{locale}/posts");
-    let name = format!("{date}-{slug}.md");
+    let text = post_text(title, &slug, date.as_deref(), &tail);
+    let (posts, name) = match &date {
+        Some(date) => (
+            format!("content/{locale}/posts"),
+            format!("{date}-{slug}.md"),
+        ),
+        None => (format!("drafts/{locale}"), format!("{slug}.md")),
+    };
     let relative = format!("{posts}/{name}");
     let branch = post.branch.then(|| new_branch::branch_for(&slug));
     match written(site, (&posts, &name, &text), branch.as_deref(), title) {
@@ -115,7 +128,12 @@ pub(crate) fn run(
                 date,
                 branch: branch.as_deref(),
             };
-            success(output, site, &body)
+            let language = if locale == config.default_language() {
+                String::new()
+            } else {
+                format!(" --language {locale}")
+            };
+            success(output, site, &body, &language)
         }
         Err(message) => report::failure(output, &message, Exit::Failure),
     }
@@ -153,12 +171,15 @@ const EMPTY_BODY: &str = "---\n\n";
 
 /// The text of a new post: its front matter fields, then `tail`, which
 /// closes the front matter and holds the body: [`EMPTY_BODY`], or a
-/// starter whose guidance sits in comments above the closing line.
-fn post_text(title: &str, slug: &Slug, date: &str, tail: &str) -> String {
+/// starter whose guidance sits in comments above the closing line. A
+/// draft has no `date`.
+fn post_text(title: &str, slug: &Slug, date: Option<&str>, tail: &str) -> String {
+    let date = date.map(|date| format!("date: {date}\n"));
     format!(
-        "---\ntitle: {}\nslug: {}\ndate: {date}\n{tail}",
+        "---\ntitle: {}\nslug: {}\n{}{tail}",
         quoted(title),
-        quoted(slug.as_str())
+        quoted(slug.as_str()),
+        date.unwrap_or_default()
     )
 }
 
@@ -171,12 +192,24 @@ fn write(site: &Path, posts: &str, name: &str, text: &str) -> io::Result<()> {
     atomic::create(&folder, name, text)
 }
 
-/// Says what `new` wrote and what to do next.
-fn success(output: Output, site: &Path, body: &NewBody<'_>) -> Exit {
+/// Says what `new` wrote and what to do next: for a draft, the command
+/// that publishes it, with `language`, ` --language <code>` or nothing.
+fn success(output: Output, site: &Path, body: &NewBody<'_>, language: &str) -> Exit {
+    let next = match (body.date.is_some(), body.branch) {
+        (true, Some(_)) => String::new(),
+        (true, None) => "It goes live at the next build. To keep a new post hidden, make it \
+                         with --draft, which writes it in drafts/.\n"
+            .to_owned(),
+        (false, _) => format!(
+            "Readers cannot see it until you run `khalid --site {} publish {}{language}`.\n",
+            site.display(),
+            body.slug
+        ),
+    };
     match output {
         Output::Human => {
             let mut said = format!(
-                "Wrote {} in {}.\nOpen it and write the post below the front matter.\n",
+                "Wrote {} in {}.\nOpen it and write the post below the front matter.\n{next}",
                 body.path,
                 site.display()
             );
@@ -205,11 +238,15 @@ mod tests {
     fn the_post_text_reads_back_with_the_same_fields() {
         let title = "Links: \"why\" \\ how\u{7}";
         let slug = Slug::try_new("links-why-how").unwrap();
-        let text = post_text(title, &slug, "2026-10-26", EMPTY_BODY);
+        let text = post_text(title, &slug, Some("2026-10-26"), EMPTY_BODY);
         let post = parse_post(Path::new("post.md"), &text).unwrap();
         assert_eq!(post.front.title.as_deref(), Some(title));
-        assert_eq!(post.front.slug, Some(slug));
+        assert_eq!(post.front.slug, Some(slug.clone()));
         assert_eq!(post.front.date.unwrap().to_string(), "2026-10-26");
         assert_eq!(post.body.trim(), "");
+
+        let draft = post_text(title, &slug, None, EMPTY_BODY);
+        let post = parse_post(Path::new("post.md"), &draft).unwrap();
+        assert_eq!((post.front.slug, post.front.date), (Some(slug), None));
     }
 }

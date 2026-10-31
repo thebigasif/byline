@@ -115,7 +115,9 @@ pub(crate) enum Command {
         fix: bool,
     },
     /// Lint a draft, then publish it and tell the site's webhooks and
-    /// search engines. Refuses when a rule blocks it
+    /// search engines. A draft is a file in `drafts/<language>/`, or a post
+    /// in `content/` with no date. Refuses when a rule blocks it, or when
+    /// the post is already live
     Publish {
         /// The slug of the draft to publish
         slug: Slug,
@@ -454,7 +456,8 @@ pub(crate) struct InitArgs {
     #[arg(long, value_name = "NAME")]
     pub(crate) stack: Option<khalid_mount::Stack>,
 
-    /// Where the blog itself answers, when it is not the website's address [default: blog.host]
+    /// Where `khalid serve` answers, for the proxy rule [default: `http://127.0.0.1:8080` for
+    /// nginx, caddy, apache and traefik; a guessed `blog.` address for hosted stacks]
     #[arg(long, value_name = "URL")]
     pub(crate) blog: Option<AbsoluteUrl>,
 

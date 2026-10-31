@@ -147,6 +147,47 @@ fn new_needs_a_site_folder() {
 }
 
 #[test]
+fn new_with_draft_writes_an_undated_draft_and_says_how_to_publish_it() {
+    let (temp, folder) = site();
+    let args = ["--site", &folder, "new", "Why links matter", "--draft"];
+    let output = khalid(&[&args[..], &["--language", "en"]].concat());
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let file = at(temp.path(), "drafts/en/why-links-matter.md");
+    let written = fs::read_to_string(&file).unwrap();
+    let post = parse_post(&file, &written).unwrap();
+    assert_eq!(post.front.title.as_deref(), Some("Why links matter"));
+    assert_eq!(post.front.date, None, "{written}");
+    let posts = fs::read_dir(at(temp.path(), "content/en/posts")).map_or(0, Iterator::count);
+    assert_eq!(posts, 0, "nothing goes into content/");
+    let said = text(&output.stdout);
+    assert!(said.contains("drafts/en/why-links-matter.md"), "{said}");
+    assert!(
+        said.contains("publish why-links-matter --language en"),
+        "{said}"
+    );
+
+    let output = khalid(&[&args[..], &["--language", "en", "--json"]].concat());
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "a draft is never overwritten"
+    );
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let what = json["error"]["what"].as_str().unwrap();
+    assert_eq!(what, "drafts/en/why-links-matter.md already exists.");
+}
+
+#[test]
+fn new_without_draft_says_the_post_goes_live_and_where_drafts_live() {
+    let (_temp, folder) = site();
+    let output = khalid(&["--site", &folder, "new", "Why links matter"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let said = text(&output.stdout);
+    assert!(said.contains("--draft"), "{said}");
+    assert!(said.contains("drafts/"), "{said}");
+}
+
+#[test]
 fn new_with_language_writes_in_that_language() {
     let (temp, folder) = site();
     let output = khalid(&["--site", &folder, "new", "Über", "--language", "en"]);

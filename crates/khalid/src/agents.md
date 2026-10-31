@@ -7,7 +7,8 @@ Khalid is a blog engine. This guide tells an agent, such as Claude Code, how to 
 - `site.toml` holds the settings: the name, the address, the languages.
 - `content/<language>/posts/` holds the published posts, one markdown file each, named `<date>-<slug>.md`.
 - `content/<language>/authors/` holds one file per author. A post names its author by that file's slug.
-- `drafts/<language>/<slug>.md` holds drafts. Nothing reads them but the Admin API, so they are never shown to readers.
+- `drafts/<language>/<slug>.md` holds drafts. Only the Admin API and `khalid publish` read them, so they are never shown to readers. `khalid new --draft "Title"` makes one.
+- A post in `content/` with no `date:` is a draft too: no page is built for it. Publishing it dates it where it is.
 - To take a page, glossary term, case study or changelog entry down without deleting it, move its file to the same place under `drafts/`, such as `drafts/en/pages/about.md`. Its webhooks then say unpublished, not deleted.
 - `data/` and `public/` are made by Khalid from the files. Never write into them.
 
@@ -22,6 +23,7 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 - `khalid export`, on a site with `mode = "static"`, writes the whole site into `public/` and swaps it in only once every page is written, so pages of deleted posts are gone. Copy that folder to the host.
 - `khalid audit` builds the site, crawls it the way Ahrefs and Semrush do, and scores its health out of 100. It exits with 1 on any error, names the heaviest page, and keeps the issues, the internal linking report, each page's weight and the score's trend in `data/audit/`. `--server http://127.0.0.1:8080` audits a running `khalid serve` instead of a build, and `--offline` leaves links to other sites unchecked.
 - `khalid plan` suggests a day for each draft the linter passes, at the site's own pace or `--per-week <count>`, each topic group's pillar before its members, keeping scheduled days. It lists the drafts that wait and warns when the pace dropped. It changes nothing.
+- `khalid publish <slug>` lints a draft and takes it live, as `publish_post` does. It refuses a post that is already live.
 - `khalid serve` runs the blog and the APIs.
 - `khalid watch` shows how fast and how reliably the blog answered at its public address over the last day and the last 30 days, from the looks `khalid serve` takes every few minutes.
 - `khalid import wordpress|ghost|medium|substack|markdown <export> --dry-run` says what an import would bring in and leave behind. Without `--dry-run` it writes the posts with their old slugs and stores a redirect for each old address that moves. For `wordpress`, the export may be the site's address, which brings in its published posts and pages.

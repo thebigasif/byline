@@ -86,6 +86,6 @@ fn not_ready(posts: usize) -> UserMessage {
     UserMessage::new(
         format!("Khalid built nothing, because {count} not ready to publish."),
         "A blocked post would go live with its problems, so no page was written.",
-        "Fix each block listed with its post, or remove `date:` to keep a post as an unpublished draft.",
+        "Fix each block listed with its post, or move a post to drafts/<language>/ to keep it a draft.",
     )
 }

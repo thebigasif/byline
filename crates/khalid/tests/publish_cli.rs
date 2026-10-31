@@ -194,6 +194,48 @@ async fn the_human_output_names_the_post_or_every_block() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn an_undated_post_in_content_is_a_draft_and_goes_live_where_it_is() {
+    let receiver = receiver().await;
+    let (site, [published, _]) = demo_site(&receiver).await;
+    let file = at(site.path(), "content/en/posts/choosing-anchor-text.md");
+    fs::write(&file, GOOD).unwrap();
+
+    let output = publish(site.path(), &["choosing-anchor-text"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let said = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(said, "Published en/choosing-anchor-text.\n");
+    let text = fs::read_to_string(&file).unwrap();
+    assert!(text.contains("\ndate: 20"), "the post is dated: {text}");
+    let body = the_delivery(&receiver, Event::PostPublished, &published).await;
+    assert_eq!(body["post"]["status"], "published", "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_post_already_live_is_refused_not_published_again() {
+    let receiver = receiver().await;
+    let (site, _) = demo_site(&receiver).await;
+    let file = at(
+        site.path(),
+        "content/en/posts/2026-09-14-why-internal-links-matter.md",
+    );
+    let before = fs::read_to_string(&file).unwrap();
+
+    let output = publish(site.path(), &["why-internal-links-matter"]);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert!(output.stdout.is_empty(), "{output:?}");
+    let message = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        message.starts_with(
+            "Khalid did not publish en/why-internal-links-matter, because it is already live."
+        ),
+        "{message}"
+    );
+    assert!(message.contains("drafts/en/"), "{message}");
+    assert_eq!(fs::read_to_string(&file).unwrap(), before);
+    assert!(received(&receiver, "/post.published").await.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_slug_with_no_post_is_named_with_where_to_look() {
     let receiver = receiver().await;
     let (site, _) = demo_site(&receiver).await;
