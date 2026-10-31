@@ -42,5 +42,6 @@ pub mod redirect_store;
 pub mod resources;
 pub mod schedule_store;
 pub mod session_check;
+pub mod tag_store;
 pub mod unlock;
 pub mod webhook_store;
