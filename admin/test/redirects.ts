@@ -3,6 +3,8 @@ import { type Answers, adminBlog } from "./blog";
 import { json } from "./render";
 import { rowsPage } from "./rows";
 
+export type { Answers } from "./blog";
+
 // What the Redirects screen reads when it opens, empty unless a test says otherwise.
 const EMPTY: Answers = {
   "GET /not-found/": () => json(200, { misses: [] }),

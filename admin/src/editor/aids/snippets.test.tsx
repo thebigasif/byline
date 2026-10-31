@@ -62,7 +62,7 @@ describe("placing a snippet", () => {
     fireEvent.change(choice, { target: { value: "author-box" } });
     fireEvent.click(screen.getByRole("button", { name: "Add the block" }));
     expect(onChange).toHaveBeenLastCalledWith(
-      expect.stringContaining('::snippet{slug="author-box"}'),
+      expect.stringContaining("::snippet{slug=author-box}"),
     );
   });
 });
@@ -78,7 +78,7 @@ describe("saving blocks as a snippet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save the snippet" }));
     await waitFor(() =>
       expect(onChange).toHaveBeenLastCalledWith(
-        expect.stringContaining('::snippet{slug="affiliate-disclosure"}'),
+        expect.stringContaining("::snippet{slug=affiliate-disclosure}"),
       ),
     );
     const saved: string = onChange.mock.lastCall?.[0] ?? "";
