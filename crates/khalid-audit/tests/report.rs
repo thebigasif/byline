@@ -66,13 +66,16 @@ async fn the_csv_has_a_header_and_quotes_what_a_spreadsheet_needs() {
     let crawl = crawled(&[(HOME, clean(r#"<img src="a, b.png">"#))]).await;
     let csv = Report::of(&crawl, Thresholds::default()).csv();
     let mut lines = csv.lines();
-    assert_eq!(lines.next(), Some("severity,category,check,url,detail,fix"));
+    assert_eq!(
+        lines.next(),
+        Some("severity,category,check,url,detail,why,fix")
+    );
     let row = lines
         .find(|line| line.contains("Missing alt text"))
         .unwrap();
     assert_eq!(
         row,
-        "warning,Images,Missing alt text,https://www.example.com/blog/,\"https://www.example.com/blog/a,%20b.png\",\"Describe each image in a few words, or give it an empty alt when it is decoration.\""
+        "warning,Images,Missing alt text,https://www.example.com/blog/,\"https://www.example.com/blog/a,%20b.png\",\"Screen readers and search engines cannot see an image, so they read its alt text instead.\",\"Describe each image in a few words, or give it an empty alt when it is decoration.\""
     );
 }
 

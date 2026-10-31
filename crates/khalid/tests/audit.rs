@@ -89,7 +89,7 @@ fn the_demo_site_scores_100_with_no_errors_and_only_known_warnings() {
     assert!(body["pages"].as_u64().unwrap() > 10, "{stdout}");
     assert_eq!(output.status.code(), Some(0));
     assert!(
-        file(site.path(), "issues.csv").starts_with("severity,category,check,url,detail,fix\n")
+        file(site.path(), "issues.csv").starts_with("severity,category,check,url,detail,why,fix\n")
     );
     let links = file(site.path(), "links.csv");
     assert!(
@@ -132,6 +132,7 @@ fn a_link_to_a_missing_page_fails_the_audit_and_says_how_to_fix_it() {
     let said = String::from_utf8_lossy(&output.stdout);
     assert_eq!(output.status.code(), Some(1), "{said}");
     assert!(said.contains("Page has links to broken page"), "{said}");
+    assert!(said.contains("A reader who follows the link lands on an error page"));
     assert!(said.contains("Change the link to a page that exists, or remove it."));
     let issues = file(site.path(), "issues.csv");
     assert!(

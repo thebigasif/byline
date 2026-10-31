@@ -139,7 +139,7 @@ async fn a_page_without_a_language_is_named() {
 }
 
 #[test]
-fn every_check_has_an_identity_a_group_a_name_and_a_fix() {
+fn every_check_has_an_identity_a_group_a_name_a_reason_and_a_fix() {
     let mut ids: Vec<&str> = Check::ALL.iter().map(|check| check.id()).collect();
     ids.sort_unstable();
     ids.dedup();
@@ -147,9 +147,11 @@ fn every_check_has_an_identity_a_group_a_name_and_a_fix() {
     for check in Check::ALL {
         assert_ne!(check.title(), "", "{check:?} has no name");
         assert_ne!(check.category().title(), "");
-        let fix = check.fix();
-        assert!(fix.ends_with('.'), "{check:?}: {fix}");
-        assert!(!fix.contains('\u{2014}'), "{check:?} has an em dash");
+        for said in [check.why(), check.fix()] {
+            assert!(said.ends_with('.'), "{check:?}: {said}");
+            assert!(!said.contains('\u{2014}'), "{check:?} has an em dash");
+        }
+        assert_ne!(check.why(), check.fix(), "{check:?}");
     }
     assert_eq!(Check::NoindexNofollow.severity(), Severity::Warning);
     assert_eq!(Severity::Notice.as_str(), "notice");
