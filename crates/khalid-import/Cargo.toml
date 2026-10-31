@@ -15,7 +15,7 @@ khalid-core.workspace = true
 khalid-content = { path = "../khalid-content", version = "0.0.0" }
 khalid-routes = { path = "../khalid-routes", version = "0.0.0" }
 htmd = "0.5"
-roxmltree = "0.20"
+roxmltree = "0.21"
 scraper = "0.29"
 serde.workspace = true
 serde_json.workspace = true
