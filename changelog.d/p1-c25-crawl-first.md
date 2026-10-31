@@ -1,0 +1,1 @@
+- **`khalid crawl first`.** While the visitor log is on, shows how long each new post waited for each checked crawler to fetch it (GEO C2).

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blocks in the editor · Khalid admin mockup</title>
+<style>
+/* Each mockup carries its own copy of the styles so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--radius:.375rem}
+body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.6 system-ui,sans-serif}
+main{max-width:68ch;margin:2rem auto;padding:0 1rem}
+h1{font-size:1.5rem;margin:0 0 1rem}
+.lede{color:var(--muted);margin:0 0 2rem}
+.text{line-height:1.7}
+.text p{margin:0 0 1rem}
+.card{display:flex;flex-wrap:wrap;gap:.25rem .75rem;align-items:baseline;margin:0 0 1rem;padding:.75rem 1rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.card.on{outline:2px solid var(--link);outline-offset:2px}
+.name{font-weight:600}
+.detail{color:var(--muted);overflow-wrap:anywhere}
+.source{flex-basis:100%;margin:0;font:inherit;font-family:ui-monospace,monospace;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<main>
+  <h1>Blocks in the editor</h1>
+  <p class="lede">A post with blocks now opens in the rich-text view. Each block shows as a card with its name and the one detail that tells it apart. The card in the outline is selected: it can be moved or deleted as one piece. Editing a block's details comes with the slash menu, in the next part.</p>
+  <div class="text">
+    <p>A topic cluster is a group of posts on one subject.</p>
+    <div class="card"><span class="name">Callout</span><span class="detail">tip</span></div>
+    <p>Plan it on one page, then write the short posts first.</p>
+    <div class="card on"><span class="name">Button</span><span class="detail">See prices</span></div>
+    <div class="card"><span class="name">Image with caption</span><span class="detail">A bakery shelf of sourdough loaves</span></div>
+    <div class="card"><span class="name">Table</span><pre class="source">| Block | Form |
+| --- | --- |
+| toc | leaf |</pre></div>
+    <div class="card"><span class="name">Table of contents</span></div>
+  </div>
+</main>
+</body>
+</html>

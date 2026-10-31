@@ -14,7 +14,10 @@ use khalid_api::api;
 use khalid_api::content_store::MemoryContentStore;
 use khalid_api::keys::MemoryKeyStore;
 use khalid_api::post_store::MemoryPostStore;
-use khalid_auth::{Accounts, MemoryAccounts, MemorySessions, PasswordHashing, staff_routes};
+use khalid_auth::{
+    Accounts, MemoryAccounts, MemorySessions, MemorySites, PasswordHashing, site_domain,
+    staff_routes, with_sites,
+};
 use khalid_core::FixedClock;
 
 /// The document the SDK is generated from, relative to the repository.
@@ -33,11 +36,16 @@ fn served() -> String {
         PasswordHashing::fast_for_tests(),
         Arc::new(FixedClock::new(at)),
     );
+    let sites = MemorySites::new(site_domain("example.com").unwrap(), Vec::new());
     let (_, document) = api::router_with_staff(
         Arc::new(MemoryContentStore::new(Vec::new())),
         Arc::new(MemoryPostStore::default()),
         Arc::new(MemoryKeyStore::new(Vec::new())),
-        staff_routes(accounts.clone()),
+        with_sites(
+            staff_routes(accounts.clone()),
+            accounts.clone(),
+            Arc::new(sites),
+        ),
         Arc::new(accounts),
     );
     let mut json = serde_json::to_string_pretty(&document).unwrap();

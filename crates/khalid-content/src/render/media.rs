@@ -1,7 +1,10 @@
-//! The HTML of the media blocks: video, audio, file download and gallery.
+//! The HTML of the media blocks: video, audio, file download, gallery and
+//! embed.
+
+use khalid_core::AbsoluteUrl;
 
 use super::{Image, Link, Renderer, attribute};
-use crate::{GalleryImage, StructuredBlock, VideoBlock};
+use crate::{GalleryImage, StructuredBlock, VideoBlock, embed};
 
 impl Renderer<'_> {
     /// Writes a video with controls that loads nothing until played, its
@@ -80,5 +83,41 @@ impl Renderer<'_> {
             });
         }
         self.html.push_str("</div>\n");
+    }
+
+    /// Writes an embed: an allowed provider's player in a lazy, sandboxed
+    /// frame of fixed size with the page's link under it, or the link alone.
+    pub(super) fn embed(&mut self, src: &AbsoluteUrl, title: &str) {
+        self.link_out(src, title);
+        let link = [
+            "<a href=\"",
+            &attribute(src.as_str()),
+            "\">",
+            &attribute(title),
+            "</a>",
+        ]
+        .concat();
+        let Some((provider, player)) = embed::player(src) else {
+            self.push(&["<p class=\"bookmark\">", &link, "</p>\n"]);
+            return;
+        };
+        let (shape, height) = if provider.is_audio() {
+            ("audio", "152")
+        } else {
+            ("wide", "315")
+        };
+        self.push(&[
+            "<figure class=\"embed embed-",
+            shape,
+            "\">\n<iframe src=\"",
+            &attribute(&player),
+            "\" title=\"",
+            &attribute(title),
+            "\" width=\"560\" height=\"",
+            height,
+            "\" loading=\"lazy\" referrerpolicy=\"strict-origin-when-cross-origin\" sandbox=\"allow-scripts allow-same-origin allow-popups allow-presentation\" allow=\"encrypted-media; fullscreen; picture-in-picture\"></iframe>\n<figcaption>",
+            &link,
+            "</figcaption>\n</figure>\n",
+        ]);
     }
 }

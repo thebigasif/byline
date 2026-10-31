@@ -15,7 +15,7 @@ use semver::Version;
 use serde::Serialize;
 use tempfile::NamedTempFile;
 
-use crate::cli::{Cli, Output, UpdateTarget};
+use crate::cli::{Cli, Output};
 use crate::exit::Exit;
 use crate::update_release::{self, Release};
 use crate::{outbound, report, update_message};
@@ -50,6 +50,15 @@ struct UpdateBody {
     binary: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     kept: Option<String>,
+}
+
+/// Which version `khalid update` installs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UpdateTarget {
+    /// The newest release.
+    Latest,
+    /// The version before the last update.
+    Previous,
 }
 
 /// Runs `khalid update`, to the newest release or back to the kept version.

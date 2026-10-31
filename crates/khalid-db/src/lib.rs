@@ -18,18 +18,25 @@
 //! [`CommentTable`] that `khalid-comments` moderates through, and the staff
 //! accounts, as the [`AccountTable`], [`SessionTable`], [`LinkTable`] and
 //! [`PasskeyTable`] that `khalid-auth` signs people in with, and the
-//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into.
+//! analytics, as the [`AnalyticsTable`] `khalid serve` counts into, the
+//! visitor log, as the [`VisitorLogTable`] it writes while switched on, the
+//! speed and uptime watch's looks, as the [`WatchTable`], and the audit
+//! log, as the [`AuditTable`] the Admin API records each change in.
 
 mod account_table;
 mod alert_table;
 mod analytics_table;
+mod audit_table;
 mod comment_table;
 mod content_index;
 mod database;
 mod db_error;
 mod delivery_log;
+mod draft_comment_table;
+mod form_table;
 mod key_table;
 mod link_table;
+mod newsletter_sends;
 mod not_found_table;
 mod passkey_table;
 mod posts;
@@ -43,17 +50,23 @@ mod site_export;
 mod site_id;
 mod site_keys;
 mod site_lists;
+mod subscriber_segments;
 mod subscriber_table;
+mod visitor_log_table;
+mod watch_table;
 mod webhook_table;
 
 pub use account_table::AccountTable;
 pub use alert_table::AlertTable;
 pub use analytics_table::AnalyticsTable;
+pub use audit_table::AuditTable;
 pub use comment_table::CommentTable;
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;
 pub use db_error::DbError;
 pub use delivery_log::DeliveryLog;
+pub use draft_comment_table::DraftCommentTable;
+pub use form_table::FormTable;
 pub use key_table::KeyTable;
 pub use link_table::LinkTable;
 pub use not_found_table::NotFoundTable;
@@ -67,4 +80,6 @@ pub use session_table::SessionTable;
 pub use site_export::{Cell, ExportTable, SiteExport, is_withheld_column};
 pub use site_id::SiteId;
 pub use subscriber_table::SubscriberTable;
+pub use visitor_log_table::VisitorLogTable;
+pub use watch_table::WatchTable;
 pub use webhook_table::WebhookTable;

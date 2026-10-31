@@ -44,6 +44,9 @@ pub struct Thresholds {
     /// How many months a post may go without a review before it comes up
     /// again (F3, decision D4). Default 6.
     pub review_months: u32,
+    /// How many months a fact in `facts.toml` may go unchecked. Default 6,
+    /// the review cadence of decision D4.
+    pub fact_check_months: u32,
     /// How much text, in percent, two posts may share before they count as
     /// near copies, measured on runs of five words. Default 50: above that,
     /// the posts read as one text with small edits.
@@ -96,6 +99,7 @@ impl Default for Thresholds {
             max_clicks: 3,
             stale_months: 12,
             review_months: 6,
+            fact_check_months: 6,
             near_duplicate_percent: 50,
             max_links: 100,
             hard_reading_index: 60,

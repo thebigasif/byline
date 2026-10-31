@@ -1,0 +1,33 @@
+# Today is 2026-10-26 and a fact is checked every six months. The price was
+# last checked in March, so the post that gives it is flagged. The founding
+# year was checked in June. The team size is old too, but no post uses it.
+[[facts]]
+key = "pro-plan-price"
+value = "29 USD a month"
+checked = "2026-03-01"
+
+[[facts]]
+key = "founded"
+value = "2019"
+checked = "2026-06-01"
+
+[[facts]]
+key = "team-size"
+value = "40 people"
+checked = "2025-01-01"
+
+[[posts]]
+locale = "en"
+slug = "pricing-explained"
+date = "2026-10-01"
+body_text = "The Pro plan costs 29 USD a month."
+
+[[posts]]
+locale = "en"
+slug = "our-story"
+date = "2026-10-01"
+body_text = "We started the company in 2019."
+
+[[pages]]
+locale = "en"
+slug = "about"

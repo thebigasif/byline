@@ -43,7 +43,16 @@ fn the_first_pages_are_the_full_renders_home_pages_and_stylesheet() {
     let first = source.render_first(&content).unwrap();
     let all = source.render_all().unwrap().pages;
     let paths: Vec<&str> = first.iter().map(|page| page.path().as_str()).collect();
-    assert_eq!(paths.len(), 3, "{paths:?}");
+    assert_eq!(
+        paths.len(),
+        4,
+        "the stylesheet, the script, two homes: {paths:?}"
+    );
+    assert!(
+        paths
+            .iter()
+            .any(|path| path.starts_with("/blog/assets/reader."))
+    );
     assert!(paths.contains(&"/blog/"), "{paths:?}");
     assert!(paths.contains(&"/blog/de/"), "{paths:?}");
     for page in &first {

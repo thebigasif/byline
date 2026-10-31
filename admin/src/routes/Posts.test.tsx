@@ -89,7 +89,7 @@ describe("the posts screen", () => {
     expect(stuck).toHaveTextContent(en.posts.noAuthor);
     const link = within(table).getByRole("link", { name: ROWS[1]?.title ?? "" });
     expect(link).toHaveAttribute("href", "/admin/posts/01JB");
-    expect(screen.getByRole("status")).toHaveTextContent(en.posts.found(2));
+    expect(screen.getByText(en.posts.found(2))).toHaveAttribute("role", "status");
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(queries[0]?.get("order")).toBe("updated_at desc");
     expect(queries[0]?.get("filter")).toBeNull();

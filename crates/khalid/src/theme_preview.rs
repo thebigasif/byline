@@ -188,6 +188,7 @@ fn sample_site(source: Source<'_>) -> RenderSite {
             }],
             footer: Vec::new(),
         },
+        announcement: None,
         main_site: Some(NavLink {
             label: format!("Back to {host}"),
             href: source.url.to_string(),
@@ -226,6 +227,7 @@ fn sample_post(author: &str, locale: &Locale) -> RenderPost {
         contents: None,
         originals: BTreeMap::new(),
         related: Vec::new(),
+        mentions: Vec::new(),
         comments: None,
         body,
     }

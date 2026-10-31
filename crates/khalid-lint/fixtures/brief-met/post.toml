@@ -1,0 +1,8 @@
+# A post that meets its whole brief: the question is a heading, the term is
+# in a heading, and the page is linked. Blank entries are skipped.
+extends = "clean"
+
+[brief]
+questions = ["What internal links are", " "]
+terms = ["Internal links", "what internal links are"]
+links = ["/blog/choosing-link-text/", ""]

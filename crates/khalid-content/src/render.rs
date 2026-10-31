@@ -12,8 +12,8 @@ use comrak::{Arena, Options, format_html_with_plugins, parse_document};
 use khalid_core::{AbsoluteUrl, Locale, Slug, SlugMode};
 
 use crate::{
-    Block, BlockError, BlockKind, CalloutKind, StructuredBlock, Wikilinks, embed, maths,
-    parse_blocks, wikilink,
+    Block, BlockError, BlockKind, CalloutKind, StructuredBlock, Wikilinks, maths, parse_blocks,
+    wikilink,
 };
 
 mod cards;
@@ -277,7 +277,11 @@ impl Renderer<'_> {
             BlockKind::Business(card) => self.business(card),
             BlockKind::SafeHtml { show } => self.safe_html(block, *show),
             BlockKind::Form { id, button, fields } => self.form(id, button, fields),
-            BlockKind::Newsletter { label, button } => self.subscribe(label, button, None),
+            BlockKind::Newsletter {
+                label,
+                button,
+                list,
+            } => self.subscribe((label, button), list.as_ref(), None),
             BlockKind::Gated {
                 note,
                 label,
@@ -353,42 +357,6 @@ impl Renderer<'_> {
             ]);
         }
         self.html.push_str("</a></p>\n");
-    }
-
-    /// Writes an embed: an allowed provider's player in a lazy, sandboxed
-    /// frame of fixed size with the page's link under it, or the link alone.
-    fn embed(&mut self, src: &AbsoluteUrl, title: &str) {
-        self.link_out(src, title);
-        let link = [
-            "<a href=\"",
-            &attribute(src.as_str()),
-            "\">",
-            &attribute(title),
-            "</a>",
-        ]
-        .concat();
-        let Some((provider, player)) = embed::player(src) else {
-            self.push(&["<p class=\"bookmark\">", &link, "</p>\n"]);
-            return;
-        };
-        let (shape, height) = if provider.is_audio() {
-            ("audio", "152")
-        } else {
-            ("wide", "315")
-        };
-        self.push(&[
-            "<figure class=\"embed embed-",
-            shape,
-            "\">\n<iframe src=\"",
-            &attribute(&player),
-            "\" title=\"",
-            &attribute(title),
-            "\" width=\"560\" height=\"",
-            height,
-            "\" loading=\"lazy\" referrerpolicy=\"strict-origin-when-cross-origin\" sandbox=\"allow-scripts allow-same-origin allow-popups allow-presentation\" allow=\"encrypted-media; fullscreen; picture-in-picture\"></iframe>\n<figcaption>",
-            &link,
-            "</figcaption>\n</figure>\n",
-        ]);
     }
 
     /// Records a link to another site.

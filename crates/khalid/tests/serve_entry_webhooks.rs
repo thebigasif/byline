@@ -1,8 +1,9 @@
 //! Saving the file of a page, glossary term, case study or changelog entry
 //! on a running `khalid serve` fires its `.published`, `.published.edited`
 //! and `.deleted` webhooks to a stand-in receiver on loopback, signed with
-//! each webhook's secret, and a post that names a tag new to the site fires
-//! `tag.added` (audit brief G25, KH-API-3).
+//! each webhook's secret, moving one to `drafts/` fires `.unpublished`, a
+//! saved `site.toml` fires `site.changed`, and a post that names a tag new
+//! to the site fires `tag.added` (audit brief G25, KH-API-3).
 
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -26,6 +27,19 @@ const HOSTS: &str = "hooks.test=127.0.0.1";
 /// debug build renders the demo site slowly, so the wait is generous; a
 /// delivery that arrives ends it at once.
 const DEADLINE: Duration = Duration::from_secs(120);
+
+/// A page no demo post links to, so the site renders with or without it.
+const PAGE: &str = "---\ntitle: Contact Field Notes\nslug: contact\n---\n\nWrite to us.\n";
+
+/// A glossary term no demo post links to.
+const TERM: &str =
+    "---\nterm: Crawl budget\nslug: crawl-budget\n---\n\nHow many pages a crawler reads.\n";
+
+/// A case study no demo post links to.
+const STUDY: &str = "---\ntitle: How a cafe got found\nslug: harbour-cafe\ndate: 2026-10-21\n---\n\nIt listed its menu.\n";
+
+/// A changelog entry no demo post links to.
+const CHANGELOG: &str = "---\ntitle: What changed in November\ndate: 2026-11-02\nversion: 2026.11\n---\n\n- Added a contact page.\n";
 
 /// A running `khalid serve`, stopped when dropped.
 struct Server(Child);
@@ -160,8 +174,7 @@ async fn a_saved_page_fires_page_published_edited_and_deleted() {
         Event::PagePublishedEdited,
         Event::PageDeleted,
     ];
-    let text = "---\ntitle: Contact Field Notes\nslug: contact\n---\n\nWrite to us.\n";
-    let file = ("content/en/pages/contact.md", text);
+    let file = ("content/en/pages/contact.md", PAGE);
     add_change_remove(events, file, ("page", "en.contact")).await;
 }
 
@@ -172,9 +185,7 @@ async fn a_saved_glossary_term_fires_its_three_events() {
         Event::GlossaryTermPublishedEdited,
         Event::GlossaryTermDeleted,
     ];
-    let text =
-        "---\nterm: Crawl budget\nslug: crawl-budget\n---\n\nHow many pages a crawler reads.\n";
-    let file = ("content/en/glossary/crawl-budget.md", text);
+    let file = ("content/en/glossary/crawl-budget.md", TERM);
     add_change_remove(events, file, ("glossary_term", "en.crawl-budget")).await;
 }
 
@@ -185,8 +196,7 @@ async fn a_saved_case_study_fires_its_three_events() {
         Event::CaseStudyPublishedEdited,
         Event::CaseStudyDeleted,
     ];
-    let text = "---\ntitle: How a cafe got found\nslug: harbour-cafe\ndate: 2026-10-21\n---\n\nIt listed its menu.\n";
-    let file = ("content/en/case-studies/harbour-cafe.md", text);
+    let file = ("content/en/case-studies/harbour-cafe.md", STUDY);
     add_change_remove(events, file, ("case_study", "en.harbour-cafe")).await;
 }
 
@@ -197,9 +207,102 @@ async fn a_saved_changelog_entry_fires_its_three_events() {
         Event::ChangelogEntryPublishedEdited,
         Event::ChangelogEntryDeleted,
     ];
-    let text = "---\ntitle: What changed in November\ndate: 2026-11-02\nversion: 2026.11\n---\n\n- Added a contact page.\n";
-    let file = ("content/en/changelog/2026-11.md", text);
+    let file = ("content/en/changelog/2026-11.md", CHANGELOG);
     add_change_remove(events, file, ("changelog_entry", "en.2026-11")).await;
+}
+
+/// Writes `text` as a new draft at `drafts/<name>`, moves it to the same
+/// place under `content/`, then back, and checks `published` fires, then
+/// `unpublished`, with the entry under `key`, named `id`, and that nothing
+/// is deleted.
+#[cfg(test)]
+async fn publish_and_unpublish(
+    [published, unpublished, deleted]: [Event; 3],
+    (name, text): (&str, &str),
+    (key, id): (&str, &str),
+) {
+    let events = [published, unpublished, deleted];
+    let (receiver, site, _server, secrets) = serving(&events).await;
+    let mut draft = site.path().to_path_buf();
+    draft.push(format!("drafts/{name}"));
+    fs::create_dir_all(draft.parent().unwrap()).unwrap();
+    fs::write(&draft, text).unwrap();
+    let mut live = site.path().to_path_buf();
+    live.push(format!("content/{name}"));
+    fs::rename(&draft, &live).unwrap();
+    let body = the_delivery(&receiver, published, &secrets[0]).await;
+    assert_eq!(body[key]["id"], id, "{body}");
+
+    fs::rename(&live, &draft).unwrap();
+    let body = the_delivery(&receiver, unpublished, &secrets[1]).await;
+    assert_eq!(body[key]["id"], id, "the entry as it was: {body}");
+    assert_eq!(body[key]["file"], format!("content/{name}"), "{body}");
+    let all = receiver.received_requests().await.unwrap();
+    let paths: Vec<&str> = all.iter().map(|r| r.url.path()).collect();
+    assert_eq!(paths.len(), 2, "nothing was deleted: {paths:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_page_moved_to_drafts_fires_page_unpublished() {
+    let events = [
+        Event::PagePublished,
+        Event::PageUnpublished,
+        Event::PageDeleted,
+    ];
+    let file = ("en/pages/contact.md", PAGE);
+    publish_and_unpublish(events, file, ("page", "en.contact")).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_glossary_term_moved_to_drafts_fires_glossary_term_unpublished() {
+    let events = [
+        Event::GlossaryTermPublished,
+        Event::GlossaryTermUnpublished,
+        Event::GlossaryTermDeleted,
+    ];
+    let file = ("en/glossary/crawl-budget.md", TERM);
+    publish_and_unpublish(events, file, ("glossary_term", "en.crawl-budget")).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_case_study_moved_to_drafts_fires_case_study_unpublished() {
+    let events = [
+        Event::CaseStudyPublished,
+        Event::CaseStudyUnpublished,
+        Event::CaseStudyDeleted,
+    ];
+    let file = ("en/case-studies/harbour-cafe.md", STUDY);
+    publish_and_unpublish(events, file, ("case_study", "en.harbour-cafe")).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_changelog_entry_moved_to_drafts_fires_changelog_entry_unpublished() {
+    let events = [
+        Event::ChangelogEntryPublished,
+        Event::ChangelogEntryUnpublished,
+        Event::ChangelogEntryDeleted,
+    ];
+    let file = ("en/changelog/2026-11.md", CHANGELOG);
+    publish_and_unpublish(events, file, ("changelog_entry", "en.2026-11")).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_saved_site_toml_fires_site_changed_naming_the_settings_only() {
+    let (receiver, site, _server, secrets) = serving(&[Event::SiteChanged]).await;
+    let mut file = site.path().to_path_buf();
+    file.push("site.toml");
+    let text = fs::read_to_string(&file).unwrap();
+    let old = "name = \"Field Notes on SEO\"\n";
+    assert!(text.contains(old), "{text}");
+    let renamed = text.replacen(old, "name = \"Field Notes Weekly\"\n", 1);
+    fs::write(&file, renamed).unwrap();
+
+    let body = the_delivery(&receiver, Event::SiteChanged, &secrets[0]).await;
+    let settings = &body["settings"];
+    assert_eq!(settings["file"], "site.toml", "{body}");
+    assert_eq!(settings["changed"], serde_json::json!(["name"]), "{body}");
+    assert_eq!(settings["restart_needed"], true, "{body}");
+    assert!(!body.to_string().contains("Weekly"), "no value: {body}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

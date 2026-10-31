@@ -1,7 +1,10 @@
 //! Blocks that post to the server: forms, newsletter sign-ups and gated
 //! content.
 
+use khalid_core::Slug;
+
 use super::Attributes;
+
 use crate::{BlockError, BlockKind, FieldKind, FormField};
 
 /// The field name the spam trap uses, so no writer's field may take it.
@@ -93,8 +96,22 @@ pub(super) fn subscribe(name: &str, attributes: &Attributes) -> Result<BlockKind
             )?,
         });
     }
-    attributes.only("newsletter", &["label", "button"], "label and button")?;
+    attributes.only(
+        "newsletter",
+        &["label", "button", "list"],
+        "label, button and list",
+    )?;
+    let list = attributes.parsed(
+        "list",
+        |text| {
+            Slug::try_new(text)
+                .ok()
+                .filter(|slug| slug.as_str() == text)
+        },
+        "list is the newsletter's name in lowercase letters, digits and hyphens, such as weekly",
+    )?;
     Ok(BlockKind::Newsletter {
+        list,
         label: attributes.need(
             "label",
             "a newsletter needs label, the words beside the email field",

@@ -1,0 +1,1 @@
+- The linter warns when link words share no word with the title of the post they open (`link-text-misses-target`), and when a post links to another page with its own focus keyword (`link-text-is-own-focus`). Both are warnings and can be tuned in `lint.toml`.

@@ -1,36 +1,8 @@
 //! The group a view is counted under, from the `Referer` header and the
 //! `utm_source` a link carries.
 
-/// The sites whose readers count as AI search: `chatgpt.com`,
-/// Perplexity, Gemini, Copilot and Claude, then a few more assistants. A host matches
-/// a site or any address under it.
-const AI_SITES: &[&str] = &[
-    "chatgpt.com",
-    "chat.openai.com",
-    "perplexity.ai",
-    "gemini.google.com",
-    "bard.google.com",
-    "copilot.microsoft.com",
-    "copilot.cloud.microsoft",
-    "claude.ai",
-    "chat.deepseek.com",
-    "chat.mistral.ai",
-    "meta.ai",
-    "grok.com",
-    "you.com",
-    "phind.com",
-];
-
-/// The `utm_source` names assistants put on their links, besides the
-/// sites in [`AI_SITES`].
-const AI_NAMES: &[&str] = &[
-    "chatgpt",
-    "openai",
-    "perplexity",
-    "gemini",
-    "copilot",
-    "claude",
-];
+use crate::AiTool;
+use crate::ai_tool::is_under;
 
 /// Search engines by the name in their address, so every country's
 /// `google.co.uk` or `bing.de` counts.
@@ -88,29 +60,19 @@ pub enum ReferrerGroup {
     Search,
     /// A social site or link aggregator.
     Social,
-    /// An AI assistant: `chatgpt.com`, Perplexity, Gemini, Copilot, Claude
-    /// and others.
-    Ai,
+    /// AI search: an assistant such as `ChatGPT`, Perplexity, Gemini,
+    /// Copilot or Claude, named.
+    Ai(AiTool),
     /// Any other site.
     Other,
 }
 
 impl ReferrerGroup {
-    /// Every group, in the order a report lists them.
-    pub const ALL: [Self; 6] = [
-        Self::Direct,
-        Self::Internal,
-        Self::Search,
-        Self::Social,
-        Self::Ai,
-        Self::Other,
-    ];
-
     /// The group of a view with `referer`, the `Referer` header as sent, on
     /// the site at `own_host`, from a link that carried `utm_source`.
     pub fn of(referer: Option<&str>, own_host: Option<&str>, utm_source: Option<&str>) -> Self {
-        if utm_source.is_some_and(is_ai_source) {
-            return Self::Ai;
+        if let Some(tool) = utm_source.and_then(|source| AiTool::of_source(&bare_host(source))) {
+            return Self::Ai(tool);
         }
         let referer = referer.map(str::trim).unwrap_or_default();
         if referer.is_empty() {
@@ -128,8 +90,8 @@ impl ReferrerGroup {
         }
         if own_host.map(bare_host).is_some_and(|own| own == host) {
             Self::Internal
-        } else if under_any(&host, AI_SITES) {
-            Self::Ai
+        } else if let Some(tool) = AiTool::of_host(&host) {
+            Self::Ai(tool)
         } else if is_search(&host) {
             Self::Search
         } else if under_any(&host, SOCIAL_SITES) {
@@ -139,29 +101,36 @@ impl ReferrerGroup {
         }
     }
 
-    /// The name stored in `analytics_counts.referrer_group`.
+    /// The name stored in `analytics_counts.referrer_group`. AI search is
+    /// stored with its tool, as in `ai:chatgpt`.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Direct => "direct",
             Self::Internal => "internal",
             Self::Search => "search",
             Self::Social => "social",
-            Self::Ai => "ai",
+            Self::Ai(tool) => tool.stored(),
             Self::Other => "other",
         }
     }
 
     /// The group stored as `name`, or `None` for a name this version does
-    /// not know.
+    /// not know. Plain `ai`, stored before tools were named, reads as
+    /// [`AiTool::Unnamed`].
     pub fn from_stored(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|group| group.as_str() == name)
+        let plain = [
+            Self::Direct,
+            Self::Internal,
+            Self::Search,
+            Self::Social,
+            Self::Other,
+        ];
+        let tools = AiTool::ALL.into_iter().map(Self::Ai);
+        plain
+            .into_iter()
+            .chain(tools)
+            .find(|group| group.as_str() == name)
     }
-}
-
-/// Whether a `utm_source` names an AI assistant.
-fn is_ai_source(source: &str) -> bool {
-    let source = bare_host(source);
-    AI_NAMES.contains(&source.as_str()) || under_any(&source, AI_SITES)
 }
 
 /// The scheme and the bare host of an absolute address, or `None` when it
@@ -190,10 +159,7 @@ fn bare_host(host: &str) -> String {
 
 /// Whether `host` is one of `sites` or an address under one.
 fn under_any(host: &str, sites: &[&str]) -> bool {
-    sites.iter().any(|site| {
-        host.strip_suffix(site)
-            .is_some_and(|rest| rest.is_empty() || rest.ends_with('.'))
-    })
+    sites.iter().any(|site| is_under(host, site))
 }
 
 /// Whether `host` is a search engine: one of [`SEARCH_SITES`], or a

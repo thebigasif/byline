@@ -15,17 +15,19 @@ test-util = []
 [dependencies]
 ammonia = "4"
 argon2 = "0.6"
-axum = { version = "0.8", default-features = false, features = ["json", "original-uri", "query"] }
+axum = { version = "0.8", default-features = false, features = ["json", "matched-path", "original-uri", "query", "tokio"] }
 chrono = { version = "0.4", default-features = false, features = ["alloc", "serde"] }
 getrandom = "0.4"
 hmac = "0.13"
 htmd = "0.5"
+khalid-analytics = { path = "../khalid-analytics", version = "0.0.0" }
 khalid-core.workspace = true
 khalid-lint.workspace = true
 khalid-media = { path = "../khalid-media", version = "0.0.0" }
 khalid-seo = { path = "../khalid-seo", version = "0.0.0" }
 khalid-webhooks = { path = "../khalid-webhooks", version = "0.0.0" }
 serde.workspace = true
+serde_json.workspace = true
 sha2 = "0.11"
 subtle = "2"
 thiserror.workspace = true
@@ -38,7 +40,6 @@ utoipa-axum = "0.3"
 khalid-api = { path = ".", version = "0.0.0", features = ["test-util"] }
 khalid-core = { workspace = true, features = ["test-util"] }
 proptest = "1"
-serde_json.workspace = true
 tempfile = "3"
 tokio.workspace = true
 tower = { version = "0.5", features = ["util"] }

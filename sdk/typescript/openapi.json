@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Khalid API",
-    "description": "The Content API and the Admin API of a Khalid blog.",
+    "description": "The Content API and the Admin API of a Khalid blog. Each key, and each address that sends wrong keys, has a limit a minute; past it the answer is 429 with Retry-After.",
     "license": {
       "name": "AGPL-3.0-only",
       "identifier": "AGPL-3.0-only"
@@ -10,6 +10,1140 @@
     "version": "0.0.0"
   },
   "paths": {
+    "/api/admin/v1/analytics/ai-visitors/": {
+      "get": {
+        "tags": [
+          "admin analytics"
+        ],
+        "summary": "Lists how many readers each AI assistant sent in the last `days` days,\nagainst the days before, with the pages they landed on. Needs\n`settings:write`.",
+        "operationId": "ai_visitors",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "path",
+            "description": "From 1 to 366; 28 when left out.",
+            "required": true,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The readers per assistant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAiVisitors"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The days are not from 1 to 366",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/audit/": {
+      "get": {
+        "tags": [
+          "admin audit"
+        ],
+        "summary": "Lists who changed what through the Admin API and when, newest first:\nevery write that succeeded, to content, settings or staff accounts.\nNeeds `admin:all`.",
+        "operationId": "list_changes",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Only changes older than this one, by its `id`: the `next` of the\npage before. Left out, the list starts at the newest.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "From 1 to 100; 50 when left out.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChanges"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The limit is not from 1 to 100, or before is not a number",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks admin:all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/authors/": {
+      "get": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Lists every author in every language. A site has tens, so the list\ncomes whole. Needs `posts:write`.",
+        "operationId": "list_authors",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every author",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuthors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Creates an author in the language it names or the site's default.\nNeeds `posts:publish`.",
+        "operationId": "create_author",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewAuthors"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new author",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuthors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another author in that language has the slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the name is empty, or the site has no such language",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/authors/{id}/": {
+      "get": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Reads one author. Needs `posts:write`.",
+        "operationId": "read_admin_author",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.asif",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The author",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuthors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No author has this identity, or this server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Edits one author: only the fields sent change, and every post that\nnames them shows the change. The edit carries the `updated_at` of the\ncopy it was made on; when the author changed since, the answer is a\n409 (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "edit_author",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.asif",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The author as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAuthors"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No author has this identity, or this server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The author changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the name is empty",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin authors"
+        ],
+        "summary": "Deletes one author. A post that still names them loses its byline.\nThe request names the `updated_at` of the copy it was made on; when the\nauthor changed since, the answer is a 409. Needs `posts:publish`.",
+        "operationId": "delete_author",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.asif",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "updated_at",
+            "in": "query",
+            "description": "The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The author is gone"
+          },
+          "400": {
+            "description": "updated_at is missing or is not a time",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No author has this identity, or this server keeps no authors",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The author changed after the copy the delete was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/calendar/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Lists drafts, scheduled posts and published posts by day from `from`\nto `to`, at most 92 days, for the admin's calendar. Drafts with no date\nand no schedule come under `undated`. To move a post to another day,\nedit it: a new `date` for a draft, or `scheduled` with a new\n`published_at`. Needs `posts:write`.",
+        "operationId": "read_calendar",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "The first day, as `YYYY-MM-DD`.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-11-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "The last day, as `YYYY-MM-DD`, at most 92 days after `from`.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-11-30"
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The posts by day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "from or to is missing or not a date, from is after to, or they are more than 92 days apart",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/categories/": {
+      "get": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Lists every category with its names and how many posts are in it. A\nsite has tens, so the list comes whole. Needs `posts:write`.",
+        "operationId": "list_categories",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Creates a category, named in one or more of the site's languages.\nNeeds `posts:publish`.",
+        "operationId": "create_category",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewCategories"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another category has the slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a name is missing, empty or not in one of the site's languages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/categories/{id}/": {
+      "get": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Reads one category. Needs `posts:write`.",
+        "operationId": "read_admin_category",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The slug, such as on-page-seo",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No category has this identity, or this server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Renames one category: the names sent replace all of its names, and\nevery post in it shows them. The edit carries the `updated_at` of the\ncopy it was made on; when the category changed since, the answer is a\n409 (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "edit_category",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The slug, such as on-page-seo",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The category as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No category has this identity, or this server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The categories changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a name is missing, empty or not in one of the site's languages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Deletes one category no post is in. The request names the `updated_at`\nof the copy it was made on; when the categories changed since, or posts\nare still in it, the answer is a 409. Needs `posts:publish`.",
+        "operationId": "delete_category",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The slug, such as on-page-seo",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "updated_at",
+            "in": "query",
+            "description": "The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The category is gone"
+          },
+          "400": {
+            "description": "updated_at is missing or is not a time",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No category has this identity, or this server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The categories changed after the copy the delete was made on, or posts are still in the category",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/comments/": {
       "get": {
         "tags": [
@@ -325,6 +1459,217 @@
           },
           "422": {
             "description": "The body could not be read, or its name or text cannot be kept",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/keys/": {
+      "get": {
+        "tags": [
+          "admin keys"
+        ],
+        "summary": "Lists every key that works, oldest first, with what each may do and\nnever its secret. Needs `admin:all`.",
+        "operationId": "list_keys",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every key that works",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKeys"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks admin:all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin keys"
+        ],
+        "summary": "Makes a content key or an integration key with the scopes it names.\nThe answer shows the key this once; keep it, because only its hash is\nstored (RULES.md BL-SEC-3). Needs `admin:all`.",
+        "operationId": "create_key",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewKeys"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new key, with the key itself this once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKeys"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks admin:all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the name is empty, or the scopes do not fit the kind",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/keys/{id}/": {
+      "delete": {
+        "tags": [
+          "admin keys"
+        ],
+        "summary": "Revokes a key, so it stops working at once and its identity is never\nused again. The key making the request is kept, so nobody locks\nthemselves out. Needs `admin:all`.",
+        "operationId": "revoke_key",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The key's identity, such as 1111222233334444",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The key no longer works"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks admin:all",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No working key has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "This is the key making the request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -938,6 +2283,444 @@
         ]
       }
     },
+    "/api/admin/v1/pages/": {
+      "get": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Lists every page in every language, ordered by language and slug. A\nsite has tens of pages, so the list comes whole. Needs `posts:write`.",
+        "operationId": "list_pages",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Creates a page, live at once, in the language it names or the site's\ndefault. Needs `posts:publish`.",
+        "operationId": "create_page",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewPages"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another page in that language has the slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the title is empty, or the site has no such language",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/pages/{id}/": {
+      "get": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Reads one page. Needs `posts:write`.",
+        "operationId": "read_admin_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.about",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No page has this identity, or this server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Edits one page: only the fields sent change. The edit carries the\n`updated_at` of the copy it was made on; when the page changed since,\nthe answer is a 409 (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "edit_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.about",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The page as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No page has this identity, or this server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The page changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the title is empty",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin pages"
+        ],
+        "summary": "Deletes one page. The request names the `updated_at` of the copy it\nwas made on; when the page changed since, the answer is a 409 (RULES.md\nBL-API-7). Needs `posts:publish`.",
+        "operationId": "delete_page",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.about",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "updated_at",
+            "in": "query",
+            "description": "The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The page is gone"
+          },
+          "400": {
+            "description": "updated_at is missing or is not a time",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No page has this identity, or this server keeps no pages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The page changed after the copy the delete was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/posts/": {
       "get": {
         "tags": [
@@ -1044,7 +2827,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Creates a draft post from markdown, or from HTML with `source=html`. A\nretry with the same `Idempotency-Key` returns the post the first\nrequest made, so it never makes two (RULES.md BL-API-7). Needs\n`posts:write`.",
+        "summary": "Creates a draft post from markdown, or from HTML with `source=html`,\nand answers with what the linter finds in it as it would go live and\nwhere it opens in the admin (KH-API-6). A retry with the same\n`Idempotency-Key` returns the post the first request made, so it never\nmakes two (RULES.md BL-API-7). Needs `posts:write`.",
         "operationId": "create_admin_post",
         "parameters": [
           {
@@ -1095,11 +2878,11 @@
         },
         "responses": {
           "201": {
-            "description": "The new draft",
+            "description": "The new draft, its lint findings and its admin path",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminPosts"
+                  "$ref": "#/components/schemas/CreatedPosts"
                 }
               }
             }
@@ -1241,7 +3024,7 @@
         "tags": [
           "admin posts"
         ],
-        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled. A change to head code needs an owner, an\nadmin or `admin:all`.",
+        "summary": "Edits one post, and publishes it with `\"status\": \"published\"` once\nthe linter lets it through, or with `\"status\": \"scheduled\"` and a\nfuture `published_at` at that time. The edit carries the `updated_at` of the copy it was\nmade on; when the post changed since, the answer is a 409 naming who\nchanged it and when (RULES.md BL-API-7). Needs `posts:write`, and\n`posts:publish` to publish, schedule or take down a post, or to edit one\nthat is live or scheduled. Without `posts:publish`, an edit may move a\ndraft between `draft` and `in_review` but never leave it `ready`. A\nchange to head code needs an owner, an admin or `admin:all`.",
         "operationId": "edit_admin_post",
         "parameters": [
           {
@@ -1295,7 +3078,7 @@
             }
           },
           "403": {
-            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, or changes head code without being an owner or admin",
+            "description": "The key lacks posts:write, or posts:publish for an edit that publishes, schedules, takes down or changes a live post, leaves a post ready without posts:publish, or changes head code without being an owner or admin",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1360,7 +3143,7 @@
           {
             "name": "updated_at",
             "in": "query",
-            "description": "The post's `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
+            "description": "The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
             "required": true,
             "schema": {
               "type": "string"
@@ -1422,6 +3205,351 @@
           },
           "409": {
             "description": "The post changed after the copy the delete was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/posts/{id}/check/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Checks one post as it would go live now, saving nothing: every lint\nfinding with the score out of 100, the search result its page would\nmake, and the JSON-LD the page would carry. A draft is checked as if\npublished today. Needs `posts:write`.",
+        "operationId": "check_post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The post's check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChecks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity, or this server checks no posts",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/posts/{id}/draft-comments/": {
+      "get": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Lists every comment on a post, oldest first, each reply after the\ncomment it answers. Needs `posts:write`.",
+        "operationId": "list_draft_comments",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The comments, oldest first, replies after their thread's first comment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftCommentList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Adds a comment to a post, about one block or the whole post, or as a\nreply in a thread, and tells the people in the thread and the site's\neditors. Needs `posts:write`.",
+        "operationId": "add_draft_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewDraftComments"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The comment as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftCommentList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the parent is not a thread on this post, or the site keeps no comments on drafts",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/posts/{id}/draft-comments/{comment}/": {
+      "put": {
+        "tags": [
+          "admin posts"
+        ],
+        "summary": "Marks a thread resolved once it is dealt with, or open again. Send the\nid of the thread's first comment. Needs `posts:write`.",
+        "operationId": "resolve_draft_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The post's identity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "comment",
+            "in": "path",
+            "description": "The thread's first comment",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveThreads"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "The thread is resolved or open as asked"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this identity, or no thread on it begins with this comment",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the site keeps no comments on drafts",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1942,6 +4070,168 @@
           },
           "404": {
             "description": "No redirect has this identity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/schema-templates/": {
+      "get": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Lists the site's schema templates, the collections a template may name,\nand whether the running server needs a restart to use the templates.\nNeeds `settings:write`.",
+        "operationId": "read_templates",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The schema templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaTemplates"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no schema templates",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Puts a new list in place of every schema template, made on the copy\n`updated_at` names. Each template is checked as `khalid serve` checks\n`site.toml` at start, and nothing is saved when one is refused. The\nrunning server uses the new templates after a restart. Needs\n`settings:write`.",
+        "operationId": "replace_templates",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplatesChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The schema templates as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaTemplates"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no schema templates",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The templates changed after the copy this change was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a template is not valid",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2558,6 +4848,748 @@
         ]
       }
     },
+    "/api/admin/v1/settings/": {
+      "get": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Reads the site's core settings as `site.toml` holds them, and whether\nthe running server needs a restart to use them. Needs `settings:write`.",
+        "operationId": "read_admin_settings",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no settings",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin settings"
+        ],
+        "summary": "Changes the core settings in `site.toml`: only the fields sent change,\nand each value must pass the checks `khalid serve` makes at start. The\nchange carries the `updated_at` of the copy it was made on; when\n`site.toml` changed since, the answer is a 409 (RULES.md BL-API-7). The\nrunning server reads `site.toml` at start, so `restart_needed` says\nwhen a restart applies the change. Needs `settings:write`.",
+        "operationId": "change_settings",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The settings as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no settings",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "site.toml changed after the copy the change was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a value would not pass the checks at start",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/sites/": {
+      "get": {
+        "tags": [
+          "sites"
+        ],
+        "summary": "Lists every site this process serves. Only a super admin, signed in on\nthe home site, may see it; a key never may.",
+        "operationId": "list_sites",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every site, the home site first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a super admin, or a key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "sites"
+        ],
+        "summary": "Adds a site on a new domain and starts serving it, with its own\nfolder, database and staff. Only a super admin may.",
+        "operationId": "add_site",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The site was made and is being served",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteAnswer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No live session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a super admin, or a key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A site already answers on this domain",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body or the domain could not be read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff_session": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/snippets/": {
+      "get": {
+        "tags": [
+          "admin snippets"
+        ],
+        "summary": "Lists every snippet in every language. A site has tens, so the list\ncomes whole. Needs `posts:write`.",
+        "operationId": "list_snippets",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every snippet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSnippets"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no snippets",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin snippets"
+        ],
+        "summary": "Creates a snippet in the language it names or the site's default.\nNeeds `posts:publish`.",
+        "operationId": "create_snippet",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSnippets"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new snippet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSnippets"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no snippets",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another snippet in that language has the slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, the title is empty, or the site has no such language",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/snippets/{id}/": {
+      "get": {
+        "tags": [
+          "admin snippets"
+        ],
+        "summary": "Reads one snippet. Needs `posts:write`.",
+        "operationId": "read_snippet",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.affiliate-disclosure",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The snippet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSnippets"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No snippet has this identity, or this server keeps no snippets",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "admin snippets"
+        ],
+        "summary": "Edits one snippet: only the fields sent change, and every post that\nplaces it shows the change. The edit carries the `updated_at` of the\ncopy it was made on; when the snippet changed since, the answer is a\n409 (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "edit_snippet",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.affiliate-disclosure",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnippetEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The snippet as saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSnippets"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No snippet has this identity, or this server keeps no snippets",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The snippet changed after the copy the edit was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the title is empty",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin snippets"
+        ],
+        "summary": "Deletes one snippet. A post that still places it shows nothing there.\nThe request names the `updated_at` of the copy it was made on; when the\nsnippet changed since, the answer is a 409. Needs `posts:publish`.",
+        "operationId": "delete_snippet",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.affiliate-disclosure",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "updated_at",
+            "in": "query",
+            "description": "The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The snippet is gone"
+          },
+          "400": {
+            "description": "updated_at is missing or is not a time",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No snippet has this identity, or this server keeps no snippets",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The snippet changed after the copy the delete was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/staff/": {
       "get": {
         "tags": [
@@ -2920,6 +5952,487 @@
         "security": [
           {
             "staff_session": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/tags/": {
+      "get": {
+        "tags": [
+          "admin tags"
+        ],
+        "summary": "Lists every tag the site's posts carry, drafts included, in every\nlanguage, with how many posts have each. Needs `posts:write`.",
+        "operationId": "list_tags",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every tag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTags"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no tags",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/tags/{id}/": {
+      "put": {
+        "tags": [
+          "admin tags"
+        ],
+        "summary": "Renames a tag in every post that has it, drafts included; a name\nanother tag has merges the two. The rename carries the tag's\n`updated_at`; when one of its posts changed since, the answer is a 409\nand no post changes (RULES.md BL-API-7). Needs `posts:publish`.",
+        "operationId": "rename_tag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.internal-links",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagEdits"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The tag under its new name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTags"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this tag, or this server keeps no tags",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A post with the tag changed after the copy the rename was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or the name is empty or has no letter or digit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin tags"
+        ],
+        "summary": "Removes a tag from every post that has it, drafts included. The\nrequest names the tag's `updated_at`; when one of its posts changed\nsince, the answer is a 409 and no post changes. Needs `posts:publish`.",
+        "operationId": "remove_tag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The language and slug, such as en.internal-links",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "updated_at",
+            "in": "query",
+            "description": "The `updated_at` as last read, such as `2026-10-20T08:30:00Z`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No post has the tag any more"
+          },
+          "400": {
+            "description": "updated_at is missing or is not a time",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No post has this tag, or this server keeps no tags",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A post with the tag changed after the copy the request was made on",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/trash/": {
+      "get": {
+        "tags": [
+          "admin trash"
+        ],
+        "summary": "Lists the deleted posts, the most recently deleted first. Needs\n`posts:write`.",
+        "operationId": "list_trash",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrashList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/trash/{key}/": {
+      "delete": {
+        "tags": [
+          "admin trash"
+        ],
+        "summary": "Deletes a post in the trash for good. Needs `posts:publish`.",
+        "operationId": "purge_trashed",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "The deleted post's key in the trash",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The post is gone for good"
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nothing in the trash has this key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/trash/{key}/restore/": {
+      "post": {
+        "tags": [
+          "admin trash"
+        ],
+        "summary": "Puts a deleted post back where it was, in the status it had, and\nanswers it as it is now. Needs `posts:write`, and `posts:publish` for a\npost that was live or scheduled.",
+        "operationId": "restore_trashed",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "The deleted post's key in the trash",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The restored post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPosts"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write, or posts:publish for a post that was live or scheduled",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nothing in the trash has this key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another post has the address the restored one would take",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
           }
         ]
       }
@@ -5769,6 +9282,288 @@
   },
   "components": {
     "schemas": {
+      "AdminAiVisitors": {
+        "type": "object",
+        "description": "The readers AI assistants sent, per tool. The counts are page views,\nnot people, and never include AI bots.",
+        "required": [
+          "first",
+          "last",
+          "days",
+          "arrivals",
+          "ai_views",
+          "tools"
+        ],
+        "properties": {
+          "ai_views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The views AI assistants sent.",
+            "minimum": 0
+          },
+          "arrivals": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Every view that came from outside the site, AI search included.",
+            "minimum": 0
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many days were counted.",
+            "minimum": 0
+          },
+          "first": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day counted, in UTC."
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day counted: today, in UTC."
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminToolVisitors"
+            },
+            "description": "Each assistant that sent readers in the period or the one before,\nmost views first."
+          }
+        }
+      },
+      "AdminAuthor": {
+        "type": "object",
+        "description": "An author in one language, in Admin API shape: everything their file\nholds, which bylines, author pages and the author's schema show.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "name",
+          "same_as",
+          "bio",
+          "updated_at"
+        ],
+        "properties": {
+          "bio": {
+            "type": "string",
+            "description": "The bio, in markdown."
+          },
+          "credentials": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why to trust the author, such as ten years in the field."
+          },
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.asif`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en`.",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name readers see."
+          },
+          "photo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The photo: a file beside the author's file, a media path or a full\naddress."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the author does, such as `Founder of SerpDad`."
+          },
+          "same_as": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The author's profiles elsewhere, in order.",
+            "example": [
+              "https://serpdad.com/"
+            ]
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts name the author by in their `author` field.",
+            "example": "asif"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the author's file last changed. An edit or delete sends it back."
+          }
+        }
+      },
+      "AdminAuthors": {
+        "type": "object",
+        "description": "Authors as the Admin API wraps them.",
+        "required": [
+          "authors"
+        ],
+        "properties": {
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminAuthor"
+            },
+            "description": "The author or authors."
+          }
+        }
+      },
+      "AdminCategories": {
+        "type": "object",
+        "description": "Categories as the Admin API wraps them.",
+        "required": [
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminCategory"
+            },
+            "description": "The category or categories."
+          }
+        }
+      },
+      "AdminCategory": {
+        "type": "object",
+        "description": "A category, in Admin API shape: one slug, named in each of the site's\nlanguages, as one entry of `categories.toml` holds it.",
+        "required": [
+          "id",
+          "slug",
+          "names",
+          "posts",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The identity: the slug, the same in every language."
+          },
+          "names": {
+            "type": "object",
+            "description": "The name readers see, by language code.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "en": "On-page SEO",
+              "de": "Onpage-SEO"
+            }
+          },
+          "posts": {
+            "type": "integer",
+            "description": "How many posts, drafts included, are in it.",
+            "minimum": 0
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts name the category by in their `category` field.",
+            "example": "on-page-seo"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the site's categories last changed. An edit or delete sends it\nback."
+          }
+        }
+      },
+      "AdminChange": {
+        "type": "object",
+        "description": "One change, as the Admin API shows it.",
+        "required": [
+          "id",
+          "at",
+          "by",
+          "action",
+          "route",
+          "path"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`added`, `changed` or `removed`."
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made."
+          },
+          "by": {
+            "type": "string",
+            "description": "The identity of the key or staff account that made it."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Its place in the log: a later change has a larger number."
+          },
+          "path": {
+            "type": "string",
+            "description": "The address it was made at.",
+            "example": "/api/admin/v1/posts/en.internal-links/"
+          },
+          "route": {
+            "type": "string",
+            "description": "The route it went through.",
+            "example": "/api/admin/v1/posts/{id}/"
+          }
+        }
+      },
+      "AdminChanges": {
+        "type": "object",
+        "description": "One page of the audit log.",
+        "required": [
+          "changes"
+        ],
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminChange"
+            },
+            "description": "The changes, newest first."
+          },
+          "next": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The `before` that lists the next page, or null on the last page."
+          }
+        }
+      },
+      "AdminChecks": {
+        "type": "object",
+        "description": "Checks as the Admin API wraps them.",
+        "required": [
+          "checks"
+        ],
+        "properties": {
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostCheck"
+            },
+            "description": "The one post's check."
+          }
+        }
+      },
       "AdminComment": {
         "type": "object",
         "description": "A comment in Admin API shape.\n\nExhaustive on purpose: the comments crate fills it in.",
@@ -5843,6 +9638,77 @@
               "$ref": "#/components/schemas/AdminComment"
             },
             "description": "The comment or comments."
+          }
+        }
+      },
+      "AdminKey": {
+        "type": "object",
+        "description": "A key that works, in Admin API shape. The secret is shown once, when\nthe key is made, and never again.",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "scopes",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the key was made."
+          },
+          "id": {
+            "type": "string",
+            "description": "The key's identity, the part before its secret, such as\n`1111222233334444`."
+          },
+          "key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key itself. Only the answer that makes it holds it; keep it\nthen, because it is never shown again."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`content`, `integration` or `staff`.",
+            "example": "integration"
+          },
+          "name": {
+            "type": "string",
+            "description": "Who or what uses it, such as `SerpDad`."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A staff token's role, such as `editor`."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "An integration key's scopes, such as `posts:write`.",
+            "example": [
+              "posts:write"
+            ]
+          }
+        }
+      },
+      "AdminKeys": {
+        "type": "object",
+        "description": "Keys as the Admin API wraps them.",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminKey"
+            },
+            "description": "The key or keys."
           }
         }
       },
@@ -6024,6 +9890,91 @@
           }
         }
       },
+      "AdminPage": {
+        "type": "object",
+        "description": "A page in one language, such as About, in Admin API shape. It is live\nas soon as it is saved: pages have no drafts.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "title",
+          "markdown",
+          "updated_at"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The text search engines show under the title, if set."
+          },
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.about`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en`.",
+            "example": "en"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "The body, in markdown."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The last part of the page's address.",
+            "example": "about"
+          },
+          "title": {
+            "type": "string",
+            "description": "The title readers see."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the page last changed. An edit or delete sends it back."
+          }
+        }
+      },
+      "AdminPageViews": {
+        "type": "object",
+        "description": "The views of one page from one assistant.",
+        "required": [
+          "path",
+          "views"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The page's path.",
+            "example": "/blog/internal-links/"
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many views.",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminPages": {
+        "type": "object",
+        "description": "Pages as the Admin API wraps them.",
+        "required": [
+          "pages"
+        ],
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPage"
+            },
+            "description": "The page or pages."
+          }
+        }
+      },
       "AdminPost": {
         "type": "object",
         "description": "A post in Admin API shape: any status, with its markdown source and\nthe `updated_at` an edit must send back (RULES.md BL-API-7).",
@@ -6202,6 +10153,249 @@
           }
         }
       },
+      "AdminSchemaTemplate": {
+        "type": "object",
+        "description": "One schema template as the Admin API sends and takes it.",
+        "required": [
+          "applies_to",
+          "name",
+          "type"
+        ],
+        "properties": {
+          "applies_to": {
+            "$ref": "#/components/schemas/TemplateTarget",
+            "description": "Whether `name` is a collection or a category."
+          },
+          "name": {
+            "type": "string",
+            "description": "The collection or category whose posts get the node.",
+            "example": "guides"
+          },
+          "properties": {
+            "type": "object",
+            "description": "Each property's value, by property name. A value may use the title\ntemplate variables, such as `{title}` and `{site}`.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "provider": "{site}"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "The schema.org type, such as `Course`.",
+            "example": "Course"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdminSettings": {
+        "type": "object",
+        "description": "The site's core settings from `site.toml`, in Admin API shape. The\nrunning server reads `site.toml` once at start, so a change applies\nafter a restart.",
+        "required": [
+          "name",
+          "address",
+          "mount",
+          "default_language",
+          "languages",
+          "updated_at",
+          "restart_needed"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The address of the main site, such as `https://www.example.com`."
+          },
+          "default_language": {
+            "type": "string",
+            "description": "The language a reader gets first, such as `en`."
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every language the site is written in."
+          },
+          "mount": {
+            "type": "string",
+            "description": "The path the blog lives under, such as `/blog/`."
+          },
+          "name": {
+            "type": "string",
+            "description": "The site's name."
+          },
+          "restart_needed": {
+            "type": "boolean",
+            "description": "Whether `site.toml` says something the running server does not use\nyet, so a restart is needed to apply it."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When `site.toml` last changed. A change sends it back."
+          }
+        }
+      },
+      "AdminSnippet": {
+        "type": "object",
+        "description": "A snippet in one language, such as an affiliate disclosure, in Admin API\nshape. A post places it by its slug, so a change shows in every post\nthat uses it as soon as it is saved.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "title",
+          "markdown",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.affiliate-disclosure`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en`.",
+            "example": "en"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "The blocks, in markdown."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug a post names the snippet by.",
+            "example": "affiliate-disclosure"
+          },
+          "title": {
+            "type": "string",
+            "description": "The name shown in the editor."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the snippet last changed. An edit or delete sends it back."
+          }
+        }
+      },
+      "AdminSnippets": {
+        "type": "object",
+        "description": "Snippets as the Admin API wraps them.",
+        "required": [
+          "snippets"
+        ],
+        "properties": {
+          "snippets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSnippet"
+            },
+            "description": "The snippet or snippets."
+          }
+        }
+      },
+      "AdminTag": {
+        "type": "object",
+        "description": "A tag in one language, in Admin API shape. A tag lives in the `tags`\nof its posts, drafts included, so it exists while one post has it.",
+        "required": [
+          "id",
+          "slug",
+          "language",
+          "name",
+          "posts",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The language and the slug, such as `en.internal-links`."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language, such as `en`.",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name as posts write it, such as `internal links`."
+          },
+          "posts": {
+            "type": "integer",
+            "description": "How many posts, drafts included, have the tag.",
+            "minimum": 0
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug made from the name, as the tag's page uses it.",
+            "example": "internal-links"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the last of those posts changed. A rename or removal sends it\nback, so a post tagged since is never changed unseen."
+          }
+        }
+      },
+      "AdminTags": {
+        "type": "object",
+        "description": "Tags as the Admin API wraps them.",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminTag"
+            },
+            "description": "The tag or tags."
+          }
+        }
+      },
+      "AdminToolVisitors": {
+        "type": "object",
+        "description": "What one AI assistant sent.",
+        "required": [
+          "tool",
+          "name",
+          "views",
+          "before",
+          "pages"
+        ],
+        "properties": {
+          "before": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views from its readers in the period of the same length before.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string",
+            "description": "The assistant's name, for people.",
+            "example": "ChatGPT"
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPageViews"
+            },
+            "description": "The pages its readers landed on, most views first, at most ten."
+          },
+          "tool": {
+            "type": "string",
+            "description": "The assistant, for programs: `chatgpt`, `perplexity`, `gemini`,\n`copilot`, `claude`, `deepseek`, `le-chat`, `meta-ai`, `grok`,\n`you`, `phind`, or `unnamed` for views counted before tools were\nnamed.",
+            "example": "chatgpt"
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Views from its readers in the period.",
+            "minimum": 0
+          }
+        }
+      },
       "AdminWebhook": {
         "type": "object",
         "description": "A webhook as the Admin API lists it. Its secret is never listed.",
@@ -6324,6 +10518,83 @@
           }
         }
       },
+      "AuthorEdit": {
+        "type": "object",
+        "description": "A change to an author: only the fields sent change. An empty role,\ncredentials or photo removes it, and `same_as` replaces the whole list.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new bio, in markdown."
+          },
+          "credentials": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New credentials; empty ones remove them."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new name."
+          },
+          "photo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new photo; an empty one removes it."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new role; an empty one removes it."
+          },
+          "same_as": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "A new list of profiles."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthorEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps authors: exactly one.",
+        "required": [
+          "authors"
+        ],
+        "properties": {
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorEdit"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
+      },
       "Authors": {
         "type": "object",
         "required": [
@@ -6374,6 +10645,113 @@
               "null"
             ],
             "description": "Text with the markup removed."
+          }
+        }
+      },
+      "Calendar": {
+        "type": "object",
+        "description": "Drafts, scheduled posts and published posts by day.",
+        "required": [
+          "from",
+          "to",
+          "days",
+          "undated"
+        ],
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDay"
+            },
+            "description": "Every day with a post, earliest first. Days with none are left out."
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day."
+          },
+          "undated": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPost"
+            },
+            "description": "Drafts with no date and no schedule, to drag onto a day."
+          }
+        }
+      },
+      "CalendarBody": {
+        "type": "object",
+        "description": "The calendar as the Admin API wraps it.",
+        "required": [
+          "calendar"
+        ],
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/Calendar",
+            "description": "The calendar."
+          }
+        }
+      },
+      "CalendarDay": {
+        "type": "object",
+        "description": "The posts on one day, in the order they go live.",
+        "required": [
+          "date",
+          "posts"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The day, in UTC."
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPost"
+            },
+            "description": "Its posts."
+          }
+        }
+      },
+      "CalendarPost": {
+        "type": "object",
+        "description": "One post on the calendar.",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "review_state"
+        ],
+        "properties": {
+          "at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it went or goes live; empty for a draft, which sits on the day\nits `date` setting names."
+          },
+          "id": {
+            "type": "string",
+            "description": "The post's identity, as in `/posts/{id}/`."
+          },
+          "review_state": {
+            "$ref": "#/components/schemas/ReviewState",
+            "description": "Draft, in review or ready."
+          },
+          "status": {
+            "$ref": "#/components/schemas/PostStatus",
+            "description": "Draft, scheduled or published."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title."
           }
         }
       },
@@ -6428,6 +10806,53 @@
             ]
           }
         }
+      },
+      "CategoryEdit": {
+        "type": "object",
+        "description": "A change to a category: the names it sends replace all of its names.\nIts slug stays, since posts name it.",
+        "required": [
+          "names",
+          "updated_at"
+        ],
+        "properties": {
+          "names": {
+            "type": "object",
+            "description": "The name in each language, by language code.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "en": "On-page SEO",
+              "de": "Onpage-SEO"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "CategoryEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps categories: exactly one.",
+        "required": [
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryEdit"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
       },
       "ChangelogEntries": {
         "type": "object",
@@ -6577,50 +11002,176 @@
         }
       },
       "CreateOptions": {
+        "allOf": [
+          {
+            "type": "object",
+            "description": "The options, in `publicKey`."
+          }
+        ],
+        "description": "What the admin passes to `navigator.credentials.create`, as\n`{\"publicKey\": {...}}`."
+      },
+      "CreatedPosts": {
         "type": "object",
-        "description": "What the admin passes to `navigator.credentials.create`.",
+        "description": "A new draft, as the create route answers it.",
         "required": [
-          "challenge",
-          "rp_id",
-          "user_id",
-          "exclude",
-          "algorithms",
-          "timeout_ms"
+          "posts",
+          "admin_path"
         ],
         "properties": {
-          "algorithms": {
+          "admin_path": {
+            "type": "string",
+            "description": "Where the draft opens in the admin's editor, as a path from the\nserver's root like the `Location` header, such as\n`/admin/posts/en.choosing-anchor-text`."
+          },
+          "lint": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DraftLint",
+                "description": "What the linter finds in the draft as it would go live today, or\n`null` when this server runs no linter or could not run it now. The\ndraft is saved either way."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "posts": {
             "type": "array",
             "items": {
-              "type": "integer",
-              "format": "int64"
+              "$ref": "#/components/schemas/AdminPost"
             },
-            "description": "The key algorithms Khalid accepts, by their `WebAuthn` numbers:\nES256, then `EdDSA`."
-          },
-          "challenge": {
-            "type": "string",
-            "description": "The challenge to sign."
-          },
-          "exclude": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Passkeys the account already has."
-          },
-          "rp_id": {
-            "type": "string",
-            "description": "The site's host name."
-          },
-          "timeout_ms": {
-            "type": "integer",
-            "format": "int64",
-            "description": "How long the browser may wait, in milliseconds."
-          },
-          "user_id": {
-            "type": "string",
-            "description": "The account's handle for authenticators."
+            "description": "The new draft, alone."
           }
         }
+      },
+      "CustomJsonLd": {
+        "type": "string",
+        "description": "JSON-LD written by hand for a type Khalid does not write itself, kept\nas written. It is read as schema.org nodes before it is kept, so a page\nnever carries JSON-LD a search engine would throw away.",
+        "example": "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}"
+      },
+      "DraftComment": {
+        "type": "object",
+        "description": "One comment on a draft.",
+        "required": [
+          "id",
+          "author",
+          "text",
+          "resolved",
+          "created_at"
+        ],
+        "properties": {
+          "author": {
+            "type": "string",
+            "description": "The key or staff account that wrote it."
+          },
+          "block": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The block of the body it is about, counted from 1, or empty for the\npost as a whole. A reply is about its thread's block.",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was written."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The identity the store gave it."
+          },
+          "parent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The comment it answers; empty for the first comment of a thread."
+          },
+          "resolved": {
+            "type": "boolean",
+            "description": "Whether its thread has been dealt with. Only a thread's first\ncomment carries it."
+          },
+          "text": {
+            "$ref": "#/components/schemas/DraftCommentText",
+            "description": "What it says."
+          }
+        }
+      },
+      "DraftCommentBody": {
+        "type": "object",
+        "description": "A new comment as a client sends it.",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "block": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The block of the body it is about, counted from 1. Left out, it is\nabout the post as a whole. A reply is about its thread's block.",
+            "example": 3,
+            "minimum": 1
+          },
+          "parent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The first comment of the thread it answers. Threads are one level\ndeep."
+          },
+          "text": {
+            "type": "string",
+            "description": "What it says, up to 5,000 characters.",
+            "example": "Can we name the tool here?"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DraftCommentList": {
+        "type": "object",
+        "description": "Comments as the Admin API wraps them.",
+        "required": [
+          "draft_comments"
+        ],
+        "properties": {
+          "draft_comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftComment"
+            },
+            "description": "The comments, oldest first."
+          }
+        }
+      },
+      "DraftCommentText": {
+        "type": "string",
+        "description": "What a comment says: 1 to 5,000 characters, not only spaces."
+      },
+      "DraftLint": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LintCounts",
+            "description": "How many findings would stop the draft going live, and how many\nare warnings."
+          },
+          {
+            "type": "object",
+            "required": [
+              "report"
+            ],
+            "properties": {
+              "report": {
+                "type": "object",
+                "description": "Every finding, as `khalid lint --json` prints them for one post,\nand the post's `score` out of 100: the shape a refused publish\ncarries under `lint`."
+              }
+            }
+          }
+        ],
+        "description": "The linter's verdict on a new draft."
       },
       "EditPosts": {
         "type": "object",
@@ -6751,28 +11302,13 @@
         ]
       },
       "GetOptions": {
-        "type": "object",
-        "description": "What the admin passes to `navigator.credentials.get`.",
-        "required": [
-          "challenge",
-          "rp_id",
-          "timeout_ms"
-        ],
-        "properties": {
-          "challenge": {
-            "type": "string",
-            "description": "The challenge to sign."
-          },
-          "rp_id": {
-            "type": "string",
-            "description": "The site's host name."
-          },
-          "timeout_ms": {
-            "type": "integer",
-            "format": "int64",
-            "description": "How long the browser may wait, in milliseconds."
+        "allOf": [
+          {
+            "type": "object",
+            "description": "The options, in `publicKey`, and how the browser should ask."
           }
-        }
+        ],
+        "description": "What the admin passes to `navigator.credentials.get`, as\n`{\"publicKey\": {...}, \"mediation\": \"conditional\"}`."
       },
       "GlossaryTerms": {
         "type": "object",
@@ -6797,6 +11333,119 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "HeadElement": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "`<title>text</title>`.",
+            "required": [
+              "text",
+              "tag"
+            ],
+            "properties": {
+              "tag": {
+                "type": "string",
+                "enum": [
+                  "title"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "description": "The page title."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "`<meta name=\"...\" content=\"...\">`, or with `property` for Open Graph.",
+            "required": [
+              "content",
+              "tag"
+            ],
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "The `content` attribute."
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The `name` attribute, such as `description` or `twitter:card`."
+              },
+              "property": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The `property` attribute, such as `og:title`."
+              },
+              "tag": {
+                "type": "string",
+                "enum": [
+                  "meta"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "`<link rel=\"...\" hreflang=\"...\" href=\"...\">`, `hreflang` only on a\nlanguage version.",
+            "required": [
+              "rel",
+              "href",
+              "tag"
+            ],
+            "properties": {
+              "href": {
+                "type": "string",
+                "description": "The full address."
+              },
+              "hreflang": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The language of an `alternate` version, or `x-default`."
+              },
+              "rel": {
+                "type": "string",
+                "description": "The `rel` attribute, such as `canonical` or `alternate`."
+              },
+              "tag": {
+                "type": "string",
+                "enum": [
+                  "link"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One tag of a post page's head. Values are plain text: a front end\nescapes them as it writes the tag."
+      },
+      "HeadParts": {
+        "type": "object",
+        "description": "A post page's head: its tags in the order the theme writes them, then\nits JSON-LD graph. A post holds them behind a shared pointer, so the\nstore copies no text.",
+        "required": [
+          "tags",
+          "json_ld"
+        ],
+        "properties": {
+          "json_ld": {
+            "type": "string",
+            "description": "The schema graph as compact JSON, with each less-than sign escaped,\nso it can go inside a script tag as it is.",
+            "example": "{\"@context\":\"https://schema.org\",\"@graph\":[]}"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HeadElement"
+            },
+            "description": "The title, meta and link tags, in order."
           }
         }
       },
@@ -7075,22 +11724,277 @@
           }
         }
       },
+      "NewAuthor": {
+        "type": "object",
+        "description": "A new author, as a create request sends them.",
+        "required": [
+          "slug",
+          "name"
+        ],
+        "properties": {
+          "bio": {
+            "type": "string",
+            "description": "The bio, in markdown."
+          },
+          "credentials": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why to trust the author."
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The language, such as `de`; the site's default when left out.",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name readers see."
+          },
+          "photo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The photo."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the author does."
+          },
+          "same_as": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Profiles elsewhere, each a full address.",
+            "example": [
+              "https://serpdad.com/"
+            ]
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts will name the author by, such as `asif`.",
+            "example": "asif"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewAuthors": {
+        "type": "object",
+        "description": "A new author, wrapped the way the Admin API wraps authors: exactly one.",
+        "required": [
+          "authors"
+        ],
+        "properties": {
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewAuthor"
+            },
+            "description": "The one new author."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewCategories": {
+        "type": "object",
+        "description": "A new category, wrapped the way the Admin API wraps categories: exactly one.",
+        "required": [
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewCategory"
+            },
+            "description": "The one new category."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewCategory": {
+        "type": "object",
+        "description": "A new category, as a create request sends it.",
+        "required": [
+          "slug",
+          "names"
+        ],
+        "properties": {
+          "names": {
+            "type": "object",
+            "description": "The name in each language, by language code.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "en": "Link building",
+              "de": "Linkaufbau"
+            }
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts will name it by, such as `link-building`.",
+            "example": "link-building"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewDraftComments": {
+        "type": "object",
+        "description": "One new comment, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "draft_comments"
+        ],
+        "properties": {
+          "draft_comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftCommentBody"
+            },
+            "description": "Exactly one comment."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewKey": {
+        "type": "object",
+        "description": "A new key, as a create request sends it.",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/NewKeyKind",
+            "description": "What kind of key to make."
+          },
+          "name": {
+            "type": "string",
+            "description": "Who or what will use it, such as `SerpDad`."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "An integration key's scopes, such as `posts:write`; a content key\ntakes none.",
+            "example": [
+              "posts:write"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewKeyKind": {
+        "type": "string",
+        "description": "The kinds of key the Admin API makes. Staff tokens belong to staff\naccounts and are made by signing in.",
+        "enum": [
+          "content",
+          "integration"
+        ]
+      },
+      "NewKeys": {
+        "type": "object",
+        "description": "A new key, wrapped the way the Admin API wraps keys: exactly one.",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewKey"
+            },
+            "description": "The one new key."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewPage": {
+        "type": "object",
+        "description": "A new page, as a create request sends it.",
+        "required": [
+          "slug",
+          "title",
+          "markdown"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The text search engines show under the title."
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The language, such as `de`; the site's default when left out.",
+            "example": "en"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "The body, in markdown."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The last part of the address, such as `about`.",
+            "example": "about"
+          },
+          "title": {
+            "type": "string",
+            "description": "The title readers see."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewPages": {
+        "type": "object",
+        "description": "A new page, wrapped the way the Admin API wraps pages: exactly one.",
+        "required": [
+          "pages"
+        ],
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewPage"
+            },
+            "description": "The one new page."
+          }
+        },
+        "additionalProperties": false
+      },
       "NewPasskey": {
         "type": "object",
         "description": "A new passkey, as `navigator.credentials.create` returned it.",
         "required": [
           "name",
-          "client_data",
-          "attestation_object"
+          "challenge",
+          "credential"
         ],
         "properties": {
-          "attestation_object": {
+          "challenge": {
             "type": "string",
-            "description": "`attestationObject`."
+            "description": "The `challenge` of the options it answers, as they gave it."
           },
-          "client_data": {
-            "type": "string",
-            "description": "`clientDataJSON`."
+          "credential": {
+            "type": "object",
+            "description": "The credential's `toJSON()`."
           },
           "name": {
             "type": "string",
@@ -7112,6 +12016,13 @@
               "null"
             ],
             "description": "The author's slug, such as `asif`. The linter refuses to publish a\npost without one."
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The excerpt: the short summary cards, feeds and search results\nshow, kept as the post's `description`. Not blank when given."
           },
           "html": {
             "type": [
@@ -7213,6 +12124,70 @@
           }
         }
       },
+      "NewSite": {
+        "type": "object",
+        "description": "A site to add.",
+        "required": [
+          "domain"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "The domain readers will reach it on, such as `news.example.com`."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewSnippet": {
+        "type": "object",
+        "description": "A new snippet, as a create request sends it.",
+        "required": [
+          "slug",
+          "title",
+          "markdown"
+        ],
+        "properties": {
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The language, such as `de`; the site's default when left out.",
+            "example": "en"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "The blocks, in markdown."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug a post will name it by, such as `affiliate-disclosure`.",
+            "example": "affiliate-disclosure"
+          },
+          "title": {
+            "type": "string",
+            "description": "The name shown in the editor."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewSnippets": {
+        "type": "object",
+        "description": "A new snippet, wrapped the way the Admin API wraps snippets: exactly one.",
+        "required": [
+          "snippets"
+        ],
+        "properties": {
+          "snippets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewSnippet"
+            },
+            "description": "The one new snippet."
+          }
+        },
+        "additionalProperties": false
+      },
       "NewWebhook": {
         "type": "object",
         "description": "One new webhook.",
@@ -7253,6 +12228,59 @@
       "NonBlank": {
         "type": "string",
         "description": "Text with something in it other than spaces."
+      },
+      "PageEdit": {
+        "type": "object",
+        "description": "A change to a page: only the fields sent change.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new description; an empty one removes it."
+          },
+          "markdown": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new body, in markdown."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new title."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PageEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps pages: exactly one.",
+        "required": [
+          "pages"
+        ],
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PageEdit"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
       },
       "Pages": {
         "type": "object",
@@ -7347,27 +12375,17 @@
         "type": "object",
         "description": "A sign-in, as `navigator.credentials.get` returned it.",
         "required": [
-          "credential_id",
-          "client_data",
-          "authenticator_data",
-          "signature"
+          "challenge",
+          "credential"
         ],
         "properties": {
-          "authenticator_data": {
+          "challenge": {
             "type": "string",
-            "description": "`authenticatorData`."
+            "description": "The `challenge` of the options it answers, as they gave it."
           },
-          "client_data": {
-            "type": "string",
-            "description": "`clientDataJSON`."
-          },
-          "credential_id": {
-            "type": "string",
-            "description": "The credential's `rawId`."
-          },
-          "signature": {
-            "type": "string",
-            "description": "`signature`."
+          "credential": {
+            "type": "object",
+            "description": "The credential's `toJSON()`."
           }
         },
         "additionalProperties": false
@@ -7432,6 +12450,17 @@
                 "type": "boolean",
                 "description": "Whether the post is marked as featured."
               },
+              "head": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/HeadParts",
+                    "description": "What its page carries in `<head>` for search engines and share\ncards, so a front end of its own keeps the meta tags and schema.\nAbsent until the site's pages have been made once."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "id": {
                 "type": "string",
                 "description": "Stable across edits: the content file's identity."
@@ -7476,6 +12505,34 @@
           }
         ],
         "description": "A published post in API shape. Bodies are present only when asked for\nwith `formats`."
+      },
+      "PostCheck": {
+        "type": "object",
+        "description": "One post's check: findings and score, snippet and schema.",
+        "required": [
+          "id",
+          "lint",
+          "snippet",
+          "schema"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The post's identity."
+          },
+          "lint": {
+            "type": "object",
+            "description": "Every finding, as `khalid lint --json` prints them for one post,\nwith `blocks` and the post's `score` out of 100 and the rules that\ncost it points."
+          },
+          "schema": {
+            "type": "object",
+            "description": "The JSON-LD the page would carry: `@context` and `@graph`."
+          },
+          "snippet": {
+            "$ref": "#/components/schemas/Snippet",
+            "description": "The search result the page would make."
+          }
+        }
       },
       "PostEdit": {
         "type": "object",
@@ -7767,6 +12824,14 @@
             "type": "boolean",
             "description": "Whether the post is featured in lists and the featured channel."
           },
+          "focus_keyword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The one search phrase the post is written to answer, which the\nlinter checks the title, description and text against.",
+            "example": "anchor text"
+          },
           "head_code": {
             "type": [
               "string",
@@ -7799,6 +12864,28 @@
             ],
             "description": "The post's own robots directives, in place of the site's.",
             "example": "noindex, nofollow"
+          },
+          "schema": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CustomJsonLd",
+                "description": "Hand-written JSON-LD the page carries beside the schema Khalid\nwrites, for a type Khalid does not write itself."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seo_title": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchTitle",
+                "description": "The title search results show, in place of the site's title\ntemplate, or `null` for the template's."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "share_cards": {
             "$ref": "#/components/schemas/ShareCards",
@@ -8029,6 +13116,37 @@
         },
         "additionalProperties": false
       },
+      "ResolveBody": {
+        "type": "object",
+        "description": "Whether a thread is resolved.",
+        "required": [
+          "resolved"
+        ],
+        "properties": {
+          "resolved": {
+            "type": "boolean",
+            "description": "`true` once the thread is dealt with, `false` to open it again."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveThreads": {
+        "type": "object",
+        "description": "A thread's new state, wrapped the way the Admin API wraps resources.",
+        "required": [
+          "draft_comments"
+        ],
+        "properties": {
+          "draft_comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolveBody"
+            },
+            "description": "Exactly one change."
+          }
+        },
+        "additionalProperties": false
+      },
       "ReviewState": {
         "type": "string",
         "description": "Where a post stands in review, before it is published (KH-EDT-4).",
@@ -8051,6 +13169,50 @@
           }
         },
         "additionalProperties": false
+      },
+      "SchemaTemplates": {
+        "type": "object",
+        "description": "The site's schema templates, in the order `site.toml` lists them.",
+        "required": [
+          "templates",
+          "collections",
+          "updated_at",
+          "restart_needed"
+        ],
+        "properties": {
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The site's collections, to pick a template's collection from.",
+            "example": [
+              "posts",
+              "guides"
+            ]
+          },
+          "restart_needed": {
+            "type": "boolean",
+            "description": "Whether the running server still uses older templates, so a restart\nis needed before previews and served pages show these."
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSchemaTemplate"
+            },
+            "description": "Every template. When two of one type cover a post, the first wins."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When `site.toml` last changed. A change sends it back."
+          }
+        }
+      },
+      "SearchTitle": {
+        "type": "string",
+        "description": "The title search results show for a post, in place of the site's title\ntemplate. It may use the template variables, such as `{site}`.",
+        "example": "Anchor text that says where it goes {sep} {site}"
       },
       "SessionAnswer": {
         "type": "object",
@@ -8106,6 +13268,73 @@
             "example": "https://example.com/blog/"
           }
         }
+      },
+      "SettingsChange": {
+        "type": "object",
+        "description": "A change to the core settings: only the fields sent change.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new address of the main site."
+          },
+          "default_language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new default language, which `languages` must include."
+          },
+          "languages": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "A new list of languages."
+          },
+          "mount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new path for the blog, such as `/blog/`."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new name."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this change was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SettingsChanges": {
+        "type": "object",
+        "description": "A change, wrapped the way the Admin API wraps the settings.",
+        "required": [
+          "settings"
+        ],
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/SettingsChange",
+            "description": "The change."
+          }
+        },
+        "additionalProperties": false
       },
       "SettingsEdit": {
         "type": "object",
@@ -8187,6 +13416,14 @@
             ],
             "description": "Whether the post is featured."
           },
+          "focus_keyword": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new focus keyword, or `null` for none.",
+            "example": "anchor text"
+          },
           "head_code": {
             "type": [
               "string",
@@ -8230,6 +13467,22 @@
             ],
             "description": "New robots directives, or `null` for the site's.",
             "example": "noindex, nofollow"
+          },
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New hand-written JSON-LD, or `null` for none.",
+            "example": "{\"@type\": \"Event\", \"name\": \"Anchor text clinic\"}"
+          },
+          "seo_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new search title, or `null` for the site's title template.",
+            "example": "Anchor text that says where it goes {sep} {site}"
           },
           "share_cards": {
             "oneOf": [
@@ -8341,6 +13594,40 @@
         },
         "additionalProperties": false
       },
+      "SiteAnswer": {
+        "type": "object",
+        "description": "One site as the Admin API shows it.",
+        "required": [
+          "domain",
+          "home"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "The domain readers reach it on."
+          },
+          "home": {
+            "type": "boolean",
+            "description": "Whether it is the home site, where this panel lives."
+          }
+        }
+      },
+      "SiteList": {
+        "type": "object",
+        "description": "Every site the process serves.",
+        "required": [
+          "sites"
+        ],
+        "properties": {
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteAnswer"
+            },
+            "description": "The sites, the home site first."
+          }
+        }
+      },
       "SiteSettings": {
         "type": "object",
         "description": "The site's settings, as every response wraps them: a list of one.",
@@ -8356,6 +13643,78 @@
             "description": "The settings."
           }
         }
+      },
+      "Snippet": {
+        "type": "object",
+        "description": "The lines of a search result: the title, the address and the\ndescription, as the page's head gives them.",
+        "required": [
+          "title",
+          "url",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "The meta description, or empty when the page has none.",
+            "example": "Pick words that say where the link goes."
+          },
+          "title": {
+            "type": "string",
+            "description": "The `<title>`, after the site's title template.",
+            "example": "Choosing anchor text | Field Notes on SEO"
+          },
+          "url": {
+            "type": "string",
+            "description": "The canonical address.",
+            "example": "https://www.example.com/blog/choosing-anchor-text/"
+          }
+        }
+      },
+      "SnippetEdit": {
+        "type": "object",
+        "description": "A change to a snippet: only the fields sent change.",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "markdown": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New blocks, in markdown."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new title."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this edit was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SnippetEdits": {
+        "type": "object",
+        "description": "An edit, wrapped the way the Admin API wraps snippets: exactly one.",
+        "required": [
+          "snippets"
+        ],
+        "properties": {
+          "snippets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SnippetEdit"
+            },
+            "description": "The one edit."
+          }
+        },
+        "additionalProperties": false
       },
       "StaffAccount": {
         "type": "object",
@@ -8402,6 +13761,43 @@
           }
         }
       },
+      "TagEdit": {
+        "type": "object",
+        "description": "A new name for a tag, written into every post that has it.",
+        "required": [
+          "name",
+          "updated_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The new name, such as `internal linking`. A name another tag in the\nlanguage has merges the two."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy this rename was made on."
+          }
+        },
+        "additionalProperties": false
+      },
+      "TagEdits": {
+        "type": "object",
+        "description": "A rename, wrapped the way the Admin API wraps tags: exactly one.",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagEdit"
+            },
+            "description": "The one rename."
+          }
+        },
+        "additionalProperties": false
+      },
       "Tags": {
         "type": "object",
         "required": [
@@ -8427,6 +13823,37 @@
             "description": "The entries on this page, or the one entry asked for."
           }
         }
+      },
+      "TemplateTarget": {
+        "type": "string",
+        "description": "What a schema template's `name` names.",
+        "enum": [
+          "collection",
+          "category"
+        ]
+      },
+      "TemplatesChange": {
+        "type": "object",
+        "description": "A new list of schema templates, made on the copy `updated_at` names.",
+        "required": [
+          "templates",
+          "updated_at"
+        ],
+        "properties": {
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminSchemaTemplate"
+            },
+            "description": "Every template, in order. An empty list removes them all."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The `updated_at` of the copy the change was made on."
+          }
+        },
+        "additionalProperties": false
       },
       "Term": {
         "type": "object",
@@ -8455,6 +13882,58 @@
             "type": "string",
             "description": "The slug posts name it by.",
             "example": "on-page-seo"
+          }
+        }
+      },
+      "TrashList": {
+        "type": "object",
+        "description": "The trash as the Admin API wraps it.",
+        "required": [
+          "trash"
+        ],
+        "properties": {
+          "trash": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrashedPost"
+            },
+            "description": "The deleted posts, the most recently deleted first."
+          }
+        }
+      },
+      "TrashedPost": {
+        "type": "object",
+        "description": "A deleted post, as the Admin API shows it.",
+        "required": [
+          "key",
+          "id",
+          "title",
+          "status",
+          "trashed_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The post's identity when it was deleted.",
+            "example": "en.internal-links"
+          },
+          "key": {
+            "type": "string",
+            "description": "Names this copy in the trash, for restoring or deleting it.",
+            "example": "20261031T093000Z-en.internal-links"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PostStatus",
+            "description": "Its status when it was deleted."
+          },
+          "title": {
+            "type": "string",
+            "description": "Its title."
+          },
+          "trashed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was deleted."
           }
         }
       }

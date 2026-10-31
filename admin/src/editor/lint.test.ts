@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Problem } from "../api/posts";
-import { lintFindings } from "./lint";
+import { findingsOf, lintFindings, scoreOf } from "./lint";
 
 const NO_LINK = {
   rule: "no-internal-link",
@@ -44,5 +44,23 @@ describe("lint findings from a refused publish", () => {
   it("finds nothing in a problem without lint, or no problem", () => {
     expect(lintFindings({ ...refused([]), lint: null })).toEqual([]);
     expect(lintFindings(null)).toEqual([]);
+  });
+});
+
+describe("the score in a lint report", () => {
+  it("reads the value and the points each rule cost", () => {
+    const lint = {
+      blocks: false,
+      findings: [FILLER],
+      score: { value: 95, lost: [{ rule: "slug-filler-words", points: 5 }, { rule: 3 }] },
+    };
+    expect(scoreOf(lint)).toEqual({ value: 95, lost: [{ rule: "slug-filler-words", points: 5 }] });
+    expect(findingsOf(lint).map((finding) => finding.rule)).toEqual(["slug-filler-words"]);
+  });
+
+  it("is null for a report without one", () => {
+    expect(scoreOf({ blocks: false, findings: [] })).toBeNull();
+    expect(scoreOf({ score: { value: "high" } })).toBeNull();
+    expect(scoreOf(null)).toBeNull();
   });
 });

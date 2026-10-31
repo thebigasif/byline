@@ -5,13 +5,34 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use khalid_core::{Clock, Config, Locale, Slug};
+use clap::Args;
+use khalid_core::{Clock, Config, Locale, Slug, UserMessage};
 use serde::Serialize;
 
 use crate::cli::Output;
 use crate::exit::Exit;
 use crate::init::quoted;
-use crate::{atomic, new_message, report};
+use crate::new_template::{self, Template};
+use crate::{atomic, new_branch, new_message, report};
+
+/// What `khalid new` takes on the command line.
+#[derive(Debug, Args)]
+pub(crate) struct NewArgs {
+    /// The post's title
+    pub(crate) title: String,
+    /// The language the post is written in [default: the site's default language]
+    #[arg(long, value_name = "CODE")]
+    pub(crate) language: Option<Locale>,
+    /// Start from the shape of a kind of post, with its sections and table
+    /// in place and guidance that never shows on the page. The title must
+    /// read as that kind, such as "Ahrefs vs Semrush" for a comparison
+    #[arg(long, value_name = "KIND")]
+    pub(crate) template: Option<Template>,
+    /// Git mode: start a branch named post/ and the post's slug, and commit the new post on
+    /// it, so merging the branch publishes the post
+    #[arg(long)]
+    pub(crate) branch: bool,
+}
 
 /// What `new` writes in.
 #[derive(Debug, Clone, Copy)]
@@ -20,9 +41,25 @@ pub(crate) struct NewPost<'a> {
     pub(crate) title: &'a str,
     /// The language from `--language`, or `None` for the site's default.
     pub(crate) language: Option<&'a Locale>,
+    /// The kind of post from `--template`, or `None` for an empty body.
+    pub(crate) template: Option<Template>,
+    /// Whether `--branch` asks for the post on its own git branch.
+    pub(crate) branch: bool,
 }
 
-/// The JSON shape of `khalid new --json`. `path` is relative to the site.
+impl<'a> From<&'a NewArgs> for NewPost<'a> {
+    fn from(args: &'a NewArgs) -> Self {
+        Self {
+            title: &args.title,
+            language: args.language.as_ref(),
+            template: args.template,
+            branch: args.branch,
+        }
+    }
+}
+
+/// The JSON shape of `khalid new --json`. `path` is relative to the site;
+/// `branch` is there with `--branch`.
 #[derive(Serialize)]
 struct NewBody<'a> {
     path: &'a str,
@@ -30,6 +67,8 @@ struct NewBody<'a> {
     slug: &'a str,
     language: &'a str,
     date: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    branch: Option<&'a str>,
 }
 
 /// Writes a new post in the `site` folder, dated today by `clock`, into
@@ -51,10 +90,22 @@ pub(crate) fn run(
         return report::failure(output, &new_message::no_slug(title), Exit::Failure);
     };
     let date = clock.now().date_naive().to_string();
+    let tail = match post.template {
+        None => EMPTY_BODY.to_owned(),
+        Some(template) => {
+            let Some(starter) = new_template::body(template, title, locale) else {
+                let message = new_message::not_kind(title, template);
+                return report::failure(output, &message, Exit::Failure);
+            };
+            starter
+        }
+    };
+    let text = post_text(title, &slug, &date, &tail);
     let posts = format!("content/{locale}/posts");
     let name = format!("{date}-{slug}.md");
     let relative = format!("{posts}/{name}");
-    match write(site, &posts, &name, &post_text(title, &slug, &date)) {
+    let branch = post.branch.then(|| new_branch::branch_for(&slug));
+    match written(site, (&posts, &name, &text), branch.as_deref(), title) {
         Ok(()) => {
             let body = NewBody {
                 path: &relative,
@@ -62,24 +113,50 @@ pub(crate) fn run(
                 slug: slug.as_str(),
                 language: locale.as_str(),
                 date,
+                branch: branch.as_deref(),
             };
             success(output, site, &body)
         }
-        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-            report::failure(output, &new_message::exists(&relative), Exit::Failure)
-        }
-        Err(error) => report::failure(
-            output,
-            &new_message::write(&relative, &error),
-            Exit::Failure,
-        ),
+        Err(message) => report::failure(output, &message, Exit::Failure),
     }
 }
 
-/// The text of a new post: its front matter and an empty body.
-fn post_text(title: &str, slug: &Slug, date: &str) -> String {
+/// Writes the post `text` as `name` in the `posts` folder of `site`, and
+/// with a `branch`, first starts it and then commits the post on it.
+fn written(
+    site: &Path,
+    (posts, name, text): (&str, &str, &str),
+    branch: Option<&str>,
+    title: &str,
+) -> Result<(), UserMessage> {
+    let relative = format!("{posts}/{name}");
+    if let Some(branch) = branch {
+        let mut file = site.to_path_buf();
+        file.push(&relative);
+        if file.exists() {
+            return Err(new_message::exists(&relative));
+        }
+        new_branch::start(site, branch)?;
+    }
+    write(site, posts, name, text).map_err(|error| {
+        if error.kind() == io::ErrorKind::AlreadyExists {
+            new_message::exists(&relative)
+        } else {
+            new_message::write(&relative, &error)
+        }
+    })?;
+    branch.map_or(Ok(()), |_| new_branch::commit(site, &relative, title))
+}
+
+/// The front matter's closing line and an empty body.
+const EMPTY_BODY: &str = "---\n\n";
+
+/// The text of a new post: its front matter fields, then `tail`, which
+/// closes the front matter and holds the body: [`EMPTY_BODY`], or a
+/// starter whose guidance sits in comments above the closing line.
+fn post_text(title: &str, slug: &Slug, date: &str, tail: &str) -> String {
     format!(
-        "---\ntitle: {}\nslug: {}\ndate: {date}\n---\n\n",
+        "---\ntitle: {}\nslug: {}\ndate: {date}\n{tail}",
         quoted(title),
         quoted(slug.as_str())
     )
@@ -97,14 +174,21 @@ fn write(site: &Path, posts: &str, name: &str, text: &str) -> io::Result<()> {
 /// Says what `new` wrote and what to do next.
 fn success(output: Output, site: &Path, body: &NewBody<'_>) -> Exit {
     match output {
-        Output::Human => report::text(
-            &format!(
+        Output::Human => {
+            let mut said = format!(
                 "Wrote {} in {}.\nOpen it and write the post below the front matter.\n",
                 body.path,
                 site.display()
-            ),
-            Exit::Success,
-        ),
+            );
+            if let Some(branch) = body.branch {
+                let next = format!(
+                    "It is committed on the branch {branch}. Commit your writing there, then \
+                     `git push -u origin {branch}` and open a pull request. Merging it publishes the post.\n"
+                );
+                said.push_str(&next);
+            }
+            report::text(&said, Exit::Success)
+        }
         Output::Json => report::json(body, Exit::Success),
     }
 }
@@ -121,7 +205,7 @@ mod tests {
     fn the_post_text_reads_back_with_the_same_fields() {
         let title = "Links: \"why\" \\ how\u{7}";
         let slug = Slug::try_new("links-why-how").unwrap();
-        let text = post_text(title, &slug, "2026-10-26");
+        let text = post_text(title, &slug, "2026-10-26", EMPTY_BODY);
         let post = parse_post(Path::new("post.md"), &text).unwrap();
         assert_eq!(post.front.title.as_deref(), Some(title));
         assert_eq!(post.front.slug, Some(slug));

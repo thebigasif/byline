@@ -18,6 +18,13 @@ ignore = [
   # Review again 2027-04-26, or sooner if a maintained fork appears.
   { id = "RUSTSEC-2026-0192", reason = "ttf-parser: used only by khalid-share-image, which reads only the one DejaVu face Khalid embeds, parsed at first draw; untrusted downloads are measured by read-fonts instead" },
   { id = "RUSTSEC-2026-0206", reason = "rustybuzz: used only by khalid-share-image, which shapes only titles and site names from the site's own content; the same engine resvg shipped before" },
+  # Both arrive through crypto-glue under webauthn-rs (phase-geo S1) and are
+  # timing leaks in work on secret keys. Khalid only checks passkey signatures
+  # with public keys and never holds a passkey's private key; only the tests'
+  # software passkey signs. Review again 2027-04-26, or when webauthn-rs moves
+  # to RustCrypto releases with the fixes.
+  { id = "RUSTSEC-2023-0071", reason = "rsa: the Marvin attack needs private-key decryption or signing; Khalid only verifies RS256 passkey signatures with public keys" },
+  { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5: the leaks are in arithmetic on secret integers; passkey checks use public keys and public signatures only" },
 ]
 
 [licenses]
@@ -55,6 +62,13 @@ exceptions = [
   # above still governs everything they depend on.
   { crate = "khalid-core", allow = ["AGPL-3.0-only"] },
   { crate = "khalid-lint", allow = ["AGPL-3.0-only"] },
+  # Passkeys (phase-geo S1): webauthn-rs and its parts, which check passkeys
+  # on RustCrypto through crypto-glue, with no OpenSSL.
+  { crate = "crypto-glue", allow = ["MPL-2.0"] },
+  { crate = "webauthn-attestation-ca", allow = ["MPL-2.0"] },
+  { crate = "webauthn-rs", allow = ["MPL-2.0"] },
+  { crate = "webauthn-rs-core", allow = ["MPL-2.0"] },
+  { crate = "webauthn-rs-proto", allow = ["MPL-2.0"] },
 ]
 confidence-threshold = 0.9
 unused-allowed-license = "allow"

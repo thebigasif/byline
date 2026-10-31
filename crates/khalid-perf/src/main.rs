@@ -4,24 +4,44 @@
 //! ```text
 //! khalid-perf fixture 1000 target/perf/site-1k
 //! khalid-perf render target/perf/site-1k target/perf/render.json
+//! khalid-perf lint target/perf/site-1k target/perf/lint.json
+//! khalid-perf requests target/release/khalid 1000 target/perf/site-1k target/perf/requests.json
+//! khalid-perf sizes target/perf/build-10k admin/dist target/perf/sizes.json
 //! khalid-perf serve target/release/khalid 1000 target/perf/site-1k target/perf/serve-1k.json
 //! ```
 
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
+use std::time::Duration;
 
 use khalid_core::SystemClock;
-use khalid_perf::{Fixture, FixtureError, Prepared, RenderTimes, ServeTimes};
+use khalid_lint::{LintConfig, Linter};
+use khalid_perf::{
+    Fixture, FixtureError, LintTimes, Prepared, RenderTimes, RequestRate, ServeTimes, Served, Sizes,
+};
 use khalid_render::Renderer;
 
 const USAGE: &str = "Usage: khalid-perf fixture POSTS FOLDER\n       \
                      khalid-perf render SITE OUT.json\n       \
+                     khalid-perf lint SITE OUT.json\n       \
+                     khalid-perf requests KHALID POSTS SITE OUT.json\n       \
+                     khalid-perf sizes BUILD ADMIN_DIST OUT.json\n       \
                      khalid-perf serve KHALID POSTS SITE OUT.json";
 
 /// Rounds over every page: one to warm up, then enough samples that the
 /// 99th percentile of a 1,000-post site rests on 40 renders.
 const ROUNDS: usize = 5;
+
+/// Posts linted for the lint measure, spread over the site: as many
+/// samples as the `divan` benchmark takes.
+const LINT_SAMPLES: usize = 100;
+
+/// Connections asking for the cached post page at once: `oha`'s default.
+const CONNECTIONS: usize = 50;
+
+/// How long the requests run, as the budget's `oha` run lasts.
+const REQUESTS_FOR: Duration = Duration::from_secs(30);
 
 /// Where Linux says when it gives a program transparent huge pages.
 const THP_MODE: &str = "/sys/kernel/mm/transparent_hugepage/enabled";
@@ -39,6 +59,11 @@ fn main() -> ExitCode {
     let result = match *args.as_slice() {
         ["fixture", posts, folder] => fixture(posts, Path::new(folder)),
         ["render", site, out] => render(Path::new(site), Path::new(out)),
+        ["lint", site, out] => lint(Path::new(site), Path::new(out)),
+        ["sizes", build, admin, out] => sizes(Path::new(build), Path::new(admin), Path::new(out)),
+        ["requests", khalid, posts, site, out] => {
+            requests(Path::new(khalid), posts, Path::new(site), Path::new(out))
+        }
         ["serve", khalid, posts, site, out] => {
             serve(Path::new(khalid), posts, Path::new(site), Path::new(out))
         }
@@ -80,6 +105,76 @@ fn render(site: &Path, out: &Path) -> Result<(), String> {
     let times = RenderTimes::measure(&prepared, &renderer, ROUNDS, &SystemClock)
         .map_err(|error| explain(format!("A page failed to render: {error}.")))?;
     fs::write(out, times.to_json())
+        .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
+}
+
+fn lint(site: &Path, out: &Path) -> Result<(), String> {
+    let explain = |what: String| {
+        format!(
+            "{what}\nWithout it, the time to lint one post cannot be measured.\n\
+             Write the site again with `khalid-perf fixture` and run this once more."
+        )
+    };
+    let prepared = Prepared::read(site).map_err(|error| {
+        explain(format!(
+            "The site in {} could not be read: {error}.",
+            site.display()
+        ))
+    })?;
+    let linter = Linter::new(&LintConfig::default(), &SystemClock)
+        .map_err(|error| explain(format!("The linter could not start: {error}.")))?;
+    let times = LintTimes::measure(&prepared, &linter, LINT_SAMPLES, &SystemClock);
+    fs::write(out, times.to_json())
+        .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
+}
+
+fn requests(khalid: &Path, posts: &str, site: &Path, out: &Path) -> Result<(), String> {
+    let explain = |what: String| {
+        format!(
+            "{what}\nWithout it, the requests a second cannot be measured.\n\
+             Build khalid with `cargo build --release -p khalid`, write the site \
+             again with `khalid-perf fixture`, and run this once more."
+        )
+    };
+    let fixture = posts.parse().ok().and_then(Fixture::new).ok_or_else(|| {
+        format!("{USAGE}\nPOSTS is the number of posts the site was written with.")
+    })?;
+    let fail = |error| explain(format!("Serving {} failed: {error}.", site.display()));
+    let (served, _) = Served::start(khalid, site, &SystemClock).map_err(fail)?;
+    let address = fixture.post_address(0);
+    served.get(&address).map_err(fail)?; // the page is cached before the run
+    let rate = RequestRate::measure(
+        served.host(),
+        &address,
+        (CONNECTIONS, REQUESTS_FOR),
+        &SystemClock,
+    )
+    .map_err(fail)?;
+    fs::write(out, rate.to_json())
+        .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
+}
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the CI log says when the admin was not measured"
+)]
+fn sizes(build: &Path, admin: &Path, out: &Path) -> Result<(), String> {
+    let explain = |what: String| {
+        format!(
+            "{what}\nWithout it, the stylesheet and the admin cannot be measured.\n\
+             Build the site again with `khalid build` and run this once more."
+        )
+    };
+    let sizes = Sizes::measure(build, admin)
+        .map_err(|error| explain(format!("The built files could not be read: {error}.")))?;
+    if sizes.admin_js_kb().is_none() {
+        println!(
+            "Not measured: the admin's JavaScript. {} holds no built admin. \
+             Run `npm ci && npm run build` in admin/ first to measure it.",
+            admin.display()
+        );
+    }
+    fs::write(out, sizes.to_json())
         .map_err(|error| explain(format!("{} could not be written: {error}.", out.display())))
 }
 

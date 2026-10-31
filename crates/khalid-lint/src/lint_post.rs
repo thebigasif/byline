@@ -70,6 +70,13 @@ pub struct LintPost {
     /// The forms in the body, in order.
     #[serde(default)]
     pub forms: Vec<LintForm>,
+    /// How many tables the body holds.
+    #[serde(default)]
+    pub tables: usize,
+    /// How many review blocks, each a rated verdict on one thing, the body
+    /// holds.
+    #[serde(default)]
+    pub reviews: usize,
     /// The phrase the post wants to be found for, such as "internal links",
     /// from `focus_keyword` in the header.
     pub focus_keyword: Option<String>,
@@ -84,6 +91,9 @@ pub struct LintPost {
     /// as `khalid-seo`'s check of the page's graph reports them.
     #[serde(default)]
     pub structured_data_gaps: Vec<StructuredDataGap>,
+    /// The writer's plan for the post, when it has one: the questions it
+    /// answers, the terms it uses and the pages it links to.
+    pub brief: Option<LintBrief>,
 }
 
 impl LintPost {
@@ -110,10 +120,42 @@ impl LintPost {
             body_text: String::new(),
             aliases: Vec::new(),
             forms: Vec::new(),
+            tables: 0,
+            reviews: 0,
             focus_keyword: None,
             secondary_keywords: Vec::new(),
             collection: None,
             structured_data_gaps: Vec::new(),
+            brief: None,
+        }
+    }
+}
+
+/// A post's brief: what the writer planned the post to cover before writing
+/// it. Each list may be empty, and the linter checks the post against each.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct LintBrief {
+    /// The questions the post answers, each asked by one of its headings,
+    /// such as "How many internal links should a post have?".
+    #[serde(default)]
+    pub questions: Vec<String>,
+    /// The terms a full answer uses, such as "anchor text".
+    #[serde(default)]
+    pub terms: Vec<String>,
+    /// The paths of the pages the post links to, such as `/blog/link-text/`.
+    #[serde(default)]
+    pub links: Vec<String>,
+}
+
+impl LintBrief {
+    /// A brief with the questions, terms and links given.
+    pub fn new(questions: Vec<String>, terms: Vec<String>, links: Vec<String>) -> Self {
+        Self {
+            questions,
+            terms,
+            links,
         }
     }
 }

@@ -43,6 +43,8 @@ fn every_feature_is_on_without_a_reader_table() {
         ("authors_page", reader.authors_page),
         ("archive", reader.archive),
         ("search_shortcut", reader.search_shortcut),
+        ("linked_mentions", reader.linked_mentions),
+        ("link_previews", reader.link_previews),
     ] {
         assert!(on, "{name} is on by default");
     }

@@ -1,0 +1,48 @@
+# Khalid starter kit for Next.js
+
+This kit is a Next.js app that shows a blog from a Khalid site's Content API. Khalid keeps doing the rest: the editor, the linter, the schema, the sitemaps, the feeds and the redirects. Each post page carries the same meta tags and JSON-LD the Khalid theme writes.
+
+## Set it up
+
+1. In the Khalid site's `site.toml`, set `mode = "headless"`. Headless means Khalid writes no HTML pages of its own and leaves them to this app.
+2. Make a content key, which can only read published posts:
+
+   ```sh
+   khalid keys create --kind content --name "Next.js site"
+   ```
+
+3. Start Khalid with `khalid serve`. It prints the address it answers on, such as `http://127.0.0.1:2368/blog/`.
+4. In this folder, make a file called `.env.local` with the address and the key. The file is ignored by git, so the key never reaches the repository. The key stays on the server: no page sends it to a browser.
+
+   ```sh
+   KHALID_API_URL=http://127.0.0.1:2368
+   KHALID_CONTENT_KEY=<the key from step 2>
+   ```
+
+5. Install and run:
+
+   ```sh
+   npm install
+   npm run build
+   npm start
+   ```
+
+The blog answers at `/blog/`, with each post at the address Khalid gives it. Pages are made at build time and made again at most every five minutes, so a new post shows without a new build.
+
+## What stays with Khalid
+
+Send these addresses to `khalid serve` from your web server, or with `rewrites` in `next.config.mjs`, so readers and search engines still find them:
+
+- `/blog/sitemap.xml` and the sitemaps it lists, `/blog/robots.txt` and `/blog/llms.txt`
+- the feeds: `/blog/feed.xml`, `/blog/atom.xml`, `/blog/feed.json` and each language's own
+- `/blog/share/`, the share cards the `og:image` tags point at, and the images inside posts
+- `/api/`, the Content API this app reads
+- old addresses that Khalid redirects
+
+## How it works
+
+`lib/khalid.js` reads the Content API and has no dependencies. `headElements` turns a post's `head` into elements, and `app/khalid-head.tsx` renders them. React places the title, meta and link tags in the document's `<head>`. The JSON-LD script stays in the page body, where search engines read it too. The same `khalid.js` ships in the Astro kit, and Khalid's own tests run it against the demo site on every change.
+
+## Licence
+
+MIT, so you can copy any of it into your own app.

@@ -5,7 +5,8 @@ use std::future::ready;
 
 use khalid_api::content_store::BoxFuture;
 use khalid_api::keys::{
-    CreateKeyError, GenerateKeyError, KeyId, KeyKind, KeyStore, KeyStoreError, KeyToken, StoredKey,
+    CreateKeyError, GenerateKeyError, KeyId, KeyKind, KeyStore, KeyStoreError, KeyToken, ListedKey,
+    StoredKey,
 };
 use khalid_core::Secret;
 
@@ -53,5 +54,11 @@ impl<K: KeyStore> KeyStore for SessionKeys<K> {
 
     fn revoke<'a>(&'a self, id: &'a KeyId) -> BoxFuture<'a, Result<bool, KeyStoreError>> {
         self.keys.revoke(id)
+    }
+
+    /// The site's keys; the session's own content key is never stored, so
+    /// it is never listed.
+    fn list(&self) -> BoxFuture<'_, Result<Vec<ListedKey>, KeyStoreError>> {
+        self.keys.list()
     }
 }

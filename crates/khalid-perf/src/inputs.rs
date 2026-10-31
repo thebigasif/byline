@@ -56,6 +56,7 @@ impl Prepared {
             home: config.mount().to_owned(),
             stylesheet: format!("{}assets/site.css", config.mount()),
             nav: Nav::default(),
+            announcement: None,
             main_site: None,
             share_image: None,
             features: Features::all(),
@@ -100,6 +101,7 @@ impl Prepared {
             contents: None,
             originals: BTreeMap::new(),
             related: Vec::new(),
+            mentions: Vec::new(),
             comments: None,
             body,
         };

@@ -1,0 +1,1 @@
+- **Crawl alerts.** While the visitor log is on, `khalid serve` raises an alert when Googlebot or Bingbot has not fetched a page for a week, and when crawlers got server errors in the last hour (GEO C4).

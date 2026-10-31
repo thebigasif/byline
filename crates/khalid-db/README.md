@@ -43,11 +43,18 @@ A test reads the table below and checks it lists every table in the schema, once
 | `form_submissions` | visitor | What people sent through forms on the site |
 | `subscribers` | visitor | Newsletter subscribers, whether they confirmed, and when they left |
 | `subscriber_lists` | visitor | Which newsletters each subscriber gets, by the newsletter's name |
+| `subscriber_labels` | visitor | The labels each subscriber carries, such as paid, which make segments |
 | `subscriber_tokens` | visitor | The confirmation and unsubscribe links sent to each subscriber, as hashes of their tokens |
+| `newsletter_sends` | visitor | Each email that went out to a newsletter, under a key that stops a post going out twice, with its totals: copies sent, refused and unsubscribes from it |
 | `comments` | visitor | Comments on posts, named by the post's path so they survive a rebuild: who wrote each, a reader or staff, its text and where it stands in moderation |
+| `draft_comments` | visitor | Staff comments on drafts, named by the post's identity so a rebuild keeps them: the block each is about, its thread, who wrote it and whether the thread is resolved |
 | `analytics_counts` | visitor | Page views per day, page and referrer group, counted without cookies |
 | `crawl_log` | visitor | Which bots asked for which address each day, as their user agent named them, with the latest time and status; 90 days kept |
+| `visitor_log` | visitor | One row per visit while `[visitor_log]` is on: time, address asked for, status, shortened network address, a visitor code that changes daily, and the bot's name and address check or the referrer group; 7 to 14 days kept |
+| `crawled_pages` | visitor | Each page a bot fetched from an address on its company's list, with the first and last fetch; written with the visitor log and kept when its rows are erased |
 | `alerts_raised` | visitor | The key of each alert finding sent to the owner, so it is sent once while the problem lasts |
+| `audit_log` | visitor | Each change made through the Admin API: who made it, whether it added, changed or removed something, the route and the address; the newest 100,000 kept |
+| `site_watch` | visitor | Each look the speed and uptime watch took at a page of the public address, with its status and time; 30 days kept |
 
 ## Changing a query
 

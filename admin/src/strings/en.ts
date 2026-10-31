@@ -1,4 +1,6 @@
 // Every word the admin shows, so a second language is one more file.
+import { records } from "./records";
+
 export const en = {
   brand: "Khalid",
   skip: "Skip to the main content",
@@ -10,7 +12,116 @@ export const en = {
     label: "Admin",
     dashboard: "Dashboard",
     posts: "Posts",
+    media: "Media",
+    trash: "Trash",
+    audit: "Audit log",
     redirects: "Redirects",
+    templates: "Schema templates",
+  },
+  templates: {
+    title: "Schema templates",
+    lede: "Schema is information for search engines about what a page holds. Khalid writes it for every post. A template adds one more kind to every post in a collection, so every guide is marked as a course without anyone thinking about it.",
+    loading: "Reading the schema templates",
+    restart:
+      "Saved to site.toml. The blog uses it after Khalid restarts; until then, previews show the templates it started with.",
+    inUse: "Templates in use",
+    none: "No templates yet. Every post still carries the schema Khalid writes for it.",
+    every: (target: string, name: string, type: string) =>
+      target === "category"
+        ? `Every post in the category ${name} is a ${type}`
+        : `Every post in ${name} is a ${type}`,
+    remove: "Remove this template",
+    form: {
+      title: "Add a template",
+      collection: "Collection",
+      collectionHint: "Every post in it gets the schema.",
+      type: "Kind of thing, as schema.org names it",
+      typeHint:
+        "One word starting with a capital, such as Course, Recipe or Event. Google lists the kinds it shows in results.",
+      details: "Details",
+      detailsHint:
+        "Each detail has a name schema.org uses and a value. A value may take words from the post: {title}, {excerpt}, {author}, {site}.",
+      name: "Name",
+      value: "Value",
+      more: "Add another detail",
+      save: "Save templates",
+      saving: "Saving the templates",
+    },
+  },
+  trash: records.trash,
+  audit: records.audit,
+  bulk: records.bulk,
+  media: {
+    title: "Media",
+    lede: "The images, videos, sound and files your posts use. Khalid reads each file's content to learn its type, so a program renamed to look like a photo is refused. A file uploaded twice is kept once.",
+    add: {
+      title: "Add a file",
+      file: "File",
+      fileHint:
+        "A JPEG, PNG or WebP image up to 20 MB, a video up to 100 MB, sound up to 50 MB, or a PDF, ZIP or text file.",
+      folder: "Folder",
+      folderHint:
+        "Optional. Lowercase words joined by /, such as guides/2026. Leave it empty for the top of the library.",
+      submit: "Upload",
+      uploading: "Uploading the file",
+      added: (name: string) => `Added. ${name} is in your library.`,
+      addAlt: "Give it alt text next, so readers who cannot see it know what it shows.",
+      duplicate: (name: string) => `${name} was already in your library, so nothing new was added.`,
+    },
+    library: {
+      title: "Your library",
+      lede: "Newest first. Alt text describes an image for people who use a screen reader, and for Google. The checks warn about any image in a post that has none.",
+      show: "Show",
+      every: "Every file",
+      noAlt: "Images with no alt text",
+      loading: "Reading your library",
+      empty: "Your library is empty. Add a file above to start it.",
+      allHaveAlt: "Every image in your library has alt text.",
+      found: (count: number) => (count === 1 ? "1 file" : `${count} files`),
+      preview: "Preview",
+      name: "Name",
+      folder: "Folder",
+      kind: "Kind",
+      alt: "Alt text",
+      top: "Top",
+      missing: "Missing",
+      notNeeded: "Not needed",
+      action: "Action",
+      edit: (name: string) => `Edit details of ${name}`,
+      editText: "Edit details",
+    },
+    details: {
+      back: "Back to media",
+      loading: "Reading the file's details",
+      uploaded: (summary: string, by: string, on: string) =>
+        `${summary}. ${by} uploaded it on ${on}.`,
+      address: "Its address:",
+      copy: "Copy the address",
+      copied: "Copied. Paste it into a post to use the file.",
+      title: "Details",
+      alt: "Alt text",
+      altHint:
+        "What the image shows, for people who use a screen reader and for Google. One sentence is enough.",
+      caption: "Caption",
+      captionHint: "Optional. The line shown under it in a post.",
+      folderHint:
+        "Lowercase words joined by /, such as guides/2026. Empty means the top of the library. Its address stays the same.",
+      point: "Focal point",
+      pointHint:
+        "The ring marks the focal point, the part every crop keeps. Click the picture to move it, or type the two numbers.",
+      picture: "Move the focal point to where you click",
+      left: "From the left, in %",
+      top: "From the top, in %",
+      save: "Save details",
+      saving: "Saving",
+      saved: "Saved.",
+    },
+    kinds: { image: "Image", video: "Video", audio: "Sound", file: "File" },
+    size: (bytes: number) =>
+      bytes < 1024 * 1024
+        ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+        : `${(bytes / (1024 * 1024)).toFixed(1)} MB`,
+    pixels: (width: number, height: number) => `${width} × ${height}`,
   },
   redirects: {
     title: "Redirects",
@@ -291,6 +402,34 @@ export const en = {
     submit: "Start writing",
     starting: "Making the draft",
   },
+  // The name each block card shows in the rich-text view.
+  blocks: {
+    audio: "Audio",
+    bookmark: "Bookmark card",
+    business: "Business card",
+    button: "Button",
+    callout: "Callout",
+    embed: "Embed",
+    faq: "FAQ",
+    figure: "Image with caption",
+    file: "File download",
+    form: "Form",
+    gallery: "Gallery",
+    gated: "Subscribers only",
+    header: "Header",
+    howto: "How-to",
+    html: "HTML",
+    maths: "Maths",
+    newsletter: "Newsletter sign-up",
+    product: "Product card",
+    recipe: "Recipe",
+    review: "Review",
+    toc: "Table of contents",
+    toggle: "Toggle",
+    video: "Video",
+    table: "Table",
+    footnote: "Footnote",
+  },
   editor: {
     heading: "Editing",
     loading: "Opening the post",
@@ -313,13 +452,47 @@ export const en = {
     blocked: "Fix what stops publishing, then publish again.",
     checks: "Checks",
     noChecks:
-      "Khalid checks the post when you publish. Anything that stops it, or could make it better, shows here.",
+      "Khalid checks the post each time it saves, and again when you publish. Anything that stops it, or could make it better, shows here.",
+    score: (value: number) => `Score: ${value} out of 100.`,
+    scoreWhy: (lost: readonly { points: number }[]) => {
+      const points = lost.reduce((sum, rule) => sum + rule.points, 0);
+      if (lost.length === 0) {
+        return "Nothing found costs points.";
+      }
+      const what = lost.length === 1 ? "The check below costs" : "The checks below cost";
+      return `${what} ${points} points. The score sums up the checks; the checks say what to fix.`;
+    },
     blockTag: "Stops publishing",
     warnTag: "Warning, you can still publish",
     here: "Here:",
     leave: "Some changes are not saved yet. Leaving now loses them.",
     stay: "Stay on this post",
     leaveAnyway: "Leave and lose them",
+  },
+  search: {
+    title: "How it looks in Google",
+    lede: "A search result for this post, made from the same title and description the published page will carry.",
+    result: "Search result preview",
+    none: "No description yet. Google picks a line from the post instead.",
+    lengths: (title: number, description: number) =>
+      `Title ${title} of about 60 characters. Description ${description} of about 160.`,
+    seoTitle: "Title in search results",
+    seoTitleHint:
+      "Leave it empty to use the post's title and the blog's name. {title} and {site} put those in.",
+    description: "The line under the title is the Description in Post settings.",
+    focus: "Focus keyword",
+    focusHint:
+      "The search a reader types to find this post. The checks look for it in the title, the description and the first paragraph.",
+  },
+  schema: {
+    title: "Schema",
+    lede: "Schema is information for search engines, written in a format called JSON-LD. Khalid writes it for every post. This post's page tells them it holds:",
+    types: "Kinds of thing on this page",
+    show: "Show the JSON-LD",
+    test: "Test the published page in Google's Rich Results Test",
+    own: "Your own schema",
+    ownHint:
+      "For a type Khalid does not write, such as an Event. Paste JSON-LD here; Khalid checks it before it saves. Most posts need nothing here.",
   },
   signIn: {
     title: "Sign in to your blog's admin",
@@ -364,6 +537,16 @@ export const en = {
       what: "No CSV file is picked yet.",
       why: "Khalid adds the redirects from a file, so there is nothing to add.",
       fix: "Pick a CSV file under Add redirects from a CSV file, then press Add these redirects.",
+    },
+    noMediaItem: {
+      what: "This file is not in the media library.",
+      why: "It may never have been uploaded, or the address is mistyped.",
+      fix: "Go back to Media and open the file from the list.",
+    },
+    noMedia: {
+      what: "No file is picked yet.",
+      why: "Khalid adds the file you pick, so there is nothing to upload.",
+      fix: "Pick a file under File, then press Upload.",
     },
     badAlias: {
       what: "The old address is not a path on this blog.",

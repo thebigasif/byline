@@ -119,3 +119,10 @@ What a settled server holds, from `/proc/<pid>/smaps` at 51 MB: 27 MB in mimallo
 ## Baseline
 
 `perf/baseline.json` holds the last accepted numbers and the fixture version. `scripts/perf.sh` runs every measure that can run on a CI runner and writes `perf/current.json`. The gate compares the two.
+
+How `scripts/perf.sh` takes the four measures added for brief G9, all through `khalid-perf`:
+
+- **Lint one post**: the median of 100 posts of the 1,000-post site, spread evenly, each linted against the whole site (`khalid-perf lint`). The `divan` benchmark in `crates/khalid-perf/benches/lint.rs` times the same thing.
+- **Cached post page**: one post page of the 1,000-post site, asked for once so it is cached, then over 50 keep-alive connections for 30 seconds, `oha`'s defaults, with the client on the same machine (`khalid-perf requests`).
+- **Public CSS, compressed**: the Brotli copy of each stylesheet the built home page links, from the 10,000-post build (`khalid-perf sizes`).
+- **Admin initial JavaScript, compressed**: each script `admin/dist/index.html` loads at once (`<script src>` and `modulepreload`), gzipped at level 9 as `admin/scripts/size-budget.mjs` counts. `perf.sh` does not run npm, so it is measured only when `admin/dist` holds a build; otherwise the gate lists it as not measured.

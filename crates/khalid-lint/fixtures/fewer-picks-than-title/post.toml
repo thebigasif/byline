@@ -1,0 +1,6 @@
+# A list that promises three picks in its title and gives one heading.
+extends = "clean"
+unset = ["focus_keyword"]
+title = "The 3 best link checkers for a small blog"
+description = "Three link checkers that find broken links on a small blog, and what each one costs."
+tables = 1

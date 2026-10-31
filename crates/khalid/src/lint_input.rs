@@ -6,36 +6,41 @@
 //! rendered with its wikilinks linked, the wikilinks as written, its forms,
 //! focus keywords, collection and topic cluster, the `rel` words the link
 //! policy gives each link, the site's collections, and the links of each
-//! home page, which lists every dated post (audit 2, G5).
+//! home page, which lists every dated post (audit 2, G5), the site's fact
+//! registry (P7) and each post's brief (P6).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::NaiveDate;
 use khalid_content::{
-    BlockKind, Document, Link, PostFront, SiteContent, TopicCluster, TopicRole, Wikilinks,
-    parse_blocks, render_linked,
+    BlockKind, Document, Link, PostFront, SiteContent, StructuredBlock, TopicCluster, TopicRole,
+    Wikilinks, parse_blocks, render_linked,
 };
 use khalid_core::{Config, Locale, Slug};
 use khalid_lint::{
     Cluster, ClusterRole, GlossaryTerm, Heading, HeadingLevel, Image, LinkKind, LintCollection,
-    LintForm, LintLink, LintPost, LintSite, PageRef, SectionShape, StructuredDataGap,
+    LintFact, LintForm, LintLink, LintPost, LintSite, PageRef, SectionShape, StructuredDataGap,
 };
 use khalid_routes::{PostAddress, Routes};
-use khalid_seo::{LinkPolicy, SeoSite};
+use khalid_seo::{LinkPolicy, SeoPage, SeoSite};
 
-use crate::build_pages::routed;
-use crate::build_seo;
+use crate::build_pages::{path_of, routed};
+use crate::site_briefs::Briefs;
+use crate::{build_schema, build_seo};
 
 /// What a post is linted against besides itself: the site's routes, the
-/// pages a wikilink reaches in each language, and the site as the SEO
-/// outputs read it, or `None` when `site.toml` cannot give one, in which
-/// case `khalid build` stops with its own message.
+/// pages a wikilink reaches in each language, the site as the SEO outputs
+/// read it, or `None` when `site.toml` cannot give one, in which case
+/// `khalid build` stops with its own message, the site's fact registry and
+/// the posts' briefs.
 pub(crate) struct LintInput {
     routes: Routes,
     links: BTreeMap<Locale, Wikilinks>,
     seo: Option<SeoSite>,
     policy: (LinkPolicy, SeoSite),
+    facts: Vec<LintFact>,
+    briefs: Briefs,
 }
 
 impl LintInput {
@@ -57,7 +62,19 @@ impl LintInput {
             links,
             seo,
             policy,
+            facts: Vec::new(),
+            briefs: Briefs::new(),
         }
+    }
+
+    /// This input with the site's fact registry, read from `facts.toml`.
+    pub(crate) fn with_facts(self, facts: Vec<LintFact>) -> Self {
+        Self { facts, ..self }
+    }
+
+    /// This input with each post's brief, read from `briefs/`.
+    pub(crate) fn with_briefs(self, briefs: Briefs) -> Self {
+        Self { briefs, ..self }
     }
 }
 
@@ -114,6 +131,7 @@ pub(crate) fn lint_site<'c>(
         }
     }
     site.locales = config.languages().to_vec();
+    site.facts.clone_from(&input.facts);
     site.slugs = Some(config.slugs());
     let host = config.address().host();
     site.host = (!host.is_empty()).then(|| host.to_owned());
@@ -170,7 +188,9 @@ pub(crate) fn lint_parts(
     let path = input.routes.address(config, &address).ok();
     let rest = routed(config, &input.routes, parts.locale, &address, parts.path).ok();
     let gaps = rest.map(|rest| gaps(parts, input, &rest, &slug));
+    let brief = input.briefs.get(&(parts.locale.clone(), slug.clone()));
     let mut post = LintPost::new(parts.locale.clone(), slug);
+    post.brief = brief.cloned();
     post.structured_data_gaps = gaps.unwrap_or_default();
     post.path = path;
     post.collection = Some(parts.collection.to_owned());
@@ -216,6 +236,12 @@ pub(crate) fn lint_parts(
         .iter()
         .map(|image| Image::new(image.src.clone(), image.alt.clone()))
         .collect();
+    post.tables = rendered.html.matches("<table").count();
+    post.reviews = rendered
+        .structured
+        .iter()
+        .filter(|block| matches!(block, StructuredBlock::Review(_)))
+        .count();
     post.word_count = rendered.words;
     post.body_text = plain_text(&rendered.html);
     Some(post)
@@ -241,6 +267,39 @@ fn gaps(
     };
     page.author = front.author.as_ref().map(Slug::to_string);
     build_seo::structured_data_gaps(site, &page)
+}
+
+/// The site, and the SEO page the post made of `parts` becomes on it, as
+/// `khalid build` makes the page's head and schema graph: with the schema
+/// of its blocks, its collection's schema templates and its hand-written
+/// JSON-LD. Its author is named by slug, since only the build reads the
+/// author files. `None` when the post has no date, no slug or no address,
+/// does not render, or holds JSON-LD that is not schema.org, or when
+/// `site.toml` gives no SEO site.
+pub(crate) fn seo_page<'i>(
+    parts: &PostParts<'_>,
+    config: &Config,
+    input: &'i LintInput,
+) -> Option<(&'i SeoSite, SeoPage)> {
+    let (site, front) = (input.seo.as_ref()?, parts.front);
+    let named = (front.slug.as_ref(), front.title.as_deref());
+    let slug = slug_of(named, parts.path, parts.locale, config)?;
+    let none = Wikilinks::new();
+    let links = input.links.get(parts.locale).unwrap_or(&none);
+    let rendered = render_linked(parts.body, parts.locale, config.slugs(), links).ok()?;
+    let address = PostAddress::new(parts.collection, parts.locale, &slug, front.date);
+    let rest = routed(config, &input.routes, parts.locale, &address, parts.path).ok()?;
+    let title = front.title.clone().unwrap_or_else(|| slug.to_string());
+    let mut page = build_seo::post(parts.locale, (&rest, &title), front, front.date?).ok()?;
+    page.collection = Some(parts.collection.to_owned());
+    page.content_html = build_seo::full_addresses(config, &rendered.html);
+    page.author = front.author.as_ref().map(Slug::to_string);
+    let by = (path_of(config, parts.locale, &rest), page.author.clone());
+    let body = (&rendered.structured[..], &rendered.links[..]);
+    let by = (by.0.as_str(), by.1.as_deref().unwrap_or_default());
+    build_schema::fill(&mut page, config, by, body).ok()?;
+    page.custom_schema = build_schema::custom(parts.path, front.schema.as_deref()).ok()?;
+    Some((site, page))
 }
 
 /// `link` in the lint model, with the `rel` words the link policy `policy`

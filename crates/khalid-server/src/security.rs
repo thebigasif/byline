@@ -64,6 +64,9 @@ const FIXED: [(HeaderName, HeaderValue); 5] = [
 pub struct SecurityHeaders {
     /// The `frame-src` sources, the end of the policy.
     frames: String,
+    /// The hash sources of the site's own script files, each with a
+    /// leading space, such as ` 'sha256-…'`. Empty allows none.
+    scripts: String,
 }
 
 impl SecurityHeaders {
@@ -85,8 +88,38 @@ impl SecurityHeaders {
             [] => Self::default(),
             origins => Self {
                 frames: origins.join(" "),
+                ..Self::default()
             },
         })
+    }
+
+    /// These headers with the script file whose `integrity` value is
+    /// given, such as `sha256-47DEQpj8…=`, allowed to run beside the
+    /// nonce. A page loads it with a `script` tag carrying the same
+    /// `integrity`, so the page's bytes never change per request (ADR
+    /// "the reader script is allowed by its hash").
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ServerError::ScriptHash`] for anything but `sha256-`,
+    /// `sha384-` or `sha512-` and base64, because anything else could
+    /// widen or break the policy.
+    pub fn with_script(mut self, integrity: &str) -> Result<Self, ServerError> {
+        let digest = ["sha256-", "sha384-", "sha512-"]
+            .iter()
+            .find_map(|algorithm| integrity.strip_prefix(algorithm));
+        let base64 = |c: char| c.is_ascii_alphanumeric() || matches!(c, '+' | '/' | '=');
+        match digest {
+            Some(digest) if !digest.is_empty() && digest.chars().all(base64) => {
+                self.scripts.push_str(" '");
+                self.scripts.push_str(integrity);
+                self.scripts.push('\'');
+                Ok(self)
+            }
+            _ => Err(ServerError::ScriptHash {
+                integrity: integrity.to_owned(),
+            }),
+        }
     }
 
     /// Sets every security header on `headers`, with a new nonce, for a
@@ -123,7 +156,8 @@ impl SecurityHeaders {
 
     /// The policy with `nonce`, or with no script at all when there is none.
     fn policy_with(&self, nonce: Option<&str>, sources: Sources) -> Option<HeaderValue> {
-        let length = HEAD.len() + SCRIPT_SOURCES * 2 + REST.len() + self.frames.len();
+        let length =
+            HEAD.len() + SCRIPT_SOURCES * 2 + REST.len() + self.frames.len() + self.scripts.len();
         let mut policy = String::with_capacity(length);
         policy.push_str(HEAD);
         match nonce {
@@ -131,6 +165,7 @@ impl SecurityHeaders {
                 policy.push_str("'nonce-");
                 policy.push_str(nonce);
                 policy.push_str("' 'strict-dynamic'");
+                policy.push_str(&self.scripts);
             }
             None => policy.push_str("'none'"),
         }
@@ -174,6 +209,7 @@ impl Default for SecurityHeaders {
     fn default() -> Self {
         Self {
             frames: "'none'".to_owned(),
+            scripts: String::new(),
         }
     }
 }

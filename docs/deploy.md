@@ -103,9 +103,53 @@ Compose runs Khalid as user 1000, the first user on most Linux machines. If `id 
 
 `KHALID_ADDRESS` changes the site's address without editing `site.toml`, for example when a site moves to a new domain. Uncomment the `environment` lines in `compose.yaml` to set it.
 
+## Hosting platforms
+
+The repository holds a ready file for four hosts. Each one builds the `Dockerfile` or installs the binary, keeps the site on a disk that survives restarts, and makes the site on the first start. `KHALID_ADDRESS` says the blog's address. The image's command, `serve --init`, makes a site there when the disk is empty, and leaves a site it finds as it is.
+
+### Fly.io
+
+Fly.io runs containers close to readers. You need its command line tool, `fly`, and an account.
+
+1. In a copy of this repository, run `fly launch --no-deploy`. It reads `fly.toml` and asks for the app's name.
+2. In `fly.toml`, set `KHALID_ADDRESS` to `https://<the app's name>.fly.dev`, or to your own domain once it points at Fly.
+3. Run `fly deploy`. Fly builds the image, makes a 1 GB disk for the site, and starts the blog.
+
+The site lives on one disk, so the app runs on one machine. Fly stops it when no one reads and starts it on the next visit.
+
+### Railway
+
+Railway builds the `Dockerfile` with the settings in `railway.json`: one copy of the service, checked at `/` before it takes readers.
+
+1. In Railway, make a project from this repository.
+2. Under the service's Settings, Networking, make a public domain, and point it at port 8080.
+3. Add a volume mounted at `/site`.
+4. Under Variables, add `KHALID_ADDRESS` as `https://${{RAILWAY_PUBLIC_DOMAIN}}`, and `RAILWAY_RUN_UID` as `0`. Railway's volumes belong to the root user, so Khalid must run as root to write to it. Railway still keeps the container apart from the machine.
+5. Deploy.
+
+### Coolify
+
+Coolify is a hosting panel you run on your own server.
+
+1. Add a new resource from this repository, with the Docker Compose build pack.
+2. Set the Docker Compose location to `/packaging/coolify/compose.yaml`.
+3. Deploy.
+
+Coolify makes the blog's address, sends it to port 8080, and passes it to Khalid as `KHALID_ADDRESS`. The site lives in the volume `khalid-site`. To use your own domain, change the domain in the service's settings and deploy again.
+
+### A Hetzner Cloud server
+
+`packaging/hetzner/cloud-config.yaml` sets up a new server in its first minute: it runs the install script with `--systemd`, makes the site, and starts Khalid with HTTPS from Let's Encrypt, the free service that issues certificates. Pasting it means you agree to Let's Encrypt's subscriber agreement.
+
+1. In the Hetzner Cloud console, make a Primary IPv4 address under Networking, and point your blog's domain at it.
+2. Copy the file and change `blog.example.com` in it to that domain.
+3. Create a server with that address, and paste the file under "Cloud config".
+
+The blog is at `https://<your domain>/` a few minutes later. Point the domain first: Khalid asks for its certificate on the first start, and Let's Encrypt only gives one for a domain that leads to the server.
+
 ## Sending email
 
-Khalid sends email when a reader signs up for the newsletter: one message with a link that confirms the address. Until `site.toml` says how mail is sent, the sign-up form says sign-ups are not open yet and stores nothing.
+Khalid sends email when a reader signs up for the newsletter: one message with a link that confirms the address. It also sends you each answer to a form block. Until `site.toml` says how mail is sent, the sign-up form says sign-ups are not open yet and stores nothing.
 
 Gated content, the part of a post inside `:::gated`, opens with the same email. A reader types their address in the form where the part would be, opens the link, clicks the button, and lands back on the post with the part open, with scripts off. Their browser keeps a cookie for 180 days that opens gated content on every post. On another phone or browser they type the same address again and get a link that opens it there. Without `[mail]` the part stays locked for everyone.
 
@@ -117,13 +161,18 @@ Through the mail server your host gives you, with SMTP (the protocol mail server
 [mail]
 from = "news@example.com"
 name = "Field Notes"
+postal_address = "Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK"
 
 [mail.smtp]
 host = "smtp.example.com"
 username = "news@example.com"
 ```
 
+`postal_address` is the address where people can reach you or your business by post. Anti-spam laws ask every newsletter email to show one, so Khalid sends no newsletter until it is set; sign-up emails work without it.
+
 Khalid connects on port 587 and turns encryption on before it sends anything. Add `port = 465` and `security = "tls"` for a server that is encrypted from the start. A relay on the same machine or your own network needs `private_host = true`; only then may it use `security = "none"`.
+
+Form answers are emailed to the `from` address unless you add `forms_to = "hello@example.com"` under `[mail]`.
 
 Through Resend or Postmark, two services that send mail for websites, write an empty `[mail.resend]` or `[mail.postmark]` instead of `[mail.smtp]`. Postmark sends on its `outbound` stream unless you add `message_stream = "<name>"`.
 
@@ -154,7 +203,57 @@ To get alerts by email too, set up `[mail]` as above and add the address:
 email = "owner@example.com"
 not_found_spike = 50     # new 404s in one hour that count as a burst
 stale_after_days = 365   # 0 switches the stale-post alert off
+watch_minutes = 5        # how often the speed and uptime watch looks; 0 switches it off
+slow_ms = 1000           # a slower middle answer time over an hour is an alert; 0 switches it off
 ```
+
+### Speed and uptime
+
+Once the server answers more than its own computer, with `--domain` or a `--listen` address such as `0.0.0.0:8080`, it looks at the blog's home page at its public address every 5 minutes, the way a reader's browser would: through DNS, the certificate and any proxy in front. Three failed looks in a row send a "site down" alert. An hour whose middle answer time is over 1 second sends a "slow site" alert. Both are sent once, and again only after the site has recovered.
+
+To see the record, run:
+
+```sh
+khalid --site /srv/blog watch
+```
+
+It shows, for the last day and the last 30 days, how many looks answered, how fast, and the longest gap between looks. A long gap means the server itself was off, since a stopped server cannot look. To be told about that too, have a second machine or an outside monitor watch the address.
+
+## The visitor log
+
+The visitor log keeps one row per visit for 7 to 14 days, so Khalid can check that a bot is who it says it is and see when a new post was first crawled. It sets no cookie and keeps only shortened addresses, but it is still personal data, so it is off until you switch it on. Ask your lawyer to read `docs/design/visitor-log.md` first.
+
+```toml
+[visitor_log]
+on = true
+keep_days = 14   # 7 to 14
+```
+
+While it is on, three commands read it. A crawler counts only when its address is on the list its company publishes, so a script that borrows Googlebot's name is never counted as Googlebot.
+
+- `khalid crawl first`: for each post that went live after the log saw its first crawl, how long each crawler took to fetch it.
+- `khalid crawl health`: each search and AI crawler's visits over the kept days, by what the site answered: the page, moved, missing or failed.
+- `khalid crawl errors`: each address that answered crawlers with a 4xx or 5xx, most hits first.
+
+Add `--json` to any of them for the same as one JSON object. The hourly alerts also raise `crawl-stopped` when Googlebot or Bingbot has not fetched a page for a week, and `crawler-errors` when crawlers got a server error in the last hour. Both go out like every other alert.
+
+## Many sites on one server
+
+One Khalid process can serve several blogs, each on its own domain. In an empty folder, add each site by its domain. The first one is the home site, where super admins add more:
+
+```sh
+khalid sites add example.com
+khalid sites add news.example.com
+khalid sites admin you@example.com
+khalid --site sites/example.com staff owner --email you@example.com --name "Your Name"
+khalid serve --listen 127.0.0.1:8080
+```
+
+Each site gets its own folder in `sites/`, with its own posts, theme, staff and database, and `khalid --site sites/<domain>` runs any other command on it. `khalid sites list` shows them all.
+
+A super admin is a person whose email `sites.toml` lists and who signs in on the home site. They can add a site from there while the server runs, and it answers at once. Keys and staff of the other sites cannot.
+
+Point each domain's DNS at the server. HTTPS for many domains is not built in yet, so put a proxy such as Caddy in front: it gets a certificate for each domain and passes requests to `127.0.0.1:8080`.
 
 ## Taking your data out
 
@@ -189,3 +288,49 @@ A static site cannot keep a reader's choice, so Khalid refuses to start in `mode
 Bing Webmaster Tools is Bing's dashboard for site owners. Add the site there with the address in `site.toml`, put the code Bing gives you as `bing` under `[seo.verification]` in `site.toml`, and verify. Then make an API key, the password a program uses to reach Bing for you, under Settings, API Access, and set it as `KHALID_BING_API_KEY` in the environment, the same way as the mail secrets above. The key never goes in `site.toml`.
 
 `khalid --site <folder> bing sitemap` hands Bing the sitemap, and `khalid --site <folder> bing report` shows Bing's last crawl day, the sitemaps it holds and the addresses it had trouble with. Both take `--json`.
+
+## Google Search Console
+
+Search Console is Google's report of how a site does in Google search. Khalid reads it with your own Google account, and only once you opt in. It never involves SerpDad unless you connect SerpDad yourself.
+
+1. Add the site in Search Console and verify it, with the code Google gives you as `google` under `[seo.verification]` in `site.toml`.
+2. In Google Cloud, make a project, turn on the "Google Search Console API", and make an OAuth client ID of type "Desktop app" under APIs and Services, Credentials. Google shows a client ID and a client secret.
+3. Get a refresh token, a long-lived permission for that client to read your numbers: in the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/), open the settings, tick "Use your own OAuth credentials" and enter the client ID and secret, then authorise the scope `https://www.googleapis.com/auth/webmasters.readonly` with the Google account that owns the site and exchange the code for tokens. Copy the refresh token.
+4. Add the table to `site.toml`. `property` is needed only when it differs from `address`, such as a domain property. `report_to` is who gets the weekly email, and needs `[mail]`.
+
+```toml
+[search_console]
+client_id = "1234-abcd.apps.googleusercontent.com"
+property = "sc-domain:example.com"
+report_to = "you@example.com"
+```
+
+5. Set `KHALID_GOOGLE_CLIENT_SECRET` and `KHALID_GOOGLE_REFRESH_TOKEN` in the environment, the same way as the mail secrets above. Neither ever goes in `site.toml`.
+
+Then, all with `--json` when a program reads the answer:
+
+- `khalid --site <folder> search-console check` signs in and says whether the property can be read.
+- `khalid --site <folder> search-console report` shows each post's clicks, impressions, click-through rate and position for the last 28 days Google has final numbers for, posts whose clicks fell three months in a row, missing and noindex pages that still get search traffic, and the week's winners and losers.
+- `khalid --site <folder> search-console post <slug>` shows one post's top searches and whether Google has it in its index.
+- `khalid --site <folder> search-console index` asks Google about every published post, up to 200 a run. Google allows 2,000 of these a day.
+- `khalid --site <folder> search-console follow-ups` lists the long searches, 8 words or more, that showed each post in the last 28 days. People ask AI assistants in whole questions like these, and each is one a reader brings to the post. Next to each, it names the heading that answers it, or says no heading does yet. The fix is a heading that asks the question, with a 40 to 60 word answer under it. Google leaves out searches too rare to share, so a small site may see none.
+- `khalid --site <folder> search-console email` sends the weekly email. Run it once a week, for example from a systemd timer with `OnCalendar=Mon 08:00`, or a cron line such as `0 8 * * 1`.
+
+A refresh token stops working when you take Khalid's permission back in your Google account, or when Google lets it lapse. The commands then say so: make a new one with step 3.
+
+## Pages AI bots read but never cite
+
+`khalid serve` counts each page view by where the reader came from, and logs which bots read which page. `khalid --site <folder> analytics uncited` lists the pages AI bots read in the last 30 days while no reader arrived from an AI assistant, such as ChatGPT or Perplexity, in the same days. Those pages are known to the assistants but not pointed to. `--days 7` looks at a shorter period, up to the 90 days the crawl log keeps, and `--json` prints the list for other tools.
+
+A bot reading a page never counts as a citation: only a reader sent by an AI assistant does. Bots are named by the user agent they send, which anyone can copy, so a name in the list is what the bot claimed to be. A site built as static files has no counts, so the list stays empty.
+
+## Git mode
+
+Git mode keeps the site in a git repository, so posts ship like code. Each draft is a branch: `khalid new "Title" --branch` starts the branch `post/<slug>`, writes the post and commits it there. Write the post, commit, push the branch and open a pull request. Merging it publishes the post.
+
+The server then needs what was merged. Run `khalid pull` from a deploy step, or let the git host tell the server on every push:
+
+1. Make a long random secret, for example with `openssl rand -hex 32`, and set it as `KHALID_GIT_HOOK_SECRET` in the server's environment, the same way as the mail secrets above. The secret never goes in `site.toml`.
+2. On GitHub, add a webhook under Settings, Webhooks, with the payload address `https://<your host>/api/hooks/git`, the content type `application/json` and the same secret. On GitLab, add it under Settings, Webhooks, with the same address and the secret as its token, for push events.
+
+The server answers a signed push at once and pulls in the background; the post shows as soon as the pull finishes. A push signed with anything else gets a 401 and changes nothing. Without `KHALID_GIT_HOOK_SECRET`, the address does not exist.

@@ -1,0 +1,2 @@
+Added
+One Khalid process can serve many sites. `khalid sites add <domain>` turns a folder into a sites folder with one site folder per domain, `khalid sites admin <email>` names a super admin, and `khalid serve` on that folder answers each site on its own domain. A super admin signed in on the home site lists and adds sites through `GET` and `POST /api/admin/v1/sites/`, and an added site answers without a restart (KH-EDT-7, plan 4.4).

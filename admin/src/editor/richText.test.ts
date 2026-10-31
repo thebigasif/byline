@@ -25,8 +25,8 @@ describe("the rich-text view", () => {
     });
   }
 
-  it("keeps a post with a block directive out of the rich-text view", () => {
-    expect(fitsRichText(':::callout{tone="tip"}\nFeed it daily.\n:::')).toBe(false);
+  it("keeps a post with a wikilink out of the rich-text view", () => {
+    expect(fitsRichText("Read [[why internal links matter]] next.")).toBe(false);
   });
 
   it("ends a saved file in exactly one line break", () => {

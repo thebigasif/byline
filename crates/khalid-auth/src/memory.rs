@@ -10,7 +10,7 @@ use khalid_core::Secret;
 use crate::{
     Account, AccountId, AccountStore, AccountStoreError, CreateAccountError, Email, LINK_LIFETIME,
     LinkSender, LinkStore, LinkStoreError, PasskeyStore, PasskeyStoreError, PasswordHash,
-    Registration, SendLinkError, SessionHash, SessionStore, SessionStoreError, StoredAccount,
+    SavedPasskey, SendLinkError, SessionHash, SessionStore, SessionStoreError, StoredAccount,
     StoredPasskey, StoredSession,
 };
 
@@ -361,22 +361,18 @@ impl PasskeyStore for MemoryPasskeys {
     fn add<'a>(
         &'a self,
         account: AccountId,
-        registration: &'a Registration,
+        passkey: &'a SavedPasskey,
         name: &'a str,
         _at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<bool, PasskeyStoreError>> {
         let mut rows = self.rows();
-        if rows
-            .iter()
-            .any(|row| row.credential_id == registration.credential_id)
-        {
+        let id = passkey.credential_id();
+        if rows.iter().any(|row| row.passkey.credential_id() == id) {
             return ready(Ok(false));
         }
         rows.push(StoredPasskey {
             account,
-            credential_id: registration.credential_id.clone(),
-            public_key: registration.public_key.clone(),
-            sign_count: registration.sign_count,
+            passkey: passkey.clone(),
             name: name.to_owned(),
         });
         ready(Ok(true))
@@ -387,7 +383,9 @@ impl PasskeyStore for MemoryPasskeys {
         credential_id: &'a [u8],
     ) -> BoxFuture<'a, Result<Option<StoredPasskey>, PasskeyStoreError>> {
         let rows = self.rows();
-        let found = rows.iter().find(|row| row.credential_id == credential_id);
+        let found = rows
+            .iter()
+            .find(|row| row.passkey.credential_id() == credential_id);
         ready(Ok(found.cloned()))
     }
 
@@ -405,16 +403,16 @@ impl PasskeyStore for MemoryPasskeys {
 
     fn used<'a>(
         &'a self,
-        credential_id: &'a [u8],
-        sign_count: u32,
+        passkey: &'a SavedPasskey,
         _at: DateTime<Utc>,
     ) -> BoxFuture<'a, Result<(), PasskeyStoreError>> {
         let mut rows = self.rows();
+        let id = passkey.credential_id();
         for row in rows
             .iter_mut()
-            .filter(|row| row.credential_id == credential_id)
+            .filter(|row| row.passkey.credential_id() == id)
         {
-            row.sign_count = sign_count;
+            row.passkey = passkey.clone();
         }
         ready(Ok(()))
     }

@@ -1,0 +1,12 @@
+# A comparison with a table whose opening names only one of the two sides,
+# so the verdict waits until later in the post.
+extends = "clean"
+unset = ["focus_keyword"]
+title = "Ahrefs vs Semrush: which suits a small blog?"
+description = "Ahrefs or Semrush for a small blog: which one suits which writer, and why."
+tables = 1
+body_text = """
+Ahrefs has the larger link index of the two.
+What internal links are
+Semrush costs more.
+"""

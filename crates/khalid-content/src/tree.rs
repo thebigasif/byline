@@ -7,14 +7,19 @@ use khalid_core::Locale;
 
 use crate::{ContentError, ContentHash};
 
+/// The folder in `content/` that holds the newsletters' own files, such as
+/// their welcome emails (task 5.9). It is not a language, and nothing in it
+/// becomes a page.
+const NEWSLETTERS: &str = "newsletters";
+
 /// Every content file of a site, in path order, with its hash.
 ///
 /// The layout follows Zola's vocabulary: each folder in `content/` is a
 /// language, each folder in a language is a collection, and a collection's
 /// own front matter lives in its `_index.md`. An entry is a markdown file, or
-/// a folder with an `index.md` and its assets beside it. Hidden files are
-/// skipped. Every listing is sorted
-/// by name before it is read, so two walks of the same files give the same
+/// a folder with an `index.md` and its assets beside it. Hidden files and
+/// `content/newsletters/` are skipped. Every listing is sorted by name
+/// before it is read, so two walks of the same files give the same
 /// tree (RULES.md BL-TYP-5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentTree {
@@ -57,6 +62,9 @@ impl ContentTree {
     pub fn walk(site: &Path) -> Result<Self, ContentError> {
         let mut languages = Vec::new();
         for (name, rel) in folders(site, Path::new("content"))? {
+            if name == NEWSLETTERS {
+                continue;
+            }
             let locale = Locale::try_new(&name).map_err(|source| ContentError::NotALanguage {
                 path: rel.clone(),
                 source,

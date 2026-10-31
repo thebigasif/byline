@@ -1,8 +1,10 @@
 //! Newsletter subscribers on SQLite, for `khalid-newsletter` (task 5.5).
 
 use chrono::{DateTime, SecondsFormat, Utc};
+use khalid_core::Slug;
 use khalid_newsletter::{
-    BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, TokenHash,
+    BoxFuture, Confirmed, EmailAddress, Labelled, Member, Recipient, Segment, SendId, SendNumbers,
+    SendTotals, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, TokenHash,
     Unsubscribed,
 };
 use sqlx::{Sqlite, Transaction};
@@ -13,8 +15,8 @@ use crate::{Database, DbError, SiteId};
 /// the file never holds a link that works (RULES.md BL-SEC-3).
 #[derive(Debug, Clone)]
 pub struct SubscriberTable {
-    db: Database,
-    site: SiteId,
+    pub(crate) db: Database,
+    pub(crate) site: SiteId,
 }
 
 impl SubscriberTable {
@@ -198,6 +200,17 @@ impl SubscriberTable {
         let Some(row) = row else {
             return Ok(Unsubscribed::Unknown);
         };
+        // A first click on a link from a newsletter email counts against
+        // that email's total (task 5.12); who clicked is not kept.
+        sqlx::query(
+            "UPDATE newsletter_sends SET unsubscribed = unsubscribed + 1 \
+             WHERE id = (SELECT send_id FROM subscriber_tokens WHERE token_hash = ?1) \
+             AND EXISTS (SELECT 1 FROM subscribers WHERE id = ?2 AND status != 'unsubscribed')",
+        )
+        .bind(token.as_bytes().as_slice())
+        .bind(row)
+        .execute(&mut *tx)
+        .await?;
         let steps = [
             "UPDATE subscribers SET status = 'unsubscribed', unsubscribed_at = ?2 \
              WHERE id = ?1 AND status != 'unsubscribed'",
@@ -256,10 +269,93 @@ impl SubscriberStore for SubscriberTable {
                 .map_err(StoreError::new)
         })
     }
+
+    fn label<'a>(
+        &'a self,
+        email: &'a EmailAddress,
+        label: &'a Slug,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<Labelled, StoreError>> {
+        Box::pin(async move {
+            let done = self.label_now(email, label, at).await;
+            done.map_err(StoreError::new)
+        })
+    }
+
+    fn unlabel<'a>(
+        &'a self,
+        email: &'a EmailAddress,
+        label: &'a Slug,
+    ) -> BoxFuture<'a, Result<Labelled, StoreError>> {
+        Box::pin(async move {
+            self.unlabel_now(email, label)
+                .await
+                .map_err(StoreError::new)
+        })
+    }
+
+    fn start_send<'a>(
+        &'a self,
+        key: &'a str,
+        list: &'a Slug,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<Option<SendId>, StoreError>> {
+        Box::pin(async move {
+            let started = self.start_send_now(key, list, at).await;
+            started.map_err(StoreError::new)
+        })
+    }
+
+    fn add_send_unsubscribe<'a>(
+        &'a self,
+        send: SendId,
+        subscriber: SubscriberId,
+        token: &'a TokenHash,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<(), StoreError>> {
+        Box::pin(async move {
+            let added = self.add_send_unsubscribe_now(send, subscriber, token, at);
+            added.await.map_err(StoreError::new)
+        })
+    }
+
+    fn finish_send(
+        &self,
+        send: SendId,
+        totals: SendTotals,
+        at: DateTime<Utc>,
+    ) -> BoxFuture<'_, Result<(), StoreError>> {
+        Box::pin(async move {
+            let finished = self.finish_send_now(send, totals, at).await;
+            finished.map_err(StoreError::new)
+        })
+    }
+
+    fn sends(&self) -> BoxFuture<'_, Result<Vec<SendNumbers>, StoreError>> {
+        Box::pin(async move { self.sends_now().await.map_err(StoreError::new) })
+    }
+
+    fn subscriber(
+        &self,
+        subscriber: SubscriberId,
+    ) -> BoxFuture<'_, Result<Option<Member>, StoreError>> {
+        Box::pin(async move {
+            self.subscriber_now(subscriber)
+                .await
+                .map_err(StoreError::new)
+        })
+    }
+
+    fn audience<'a>(
+        &'a self,
+        segment: &'a Segment,
+    ) -> BoxFuture<'a, Result<Vec<Recipient>, StoreError>> {
+        Box::pin(async move { self.audience_now(segment).await.map_err(StoreError::new) })
+    }
 }
 
 /// `at` as the RFC 3339 text the schema stores.
-fn stamp(at: DateTime<Utc>) -> String {
+pub(crate) fn stamp(at: DateTime<Utc>) -> String {
     at.to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 

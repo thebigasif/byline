@@ -32,18 +32,31 @@ fn a_site_without_the_table_gets_the_defaults_and_no_email() {
     assert_eq!(alerts.email, None);
     assert_eq!(alerts.not_found_spike, 50);
     assert_eq!(alerts.stale_after_days, 365);
+    assert_eq!(alerts.watch_minutes, 5);
+    assert_eq!(alerts.slow_ms, 1000);
 }
 
 #[test]
 fn reads_every_key() {
     let text = format!(
-        "{SITE}\n[alerts]\nemail = \"owner@example.com\"\nnot_found_spike = 10\nstale_after_days = 0\n{MAIL}"
+        "{SITE}\n[alerts]\nemail = \"owner@example.com\"\nnot_found_spike = 10\nstale_after_days = 0\nwatch_minutes = 0\nslow_ms = 600\n{MAIL}"
     );
     let config = load(&text).unwrap();
     let alerts = config.alerts();
     assert_eq!(alerts.email.as_deref(), Some("owner@example.com"));
     assert_eq!(alerts.not_found_spike, 10);
     assert_eq!(alerts.stale_after_days, 0);
+    assert_eq!(alerts.watch_minutes, 0);
+    assert_eq!(alerts.slow_ms, 600);
+}
+
+#[test]
+fn refuses_a_watch_rarer_than_once_an_hour() {
+    let rare = format!("{SITE}\n[alerts]\nwatch_minutes = 61\n");
+    assert_eq!(
+        load(&rare).unwrap_err(),
+        "site.toml, line 7, field \"watch_minutes\": the watch looks at least once an hour to tell when the site is down, so use 1 to 60, or 0 to switch it off"
+    );
 }
 
 #[test]

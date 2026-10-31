@@ -49,9 +49,9 @@ INSERT INTO users (id, site_id, email, name, role, created_at) VALUES
 INSERT INTO sessions (site_id, user_id, token_hash, created_at, expires_at) VALUES
     (1, 1, randomblob(32), '2026-10-26T09:00:00Z', '2026-11-26T09:00:00Z'),
     (2, 2, randomblob(32), '2026-10-26T09:00:00Z', '2026-11-26T09:00:00Z');
-INSERT INTO passkeys (site_id, user_id, credential_id, public_key, sign_count, name, created_at) VALUES
-    (1, 1, randomblob(16), randomblob(33), 0, 'Laptop', '2026-10-26T09:00:00Z'),
-    (2, 2, randomblob(16), randomblob(33), 0, 'Laptop', '2026-10-26T09:00:00Z');
+INSERT INTO passkeys (site_id, user_id, credential_id, credential, name, created_at) VALUES
+    (1, 1, randomblob(16), '{"cred":{}}', 'Laptop', '2026-10-26T09:00:00Z'),
+    (2, 2, randomblob(16), '{"cred":{}}', 'Laptop', '2026-10-26T09:00:00Z');
 INSERT INTO magic_links (site_id, user_id, token_hash, created_at, expires_at) VALUES
     (1, 1, randomblob(32), '2026-10-26T09:00:00Z', '2026-10-26T09:15:00Z'),
     (2, 2, randomblob(32), '2026-10-26T09:00:00Z', '2026-10-26T09:15:00Z');
@@ -82,9 +82,14 @@ INSERT INTO subscribers (id, site_id, email, status, created_at) VALUES
     (2, 2, 'reader@example.com', 'confirmed', '2026-10-26T09:00:00Z');
 INSERT INTO subscriber_lists (site_id, subscriber_id, list, joined_at) VALUES
     (1, 1, 'main', '2026-10-26T09:00:00Z'), (2, 2, 'main', '2026-10-26T09:00:00Z');
+INSERT INTO subscriber_labels (site_id, subscriber_id, label, added_at) VALUES
+    (1, 1, 'paid', '2026-10-26T09:00:00Z'), (2, 2, 'paid', '2026-10-26T09:00:00Z');
 INSERT INTO subscriber_tokens (site_id, subscriber_id, purpose, token_hash, created_at) VALUES
     (1, 1, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z'),
     (2, 2, 'unsubscribe', randomblob(32), '2026-10-26T09:00:00Z');
+INSERT INTO newsletter_sends (site_id, send_key, list, started_at, sent) VALUES
+    (1, 'post:en/old-post', 'main', '2026-10-26T09:00:00Z', 1),
+    (2, 'post:en/old-post', 'main', '2026-10-26T09:00:00Z', 1);
 INSERT INTO comments (site_id, post_path, author_kind, author_name, author_email, body, status, created_at) VALUES
     (1, 'content/en/posts/old-post.md', 'reader', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z'),
     (2, 'content/en/posts/old-post.md', 'reader', 'Ben Reader', 'ben@example.com', 'Useful, thank you.', 'approved', '2026-10-26T09:00:00Z');
@@ -93,5 +98,21 @@ INSERT INTO analytics_counts (site_id, day, path, referrer_group, views) VALUES
 INSERT INTO crawl_log (site_id, day, path, crawler, kind, hits, last_seen, last_status) VALUES
     (1, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200),
     (2, '2026-10-26', '/blog/old-post/', 'Googlebot', 'search', 3, '2026-10-26T09:00:00Z', 200);
+INSERT INTO visitor_log (site_id, at, path, status, address, visitor_code, referrer_group, crawler, bot_check) VALUES
+    (1, '2026-10-26T09:00:00Z', '/blog/old-post/', 200, '203.0.113.0', '9f3c2a71d05be448', NULL, 'Googlebot', 'listed'),
+    (2, '2026-10-26T09:00:00Z', '/blog/old-post/', 200, '203.0.113.0', '9f3c2a71d05be448', NULL, 'Googlebot', 'listed');
+INSERT INTO crawled_pages (site_id, path, crawler, first_at, last_at) VALUES
+    (1, '/blog/old-post/', 'Googlebot', '2026-10-26T09:00:00Z', '2026-10-27T09:00:00Z'),
+    (2, '/blog/old-post/', 'Googlebot', '2026-10-26T09:00:00Z', '2026-10-27T09:00:00Z');
 INSERT INTO alerts_raised (site_id, key, raised_at) VALUES
     (1, 'stale-post:en.old-post', '2026-10-26T09:00:00Z'), (2, 'stale-post:en.old-post', '2026-10-26T09:00:00Z');
+INSERT INTO audit_log (site_id, at, by_key, action, route, path) VALUES
+    (1, '2026-10-26T09:00:00Z', '0123456789abcdef', 'changed', '/api/admin/v1/posts/{id}/', '/api/admin/v1/posts/en.old-post/'),
+    (2, '2026-10-26T09:00:00Z', '0123456789abcdef', 'changed', '/api/admin/v1/posts/{id}/', '/api/admin/v1/posts/en.old-post/');
+INSERT INTO site_watch (site_id, page, looked_at, status, millis) VALUES
+    (1, 'https://www.example.com/blog/', '2026-10-26T09:00:00Z', 200, 120),
+    (2, 'https://www.example.com/blog/', '2026-10-26T09:00:00Z', NULL, 10000);
+INSERT INTO draft_comments (id, site_id, post_id, parent_id, block, author, body, resolved, created_at) VALUES
+    (1, 1, 'en.choosing-anchor-text', NULL, 2, '3333444455556666', 'Name the tool here?', 1, '2026-10-26T09:00:00Z'),
+    (2, 1, 'en.choosing-anchor-text', 1, 2, '2222333344445555', 'Done.', 0, '2026-10-26T09:05:00Z'),
+    (3, 2, 'en.choosing-anchor-text', NULL, NULL, '3333444455556666', 'Good start.', 0, '2026-10-26T09:00:00Z');

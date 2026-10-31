@@ -124,6 +124,30 @@ fn refuses_none_or_two_ways_to_send() {
 }
 
 #[test]
+fn form_answers_go_to_forms_to_or_else_to_from() {
+    let env = with(Environment::SMTP_PASSWORD);
+    let config = load(&format!("{SITE}{SMTP}"), &env).unwrap();
+    let mail = config.mail().unwrap();
+    assert_eq!(mail.forms_to, None);
+    assert_eq!(mail.form_answers_to(), "news@example.com");
+
+    let forms_to = |to: &str| {
+        let from = "from = \"news@example.com\"\n";
+        format!("{SITE}{SMTP}").replace(from, &format!("{from}forms_to = {to:?}\n"))
+    };
+    let config = load(&forms_to("hello@example.com"), &env).unwrap();
+    let mail = config.mail().unwrap();
+    assert_eq!(mail.forms_to.as_deref(), Some("hello@example.com"));
+    assert_eq!(mail.form_answers_to(), "hello@example.com");
+
+    let text = forms_to("hello");
+    assert_eq!(
+        load(&text, &env).unwrap_err(),
+        "site.toml, line 8, field \"forms_to\": forms_to is the address form answers are emailed to, such as hello@example.com",
+    );
+}
+
+#[test]
 fn refuses_a_from_that_is_not_an_address() {
     for from in [
         "news",
@@ -149,6 +173,36 @@ fn refuses_a_name_on_two_lines() {
         load(&text, &with(Environment::SMTP_PASSWORD)).unwrap_err(),
         "site.toml, line 8, field \"name\": the sender's name is one line of up to 100 characters",
     );
+}
+
+#[test]
+fn reads_the_postal_address_newsletters_need() {
+    let config = load(&format!("{SITE}{SMTP}"), &with(Environment::SMTP_PASSWORD)).unwrap();
+    assert_eq!(config.mail().unwrap().postal_address, None);
+    let text = format!("{SITE}{SMTP}").replace(
+        "name = \"Field Notes\"",
+        "name = \"Field Notes\"\npostal_address = \"Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK\"",
+    );
+    let config = load(&text, &with(Environment::SMTP_PASSWORD)).unwrap();
+    assert_eq!(
+        config.mail().unwrap().postal_address.as_deref(),
+        Some("Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK")
+    );
+}
+
+#[test]
+fn refuses_a_postal_address_that_is_empty_or_on_two_lines() {
+    for address in ["\"\"", "\"1 Park Row\\nLeeds\""] {
+        let text = format!("{SITE}{SMTP}").replace(
+            "name = \"Field Notes\"",
+            &format!("name = \"Field Notes\"\npostal_address = {address}"),
+        );
+        assert_eq!(
+            load(&text, &with(Environment::SMTP_PASSWORD)).unwrap_err(),
+            "site.toml, line 9, field \"postal_address\": the postal address is one line of up to 300 characters, such as Field Notes Ltd, 1 Park Row, Leeds LS1 5AB, UK",
+            "{address}"
+        );
+    }
 }
 
 #[test]

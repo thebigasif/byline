@@ -1,7 +1,7 @@
 //! The small prebuilt search index `khalid build` writes for a static site,
 //! one file per language beside its search page, `search/index.json`: each
 //! published post's address, title, description and terms. Plain files
-//! cannot answer a query, so the page shows the lock card; the file is what
+//! cannot answer a query, so the page says search is not available; the file is what
 //! a search in the browser can read on a small site (plan section 7).
 
 use std::collections::BTreeSet;
