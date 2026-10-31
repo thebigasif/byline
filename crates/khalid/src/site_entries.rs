@@ -281,3 +281,7 @@ fn unreadable(path: &Path) -> EntryStoreError {
     let why = format!("{} has no front matter Khalid can read", path.display());
     EntryStoreError::new(io::Error::other(why))
 }
+
+#[cfg(test)]
+#[path = "site_entries_tests.rs"]
+mod tests;
