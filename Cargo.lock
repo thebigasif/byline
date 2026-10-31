@@ -2018,6 +2018,7 @@ dependencies = [
  "image",
  "insta",
  "khalid-admin",
+ "khalid-alerts",
  "khalid-api",
  "khalid-audit",
  "khalid-auth",

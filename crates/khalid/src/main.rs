@@ -6,6 +6,11 @@
 //! which this binary calls the same way the API does.
 
 mod agents;
+#[expect(
+    dead_code,
+    reason = "khalid serve starts alerting in the next part of G44"
+)]
+mod alerts;
 mod announce;
 mod assets;
 mod atomic;
