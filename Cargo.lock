@@ -2221,6 +2221,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "getrandom 0.4.3",
+ "khalid-alerts",
  "khalid-api",
  "khalid-auth",
  "khalid-comments",

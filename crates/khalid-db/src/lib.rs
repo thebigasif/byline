@@ -20,6 +20,7 @@
 //! [`PasskeyTable`] that `khalid-auth` signs people in with.
 
 mod account_table;
+mod alert_table;
 mod comment_table;
 mod content_index;
 mod database;
@@ -44,6 +45,7 @@ mod subscriber_table;
 mod webhook_table;
 
 pub use account_table::AccountTable;
+pub use alert_table::AlertTable;
 pub use comment_table::CommentTable;
 pub use content_index::{ContentIndex, IndexedAuthor, IndexedPost, IndexedTerm};
 pub use database::Database;

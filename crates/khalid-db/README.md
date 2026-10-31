@@ -46,6 +46,7 @@ A test reads the table below and checks it lists every table in the schema, once
 | `subscriber_tokens` | visitor | The confirmation and unsubscribe links sent to each subscriber, as hashes of their tokens |
 | `comments` | visitor | Comments on posts, named by the post's path so they survive a rebuild: who wrote each, a reader or staff, its text and where it stands in moderation |
 | `analytics_counts` | visitor | Page views per day, page and referrer group, counted without cookies |
+| `alerts_raised` | visitor | The key of each alert finding sent to the owner, so it is sent once while the problem lasts |
 
 ## Changing a query
 
