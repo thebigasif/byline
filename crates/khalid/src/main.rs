@@ -9,6 +9,7 @@ mod agents;
 mod announce;
 mod assets;
 mod atomic;
+mod audit_message;
 mod build;
 mod build_files;
 mod build_gate;
@@ -88,6 +89,7 @@ mod serve_message;
 mod settings_text;
 mod share_images;
 mod site_addresses;
+mod site_audit;
 mod site_config;
 mod site_content;
 mod site_files;
@@ -155,10 +157,8 @@ fn run(cli: &Cli) -> Exit {
     let environment = Environment::from_process();
     // The server's watch starts from a look taken before the content is
     // read, so a post saved while the server starts still shows.
-    let look = match (&cli.command, cli.site.as_deref()) {
-        (Some(Command::Serve(_)), Some(folder)) => Some(serving(folder)),
-        _ => None,
-    };
+    let serves = matches!(cli.command, Some(Command::Serve(_)));
+    let look = cli.site.as_deref().filter(|_| serves).map(serving);
     let site = match cli.site.as_deref() {
         Some(folder) => match check(folder, &environment) {
             Ok((config, routes, content, assets)) => {
@@ -202,6 +202,9 @@ fn run(cli: &Cli) -> Exit {
             &SystemClock,
             cli.output,
         ),
+        (Some(asked @ Command::Audit { .. }), Some((folder, config, routes, (content, _)))) => {
+            audit(folder, (config, routes, content), asked, cli)
+        }
         (
             Some(command @ (Command::Keys { .. } | Command::Staff { .. })),
             Some((folder, config, ..)),
@@ -224,11 +227,31 @@ fn run(cli: &Cli) -> Exit {
                 | Command::Mcp
                 | Command::Lint { .. }
                 | Command::New { .. }
-                | Command::Build { .. }),
+                | Command::Build { .. }
+                | Command::Audit { .. }),
             ),
             None,
         ) => report::failure(cli.output, &needs_site(command), Exit::Usage),
         (Some(command), _) => report::failure(cli.output, &not_built(command), Exit::Internal),
+    }
+}
+
+/// Runs `audit` on a checked site, from a build or the server it names.
+fn audit(
+    folder: &Path,
+    checked: (&Config, &Routes, &SiteContent),
+    asked: &Command,
+    cli: &Cli,
+) -> Exit {
+    match asked {
+        Command::Audit { server, network } => site_audit::run(
+            folder,
+            checked,
+            (server.as_ref(), *network),
+            &SystemClock,
+            cli,
+        ),
+        _ => report::failure(cli.output, &not_built(asked), Exit::Internal),
     }
 }
 

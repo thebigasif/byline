@@ -2002,6 +2002,7 @@ dependencies = [
  "insta",
  "khalid-admin",
  "khalid-api",
+ "khalid-audit",
  "khalid-auth",
  "khalid-comments",
  "khalid-content",
@@ -2084,8 +2085,18 @@ dependencies = [
 name = "khalid-audit"
 version = "0.0.0"
 dependencies = [
+ "chrono",
+ "http",
  "khalid-core",
+ "khalid-outbound",
+ "percent-encoding",
+ "roxmltree",
  "scraper",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
  "url",
 ]
 

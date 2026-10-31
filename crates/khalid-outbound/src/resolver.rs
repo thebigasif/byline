@@ -10,8 +10,13 @@ use crate::address::is_public;
 /// Which addresses a client may reach.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reach {
-    /// Public internet addresses only. The only choice outside tests.
+    /// Public internet addresses only. The choice for every client but one.
     Public,
+    /// Public addresses and loopback, for the one client `khalid audit`
+    /// crawls a running blog with, such as `khalid serve` on this machine.
+    /// Every other inward range stays refused (ADR "the audit may reach
+    /// the site under audit on loopback").
+    SiteUnderAudit,
     /// Public addresses and loopback, so tests can talk to a local stand-in
     /// server. Every other inward range stays refused.
     #[cfg(any(test, feature = "test-util"))]
@@ -23,6 +28,7 @@ impl Reach {
     pub fn allows(self, ip: IpAddr) -> bool {
         match self {
             Self::Public => is_public(ip),
+            Self::SiteUnderAudit => is_public(ip) || ip.is_loopback(),
             #[cfg(any(test, feature = "test-util"))]
             Self::PublicAndLoopback => is_public(ip) || ip.is_loopback(),
         }
@@ -44,6 +50,16 @@ impl Resolver {
         Self {
             hosts: None,
             reach: Reach::Public,
+        }
+    }
+
+    /// A resolver that asks the system and allows public addresses and
+    /// loopback, for the client `khalid audit` crawls a running blog with
+    /// and for nothing else.
+    pub fn for_site_under_audit() -> Self {
+        Self {
+            hosts: None,
+            reach: Reach::SiteUnderAudit,
         }
     }
 
