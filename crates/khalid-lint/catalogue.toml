@@ -202,6 +202,12 @@ why = "A date that cannot be true makes readers and search engines doubt the who
 fix = "Change `updated:` to the day you last changed what the post says, or remove it."
 guide = "refreshing-posts"
 
+[fact-not-checked]
+what = "This post uses a fact from `facts.toml` that has not been checked for a long time."
+why = "A price, count or date that no longer holds misleads readers and the engines that quote your post."
+fix = "Update the fact in `facts.toml` after checking it, and set its `checked` date to today."
+guide = "fact-registry"
+
 [near-duplicate]
 what = "This post shares most of its text with another post on your site."
 why = "Google shows only one of two near copies, so the two posts compete and both lose."
@@ -285,6 +291,12 @@ what = "A number has no linked source and no year beside it."
 why = "A reader, and an engine citing your post, needs to know where a number comes from and whether it still holds."
 fix = "Link the number to its source, or write the year it held beside it, such as 47 percent (2024)."
 guide = "sourced-statistics"
+
+[fact-old-value]
+what = "This post gives a value that the site's fact list says has changed."
+why = "Two different values for one fact make readers and search engines trust the whole site less."
+fix = "Replace the old value with the current one from `facts.toml`."
+guide = "fact-registry"
 
 [hard-to-read]
 what = "This post is hard to read, because its sentences are long and many of its words are long."
