@@ -11,6 +11,7 @@ use tower::service_fn;
 
 use crate::clean_url::{Resolved, resolve};
 use crate::compress::{self, Compressed};
+use crate::consent::{self, Choice, HeldCode};
 use crate::page::NONCE_SLOT;
 use crate::security::fresh_nonce;
 use crate::{LivePages, MediaType, Page, Pages, SecurityHeaders, etag};
@@ -20,6 +21,17 @@ const ALLOW: HeaderValue = HeaderValue::from_static("GET, HEAD");
 
 /// Tells caches that a page's bytes depend on `Accept-Encoding`.
 const ENCODING_VARIES: HeaderValue = HeaderValue::from_static("accept-encoding");
+
+/// Tells caches that a page's bytes depend on `Accept-Encoding` and on the
+/// reader's consent cookie.
+const ENCODING_AND_COOKIE_VARY: HeaderValue = HeaderValue::from_static("accept-encoding, cookie");
+
+/// Tells caches that a page made for one reader's choice depends on their
+/// cookie.
+const COOKIE_VARIES: HeaderValue = HeaderValue::from_static("cookie");
+
+/// A page made for one reader's choice, kept by no cache at all.
+const PRIVATE: HeaderValue = HeaderValue::from_static("private, no-store");
 
 /// The `Content-Encoding` of a Brotli copy.
 const BROTLI: HeaderValue = HeaderValue::from_static("br");
@@ -38,19 +50,47 @@ const BROTLI: HeaderValue = HeaderValue::from_static("br");
 /// starting server serves its [`Pages::first`], a request for an address
 /// they lack waits for the whole site rather than getting a 404.
 pub fn router(pages: impl Into<LivePages>, security: SecurityHeaders) -> Router {
-    let site = Arc::new((pages.into(), security));
+    answering(pages.into(), security, None)
+}
+
+/// The [`router`] for a site whose own code waits for each reader's
+/// consent: `held` goes into the HTML pages of a reader whose
+/// [`CONSENT_COOKIE`](crate::CONSENT_COOKIE) says yes.
+///
+/// A reader who has not answered gets each page as it was rendered, with
+/// its tag and its Brotli copy, and no held code. A reader who answered
+/// gets HTML pages made for them alone: without the banner, with the form
+/// to change their choice, kept by no cache, and, when they said yes,
+/// with the code and a policy carrying its nonce.
+pub fn router_with_consent(
+    pages: impl Into<LivePages>,
+    security: SecurityHeaders,
+    held: HeldCode,
+) -> Router {
+    answering(pages.into(), security, Some(held))
+}
+
+/// The router of `live`, with `held` when the site asks for consent.
+fn answering(live: LivePages, security: SecurityHeaders, held: Option<HeldCode>) -> Router {
+    let site = Arc::new((live, security, held));
     Router::new().fallback_service(service_fn(move |request: Request<Body>| {
         let site = Arc::clone(&site);
         async move {
-            let (live, security) = &*site;
+            let (live, security, held) = &*site;
             let mut pages = live.current();
             if waits(&pages, &request) {
                 pages = live.whole().await;
             }
-            Ok::<_, Infallible>(answer(&pages, security, &request))
+            let consent = held
+                .as_ref()
+                .map(|held| (Choice::of(request.headers()), held));
+            Ok::<_, Infallible>(answer(&pages, security, &request, consent))
         }
     }))
 }
+
+/// A reader's choice and the code it lets in, on a site that asks.
+type Consent<'held> = Option<(Choice, &'held HeldCode)>;
 
 /// Whether `request` asks a set of first pages for an address it lacks.
 fn waits(pages: &Pages, request: &Request<Body>) -> bool {
@@ -60,9 +100,15 @@ fn waits(pages: &Pages, request: &Request<Body>) -> bool {
         && matches!(resolve(pages, uri.path(), uri.query()), Resolved::NotFound)
 }
 
-/// Answers at once from `pages`, already in memory.
-fn answer(pages: &Pages, security: &SecurityHeaders, request: &Request<Body>) -> Response<Body> {
-    let mut response = respond(pages, request);
+/// Answers at once from `pages`, already in memory, as the reader who made
+/// `consent`'s choice sees them.
+fn answer(
+    pages: &Pages,
+    security: &SecurityHeaders,
+    request: &Request<Body>,
+    consent: Consent<'_>,
+) -> Response<Body> {
+    let mut response = respond(pages, request, consent);
     let html = response.headers().get(header::CONTENT_TYPE).is_none() || is_html(&response);
     if html && !pages.preloads().is_empty() {
         let link = pages
@@ -96,10 +142,39 @@ fn is_html(response: &Response<Body>) -> bool {
 #[derive(Debug, Clone)]
 struct FilledNonce(String);
 
-/// A page with a nonce slot, filled for this request alone and never kept.
-/// Without random bytes the slot is emptied and the policy allows no
+/// `plain`, an HTML page, made for this request alone: changed for the
+/// reader's choice on a site that asks for consent, with its nonce slot
+/// filled. The policy carries the nonce only while a slot is left to use
+/// it. Without random bytes the slot is emptied and the policy allows no
 /// script, which is stricter, never looser.
-fn per_request(page: &Page, send: SendBody) -> Response<Body> {
+fn personal(
+    code: StatusCode,
+    (media_type, plain): (MediaType, &Bytes),
+    send: SendBody,
+    consent: Consent<'_>,
+) -> Response<Body> {
+    let text = String::from_utf8_lossy(plain);
+    let text = match consent {
+        Some((choice, held)) => consent::chosen(&text, choice, held),
+        None => text.into_owned(),
+    };
+    let nonce = fresh_nonce().filter(|_| text.contains(NONCE_SLOT));
+    let html = text.replace(NONCE_SLOT, nonce.as_deref().unwrap_or(""));
+    let mut response = file(code, media_type, &Bytes::from(html), send);
+    if consent.is_some() {
+        let headers = response.headers_mut();
+        headers.insert(header::CACHE_CONTROL, PRIVATE);
+        headers.insert(header::VARY, COOKIE_VARIES);
+    }
+    if let Some(nonce) = nonce {
+        response.extensions_mut().insert(FilledNonce(nonce));
+    }
+    response
+}
+
+/// A page with a nonce slot, or one asked for by a reader who answered,
+/// made for this request alone and never kept.
+fn per_request(page: &Page, send: SendBody, consent: Consent<'_>) -> Response<Body> {
     let plain = match page.body() {
         Ok(plain) => plain,
         Err(error) => {
@@ -107,19 +182,16 @@ fn per_request(page: &Page, send: SendBody) -> Response<Body> {
             return status(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
-    let nonce = fresh_nonce();
-    let html = String::from_utf8_lossy(&plain).replace(NONCE_SLOT, nonce.as_deref().unwrap_or(""));
-    let mut response = file(StatusCode::OK, page.media_type(), &Bytes::from(html), send);
-    response
-        .headers_mut()
-        .insert(header::CACHE_CONTROL, page.cache_control());
-    if let Some(nonce) = nonce {
-        response.extensions_mut().insert(FilledNonce(nonce));
+    let mut response = personal(StatusCode::OK, (page.media_type(), &plain), send, consent);
+    if consent.is_none() {
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, page.cache_control());
     }
     response
 }
 
-fn respond(pages: &Pages, request: &Request<Body>) -> Response<Body> {
+fn respond(pages: &Pages, request: &Request<Body>, consent: Consent<'_>) -> Response<Body> {
     let send_body = match *request.method() {
         Method::GET => SendBody::Yes,
         Method::HEAD => SendBody::No,
@@ -131,9 +203,15 @@ fn respond(pages: &Pages, request: &Request<Body>) -> Response<Body> {
     };
     let uri = request.uri();
     match resolve(pages, uri.path(), uri.query()) {
-        Resolved::Page(page) => page_response(page, request.headers(), send_body),
+        Resolved::Page(page) => page_response(page, request.headers(), send_body, consent),
         Resolved::Redirect(location) => redirect(StatusCode::PERMANENT_REDIRECT, &location),
         Resolved::Moved(location) => redirect(StatusCode::MOVED_PERMANENTLY, &location),
+        Resolved::NotFound if answered(consent) => personal(
+            StatusCode::NOT_FOUND,
+            (MediaType::Html, pages.not_found()),
+            send_body,
+            consent,
+        ),
         Resolved::NotFound => file(
             StatusCode::NOT_FOUND,
             MediaType::Html,
@@ -150,11 +228,23 @@ enum SendBody {
     No,
 }
 
+/// Whether the reader has answered the banner of a site that asks, so its
+/// HTML pages are made for them alone.
+fn answered(consent: Consent<'_>) -> bool {
+    consent.is_some_and(|(choice, _)| choice != Choice::Unasked)
+}
+
 /// The page, compressed when the browser takes Brotli, or 304 when the
 /// reader's copy, plain or compressed, is current.
-fn page_response(page: &Page, request: &HeaderMap, send: SendBody) -> Response<Body> {
-    if page.fills_nonce() {
-        return per_request(page, send);
+fn page_response(
+    page: &Page,
+    request: &HeaderMap,
+    send: SendBody,
+    consent: Consent<'_>,
+) -> Response<Body> {
+    let html = page.media_type() == MediaType::Html;
+    if page.fills_nonce() || (html && answered(consent)) {
+        return per_request(page, send, consent);
     }
     let brotli = page.brotli().filter(|_| compress::accepts_brotli(request));
     let tag = match brotli {
@@ -180,7 +270,12 @@ fn page_response(page: &Page, request: &HeaderMap, send: SendBody) -> Response<B
     };
     let headers = response.headers_mut();
     headers.insert(header::CACHE_CONTROL, page.cache_control());
-    headers.insert(header::VARY, ENCODING_VARIES);
+    let vary = if html && consent.is_some() {
+        ENCODING_AND_COOKIE_VARY
+    } else {
+        ENCODING_VARIES
+    };
+    headers.insert(header::VARY, vary);
     if let Some(tag) = tag {
         headers.insert(header::ETAG, tag.clone());
     }

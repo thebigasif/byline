@@ -7,8 +7,9 @@
 //! with 301. Every response carries the
 //! [`SecurityHeaders`], with a Content Security Policy whose nonce is new
 //! for each request (BL-SEC-2). On a site whose own code waits for
-//! consent, [`chosen`] makes each page for the reader's [`Choice`], with
-//! the [`HeldCode`] only for a reader who agreed. [`serve`] answers until told to stop, then
+//! consent, [`router_with_consent`] answers through [`chosen`], which makes
+//! each page for the reader's [`Choice`], with the [`HeldCode`] only for a
+//! reader who agreed. [`serve`] answers until told to stop, then
 //! stops gracefully (BL-RUN-10). Beside the requests it runs two
 //! [`Background`] jobs: [`watch`], which renders the pages again when a file
 //! changes, and [`retry_deliveries`], which sends due webhooks again.
@@ -49,7 +50,7 @@ pub use page::{NONCE_SLOT, Page};
 pub use page_path::{PagePath, ParsePagePathError};
 pub use pages::Pages;
 pub use render::{Render, Rendered, render_pages};
-pub use respond::router;
+pub use respond::{router, router_with_consent};
 pub use retry::retry_deliveries;
 pub use security::SecurityHeaders;
 pub use serve::{Stopped, serve};
