@@ -1,1 +1,2 @@
 block no-title
+warn no-focus-keyword
