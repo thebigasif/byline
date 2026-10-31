@@ -11,6 +11,7 @@ import { readKey } from "../auth/session";
 import { RouteError } from "../components/RouteError";
 import { Shell } from "../components/Shell";
 import { postSearch } from "../posts/filters";
+import { AuditLog } from "./AuditLog";
 import { Dashboard } from "./Dashboard";
 import { NewPost } from "./NewPost";
 import { Posts } from "./Posts";
@@ -60,6 +61,8 @@ const editor = createRoute({
 
 const trash = createRoute({ getParentRoute: () => signedIn, path: "/trash", component: Trash });
 
+const audit = createRoute({ getParentRoute: () => signedIn, path: "/audit", component: AuditLog });
+
 const redirects = createRoute({
   getParentRoute: () => signedIn,
   path: "/redirects",
@@ -68,7 +71,7 @@ const redirects = createRoute({
 
 const routeTree = root.addChildren([
   signIn,
-  signedIn.addChildren([dashboard, posts, newPost, editor, trash, redirects]),
+  signedIn.addChildren([dashboard, posts, newPost, editor, trash, audit, redirects]),
 ]);
 
 /** Makes the admin's router; a test passes a memory history. */

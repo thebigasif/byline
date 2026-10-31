@@ -13,9 +13,11 @@ export const en = {
     dashboard: "Dashboard",
     posts: "Posts",
     trash: "Trash",
+    audit: "Audit log",
     redirects: "Redirects",
   },
   trash: records.trash,
+  audit: records.audit,
   redirects: {
     title: "Redirects",
     lede: "A redirect sends visitors and Google from an old web address to a new one. When you rename a post, a redirect keeps old links working and keeps the post's place in search results.",
