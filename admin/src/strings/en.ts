@@ -13,6 +13,23 @@ export const en = {
     comments: "Comments",
     redirects: "Redirects",
   },
+  account: {
+    nav: "Your account",
+    title: "Your account",
+    loading: "Reading your account",
+    lede: (name: string, email: string) =>
+      `Signed in as ${name}, ${email}. Here you choose how you sign in, and lock everyone else out if a laptop goes missing.`,
+    passkey: {
+      title: "Add a passkey",
+      lede: "A passkey lets you sign in with your fingerprint, your face or your device's PIN instead of a password. It cannot be guessed or stolen by a fake sign-in page. Your device asks you to confirm, then keeps the passkey.",
+      name: "Name for this passkey",
+      nameHint: "So you can tell your passkeys apart, such as Work laptop.",
+      submit: "Add a passkey",
+      adding: "Waiting for your device",
+      added: (name: string) => `Added. You can now sign in with the passkey ${name}.`,
+      remove: "To stop a passkey working, delete it from the device that keeps it.",
+    },
+  },
   comments: {
     title: "Comments",
     lede: "Readers' comments wait here until you approve them, so nothing appears under a post without your yes. Approve the good ones, answer questions, and delete spam.",
@@ -408,6 +425,16 @@ export const en = {
       what: "No CSV file is picked yet.",
       why: "Khalid adds the redirects from a file, so there is nothing to add.",
       fix: "Pick a CSV file under Add redirects from a CSV file, then press Add these redirects.",
+    },
+    noSession: {
+      what: "Your account settings need you signed in with your email.",
+      why: "This tab signed in with a staff token, and a token belongs to no account.",
+      fix: "Sign out, then sign in with your email or with a sign-in link.",
+    },
+    noPasskey: {
+      what: "Your device did not make a passkey.",
+      why: "The request was cancelled, timed out, or this browser cannot make passkeys.",
+      fix: "Press Add a passkey again and confirm on your device, or try another browser.",
     },
     badLink: {
       what: "This sign-in link no longer works.",

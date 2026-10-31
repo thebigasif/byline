@@ -20,6 +20,21 @@ export function redeemLink(token: string): Promise<Reply<SessionAnswer>> {
   return call("/session/link/redeem/", sending("POST", body), session);
 }
 
+/** Who this tab's session cookie signs in; a 401 when the tab signed in with a token. */
+export function readSession(): Promise<Reply<SessionAnswer>> {
+  return call("/session/", {}, session);
+}
+
+/** Starts adding a passkey: what to pass to `navigator.credentials.create`. */
+export function passkeyOptions(): Promise<Reply<components["schemas"]["CreateOptions"]>> {
+  return call("/session/passkeys/options/", { method: "POST" }, (response) => response.json());
+}
+
+/** Adds the passkey the browser made to the signed-in account. */
+export function addPasskey(passkey: components["schemas"]["NewPasskey"]): Promise<Reply<null>> {
+  return call("/session/passkeys/", sending("POST", passkey), nothing);
+}
+
 /** Ends this tab's email sign-in on the server too, and clears its cookie. */
 export function endSession(): Promise<Reply<null>> {
   return call("/session/", { method: "DELETE" }, nothing);
