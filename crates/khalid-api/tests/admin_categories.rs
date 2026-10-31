@@ -27,6 +27,7 @@ const READER: &str =
     "ki_3333444455556666_aaaabbbbccccddddeeeeffff00001111aaaabbbbccccddddeeeeffff00001111";
 
 const CATEGORIES: &str = "/api/admin/v1/categories/";
+const ON_PAGE: &str = "/api/admin/v1/categories/on-page-seo/";
 
 /// A site keeping `categories`, or none at all.
 #[cfg(test)]
@@ -115,4 +116,58 @@ async fn reading_categories_needs_posts_write_and_a_server_with_them() {
         json["detail"].as_str().unwrap().contains("no categories"),
         "{json}"
     );
+}
+
+#[tokio::test]
+async fn one_category_is_read_by_its_slug() {
+    let router = with_two();
+    let (status, json) = send(&router, "GET", ON_PAGE, WRITER, None).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(
+        json["categories"][0]["names"]["en"], "On-page SEO",
+        "{json}"
+    );
+    let missing = "/api/admin/v1/categories/nothing/";
+    let (status, json) = send(&router, "GET", missing, WRITER, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{json}");
+    assert!(
+        json["fix"].as_str().unwrap().contains("on-page-seo"),
+        "{json}"
+    );
+}
+
+#[tokio::test]
+async fn a_new_category_is_made_once_with_its_names() {
+    let router = with_two();
+    let new =
+        json!({"categories": [{"slug": "content-strategy", "names": {"en": "Content strategy"}}]});
+    let (status, json) = send(&router, "POST", CATEGORIES, EDITOR, Some(new.clone())).await;
+    assert_eq!(status, StatusCode::CREATED, "{json}");
+    assert_eq!(json["categories"][0]["id"], "content-strategy", "{json}");
+    assert_eq!(json["categories"][0]["posts"], 0, "{json}");
+    let (status, json) = send(&router, "POST", CATEGORIES, EDITOR, Some(new)).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+}
+
+#[tokio::test]
+async fn a_category_that_cannot_be_kept_is_refused() {
+    let router = with_two();
+    let cases = [
+        json!({"categories": [{"slug": "news", "names": {}}]}),
+        json!({"categories": [{"slug": "news", "names": {"english": "News"}}]}),
+        json!({"categories": [{"slug": "news", "names": {"en": ""}}]}),
+        json!({"categories": [{"slug": "News!", "names": {"en": "News"}}]}),
+    ];
+    for body in cases {
+        let (status, json) = send(&router, "POST", CATEGORIES, EDITOR, Some(body.clone())).await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{body} gave {json}"
+        );
+    }
+    let new = json!({"categories": [{"slug": "news", "names": {"en": "News"}}]});
+    let (status, json) = send(&router, "POST", CATEGORIES, WRITER, Some(new)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    assert_eq!(json["rule"], "posts:publish", "{json}");
 }

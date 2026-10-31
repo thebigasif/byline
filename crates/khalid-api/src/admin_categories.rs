@@ -1,19 +1,26 @@
 //! The Admin API's category routes: the groups posts belong to, each named
 //! in every language (plan sections 4.4 and 5.12, KH-API-2).
 
-use axum::extract::State;
+use std::collections::BTreeMap;
+
+use axum::extract::rejection::JsonRejection;
+use axum::extract::{OriginalUri, Path, State};
+use axum::http::header::LOCATION;
+use axum::http::{HeaderName, StatusCode};
 use axum::{Extension, Json, middleware};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
+use crate::admin_api::BASE;
 use crate::admin_entries::{Kept, Noun};
 use crate::admin_key::{AdminDoor, require, require_admin_key};
 use crate::api_version::negotiate_version;
+use crate::entry_store::Entry;
 use crate::keys::{Principal, Scope};
 use crate::problem::Problem;
-use crate::resources::AdminCategory;
+use crate::resources::{AdminCategory, NewCategory, names_problem};
 
 /// How messages name a category.
 const CATEGORY: Noun = Noun {
@@ -27,7 +34,8 @@ const CATEGORY: Noun = Noun {
 /// once saved, so writing needs `posts:publish`.
 pub(crate) fn routes(categories: Kept<AdminCategory>, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(list_categories))
+        .routes(routes!(list_categories, create_category))
+        .routes(routes!(read_category))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(categories)
@@ -60,4 +68,80 @@ async fn list_categories(
     let listed = CATEGORY.store(categories.as_deref())?.list().await;
     let categories = listed.map_err(|error| Problem::internal(&error))?;
     Ok(Json(AdminCategories { categories }))
+}
+
+/// A new category, wrapped the way the Admin API wraps categories: exactly one.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NewCategories {
+    /// The one new category.
+    categories: Vec<NewCategory>,
+}
+
+/// Creates a category, named in one or more of the site's languages.
+/// Needs `posts:publish`.
+#[utoipa::path(
+    post, path = "/categories/", tag = "admin categories",
+    security(("admin_key" = [])),
+    request_body = NewCategories,
+    responses(
+        (status = 201, description = "The new category", body = AdminCategories),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:publish", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "This server keeps no categories", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "Another category has the slug", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "The body could not be read, or a name is missing, empty or not in one of the site's languages", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn create_category(
+    State(categories): State<Kept<AdminCategory>>,
+    Extension(principal): Extension<Principal>,
+    body: Result<Json<NewCategories>, JsonRejection>,
+) -> Result<(StatusCode, [(HeaderName, String); 1], Json<AdminCategories>), Problem> {
+    require(&principal, Scope::PostsPublish)?;
+    let new = CATEGORY.one(CATEGORY.body(body)?.categories)?;
+    named(new.names())?;
+    let made = CATEGORY.store(categories.as_deref())?.create(new).await;
+    let category = made.map_err(|error| CATEGORY.problem(error, ""))?;
+    let location = format!("{BASE}/categories/{}/", category.id());
+    let categories = vec![category];
+    Ok((
+        StatusCode::CREATED,
+        [(LOCATION, location)],
+        Json(AdminCategories { categories }),
+    ))
+}
+/// Reads one category. Needs `posts:write`.
+#[utoipa::path(
+    get, path = "/categories/{id}/", tag = "admin categories",
+    security(("admin_key" = [])),
+    params(("id" = String, Path, description = "The slug, such as on-page-seo")),
+    responses(
+        (status = 200, description = "The category", body = AdminCategories),
+        (status = 401, description = "No valid integration key or staff token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "The key lacks posts:write", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "No category has this identity, or this server keeps no categories", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+async fn read_category(
+    State(categories): State<Kept<AdminCategory>>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Result<Json<AdminCategories>, Problem> {
+    require(&principal, Scope::PostsWrite)?;
+    let found = CATEGORY.store(categories.as_deref())?.get(&id).await;
+    let category = found.map_err(|error| Problem::internal(&error))?;
+    let category = category.ok_or_else(|| CATEGORY.missing(uri.path()))?;
+    Ok(Json(AdminCategories {
+        categories: vec![category],
+    }))
+}
+
+/// Refuses names a category cannot be kept with, naming `names`.
+fn named(names: &BTreeMap<String, String>) -> Result<(), Problem> {
+    match names_problem(names) {
+        Some(reason) => Err(CATEGORY.invalid(reason, Some("names"))),
+        None => Ok(()),
+    }
 }

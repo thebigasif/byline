@@ -513,6 +513,177 @@
             "admin_key": []
           }
         ]
+      },
+      "post": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Creates a category, named in one or more of the site's languages.\nNeeds `posts:publish`.",
+        "operationId": "create_category",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewCategories"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another category has the slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body could not be read, or a name is missing, empty or not in one of the site's languages",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
+    "/api/admin/v1/categories/{id}/": {
+      "get": {
+        "tags": [
+          "admin categories"
+        ],
+        "summary": "Reads one category. Needs `posts:write`.",
+        "operationId": "read_category",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The slug, such as on-page-seo",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCategories"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks posts:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No category has this identity, or this server keeps no categories",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
       }
     },
     "/api/admin/v1/comments/": {
@@ -9193,6 +9364,53 @@
               "$ref": "#/components/schemas/NewAuthor"
             },
             "description": "The one new author."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewCategories": {
+        "type": "object",
+        "description": "A new category, wrapped the way the Admin API wraps categories: exactly one.",
+        "required": [
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewCategory"
+            },
+            "description": "The one new category."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewCategory": {
+        "type": "object",
+        "description": "A new category, as a create request sends it.",
+        "required": [
+          "slug",
+          "names"
+        ],
+        "properties": {
+          "names": {
+            "type": "object",
+            "description": "The name in each language, by language code.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "example": {
+              "en": "Link building",
+              "de": "Linkaufbau"
+            }
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug posts will name it by, such as `link-building`.",
+            "example": "link-building"
           }
         },
         "additionalProperties": false
