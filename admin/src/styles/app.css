@@ -79,6 +79,15 @@
   .source{font-family:var(--font-mono);line-height:1.6;max-width:68ch}
   .layout{display:grid;gap:2rem;grid-template-columns:minmax(0,1fr)}
   @media (min-width:64em){.layout{grid-template-columns:minmax(0,1fr) 22rem}.layout.live{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+  ol.versions{list-style:none;margin:0 0 1rem;padding:0}
+  ol.versions button{width:100%;min-height:44px;text-align:left;padding:.5rem .75rem;border:1px solid var(--color-border);border-radius:var(--radius-field);background:var(--color-bg);font:inherit;margin:0 0 .25rem}
+  ol.versions button[aria-pressed="true"]{background:var(--color-tint);border-color:var(--color-link)}
+  .diff{font-family:var(--font-mono);font-size:.875rem;border:1px solid var(--color-border);border-radius:var(--radius-field);padding:.5rem 0;margin:0 0 1rem;max-height:24rem;overflow:auto}
+  .diff p,.diff del,.diff ins{display:block;margin:0;padding:.1rem .75rem;white-space:pre-wrap;text-decoration:none}
+  .diff del{background:var(--color-block-bg)}
+  .diff del::before{content:"− "}
+  .diff ins{background:var(--color-ok-bg)}
+  .diff ins::before{content:"+ "}
   .live-page{display:block;width:100%;height:80vh;border:1px solid var(--color-border);border-radius:var(--radius-field);background:var(--color-bg)}
   .checks h2{font-size:1.125rem;margin:0 0 .75rem}
   .check{border-radius:var(--radius-field);padding:1rem;margin:0 0 1rem;border-left:4px solid}

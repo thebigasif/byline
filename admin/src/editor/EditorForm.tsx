@@ -1,6 +1,7 @@
 import { useBlocker } from "@tanstack/react-router";
 import { useState } from "react";
 import type { AdminPost } from "../api/posts";
+import type { PostVersion } from "../api/versions";
 import { Problem } from "../components/Problem";
 import { en } from "../strings/en";
 import { GoLive } from "./GoLive";
@@ -15,6 +16,7 @@ import { scheduledAt } from "./schedule";
 import { type SettingsDraft, withSetting } from "./settings";
 import { type SaveState, useAutosave } from "./useAutosave";
 import { usePublish } from "./usePublish";
+import { Versions } from "./Versions";
 
 type Props = { post: AdminPost };
 
@@ -34,6 +36,16 @@ export function EditorForm({ post }: Props) {
   const [at, setAt] = useState(() => scheduledAt(post));
   // The page as readers see it takes the side column while it is shown.
   const [live, setLive] = useState(false);
+  // Counts restores, so the rich-text view opens again on the text brought back.
+  const [restored, setRestored] = useState(0);
+  const restore = ({ title, markdown }: PostVersion) => {
+    setDraft((current) => ({ ...current, title, markdown }));
+    if (!fitsRichText(markdown)) {
+      setRich(false);
+      setHeld(true);
+    }
+    setRestored((count) => count + 1);
+  };
   const toRich = () => {
     const fits = fitsRichText(draft.markdown);
     setRich(fits);
@@ -110,7 +122,12 @@ export function EditorForm({ post }: Props) {
             onBlur={onBlur}
           />
           {rich ? (
-            <RichText markdown={draft.markdown} onChange={setMarkdown} onBlur={onBlur} />
+            <RichText
+              key={restored}
+              markdown={draft.markdown}
+              onChange={setMarkdown}
+              onBlur={onBlur}
+            />
           ) : (
             <textarea
               className="source"
@@ -131,6 +148,7 @@ export function EditorForm({ post }: Props) {
             <PostSettings settings={draft.settings} onSetting={setSetting} onBlur={onBlur}>
               {publishing.status === "published" ? null : <GoLive at={at} onAt={setAt} />}
               <PreviewLink id={post.id} />
+              <Versions id={post.id} version={updatedAt.current} now={draft} onRestore={restore} />
             </PostSettings>
           </div>
         )}

@@ -244,6 +244,20 @@ export const en = {
     at: "Date and time",
     atHint: "In your own time zone. This is also the date readers see on the post.",
   },
+  versions: {
+    title: "Earlier versions",
+    hint: "Each save that changes the title or text keeps the one it replaced. Pick one to see what changed since.",
+    show: "Show earlier versions",
+    list: "Earlier versions, the newest first",
+    none: "No earlier versions yet. One is kept each time a save changes the title or text.",
+    by: (who: string | null | undefined) => (who ? ` by ${who}` : ""),
+    changes: "Changes since this version",
+    removed: "Removed since",
+    added: "Added since",
+    restore: "Bring back this version",
+    restoreHint:
+      "This puts the old title and text in the editor and saves them. The text you have now becomes an earlier version, so you can undo this.",
+  },
   live: {
     show: "Show the page",
     title: "The page as readers see it",
