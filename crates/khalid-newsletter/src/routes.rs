@@ -13,7 +13,10 @@ use axum::routing::{get, post};
 use khalid_core::Slug;
 use serde::Deserialize;
 
-use crate::{Confirmed, EmailAddress, Newsletter, Page, Pages, SubscriberToken, Unsubscribed};
+use crate::{
+    BackPath, Confirmed, EmailAddress, Newsletter, Page, Pages, ReaderPass, SubscriberToken,
+    Unsubscribed,
+};
 
 /// The newsletter a sign-up joins until task 5.7 adds several.
 const DEFAULT_LIST: &str = "main";
@@ -58,12 +61,16 @@ struct Shared {
 struct SignUpForm {
     email: Option<String>,
     homepage: Option<String>,
+    /// The page of gated content the form was on.
+    back: Option<String>,
 }
 
-/// The token of a link, from its query or from the page's one button.
+/// The token of a link, from its query or from the page's one button, and
+/// the page to come back to.
 #[derive(Debug, Deserialize)]
 struct Link {
     token: Option<String>,
+    back: Option<String>,
 }
 
 /// The routes of the newsletter, with `pages` in the site's language.
@@ -107,7 +114,11 @@ async fn sign_up(
     let Ok(list) = Slug::try_new(DEFAULT_LIST) else {
         return failed(&shared, &"the default newsletter name is not a slug");
     };
-    match newsletter.sign_up(email, list).await {
+    let signed = match shared.back(form.back.as_deref()) {
+        Some(back) => newsletter.sign_up_to_read(email, list, &back).await,
+        None => newsletter.sign_up(email, list).await,
+    };
+    match signed {
         Ok(_) => page(&shared, StatusCode::OK, Page::Check),
         Err(error) => failed(&shared, &error),
     }
@@ -117,16 +128,24 @@ async fn confirm_page(
     State(shared): State<Arc<Shared>>,
     Query(link): Query<Link>,
 ) -> Response<Body> {
-    link_page(&shared, &link, |token| Page::Confirm(token))
+    let back = shared.back(link.back.as_deref());
+    link_page(&shared, &link, |token| Page::Confirm {
+        token,
+        back: back.as_ref(),
+    })
 }
 
 async fn leave_page(State(shared): State<Arc<Shared>>, Query(link): Query<Link>) -> Response<Body> {
-    link_page(&shared, &link, |token| Page::Leave(token))
+    link_page(&shared, &link, Page::Leave)
 }
 
 /// The page a link opens: one button that posts its token. Opening it
 /// changes nothing.
-fn link_page(shared: &Shared, link: &Link, ask: for<'a> fn(&'a str) -> Page<'a>) -> Response<Body> {
+fn link_page<'a>(
+    shared: &Shared,
+    link: &'a Link,
+    ask: impl FnOnce(&'a str) -> Page<'a>,
+) -> Response<Body> {
     if shared.newsletter.is_none() {
         return page(shared, StatusCode::SERVICE_UNAVAILABLE, Page::Closed);
     }
@@ -147,15 +166,45 @@ async fn confirm(
     let Some(newsletter) = &shared.newsletter else {
         return page(&shared, StatusCode::SERVICE_UNAVAILABLE, Page::Closed);
     };
-    let token = form
+    let (token, back) = form
         .ok()
-        .and_then(|Form(link)| link.token)
+        .map(|Form(link)| (link.token.unwrap_or_default(), link.back))
         .unwrap_or_default();
     match newsletter.confirm(&token).await {
-        Ok(Confirmed::Now(_) | Confirmed::Before) => page(&shared, StatusCode::OK, Page::Confirmed),
+        Ok(Confirmed::Now(_) | Confirmed::Before) => {
+            let back = shared.back(back.as_deref());
+            let_in(&shared, newsletter, back.as_ref())
+        }
         Ok(Confirmed::Expired) => page(&shared, StatusCode::GONE, Page::Expired),
         Ok(_) => page(&shared, StatusCode::NOT_FOUND, Page::Unknown),
         Err(error) => failed(&shared, &error),
+    }
+}
+
+/// A confirmed reader: the reader cookie when gated content opens, then
+/// a 303 to `back`, or the page that says they are subscribed.
+fn let_in(shared: &Shared, newsletter: &Newsletter, back: Option<&BackPath>) -> Response<Body> {
+    let mut response = match back {
+        Some(back) => {
+            let mut response = page(shared, StatusCode::SEE_OTHER, Page::Confirmed);
+            if let Ok(location) = HeaderValue::try_from(back.as_str()) {
+                response.headers_mut().insert(header::LOCATION, location);
+            }
+            response
+        }
+        None => page(shared, StatusCode::OK, Page::Confirmed),
+    };
+    let cookie = newsletter.pass().map(ReaderPass::cookie);
+    if let Some(Ok(cookie)) = cookie.map(HeaderValue::try_from) {
+        response.headers_mut().insert(header::SET_COOKIE, cookie);
+    }
+    response
+}
+
+impl Shared {
+    /// `text` as a page on this blog to come back to, if it is one.
+    fn back(&self, text: Option<&str>) -> Option<BackPath> {
+        text.and_then(|text| BackPath::parse(self.pages.mount(), text))
     }
 }
 

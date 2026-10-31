@@ -8,7 +8,7 @@ use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::Deserialize;
 
 use crate::pages::PageWords;
-use crate::{EmailAddress, Mail, SubscriberToken};
+use crate::{BackPath, EmailAddress, Mail, SubscriberToken};
 
 /// The language whose words fill in for a language with no file.
 const FALLBACK_LANGUAGE: &str = "en";
@@ -132,7 +132,7 @@ impl SiteLinks {
     /// The page a pass link opens, with its `code` and the path `back` the
     /// reader returns to.
     pub fn pass(&self, code: &str, back: &str) -> String {
-        let back = utf8_percent_encode(back, NON_ALPHANUMERIC);
+        let back = encoded(back);
         format!("{}subscribe/pass?code={code}&back={back}", self.base)
     }
 
@@ -151,16 +151,28 @@ pub struct ConfirmationLinks<'a> {
     pub confirm: &'a SubscriberToken,
     /// The unsubscribe token that removes the address instead.
     pub remove: &'a SubscriberToken,
+    /// The page the reader comes back to once they confirm, if they
+    /// signed up on one.
+    pub back: Option<&'a BackPath>,
 }
 
 impl ConfirmationLinks<'_> {
     fn confirm(&self) -> String {
-        self.site.confirm(self.confirm)
+        let link = self.site.confirm(self.confirm);
+        match self.back {
+            Some(back) => format!("{link}&back={}", encoded(back.as_str())),
+            None => link,
+        }
     }
 
     fn remove(&self) -> String {
         self.site.unsubscribe(self.remove)
     }
+}
+
+/// `text` safe as one value in a link's query.
+fn encoded(text: &str) -> String {
+    utf8_percent_encode(text, NON_ALPHANUMERIC).to_string()
 }
 
 /// A built-in words file is not valid.

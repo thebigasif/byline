@@ -95,8 +95,8 @@ impl ReaderPass {
     /// The link, for an email, that gives a returning subscriber a new
     /// cookie and brings them to `back`, a path on the blog. It works for
     /// two days.
-    pub fn link(&self, back: &str) -> String {
-        self.site.pass(&self.code(Use::Link, LINK_DAYS), back)
+    pub fn link(&self, back: &BackPath) -> String {
+        self.site.pass(&self.code(Use::Link, LINK_DAYS), back.as_str())
     }
 
     /// Whether `code`, from a pass link, is one this site made, still in
@@ -135,6 +135,26 @@ impl ReaderPass {
         mac.update(label);
         mac.update(until.to_string().as_bytes());
         mac
+    }
+}
+
+/// A page on the blog a reader comes back to after they confirm: a path
+/// under the mount, so a link can never send them to another site.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BackPath(String);
+
+impl BackPath {
+    /// `text` if it is a path under `mount`, such as `/blog/guides/a/`,
+    /// with no `//`, backslash, space, quote or angle bracket.
+    pub fn parse(mount: &str, text: &str) -> Option<Self> {
+        let odd = |c: char| c.is_whitespace() || c.is_control() || "\\\"'<>".contains(c);
+        let safe = text.starts_with(mount) && !text.contains("//") && !text.contains(odd);
+        safe.then(|| Self(text.to_owned()))
+    }
+
+    /// The path.
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 

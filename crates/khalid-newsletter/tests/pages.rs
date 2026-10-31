@@ -23,7 +23,10 @@ fn every_page() -> [Page<'static>; 10] {
     [
         Page::Check,
         Page::WrongEmail,
-        Page::Confirm(TOKEN),
+        Page::Confirm {
+            token: TOKEN,
+            back: None,
+        },
         Page::Confirmed,
         Page::Expired,
         Page::Unknown,
@@ -64,7 +67,10 @@ fn every_page_is_a_whole_document_with_one_heading_and_one_sentence() {
 #[test]
 fn a_link_page_asks_for_one_click_that_posts_its_token() {
     let pages = pages("Field Notes", "en");
-    let confirm = pages.html(Page::Confirm(TOKEN));
+    let confirm = pages.html(Page::Confirm {
+            token: TOKEN,
+            back: None,
+        });
     assert!(confirm.contains("<form method=\"post\" action=\"/blog/subscribe/confirm\">"));
     assert!(confirm.contains(&format!("name=\"token\" value=\"{TOKEN}\"")));
     assert!(confirm.contains("<button type=\"submit\">Yes, send it to me</button>"));

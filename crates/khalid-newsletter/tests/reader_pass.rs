@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, TimeDelta, Utc};
 use khalid_core::{AbsoluteUrl, Clock, FixedClock, Secret};
-use khalid_newsletter::{PASS_DAYS, ReaderPass, SiteLinks};
+use khalid_newsletter::{BackPath, PASS_DAYS, ReaderPass, SiteLinks};
 
 #[cfg(test)]
 fn at(seconds: i64) -> DateTime<Utc> {
@@ -65,7 +65,7 @@ fn a_cookie_made_with_another_key_or_changed_admits_no_one() {
 #[test]
 fn a_pass_link_opens_for_two_days_and_is_no_cookie() {
     let maker = pass(7, "https://example.com", FixedClock::new(at(0)));
-    let link = maker.link("/blog/guides/checklist/");
+    let link = maker.link(&BackPath::parse("/blog/", "/blog/guides/checklist/").unwrap());
     let code = link
         .strip_prefix("https://example.com/blog/subscribe/pass?code=")
         .unwrap();

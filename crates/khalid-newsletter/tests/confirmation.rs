@@ -26,6 +26,7 @@ fn mail(language: &str) -> (Mail, SubscriberToken, SubscriberToken) {
         site: &site,
         confirm: &confirm,
         remove: &remove,
+        back: None,
     };
     let locale: Locale = language.parse().unwrap();
     let mail = NewsletterWords::load()
