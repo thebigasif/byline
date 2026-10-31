@@ -590,6 +590,63 @@
         ]
       }
     },
+    "/api/admin/v1/media/search/": {
+      "get": {
+        "tags": [
+          "admin media"
+        ],
+        "summary": "Says which of photo search on Unsplash and GIF search on GIPHY the\nowner turned on in `site.toml`, so the editor offers only those. Asks\nneither. Needs `media:write`.",
+        "operationId": "search_pictures",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Which searches are on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PictureSearch"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks media:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/media/{id}/": {
       "get": {
         "tags": [
@@ -7650,6 +7707,24 @@
           }
         },
         "additionalProperties": false
+      },
+      "PictureSearch": {
+        "type": "object",
+        "description": "Which searches are on.",
+        "required": [
+          "unsplash",
+          "gifs"
+        ],
+        "properties": {
+          "gifs": {
+            "type": "boolean",
+            "description": "Whether the owner turned GIF search on GIPHY on."
+          },
+          "unsplash": {
+            "type": "boolean",
+            "description": "Whether the owner turned photo search on Unsplash on."
+          }
+        }
       },
       "Post": {
         "allOf": [

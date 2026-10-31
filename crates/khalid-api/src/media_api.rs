@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use khalid_core::UserMessage;
 use khalid_media::{
     ContentKey, EditMediaError, FocalPoint, Folder, Kind, Library, MediaEdit, MediaItem, Refusal,
-    Upload, UploadMediaError, Uploaded,
+    StockSearch, Upload, UploadMediaError, Uploaded,
 };
 use serde::Deserialize;
 use utoipa::IntoParams;
@@ -25,6 +25,7 @@ use crate::api_version::negotiate_version;
 use crate::content_api::check_fields;
 use crate::content_store::select;
 use crate::keys::{Principal, Scope};
+use crate::media_search;
 use crate::pagination::Meta;
 use crate::problem::{Problem, ProblemType};
 use crate::query::{ListQuery, RawListQuery};
@@ -35,6 +36,8 @@ use crate::resources::{AdminMedia, MediaEditBody, MediaEdits, MediaItems, MediaL
 pub struct MediaLibrary {
     library: Arc<Library>,
     site: String,
+    /// Photo and GIF search for the editor, when the server has it.
+    pub(crate) search: Option<Arc<StockSearch>>,
 }
 
 impl MediaLibrary {
@@ -43,7 +46,11 @@ impl MediaLibrary {
     /// `https://www.example.com/blog/`.
     pub fn new(library: Arc<Library>, site: &str) -> Self {
         let site = format!("{}/", site.trim_end_matches('/'));
-        Self { library, site }
+        Self {
+            library,
+            site,
+            search: None,
+        }
     }
 
     /// `item` as the Admin API sends it, with the full address readers
@@ -61,6 +68,7 @@ pub(crate) fn routes(media: Media, door: AdminDoor) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(upload_media, list_media))
         .routes(routes!(read_media, edit_media))
+        .routes(routes!(media_search::search_pictures))
         .route_layer(middleware::from_fn_with_state(door, require_admin_key))
         .route_layer(middleware::from_fn(negotiate_version))
         .with_state(media)
