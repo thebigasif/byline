@@ -28,6 +28,7 @@ impl Command {
             Self::Agents => "agents",
             Self::Doctor { .. } => "doctor",
             Self::Backup { .. } => "backup",
+            Self::Restore { .. } => "restore",
             Self::Audit { .. } => "audit",
             Self::Update { .. } => "update",
             Self::Pull => "pull",

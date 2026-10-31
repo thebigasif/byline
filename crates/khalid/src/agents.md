@@ -24,6 +24,7 @@ A post's identity is `<language>.<slug>`, such as `en.choosing-anchor-text`. It 
 - `khalid import wordpress|ghost|medium|substack|markdown <export> --dry-run` says what an import would bring in and leave behind. Without `--dry-run` it writes the posts with their old slugs and stores a redirect for each old address that moves. For `wordpress`, the export may be the site's address, which brings in its published posts and pages.
 - `khalid keys create` makes a key. `khalid doctor` says what is wrong and how to fix it, and on a static site which features are off.
 - `khalid backup --out <file>.tar.gz` writes one archive of the site folder with a whole copy of the database, safe while `khalid serve` runs. It leaves out `public/` and `data/media/`, which Khalid makes again, and never writes over a file.
+- `khalid restore <file>.tar.gz <folder>` makes the site again from such an archive, database included, in a folder that is new or empty. It never unpacks over a live site.
 - `khalid update` installs the newest release after checking it against the release's `SHA256SUMS`, and keeps the old version beside the binary. `khalid update --rollback` goes back to it.
 - `khalid pull`, in git mode, brings the site's repository forward to what was pushed, checks the site, and builds a static site again. It never merges: when the blog's copy has its own changes, it stops and changes nothing.
 
