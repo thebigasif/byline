@@ -183,3 +183,9 @@ A static site cannot keep a reader's choice, so Khalid refuses to start in `mode
 Bing Webmaster Tools is Bing's dashboard for site owners. Add the site there with the address in `site.toml`, put the code Bing gives you as `bing` under `[seo.verification]` in `site.toml`, and verify. Then make an API key, the password a program uses to reach Bing for you, under Settings, API Access, and set it as `KHALID_BING_API_KEY` in the environment, the same way as the mail secrets above. The key never goes in `site.toml`.
 
 `khalid --site <folder> bing sitemap` hands Bing the sitemap, and `khalid --site <folder> bing report` shows Bing's last crawl day, the sitemaps it holds and the addresses it had trouble with. Both take `--json`.
+
+## Pages AI bots read but never cite
+
+`khalid serve` counts each page view by where the reader came from, and logs which bots read which page. `khalid --site <folder> analytics uncited` lists the pages AI bots read in the last 30 days while no reader arrived from an AI assistant, such as ChatGPT or Perplexity, in the same days. Those pages are known to the assistants but not pointed to. `--days 7` looks at a shorter period, up to the 90 days the crawl log keeps, and `--json` prints the list for other tools.
+
+A bot reading a page never counts as a citation: only a reader sent by an AI assistant does. Bots are named by the user agent they send, which anyone can copy, so a name in the list is what the bot claimed to be. A site built as static files has no counts, so the list stays empty.

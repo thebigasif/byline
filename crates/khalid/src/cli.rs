@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use clap::builder::{BoolValueParser, TypedValueParser};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+use khalid_analytics::CRAWL_DAYS_KEPT;
 use khalid_core::{AbsoluteUrl, Locale, Slug};
 use khalid_https::Domain;
 use khalid_webhooks::Event;
@@ -213,6 +214,23 @@ pub(crate) enum Command {
         /// What to ask Bing
         #[command(subcommand)]
         command: BingCommand,
+    },
+    /// Read what `khalid serve` counted: views and the bots that read each page
+    Analytics {
+        /// What to read
+        #[command(subcommand)]
+        command: AnalyticsCommand,
+    },
+}
+
+/// The analytics commands. They read the counts in `data/site.db`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub(crate) enum AnalyticsCommand {
+    /// List the pages AI bots read but no AI assistant sent a reader to
+    Uncited {
+        /// How many days back to look, today included, from 1 to 90
+        #[arg(long, default_value_t = 30, value_parser = clap::value_parser!(u32).range(1..=i64::from(CRAWL_DAYS_KEPT)))]
+        days: u32,
     },
 }
 
@@ -547,6 +565,9 @@ impl Command {
             Self::Bing {
                 command: BingCommand::Report,
             } => "bing report",
+            Self::Analytics {
+                command: AnalyticsCommand::Uncited { .. },
+            } => "analytics uncited",
         }
     }
 }

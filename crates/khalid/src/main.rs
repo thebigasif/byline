@@ -131,6 +131,7 @@ mod theme_check;
 mod theme_message;
 mod theme_preview;
 mod theme_sync;
+mod uncited_report;
 mod unlock;
 mod update;
 mod update_message;
@@ -350,7 +351,8 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
             asked @ (Command::Redirects { .. }
             | Command::Webhooks { .. }
             | Command::Backup { .. }
-            | Command::Pull),
+            | Command::Pull
+            | Command::Analytics { .. }),
         ) => Some(match cli.site.as_deref() {
             Some(folder) => on_folder(folder, asked, cli.output),
             None => report::failure(cli.output, &needs_site(asked), Exit::Usage),
@@ -360,8 +362,8 @@ fn run_unchecked(cli: &Cli) -> Option<Exit> {
 }
 
 /// Runs the commands that need the site folder but not its checked content:
-/// `redirects` and `webhooks`, which read the settings and the database
-/// themselves, `backup`, which keeps a broken site as well as a whole one,
+/// `redirects`, `webhooks` and `analytics`, which read the settings and the
+/// database themselves, `backup`, which keeps a broken site as well as a whole one,
 /// and `pull`, which checks the site after it brings in the new files.
 fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
     match asked {
@@ -369,6 +371,9 @@ fn on_folder(folder: &Path, asked: &Command, output: Output) -> Exit {
         Command::Webhooks { command } => webhooks::run(folder, command, output),
         Command::Backup { out } => backup::run(folder, out.as_deref(), &SystemClock, output),
         Command::Pull => pull::run(folder, &SystemClock, output),
+        Command::Analytics { command } => {
+            uncited_report::run(folder, *command, &SystemClock, output)
+        }
         _ => report::failure(output, &not_built(asked), Exit::Internal),
     }
 }
