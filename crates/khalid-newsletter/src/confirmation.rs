@@ -4,6 +4,7 @@
 use std::collections::BTreeMap;
 
 use khalid_core::{AbsoluteUrl, Locale};
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::Deserialize;
 
 use crate::pages::PageWords;
@@ -126,6 +127,18 @@ impl SiteLinks {
     /// The page an unsubscribe link opens, with `token`.
     pub fn unsubscribe(&self, token: &SubscriberToken) -> String {
         format!("{}unsubscribe?token={}", self.base, token.expose_text())
+    }
+
+    /// The page a pass link opens, with its `code` and the path `back` the
+    /// reader returns to.
+    pub fn pass(&self, code: &str, back: &str) -> String {
+        let back = utf8_percent_encode(back, NON_ALPHANUMERIC);
+        format!("{}subscribe/pass?code={code}&back={back}", self.base)
+    }
+
+    /// Whether the site answers over HTTPS, so cookies get `Secure`.
+    pub fn is_https(&self) -> bool {
+        self.base.starts_with("https://")
     }
 }
 

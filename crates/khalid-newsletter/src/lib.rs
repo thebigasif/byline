@@ -16,6 +16,7 @@ mod email_address;
 mod mail;
 mod newsletter;
 mod pages;
+mod reader_pass;
 mod routes;
 mod store;
 mod token;
@@ -27,6 +28,7 @@ pub use mail::MemoryMailer;
 pub use mail::{Mail, MailError, Mailer};
 pub use newsletter::{Newsletter, NewsletterError, NewsletterSite};
 pub use pages::{Page, Pages};
+pub use reader_pass::{PASS_DAYS, ReaderPass};
 pub use routes::router;
 pub use store::{
     BoxFuture, Confirmed, SignUp, SignedUp, StoreError, SubscriberId, SubscriberStore, Unsubscribed,
