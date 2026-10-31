@@ -183,3 +183,31 @@ A static site cannot keep a reader's choice, so Khalid refuses to start in `mode
 Bing Webmaster Tools is Bing's dashboard for site owners. Add the site there with the address in `site.toml`, put the code Bing gives you as `bing` under `[seo.verification]` in `site.toml`, and verify. Then make an API key, the password a program uses to reach Bing for you, under Settings, API Access, and set it as `KHALID_BING_API_KEY` in the environment, the same way as the mail secrets above. The key never goes in `site.toml`.
 
 `khalid --site <folder> bing sitemap` hands Bing the sitemap, and `khalid --site <folder> bing report` shows Bing's last crawl day, the sitemaps it holds and the addresses it had trouble with. Both take `--json`.
+
+## Google Search Console
+
+Search Console is Google's report of how a site does in Google search. Khalid reads it with your own Google account, and only once you opt in. It never involves SerpDad unless you connect SerpDad yourself.
+
+1. Add the site in Search Console and verify it, with the code Google gives you as `google` under `[seo.verification]` in `site.toml`.
+2. In Google Cloud, make a project, turn on the "Google Search Console API", and make an OAuth client ID of type "Desktop app" under APIs and Services, Credentials. Google shows a client ID and a client secret.
+3. Get a refresh token, a long-lived permission for that client to read your numbers: in the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/), open the settings, tick "Use your own OAuth credentials" and enter the client ID and secret, then authorise the scope `https://www.googleapis.com/auth/webmasters.readonly` with the Google account that owns the site and exchange the code for tokens. Copy the refresh token.
+4. Add the table to `site.toml`. `property` is needed only when it differs from `address`, such as a domain property. `report_to` is who gets the weekly email, and needs `[mail]`.
+
+```toml
+[search_console]
+client_id = "1234-abcd.apps.googleusercontent.com"
+property = "sc-domain:example.com"
+report_to = "you@example.com"
+```
+
+5. Set `KHALID_GOOGLE_CLIENT_SECRET` and `KHALID_GOOGLE_REFRESH_TOKEN` in the environment, the same way as the mail secrets above. Neither ever goes in `site.toml`.
+
+Then, all with `--json` when a program reads the answer:
+
+- `khalid --site <folder> search-console check` signs in and says whether the property can be read.
+- `khalid --site <folder> search-console report` shows each post's clicks, impressions, click-through rate and position for the last 28 days Google has final numbers for, posts whose clicks fell three months in a row, missing and noindex pages that still get search traffic, and the week's winners and losers.
+- `khalid --site <folder> search-console post <slug>` shows one post's top searches and whether Google has it in its index.
+- `khalid --site <folder> search-console index` asks Google about every published post, up to 200 a run. Google allows 2,000 of these a day.
+- `khalid --site <folder> search-console email` sends the weekly email. Run it once a week, for example from a systemd timer with `OnCalendar=Mon 08:00`, or a cron line such as `0 8 * * 1`.
+
+A refresh token stops working when you take Khalid's permission back in your Google account, or when Google lets it lapse. The commands then say so: make a new one with step 3.

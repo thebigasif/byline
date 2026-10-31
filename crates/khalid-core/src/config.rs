@@ -10,10 +10,12 @@ use std::time::Duration;
 use serde::Deserialize;
 
 use crate::mail_settings::MailTable;
+use crate::search_console_settings::SearchConsoleTable;
 use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
     AbsoluteUrl, AlertSettings, Announcement, Locale, MailSettings, MailTransport, MediaSettings,
-    NavSettings, ParseUrlError, Reader, S3Keys, Secret, SeoSettings, SiteCode,
+    NavSettings, ParseUrlError, Reader, S3Keys, SearchConsoleSettings, Secret, SeoSettings,
+    SiteCode,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -39,6 +41,7 @@ pub struct Config {
     mail: Option<MailSettings>,
     alerts: AlertSettings,
     code: SiteCode,
+    search_console: Option<SearchConsoleSettings>,
     preview_link_lifetime: Duration,
 }
 
@@ -106,6 +109,7 @@ struct SiteFile {
     alerts: AlertSettings,
     #[serde(default)]
     code: SiteCode,
+    search_console: Option<SearchConsoleTable>,
     preview_link_days: Option<u64>,
     preview_link_hours: Option<u64>,
 }
@@ -253,6 +257,18 @@ impl Config {
             })?,
             None => file.address,
         };
+        let search_console = file
+            .search_console
+            .map(|table| table.check(&address, mail.as_ref()));
+        let search_console =
+            search_console
+                .transpose()
+                .map_err(|(key, problem)| ConfigError::Field {
+                    path: path.to_path_buf(),
+                    line: line_of_key_in(text, "[search_console", key),
+                    field: key.to_owned(),
+                    problem: problem.to_owned(),
+                })?;
         Ok(Self {
             name: file.name,
             address,
@@ -269,6 +285,7 @@ impl Config {
             mail,
             alerts: file.alerts,
             code: file.code,
+            search_console,
             preview_link_lifetime,
         })
     }
@@ -288,6 +305,12 @@ impl Config {
     /// none.
     pub fn mail(&self) -> Option<&MailSettings> {
         self.mail.as_ref()
+    }
+
+    /// The Search Console connection, from `[search_console]`, or `None`
+    /// when the owner has not opted in.
+    pub fn search_console(&self) -> Option<&SearchConsoleSettings> {
+        self.search_console.as_ref()
     }
 
     /// Where the media library keeps its files, from `[media]`.
@@ -391,8 +414,15 @@ impl Environment {
     /// have verified there.
     pub const BING_API_KEY: &str = "KHALID_BING_API_KEY";
 
+    /// The secret of the OAuth client named in `[search_console]`.
+    pub const GOOGLE_CLIENT_SECRET: &str = "KHALID_GOOGLE_CLIENT_SECRET";
+
+    /// The refresh token Google gave when the owner let that client read
+    /// their Search Console numbers.
+    pub const GOOGLE_REFRESH_TOKEN: &str = "KHALID_GOOGLE_REFRESH_TOKEN";
+
     /// Every variable Khalid reads.
-    const ALL: [&str; 8] = [
+    const ALL: [&str; 10] = [
         Self::ADDRESS,
         Self::KEY,
         Self::S3_ACCESS_KEY_ID,
@@ -401,16 +431,20 @@ impl Environment {
         Self::RESEND_API_KEY,
         Self::POSTMARK_TOKEN,
         Self::BING_API_KEY,
+        Self::GOOGLE_CLIENT_SECRET,
+        Self::GOOGLE_REFRESH_TOKEN,
     ];
 
     /// Variables whose values `Debug` hides.
-    const HIDDEN: [&str; 6] = [
+    const HIDDEN: [&str; 8] = [
         Self::KEY,
         Self::S3_SECRET_ACCESS_KEY,
         Self::SMTP_PASSWORD,
         Self::RESEND_API_KEY,
         Self::POSTMARK_TOKEN,
         Self::BING_API_KEY,
+        Self::GOOGLE_CLIENT_SECRET,
+        Self::GOOGLE_REFRESH_TOKEN,
     ];
 
     /// Reads Khalid's variables from this process's environment.
@@ -484,10 +518,28 @@ impl Environment {
     /// The key in [`Environment::BING_API_KEY`], or `None` when it is unset
     /// or blank.
     pub fn bing_api_key(&self) -> Option<Secret<String>> {
-        self.get(Self::BING_API_KEY)
+        self.secret(Self::BING_API_KEY)
+    }
+
+    /// The secret in [`Environment::GOOGLE_CLIENT_SECRET`], or `None` when
+    /// it is unset or blank.
+    pub fn google_client_secret(&self) -> Option<Secret<String>> {
+        self.secret(Self::GOOGLE_CLIENT_SECRET)
+    }
+
+    /// The token in [`Environment::GOOGLE_REFRESH_TOKEN`], or `None` when
+    /// it is unset or blank.
+    pub fn google_refresh_token(&self) -> Option<Secret<String>> {
+        self.secret(Self::GOOGLE_REFRESH_TOKEN)
+    }
+
+    /// The variable `name`, trimmed, as a secret, or `None` when it is
+    /// unset or blank.
+    fn secret(&self, name: &str) -> Option<Secret<String>> {
+        self.get(name)
             .map(str::trim)
-            .filter(|key| !key.is_empty())
-            .map(|key| Secret::new(key.to_owned()))
+            .filter(|value| !value.is_empty())
+            .map(|value| Secret::new(value.to_owned()))
     }
 
     fn get(&self, name: &str) -> Option<&str> {

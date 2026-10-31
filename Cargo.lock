@@ -2050,6 +2050,7 @@ dependencies = [
  "khalid-render",
  "khalid-routes",
  "khalid-search",
+ "khalid-search-console",
  "khalid-seo",
  "khalid-server",
  "khalid-share-image",
@@ -2477,6 +2478,20 @@ version = "0.0.0"
 dependencies = [
  "khalid-core",
  "rust-stemmers",
+]
+
+[[package]]
+name = "khalid-search-console"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "khalid-core",
+ "khalid-outbound",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "wiremock",
 ]
 
 [[package]]
