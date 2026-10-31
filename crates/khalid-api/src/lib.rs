@@ -21,6 +21,7 @@ pub mod content_api;
 mod content_key;
 pub mod content_store;
 mod etag;
+pub mod follow_ups;
 mod html_source;
 pub mod keys;
 pub mod media_api;
