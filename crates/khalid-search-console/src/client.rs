@@ -245,7 +245,7 @@ fn parse<T: DeserializeOwned>(body: &[u8]) -> Result<T, SearchConsoleError> {
 
 /// Appends `text` to `out` with every byte but letters, digits and
 /// `-._~` written as `%XX`, as a form value or a path segment needs.
-fn encode(text: &str, out: &mut String) {
+pub(crate) fn encode(text: &str, out: &mut String) {
     for byte in text.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
             out.push(char::from(byte));
