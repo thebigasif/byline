@@ -170,7 +170,7 @@ fn a_static_build_says_which_features_are_off_and_why() {
     );
     for what in [
         "Comments are off.",
-        "Newsletter sign-up is off.",
+        "Newsletter sign-up and gated content are off.",
         "Forms are off.",
         "Search is off.",
         "The admin is not part of the built site.",
@@ -235,6 +235,30 @@ fn a_static_build_of_the_demo_has_no_form_posting_to_a_missing_endpoint() {
     let german =
         fs::read_to_string(at(out.path(), "de/was-eine-sitemap-leistet/index.html")).unwrap();
     assert!(german.contains("Anmeldungen per E-Mail sind auf dieser Website nicht möglich."));
+}
+
+#[test]
+fn a_static_post_shows_one_note_where_comments_would_be() {
+    let site = demo("static");
+    let out = tempfile::tempdir().unwrap();
+    build(site.path(), out.path(), &[]);
+
+    for (post, note) in [
+        (
+            "what-a-sitemap-does/index.html",
+            "<p class=\"lock locked\" data-feature=\"comments\">Comments are not open on this site.</p>",
+        ),
+        (
+            "de/was-eine-sitemap-leistet/index.html",
+            "<p class=\"lock locked\" data-feature=\"comments\">Kommentare sind auf dieser Website nicht möglich.</p>",
+        ),
+    ] {
+        let page = fs::read_to_string(at(out.path(), post)).unwrap();
+        assert_eq!(page.matches(note).count(), 1, "{post}");
+        assert!(!page.contains("class=\"comments\""), "{post}");
+    }
+    let home = fs::read_to_string(at(out.path(), "index.html")).unwrap();
+    assert!(!home.contains("data-feature=\"comments\""));
 }
 
 #[test]

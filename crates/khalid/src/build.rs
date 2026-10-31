@@ -120,6 +120,7 @@ fn build(
         .unwrap_or_default();
     let mut languages = build_pages::pages(config, routes, (content, &[]), &href)?;
     let renderer = theme.as_ref().map(|(renderer, _)| renderer);
+    static_mode::comments(config, &mut languages);
     post_lock::lock(config, content, renderer, &mut languages);
     if let Some((renderer, _)) = &theme {
         search_page::add(config, renderer, &mut languages)?;

@@ -74,7 +74,7 @@ fn doctor_on_a_static_site_lists_the_features_off_and_finds_no_problem() {
     assert!(address < off, "{said}");
     assert!(
         said.contains(
-            "Comments are off.\n  A static host only sends files, so nothing can keep a reader's comment.\n  To turn this feature on, set mode = \"server\" in site.toml and run `khalid serve`.\n"
+            "Comments are off.\n  A static host only sends files, so nothing can keep a reader's comment, and each post shows a short note instead.\n  To turn this feature on, set mode = \"server\" in site.toml and run `khalid serve`.\n"
         ),
         "{said}"
     );
