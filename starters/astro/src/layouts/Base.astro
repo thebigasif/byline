@@ -1,0 +1,47 @@
+---
+// Every page of the blog: the post's head from Khalid when there is one,
+// else a plain title, and a light, readable column for the text.
+import { headHtml } from "../lib/khalid.js";
+
+interface Props {
+  lang: string;
+  head?: import("../lib/khalid.js").Head | undefined;
+  title?: string;
+}
+
+const { lang, head, title } = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {head ? <Fragment set:html={headHtml(head)} /> : <title>{title}</title>}
+    <style is:global>
+      body {
+        margin: 0;
+        background: #ffffff;
+        color: #1f2328;
+        font: 1.0625rem/1.6 system-ui, sans-serif;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+      }
+      a {
+        color: #0b57d0;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>

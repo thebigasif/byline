@@ -1,0 +1,23 @@
+{
+  "name": "khalid-astro-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An Astro site that shows a Khalid blog from its Content API, with the theme's meta tags and schema.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "astro": "7.4.4"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=22.23.4"
+  }
+}

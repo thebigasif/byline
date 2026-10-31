@@ -20,6 +20,7 @@ use crate::content_feed::ContentFeed;
 use crate::form_pages::{self, LiveForms};
 use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
+use crate::post_heads::{self, PostHeads};
 use crate::post_photos::Shown;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
@@ -106,6 +107,8 @@ pub(crate) struct Served {
     pub(crate) pages: Vec<Page>,
     pub(crate) not_found: String,
     pub(crate) moves: Vec<Moved>,
+    /// The head of each post page, for the Content API: empty without one.
+    pub(crate) heads: PostHeads,
 }
 
 impl SitePages {
@@ -373,7 +376,8 @@ impl SitePages {
             None => None,
         };
         let mut shown = Shown::default();
-        let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All, &mut shown)?;
+        let (mut rendered, listed) =
+            self.render_of(&assets, (content, &[]), Which::All, &mut shown)?;
         let mut handed_on = handed_on.lock().unwrap_or_else(PoisonError::into_inner);
         if read < *handed_on {
             tracing::debug!(read, "a render of newer content already handed on its own");
@@ -386,7 +390,8 @@ impl SitePages {
             shown,
         };
         *kept.lock().unwrap_or_else(PoisonError::into_inner) = Some(assets);
-        if let (Some(feed), Some(catalog)) = (feed, catalog) {
+        if let (Some(feed), Some(mut catalog)) = (feed, catalog) {
+            catalog.heads = std::mem::take(&mut rendered.heads);
             feed.send(catalog);
         }
         Ok(rendered)
@@ -443,15 +448,17 @@ impl SitePages {
         let seo_pages = build_seo::heads(&seo_site, &mut languages)?;
         build_sitemap::fill(config, &seo_site, &seo_pages, &mut languages)?;
         post_lock::share_heads(&mut languages);
-        if which == Which::All {
-            self.0.gate.replace(&languages);
-        }
         let mut served = Served {
             pages: Vec::new(),
             not_found: HEADLESS_NOT_FOUND.to_owned(),
             moves: Vec::new(),
+            heads: PostHeads::new(),
         };
         if which == Which::All {
+            self.0.gate.replace(&languages);
+            if self.0.feed.is_some() {
+                served.heads = post_heads::of(&seo_site, &seo_pages)?;
+            }
             served.pages = site_files::files(config, &seo_site, &seo_pages, self.0.clock.now())?;
             served.pages.extend(beside);
             served.moves = site_files::moves(config, routes, content)?;

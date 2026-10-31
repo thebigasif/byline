@@ -7554,6 +7554,119 @@
           }
         }
       },
+      "HeadElement": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "`<title>text</title>`.",
+            "required": [
+              "text",
+              "tag"
+            ],
+            "properties": {
+              "tag": {
+                "type": "string",
+                "enum": [
+                  "title"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "description": "The page title."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "`<meta name=\"...\" content=\"...\">`, or with `property` for Open Graph.",
+            "required": [
+              "content",
+              "tag"
+            ],
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "The `content` attribute."
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The `name` attribute, such as `description` or `twitter:card`."
+              },
+              "property": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The `property` attribute, such as `og:title`."
+              },
+              "tag": {
+                "type": "string",
+                "enum": [
+                  "meta"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "`<link rel=\"...\" hreflang=\"...\" href=\"...\">`, `hreflang` only on a\nlanguage version.",
+            "required": [
+              "rel",
+              "href",
+              "tag"
+            ],
+            "properties": {
+              "href": {
+                "type": "string",
+                "description": "The full address."
+              },
+              "hreflang": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The language of an `alternate` version, or `x-default`."
+              },
+              "rel": {
+                "type": "string",
+                "description": "The `rel` attribute, such as `canonical` or `alternate`."
+              },
+              "tag": {
+                "type": "string",
+                "enum": [
+                  "link"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One tag of a post page's head. Values are plain text: a front end\nescapes them as it writes the tag."
+      },
+      "HeadParts": {
+        "type": "object",
+        "description": "A post page's head: its tags in the order the theme writes them, then\nits JSON-LD graph. A post holds them behind a shared pointer, so the\nstore copies no text.",
+        "required": [
+          "tags",
+          "json_ld"
+        ],
+        "properties": {
+          "json_ld": {
+            "type": "string",
+            "description": "The schema graph as compact JSON, with each less-than sign escaped,\nso it can go inside a script tag as it is.",
+            "example": "{\"@context\":\"https://schema.org\",\"@graph\":[]}"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HeadElement"
+            },
+            "description": "The title, meta and link tags, in order."
+          }
+        }
+      },
       "IndexStatus": {
         "type": "string",
         "description": "Whether search engines may list a post, as far as the site itself\nsays. Google's own answer comes with the Search Console connection\n(plan section 5.11).",
@@ -8189,6 +8302,17 @@
               "featured": {
                 "type": "boolean",
                 "description": "Whether the post is marked as featured."
+              },
+              "head": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/HeadParts",
+                    "description": "What its page carries in `<head>` for search engines and share\ncards, so a front end of its own keeps the meta tags and schema.\nAbsent until the site's pages have been made once."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "id": {
                 "type": "string",
