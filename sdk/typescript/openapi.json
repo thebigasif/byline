@@ -1958,6 +1958,63 @@
         ]
       }
     },
+    "/api/admin/v1/serpdad/": {
+      "get": {
+        "tags": [
+          "admin serpdad"
+        ],
+        "summary": "Reads whether `SerpDad` is connected. Needs `settings:write`.",
+        "operationId": "read_serpdad",
+        "parameters": [
+          {
+            "name": "Accept-Version",
+            "in": "header",
+            "description": "The oldest API version the client accepts, such as v1.0.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The connection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SerpdadState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid integration key or staff token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key lacks settings:write",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_key": []
+          }
+        ]
+      }
+    },
     "/api/admin/v1/session/": {
       "get": {
         "tags": [
@@ -8088,6 +8145,37 @@
           }
         },
         "additionalProperties": false
+      },
+      "SerpdadConnection": {
+        "type": "object",
+        "description": "The connection, or `null` while it is off.",
+        "required": [
+          "connected_at"
+        ],
+        "properties": {
+          "connected_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the key `SerpDad` sends drafts with was made."
+          }
+        }
+      },
+      "SerpdadState": {
+        "type": "object",
+        "description": "Whether `SerpDad` is connected.",
+        "properties": {
+          "connection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SerpdadConnection",
+                "description": "The connection, or `null` while it is off."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
       },
       "SessionAnswer": {
         "type": "object",

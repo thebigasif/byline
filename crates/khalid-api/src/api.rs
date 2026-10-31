@@ -21,10 +21,11 @@ use crate::problem::Problem;
 use crate::publish_door::{PublishDoor, Silent};
 use crate::redirect_desk::RedirectDesk;
 use crate::resources::MediaItems;
+use crate::serpdad_store::SerpdadStore;
 use crate::session_check::{SessionCheck, StaffRoutes};
 use crate::webhook_store::WebhookStore;
 use crate::{
-    admin_api, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects,
+    admin_api, admin_comments, admin_not_found, admin_redirect_csv, admin_redirects, admin_serpdad,
     admin_webhooks, api_version, content_api,
 };
 
@@ -214,6 +215,9 @@ pub struct AdminDesks {
     /// The site's webhooks, or `None` when the webhook routes list none
     /// and answer that the site keeps none.
     pub webhooks: Option<Arc<dyn WebhookStore>>,
+    /// The `SerpDad` connection, or `None` when the `SerpDad` route answers
+    /// that the site keeps no database.
+    pub serpdad: Option<Arc<dyn SerpdadStore>>,
 }
 
 impl std::fmt::Debug for AdminDesks {
@@ -226,13 +230,15 @@ impl std::fmt::Debug for AdminDesks {
 }
 
 impl AdminDesks {
-    /// No comments, no media library, no stored redirects and no webhooks.
+    /// No comments, no media library, no stored redirects, no webhooks and
+    /// no `SerpDad` connection.
     pub fn none() -> Self {
         Self {
             comments: Arc::new(NoComments),
             media: None,
             redirects: RedirectDesk::none(),
             webhooks: None,
+            serpdad: None,
         }
     }
 }
@@ -247,6 +253,21 @@ pub fn router_with_webhooks(
 ) -> (Router, Document) {
     let desks = AdminDesks {
         webhooks: Some(webhooks),
+        ..AdminDesks::none()
+    };
+    assemble(content, door, keys, desks, None)
+}
+
+/// [`router_with_door`] with the `SerpDad` route under
+/// `/api/admin/v1/serpdad/` keeping its connection in `serpdad`.
+pub fn router_with_serpdad(
+    content: Arc<dyn ContentStore>,
+    door: Arc<PublishDoor>,
+    keys: Arc<dyn KeyStore>,
+    serpdad: Option<Arc<dyn SerpdadStore>>,
+) -> (Router, Document) {
+    let desks = AdminDesks {
+        serpdad,
         ..AdminDesks::none()
     };
     assemble(content, door, keys, desks, None)
@@ -281,13 +302,15 @@ fn assemble(
         sessions,
     };
     let redirects = desks.redirects;
+    let serpdad = admin_serpdad::Serpdad::new(desks.serpdad);
     let mut admin = admin_api::routes(posts, door.clone())
         .merge(admin_comments::routes(desks.comments, door.clone()))
         .merge(media_api::routes(desks.media, door.clone()))
         .merge(admin_not_found::routes(redirects.clone(), door.clone()))
         .merge(admin_redirect_csv::routes(redirects.clone(), door.clone()))
         .merge(admin_redirects::routes(redirects, door.clone()))
-        .merge(admin_webhooks::routes(desks.webhooks, door.clone()));
+        .merge(admin_webhooks::routes(desks.webhooks, door.clone()))
+        .merge(admin_serpdad::routes(serpdad, door.clone()));
     if let Some(staff) = routes {
         let signed_in = staff
             .signed_in
