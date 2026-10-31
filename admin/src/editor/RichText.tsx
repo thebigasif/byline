@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { en } from "../strings/en";
 import { BlockForm } from "./aids/BlockForm";
 import { applyDetails, type Details, detailsOf, selectedDetails } from "./aids/blockForm";
+import { EmojiMenu } from "./aids/EmojiMenu";
 import { LinkSearch } from "./aids/LinkSearch";
 import { type Chosen, chosenIn, isLinkKey, linkToAddress, linkToPost } from "./aids/linkTo";
 import { PostMenu } from "./aids/PostMenu";
@@ -158,6 +159,9 @@ export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props
     );
   } else if (help) {
     aid = <ShortcutHelp onClose={closeForm} />;
+  } else if (trigger?.kind === "emoji") {
+    const key = `${trigger.kind}:${trigger.from}`;
+    aid = <EmojiMenu key={key} editor={editor} trigger={trigger} keys={keys} />;
   } else if (trigger !== null && trigger.kind !== "slash") {
     const key = `${trigger.kind}:${trigger.from}`;
     aid = <PostMenu key={key} editor={editor} trigger={trigger} keys={keys} />;

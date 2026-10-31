@@ -36,6 +36,19 @@ describe("finding what the writer typed", () => {
     expect(findTrigger("See [[topic-clusters]]")).toBeNull();
     expect(findTrigger("See [[topic-clusters|the guide")).toBeNull();
   });
+
+  it("opens the emoji menu for a colon and two letters after a space", () => {
+    expect(findTrigger("We shipped it :tad")).toEqual({ kind: "emoji", query: "tad", length: 4 });
+    expect(findTrigger(":+1")).toEqual({ kind: "emoji", query: "+1", length: 3 });
+  });
+
+  it("leaves times, addresses, block lines and a lone colon alone", () => {
+    expect(findTrigger("Doors open at 10:30")).toBeNull();
+    expect(findTrigger("See https://example")).toBeNull();
+    expect(findTrigger("::callout")).toBeNull();
+    expect(findTrigger("Note: t")).toBeNull();
+    expect(findTrigger("Wait :t")).toBeNull();
+  });
 });
 
 describe("the writing aids in the editor", () => {

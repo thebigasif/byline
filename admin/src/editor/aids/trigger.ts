@@ -1,8 +1,8 @@
 import { type Editor, Extension } from "@tiptap/core";
 import { type EditorState, Plugin, PluginKey } from "@tiptap/pm/state";
 
-/** What the writer typed to open a menu: `/` for blocks, `@` or `[[` for a post. */
-export type TriggerKind = "slash" | "mention" | "wikilink";
+/** What opens a menu: `/` for blocks, `@` or `[[` for a post, `:` for an emoji. */
+export type TriggerKind = "slash" | "mention" | "wikilink" | "emoji";
 
 /** An open menu: its kind, the words typed after the trigger, and where they sit. */
 export type Trigger = { kind: TriggerKind; query: string; from: number; to: number };
@@ -16,6 +16,9 @@ const SLASH = /^\/([\p{L}\p{N}-]{0,30})$/u;
 // `@` after a space or at the line's start, so an email address never opens it.
 const MENTION = /(?:^|\s)@([\p{L}\p{N}-]{0,40})$/u;
 const WIKILINK = /\[\[([^[\]|\n]{0,60})$/;
+// `:` and two characters of a name after a space or at the line's start, so
+// a time such as 10:30, a web address or a `::` block line never opens it.
+const EMOJI = /(?:^|\s):([a-z0-9_+-]{2,30})$/i;
 
 /** Finds the trigger the writer is typing at the end of `before`, if any. */
 export function findTrigger(before: string): Found | null {
@@ -31,6 +34,11 @@ export function findTrigger(before: string): Found | null {
   if (mention !== null) {
     const query = mention[1] ?? "";
     return { kind: "mention", query, length: query.length + 1 };
+  }
+  const emoji = EMOJI.exec(before);
+  if (emoji !== null) {
+    const query = emoji[1] ?? "";
+    return { kind: "emoji", query, length: query.length + 1 };
   }
   return null;
 }
@@ -73,7 +81,7 @@ export function closeMenu(editor: Editor) {
   editor.view.dispatch(editor.state.tr.setMeta(aidsKey, CLOSE));
 }
 
-/** Watches the text for `/`, `@` and `[[`, so the editor can open the right menu. */
+/** Watches the text for `/`, `@`, `[[` and `:`, so the editor can open the right menu. */
 export const WritingAids = Extension.create({
   name: "writingAids",
   addProseMirrorPlugins() {
