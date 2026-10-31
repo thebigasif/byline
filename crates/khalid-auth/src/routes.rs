@@ -3,6 +3,7 @@
 
 mod links;
 mod passkeys;
+mod sites;
 mod staff;
 mod staff_changes;
 mod take_back;
@@ -23,6 +24,8 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::{Account, Accounts, Password, SessionToken, SignInError, SignedIn};
+
+pub use sites::with_sites;
 
 /// The staff routes for a site's [`Accounts`], for
 /// `khalid_api::api::router_with_staff`.

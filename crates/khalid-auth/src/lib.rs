@@ -51,7 +51,7 @@ pub use password::{
     MAX_BYTES, MIN_CHARS, Password, PasswordError, PasswordHash, PasswordHashing, WeakPasswordError,
 };
 pub use permission::{ParsePermissionError, Permission, may_assign, may_manage};
-pub use routes::staff_routes;
+pub use routes::{staff_routes, with_sites};
 pub use session::{
     CLEAR_COOKIE, COOKIE, CSRF_HEADER, CsrfToken, IDLE, LIFETIME, SessionError, SessionHash,
     SessionStore, SessionStoreError, SessionToken, StoredSession,
