@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::json;
 
-use crate::{IndexStatus, PageNumbers, SearchConsoleError, Window};
+use crate::{IndexStatus, PageNumbers, Search, SearchConsoleError, Window};
 
 /// Where Google trades a refresh token for an access token.
 const TOKEN: &str = "https://oauth2.googleapis.com/token";
@@ -179,6 +179,23 @@ impl Session<'_> {
             "rowLimit": limit.min(MAX_ROWS),
         });
         PageNumbers::read_all(&self.call(&self.analytics()?, &body).await?)
+    }
+
+    /// Every search that showed a page of the property in `window`, by
+    /// page and query, in one request. Google leaves out searches too rare
+    /// to share.
+    ///
+    /// # Errors
+    ///
+    /// The errors of [`Session::pages`].
+    pub async fn searches(&self, window: Window) -> Result<Vec<Search>, SearchConsoleError> {
+        let body = json!({
+            "startDate": window.first.to_string(),
+            "endDate": window.last.to_string(),
+            "dimensions": ["page", "query"],
+            "rowLimit": MAX_ROWS,
+        });
+        Search::read_all(&self.call(&self.analytics()?, &body).await?)
     }
 
     /// Whether Google has `page` in its index. Google allows 2,000 of

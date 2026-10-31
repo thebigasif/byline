@@ -175,6 +175,42 @@ async fn the_queries_behind_one_page_are_asked_for_that_page_only() {
 }
 
 #[tokio::test]
+async fn every_search_on_every_page_comes_in_one_request() {
+    let server = MockServer::start().await;
+    grant(&server).await;
+    let rows = json!({ "rows": [{
+        "keys": ["https://www.example.com/blog/why-links-matter/",
+                 "how many internal links should a blog post have"],
+        "clicks": 2.0, "impressions": 60.0, "ctr": 0.033, "position": 8.2 }] });
+    Mock::given(method("POST"))
+        .and(path(ANALYTICS))
+        .and(header("authorization", "Bearer ya29.made-up"))
+        .and(body_json(json!({
+            "startDate": "2026-10-01", "endDate": "2026-10-28",
+            "dimensions": ["page", "query"], "rowLimit": 25_000,
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(rows))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let (console, outbound) = client(&server);
+    let session = console.sign_in(&outbound).await.unwrap();
+    let window = Window::ending("2026-10-28".parse().unwrap(), 28).unwrap();
+    let searches = session.searches(window).await.unwrap();
+    let found: Vec<(&str, &str)> = searches
+        .iter()
+        .map(|row| (row.page.as_str(), row.query.as_str()))
+        .collect();
+    assert_eq!(
+        found,
+        [(
+            "https://www.example.com/blog/why-links-matter/",
+            "how many internal links should a blog post have"
+        )]
+    );
+}
+
+#[tokio::test]
 async fn index_status_comes_from_url_inspection_and_its_quota_is_named() {
     let server = MockServer::start().await;
     grant(&server).await;
