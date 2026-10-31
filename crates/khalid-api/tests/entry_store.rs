@@ -3,7 +3,10 @@
 
 use chrono::{DateTime, TimeZone, Utc};
 use khalid_api::entry_store::Entry;
-use khalid_api::resources::{AdminPage, AdminSnippet, NewPage, NewSnippet, PageEdit, SnippetEdit};
+use khalid_api::resources::{
+    AdminAuthor, AdminPage, AdminSnippet, AuthorEdit, NewAuthor, NewPage, NewSnippet, PageEdit,
+    SnippetEdit,
+};
 use khalid_core::{Locale, Slug};
 use serde_json::json;
 
@@ -105,4 +108,66 @@ fn a_new_snippet_is_made_in_its_language_and_a_bad_slug_is_refused() {
         "slug": "Not a slug", "title": "T", "markdown": "M.",
     }));
     assert!(refused.is_err(), "{refused:?}");
+}
+
+#[cfg(test)]
+fn asif() -> AdminAuthor {
+    let new: NewAuthor = serde_json::from_value(json!({
+        "slug": "asif", "name": "Asif", "role": "Founder of SerpDad",
+        "same_as": ["https://serpdad.com/"], "bio": "Asif writes about search.",
+    }))
+    .unwrap();
+    AdminAuthor::made(new, Locale::try_new("en").unwrap(), at(20))
+}
+
+#[test]
+fn an_author_is_sent_in_api_shape() {
+    assert_eq!(
+        serde_json::to_value(asif()).unwrap(),
+        json!({
+            "id": "en.asif",
+            "slug": "asif",
+            "language": "en",
+            "name": "Asif",
+            "role": "Founder of SerpDad",
+            "credentials": null,
+            "same_as": ["https://serpdad.com/"],
+            "photo": null,
+            "bio": "Asif writes about search.",
+            "updated_at": "2026-10-20T09:00:00Z",
+        })
+    );
+}
+
+#[test]
+fn an_author_edit_changes_only_what_it_sends_and_empty_text_removes() {
+    let edit: AuthorEdit = serde_json::from_value(json!({
+        "role": "", "credentials": "Ten years in SEO",
+        "same_as": ["https://example.com/asif/", "https://serpdad.com/"],
+        "updated_at": "2026-10-20T09:00:00Z",
+    }))
+    .unwrap();
+    assert_eq!(AdminAuthor::seen(&edit), at(20));
+    let author = serde_json::to_value(asif().edited(edit, at(27))).unwrap();
+    assert_eq!(author["name"], "Asif");
+    assert_eq!(author["role"], json!(null), "an empty role removes it");
+    assert_eq!(author["credentials"], "Ten years in SEO");
+    assert_eq!(author["same_as"][0], "https://example.com/asif/");
+    assert_eq!(author["bio"], "Asif writes about search.");
+    assert_eq!(author["updated_at"], "2026-10-27T09:00:00Z");
+}
+
+#[test]
+fn a_new_author_needs_a_slug_and_full_addresses() {
+    let bare: NewAuthor =
+        serde_json::from_value(json!({"slug": "lena-vogt", "name": "Lena Vogt"})).unwrap();
+    assert_eq!(bare.file().bio, "", "a bio may come later");
+    for bad in [
+        json!({"slug": "Lena Vogt", "name": "Lena Vogt"}),
+        json!({"slug": "lena-vogt", "name": "Lena Vogt", "same_as": ["not an address"]}),
+        json!({"slug": "lena-vogt"}),
+    ] {
+        let refused = serde_json::from_value::<NewAuthor>(bad.clone());
+        assert!(refused.is_err(), "{bad} was read as {refused:?}");
+    }
 }

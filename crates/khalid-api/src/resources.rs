@@ -1,6 +1,7 @@
 //! The resources as the API sends them. Other crates fill them from
 //! content files and the database; this crate only shapes them.
 
+mod admin_author;
 mod admin_page;
 mod admin_post;
 mod admin_snippet;
@@ -17,6 +18,7 @@ mod settings;
 mod settings_edit;
 mod term;
 
+pub use admin_author::{AdminAuthor, AuthorEdit, AuthorFile, NewAuthor};
 pub use admin_page::{AdminPage, NewPage, PageEdit};
 pub use admin_post::{AdminPost, NewPost, PostDraft, PostEdit, PostStatus};
 pub use admin_snippet::{AdminSnippet, NewSnippet, SnippetEdit};
