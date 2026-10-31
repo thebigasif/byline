@@ -14,6 +14,7 @@ use khalid_api::comment_moderation::CommentModeration;
 use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
 use khalid_api::redirect_desk::RedirectDesk;
+use khalid_api::resources::AdminPage;
 use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
@@ -34,6 +35,7 @@ use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::serve_https::{self, Listen};
 use crate::site_content::LiveContent;
+use crate::site_entries::SiteEntries;
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
@@ -187,7 +189,7 @@ fn serve_with(
         let (desk, pages) =
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let desks = (moderation, media, desk);
-        let apis = api_router((content, door), desks, (database, id, config));
+        let apis = api_router((content, door), desks, (site, database, id, config));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -221,7 +223,7 @@ fn serve_with(
 fn api_router(
     (content, door): (LiveContent, Arc<PublishDoor>),
     (comments, media, redirects): (Arc<dyn CommentModeration>, MediaLibrary, RedirectDesk),
-    (database, id, config): (&Database, SiteId, &Config),
+    (site, database, id, config): (&Path, &Database, SiteId, &Config),
 ) -> Router {
     let accounts = staff::accounts(database, id, config);
     let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
@@ -235,7 +237,7 @@ fn api_router(
             id,
             SystemClock,
         ))),
-        ..AdminDesks::none()
+        pages: Some(Arc::new(SiteEntries::<AdminPage>::new(site, config))),
     };
     let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
     let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);

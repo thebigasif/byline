@@ -73,6 +73,11 @@ impl PostText {
         body.trim_end_matches('\n')
     }
 
+    /// The front matter between the fences, as YAML.
+    pub(crate) fn front_matter(&self) -> String {
+        self.front.join("\n")
+    }
+
     /// The whole file.
     pub(crate) fn to_text(&self) -> String {
         format!("---\n{}\n---\n{}", self.front.join("\n"), self.body)

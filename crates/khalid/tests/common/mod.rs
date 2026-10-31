@@ -151,4 +151,13 @@ impl Server {
             self.raw("GET", path, &[], None).0 == status
         })
     }
+
+    /// Whether `path` answers with `text` in its body within 20 seconds.
+    #[cfg(test)]
+    pub(crate) fn shows(&self, path: &str, text: &str) -> bool {
+        (0..TRIES).any(|_| {
+            thread::sleep(PAUSE);
+            self.raw("GET", path, &[], None).1.contains(text)
+        })
+    }
 }
