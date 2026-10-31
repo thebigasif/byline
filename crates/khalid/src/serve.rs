@@ -9,22 +9,11 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use axum::Router;
-use khalid_api::analytics_desk::AnalyticsDesk;
-use khalid_api::api::{self, AdminDesks, AuditDesk};
-use khalid_api::comment_moderation::CommentModeration;
-use khalid_api::media_api::MediaLibrary;
 use khalid_api::publish_door::PublishDoor;
-use khalid_api::redirect_desk::RedirectDesk;
-use khalid_api::resources::{AdminAuthor, AdminPage, AdminSnippet};
-use khalid_api::session_check::SessionCheck;
 use khalid_api::unlock::{Transport, UnlockSigner};
-use khalid_auth::SiteDirectory;
 use khalid_content::{EMBED_PROVIDERS, SiteContent};
 use khalid_core::{Config, Environment, S3Keys, Secret, Slug, SystemClock, UserMessage};
-use khalid_db::{
-    AnalyticsTable, AuditTable, Database, KeyTable, NotFoundTable, ScheduleTable, SerpdadTable,
-    SiteId, VersionTable, WebhookTable,
-};
+use khalid_db::{Database, NotFoundTable, ScheduleTable, SiteId, VersionTable};
 use khalid_forms::FormDelivery;
 use khalid_https::{Domain, HttpsFolder};
 use khalid_outbound::{Outbound, OutboundError};
@@ -45,20 +34,15 @@ use crate::memory::HandBack;
 use crate::post_files::Assets;
 use crate::search_console_finder::SiteFollowUps;
 use crate::serve_https::{self, Listen};
-use crate::site_categories::SiteCategories;
 use crate::site_content::LiveContent;
-use crate::site_entries::SiteEntries;
 use crate::site_hosts::{self, Among, Door};
 use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
-use crate::site_schema_templates::SiteSchemaTemplates;
-use crate::site_settings::SiteSettings;
-use crate::site_tags::SiteTags;
 use crate::tag_events::Tags;
 use crate::{
     alert_watch, announce, assets, comment_pages, consent_route, db, db_message, form_pages,
     media_library, newsletter, page_counts, preview, redirect_route, report, scheduler,
-    search_route, serve_message, share_images, staff, staff_toolbar, unlock,
+    search_route, serve_apis, serve_message, share_images, staff_toolbar, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -233,7 +217,8 @@ fn serve_with(
         let pages = staff_toolbar::start((database, id, config), editing, pages);
         let desks = (moderation, media, desk, keys.follow_ups);
         let at = (database, id, (site, config));
-        let apis = api_router((content, door, posts), desks, at, site_hosts::panel(among));
+        let apis =
+            serve_apis::api_router((content, door, posts), desks, at, site_hosts::panel(among));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
@@ -329,64 +314,6 @@ fn first_pages(
     let first = Pages::first(first).map_err(|_| serve_message::internal())?;
     let first = with_hint(first, &source);
     Ok((source, first))
-}
-
-/// The Content API and the Admin API as `khalid serve` runs them, with the
-/// comment moderation, media library, stored redirects, Search Console
-/// follow-ups, webhooks and staff accounts of site `id`, the post checks
-/// and schema templates of the site in `site`, and the super-admin routes
-/// over `panel`.
-fn api_router(
-    (content, door, posts): (LiveContent, Arc<PublishDoor>, SitePosts),
-    (comments, media, redirects, follow_ups): (
-        Arc<dyn CommentModeration>,
-        MediaLibrary,
-        RedirectDesk,
-        SiteFollowUps,
-    ),
-    (database, id, (site, config)): (&Database, SiteId, (&Path, &Config)),
-    panel: Arc<dyn SiteDirectory>,
-) -> Router {
-    let accounts = staff::accounts(database, id, config);
-    let sessions: Arc<dyn SessionCheck> = Arc::new(accounts.clone());
-    let routes = khalid_auth::staff_routes(accounts.clone());
-    let staff = (khalid_auth::with_sites(routes, accounts, panel), sessions);
-    let desks = AdminDesks {
-        comments,
-        media: Some(media),
-        redirects,
-        webhooks: Some(Arc::new(WebhookTable::new(
-            database.clone(),
-            id,
-            SystemClock,
-        ))),
-        trash: Some(Arc::new(posts)),
-        audit: Some(AuditDesk::new(
-            Arc::new(AuditTable::new(database.clone(), id)),
-            SystemClock,
-        )),
-        checks: Some(Arc::new(SitePosts::new(site, config.clone(), SystemClock))),
-        schema_templates: Some(Arc::new(SiteSchemaTemplates::new(site, config))),
-        pages: Some(Arc::new(SiteEntries::<AdminPage>::new(site, config))),
-        snippets: Some(Arc::new(SiteEntries::<AdminSnippet>::new(site, config))),
-        authors: Some(Arc::new(SiteEntries::<AdminAuthor>::new(site, config))),
-        tags: Some(Arc::new(SiteTags::new(site, config))),
-        categories: Some(Arc::new(SiteCategories::new(site, config))),
-        settings: Some(Arc::new(SiteSettings::new(site, config))),
-        analytics: AnalyticsDesk::new(
-            Arc::new(AnalyticsTable::new(database.clone(), id)),
-            Arc::new(SystemClock),
-        ),
-        follow_ups: Arc::new(follow_ups),
-        serpdad: Some(Arc::new(SerpdadTable::new(
-            database.clone(),
-            id,
-            SystemClock,
-        ))),
-    };
-    let keys = Arc::new(KeyTable::new(database.clone(), id, SystemClock));
-    let (api, _) = api::router_for_serve(Arc::new(content), door, keys, desks, staff);
-    api
 }
 
 /// The pages, with the stylesheet named as a preload on every HTML answer

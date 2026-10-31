@@ -123,6 +123,7 @@ mod seo_graph_settings;
 mod seo_head_settings;
 mod seo_settings;
 mod serve;
+mod serve_apis;
 mod serve_https;
 mod serve_message;
 mod serve_sites;
