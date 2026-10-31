@@ -30,6 +30,7 @@ mod lint_error;
 mod lint_post;
 mod lint_site;
 mod linter;
+mod page_kind;
 mod page_or_section;
 mod reading;
 mod rule;
@@ -58,6 +59,7 @@ pub use lint_post::{
 };
 pub use lint_site::{GlossaryTerm, LintCollection, LintSite, PageRef, SiteView};
 pub use linter::{Linter, Report};
+pub use page_kind::PageKind;
 pub use rule::{Hit, Rule, RuleId, SiteRule};
 pub use score::{Loss, Score};
 pub use severity::Severity;
