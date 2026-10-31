@@ -172,6 +172,16 @@ pub(crate) enum Command {
         #[arg(long, value_name = "FILE")]
         out: Option<PathBuf>,
     },
+    /// Make a site again from an archive `khalid backup` wrote, in a new or
+    /// empty folder, so a live site is never written over
+    Restore {
+        /// The .tar.gz file `khalid backup` wrote
+        #[arg(value_name = "ARCHIVE")]
+        archive: PathBuf,
+        /// The folder to make the site in, new or empty
+        #[arg(value_name = "FOLDER")]
+        folder: PathBuf,
+    },
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
     /// health out of 100. Keeps the issues, the internal linking report,
     /// each page's weight and the score's trend in data/audit/, and exits

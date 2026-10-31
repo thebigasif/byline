@@ -174,7 +174,7 @@ fn success(output: Output, archive: &Path, written: &Written) -> Exit {
                 "The site has no database yet, so there was none to copy."
             };
             let said = format!(
-                "Backed up {} files to {shown}, {bytes} bytes. {database}\nTo restore, unpack it with `tar -xzf {shown}`.\n",
+                "Backed up {} files to {shown}, {bytes} bytes. {database}\nTo restore, run `khalid restore {shown} <new-folder>`.\n",
                 written.files
             );
             report::text(&said, Exit::Success)

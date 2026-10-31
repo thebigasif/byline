@@ -1,6 +1,6 @@
 # Khalid, by SerpDad
 
-**Status: Phase 0 complete, Phase 1 starting.** Byline and Wellranked were working names; the product is Khalid.
+**Status: getting ready for the first release.** There is no release to download yet, so you build Khalid from source for now. Byline and Wellranked were working names; the product is Khalid.
 
 Khalid is an open-source blog engine any business can add to its website, whatever the site is built with. One Rust binary. Every post is a text file. The best SEO defaults are built in, including schema markup for every content type and a site audit that passes the Ahrefs and Semrush checks. A linter refuses to publish a post that breaks basic SEO hygiene, and every refusal teaches why. It is run from the command line and from a web editor, by people and by agents. There is no drag-and-drop page builder.
 
@@ -8,10 +8,26 @@ The one-line idea: get an Ahrefs- or Semrush-quality blog in one click.
 
 ## Install
 
-On Linux or a Mac, once the first release is out:
+Until the first release is out, build Khalid from source. You need git, Rust through [rustup](https://rustup.rs/), a C compiler and Node.js 22. The npm steps build the admin, the web editor; `cargo` alone builds a blog without it. `CONTRIBUTING.md` explains each step.
 
 ```sh
+git clone https://github.com/thebigasif/khalid.git
+cd khalid/admin
+npm ci
+npm run build
+cd ..
+cargo install --path crates/khalid --locked
+```
+
+Once the first release is out, this one line will install it on Linux or a Mac instead:
+
+```text
 curl -fsSL https://raw.githubusercontent.com/thebigasif/khalid/main/scripts/install.sh | sh
+```
+
+Then make a site and run it:
+
+```sh
 khalid init blog --address https://blog.example.com --yes
 khalid --site blog serve
 ```
@@ -26,12 +42,14 @@ Khalid shows the sign-in link only this once. Open the `localhost` address it sh
 
 To write a post, run `khalid --site blog new --draft "Your title"`. It writes `blog/drafts/en/your-title.md`, which readers never see. Write the post below its front matter, then run `khalid --site blog publish your-title`. The linter checks it first, and only a post it lets through moves into `blog/content/en/posts/` with today's date. Without `--draft`, `new` writes the post straight into `content/`, dated today, and it goes live at once.
 
-`docs/deploy.md` covers the systemd service, the Docker image and Docker Compose, and the ready files for Fly.io, Railway, Coolify and a Hetzner Cloud server.
+`docs/getting-started.md` goes on from there: an author, a first post, publishing, the admin, checks, imports, and backup and restore. `docs/deploy.md` covers the systemd service, the Docker image and Docker Compose, and the ready files for Fly.io, Railway, Coolify and a Hetzner Cloud server.
 
 ## Where things are
 
 | | |
 |---|---|
+| `docs/getting-started.md` | How to use Khalid: a site, a post, the admin, checks, imports, backups |
+| `docs/deploy.md` | Running Khalid on a server, in Docker, or on a hosting platform |
 | `docs/plan.md` | The build plan, with every founder decision. Read it first |
 | `docs/phases/` | What is being built right now, task by task |
 | `docs/standards/` | The rule catalogue and the standards every change follows |
