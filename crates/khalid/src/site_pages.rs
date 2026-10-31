@@ -2,11 +2,10 @@
 //! rendered into memory instead of files, with the site's files and moved
 //! addresses. A headless site has the files and moves and no HTML page.
 
-use std::error::Error;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
-use std::{fmt, fs};
 
 use khalid_content::{
     ContentTree, Document, PostFront, SiteContent, check_bodies, parse_post, read_content,
@@ -20,7 +19,9 @@ use crate::comment_pages::{self, ShownComments};
 use crate::content_feed::ContentFeed;
 use crate::listed_post::ListedPost;
 use crate::post_files::Assets;
+use crate::post_heads::{self, PostHeads};
 use crate::post_photos::Shown;
+use crate::serve_message::Unrendered;
 use crate::site_content::Catalog;
 use crate::site_files::HEADLESS_NOT_FOUND;
 use crate::site_html::{SearchShell, Which, html_pages, search_shells};
@@ -103,6 +104,8 @@ pub(crate) struct Served {
     pub(crate) pages: Vec<Page>,
     pub(crate) not_found: String,
     pub(crate) moves: Vec<Moved>,
+    /// The head of each post page, for the Content API: empty without one.
+    pub(crate) heads: PostHeads,
 }
 
 impl SitePages {
@@ -362,7 +365,8 @@ impl SitePages {
             None => None,
         };
         let mut shown = Shown::default();
-        let (rendered, listed) = self.render_of(&assets, (content, &[]), Which::All, &mut shown)?;
+        let (mut rendered, listed) =
+            self.render_of(&assets, (content, &[]), Which::All, &mut shown)?;
         let mut handed_on = handed_on.lock().unwrap_or_else(PoisonError::into_inner);
         if read < *handed_on {
             tracing::debug!(read, "a render of newer content already handed on its own");
@@ -375,7 +379,8 @@ impl SitePages {
             shown,
         };
         *kept.lock().unwrap_or_else(PoisonError::into_inner) = Some(assets);
-        if let (Some(feed), Some(catalog)) = (feed, catalog) {
+        if let (Some(feed), Some(mut catalog)) = (feed, catalog) {
+            catalog.heads = std::mem::take(&mut rendered.heads);
             feed.send(catalog);
         }
         Ok(rendered)
@@ -438,8 +443,12 @@ impl SitePages {
             pages: Vec::new(),
             not_found: HEADLESS_NOT_FOUND.to_owned(),
             moves: Vec::new(),
+            heads: PostHeads::new(),
         };
         if which == Which::All {
+            if self.0.feed.is_some() {
+                served.heads = post_heads::of(&seo_site, &seo_pages)?;
+            }
             served.pages = site_files::files(config, &seo_site, &seo_pages, self.0.clock.now())?;
             served.pages.extend(beside);
             served.moves = site_files::moves(config, routes, content)?;
@@ -580,18 +589,6 @@ impl Render for SitePages {
         Ok(Some(served.pages))
     }
 }
-
-/// Why the site could not be rendered after an edit, as a person reads it.
-#[derive(Debug)]
-pub(crate) struct Unrendered(UserMessage);
-
-impl fmt::Display for Unrendered {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Error for Unrendered {}
 
 #[cfg(test)]
 #[path = "site_pages_tests.rs"]

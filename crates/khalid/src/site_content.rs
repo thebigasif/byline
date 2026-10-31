@@ -20,6 +20,7 @@ use khalid_db::{ContentIndex, IndexedPost, PostChanges};
 use tokio::sync::watch;
 
 use crate::entry_events::Entries;
+use crate::post_heads::PostHeads;
 use crate::post_lock::Lock;
 use crate::tag_events::Tags;
 use crate::{build_message, build_pages, index, site_lists};
@@ -41,6 +42,9 @@ pub(crate) struct Catalog {
     pub(crate) entries: Entries,
     /// The tags the posts name.
     pub(crate) tags: Tags,
+    /// The head of each post page, by address, which the render that read
+    /// this catalog made.
+    pub(crate) heads: PostHeads,
 }
 
 impl Catalog {
@@ -75,6 +79,7 @@ impl Catalog {
             lists,
             entries: Entries::of(content),
             tags: Tags::of(config, content),
+            heads: PostHeads::new(),
         })
     }
 }
@@ -271,7 +276,10 @@ impl Published {
             for (path, listing) in rows {
                 let id = listing.post.id().to_owned();
                 files.entry(id).or_insert_with(|| path.clone());
-                entries.push((Collection::Posts, listing.post.clone()));
+                // Every post takes its head from this render, since a new
+                // translation changes the heads of posts left as they were.
+                let head = catalog.heads.get(listing.post.url().as_str()).cloned();
+                entries.push((Collection::Posts, listing.post.clone().with_head(head)));
             }
         }
         Self {

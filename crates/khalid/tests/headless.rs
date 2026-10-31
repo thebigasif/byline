@@ -279,3 +279,46 @@ fn a_headless_server_answers_the_api_files_and_redirects_and_no_page() {
         .collect();
     assert!(slugs.contains(&"what-a-sitemap-does"), "{slugs:?}");
 }
+
+#[test]
+fn a_headless_server_hands_each_post_the_head_its_page_would_have() {
+    let site = headless_demo();
+    let key = content_key(site.path());
+    let server = start(site.path());
+
+    let api = format!("/api/content/v1/posts/slug/what-a-sitemap-does/?key={key}");
+    let (status, _, body) = get(&server, &api);
+    assert_eq!(status, 200, "{body}");
+    let found: Value = serde_json::from_str(&body).unwrap();
+    let head = &found["posts"][0]["head"];
+    let tags = head["tags"].as_array().unwrap();
+    assert_eq!(tags[0]["tag"], "title", "{head}");
+    let link = |rel: &str, hreflang: Option<&str>| {
+        let mut links = tags.iter().filter(|tag| tag["rel"] == rel);
+        let found = links.find(|tag| tag["hreflang"].as_str() == hreflang);
+        found
+            .and_then(|tag| tag["href"].as_str())
+            .unwrap_or_default()
+    };
+    let address = "https://www.example.com/blog/what-a-sitemap-does/";
+    assert_eq!(link("canonical", None), address, "{head}");
+    assert!(
+        link("alternate", Some("de")).contains("/blog/de/"),
+        "{head}"
+    );
+    let og_url = |tag: &&Value| tag["property"] == "og:url" && tag["content"] == address;
+    assert!(tags.iter().any(|tag| og_url(&tag)), "{head}");
+    let graph: Value = serde_json::from_str(head["json_ld"].as_str().unwrap()).unwrap();
+    let nodes = graph["@graph"].as_array().unwrap();
+    assert!(
+        nodes.iter().any(|node| node["@type"] == "BlogPosting"),
+        "{graph}"
+    );
+
+    let list = format!("/api/content/v1/posts/?key={key}&limit=all");
+    let (_, _, body) = get(&server, &list);
+    let listed: Value = serde_json::from_str(&body).unwrap();
+    let posts = listed["posts"].as_array().unwrap();
+    let headed = |post: &Value| post["head"]["json_ld"].is_string();
+    assert!(posts.iter().all(headed), "{body}");
+}

@@ -1,10 +1,23 @@
 //! What a person reads when `khalid serve` cannot start or keep serving
 //! (RULES.md BL-CLI-3).
 
-use std::io;
+use std::error::Error;
 use std::net::SocketAddr;
+use std::{fmt, io};
 
 use khalid_core::UserMessage;
+
+/// Why the site could not be rendered after an edit, as a person reads it.
+#[derive(Debug)]
+pub(crate) struct Unrendered(pub(crate) UserMessage);
+
+impl fmt::Display for Unrendered {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Error for Unrendered {}
 
 /// The message when the server cannot listen on `address`.
 pub(crate) fn listen(address: SocketAddr, error: &io::Error) -> UserMessage {
