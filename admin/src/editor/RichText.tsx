@@ -1,12 +1,15 @@
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { photoUsed, type StockSource } from "../api/pictures";
 import { en } from "../strings/en";
 import { BlockForm } from "./aids/BlockForm";
 import { applyDetails, type Details, detailsOf, selectedDetails } from "./aids/blockForm";
 import { EmojiMenu } from "./aids/EmojiMenu";
 import { LinkSearch } from "./aids/LinkSearch";
 import { type Chosen, chosenIn, isLinkKey, linkToAddress, linkToPost } from "./aids/linkTo";
+import { PictureSearch } from "./aids/PictureSearch";
 import { PostMenu } from "./aids/PostMenu";
+import { placePicture } from "./aids/pictureBlock";
 import { SaveSnippet } from "./aids/SaveSnippet";
 import { ShortcutHelp } from "./aids/ShortcutHelp";
 import { SlashMenu } from "./aids/SlashMenu";
@@ -40,6 +43,8 @@ export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props
     }
     return found !== null;
   };
+  // Photo or GIF search, and where the picked picture goes.
+  const [finding, setFinding] = useState<{ source: StockSource; at: number } | null>(null);
   // A table being edited as a grid of cells.
   const [table, setTable] = useState<TableEdit | null>(null);
   const openedTable = (found: TableEdit | null) => {
@@ -104,10 +109,25 @@ export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props
     setHelp(false);
     setSnippet(null);
     setTable(null);
+    setFinding(null);
     editor.commands.focus();
   };
   let aid: ReactNode = null;
-  if (table !== null) {
+  if (finding !== null) {
+    aid = (
+      <PictureSearch
+        source={finding.source}
+        onPick={(picture) => {
+          placePicture(editor, finding.at, picture);
+          if (picture.source === "unsplash") {
+            void photoUsed(picture.id);
+          }
+          setFinding(null);
+        }}
+        onCancel={closeForm}
+      />
+    );
+  } else if (table !== null) {
     aid = (
       <TableGrid
         key={table.at}
@@ -174,6 +194,7 @@ export function RichText({ markdown, readOnly = false, onChange, onBlur }: Props
         keys={keys}
         onDetails={setDetails}
         onTable={(at) => setTable(newTable(at))}
+        onPictures={(source, at) => setFinding({ source, at })}
       />
     );
   }

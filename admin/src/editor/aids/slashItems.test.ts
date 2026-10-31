@@ -39,4 +39,12 @@ describe("the slash menu's blocks", () => {
   it("finds nothing for words no block has", () => {
     expect(ids("zzz")).toEqual([]);
   });
+
+  it("offers photo and GIF search only when the owner turned them on", () => {
+    expect(ids("unsplash")).toEqual([]);
+    const gifs = matchingItems("gif", { unsplash: false, gifs: true }).map((item) => item.id);
+    expect(gifs[0]).toBe("gifs");
+    expect(gifs).not.toContain("unsplash");
+    expect(matchingItems("photo", { unsplash: true, gifs: true })[0]?.id).toBe("unsplash");
+  });
 });

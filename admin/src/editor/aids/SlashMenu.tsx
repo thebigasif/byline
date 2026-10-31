@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/core";
 import type { RefObject } from "react";
+import { type StockSource, usePictureSources } from "../../api/pictures";
 import { en } from "../../strings/en";
 import { AidMenu } from "./AidMenu";
 import { type Details, newDetails } from "./blockForm";
@@ -15,6 +16,8 @@ type Props = {
   onDetails: (details: Details) => void;
   /** Opens an empty table as a grid, to add where `/table` was once filled in. */
   onTable: (at: number) => void;
+  /** Opens photo or GIF search, to add the picked picture where `/words` was. */
+  onPictures: (source: StockSource, at: number) => void;
 };
 
 /** Turns the line holding `/words` into the block `item`. */
@@ -24,8 +27,8 @@ export function addBlock(editor: Editor, trigger: Trigger, item: SlashItem) {
 }
 
 /** The blocks that match what the writer typed after `/`. */
-export function SlashMenu({ editor, trigger, keys, onDetails, onTable }: Props) {
-  const items = matchingItems(trigger.query);
+export function SlashMenu({ editor, trigger, keys, onDetails, onTable, onPictures }: Props) {
+  const items = matchingItems(trigger.query, usePictureSources());
   const pick = (index: number) => {
     const item = items[index];
     const details = item?.spec ? newDetails(item.spec, trigger.from) : null;
@@ -37,6 +40,9 @@ export function SlashMenu({ editor, trigger, keys, onDetails, onTable }: Props) 
     } else if (item?.id === TABLE_ITEM) {
       clear();
       onTable(trigger.from);
+    } else if (item?.source !== undefined) {
+      clear();
+      onPictures(item.source, trigger.from);
     } else if (item !== undefined) {
       addBlock(editor, trigger, item);
     }

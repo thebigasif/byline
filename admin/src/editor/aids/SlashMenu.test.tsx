@@ -39,7 +39,7 @@ describe("the slash menu", () => {
     expect(screen.getByRole("button", { current: true })).toHaveTextContent("Smaller heading");
     press("ArrowUp");
     press("ArrowUp");
-    expect(screen.getByRole("button", { current: true })).toHaveTextContent("Audio");
+    expect(screen.getByRole("button", { current: true })).toHaveTextContent("Table");
   });
 
   it("adds the block the writer clicks", () => {

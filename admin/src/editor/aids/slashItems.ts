@@ -1,5 +1,7 @@
 import type { ChainedCommands } from "@tiptap/core";
+import type { Sources, StockSource } from "../../api/pictures";
 import { en } from "../../strings/en";
+import { pictures } from "../../strings/pictures";
 import { tables } from "../../strings/tables";
 import { nodeName } from "../blocks/directiveNode";
 import { BLOCK_SPECS, type BlockSpec } from "../blocks/specs";
@@ -14,7 +16,19 @@ export type SlashItem = {
   spec: BlockSpec | null;
   /** Turns the writer's empty line into this block. */
   add: (chain: ChainedCommands) => ChainedCommands;
+  /** The search this item opens instead, offered only when the owner turned it on. */
+  source?: StockSource;
 };
+
+/** An item that opens photo or GIF search; the picture is added once picked. */
+const search = (source: StockSource, name: string, hint: string): SlashItem => ({
+  id: source,
+  name,
+  hint,
+  spec: null,
+  add: (chain) => chain,
+  source,
+});
 
 const starter = (
   id: string,
@@ -57,6 +71,8 @@ export const SLASH_ITEMS: readonly SlashItem[] = [
     chain.insertContent({ type: "markdownTable", attrs: { source: writeTable(emptyGrid()) } }),
   ),
   ...BLOCK_SPECS.map(directive),
+  search("unsplash", pictures.unsplash, pictures.unsplashSlashHint),
+  search("gifs", pictures.gifs, pictures.gifsSlashHint),
 ];
 
 /** How many lines the menu shows at once; typing narrows the rest. */
@@ -64,11 +80,15 @@ export const MENU_LENGTH = 8;
 
 /**
  * The items whose name or directive starts a word with `query`, names that
- * start with it first, then in menu order.
+ * start with it first, then in menu order. A search item shows only when
+ * `sources` says the owner turned it on.
  */
-export function matchingItems(query: string): SlashItem[] {
+export function matchingItems(query: string, sources?: Sources): SlashItem[] {
   const wanted = query.toLowerCase();
   const scored = SLASH_ITEMS.flatMap((item, index) => {
+    if (item.source !== undefined && sources?.[item.source] !== true) {
+      return [];
+    }
     const name = item.name.toLowerCase();
     if (name.startsWith(wanted) || item.id.startsWith(wanted)) {
       return [{ item, rank: index }];
