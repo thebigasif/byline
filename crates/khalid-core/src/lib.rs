@@ -28,6 +28,7 @@ mod seo_head_settings;
 mod seo_publisher_settings;
 mod seo_settings;
 mod site_code;
+mod site_nav;
 mod site_path;
 mod slug;
 mod slug_from_title;
@@ -67,6 +68,7 @@ pub use seo_publisher_settings::{
 };
 pub use seo_settings::{ArchiveIndex, IndexNowSettings, SeoSettings};
 pub use site_code::{BodyCode, BodyCodeError, Consent, SiteCode};
+pub use site_nav::{Announcement, MenuLink, NavSettings, OneLine, SiteHref, SiteNavError};
 pub use site_path::{SitePath, SitePathError};
 pub use slug::{ParseSlugError, Slug};
 pub use user_message::UserMessage;

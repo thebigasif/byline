@@ -54,13 +54,7 @@ impl Asset {
         content_type: &'static str,
         body: Vec<u8>,
     ) -> Result<Self, RenderError> {
-        let hash = Sha256::digest(&body);
-        let mut name = format!("{stem}.");
-        for byte in hash.iter().take(HASH_DIGITS / 2) {
-            let _ = write!(name, "{byte:02x}");
-        }
-        name.push('.');
-        name.push_str(extension);
+        let name = hashed_name(stem, extension, &body);
         let gzip = gzip(&body).map_err(|source| RenderError::Compress { source })?;
         let brotli = brotli(&body).map_err(|source| RenderError::Compress { source })?;
         Ok(Self {
@@ -102,8 +96,25 @@ impl Asset {
     /// carries it loads only these exact bytes, and a Content Security
     /// Policy can allow the file by the same value.
     pub fn integrity(&self) -> String {
-        format!("sha256-{}", STANDARD.encode(Sha256::digest(&self.body)))
+        integrity_of(&self.body)
     }
+}
+
+/// `stem.<hash>.extension`, the name [`Asset::build`] gives `body`.
+pub(crate) fn hashed_name(stem: &str, extension: &str, body: &[u8]) -> String {
+    let hash = Sha256::digest(body);
+    let mut name = format!("{stem}.");
+    for byte in hash.iter().take(HASH_DIGITS / 2) {
+        let _ = write!(name, "{byte:02x}");
+    }
+    name.push('.');
+    name.push_str(extension);
+    name
+}
+
+/// The SHA-256 of `body` as a Subresource Integrity value.
+pub(crate) fn integrity_of(body: &[u8]) -> String {
+    format!("sha256-{}", STANDARD.encode(Sha256::digest(body)))
 }
 
 fn gzip(body: &[u8]) -> io::Result<Vec<u8>> {

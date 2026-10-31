@@ -61,6 +61,7 @@ fn the_site_hides_its_locale_from_templates() {
             }],
             footer: Vec::new(),
         },
+        announcement: None,
         main_site: None,
         share_image: None,
         features: Features::all(),

@@ -156,6 +156,7 @@ fn build(
     let code = PageCode::new(config, HeadNonce::Static);
     if let Some((renderer, css)) = &theme {
         write_asset(out, css)?;
+        write_asset(out, &assets::reader_with_copies()?)?;
         write_fonts(site, out)?;
         for language in &languages {
             for page in &language.pages {

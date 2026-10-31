@@ -12,8 +12,8 @@ use serde::Deserialize;
 use crate::mail_settings::MailTable;
 use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
-    AbsoluteUrl, AlertSettings, Locale, MailSettings, MailTransport, MediaSettings, ParseUrlError,
-    Reader, S3Keys, Secret, SeoSettings, SiteCode,
+    AbsoluteUrl, AlertSettings, Announcement, Locale, MailSettings, MailTransport, MediaSettings,
+    NavSettings, ParseUrlError, Reader, S3Keys, Secret, SeoSettings, SiteCode,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -33,6 +33,8 @@ pub struct Config {
     languages: Vec<Locale>,
     seo: SeoSettings,
     reader: Reader,
+    nav: NavSettings,
+    announcement: Option<Announcement>,
     media: MediaSettings,
     mail: Option<MailSettings>,
     alerts: AlertSettings,
@@ -94,6 +96,9 @@ struct SiteFile {
     seo: SeoSettings,
     #[serde(default)]
     reader: Reader,
+    #[serde(default)]
+    nav: NavSettings,
+    announcement: Option<Announcement>,
     #[serde(default)]
     media: MediaSettings,
     mail: Option<MailTable>,
@@ -210,6 +215,12 @@ impl Config {
                 "the default language must be one of languages",
             ));
         }
+        let bar = file.announcement.iter().filter_map(|a| a.language.as_ref());
+        let unknown = (file.nav.languages().chain(bar)).any(|l| !file.languages.contains(l));
+        if unknown {
+            let problem = "a menu link or the announcement names a language the site does not have; use one of languages";
+            return Err(field("language", problem));
+        }
         let preview_link_lifetime =
             preview_lifetime(&file).map_err(|(key, problem)| field(key, problem))?;
         if let Some(s3) = &file.media.s3 {
@@ -252,6 +263,8 @@ impl Config {
             languages: file.languages,
             seo: file.seo,
             reader: file.reader,
+            nav: file.nav,
+            announcement: file.announcement,
             media: file.media,
             mail,
             alerts: file.alerts,
@@ -331,6 +344,17 @@ impl Config {
     /// Which reader features the default templates show, from `[reader]`.
     pub fn reader(&self) -> &Reader {
         &self.reader
+    }
+
+    /// The header and footer menus, from `[nav]`.
+    pub fn nav(&self) -> &NavSettings {
+        &self.nav
+    }
+
+    /// The line shown above every page's header, from `[announcement]`, or
+    /// `None` when the site has none.
+    pub fn announcement(&self) -> Option<&Announcement> {
+        self.announcement.as_ref()
     }
 }
 

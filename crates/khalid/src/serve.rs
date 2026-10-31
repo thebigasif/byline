@@ -40,9 +40,9 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::tag_events::Tags;
 use crate::{
-    alert_watch, announce, comment_pages, consent_route, db, db_message, media_library, newsletter,
-    page_counts, preview, redirect_route, report, scheduler, search_route, serve_message,
-    share_images, staff, unlock,
+    alert_watch, announce, assets, comment_pages, consent_route, db, db_message, media_library,
+    newsletter, page_counts, preview, redirect_route, report, scheduler, search_route,
+    serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -487,10 +487,12 @@ pub(crate) fn open(site: &Path, runtime: &Runtime) -> Result<(Database, SiteId),
 }
 
 /// The security headers of every page, letting in the frames of the embed
-/// providers.
+/// providers and the reader script by its hash.
 fn security_headers() -> Result<SecurityHeaders, (UserMessage, Exit)> {
     let origins: Vec<&str> = EMBED_PROVIDERS.iter().map(|p| p.frame_origin()).collect();
-    SecurityHeaders::new(&origins).map_err(|_| (serve_message::internal(), Exit::Internal))
+    SecurityHeaders::new(&origins)
+        .and_then(|headers| headers.with_script(&assets::reader().integrity))
+        .map_err(|_| (serve_message::internal(), Exit::Internal))
 }
 
 /// Says where the site answers. In JSON, this one line is the whole output.

@@ -44,7 +44,19 @@ pub(crate) fn enlarge(body: &Value, originals: &Value) -> Result<Value, Error> {
         {
             Some(largest) => {
                 let href = escape::attribute(&largest.to_string());
-                let _ = write!(out, "<a class=\"enlarge\" href=\"{href}\">{tag}></a>");
+                let open = format!("<a class=\"enlarge\" href=\"{href}\">");
+                // An image drawn as a `picture` may hold only its sources and
+                // the image, so the link goes around the whole picture.
+                if let Some(at) = open_picture(&out)
+                    && let Some(end) = tail.find(PICTURE_END)
+                {
+                    out.insert_str(at, &open);
+                    let (inside, after) = tail.split_at(end + PICTURE_END.len());
+                    let _ = write!(out, "{tag}>{inside}</a>");
+                    rest = after;
+                    continue;
+                }
+                let _ = write!(out, "{open}{tag}></a>");
             }
             None => {
                 let _ = write!(out, "{tag}>");
@@ -54,6 +66,16 @@ pub(crate) fn enlarge(body: &Value, originals: &Value) -> Result<Value, Error> {
     }
     out.push_str(rest);
     Ok(Value::from_safe_string(out))
+}
+
+/// How a `picture` ends.
+const PICTURE_END: &str = "</picture>";
+
+/// Where the `picture` that `html` ends inside starts, if it ends inside one.
+fn open_picture(html: &str) -> Option<usize> {
+    let start = html.rfind("<picture")?;
+    let closed = html.rfind(PICTURE_END).is_some_and(|end| end > start);
+    (!closed).then_some(start)
 }
 
 #[cfg(test)]
@@ -103,6 +125,18 @@ mod tests {
             got.as_str()
                 .unwrap()
                 .contains("href=\"/x&quot;onclick=&quot;y\"")
+        );
+    }
+
+    #[test]
+    fn a_listed_image_in_a_picture_links_the_whole_picture() {
+        let html = "<figure>\n<picture>\n<source type=\"image/webp\" srcset=\"s.webp 800w\">\n\
+                    <img src=\"sitemap.png\" alt=\"A sitemap\">\n</picture>\n</figure>";
+        assert_eq!(
+            enlarged(html),
+            "<figure>\n<a class=\"enlarge\" href=\"/blog/media/3f2a9c1e-2400.png\"><picture>\n\
+             <source type=\"image/webp\" srcset=\"s.webp 800w\">\n\
+             <img src=\"sitemap.png\" alt=\"A sitemap\">\n</picture></a>\n</figure>"
         );
     }
 

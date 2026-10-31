@@ -1,7 +1,7 @@
 // Polish on top of pages that read completely without it (RULES.md BL-WEB-2):
 // copy a heading's address, open an enlarged image in a dialog, open search
 // with / or Ctrl+K, show results while typing a search, and mark the
-// section being read in the contents.
+// section being read in the contents, and preview a linked post.
 // The words it shows come from the script tag's data attributes.
 (() => {
   "use strict";
@@ -158,5 +158,71 @@
       const heading = document.getElementById(id);
       if (heading) seen.observe(heading);
     }
+  }
+
+  // A link in a post's body to another page of the site shows that page's
+  // summary while pointed at or focused, read from the page's own
+  // description the first time. Escape hides it, and the pointer may move
+  // onto it without it going away.
+  if ("previews" in words) {
+    const summaries = new Map();
+    const summary = (link) => {
+      if (!summaries.has(link.pathname)) {
+        const read = fetch(link.pathname)
+          .then((response) => (response.ok ? response.text() : ""))
+          .then((html) => new DOMParser().parseFromString(html, "text/html"))
+          .then((page) => page.querySelector("meta[name=description]")?.content || "")
+          .catch(() => "");
+        summaries.set(link.pathname, read);
+      }
+      return summaries.get(link.pathname);
+    };
+    const internal = (target) => {
+      const link = target.closest?.(".post-body a[href]");
+      const other = link && link.origin === location.origin && link.pathname !== location.pathname;
+      return other ? link : null;
+    };
+    let preview = null;
+    let previewed = null;
+    let pending = null;
+    const hidePreview = () => {
+      preview?.remove();
+      previewed?.removeAttribute("aria-describedby");
+      preview = null;
+      previewed = null;
+    };
+    const showPreview = (link, text) => {
+      if (!text || link !== pending || link === previewed) return;
+      hidePreview();
+      preview = document.createElement("span");
+      preview.className = "link-preview";
+      preview.id = "link-preview";
+      preview.setAttribute("role", "tooltip");
+      preview.textContent = text;
+      link.setAttribute("aria-describedby", preview.id);
+      link.after(preview);
+      previewed = link;
+    };
+    for (const kind of ["mouseover", "focusin"]) {
+      document.addEventListener(kind, (event) => {
+        const link = internal(event.target);
+        if (!link) return;
+        pending = link;
+        summary(link).then((text) => showPreview(link, text));
+      });
+    }
+    for (const kind of ["mouseout", "focusout"]) {
+      document.addEventListener(kind, (event) => {
+        const to = event.relatedTarget;
+        if (to && (preview?.contains(to) || previewed?.contains(to))) return;
+        if (internal(event.target) || event.target.closest?.(".link-preview")) {
+          pending = null;
+          hidePreview();
+        }
+      });
+    }
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") hidePreview();
+    });
   }
 })();

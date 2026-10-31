@@ -166,3 +166,87 @@ fn features_switched_off_in_site_toml_are_gone() {
     }
     assert!(post.contains("Technical SEO editor"), "the byline stays on");
 }
+
+/// The figure of the slow pages post, from `<figure>` to `</figure>`.
+#[cfg(test)]
+fn figure(out: &Path) -> String {
+    let post = page(out, "fixing-slow-pages/index.html");
+    let (_, body) = post.split_once("<figure>").expect("a figure in the body");
+    let (inside, _) = body.split_once("</figure>").expect("its end");
+    format!("<figure>{inside}</figure>")
+}
+
+#[test]
+fn a_body_image_wider_than_the_column_links_its_whole_picture_to_its_widest_size() {
+    let (_temp, out) = build("");
+    let figure = figure(&out);
+    let href = figure
+        .split("<a class=\"enlarge\" href=\"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("the picture links to its widest size");
+    assert!(
+        at(&out, href.trim_start_matches("/blog/")).is_file(),
+        "{href}"
+    );
+    insta::assert_snapshot!(figure);
+}
+
+#[test]
+fn click_to_enlarge_switched_off_leaves_the_picture_unlinked() {
+    let (_temp, out) = build("\n[reader]\nenlarge_images = false\n");
+    let figure = figure(&out);
+    assert!(figure.contains("<picture>"), "{figure}");
+    assert!(!figure.contains("enlarge"), "{figure}");
+}
+
+/// The linked mentions of the post at `rel`, if it shows any.
+#[cfg(test)]
+fn mentions(out: &Path, rel: &str) -> Option<String> {
+    let post = page(out, rel);
+    let (_, list) = post.split_once("<section class=\"mentions\">")?;
+    let (list, _) = list.split_once("</section>")?;
+    Some(format!("<section class=\"mentions\">{list}</section>"))
+}
+
+#[test]
+fn a_post_lists_the_posts_that_link_to_it() {
+    let (_temp, out) = build("");
+    let list = mentions(&out, "why-internal-links-matter/index.html").expect("mentions");
+    assert!(!list.contains("why-internal-links-matter/"), "never itself");
+    insta::assert_snapshot!(list);
+}
+
+#[test]
+fn linked_mentions_switched_off_are_gone() {
+    let (_temp, out) = build("\n[reader]\nlinked_mentions = false\n");
+    assert_eq!(mentions(&out, "why-internal-links-matter/index.html"), None);
+}
+
+/// The reader script's tag in the post at `rel`.
+#[cfg(test)]
+fn script_tag(out: &Path, rel: &str) -> String {
+    let post = page(out, rel);
+    let (_, tag) = post.split_once("<script src=").expect("the reader script");
+    let (tag, _) = tag.split_once('>').unwrap();
+    tag.to_owned()
+}
+
+#[test]
+fn the_script_is_told_to_preview_links_and_links_stay_plain() {
+    let (_temp, out) = build("");
+    let tag = script_tag(&out, "what-a-sitemap-does/index.html");
+    assert!(tag.ends_with(" data-previews"), "{tag}");
+    let post = page(&out, "what-a-sitemap-does/index.html");
+    assert!(
+        post.contains("<a href=\"/blog/why-internal-links-matter/\">"),
+        "the link itself is a plain link: {post}"
+    );
+}
+
+#[test]
+fn link_previews_switched_off_are_not_asked_for() {
+    let (_temp, out) = build("\n[reader]\nlink_previews = false\n");
+    let tag = script_tag(&out, "what-a-sitemap-does/index.html");
+    assert!(!tag.contains("data-previews"), "{tag}");
+}

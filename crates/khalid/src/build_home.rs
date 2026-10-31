@@ -12,7 +12,7 @@ use khalid_render::{Person, PostCard};
 use khalid_routes::{PostAddress, Routes};
 
 use crate::build_pages::{self, LanguagePages};
-use crate::build_reader;
+use crate::{build_reader, site_chrome};
 
 /// The home page of each language of `content`, in the order of
 /// `site.toml`, linking the stylesheet at `stylesheet`: the page
@@ -44,7 +44,7 @@ pub(crate) fn home_pages(
         // their file order.
         cards.sort_by_key(|card| Reverse(card.date));
         languages.push(LanguagePages {
-            site: build_pages::render_site(config, locale, stylesheet),
+            site: site_chrome::render_site(config, locale, stylesheet),
             pages: vec![build_pages::home_page(config, locale, cards)?],
             listed: Vec::new(),
             unlocked: Vec::new(),

@@ -25,11 +25,12 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="{{ image.alt }}">
 {% else %}<meta name="twitter:card" content="summary">
-{% endif %}{% endif %}{% if site.script %}<script src="{{ site.script.src }}" integrity="{{ site.script.integrity }}" defer data-copied="{{ t.link_copied }}" data-close="{{ t.close }}"></script>
+{% endif %}{% endif %}{% if site.script %}<script src="{{ site.script.src }}" integrity="{{ site.script.integrity }}" defer data-copied="{{ t.link_copied }}" data-close="{{ t.close }}"{% if "link_previews" in site.features %} data-previews{% endif %}></script>
 {% endif %}</head>
 <body>
 <a class="skip-link" href="#main">{{ t.skip_link }}</a>
-<header class="site-header">
+{% if site.announcement %}<aside class="announcement" aria-label="{{ t.announcement }}"><p>{% if site.announcement.href %}<a href="{{ site.announcement.href }}">{{ site.announcement.text }}</a>{% else %}{{ site.announcement.text }}{% endif %}</p></aside>
+{% endif %}<header class="site-header">
 <a class="site-name" href="{{ site.home }}">{{ site.name }}</a>
 {% if site.nav.primary %}<nav aria-label="{{ t.nav_primary }}">
 <ul>

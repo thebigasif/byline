@@ -13,8 +13,8 @@ use khalid_content::{
 };
 use khalid_core::{AbsoluteUrl, Config, Locale, Slug, UserMessage};
 use khalid_render::{
-    BodyHtml, Nav, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime,
-    RenderHome, RenderListing, RenderPost, RenderSite, Robots, related,
+    BodyHtml, PageBody, PageKind, PageMeta, Person, PostCard, PostTopics, ReadingTime, RenderHome,
+    RenderListing, RenderPost, RenderSite, Robots, related,
 };
 use khalid_routes::{PostAddress, Routes};
 use khalid_seo::{AuthorProfile, MetaTemplate, PageKind as SeoKind, SeoPage};
@@ -23,7 +23,9 @@ use crate::build_named_pages::{author_pages, glossary_pages, plain_pages};
 use crate::listed_post::{ListedPost, ListedTag};
 use crate::post_lock::Unlocked;
 pub(crate) use crate::site_page::Page;
-use crate::{build_home, build_message, build_reader, build_schema, build_seo};
+use crate::{
+    build_home, build_message, build_reader, build_schema, build_seo, link_graph, site_chrome,
+};
 
 /// The pages of one language, and the site as they show it.
 #[derive(Debug)]
@@ -99,7 +101,7 @@ fn language_pages(
         lead: None,
     });
     Ok(LanguagePages {
-        site: render_site(config, locale, stylesheet),
+        site: site_chrome::render_site(config, locale, stylesheet),
         pages,
         listed,
         unlocked: Vec::new(),
@@ -231,14 +233,10 @@ fn post_pages(
             .into_iter()
             .filter_map(|index| among.get(index).map(|post| post.card.clone()))
             .collect();
-        pages.push(post_page(
-            config,
-            locale,
-            draft,
-            related,
-            people,
-            &content.authors,
-        )?);
+        let authors = &content.authors;
+        let mut page = post_page(config, locale, draft, related, people, authors)?;
+        link_graph::attach(&mut page, topic, &among, config.reader());
+        pages.push(page);
     }
     Ok((pages, listed))
 }
@@ -312,6 +310,7 @@ fn post_page(
         contents: build_reader::contents(&rendered.headings),
         originals: BTreeMap::new(),
         related,
+        mentions: Vec::new(),
         comments: None,
         body: html,
     };
@@ -456,22 +455,6 @@ pub(crate) fn page(
         template: None,
         head_code: None,
         lead: None,
-    }
-}
-
-/// The site as pages in `locale` show it, linking the stylesheet at `stylesheet`.
-pub(crate) fn render_site(config: &Config, locale: &Locale, stylesheet: &str) -> RenderSite {
-    RenderSite {
-        name: config.name().to_owned(),
-        locale: locale.clone(),
-        home: path_of(config, locale, ""),
-        stylesheet: stylesheet.to_owned(),
-        nav: Nav::default(),
-        main_site: None,
-        share_image: None,
-        features: build_reader::features(config.reader()),
-        search: None,
-        script: None,
     }
 }
 
