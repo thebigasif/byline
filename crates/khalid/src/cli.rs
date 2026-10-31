@@ -131,7 +131,8 @@ pub(crate) enum Command {
     Backup,
     /// Build the site, crawl it the way Ahrefs and Semrush do, and score its
     /// health out of 100. Keeps the issues, the internal linking report and
-    /// the score's trend in data/audit/, and exits with 1 on any error
+    /// the score's trend in data/audit/, and exits with 1 on any error.
+    /// Broken links on the blog go to the owner as an alert, once
     Audit {
         /// Ask this running server for the site's pages instead of
         /// building them, such as `http://127.0.0.1:8080` for `khalid serve`
@@ -139,7 +140,7 @@ pub(crate) enum Command {
         #[arg(long, value_name = "ADDRESS")]
         server: Option<AbsoluteUrl>,
         /// Leave links to other sites unchecked, so the audit fetches
-        /// nothing from the internet
+        /// nothing from the internet. Alerts still go to the site's webhooks
         #[arg(
             long = "offline",
             action = ArgAction::SetTrue,
