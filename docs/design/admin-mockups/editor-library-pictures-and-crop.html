@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library pictures, your own crop box, and picture search in Settings · Khalid admin mockup</title>
+<style>
+/* Each mockup carries its own copy of the styles so it opens offline. */
+*{box-sizing:border-box}
+:root{color-scheme:light;--bg:#fff;--surface:#f6f7f9;--text:#1f2328;--muted:#57606a;--link:#0b57d0;--border:#d0d7de;--field:#6e7781;--tint:#eef4fe;--warn:#fff8c5;--radius:.375rem}
+body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.6 system-ui,sans-serif}
+main{max-width:72ch;margin:2rem auto;padding:0 1rem}
+h1{font-size:1.5rem;margin:0 0 1rem}
+h2{font-size:1.125rem;margin:2.5rem 0 .5rem}
+.lede,.hint{color:var(--muted)}
+.hint{display:block;font-size:.9375rem;margin:0 0 .4rem}
+.menu{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);padding:.5rem;margin:.25rem 0;max-width:22rem}
+.menu p{margin:.25rem .5rem;font-weight:600}
+.menu ul{list-style:none;margin:0;padding:0}
+.menu li{display:flex;gap:.75rem;padding:.4rem .5rem;border-radius:var(--radius)}
+.menu li[aria-current]{background:var(--tint)}
+.menu span{color:var(--muted)}
+.form{border:2px solid var(--link);background:var(--tint);border-radius:var(--radius);padding:1.25rem}
+.form h3{margin:0 0 .25rem;font-size:1.0625rem}
+label{display:block;font-weight:600;margin:.75rem 0 .25rem}
+input[type=search],input[type=number]{font:inherit;width:100%;min-height:44px;padding:.4rem .6rem;border:1px solid var(--field);border-radius:var(--radius)}
+.btn{display:inline-flex;align-items:center;min-height:44px;padding:.55rem 1.1rem;border-radius:var(--radius);border:1px solid var(--field);background:var(--bg);font:inherit;font-weight:600}
+.btn.primary{background:var(--link);border-color:var(--link);color:#fff}
+.found{display:grid;grid-template-columns:repeat(auto-fill,minmax(9rem,1fr));gap:.75rem;margin:1rem 0;padding:0;list-style:none}
+.found button{width:100%;padding:0;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);font:inherit;text-align:left}
+.found .pic{display:block;aspect-ratio:3/2;background:var(--surface)}
+.found small{display:block;padding:.25rem .5rem;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:.75rem;margin:.5rem 0 1rem}
+fieldset{border:0;padding:0;margin:.75rem 0}
+legend{font-weight:600}
+.stage{position:relative;aspect-ratio:3/2;max-width:28rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.box{position:absolute;left:20%;top:15%;width:50%;height:60%;border:2px solid var(--link);box-shadow:0 0 0 999px rgb(255 255 255 / .6)}
+.handle{position:absolute;right:-12px;bottom:-12px;width:24px;height:24px;border-radius:50%;background:var(--link);border:2px solid var(--bg)}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(8rem,1fr));gap:0 .75rem}
+.status{list-style:none;margin:0;padding:0}
+.status li{border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;margin:0 0 .75rem}
+.status .careful{background:var(--warn)}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;white-space:pre-wrap}
+footer{margin:3rem 0 2rem;color:var(--muted);font-size:.9375rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Library pictures, your own crop box, and picture search in Settings</h1>
+  <p class="lede">Three follow-ups to the editor's picture tools. Add any picture from your media library to a post. Drag your own crop box. See in Settings and in <code>khalid doctor</code> whether photo and GIF search work.</p>
+
+  <h2>1. A picture from your library in the block menu</h2>
+  <p class="hint">Always there, because every blog has a media library.</p>
+  <section class="menu" aria-label="Add a block">
+    <p>Add a block</p>
+    <ul>
+      <li aria-current="true"><b>Picture from your library</b> <span>A picture you uploaded before</span></li>
+      <li><b>Figure</b> <span>A picture with a caption</span></li>
+    </ul>
+  </section>
+
+  <h2>2. Picking the picture</h2>
+  <p class="hint">Newest uploads first. Typing narrows the list to pictures whose name or alt text has the words.</p>
+  <form class="form" role="search" aria-labelledby="library-title">
+    <h3 id="library-title">Picture from your library</h3>
+    <p class="hint">The picture goes into the post with the alt text and caption saved with it in the library. You can change both in the post afterwards.</p>
+    <label for="library-words">Words to look for</label>
+    <input id="library-words" type="search" value="">
+    <ul class="found">
+      <li><button type="button"><span class="pic"></span><small>Lake at dawn</small></button></li>
+      <li><button type="button"><span class="pic"></span><small>Team photo, 2026</small></button></li>
+      <li><button type="button"><span class="pic"></span><small>No alt text yet: chart.png</small></button></li>
+    </ul>
+    <button class="btn" type="button">Show more pictures</button> <button class="btn" type="button">Cancel</button>
+  </form>
+  <p class="hint">An empty library says: "Your media library has no pictures yet. Upload one on the Media screen, then come back."</p>
+
+  <h2>3. Your own crop box</h2>
+  <p class="hint">A fifth shape, "Your own box". Drag the box to move it and the round handle to change its size. The four fields below do the same without dragging, in percent of the picture.</p>
+  <form class="form" aria-labelledby="crop-title">
+    <h3 id="crop-title">Turn or crop the picture</h3>
+    <p class="hint">Saving makes a new copy in the media library and puts it in this post. The original stays, so other posts that use it do not change.</p>
+    <div class="stage" role="group" aria-label="The picture, with the part to keep in a box">
+      <div class="box"><span class="handle"></span></div>
+    </div>
+    <div class="row">
+      <button class="btn" type="button">Turn left</button>
+      <button class="btn" type="button">Turn right</button>
+    </div>
+    <fieldset>
+      <legend>Shape</legend>
+      <label><input type="radio" name="shape"> As taken</label>
+      <label><input type="radio" name="shape"> Square</label>
+      <label><input type="radio" name="shape"> Wide, 16 by 9</label>
+      <label><input type="radio" name="shape"> Standing, 3 by 4</label>
+      <label><input type="radio" name="shape" checked> Your own box</label>
+    </fieldset>
+    <div class="fields">
+      <div><label for="crop-left">From the left, %</label><input id="crop-left" type="number" value="20"></div>
+      <div><label for="crop-top">From the top, %</label><input id="crop-top" type="number" value="15"></div>
+      <div><label for="crop-width">Width, %</label><input id="crop-width" type="number" value="50"></div>
+      <div><label for="crop-height">Height, %</label><input id="crop-height" type="number" value="60"></div>
+    </div>
+    <p class="hint">Turning starts the box again, because the picture's sides change.</p>
+    <button class="btn primary" type="submit">Save as a new copy</button> <button class="btn" type="button">Cancel</button>
+  </form>
+
+  <h2>4. Photo and GIF search in Settings</h2>
+  <p class="hint">A section under the blog's settings. It only shows what is set: the owner changes it in <code>site.toml</code> and the server's environment, because keys never go through the browser.</p>
+  <section aria-labelledby="searches-title">
+    <h3 id="searches-title">Photo and GIF search</h3>
+    <ul class="status">
+      <li><b>Photos from Unsplash: ready.</b> <span class="hint">Writers find photos with /unsplash in a post.</span></li>
+      <li class="careful"><b>GIFs from GIPHY: the key is missing.</b> <span class="hint">Writers who search see a message instead of GIFs. Set KHALID_GIPHY_API_KEY on the server and start khalid serve again.</span></li>
+    </ul>
+    <p class="hint">A search that is off says: "Off. Add <code>unsplash = true</code> under <code>[media]</code> in site.toml to turn it on."</p>
+  </section>
+
+  <h2>5. The same in <code>khalid doctor</code></h2>
+  <pre>Picture search: a problem.
+  GIF search on GIPHY is on, but KHALID_GIPHY_API_KEY is not set.
+  Writers who look for a GIF see a message instead of GIFs.
+  Set KHALID_GIPHY_API_KEY to the API key of a GIPHY app, or set gifs = false under [media] in site.toml.</pre>
+  <pre>Picture search: ok. Photo search on Unsplash is on with its key. GIF search on GIPHY is off.</pre>
+
+  <footer>The names and pictures are made up. Doctor checks that a key is set; it does not send the key to Unsplash or GIPHY.</footer>
+</main>
+</body>
+</html>
