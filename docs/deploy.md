@@ -134,3 +134,14 @@ With systemd, run `sudo systemctl edit khalid` and add `Environment=KHALID_SMTP_
 Bing Webmaster Tools is Bing's dashboard for site owners. Add the site there with the address in `site.toml`, put the code Bing gives you as `bing` under `[seo.verification]` in `site.toml`, and verify. Then make an API key, the password a program uses to reach Bing for you, under Settings, API Access, and set it as `KHALID_BING_API_KEY` in the environment, the same way as the mail secrets above. The key never goes in `site.toml`.
 
 `khalid --site <folder> bing sitemap` hands Bing the sitemap, and `khalid --site <folder> bing report` shows Bing's last crawl day, the sitemaps it holds and the addresses it had trouble with. Both take `--json`.
+
+## Git mode
+
+Git mode keeps the site in a git repository, so posts ship like code. Each draft is a branch: `khalid new "Title" --branch` starts the branch `post/<slug>`, writes the post and commits it there. Write the post, commit, push the branch and open a pull request. Merging it publishes the post.
+
+The server then needs what was merged. Run `khalid pull` from a deploy step, or let the git host tell the server on every push:
+
+1. Make a long random secret, for example with `openssl rand -hex 32`, and set it as `KHALID_GIT_HOOK_SECRET` in the server's environment, the same way as the mail secrets above. The secret never goes in `site.toml`.
+2. On GitHub, add a webhook under Settings, Webhooks, with the payload address `https://<your host>/api/hooks/git`, the content type `application/json` and the same secret. On GitLab, add it under Settings, Webhooks, with the same address and the secret as its token, for push events.
+
+The server answers a signed push at once and pulls in the background; the post shows as soon as the pull finishes. A push signed with anything else gets a 401 and changes nothing. Without `KHALID_GIT_HOOK_SECRET`, the address does not exist.

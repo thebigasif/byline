@@ -80,6 +80,7 @@ mod preview;
 mod publish;
 mod pull;
 mod pull_message;
+mod push_hook;
 mod redirect_route;
 mod redirects;
 mod repair;

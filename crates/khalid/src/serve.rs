@@ -39,8 +39,8 @@ use crate::site_pages::SitePages;
 use crate::site_posts::SitePosts;
 use crate::{
     announce, comment_pages, db, db_message, draft_comment_mail, media_library, newsletter,
-    page_counts, preview, redirect_route, report, scheduler, search_route, serve_message,
-    share_images, staff, unlock,
+    page_counts, preview, push_hook, redirect_route, report, scheduler, search_route,
+    serve_message, share_images, staff, unlock,
 };
 
 /// How often the site folder is looked at for a saved edit where the system
@@ -64,6 +64,8 @@ pub(crate) struct Keys {
     pub(crate) bucket: Option<S3Keys>,
     /// The password, key or token the `[mail]` transport signs in with.
     pub(crate) mail: Option<Secret<String>>,
+    /// The secret git mode's push hook checks, which opens the hook.
+    pub(crate) git_hook: Option<Secret<String>>,
 }
 
 impl Keys {
@@ -73,6 +75,7 @@ impl Keys {
         Self {
             bucket: env.s3_keys(),
             mail: mail.and_then(|transport| env.mail_secret(transport)),
+            git_hook: env.git_hook_secret(),
         }
     }
 }
@@ -193,7 +196,8 @@ fn serve_with(
             redirect_route::start((database, id), pages, (redirects, addresses)).await;
         let (counter, pages) = page_counts::start((database, id), pages, config.mount());
         let desks = (moderation, media, desk);
-        let apis = api_router((content, door), desks, (database, id, config), mailer);
+        let apis = api_router((content, door), desks, (database, id, config), mailer)
+            .merge(push_hook::router(site, keys.git_hook));
         let app = assembled(
             (site, config, &security),
             (apis, files, previews, search_route::router(config, search)),
