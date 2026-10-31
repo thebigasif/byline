@@ -226,3 +226,36 @@ async fn an_edit_that_cannot_be_kept_is_refused() {
     let (status, _) = send(&router, "PUT", missing, EDITOR, Some(edit)).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn a_page_is_deleted_only_on_its_latest_copy() {
+    let router = with_about();
+    let about = "/api/admin/v1/pages/en.about/";
+    let stale = format!("{about}?updated_at=2026-10-19T09:00:00Z");
+    let (status, json) = send(&router, "DELETE", &stale, EDITOR, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{json}");
+    assert_eq!(json["rule"], "updated_at", "{json}");
+    let latest = format!("{about}?updated_at={LAST_CHANGE}");
+    let (status, json) = send(&router, "DELETE", &latest, WRITER, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{json}");
+    let (status, _) = send(&router, "DELETE", &latest, EDITOR, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = send(&router, "GET", about, EDITOR, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = send(&router, "DELETE", &latest, EDITOR, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_delete_that_names_no_copy_is_a_400() {
+    let router = with_about();
+    let about = "/api/admin/v1/pages/en.about/";
+    let (status, json) = send(&router, "DELETE", about, EDITOR, None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{json}");
+    assert!(json["detail"].as_str().unwrap().contains("page"), "{json}");
+    let garbled = format!("{about}?updated_at=yesterday");
+    let (status, _) = send(&router, "DELETE", &garbled, EDITOR, None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, _) = send(&router, "GET", about, EDITOR, None).await;
+    assert_eq!(status, StatusCode::OK);
+}

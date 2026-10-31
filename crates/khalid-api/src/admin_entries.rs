@@ -110,6 +110,25 @@ impl Noun {
         Problem::new(ProblemType::NotFound, &message).with_instance(path)
     }
 
+    /// The 400 for a delete that does not say which copy it was made on.
+    pub(crate) fn no_copy(self) -> Problem {
+        let message = UserMessage::new(
+            format!(
+                "This delete does not say which copy of the {} it was made on.",
+                self.one
+            ),
+            format!(
+                "Without it, a {} someone changed a moment ago could be deleted unseen.",
+                self.one
+            ),
+            format!(
+                "Add updated_at with the time the {} last changed, such as ?updated_at=2026-10-20T08:30:00Z.",
+                self.one
+            ),
+        );
+        Problem::new(ProblemType::InvalidQuery, &message).with_rule("updated_at")
+    }
+
     fn stale(self, updated_at: DateTime<Utc>) -> Problem {
         let when = updated_at.format("%Y-%m-%d %H:%M UTC");
         let message = UserMessage::new(
