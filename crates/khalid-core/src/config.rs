@@ -9,9 +9,11 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-use crate::toml_location::{field_of, line_of, line_of_key};
+use crate::mail_settings::MailTable;
+use crate::toml_location::{field_of, line_of, line_of_key, line_of_key_in};
 use crate::{
-    AbsoluteUrl, Locale, MediaSettings, ParseUrlError, Reader, S3Keys, Secret, SeoSettings,
+    AbsoluteUrl, Locale, MailSettings, MediaSettings, ParseUrlError, Reader, S3Keys, Secret,
+    SeoSettings,
 };
 
 /// Every setting Khalid reads, checked once at start and then passed by
@@ -32,6 +34,7 @@ pub struct Config {
     seo: SeoSettings,
     reader: Reader,
     media: MediaSettings,
+    mail: Option<MailSettings>,
     preview_link_lifetime: Duration,
 }
 
@@ -91,6 +94,7 @@ struct SiteFile {
     reader: Reader,
     #[serde(default)]
     media: MediaSettings,
+    mail: Option<MailTable>,
     preview_link_days: Option<u64>,
     preview_link_hours: Option<u64>,
 }
@@ -196,6 +200,13 @@ impl Config {
                 return Err(field("bucket", missing));
             }
         }
+        let mail = file.mail.map(MailTable::check).transpose();
+        let mail = mail.map_err(|(key, problem)| ConfigError::Field {
+            path: path.to_path_buf(),
+            line: line_of_key_in(text, "[mail", key),
+            field: key.to_owned(),
+            problem: problem.to_owned(),
+        })?;
         let address = match env.get(Environment::ADDRESS) {
             Some(text) => AbsoluteUrl::parse(text).map_err(|source| ConfigError::Environment {
                 variable: Environment::ADDRESS.to_owned(),
@@ -214,8 +225,15 @@ impl Config {
             seo: file.seo,
             reader: file.reader,
             media: file.media,
+            mail,
             preview_link_lifetime,
         })
+    }
+
+    /// How the site sends email, from `[mail]`, or `None` when it sends
+    /// none.
+    pub fn mail(&self) -> Option<&MailSettings> {
+        self.mail.as_ref()
     }
 
     /// Where the media library keeps its files, from `[media]`.
